@@ -299,6 +299,15 @@ every sport alike, and nothing that could win is cut by name.
   vs "Matheus Araujo"; 346 of 680 `NO_ENTITY_FOUND` players of 10-08..10-10).
   The sample says `match_rule: "tokens"`, the sheet row `PLAYER_NAME_TOKENS`.
   Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
+- **Player surnames** (`PLAYER_NAME_SURNAME_FROM_UTC`, 2026-10-15 00:00Z,
+  identity plan K7): a footballer neither `match_player` nor the token rule
+  finds is looked for by whole surname + a first-name prefix of >= 3 letters
+  (`players.match_player_by_surname`: Benjamin Joshua Chrisene / Ben
+  Chrisene, Treymaurice Nyoni / Trey Nyoni), one candidate on one side. On
+  10-12..10-14: 1,827 / 1,827 matched players picked the same person (a
+  shared initial only: 6 wrong), 22 new players. `match_rule: "surname"`,
+  sheet note `PLAYER_NAME_SURNAME`; SETTLE grades its `matched_name` like a
+  token match.
 - **Player starts** (operator, 2026-10-11): Superbet voids a footballer's
   market unless he STARTS. SETTLE says `PLAYER_NOT_STARTED`; from
   `PLAYER_STARTS_ONLY_FROM_UTC` (2026-10-12 00:00Z) the sample is his starts
@@ -436,6 +445,23 @@ measurement of Superbet's price and feed nothing else.
   events (12 in 10 days; replay on 10-13/14 caches: 8). Window stays 1 h.
   Open: BC Barcelos (K) - Francisco Franco (K) is Sofascore's BC Barcelos -
   CAB Madeira. `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
+- **Tournament day, proven absence** (identity plan K3 / K5, both from
+  2026-10-15 00:00Z): an event NEITHER side of which has an id is matched by
+  both names inside its tournament's games of the day
+  (`TOURNAMENT_DAY_FROM_UTC`; `bet.sofa.day_listing`,
+  `unique-tournament/<ut>/scheduled-events/<d>` through the entity map's
+  tournament map, cached in `sofa_day_listing`; weaker side >= 60, lead >= 20;
+  95 tournament-days: 284 / 284 IDENTIFIED right with ids hidden, 24 of 42
+  targets, 15 settle-confirmed, 0 contradicted). A `NO_GAME_WITHIN_1H` read
+  from a cached page (6 h TTL) within 3 h of the start is asked once fresh
+  (`NOT_ON_SOFASCORE_FROM_UTC`), and only a fresh page of an id-resolved team
+  with no game within 12 h is `reason: "NOT_ON_SOFASCORE"` (still
+  NOT_IDENTIFIED, still re-asked, `absence_evidence`); a game 1-12 h away
+  keeps NO_GAME_WITHIN_1H with `nearest_game_h`. Until 10-12 most
+  NO_GAME_WITHIN_1H were games asked after their start (fixed 10-12,
+  `frozen_at_start`). BRIDGE_ABORTED is refusal periods (10-09 504 tab, 10-13/14
+  night 403), re-asked every 30 min: no code change (K6).
+  `docs/sofa/history/RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md`.
 - **History is kept current by `refresh_sport_history.py`** (bridge;
   `bet.sofa.sport_history`, run first by `refresh_line_evidence.py` every
   morning): SPORT_IDENTITY asks listings before the game, so until 2026-10-12
@@ -884,6 +910,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_unit_strength.py [--from 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settled_by_market.py --from <d> --to <d> [--p-min 0.70] [--min-n 20] [--md-out f] [--json-out f]   # every sport, every market x direction: n, hit, raw model p, 1/odds, ROI + game bootstrap; sports never pooled
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from <d>] [--to <d>] [--sport all|football|...] [--md-out f] [--json-out f]   # identity plan K0: UNEXPLAINED events / players per kickoff day, sport and entity (IDENTIFIED / EXCLUDED / EXPLAINED / UNEXPLAINED); names judged on today's DB; T-IDENTITY-unexplained
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>] [--to <d>] [--md-out f] [--json-out f]   # identity plan K2: DAY_ANCHOR precision with the opponent hidden, picks on NOT_IDENTIFIED vs the settle, start gaps
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tournament_day.py --from <d> --to <d> [--precision-days 60] [--offline]   # identity plan K3: ASKS THE BRIDGE once per (tournament, day) not cached; tournament-day match precision with ids hidden and recovery; stops at a refusal
 ```
 
 **Gates before a commit**

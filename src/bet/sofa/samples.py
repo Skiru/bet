@@ -58,6 +58,7 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_surname,
     match_player_by_tokens,
     player_sample_key,
     squad_statistics,
@@ -1135,6 +1136,7 @@ def build_player_samples(
     *,
     token_fallback: bool = False,
     starts_only: bool = False,
+    surname_fallback: bool = False,
 ) -> dict[str, PlayerSample]:
     """One sample per (player metric, player Superbet quoted) — F54.
 
@@ -1156,6 +1158,10 @@ def build_player_samples(
     found in NO squad of either side is looked for again with
     `match_player_by_tokens`, and taken only when every squad that answers
     names the same person on the same side - a fallback that may not guess.
+
+    `surname_fallback` (epochs.player_name_surname): a player neither of
+    those found is looked for once more with `match_player_by_surname`
+    (surname + first-name prefix), on the same every-squad-agrees terms.
 
     `starts_only` (epochs.player_starts_only): an appearance off the bench is
     not an observation. Superbet voids a player market unless the player
@@ -1192,6 +1198,17 @@ def build_player_samples(
                         )
                     )
                     continue
+            if surname_fallback and not named:
+                s_gaps: list[GapEntry] = []
+                s_side, s_names, s_named = _player_observations(
+                    metric, player, side_results, s_gaps, match_player_by_surname,
+                    starts_only,
+                )
+                answered = [s for s in ("side_a", "side_b") if s_names[s]]
+                if len(answered) == 1 and len(s_names[answered[0]]) == 1:
+                    per_side, per_side_names, named = s_side, s_names, s_named
+                    gaps.extend(s_gaps)
+                    match_rule = "surname"
 
             n_a, n_b = len(per_side["side_a"]), len(per_side["side_b"])
             if n_a == 0 and n_b == 0:
@@ -1337,6 +1354,7 @@ def process_fixture_samples(
     token_fallback: bool = False,
     starts_only: bool = False,
     men_friendly_window: bool = False,
+    surname_fallback: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1350,6 +1368,7 @@ def process_fixture_samples(
             fixture, client, cache, superbet_client, config, offer,
             token_fallback=token_fallback, starts_only=starts_only,
             men_friendly_window=men_friendly_window,
+            surname_fallback=surname_fallback,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1377,6 +1396,7 @@ def _process_fixture_samples(
     token_fallback: bool = False,
     starts_only: bool = False,
     men_friendly_window: bool = False,
+    surname_fallback: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1589,6 +1609,7 @@ def _process_fixture_samples(
             gaps,
             token_fallback=token_fallback,
             starts_only=starts_only,
+            surname_fallback=surname_fallback,
         )
         for key, sample in sorted(player_samples.items()):
             if len(sample.observations) < config.min_sample:

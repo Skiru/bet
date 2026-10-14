@@ -180,7 +180,7 @@ okno 1 h; listing dnia przeniesiony do K3 / K5. Raport
   reguła musi trafić ten sam mecz w 100% (każdy błąd = pomyłka meczu = zła noga).
   Żaden wynik meczu nie wchodzi do decyzji.
 
-**K3. Obie strony nieznane.** Na liście meczów jednego turnieju w jednym oknie startu:
+**K3. Obie strony nieznane.** *Zrobione 2026-10-14 (od 2026-10-15 00:00Z):* `TOURNAMENT_DAY`, próg 60 / przewaga 20 zmierzone na 95 dniach turniejów (raport `RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md`). Plan pierwotny: Na liście meczów jednego turnieju w jednym oknie startu:
 dopasowanie nazw (fuzzy) tylko wewnątrz tej małej listy, jeden kandydat z wyraźną
 przewagą → `IDENTIFIED` + dwa aliasy; inaczej `NEEDS_ALIAS` z kandydatami (Bilbao – Slavia).
 Wymaga mapy turniejów z K1.
@@ -200,18 +200,18 @@ Sofascore nie ma (K5). Plan pierwotny:
   Kolejka = codzienny raport (md) w katalogu dnia z kandydatami z wyszukiwarki
   (`search/all` z filtrem sportu) i z listingu dnia. Fuzzy nigdy nie wpisuje sam.
 
-**K5. `NOT_ON_SOFASCORE` jako udowodniony stan.** Gdy listingi znanych stron
+**K5. `NOT_ON_SOFASCORE` jako udowodniony stan.** *Zrobione 2026-10-14 (od 2026-10-15 00:00Z):* świeże zapytanie zamiast 6-godzinnego cache + brak w ±12 h na świeżej stronie drużyny z id. Plan pierwotny: Gdy listingi znanych stron
 (`next` i — po starcie — `last`) oraz listing dnia turnieju nie mają meczu w oknie →
 status z dowodem (które zapytania, kiedy). Zastępuje dzisiejsze `NO_GAME_WITHIN_1H`.
 Raport dzienny osobno: ile ofert Superbetu nie istnieje w Sofascore (per sport/turniej) —
 to zbiór, którego nie da się grać na naszych statystykach, a nie błąd.
 
-**K6. `BRIDGE_ABORTED` (25–74 zdarzeń / 10 dni na sport).** Pętle ponawiają
+**K6. `BRIDGE_ABORTED` *Zmierzone 2026-10-14, bez zmiany kodu:* okresy odmowy (504 karty 10-09, 403 nocą 10-13/14), pętla ponawia co 30 min. Plan pierwotny: (25–74 zdarzeń / 10 dni na sport).** Pętle ponawiają
 niezidentyfikowane przy następnym przebiegu; zmierzyć, ile z nich i tak zostało bez id
 przed startem (wtedy: ponowienie po zamknięciu wyłącznika, w tym samym limicie tempa —
 nigdy szybciej).
 
-**K7. Zawodnicy.**
+**K7. Zawodnicy.** *Piłka zrobiona 2026-10-14 (od 2026-10-15 00:00Z):* `match_player_by_surname` (1 827 / 1 827, +22 w 3 dni); hokej / kosz / CS2 — następny krok. Plan pierwotny:
 - Piłka: dla 89 „matched no squad member” — skład z `team/{id}/players` (aktualny,
   z id, z nowymi transferami) jako drugie źródło po składach z `/lineups`; dopasowanie
   po tokenach jak `match_player_by_tokens`, ale do listy z id; ksywki (Taty) przez skład

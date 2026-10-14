@@ -392,6 +392,21 @@ class SofascoreClient:
         url = f"https://api.sofascore.com/api/v1/event/{id}"
         return self._execute(url)
 
+    def scheduled_tournaments(self, sport_slug: str, day: str, page: int) -> Any | None:
+        """The tournaments with games on `day` (YYYY-MM-DD), one page
+        (`hasNextPage`). Probed live 2026-10-14: `sport/{s}/scheduled-events/
+        {d}` is 404 for every sport; this route is 200 (identity plan K3)."""
+        url = (f"https://api.sofascore.com/api/v1/sport/{sport_slug}/"
+               f"scheduled-tournaments/{day}/page/{page}")
+        return self._execute(url)
+
+    def tournament_day_events(self, unique_tournament_id: int, day: str) -> Any | None:
+        """Every game of one unique tournament on `day`, with both teams' ids
+        and the start (identity plan K3)."""
+        url = (f"https://api.sofascore.com/api/v1/unique-tournament/"
+               f"{unique_tournament_id}/scheduled-events/{day}")
+        return self._execute(url)
+
     def event_statistics(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/statistics"
         return self._execute(url)

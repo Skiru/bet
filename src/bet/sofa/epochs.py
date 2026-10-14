@@ -1601,3 +1601,67 @@ def day_anchor(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= DAY_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
             and at >= DAY_ANCHOR_FROM_UTC)
+
+
+# Football players by surname + first-name prefix (identity plan K7,
+# players.match_player_by_surname, SAMPLES' last fallback after the token
+# rule): measured 2026-10-14 on 10-12..10-14 - 1,827 of 1,827 matched players
+# picked the same person, 22 new players found (~7 a day; Trey Nyoni, Ben
+# Chrisene, Evan Ndicka). Adds player samples: changes what prints - a day
+# >= the date, built at or after the moment. The sample says
+# `match_rule: "surname"`, the sheet row PLAYER_NAME_SURNAME, and SETTLE
+# grades the matched name as it does a token match.
+PLAYER_NAME_SURNAME_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def player_name_surname(date: str, build_at: datetime | None = None) -> bool:
+    """Does SAMPLES fall back to the surname match (PLAYER_NAME_SURNAME_FROM_UTC)?"""
+    if PLAYER_NAME_SURNAME_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= PLAYER_NAME_SURNAME_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= PLAYER_NAME_SURNAME_FROM_UTC)
+
+
+# TOURNAMENT_DAY (identity plan K3, sport_identity.identify_event,
+# bet.sofa.day_listing): hockey / basketball / volleyball events NEITHER side
+# of which has an id are matched by both names inside their tournament's
+# games of the day (unique-tournament/<ut>/scheduled-events/<day>, the
+# entity map's tournament map; one request per tournament-day, cached).
+# Measured 2026-10-14 (scripts/sofa/measure_tournament_day.py, 95
+# tournament-days of 10-05..10-14, no refusal): 298 / 298 IDENTIFIED games
+# right with the ids hidden; 24 of 42 such events identified, 15 confirmed
+# by the settle, 0 contradicted. Identifies more events: changes what
+# prints - a day >= the date, built at or after the moment.
+TOURNAMENT_DAY_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def tournament_day(date: str, build_at: datetime | None = None) -> bool:
+    """Does SPORT_IDENTITY match by the tournament's day (TOURNAMENT_DAY_FROM_UTC)?"""
+    if TOURNAMENT_DAY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TOURNAMENT_DAY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TOURNAMENT_DAY_FROM_UTC)
+
+
+# NOT_ON_SOFASCORE (identity plan K5, sport_identity.identify_event): a
+# NO_GAME_WITHIN_1H read from a cached team page (events_ttl_min, 6 h) is
+# asked again fresh within FRESH_RECHECK_WITHIN of the start (once per team
+# a run), and a fresh page of a team resolved by id with no game of it within
+# ABSENCE_WINDOW (12 h) is the proven absence NOT_ON_SOFASCORE, with its
+# evidence on the record (still NOT_IDENTIFIED, still re-asked every run until
+# the start). Measured 2026-10-14: of the 18 NO_GAME_WITHIN_1H verdicts of
+# 10-13..10-14 17 were read from cache; until 10-12 the reason was mostly a
+# game asked after its start (fixed 10-12, frozen_at_start). The re-ask can
+# identify a game the cached page lacked: changes what prints.
+NOT_ON_SOFASCORE_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def not_on_sofascore(date: str, build_at: datetime | None = None) -> bool:
+    """K5's fresh re-ask and absence verdict (NOT_ON_SOFASCORE_FROM_UTC)?"""
+    if NOT_ON_SOFASCORE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= NOT_ON_SOFASCORE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= NOT_ON_SOFASCORE_FROM_UTC)

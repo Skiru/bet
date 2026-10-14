@@ -368,6 +368,48 @@ def next_listing(client: ListingClient, cache: ListingCache | None, team_id: int
     return list((payload or {}).get("events") or []), False
 
 
+def fresh_listing(client: ListingClient, cache: ListingCache | None, team_id: int
+                  ) -> list[dict[str, Any]]:
+    """next_listing without the cache read (the answer is still saved): the
+    K5 re-ask of a team whose cached page - up to events_ttl_min (6 h) old -
+    showed no game. A refusal raises BridgeAbortedError, never retried."""
+    try:
+        payload = client.entity_events(team_id, "next", 0)
+    except (ProviderError, CircuitOpenError) as exc:
+        raise BridgeAbortedError(str(exc)) from exc
+    if payload is None:
+        payload = {"events": []}
+    if cache is not None and isinstance(payload, dict):
+        cache.save_entity_events(team_id, "next", 0, payload)
+    return list((payload or {}).get("events") or [])
+
+
+# K5 (epochs.NOT_ON_SOFASCORE_FROM_UTC): a NO_GAME_WITHIN_1H read from a cached
+# page is asked again, fresh, once the start is this close (10-13..10-14: 17 of
+# 18 such verdicts were read from a cached page); and absence is proven only by
+# a fresh page of a team resolved by id with no game of that team this far
+# either side of Superbet's start (Kavkasia - Lausanne 10-14: Sofascore had the
+# game 2 h later - that is a moved start, not an absence).
+FRESH_RECHECK_WITHIN = timedelta(hours=3)
+ABSENCE_WINDOW = timedelta(hours=12)
+
+
+def nearest_game_h(listing: Iterable[Mapping[str, Any]], team_id: int,
+                   kickoff: datetime, slug: str) -> float | None:
+    """Hours to the team's nearest listed game of this sport, or None."""
+    gaps = []
+    for e in listing:
+        sport_slug = (((e.get("tournament") or {}).get("category") or {})
+                      .get("sport") or {}).get("slug")
+        if sport_slug != slug:
+            continue
+        (hid, _), (aid, _) = _side(e, "homeTeam"), _side(e, "awayTeam")
+        start = _start(e)
+        if team_id in (hid, aid) and start is not None:
+            gaps.append(abs((start - kickoff).total_seconds()) / 3600)
+    return round(min(gaps), 2) if gaps else None
+
+
 def _start(event: Mapping[str, Any]) -> datetime | None:
     ts = event.get("startTimestamp")
     return datetime.fromtimestamp(int(ts), UTC) if isinstance(ts, int) else None
@@ -675,14 +717,51 @@ def _record(ev: BoardEvent, at: datetime, **extra: Any) -> dict[str, Any]:
     return base
 
 
+# TOURNAMENT_DAY (identity plan K3): the floor of the weaker side's score and
+# the lead over the next game of the tournament's hour, measured 2026-10-14
+# (scripts/sofa/measure_tournament_day.py, 95 tournament-days of 10-05..10-14):
+# 298 / 298 IDENTIFIED games picked right with the ids hidden at every floor
+# 50..82; at 60 / 20 it identifies 24 of 42 events no side of which had an id,
+# 15 of them later found by the settle on its own rules as the same game, 0
+# contradicted. A lower floor or lead adds none.
+TOURNAMENT_DAY_MIN_SCORE = 60.0
+TOURNAMENT_DAY_LEAD = 20.0
+
+
+def _tournament_day_found(ev: BoardEvent,
+                          tournament_day: Callable[[BoardEvent], list[dict[str, Any]]]
+                          ) -> dict[str, Any] | None:
+    """K3's match over the tournament's games of the day, or None."""
+    from bet.sofa.day_listing import tournament_day_match
+
+    events = tournament_day(ev)
+    if not events:
+        return None
+    found = tournament_day_match(
+        ev.sport, ev.team1, ev.team2, ev.kickoff, events,
+        SPORTS[ev.sport].sofascore_slug,  # type: ignore[index]
+        TOURNAMENT_DAY_MIN_SCORE, TOURNAMENT_DAY_LEAD, MAX_START_GAP)
+    return found if found["status"] == IDENTIFIED else None
+
+
 def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | None,
                    teams: Callable[[str, str], int | None], at: datetime,
                    query_teams: Callable[[str, str], int | None] | None = None,
-                   day_anchor: bool = False) -> dict[str, Any]:
+                   day_anchor: bool = False,
+                   tournament_day: Callable[[BoardEvent], list[dict[str, Any]]]
+                   | None = None, absence: bool = False,
+                   refreshed: set[int] | None = None) -> dict[str, Any]:
     """`query_teams` (TeamResolver.query_id): the team to ask about when
     neither side has an exact id; its id is never an id match. `day_anchor`:
     match_shadow's DAY_ANCHOR, hockey / basketball / volleyball only (a
-    query-only team is no anchor - it has no resolved id)."""
+    query-only team is no anchor - it has no resolved id). `tournament_day`
+    (epochs.TOURNAMENT_DAY_FROM_UTC): the tournament's games of the day
+    (day_listing, the entity map's tournament map) - when NEITHER side has an
+    id and the team listing found nothing, the game both names fit inside
+    that small list is the event (TOURNAMENT_DAY; not CS2). A refusal there
+    aborts like any listing request. `absence` (epochs.NOT_ON_SOFASCORE_FROM_UTC):
+    the K5 fresh re-ask and the NOT_ON_SOFASCORE verdict (FRESH_RECHECK_WITHIN,
+    ABSENCE_WINDOW); `refreshed` - the teams re-asked this run, once each."""
     t1_id, t2_id = teams(ev.sport, ev.team1), teams(ev.sport, ev.team2)
     query = t1_id if t1_id is not None else t2_id
     query_only = False
@@ -691,15 +770,47 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         if query is None:
             query = query_teams(ev.sport, ev.team2)
         query_only = query is not None
+    by_tournament = (tournament_day is not None and ev.sport != "cs2"
+                     and t1_id is None and t2_id is None)
+    extra: dict[str, Any] = {}
     if query is None:
-        return _record(ev, at, status=NOT_IDENTIFIED, reason="TEAM_UNRESOLVED")
-    listing, cached = next_listing(client, cache, query)
-    found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
-             else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
-    extra = {"queried_team_id": query, "listing_from_cache": cached,
-             "team1_id": t1_id, "team2_id": t2_id}
-    if query_only:
-        extra["query_only"] = True
+        found_t = _tournament_day_found(ev, tournament_day) if (
+            by_tournament and tournament_day is not None) else None
+        if found_t is None:
+            return _record(ev, at, status=NOT_IDENTIFIED, reason="TEAM_UNRESOLVED")
+        found = found_t
+        extra = {"team1_id": t1_id, "team2_id": t2_id}
+    else:
+        listing, cached = next_listing(client, cache, query)
+        found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
+                 else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
+        extra = {"queried_team_id": query, "listing_from_cache": cached,
+                 "team1_id": t1_id, "team2_id": t2_id}
+        if query_only:
+            extra["query_only"] = True
+        slug = SPORTS[ev.sport].sofascore_slug if ev.sport != "cs2" else "esports"  # type: ignore[index]
+        if (absence and cached and found.get("reason") == "NO_GAME_WITHIN_1H"
+                and ev.kickoff - at <= FRESH_RECHECK_WITHIN
+                and (refreshed is None or query not in refreshed)):
+            if refreshed is not None:
+                refreshed.add(query)
+            listing, cached = fresh_listing(client, cache, query), False
+            found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
+                     else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
+            extra.update(listing_from_cache=False, fresh_recheck=True)
+        if (found["status"] != IDENTIFIED and by_tournament
+                and tournament_day is not None):
+            found = _tournament_day_found(ev, tournament_day) or found
+        if absence and found.get("reason") == "NO_GAME_WITHIN_1H":
+            near = nearest_game_h(listing, query, ev.kickoff, slug)
+            extra["nearest_game_h"] = near
+            if (not cached and not query_only
+                    and (near is None or near > ABSENCE_WINDOW.total_seconds() / 3600)):
+                found = {**found, "reason": "NOT_ON_SOFASCORE"}
+                extra["absence_evidence"] = {
+                    "team_id": query, "listing": "next/0", "asked_at_utc": iso(at),
+                    "nearest_game_h": near,
+                    "window_h": ABSENCE_WINDOW.total_seconds() / 3600}
     if found["status"] != IDENTIFIED:
         return _record(ev, at, **{k: v for k, v in found.items() if k != "event"},
                        **extra)
@@ -736,7 +847,9 @@ def identify(events: list[BoardEvent], client: ListingClient,
              at: datetime, date: str,
              pinned: Mapping[str, dict[str, Any]] | None = None,
              query_teams: Callable[[str, str], int | None] | None = None,
-             day_anchor: bool = False
+             day_anchor: bool = False,
+             tournament_day: Callable[[BoardEvent], list[dict[str, Any]]]
+             | None = None, absence: bool = False
              ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Every event of the day's window identified or refused, and the
     per-sport counts. `pinned`: the records of an earlier run - an
@@ -752,6 +865,7 @@ def identify(events: list[BoardEvent], client: ListingClient,
     pinned = pinned or {}
     records: list[dict[str, Any]] = []
     aborted: str | None = None
+    refreshed: set[int] = set()
     for ev in sorted(in_day, key=lambda e: (e.kickoff_utc, e.superbet_event_id)):
         prev = pinned.get(ev.superbet_event_id)
         if prev is not None and str(prev.get("sport") or ev.sport) != ev.sport:
@@ -775,7 +889,8 @@ def identify(events: list[BoardEvent], client: ListingClient,
             continue
         try:
             records.append(identify_event(ev, client, cache, teams, at,
-                                          query_teams, day_anchor))
+                                          query_teams, day_anchor, tournament_day,
+                                          absence, refreshed))
         except BridgeAbortedError as exc:
             aborted = str(exc)
             records.append(_record(ev, at, status=NOT_IDENTIFIED,

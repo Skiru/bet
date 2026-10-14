@@ -399,6 +399,68 @@ def match_player_by_tokens(
     return name if len(tokens & target) >= PLAYER_TOKEN_MIN_SHARED else None
 
 
+# Surname + first-name prefix (identity plan K7). Measured 2026-10-14 on the
+# players match_player / the token rule matched on 10-12..10-14 (starts-only
+# samples): 1,827 of 1,827 picked the same person; with a shared first INITIAL
+# instead of a prefix 6 of 1,814 were another man (Reina Campos, Alberto ->
+# Andres Campos; Brazilian "... Silva" / "... Santos"). On the unmatched it
+# finds 22 in three days (Treymaurice Nyoni / Trey Nyoni, Benjamin Joshua
+# Chrisene / Ben Chrisene, Evan N Dicka / Evan Ndicka).
+# docs/sofa/history/RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md.
+PLAYER_FIRST_NAME_PREFIX_MIN = 3
+
+
+def _surname_given(name: str) -> tuple[list[str], list[str]] | None:
+    """(surname tokens, given-name tokens) of a Superbet name: "Surname,
+    Given" when it has a comma, else the last token is the surname (two when
+    the one before it is a lone letter: "Evan N Dicka"). A one-word name has
+    no surname to anchor on: None."""
+    if "," in name:
+        sur, given = name.split(",", 1)
+        st, gt = normalize_name(sur).split(), normalize_name(given).split()
+    else:
+        tokens = normalize_name(name).split()
+        if len(tokens) < 2:
+            return None
+        st, gt = tokens[-1:], tokens[:-1]
+        if len(tokens) >= 3 and len(tokens[-2]) == 1:
+            st, gt = tokens[-2:], tokens[:-2]
+    return (st, gt) if st and gt else None
+
+
+def match_player_by_surname(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> str | None:
+    """The one squad member with this surname whose first name and
+    Superbet's share a prefix of at least PLAYER_FIRST_NAME_PREFIX_MIN
+    letters ("ben" / "benjamin", "trey" / "treymaurice"); else None.
+
+    Superbet registers the full name, Sofascore the one a player plays by:
+    "Benjamin Anthony Brereton Diaz" / "Ben Brereton Diaz", "Samuel Edward
+    Field" / "Sam Field". Neither `match_player` (similarity) nor the token
+    rule (containment) bridges a short first name. The surname is compared
+    whole - a substring would read "Berg, Patrick" as Nicolai Remberg - and
+    two candidates are no answer. Asked only where both other matchers found
+    nobody (`build_player_samples`)."""
+    parts = _surname_given(superbet_name)
+    if parts is None or not candidates:
+        return None
+    st, gt = parts
+    keys = {st[-1], "".join(st)} | ({"".join(st[-2:])} if len(st) >= 2 else set())
+    first = gt[0]
+    hits = []
+    for name in candidates:
+        tokens = normalize_name(name).split()
+        if len(tokens) < 2:
+            continue
+        if not keys & {tokens[-1], "".join(tokens[-2:])}:
+            continue
+        short, long_ = sorted((first, tokens[0]), key=len)
+        if len(short) >= PLAYER_FIRST_NAME_PREFIX_MIN and long_.startswith(short):
+            hits.append(name)
+    return hits[0] if len(hits) == 1 else None
+
+
 def best_player_score(
     superbet_name: str, candidates: dict[str, dict[str, Any]] | None
 ) -> float:

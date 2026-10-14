@@ -55,13 +55,18 @@ LEARNED_SOURCES = frozenset({SOURCE_IDENTITY_NAMES, SOURCE_MANUAL})
 # SPORT_IDENTITY match methods that check a side's own name against the
 # threshold (sport_identity._side_ok, cs2.pick_event). The opponent-rule
 # methods (LISTING_ID_AND_OPPONENT, CS2_LISTING_ID_AND_OPPONENT) do not.
-NAME_METHODS = frozenset({"LISTING_NAMES", "LISTING_ID_AND_NAME", "CS2_PICK_EVENT"})
+NAME_METHODS = frozenset(
+    {"LISTING_NAMES", "LISTING_ID_AND_NAME", "CS2_PICK_EVENT", "TOURNAMENT_DAY"}
+)
 # Methods whose other side is at most a NEEDS_ALIAS candidate: the opponent
 # rule (a shared word) and DAY_ANCHOR (no name at all - K2 found the anchor's
 # game listed with another opponent: BC Barcelos (K) - Francisco Franco (K)
 # is Sofascore's BC Barcelos - CAB Madeira).
+# TOURNAMENT_DAY is in both sets: a side above the threshold inside the
+# tournament's hour is learned, one under it only a candidate (K3).
 OPPONENT_METHODS = frozenset(
-    {"LISTING_ID_AND_OPPONENT", "CS2_LISTING_ID_AND_OPPONENT", "DAY_ANCHOR"}
+    {"LISTING_ID_AND_OPPONENT", "CS2_LISTING_ID_AND_OPPONENT", "DAY_ANCHOR",
+     "TOURNAMENT_DAY"}
 )
 
 # The shadow sports' sofa_entity key space is Sofascore's sport slug, as

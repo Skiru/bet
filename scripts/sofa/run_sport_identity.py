@@ -76,7 +76,8 @@ def learn(db_path: str, doc: dict[str, Any], sports: list[str]) -> dict[str, Any
 
 def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
         cache: si.ListingCache | None, conn: sqlite3.Connection,
-        if_snapshot: bool = False) -> tuple[dict[str, Any], int]:
+        if_snapshot: bool = False, tournament_day: Any = None
+        ) -> tuple[dict[str, Any], int]:
     at = now()
     out = Path(runs_dir) / date / si.FIXTURES_FILE
     prior = si.load_fixtures(out)
@@ -94,7 +95,10 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
                                learned=entity_map.learned_reads(date, at))
     records, summary = si.identify(events, client, cache, resolver.team_id, at,
                                    date, pinned, resolver.query_id,
-                                   day_anchor=epochs.day_anchor(date, at))
+                                   day_anchor=epochs.day_anchor(date, at),
+                                   tournament_day=tournament_day
+                                   if epochs.tournament_day(date, at) else None,
+                                   absence=epochs.not_on_sofascore(date, at))
     # Sports not asked this run keep their earlier records.
     kept = [r for r in (prior or {}).get("fixtures") or []
             if r.get("sport") not in sports]
@@ -148,11 +152,19 @@ def main() -> int:
     client = SofascoreClient(config)
     cache = SofaCache(config)
     conn = sqlite3.connect(f"file:{config.db_path}?mode=ro", uri=True)
+    # The tournament's day listings are cached (a write): their own
+    # connection (identity plan K3; asked only from TOURNAMENT_DAY_FROM_UTC).
+    from bet.sofa.day_listing import tournament_day_source
+    from bet.sofa.db import get_connection
+
+    wconn = get_connection(config.db_path)
     try:
         doc, code = run(args.date, list(args.sport or si.SPORT_KEYS),
-                        config.runs_dir, client, cache, conn, args.if_snapshot)
+                        config.runs_dir, client, cache, conn, args.if_snapshot,
+                        tournament_day_source(client, wconn))
     finally:
         conn.close()
+        wconn.close()
     learned = (learn(config.db_path, doc, list(args.sport or si.SPORT_KEYS))
                if code != NOTHING_TO_DO else {})
     print("SOFA_SUMMARY: " + json.dumps({

@@ -59,6 +59,7 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_surname,
     match_player_by_tokens,
     player_sample_key,
     squad_statistics,
@@ -468,6 +469,7 @@ def _settle_player(
         other = squads.get(not own_home)
         if (
             match_player_by_tokens(subject, other) is not None
+            or match_player_by_surname(subject, other) is not None
             or best_player_score(subject, other) >= PLAYER_MATCH_THRESHOLD
         ):
             return "PLAYER_AMBIGUOUS"
@@ -480,6 +482,7 @@ def _settle_player(
                 and sample_name
                 and sample_name not in own_squad
                 and match_player_by_tokens(subject, own_squad) is None
+                and match_player_by_surname(subject, own_squad) is None
             ):
                 return "PLAYER_NOT_IN_SQUAD"
             return "PLAYER_NOT_MATCHED"
@@ -561,14 +564,16 @@ def player_sample_names(samples: list[Any]) -> dict[tuple[int, str], str]:
 
 def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
     """{(event id, "<market>|<subject>"): matched_name} of the players SAMPLES
-    matched by tokens (`match_rule` "tokens") - the name SETTLE grades."""
+    matched by a fallback (`match_rule` "tokens" or "surname") - the name
+    SETTLE grades."""
     out: dict[tuple[int, str], str] = {}
     for fixture in samples:
         if not isinstance(fixture, dict):
             continue
         eid = fixture.get("sofascore_event_id")
         for key, sample in (fixture.get("players") or {}).items():
-            if not isinstance(sample, dict) or sample.get("match_rule") != "tokens":
+            if not isinstance(sample, dict) or sample.get("match_rule") not in (
+                    "tokens", "surname"):
                 continue
             name = sample.get("matched_name")
             if isinstance(eid, int) and isinstance(name, str) and name:

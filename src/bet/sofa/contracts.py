@@ -199,7 +199,7 @@ class PlayerSample(BaseModel):
     # "tokens" its fallback players.match_player_by_tokens
     # (epochs.PLAYER_NAME_TOKENS_FROM_UTC). SETTLE grades a "tokens" sample
     # by `matched_name`, so it grades the person SAMPLES sampled.
-    match_rule: Literal["fuzzy", "tokens"] = "fuzzy"
+    match_rule: Literal["fuzzy", "tokens", "surname"] = "fuzzy"
     # Which appearances the sample holds: "all" of them, or only his "starts"
     # (epochs.PLAYER_STARTS_ONLY_FROM_UTC) - Superbet voids the market of a
     # player who does not start, so the bet is conditional on the start.

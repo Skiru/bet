@@ -315,6 +315,19 @@ def migrate(db_path: str) -> None:
             PRIMARY KEY (sport, superbet_tournament, competition_id)
         );
         """,
+        # A day's listing (bet.sofa.day_listing, identity plan K3/K5): the
+        # games of one unique tournament on one day, or one page of a sport's
+        # scheduled tournaments.
+        """
+        CREATE TABLE IF NOT EXISTS sofa_day_listing (
+            kind         TEXT NOT NULL,
+            key          TEXT NOT NULL,
+            day          TEXT NOT NULL,
+            fetched_at   TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            PRIMARY KEY (kind, key, day)
+        );
+        """,
         """
         CREATE TABLE IF NOT EXISTS sofa_entity_taught (
             sofascore_event_id INTEGER NOT NULL,

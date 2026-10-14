@@ -1383,6 +1383,17 @@ Backtest z ukrytą nazwą przeciwnika (`measure_day_anchor.py`, 10-05..10-14):
 1 578 / 1 578 zidentyfikowanych meczów trafionych, 0 sprzeczności z SETTLE.
 Raport: `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
 
+**TOURNAMENT_DAY i NOT_ON_SOFASCORE (plan tożsamości K3 / K5, od 2026-10-15
+00:00Z).** Zdarzenie, którego **żadna** strona nie ma id, jest dopasowywane po
+obu nazwach w meczach swojego turnieju z dnia (`bet.sofa.day_listing`,
+`unique-tournament/<ut>/scheduled-events/<d>` przez mapę turniejów, cache
+`sofa_day_listing`; słabsza strona ≥ 60, przewaga ≥ 20; `match_method:
+"TOURNAMENT_DAY"`). `NO_GAME_WITHIN_1H` z cache strony drużyny (6 h) w
+ostatnich 3 h przed startem jest pytany raz świeżo; brak udowodniony
+(`reason: "NOT_ON_SOFASCORE"`, `absence_evidence`) tylko na świeżej stronie
+drużyny rozpoznanej po id bez żadnego jej meczu w ±12 h. Raport:
+`docs/sofa/history/RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md`.
+
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
 `config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,

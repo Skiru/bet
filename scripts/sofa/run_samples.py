@@ -30,6 +30,7 @@ from bet.sofa.contracts import (
 from bet.sofa.coverage import check_coverage_floor
 from bet.sofa.epochs import (
     men_friendly_sample_window,
+    player_name_surname,
     player_name_tokens,
     player_starts_only,
 )
@@ -151,6 +152,7 @@ def sample_fixtures_concurrently(
     token_fallback: bool = False,
     starts_only: bool = False,
     men_friendly_window: bool = False,
+    surname_fallback: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -185,6 +187,7 @@ def sample_fixtures_concurrently(
                 token_fallback=token_fallback,
                 starts_only=starts_only,
                 men_friendly_window=men_friendly_window,
+                surname_fallback=surname_fallback,
             )
             for fixture in fixtures
         ]
@@ -207,6 +210,7 @@ def sample_fixtures_concurrently(
             token_fallback=token_fallback,
             starts_only=starts_only,
             men_friendly_window=men_friendly_window,
+            surname_fallback=surname_fallback,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -312,6 +316,8 @@ def main() -> int:
         starts_only=player_starts_only(args.date),
         # epochs.MEN_FRIENDLY_SAMPLE_WINDOW (off: byte-identical)
         men_friendly_window=men_friendly_sample_window(args.date),
+        # epochs.PLAYER_NAME_SURNAME (identity plan K7; off: byte-identical)
+        surname_fallback=player_name_surname(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):
