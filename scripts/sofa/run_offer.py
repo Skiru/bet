@@ -8,7 +8,7 @@ from typing import IO, Any
 from pydantic import RootModel
 
 from bet.sofa import fixture_status as fs
-from bet.sofa import timeutil
+from bet.sofa import timeutil, unmapped_prices
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
@@ -121,7 +121,9 @@ def main() -> int:
     fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects(args.date),
                            mappable_families=mappable_families(args.date),
                            # D2: the tennis match winner (epochs).
-                           tennis_winner=tennis_match_winner(args.date))
+                           tennis_winner=tennis_match_winner(args.date),
+                           # bet.sofa.unmapped_prices: recording only.
+                           record_unmapped=True)
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():
@@ -194,6 +196,16 @@ def main() -> int:
 
     write_atomic(out_path, json.dumps(dumped, indent=2))
 
+    # The unmapped markets' prices (bet.sofa.unmapped_prices): a record for a
+    # later measurement, never an input. A failure here must not fail OFFER.
+    unmapped_file: str | None = None
+    try:
+        written_path = unmapped_prices.write(
+            out_path.parent, fetcher.unmapped_odds, timeutil.now())
+        unmapped_file = str(written_path) if written_path else None
+    except OSError as exc:
+        print(f"OFFER_UNMAPPED_PRICES_NOT_WRITTEN: {exc}", file=sys.stderr)
+
     total_two_way = sum(
         1
         for o in offers
@@ -218,6 +230,8 @@ def main() -> int:
         "breaker_open": fetcher.breaker_open,
         "not_reached_breaker_open": len(not_reached),
         "carried_forward_not_reached": carried_not_reached,
+        "unmapped_odds_recorded": len(fetcher.unmapped_odds),
+        "unmapped_prices_file": unmapped_file,
     }
     for su_id, err in fetcher.errors[:20]:
         print(f"OFFER_FETCH_ERROR superbet={su_id}: {err}", file=sys.stderr)

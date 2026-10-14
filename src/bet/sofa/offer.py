@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
+from bet.sofa import unmapped_prices
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.errors import CircuitOpenError
 from bet.sofa.market_mapper import (
@@ -173,8 +174,14 @@ class OfferFetcher:
         ampersand_subjects: bool = False,
         mappable_families: bool = False,
         tennis_winner: bool = False,
+        record_unmapped: bool = False,
     ) -> None:
         self.client = client
+        # bet.sofa.unmapped_prices: keep the price of every odd that goes into
+        # unmapped_markets, so a market modelled later has a price history.
+        # Recording only - it changes no rung and no label.
+        self.record_unmapped = record_unmapped
+        self.unmapped_odds: list[dict[str, Any]] = []
         # epochs.tennis_match_winner(date): read the tennis "Zwycięzca" as
         # match_won_for (bet.sofa.tennis_winner). Off is the old rule.
         self.tennis_winner = tennis_winner
@@ -203,6 +210,7 @@ class OfferFetcher:
         # Per call: a long-lived fetcher (capture_closing's loop) asks again
         # on its next pass, when the client's breaker lets a probe through.
         self.not_reached = []
+        self.unmapped_odds = []
         results = []
         for index, fixture in enumerate(fixtures):
             if self.not_reached:
@@ -263,6 +271,10 @@ class OfferFetcher:
                     )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
+                        if self.record_unmapped:
+                            self.unmapped_odds.append(unmapped_prices.record(
+                                fixture.sofascore_event_id, str(su_id), item,
+                                fetched_at))
                     if classified_odd is None:
                         continue
                     market, subject, line, direction = classified_odd

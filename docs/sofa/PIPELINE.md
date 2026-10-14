@@ -302,6 +302,16 @@ do naszych metryk mapuje się około **jednej dziesiątej** ekranu Superbetu
 (`src/bet/sofa/market_mapper.py`). Wszystko, czego nie znamy, jest zapisane
 z nazwą — po to, żeby dało się zmierzyć, co tracimy.
 
+**Kursy nieodwzorowanych rynków są zapisywane** (od 2026-10-14,
+`bet.sofa.unmapped_prices`): każdy przebieg OFFER dopisuje każdy kurs, który
+trafił do `unmapped_markets`, do `runs/sofa/<d>/unmapped_prices/<ts>.jsonl.gz`
+(nowy plik na przebieg, nic nie jest nadpisywane; tylko przed meczem). To
+zapis, nie wejście: żaden etap tego nie czyta i nic się od tego nie drukuje.
+Powód: rynek, który później zaczniemy modelować (np. strzały zawodnika spoza
+pola karnego z `/shotmap`), musi mieć historię cen Superbetu, inaczej jego
+dowody z linii (przesunięcie, pasma ceny) startują od zera w dniu włączenia.
+Błąd zapisu nie zatrzymuje OFFER (`OFFER_UNMAPPED_PRICES_NOT_WRITTEN`).
+
 **Rodziny MAPPABLE za przełącznikiem `MAPPABLE_FAMILIES_FROM_UTC`**
 (`bet.sofa.epochs`, plan nocy 2026-10-12 C1; **włączony od 2026-10-14
 00:00Z** decyzją operatora z 2026-10-13 – E2E na próbkach 10-13 czyste on/off,
