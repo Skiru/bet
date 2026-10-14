@@ -48,6 +48,8 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.football_1x2_dnb import DNB_DRAW_REFUND
+from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS, incident_value
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_keys
@@ -56,6 +58,7 @@ from bet.sofa.metrics import (
     double_chance_value,
     extract_flat_statistics,
     extract_metric,
+    result_1x2_dnb_value,
 )
 from bet.sofa.names import normalize_name
 from bet.sofa.players import (
@@ -314,6 +317,21 @@ def _settle_double_chance(
     epochs.FOOTBALL_RESULT_MARKETS). The subject is the selection, not a
     side; graded on the 90-minute score (metrics.double_chance_value)."""
     value = double_chance_value(row["subject"] or "", event)
+    if isinstance(value, GapReason):
+        return f"{row['market']}:{value.value}"
+    return float(value), settle_value(float(value), row["line"], row["direction"])
+
+
+def _settle_result_1x2_dnb(
+    row: dict[str, Any], event: dict[str, Any]
+) -> tuple[float, str] | str:
+    """(actual, outcome) of a football 1X2 / draw-no-bet row, or why not
+    (epochs.FOOTBALL_RESULT_1X2_DNB): graded on the 90-minute score
+    (metrics.result_1x2_dnb_value); a drawn DNB is DNB_DRAW_REFUND - a void
+    leg (Superbet refunds the stake), never a loss."""
+    value = result_1x2_dnb_value(row["market"], row["subject"] or "", event)
+    if value is None:
+        return DNB_DRAW_REFUND
     if isinstance(value, GapReason):
         return f"{row['market']}:{value.value}"
     return float(value), settle_value(float(value), row["line"], row["direction"])
@@ -1380,6 +1398,22 @@ def main() -> int:
                     graded = _settle_double_chance(row, event)
                     if isinstance(graded, str):
                         skips.add(event_id, graded)
+                        continue
+                    value, outcome = graded
+                    if outcome == "PUSH":
+                        skips.add(event_id, "PUSH")
+                        continue
+                    emit(row, event_id, competition_id, float(value), outcome)
+                    continue
+
+                if row["market"] in RESULT_1X2_DNB_MARKETS:
+                    # epochs.FOOTBALL_RESULT_1X2_DNB: the 90-minute score; a
+                    # drawn DNB leg is void (a refund, like a non-starter's)
+                    graded = _settle_result_1x2_dnb(row, event)
+                    if isinstance(graded, str):
+                        skips.add(event_id, graded)
+                        if graded == DNB_DRAW_REFUND:
+                            skips.void(row, graded)
                         continue
                     value, outcome = graded
                     if outcome == "PUSH":

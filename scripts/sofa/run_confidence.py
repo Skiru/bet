@@ -96,6 +96,9 @@ from bet.sofa.epochs import (  # noqa: E402
     sheet_epoch,
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
+from bet.sofa.football_1x2_dnb import (  # noqa: E402
+    leg_class as result_1x2_dnb_leg_class,
+)
 from bet.sofa.line_evidence import (  # noqa: E402
     NO_LINE_EVIDENCE,
     LineEvidence,
@@ -698,6 +701,9 @@ def main() -> int:
             sides,
             fx.get("competition_id"),
         )
+        # epochs.FOOTBALL_RESULT_1X2_DNB: an early-phase men's 1X2 / DNB row
+        # reads the season_early class (unchanged for every other row)
+        klass = result_1x2_dnb_leg_class(row, klass)
         hit = None if (evidence is not None and is_derived(row["market"])
                        and not derived_curves(args.date, now)) \
             else cal.realised(

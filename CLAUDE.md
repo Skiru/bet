@@ -704,7 +704,14 @@ outcome as its UNDER, SHEET prices the selection from NB goals on the pure
 rating centres, r 7.586 in `config/sofa_football_result.json`, unfitted, OVER
 only, `result_rule`; no curve, so `NO_LINE_EVIDENCE` until its own lines
 settle; graded on the 90-minute score; `bet.sofa.football_result`,
-`docs/sofa/evidence/football_result_phase_2026-10-13.md`),
+`docs/sofa/evidence/football_result_phase_2026-10-13.md`; from
+`FOOTBALL_RESULT_1X2_DNB_FROM_UTC` 2026-10-15 00:00Z also "Mecz" 1 / 2 as
+`result_1x2` and "Zakład bez remisu" as one `draw_no_bet` rung - OVER home,
+UNDER away, a draw a refund `DNB_DRAW_REFUND` - with an early-phase men's
+leg reading the curve class `season_early`, `bet.sofa.football_1x2_dnb`;
+DNB keys passed the one-sided holdout gate, every 1X2 key failed, curves
+staged in `data/refit_new_markets_2026-10-15/football_result_1x2_dnb/`, not
+installed; `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md`),
 `SHOT_DETAIL_MARKETS_FROM_UTC` (footballer shots outside the box / headed /
 left / right foot, all and on target: OFFER reads the eight names as player
 markets, SAMPLES and SETTLE count them from `/shotmap` only where it gives the

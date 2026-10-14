@@ -63,6 +63,16 @@ from bet.sofa.epochs import (
     tennis_rating_prices,
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch
+from bet.sofa.football_1x2_dnb import (
+    DNB_SUBJECT,
+    DRAW_NO_BET,
+    RESULT_1X2,
+    RESULT_SIDES,
+)
+from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
+from bet.sofa.football_1x2_dnb import note as result_1x2_dnb_note
+from bet.sofa.football_1x2_dnb import probabilities as result_1x2_dnb_probabilities
+from bet.sofa.football_1x2_dnb import row_p as result_1x2_dnb_row_p
 from bet.sofa.football_incidents import (
     FG_SUBJECTS,
     FIRST_GOAL,
@@ -1353,6 +1363,70 @@ def double_chance_rows(
     return [row], []
 
 
+def result_1x2_dnb_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    football: FootballForecast | None,
+    result_config: ResultConfig,
+    phase: str | None,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.FOOTBALL_RESULT_1X2_DNB: the rows of one result_1x2 rung (its
+    OVER, the side's win) or draw_no_bet rung (OVER the home side, UNDER the
+    away side), priced from the double chance's NB goals on the PURE rating
+    centres (bet.sofa.football_1x2_dnb) - no sample, no price. Each row
+    carries the fixture's as-of season phase (`result_phase`), which picks
+    its curve class in CONFIDENCE. UNLINKED keeps CROSS_LEAGUE_UNLINKED
+    (CONFIDENCE refuses it); no goals centre for either side - no row."""
+    directions: tuple[Literal["OVER", "UNDER"], ...] = (
+        ("OVER",) if rung.market == RESULT_1X2 else ("OVER", "UNDER"))
+    if ((rung.market == RESULT_1X2 and rung.subject not in RESULT_SIDES)
+            or (rung.market == DRAW_NO_BET and rung.subject != DNB_SUBJECT)):
+        return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                     f"{rung.market} subject {rung.subject!r} unknown")]
+    home = football.centre("goals_for", "side_a") if football else None
+    away = football.centre("goals_for", "side_b") if football else None
+    if football is None or home is None or away is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "no football rating goals centre for one of the sides "
+                     "(thin team, friendly, no league rate)")]
+    lh, la = home[0], away[0]
+    try:
+        probs = result_1x2_dnb_probabilities(lh, la, result_config.nb_r)
+    except ValueError as exc:
+        return [], [(rung, GapReason.NOT_RATED, str(exc))]
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    unlinked = football.fixture_link() == UNLINKED
+    for direction in directions:
+        p = result_1x2_dnb_row_p(rung.market, rung.subject or "", direction,
+                                 probs)
+        if p is None:
+            continue
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        notes = [result_1x2_dnb_note(rung.market, rung.subject or "", direction,
+                                     p, lh, la, result_config.nb_r, phase)]
+        if unlinked:
+            notes.append(
+                f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+                "and their leagues' strengths are unmeasured - the rating "
+                "describes other leagues")
+        notes.append("UNFITTED_CONSTANTS: "
+                     f"{', '.join(RESULT_UNFITTED + RATING_UNFITTED)}")
+        row = _model_only_row(
+            fixture, rung, direction, p, notes, market_ps, stats_only,
+            "football_rating", {})
+        rows.append(row.model_copy(update={
+            "result_1x2_dnb_rule": epochs.FOOTBALL_RESULT_1X2_DNB,
+            "result_phase": phase}))
+    return rows, skipped
+
+
 def _model_only_row(
     fixture: Fixture,
     rung: PricedRung,
@@ -1729,6 +1803,7 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     # fingerprint of a row priced outside main (tests, replays)
     for key in AUDIT_MARKER_FIELDS + ("result_rule", "shot_detail_rule",
                                       "incident_rule", "set_market_rule",
+                                      "result_1x2_dnb_rule", "result_phase",
                                       "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
@@ -1769,6 +1844,8 @@ def process_fixture(
     men_friendly_baseline: FriendlyBaseline | None = None,
     shot_detail_on: bool = False,
     shot_detail_fit: Mapping[str, Any] | None = None,
+    result_1x2_dnb: ResultConfig | None = None,
+    result_phase: str | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1858,6 +1935,15 @@ def process_fixture(
                     stats_only)
                 rows.extend(dc_rows)
                 skipped.extend(dc_skipped)
+            # epochs.FOOTBALL_RESULT_1X2_DNB (None while off - OFFER maps no
+            # such rung)
+            if (result_1x2_dnb is not None and fixture.sport == "football"
+                    and rung.market in RESULT_1X2_DNB_MARKETS):
+                r_rows, r_skipped = result_1x2_dnb_rows(
+                    fixture, rung, football, result_1x2_dnb, result_phase,
+                    market_ps, stats_only)
+                rows.extend(r_rows)
+                skipped.extend(r_skipped)
             # epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS (None /
             # False while off - OFFER maps no such rung)
             if (incident_pricing is not None and fixture.sport == "football"
@@ -2785,7 +2871,9 @@ def _main() -> int:
         cut = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
         football_history = load_football_history(
             config.db_path, Path(config.db_path).parent / "cache")
-        if season_phase_on:
+        # also the as-of phase of a 1X2 / DNB row (epochs.FOOTBALL_RESULT_1X2_DNB)
+        if season_phase_on or (stats_only_epoch(args.date)
+                               and epochs.football_result_1x2_dnb(args.date)):
             season_index = index_from_history(
                 football_history, int(cut.timestamp()))
         football_book = replay_football(
@@ -2846,6 +2934,11 @@ def _main() -> int:
     # no such rung reaches SHEET; on without config/sofa_shot_detail.json:
     # every such rung NO_SHOT_DETAIL_FIT)
     shot_detail_on = stats_only and epochs.shot_detail_markets(args.date)
+    # epochs.FOOTBALL_RESULT_1X2_DNB: football 1X2 / draw no bet (off: None,
+    # no such rung reaches SHEET; a missing / malformed config raises, rc 2)
+    result_1x2_dnb_config = (
+        load_result_config()
+        if stats_only and epochs.football_result_1x2_dnb(args.date) else None)
     shot_detail_fit = load_shot_detail() if shot_detail_on else None
     # epochs.FOOTBALL_INCIDENT_MARKETS (off: None, no such rung reaches
     # SHEET): the as-of red-card / penalty rates from the cached incident
@@ -2950,6 +3043,15 @@ def _main() -> int:
                 men_friendly_baseline=men_friendly_prior,
                 shot_detail_on=shot_detail_on,
                 shot_detail_fit=shot_detail_fit,
+                result_1x2_dnb=result_1x2_dnb_config,
+                result_phase=(
+                    season_index.phase(
+                        fixture.competition_id, fixture.season_id,
+                        int(fixture.kickoff_utc.timestamp()),
+                        fixture.home_entity_id, fixture.away_entity_id)
+                    if (season_index is not None and fixture.sport == "football"
+                        and result_1x2_dnb_config is not None)
+                    else None),
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

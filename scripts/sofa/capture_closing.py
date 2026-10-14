@@ -39,6 +39,7 @@ from bet.sofa.cs2 import append_records
 from bet.sofa.epochs import (
     ampersand_subjects,
     football_incident_markets,
+    football_result_1x2_dnb,
     football_result_markets,
     mappable_families,
     shot_detail_markets,
@@ -254,7 +255,8 @@ def main() -> int:
         football_result=football_result_markets(args.date),
         shot_detail=shot_detail_markets(args.date),
         football_incidents=football_incident_markets(args.date),
-        tennis_sets=tennis_set_markets(args.date))
+        tennis_sets=tennis_set_markets(args.date),
+        football_1x2_dnb=football_result_1x2_dnb(args.date))
     try:
         return loop(day_dir, fetcher, repeat=args.loop)
     finally:

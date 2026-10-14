@@ -16,6 +16,7 @@ from bet.sofa.contracts import Fixture
 from bet.sofa.epochs import (
     ampersand_subjects,
     football_incident_markets,
+    football_result_1x2_dnb,
     football_result_markets,
     mappable_families,
     shot_detail_markets,
@@ -135,7 +136,9 @@ def main() -> int:
                            # the football incident and tennis set markets
                            # (epochs).
                            football_incidents=football_incident_markets(args.date),
-                           tennis_sets=tennis_set_markets(args.date))
+                           tennis_sets=tennis_set_markets(args.date),
+                           # football 1X2 / draw no bet (epochs).
+                           football_1x2_dnb=football_result_1x2_dnb(args.date))
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():

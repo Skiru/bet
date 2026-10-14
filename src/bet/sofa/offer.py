@@ -5,6 +5,8 @@ from typing import Any
 from bet.sofa import unmapped_prices
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.errors import CircuitOpenError
+from bet.sofa.football_1x2_dnb import RESULT_1X2
+from bet.sofa.football_1x2_dnb import classify as classify_1x2_dnb
 from bet.sofa.football_incidents import classify_incident
 from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
 from bet.sofa.market_mapper import (
@@ -221,8 +223,12 @@ class OfferFetcher:
         shot_detail: bool = False,
         football_incidents: bool = False,
         tennis_sets: bool = False,
+        football_1x2_dnb: bool = False,
     ) -> None:
         self.client = client
+        # epochs.football_result_1x2_dnb(date): read football 1X2 and draw no
+        # bet (bet.sofa.football_1x2_dnb). Off is the old rule.
+        self.football_1x2_dnb = football_1x2_dnb
         # epochs.football_incident_markets(date) / tennis_set_markets(date):
         # the football first goal, red cards and penalties
         # (bet.sofa.football_incidents) and the tennis set winner and exact
@@ -263,6 +269,52 @@ class OfferFetcher:
     @property
     def breaker_open(self) -> bool:
         return bool(self.not_reached)
+
+    def _add_price(
+        self, item: Mapping[str, Any],
+        combined_odds: dict[tuple[str, str, float], dict[str, Any]],
+        answer_odds: dict[tuple[str, str, float], dict[str, Any]],
+        market: str, subject: str, line: float, direction: str, price: float,
+        fetched_at: datetime,
+    ) -> None:
+        """One active odd's price into its rung side (fetch_offers)."""
+        key = (market, subject, line)
+        target = combined_odds
+        if self.mappable_families and is_ladder_answer(
+            item.get("marketName")
+        ):
+            target = answer_odds
+        if key not in target:
+            target[key] = {
+                "over_odds": None,
+                "under_odds": None,
+                "fetched_at_utc": fetched_at,
+                "collisions": [],
+            }
+
+        # Two listings of one match must not silently overwrite
+        # each other's price (F27). 20 of 484 fixtures carried two
+        # superbet_event_ids; merging by union is right and
+        # recovers a listing that is still live, but a *collision*
+        # decided by arrival order is not a merge, it is a coin
+        # flip on the only number the whole decision rests on. A
+        # higher price invents an edge that is not there; a lower
+        # one hides value that is.
+        #
+        # Take the more conservative quote — the lower one, for the
+        # side being priced — and record the disagreement.
+        field = "over_odds" if direction == "OVER" else "under_odds"
+        new_price = price
+        existing = target[key][field]
+        if existing is not None and existing != new_price:
+            target[key]["collisions"].append(
+                f"{direction} {market} {subject or '-'} @ {line}: "
+                f"{existing} vs {new_price}, taking "
+                f"{min(existing, new_price)}"
+            )
+            new_price = min(existing, new_price)
+        target[key][field] = new_price
+
 
     def fetch_offers(self, fixtures: list[Fixture]) -> list[FixtureOffer]:
         # Per call: a long-lived fetcher (capture_closing's loop) asks again
@@ -320,10 +372,12 @@ class OfferFetcher:
                 shots = self.shot_detail and fixture.sport == "football"
                 incidents = self.football_incidents and fixture.sport == "football"
                 set_markets = self.tennis_sets and fixture.sport == "tennis"
+                result_1x2_dnb = (self.football_1x2_dnb
+                                  and fixture.sport == "football")
                 names = (
                     listing_sides(payload)
                     if (self.ampersand_subjects or self.mappable_families or winner
-                        or incidents or set_markets)
+                        or incidents or set_markets or result_1x2_dnb)
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
@@ -333,15 +387,24 @@ class OfferFetcher:
                         item, sides, self.mappable_families, names, winner,
                         result, shots, incidents, set_markets,
                     )
+                    # epochs.FOOTBALL_RESULT_1X2_DNB: one odd may feed a
+                    # second rung ("Mecz" 1 is the DC X2's UNDER and the
+                    # result_1x2 "1" OVER); off, `extra` is empty.
+                    extra = (classify_1x2_dnb(
+                        item.get("marketName"), item.get("name"),
+                        names[0] if len(names) == 2 else None,
+                        names[1] if len(names) == 2 else None)
+                        if result_1x2_dnb else [])
+                    if extra and unmapped_label is not None:
+                        unmapped_label = None
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
                         if self.record_unmapped:
                             self.unmapped_odds.append(unmapped_prices.record(
                                 fixture.sofascore_event_id, str(su_id), item,
                                 fetched_at))
-                    if classified_odd is None:
+                    if classified_odd is None and not extra:
                         continue
-                    market, subject, line, direction = classified_odd
 
                     price = item.get("price")
                     if price is None:
@@ -352,43 +415,13 @@ class OfferFetcher:
                     # as a live price. A payload without the field is kept.
                     if item.get("status", "active") != "active":
                         continue
+                    for market, subject, line, direction in (
+                            ([classified_odd] if classified_odd is not None
+                             else []) + extra):
+                        self._add_price(item, combined_odds, answer_odds, market,
+                                        subject, line, direction, float(price),
+                                        fetched_at)
 
-                    key = (market, subject, line)
-                    target = combined_odds
-                    if self.mappable_families and is_ladder_answer(
-                        item.get("marketName")
-                    ):
-                        target = answer_odds
-                    if key not in target:
-                        target[key] = {
-                            "over_odds": None,
-                            "under_odds": None,
-                            "fetched_at_utc": fetched_at,
-                            "collisions": [],
-                        }
-
-                    # Two listings of one match must not silently overwrite
-                    # each other's price (F27). 20 of 484 fixtures carried two
-                    # superbet_event_ids; merging by union is right and
-                    # recovers a listing that is still live, but a *collision*
-                    # decided by arrival order is not a merge, it is a coin
-                    # flip on the only number the whole decision rests on. A
-                    # higher price invents an edge that is not there; a lower
-                    # one hides value that is.
-                    #
-                    # Take the more conservative quote — the lower one, for the
-                    # side being priced — and record the disagreement.
-                    field = "over_odds" if direction == "OVER" else "under_odds"
-                    new_price = float(price)
-                    existing = target[key][field]
-                    if existing is not None and existing != new_price:
-                        target[key]["collisions"].append(
-                            f"{direction} {market} {subject or '-'} @ {line}: "
-                            f"{existing} vs {new_price}, taking "
-                            f"{min(existing, new_price)}"
-                        )
-                        new_price = min(existing, new_price)
-                    target[key][field] = new_price
 
             for key, entry in answer_odds.items():
                 if key not in combined_odds:
@@ -397,6 +430,11 @@ class OfferFetcher:
             # double chance Superbet quotes - alone it is no DC offer.
             for key in [k for k, e in combined_odds.items()
                         if k[0] == DOUBLE_CHANCE and e["over_odds"] is None]:
+                del combined_odds[key]
+            # FOOTBALL_RESULT_1X2_DNB: likewise a DC price alone is no 1X2
+            # offer (result_1x2 is priced on its OVER only).
+            for key in [k for k, e in combined_odds.items()
+                        if k[0] == RESULT_1X2 and e["over_odds"] is None]:
                 del combined_odds[key]
 
             rungs = []

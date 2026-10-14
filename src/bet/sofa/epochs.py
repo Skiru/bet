@@ -1737,6 +1737,37 @@ def football_result_markets(date: str, build_at: datetime | None = None) -> bool
             and at >= FOOTBALL_RESULT_MARKETS_FROM_UTC)
 
 
+# Football 1X2 (home / away win) and draw no bet (bet.sofa.football_1x2_dnb;
+# operator 2026-10-14 ~18:55Z): OFFER reads "Mecz" 1 / 2 as result_1x2 OVER
+# (its UNDER the double chance leaving it out) and "Zakład bez remisu" as one
+# draw_no_bet rung (OVER the home side, UNDER the away side); SHEET prices
+# them from the double chance's NB goals on the pure rating centres and
+# stamps the fixture's as-of season phase (`result_phase`); CONFIDENCE reads
+# an early-phase men's leg from the curve class `season_early`
+# (football_1x2_dnb.curve_class); SETTLE grades on the 90-minute score, a
+# DNB draw a refund (DNB_DRAW_REFUND, a void leg). Adds rows, so a day >= the
+# date built at or after the moment. Off (None): OFFER, SHEET and CONFIDENCE
+# byte-identical. Evidence: docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md.
+FOOTBALL_RESULT_1X2_DNB = "result_1x2_dnb_v1"
+# On from 2026-10-15 00:00Z (operator 2026-10-14 ~18:55Z: "ready for
+# tomorrow if it passes"): draw_no_bet|OVER / |UNDER, season_early:
+# draw_no_bet|OVER and women:draw_no_bet|OVER passed the one-sided holdout
+# gate; every result_1x2 key failed. Until the staged curves are installed
+# (operator's go) no such leg has a curve: NO_LINE_EVIDENCE, nothing prints.
+FOOTBALL_RESULT_1X2_DNB_FROM_UTC: datetime | None = datetime(
+    2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def football_result_1x2_dnb(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price football 1X2 / draw no bet
+    (FOOTBALL_RESULT_1X2_DNB_FROM_UTC)?"""
+    if FOOTBALL_RESULT_1X2_DNB_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_RESULT_1X2_DNB_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_RESULT_1X2_DNB_FROM_UTC)
+
+
 # Superbet's footballer shot-detail markets (bet.sofa.shot_detail): "Zawodnik
 # - liczba (celnych) strzalow spoza pola karnego / glowa / lewa noga / prawa
 # noga". OFFER reads the eight names as player markets (market_mapper.

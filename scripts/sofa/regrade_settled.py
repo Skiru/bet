@@ -62,6 +62,7 @@ from typing import Any
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
+from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.listing_index import listed_events_by_id
@@ -84,6 +85,7 @@ from scripts.sofa.run_settle import (
     _settle_double_chance,
     _settle_incident,
     _settle_player,
+    _settle_result_1x2_dnb,
     _settle_set_market,
     _subject_is_home,
     load_player_sample_names,
@@ -176,6 +178,9 @@ def grade_live(
     if row["market"] == DOUBLE_CHANCE:
         # D1: the selection, not a side - graded like run_settle
         return _settle_double_chance(row, event)
+    if row["market"] in RESULT_1X2_DNB_MARKETS:
+        # 1X2 / DNB: graded like run_settle (a drawn DNB: DNB_DRAW_REFUND)
+        return _settle_result_1x2_dnb(row, event)
     if row["market"] in INCIDENT_MARKETS:
         # the match's regular-time incidents - graded like run_settle
         return _settle_incident(row, event, incidents)

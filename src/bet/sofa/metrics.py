@@ -1,6 +1,7 @@
 from typing import Any
 
 from bet.sofa.contracts import GapReason
+from bet.sofa.football_1x2_dnb import DNB_SUBJECT, DRAW_NO_BET, RESULT_1X2, RESULT_SIDES
 from bet.sofa.football_result import SELECTIONS as DC_SELECTIONS
 from bet.sofa.football_result import selection_holds
 from bet.sofa.tennis_score import match_tiebreak_sets, set_games
@@ -117,6 +118,35 @@ def double_chance_value(selection: str, event: dict[str, Any]) -> float | GapRea
     if score is None:
         return GapReason.STAT_KEY_ABSENT
     return 1.0 if selection_holds(selection, *score) else 0.0
+
+
+def result_1x2_dnb_value(
+    market: str, subject: str, event: dict[str, Any],
+) -> float | GapReason | None:
+    """The graded value of a football 1X2 / draw-no-bet row on the 90-minute
+    score (epochs.FOOTBALL_RESULT_1X2_DNB, bet.sofa.football_1x2_dnb), like
+    the double chance: result_1x2 - 1.0 when the subject side ("1" / "2")
+    won, else 0.0 (OVER = the win); draw_no_bet - 1.0 when the home side won,
+    0.0 when the away side won (OVER = home, UNDER = away), None on a draw:
+    Superbet refunds the stake. SETTLE grades it at line 0.5."""
+    if market == RESULT_1X2 and subject not in RESULT_SIDES:
+        return GapReason.STAT_KEY_ABSENT
+    if market == DRAW_NO_BET and subject != DNB_SUBJECT:
+        return GapReason.STAT_KEY_ABSENT
+    if market not in (RESULT_1X2, DRAW_NO_BET):
+        return GapReason.STAT_KEY_ABSENT
+    if goal_score_inconsistent(event):
+        return GapReason.INTERNAL_INCONSISTENT
+    score = regulation_score(event)
+    if score is None:
+        return GapReason.STAT_KEY_ABSENT
+    home, away = score
+    if market == RESULT_1X2:
+        won = home > away if subject == "1" else away > home
+        return 1.0 if won else 0.0
+    if home == away:
+        return None
+    return 1.0 if home > away else 0.0
 
 
 FOOTBALL_METRICS = {

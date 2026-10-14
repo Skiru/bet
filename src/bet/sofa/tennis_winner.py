@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.market_mapper import fold
@@ -50,9 +51,12 @@ WINNER_LINE = 0.5
 # one too; without that switch no such rung or row exists. So are the football
 # incident markets (bet.sofa.football_incidents, epochs.
 # FOOTBALL_INCIDENT_MARKETS: a rating or a league rate, never a sample) and
-# the tennis set markets (bet.sofa.tennis_sets, epochs.TENNIS_SET_MARKETS).
+# the tennis set markets (bet.sofa.tennis_sets, epochs.TENNIS_SET_MARKETS),
+# and football 1X2 / draw no bet (bet.sofa.football_1x2_dnb, epochs.
+# FOOTBALL_RESULT_1X2_DNB).
 RATING_ONLY_MARKETS = frozenset(
-    {MATCH_WON_FOR, DOUBLE_CHANCE} | INCIDENT_MARKETS | SET_MARKETS)
+    {MATCH_WON_FOR, DOUBLE_CHANCE} | INCIDENT_MARKETS | SET_MARKETS
+    | RESULT_1X2_DNB_MARKETS)
 # The sheet note a winner row carries (and the rule it was priced under).
 WINNER_NOTE = "TENNIS_MATCH_WINNER"
 

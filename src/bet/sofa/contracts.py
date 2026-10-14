@@ -384,6 +384,12 @@ class SheetRow(BaseModel):
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_RESULT_1X2_DNB: the rule's name on a
+    # result_1x2 / draw_no_bet row (bet.sofa.football_1x2_dnb) and the
+    # fixture's as-of season phase it was priced in (None: no phase) - the
+    # phase picks the row's curve class in CONFIDENCE; both absent when off.
+    result_1x2_dnb_rule: str | None = None
+    result_phase: str | None = None
     # bet.sofa.epochs.SHOT_DETAIL_MARKETS: the rule's name on a footballer
     # shot-detail row (bet.sofa.shot_detail); absent when off.
     shot_detail_rule: str | None = None
