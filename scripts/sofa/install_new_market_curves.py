@@ -66,11 +66,11 @@ from typing import Any
 _REPO = Path(__file__).resolve().parents[2]
 
 GROUPS = ("shot_detail", "double_chance", "football_incidents", "tennis_sets",
-          "sport_derived")
+          "sport_derived", "football_result_1x2_dnb", "cs2_series_rounds")
 FOOTBALL_TARGET = "sofa_confidence_calibration.json"
 SPORT_TARGET = "sofa_sport_confidence_calibration.json"
 DEFAULT_TARGET = {g: FOOTBALL_TARGET for g in GROUPS} | {
-    "sport_derived": SPORT_TARGET}
+    "sport_derived": SPORT_TARGET, "cs2_series_rounds": SPORT_TARGET}
 DEFAULT_BACKUP = "config/backup_2026-10-15_new_markets"
 DEFAULT_TESTS = f"{sys.executable} -m pytest tests/sofa -q"
 FITTED_FROM_KEY = "new_market_curves_fitted_from"
