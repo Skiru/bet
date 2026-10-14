@@ -167,6 +167,31 @@
           "quote": "-0.0351 [-0.0409; -0.0292]"
         }
       ]
+    },
+    {
+      "id": "T-IDENTITY-unexplained",
+      "registered_on": "2026-10-14",
+      "status": "PROPOSED",
+      "hypothesis": "Once the identity map's switches are on (plan docs/sofa/history/PLAN_MAPA_DRUZYN_2026-10-14.md, K1-K7), every Superbet event and player-market subject of every sport ends its kickoff day IDENTIFIED, NOT_ON_SOFASCORE (proven absence) or NEEDS_ALIAS (queued), and no identification the new rules made is contradicted later.",
+      "rule": "scripts/sofa/measure_team_identity.py over the kickoff days from the last identity switch: per sport and entity type (event, player) the count of UNEXPLAINED items per day; plus every identification by a new rule (source identity_anchor / DAY_ANCHOR, K3 fuzzy-within-tournament) checked against the settle: a NOT_GRADED:ID_CHANGED, an audit_settle_identity.py finding or a later manual alias pointing elsewhere is a contradiction.",
+      "population": "Every Superbet event on the day's board (football / tennis 01_board.json) and in sport_fixtures.json (hockey, basketball, volleyball, CS2; 1x1 loops and DUPLICATE_SUPERBET_TEAM excluded), every football player of 03_samples.json, every hockey / basketball player_model subject and every CS2 player-line nickname; each sport and entity type apart.",
+      "data_window": {
+        "from": "2026-10-15",
+        "to": "2027-01-14"
+      },
+      "required_n": {
+        "days": 14,
+        "basis": "2026-10-05..10-14 measured (K0): unexplained per day football events 35.6, football players ~100 (comparable from 10-12), tennis 13.6, hockey 6.3, basketball 15.6, volleyball 32.6, CS2 8.0 events; 14 consecutive days after the last switch cover two weekends of football boards."
+      },
+      "evaluation": "Per sport and entity: UNEXPLAINED per day over 14 consecutive kickoff days after the last identity switch; contradictions counted over every new-rule identification in the window.",
+      "stop_criterion": "PASSED when over 14 consecutive days every sport and entity has 0 UNEXPLAINED items other than BRIDGE_ABORTED retried under K6, and 0 contradictions; FAILED at any contradiction of a new-rule identification (the rule's switch is set back to None by the operator) or when UNEXPLAINED does not fall below 10% of the K0 baseline for a sport and entity after 30 days.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/identity_coverage_2026-10-14/K0_pomiar_2026-10-14.md",
+          "line": 43,
+          "quote": "**326** (58,7%)"
+        }
+      ]
     }
   ]
 }

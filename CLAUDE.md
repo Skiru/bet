@@ -833,6 +833,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_league_rate_rule.py [--fr
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_bucket_design_effect.py --rows-dir <dir> --days <d>...   # audit A4 walk-forward (T-A4-bucket-deff)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_unit_strength.py [--from <d>] [--to <d>]   # audit A1
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settled_by_market.py --from <d> --to <d> [--p-min 0.70] [--min-n 20] [--md-out f] [--json-out f]   # every sport, every market x direction: n, hit, raw model p, 1/odds, ROI + game bootstrap; sports never pooled
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from <d>] [--to <d>] [--sport all|football|...] [--md-out f] [--json-out f]   # identity plan K0: UNEXPLAINED events / players per kickoff day, sport and entity (IDENTIFIED / EXCLUDED / EXPLAINED / UNEXPLAINED); names judged on today's DB; T-IDENTITY-unexplained
 ```
 
 **Gates before a commit**

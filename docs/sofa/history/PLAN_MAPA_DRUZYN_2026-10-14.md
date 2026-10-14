@@ -135,7 +135,10 @@ Każdy krok: pomiar przed zmianą, test w `tests/sofa/`, przełącznik w `bet.so
 (wszystko, co dokłada nogi na kupon, działa od następnego 00:00Z — reguła CLAUDE.md),
 raport w `docs/sofa/history/`, aktualizacja CLAUDE.md i `docs/sofa/PIPELINE.md`.
 
-**K0. Narzędzie pomiaru (tylko odczyt).** Przenieść `measure_team_ids.py` do
+**K0. Narzędzie pomiaru (tylko odczyt).** *Zrobione 2026-10-14:*
+`scripts/sofa/measure_team_identity.py`, wynik i zastrzeżenia w
+`docs/sofa/evidence/identity_coverage_2026-10-14/K0_pomiar_2026-10-14.md`
+(test w rejestrze: `T-IDENTITY-unexplained`, PROPOSED). Plan pierwotny: Przenieść `measure_team_ids.py` do
 `scripts/sofa/measure_team_identity.py` (`main()`, argparse `--from/--to/--sport`,
 mypy --strict, ruff, wpis w rejestrze testów `check_test_registry.py`). Dodać tryb
 dla piłki/tenisa (RESOLVE gaps) i zawodników (`NO_ENTITY_FOUND` z `03_samples.json`).
