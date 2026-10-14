@@ -164,11 +164,13 @@ def test_cs2_is_left_out() -> None:
     assert r["status"] == si.NOT_IDENTIFIED
 
 
-def test_the_switch_is_next_days_midnight() -> None:
-    assert epochs.DAY_ANCHOR_FROM_UTC == datetime(2026, 10, 15, tzinfo=UTC)
-    assert epochs.day_anchor("2026-10-15", datetime(2026, 10, 15, 0, 1, tzinfo=UTC))
-    assert not epochs.day_anchor("2026-10-15", datetime(2026, 10, 14, 23, tzinfo=UTC))
-    assert not epochs.day_anchor("2026-10-14", datetime(2026, 10, 15, 6, tzinfo=UTC))
+def test_the_switch_starts_from_the_operators_moment() -> None:
+    # moved by the operator to 2026-10-14 11:30Z (10-14 mixed)
+    assert epochs.DAY_ANCHOR_FROM_UTC == datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
+    assert epochs.day_anchor("2026-10-14", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert not epochs.day_anchor("2026-10-14", datetime(2026, 10, 14, 11, 29, tzinfo=UTC))
+    assert not epochs.day_anchor("2026-10-13", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert epochs.day_anchor("2026-10-15", datetime(2026, 10, 15, 6, tzinfo=UTC))
 
 
 def test_the_opponent_of_a_day_anchor_is_a_candidate_never_learned(

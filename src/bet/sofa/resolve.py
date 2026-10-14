@@ -587,6 +587,63 @@ def candidate_fits(norm_side: str, entity: dict[str, Any], sport: str) -> bool:
     ) or levels_compatible(norm_side, normalize_name(entity.get("name", "")))
 
 
+# K8 (identity plan, epochs.FOOTBALL_DAY_ANCHOR_FROM_UTC): the window of the
+# football day anchor - far tighter than MATCH_WINDOW_S, since the opponent's
+# name no longer has to agree.
+FOOTBALL_ANCHOR_WINDOW_S = 3600
+
+
+def football_day_anchor_event(
+    events: list[dict[str, Any]],
+    anchor_id: int,
+    other_id: int | None,
+    kickoff_utc: datetime,
+    anchor_is_side_a: bool,
+    board_side_a: str,
+    board_side_b: str,
+) -> dict[str, Any] | None:
+    """The anchor team's ONLY football game within FOOTBALL_ANCHOR_WINDOW_S of
+    Superbet's start, whatever the opponent's name - when it reads the way
+    Superbet orders the sides (the F25 gate: the anchor at home if it is
+    Superbet's side_a), its gender is the board's, it is not postponed or
+    cancelled, and the opponent's own verified id, if it has one, is in it.
+
+    Measured 2026-10-14 on RESOLVE's football fixtures of 10-05..10-14
+    (docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md): 3,458 of 3,459
+    bridged fixtures picked right with the opponent's name hidden; the one
+    left (Hapoel / Maccabi Petah Tikva U19, 10-11) cannot be settled from the
+    data. Switched on by the operator 2026-10-14. Tennis never (a replaced
+    opponent is the same hour's other match)."""
+    from bet.sofa.fixture_status import NOT_AS_SCHEDULED
+
+    expected = ("W" if "W" in (superbet_gender(board_side_a),
+                               superbet_gender(board_side_b)) else "M")
+    near: dict[int, dict[str, Any]] = {}
+    for e in events:
+        ts = e.get("startTimestamp")
+        if not isinstance(ts, int) or not isinstance(e.get("id"), int):
+            continue
+        if abs(ts - kickoff_utc.timestamp()) > FOOTBALL_ANCHOR_WINDOW_S:
+            continue
+        if str((e.get("status") or {}).get("type") or "") in NOT_AS_SCHEDULED:
+            continue
+        if anchor_id not in (_team_id(e, "homeTeam"), _team_id(e, "awayTeam")):
+            continue
+        if sofascore_gender(e) != expected:
+            continue
+        near[int(e["id"])] = e
+    if len(near) != 1:
+        return None
+    e = next(iter(near.values()))
+    home, away = _team_id(e, "homeTeam"), _team_id(e, "awayTeam")
+    if (home == anchor_id) != anchor_is_side_a:
+        return None
+    other = away if home == anchor_id else home
+    if other_id is not None and other != other_id:
+        return None
+    return e
+
+
 def split_match_name(match_name: str) -> tuple[str, str]:
     parts = match_name.split("·")
     if len(parts) == 2:
@@ -1004,6 +1061,19 @@ class SofaResolver:
                 method = method_of(e, cached["sofascore_id"])
                 if method is not None:
                     return cached["sofascore_id"], tagged(e, method), False
+            from bet.sofa import epochs
+
+            if sport == "football" and epochs.football_day_anchor(
+                    kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")):
+                opp = self.cache.get_entity(sport, norm_opp)
+                other_id = (int(opp["sofascore_id"]) if opp
+                            and opp["status"] == "verified" else None)
+                anchored = football_day_anchor_event(
+                    events, int(cached["sofascore_id"]), other_id, kickoff_utc,
+                    norm_side == normalize_name(board_side_a or side),
+                    board_side_a or side, board_side_b or expected_opponent)
+                if anchored is not None:
+                    return cached["sofascore_id"], anchored, False
 
         # Miss -> search/all
         if sport in SPORT_SCOPED_SEARCH:

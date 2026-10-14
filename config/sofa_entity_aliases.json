@@ -1,5 +1,26 @@
 {
   "_doc": "Manual Superbet -> Sofascore decisions (identity plan K4, bet.sofa.entity_map.load_manual / sync_manual). `aliases`: the Superbet name IS this Sofascore id (held with source 'manual', replacing any held id, its conflicts and candidates closed). `rejected`: the name is NOT this candidate. Each entry: sport (football|tennis|hockey|basketball|volleyball|cs2), superbet_name (as Superbet writes it), sofascore_id (int), sofascore_name, decided_by, decided_at (YYYY-MM-DD), evidence (event id, page, why), optional evidence_event_id. Written only after a person's decision from runs/sofa/<d>/entity_queue.md; read from epochs.ENTITY_MAP_FROM_UTC. Fuzzy matching never writes here.",
-  "aliases": [],
+  "aliases": [
+    {
+      "sport": "cs2",
+      "superbet_name": "Ninjas in Pyjamas",
+      "sofascore_id": 366560,
+      "sofascore_name": "NIP",
+      "decided_by": "operator (delegated to Claude, 2026-10-14: 'rozwiaz konflikty')",
+      "decided_at": "2026-10-14",
+      "evidence": "every pinned Superbet 'Ninjas in Pyjamas' series is 366560 (Inner Circle - NIP 10-12, Team Falcons - NIP 10-14, both names 100); the held 448738 is 'Ninjas in Pyjamas Impact', another roster (backfill_cs2 search, 2026-09-28)",
+      "evidence_event_id": 17317278
+    },
+    {
+      "sport": "cs2",
+      "superbet_name": "Golden Horde",
+      "sofascore_id": 1272785,
+      "sofascore_name": "The Golden Horde",
+      "decided_by": "operator (delegated to Claude, 2026-10-14: 'rozwiaz konflikty')",
+      "decided_at": "2026-10-14",
+      "evidence": "the Superbet team plays as 1272785: ex-RUSTEC - The Golden Horde 10-12 (CS2_PICK_EVENT, 85.7), seen twice; the held 1106544 came from backfill_cs2's search alone",
+      "evidence_event_id": 17319981
+    }
+  ],
   "rejected": []
 }

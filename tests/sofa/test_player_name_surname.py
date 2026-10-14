@@ -159,14 +159,10 @@ def test_settle_grades_the_surname_name_and_refuses_a_rival() -> None:
     assert run_settle.player_token_names(doc) == {(7, KEY): "ben chrisene"}
 
 
-def test_the_switch_starts_the_next_day() -> None:
-    assert epochs.PLAYER_NAME_SURNAME_FROM_UTC == datetime(2026, 10, 15, tzinfo=UTC)
-    assert epochs.player_name_surname(
-        "2026-10-15", datetime(2026, 10, 15, 0, 1, tzinfo=UTC)
-    )
-    assert not epochs.player_name_surname(
-        "2026-10-14", datetime(2026, 10, 15, 6, tzinfo=UTC)
-    )
-    assert not epochs.player_name_surname(
-        "2026-10-15", datetime(2026, 10, 14, 23, tzinfo=UTC)
-    )
+def test_the_switch_starts_from_the_operators_moment() -> None:
+    # moved by the operator to 2026-10-14 11:30Z (10-14 mixed)
+    assert epochs.PLAYER_NAME_SURNAME_FROM_UTC == datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
+    assert epochs.player_name_surname("2026-10-14", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert not epochs.player_name_surname("2026-10-14", datetime(2026, 10, 14, 11, 29, tzinfo=UTC))
+    assert not epochs.player_name_surname("2026-10-13", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert epochs.player_name_surname("2026-10-15", datetime(2026, 10, 15, 6, tzinfo=UTC))

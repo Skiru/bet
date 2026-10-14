@@ -1329,7 +1329,7 @@ godziny logowały FAILED). Blok `sports` w pliku podmienia liczniki tylko
 sportów, o które pytano (wcześniej pętla CS2 zerowała hokej i odwrotnie).
 
 **Mapa encji (plan tożsamości K1, od 2026-10-14; odczyt od
-`epochs.ENTITY_MAP_FROM_UTC` 2026-10-15 00:00Z, `bet.sofa.entity_map`).** Po
+`epochs.ENTITY_MAP_FROM_UTC` 2026-10-14 11:30Z, `bet.sofa.entity_map`).** Po
 zapisaniu pliku SPORT_IDENTITY uczy `sofa_entity` (osobne połączenie do
 zapisu; błąd zapisu nie psuje etapu — `ENTITY_MAP_LEARN_FAILED`, licznik
 `entity_map` w `SOFA_SUMMARY`), raz na mecz Sofascore (`sofa_entity_taught`):
@@ -1351,7 +1351,7 @@ zapisu; błąd zapisu nie psuje etapu — `ENTITY_MAP_LEARN_FAILED`, licznik
 Wiersze `identity_names` (i przyszłe `manual`) czytają `TeamResolver`
 (SPORT_IDENTITY), `player_model.resolve_team` (wiersze przed meczem
 zawodników; wiersz po nazwie niesie `entity_map_rule`) i `cache.get_entity`
-dopiero od przełącznika — dzień >= 2026-10-15 i zegar po 00:00Z. CS2 czyta
+dopiero od przełącznika — dzień >= 2026-10-14 i zegar po 11:30Z (operator przesunął wszystkie przełączniki planu tożsamości z 2026-10-15 00:00Z na 2026-10-14 11:30Z; 10-14 jest dniem mieszanym, grupa księgi „10-14 mieszany”). CS2 czyta
 tylko wiersze nauczone (po dokładnej nazwie z `cs2_series`, przed jej formą
 bez afiksów); własne wiersze `backfill_cs2.py` nadal nie są czytane — jeden
 z nich trzyma „Ninjas in Pyjamas” jako NIP Impact (448738), wbrew każdemu
@@ -1372,8 +1372,8 @@ zamyka konflikty / kandydatów tej nazwy. Kolejka do decyzji:
 `runs/sofa/<d>/entity_queue.md` (konflikty, kandydaci, gotowe wpisy JSON).
 Fuzzy nigdy nie wpisuje decyzji.
 
-**DAY_ANCHOR (plan tożsamości K2, od `epochs.DAY_ANCHOR_FROM_UTC` 2026-10-15
-00:00Z; hokej, kosz, siatka — nie CS2).** Gdy w listingu nie ma meczu z obiema
+**DAY_ANCHOR (plan tożsamości K2, od `epochs.DAY_ANCHOR_FROM_UTC` 2026-10-14
+11:30Z; hokej, kosz, siatka — nie CS2).** Gdy w listingu nie ma meczu z obiema
 nazwami: jedyny mecz drużyny-kotwicy (strona z rozpoznanym id) w ±1 h od
 startu Superbetu (sport, płeć, nie przełożony) jest tym zdarzeniem bez względu
 na nazwę drugiej strony (`match_method: "DAY_ANCHOR"`). Dwa takie mecze →
@@ -1383,8 +1383,8 @@ Backtest z ukrytą nazwą przeciwnika (`measure_day_anchor.py`, 10-05..10-14):
 1 578 / 1 578 zidentyfikowanych meczów trafionych, 0 sprzeczności z SETTLE.
 Raport: `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
 
-**TOURNAMENT_DAY i NOT_ON_SOFASCORE (plan tożsamości K3 / K5, od 2026-10-15
-00:00Z).** Zdarzenie, którego **żadna** strona nie ma id, jest dopasowywane po
+**TOURNAMENT_DAY i NOT_ON_SOFASCORE (plan tożsamości K3 / K5, od 2026-10-14
+11:30Z).** Piłka w RESOLVE (K8, `FOOTBALL_DAY_ANCHOR_FROM_UTC`, ten sam moment): jedyny mecz drużyny z mapy „verified” w ±1 h od startu Superbetu, w kolejności stron Superbetu, płeć tablicy, nie przełożony, własne id przeciwnika (jeśli jest) w meczu — `resolve.football_day_anchor_event` (3 458 / 3 459 na 10-05..10-14). Zdarzenie, którego **żadna** strona nie ma id, jest dopasowywane po
 obu nazwach w meczach swojego turnieju z dnia (`bet.sofa.day_listing`,
 `unique-tournament/<ut>/scheduled-events/<d>` przez mapę turniejów, cache
 `sofa_day_listing`; słabsza strona ≥ 60, przewaga ≥ 20; `match_method:
@@ -1814,7 +1814,7 @@ runs/sofa/shadow/<sport>/<data>/   — sport: hockey | basketball | volleyball
 
 runs/sofa/ledger/results.jsonl            dziennik: jeden wiersz na (dzień, grupę) — official, official:pre_stats_only, removed:reads,
                                           measure:<sport>; record_results.py; czyta audit_ledger.py
-                                          (grupy epok audit_ledger.EPOCH_GROUPS: ... od 10-09 / od 10-12 / 10-13 mieszany / od 10-14 - nigdy sumowane)
+                                          (grupy epok audit_ledger.EPOCH_GROUPS: ... od 10-09 / od 10-12 / 10-13 mieszany / 10-14 mieszany / od 10-15 - nigdy sumowane)
                                           (wiersze wariant / multi / sport:<sport> / rule:<sport> to wycofane warianty dni do 2026-10-05: czytane, nigdy łączone)
 ```
 

@@ -171,7 +171,7 @@
     {
       "id": "T-IDENTITY-unexplained",
       "registered_on": "2026-10-14",
-      "status": "PROPOSED",
+      "status": "REGISTERED",
       "hypothesis": "Once the identity map's switches are on (plan docs/sofa/history/PLAN_MAPA_DRUZYN_2026-10-14.md, K1-K7), every Superbet event and player-market subject of every sport ends its kickoff day IDENTIFIED, NOT_ON_SOFASCORE (proven absence) or NEEDS_ALIAS (queued), and no identification the new rules made is contradicted later.",
       "rule": "scripts/sofa/measure_team_identity.py over the kickoff days from the last identity switch: per sport and entity type (event, player) the count of UNEXPLAINED items per day; plus every identification by a new rule (source identity_anchor / DAY_ANCHOR, K3 fuzzy-within-tournament) checked against the settle: a NOT_GRADED:ID_CHANGED, an audit_settle_identity.py finding or a later manual alias pointing elsewhere is a contradiction.",
       "population": "Every Superbet event on the day's board (football / tennis 01_board.json) and in sport_fixtures.json (hockey, basketball, volleyball, CS2; 1x1 loops and DUPLICATE_SUPERBET_TEAM excluded), every football player of 03_samples.json, every hockey / basketball player_model subject and every CS2 player-line nickname; each sport and entity type apart.",

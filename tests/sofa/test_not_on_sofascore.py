@@ -123,11 +123,10 @@ def test_a_team_is_asked_fresh_once_a_run() -> None:
     assert client.calls == [10] and refreshed == {10}
 
 
-def test_the_switch_is_next_days_midnight() -> None:
-    assert epochs.NOT_ON_SOFASCORE_FROM_UTC == datetime(2026, 10, 15, tzinfo=UTC)
-    assert epochs.not_on_sofascore(
-        "2026-10-15", datetime(2026, 10, 15, 0, 1, tzinfo=UTC)
-    )
-    assert not epochs.not_on_sofascore(
-        "2026-10-14", datetime(2026, 10, 15, 1, tzinfo=UTC)
-    )
+def test_the_switch_starts_from_the_operators_moment() -> None:
+    # moved by the operator to 2026-10-14 11:30Z (10-14 mixed)
+    assert epochs.NOT_ON_SOFASCORE_FROM_UTC == datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
+    assert epochs.not_on_sofascore("2026-10-14", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert not epochs.not_on_sofascore("2026-10-14", datetime(2026, 10, 14, 11, 29, tzinfo=UTC))
+    assert not epochs.not_on_sofascore("2026-10-13", datetime(2026, 10, 14, 11, 31, tzinfo=UTC))
+    assert epochs.not_on_sofascore("2026-10-15", datetime(2026, 10, 15, 6, tzinfo=UTC))

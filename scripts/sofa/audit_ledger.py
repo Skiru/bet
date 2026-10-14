@@ -146,17 +146,24 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # group, added to neither neighbour. One table row per (variant, group),
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
-                "10-13 mieszany", "od 10-14")
+                "10-13 mieszany", "10-14 mieszany", "od 10-15")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
 AUDIT_EPOCH_FROM_DATE = "2026-10-14"
+# The identity plan's switches (entity map, day anchors, tournament day, proven
+# absence, player surnames) moved by the operator into 10-14 at 11:30Z: 10-14
+# is mixed, and the days after it are their own epoch.
+IDENTITY_1014_MIXED_DATE = "2026-10-14"
+IDENTITY_EPOCH_FROM_DATE = "2026-10-15"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
-        if str(row.get("date", "")) >= AUDIT_EPOCH_FROM_DATE:
-            return "od 10-14"
+        if str(row.get("date", "")) >= IDENTITY_EPOCH_FROM_DATE:
+            return "od 10-15"
+        if str(row.get("date", "")) == IDENTITY_1014_MIXED_DATE:
+            return "10-14 mieszany"
         if str(row.get("date", "")) == REFIT_1013_MIXED_DATE:
             return "10-13 mieszany"
         if str(row.get("date", "")) >= PLAYER_EPOCH_FROM_DATE:
@@ -199,7 +206,8 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
             f"{interval_text(grouped[v])} |"
         )
     out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
-            "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / od 10-14): the "
+            "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / "
+            "10-14 mieszany / od 10-15): the "
             "coupon before and after "
             "each cutover "
             "is not one experiment, so the groups are never added."]

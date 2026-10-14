@@ -1557,7 +1557,10 @@ def men_friendly_baseline(date: str, build_at: datetime | None = None) -> bool:
 # rows (backfill_cs2) contradict the pinned events and are queued. Upper
 # bound of the direct gain: 32 not-identified events in 10 days had a side
 # learned from an earlier game. Next day's 00:00Z by the default rule.
-ENTITY_MAP_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+ENTITY_MAP_FROM_UTC: datetime | None = datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
 # Stamped on a row whose teams a reader resolved with the map's learned rows
 # (player_model's pre-game rows by name; absent when off).
 ENTITY_MAP_RULE = "entity_map_v1"
@@ -1591,7 +1594,10 @@ def entity_map(date: str | None, build_at: datetime | None = None) -> bool:
 # one basketball game (2 h): the window stays 1 h. The opponent's name is
 # never learned from it (entity_map.OPPONENT_METHODS: a candidate). Changes
 # what prints: a day >= the date, built at or after the moment.
-DAY_ANCHOR_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+DAY_ANCHOR_FROM_UTC: datetime | None = datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
 
 
 def day_anchor(date: str, build_at: datetime | None = None) -> bool:
@@ -1611,7 +1617,11 @@ def day_anchor(date: str, build_at: datetime | None = None) -> bool:
 # >= the date, built at or after the moment. The sample says
 # `match_rule: "surname"`, the sheet row PLAYER_NAME_SURNAME, and SETTLE
 # grades the matched name as it does a token match.
-PLAYER_NAME_SURNAME_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+PLAYER_NAME_SURNAME_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 11, 30, tzinfo=UTC)
 
 
 def player_name_surname(date: str, build_at: datetime | None = None) -> bool:
@@ -1633,7 +1643,10 @@ def player_name_surname(date: str, build_at: datetime | None = None) -> bool:
 # right with the ids hidden; 24 of 42 such events identified, 15 confirmed
 # by the settle, 0 contradicted. Identifies more events: changes what
 # prints - a day >= the date, built at or after the moment.
-TOURNAMENT_DAY_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+TOURNAMENT_DAY_FROM_UTC: datetime | None = datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
 
 
 def tournament_day(date: str, build_at: datetime | None = None) -> bool:
@@ -1655,7 +1668,10 @@ def tournament_day(date: str, build_at: datetime | None = None) -> bool:
 # 10-13..10-14 17 were read from cache; until 10-12 the reason was mostly a
 # game asked after its start (fixed 10-12, frozen_at_start). The re-ask can
 # identify a game the cached page lacked: changes what prints.
-NOT_ON_SOFASCORE_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+NOT_ON_SOFASCORE_FROM_UTC: datetime | None = datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
 
 
 def not_on_sofascore(date: str, build_at: datetime | None = None) -> bool:
@@ -1665,3 +1681,25 @@ def not_on_sofascore(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= NOT_ON_SOFASCORE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= NOT_ON_SOFASCORE_FROM_UTC)
+
+
+# The football day anchor in RESOLVE (identity plan K8,
+# resolve.football_day_anchor_event): measured 2026-10-14 3,458 / 3,459
+# bridged fixtures of 10-05..10-14 with Superbet's orientation; ~11 more
+# fixtures a day; the one unsettled case (Hapoel / Maccabi Petah Tikva U19
+# 10-11) is accepted by the operator ("Tylko 1. wlacz", 2026-10-14), who also
+# set the moment. A day >= the date, at a clock at or after the moment.
+# Moved by the operator 2026-10-14 ("wlacz ... zeby te zmiany byly od dzisiaj")
+# from 2026-10-15 00:00Z to 2026-10-14 11:30Z: 10-14 is a MIXED day (legs
+# printed before stay locked; ledger group "10-14 mieszany").
+FOOTBALL_DAY_ANCHOR_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 11, 30, tzinfo=UTC)
+
+
+def football_day_anchor(date: str, build_at: datetime | None = None) -> bool:
+    """Does RESOLVE accept the football day anchor (FOOTBALL_DAY_ANCHOR_FROM_UTC)?"""
+    if FOOTBALL_DAY_ANCHOR_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_DAY_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_DAY_ANCHOR_FROM_UTC)

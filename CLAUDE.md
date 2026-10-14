@@ -299,7 +299,7 @@ every sport alike, and nothing that could win is cut by name.
   vs "Matheus Araujo"; 346 of 680 `NO_ENTITY_FOUND` players of 10-08..10-10).
   The sample says `match_rule: "tokens"`, the sheet row `PLAYER_NAME_TOKENS`.
   Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`.
-- **Player surnames** (`PLAYER_NAME_SURNAME_FROM_UTC`, 2026-10-15 00:00Z,
+- **Player surnames** (`PLAYER_NAME_SURNAME_FROM_UTC`, 2026-10-14 11:30Z,
   identity plan K7): a footballer neither `match_player` nor the token rule
   finds is looked for by whole surname + a first-name prefix of >= 3 letters
   (`players.match_player_by_surname`: Benjamin Joshua Chrisene / Ben
@@ -399,7 +399,7 @@ prices) and corrects it with line evidence. SHADOW / CS2 themselves stay a
 measurement of Superbet's price and feed nothing else.
 
 - **Entity map** (identity plan K1, `bet.sofa.entity_map`; reads from
-  `ENTITY_MAP_FROM_UTC` 2026-10-15 00:00Z, day and clock): after writing
+  `ENTITY_MAP_FROM_UTC` 2026-10-14 11:30Z, day and clock): after writing
   `sport_fixtures.json` SPORT_IDENTITY teaches `sofa_entity`, once per
   Sofascore event (`sofa_entity_taught`). A side its own name confirmed
   (`entity_map.NAME_METHODS`, score > 82) is a `verified` row with
@@ -427,8 +427,9 @@ measurement of Superbet's price and feed nothing else.
   `ENTITY_MAP_FROM_UTC`): an alias is held with `source = manual`, replacing
   a held id, and closes that name's conflicts / candidates. The queue to
   decide from: `report_entity_queue.py --date <d>` ->
-  `runs/sofa/<d>/entity_queue.md` (2026-10-14: 2 conflicts - NIP, Golden
-  Horde - and 55 candidates). Fuzzy matching never writes the file. Polish
+  `runs/sofa/<d>/entity_queue.md` (2026-10-14: 55 candidates; the 2
+  conflicts decided - NIP = 366560, Golden Horde = 1272785 "The Golden
+  Horde"). Fuzzy matching never writes the file. Polish
   country names were already in `sofa_name_aliases.json`; the national teams
   still unresolved (Jordania, Kuwejt...) play tournaments Sofascore does not
   list (K5).
@@ -446,7 +447,7 @@ measurement of Superbet's price and feed nothing else.
   Open: BC Barcelos (K) - Francisco Franco (K) is Sofascore's BC Barcelos -
   CAB Madeira. `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
 - **Tournament day, proven absence** (identity plan K3 / K5, both from
-  2026-10-15 00:00Z): an event NEITHER side of which has an id is matched by
+  2026-10-14 11:30Z): an event NEITHER side of which has an id is matched by
   both names inside its tournament's games of the day
   (`TOURNAMENT_DAY_FROM_UTC`; `bet.sofa.day_listing`,
   `unique-tournament/<ut>/scheduled-events/<d>` through the entity map's
@@ -602,7 +603,11 @@ measurement of Superbet's price and feed nothing else.
   re-run it after any `regrade_settled.py`. Exit 0 with legs pending, 1 on a
   `MISMATCH` (two graders disagree - a defect), 2 on a crash.
 - **Comparability:** the current rules apply from 2026-10-06; a refit install
-  or an epoch switch starts a new epoch (the latest: ledger group "od 10-14"
+  or an epoch switch starts a new epoch (the latest: the identity plan's
+  switches - ENTITY_MAP, DAY_ANCHOR, TOURNAMENT_DAY, NOT_ON_SOFASCORE,
+  PLAYER_NAME_SURNAME, FOOTBALL_DAY_ANCHOR - moved by the operator into
+  10-14 at 11:30Z: 10-14 is mixed, ledger group "10-14 mieszany", the days
+  after it "od 10-15"; before them ledger group "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
   PLAYER_TEAM_FROM_SIDE, MARKET_POSITIONED_LINES with the A7 basketball
@@ -665,12 +670,17 @@ all-league rate beat the sample alone in thin competitions, squared error
 -0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
 (A1: a regional unit's strength from its competition's; goals log-loss
 -0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
-**Measured and not switched on, identity plan** (2026-10-14, no code
-behind a switch; `docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`):
-the football day anchor in RESOLVE (K8: 3,458 / 3,459 bridged fixtures with
-the orientation gate, ~11 more a day; the one left, Hapoel / Maccabi Petah
-Tikva U19 10-11, cannot be settled from the data - the operator decides;
-tennis never: replaced opponents); hockey / basketball players found only
+**Football day anchor** (identity plan K8, `FOOTBALL_DAY_ANCHOR_FROM_UTC`
+2026-10-14 11:30Z, switched on by the operator, "Tylko 1. wlacz"):
+RESOLVE takes a verified side's ONLY football game within 1 h of
+Superbet's start, read in Superbet's order (F25), gender as the board's,
+not postponed, the opponent's own verified id (if any) in it
+(`resolve.football_day_anchor_event`). 3,458 / 3,459 bridged fixtures of
+10-05..10-14 with the opponent hidden, ~11 more fixtures a day; the one
+unsettled (Hapoel / Maccabi Petah Tikva U19 10-11) accepted by the operator.
+Tennis never (replaced opponents).
+**Measured and not switched on, identity plan** (2026-10-14,
+`docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`): hockey / basketball players found only
 under another team (K7: 25 of 30 / 20 of 48 NOT_IN_HISTORY names - pricing
 them from another team's games is a model change, to be measured first).
 **Measured and not switched on, measured sports** (audit 2026-10-13, all `None`, code behind the switch):

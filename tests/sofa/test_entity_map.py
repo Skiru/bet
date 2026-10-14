@@ -19,8 +19,8 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.player_model import resolve_team
 
-BEFORE = "2026-10-14T12:00:00Z"
-AFTER = "2026-10-15T06:00:00Z"
+BEFORE = "2026-10-14T11:00:00Z"
+AFTER = "2026-10-14T12:00:00Z"
 AT = "2026-10-14T12:00:00Z"
 
 
@@ -67,13 +67,13 @@ def test_threshold_is_resolves() -> None:
     assert em.NAME_MATCH_THRESHOLD == resolve.NAME_MATCH_THRESHOLD
 
 
-def test_the_switch_is_next_days_midnight_on_day_and_clock() -> None:
-    assert epochs.ENTITY_MAP_FROM_UTC == datetime(2026, 10, 15, tzinfo=UTC)
-    on = datetime(2026, 10, 15, 0, 1, tzinfo=UTC)
-    off = datetime(2026, 10, 14, 23, 59, tzinfo=UTC)
-    assert epochs.entity_map("2026-10-15", on)
-    assert not epochs.entity_map("2026-10-15", off)
-    assert not epochs.entity_map("2026-10-14", on)  # a built day is never re-read
+def test_the_switch_is_the_operators_moment_on_day_and_clock() -> None:
+    assert epochs.ENTITY_MAP_FROM_UTC == datetime(2026, 10, 14, 11, 30, tzinfo=UTC)
+    on = datetime(2026, 10, 14, 11, 31, tzinfo=UTC)
+    off = datetime(2026, 10, 14, 11, 29, tzinfo=UTC)
+    assert epochs.entity_map("2026-10-14", on)
+    assert not epochs.entity_map("2026-10-14", off)
+    assert not epochs.entity_map("2026-10-13", on)  # a day before is never re-read
     assert epochs.entity_map(None, on) and not epochs.entity_map(None, off)
 
 
@@ -416,7 +416,7 @@ def test_manual_aliases_replace_a_held_id_and_close_the_queue_only_from_the_swit
         ],
         "rejected": [],
     }
-    before = em.sync_manual(conn, decisions, AT, datetime(2026, 10, 14, 12, tzinfo=UTC))
+    before = em.sync_manual(conn, decisions, AT, datetime(2026, 10, 14, 11, tzinfo=UTC))
     assert before["skipped_before_switch"] == 2
     assert _row(conn, "cs2", "ninjas in pyjamas")[0] == 448738  # untouched
     after = em.sync_manual(conn, decisions, AT, datetime(2026, 10, 15, 1, tzinfo=UTC))

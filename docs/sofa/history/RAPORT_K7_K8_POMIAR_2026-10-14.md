@@ -67,3 +67,24 @@ je poziom meczu) — bez osobnej zmiany.
 - Wszystkie reguły z 10-15 (K1, K2, K3, K4, K5, K7 piłka) pierwszy raz na
   żywo po 00:00Z; miernik: `measure_team_identity.py --from 2026-10-15`
   (test `T-IDENTITY-unexplained`, PROPOSED).
+
+## Decyzje operatora (2026-10-14 ~11:05Z)
+
+„Tylko 1. włącz i rozwiąż konflikty! Resztę podejmij decyzje jak uważasz,
+pushnij na main i przebuduj kupon, żeby te zmiany były od dzisiaj.”
+
+- **K8 włączone:** `FOOTBALL_DAY_ANCHOR_FROM_UTC` (kod:
+  `resolve.football_day_anchor_event`, z warunkiem orientacji). Nierozstrzygnięty
+  przypadek Hapoel / Maccabi Petah Tikva U19 przyjęty przez operatora.
+- **Wszystkie przełączniki planu tożsamości od 2026-10-14 11:30Z** (zamiast
+  2026-10-15 00:00Z): ENTITY_MAP, DAY_ANCHOR, TOURNAMENT_DAY, NOT_ON_SOFASCORE,
+  PLAYER_NAME_SURNAME, FOOTBALL_DAY_ANCHOR. 10-14 jest dniem mieszanym (nogi
+  wydrukowane wcześniej zostają zablokowane), grupa księgi „10-14 mieszany”,
+  dni od 10-15 — „od 10-15”.
+- **Konflikty (decyzja delegowana):** NIP → 366560 (każdy przypięty mecz;
+  448738 to NIP Impact), Golden Horde → 1272785 „The Golden Horde” (drużyna
+  grająca mecze Superbetu) — `config/sofa_entity_aliases.json`.
+- **Pozostałe (moja decyzja):** `T-IDENTITY-unexplained` → REGISTERED;
+  ryzyko BC Barcelos – CAB Madeira przyjęte (kontrola: sprzeczność z SETTLE
+  cofa przełącznik); zawodnicy hokeja / kosza z innej drużyny — niewłączone
+  do pomiaru log-loss (zmiana modelu, nie mapy).

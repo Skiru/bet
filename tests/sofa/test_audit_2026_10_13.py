@@ -240,9 +240,12 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
 
     assert audit_ledger.epoch_group(
         {"date": "2026-10-12", "epoch": "stats_only"}) == "od 10-12"
+    # the identity switches moved into 10-14 (11:30Z): mixed, then od 10-15
     assert audit_ledger.epoch_group(
-        {"date": "2026-10-14", "epoch": "stats_only"}) == "od 10-14"
-    assert audit_ledger.EPOCH_GROUPS[-1] == "od 10-14"
+        {"date": "2026-10-14", "epoch": "stats_only"}) == "10-14 mieszany"
+    assert audit_ledger.epoch_group(
+        {"date": "2026-10-15", "epoch": "stats_only"}) == "od 10-15"
+    assert audit_ledger.EPOCH_GROUPS[-1] == "od 10-15"
 
 
 def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:
@@ -252,7 +255,7 @@ def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:
         {"date": "2026-10-13", "epoch": "stats_only"}) == "10-13 mieszany"
     groups = audit_ledger.EPOCH_GROUPS
     assert groups.index("od 10-12") < groups.index("10-13 mieszany") < \
-        groups.index("od 10-14")
+        groups.index("10-14 mieszany") < groups.index("od 10-15")
 
 
 # --- B10: a CS2 team's rounds on a map from the round race --------------------
