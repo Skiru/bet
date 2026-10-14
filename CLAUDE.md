@@ -665,6 +665,14 @@ all-league rate beat the sample alone in thin competitions, squared error
 -0.58 [-0.62, -0.54] per side in its favour), `UNIT_STRENGTH_FROM_PARENT_FROM_UTC`
 (A1: a regional unit's strength from its competition's; goals log-loss
 -0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches).
+**Measured and not switched on, identity plan** (2026-10-14, no code
+behind a switch; `docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`):
+the football day anchor in RESOLVE (K8: 3,458 / 3,459 bridged fixtures with
+the orientation gate, ~11 more a day; the one left, Hapoel / Maccabi Petah
+Tikva U19 10-11, cannot be settled from the data - the operator decides;
+tennis never: replaced opponents); hockey / basketball players found only
+under another team (K7: 25 of 30 / 20 of 48 NOT_IN_HISTORY names - pricing
+them from another team's games is a model change, to be measured first).
 **Measured and not switched on, measured sports** (audit 2026-10-13, all `None`, code behind the switch):
 `CS2_MAP_IDENTITY_FROM_UTC` (B11: map order / pool terms, walk-forward on 24,995 maps / 11,217 series, A vs base +0.00021 [-0.00022, +0.00064], no effect; `cs2_map_identity_2026-10-13.md`),
 `HK_SHOTS_FROM_UTC` and `HK_EMPTY_NET_FROM_UTC` (B8: hockey shots x save%, centre replaced: total +0.00126 [+0.00010, +0.00241] worse, blend +0.00025 [-0.00033, +0.00084]; fitted empty net: handicap -0.00037 [-0.00074, +0.000006], total +0.00111 worse; shots exist for 6,755 of 29,516 games, none in October 2026; `hockey_goalie_empty_net_2026-10-13.md`, `RAPORT_B8_HOKEJ_2026-10-13.md`),

@@ -211,7 +211,7 @@ niezidentyfikowane przy następnym przebiegu; zmierzyć, ile z nich i tak zosta�
 przed startem (wtedy: ponowienie po zamknięciu wyłącznika, w tym samym limicie tempa —
 nigdy szybciej).
 
-**K7. Zawodnicy.** *Piłka zrobiona 2026-10-14 (od 2026-10-15 00:00Z):* `match_player_by_surname` (1 827 / 1 827, +22 w 3 dni); hokej / kosz / CS2 — następny krok. Plan pierwotny:
+**K7. Zawodnicy.** *Piłka zrobiona 2026-10-14 (od 2026-10-15 00:00Z):* `match_player_by_surname` (1 827 / 1 827, +22 w 3 dni); hokej / kosz zmierzone (25 z 30 / 20 z 48 nazwisk w innej drużynie — decyzja modelu, niewłączone; `RAPORT_K7_K8_POMIAR_2026-10-14.md`). Plan pierwotny:
 - Piłka: dla 89 „matched no squad member” — skład z `team/{id}/players` (aktualny,
   z id, z nowymi transferami) jako drugie źródło po składach z `/lineups`; dopasowanie
   po tokenach jak `match_player_by_tokens`, ale do listy z id; ksywki (Taty) przez skład
@@ -222,7 +222,7 @@ nigdy szybciej).
 - Hokej / kosz: `player_model` czyta nazwiska z boxów; ten sam skład `team/{id}/players`
   może dać id. Zmierzyć dzisiejsze braki najpierw (K0).
 
-**K8. Piłka / tenis RESOLVE.** Zmierzyć 36 `NO_MATCHING_EVENT` z 10-14 (i z innych dni)
+**K8. Piłka / tenis RESOLVE.** *Zmierzone 2026-10-14, niewłączone:* kotwica piłkarska 3 458 / 3 459 z warunkiem orientacji (+~11 dziennie), jeden nierozstrzygnięty przypadek — decyzja operatora; tenis wyłączony (`RAPORT_K7_K8_POMIAR_2026-10-14.md`). Plan pierwotny: Zmierzyć 36 `NO_MATCHING_EVENT` z 10-14 (i z innych dni)
 tą samą metodą mecz-first; RESOLVE już uczy `sofa_entity`, więc tu zysk to głównie
 listing dnia turnieju dla nazw, których nie zna.
 
