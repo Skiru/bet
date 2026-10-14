@@ -177,3 +177,15 @@ replayu), 11 nowych PASS (lewa noga, męskie `set1/set2_won_for` x4,
 kosz `double_chance|TEAM`), żaden dawny PASS nie odpadł; instalator na sucho:
 **22 klucze**. Szczegóły: `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
 sekcja „Bramka jednostronna”. `--confirm` nie uruchomiony.
+
+**19:35Z - stan przed instalacją.** Wszyscy agenci zakończyli; main zielony
+(pytest 4 757, ruff, mypy, rejestr 0). Instalator na sucho: **29 kluczy**
+(22 po bramce jednostronnej + DNB 4: `draw_no_bet|OVER/UNDER`,
+`season_early:draw_no_bet|OVER`, `women:draw_no_bet|OVER` + CS2 3:
+`rounds_handicap|TEAM`, `rounds_total|OVER`, `team_rounds|OVER`). 1X2 odpadło
+(krzywa zawyża 3,7-4 pp). Nowe przełączniki od 10-15 00:00Z:
+`FOOTBALL_RESULT_1X2_DNB_FROM_UTC`, `CS2_SERIES_ROUNDS_FROM_UTC`.
+**Decyzja operatora 19:35Z: instalować także CS2 rundy serii** mimo ostrzeżenia
+z linii Superbetu (212 serii 09-28..10-13: nogi >= 0,70 wygrały 0,33 przy 0,74,
+n 21; test `T-CS2-SERIES-ROUNDS-superbet` od 10-15) - przy instalacji sprawdzić
+w E2E, ile takich nóg by się wydrukowało, i powiedzieć operatorowi.
