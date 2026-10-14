@@ -262,8 +262,19 @@ def set_values(event: dict[str, Any]) -> dict[str, tuple[float, float]]:
     set that was not played, a match tiebreak and a score that is no set score
     give no value (extract_metric's refusals), never zero. ``sets`` is the
     sets each side won (``current``), kept only when they add up to the sets
-    the listing shows - its total is what sets_total settles on."""
+    the listing shows - its total is what sets_total settles on.
+
+    Best-of-three only (metrics.infer_best_of == 3), as SAMPLES scopes a
+    best-of-three fixture's sample and the rating models it: a best-of-five
+    match always has >= 3 sets, so a sets_total row of one read off a
+    best-of-three sample (UNDER 2.5 at p ~0.45, realised ~0) wrote 6,688
+    misgraded rows into the 2026-10-14 night replay (Grand Slams, Next Gen
+    Finals) and Superbet never quotes 2.5 there; its sets in a player's
+    history would equally bend a best-of-three fixture's sample. A format
+    the listing cannot tell (None) is not guessed."""
     out: dict[str, tuple[float, float]] = {}
+    if infer_best_of(event) != 3:
+        return out
     for index in (1, 2, 3):
         metric = f"games_won_set{index}_for"
         home = extract_metric(metric, "tennis", {}, None, event, True)
@@ -1333,6 +1344,11 @@ def _match_rows(
         total = home_value + away_value
         for_market = market_name(base, "for")
         set_markets = SET_BASE_MARKETS.get(base)
+        if (set_markets is not None and match.tennis is not None
+                and match.tennis.best_of_five):
+            # never a set row of a best-of-five match (set_values drops them;
+            # a Played built elsewhere is held to the same rule)
+            continue
         rated_base = base == "games" or (
             set_markets is not None and TENNIS_SET_RATINGS)
         home_recent = recent_for(

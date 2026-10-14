@@ -734,7 +734,15 @@ NB centrum przy wyniku, nie linie Superbetu):
   meczu (`docs/sofa/evidence/season_phase_2026-10-13.md`).
 - `epochs.TENNIS_SET_RATING_PRICES_FROM_UTC` (B5): gemy setów i `sets_total`
   tenisa z sąsiadów ratingu (`tennis_rating.SET_RATING_PRICED_MARKETS`;
-  `docs/sofa/evidence/tennis_set_markets_2026-10-13.md`).
+  `docs/sofa/evidence/tennis_set_markets_2026-10-13.md`). Poprawka
+  2026-10-14: replay (`calibrate_from_cache.set_values`) bierze bazy setów
+  tylko z meczów best-of-three (`metrics.infer_best_of == 3`) - nocny replay
+  zapisał 6 688 wierszy `sets_total` 2,5 z meczów best-of-five (Wielkie
+  Szlemy, Next Gen Finals), UNDER trafiał ~0. SHEET odmawia `sets_total` na
+  meczu, którego format nie jest znanym best-of-three
+  (`BEST_OF_FIVE_NOT_MODELLED`, `run_sheet.format_bound_refusal`): krzywa
+  jest z best-of-three, a nieznany format sąsiedzi ratingu czytaliby jak
+  best-of-three.
 - Beta kartek B1 dopasowano na centrum bez ratingu, a B2 ratinguje
   `cards_points_for`: do ponownego fitu przed następnym refitem piłki.
 - `K_CENTRE` po reficie: 15 (tenis 8, piłka 15).

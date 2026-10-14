@@ -112,7 +112,13 @@ every sport alike, and nothing that could win is cut by name.
   (`--tennis-set-ratings`); still not replayed: the tennis tier / ladder
   priors, and football joints other than cards (`--derived cards_points`;
   `DERIVED_CURVES_FROM_UTC` is off). Tennis neighbours are
-  `tennis_rating.AsOfRating` (best-of-five skipped). Hockey / volleyball
+  `tennis_rating.AsOfRating` (best-of-five skipped); the set bases
+  (`sets_total`, per-set games) are replayed for best-of-three matches only
+  (`calibrate_from_cache.set_values`, `metrics.infer_best_of == 3`; fix
+  2026-10-14: the night replay had written 6,688 `sets_total` 2.5 rows of
+  Grand Slam best-of-fives, UNDER realised ~0), and SHEET refuses
+  `sets_total` on a fixture not known to be best of three
+  (`BEST_OF_FIVE_NOT_MODELLED`, `run_sheet.format_bound_refusal`). Hockey / volleyball
   curves are the installed file's (the `.next.json` of 2026-10-07, promoted
   2026-10-13); CS2's from 2026-10-13 the staged one.
 - **Installed model packages (refit installed 2026-10-08 23:42Z, commits
