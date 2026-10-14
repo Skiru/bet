@@ -63,6 +63,13 @@ def is_provisional(
     return _all_period_keys(statistics_json) <= _EARLY_SNAPSHOT_KEYS
 
 
+# Payloads beyond statistics / incidents / lineups, one row per (event, kind)
+# in sofa_event_extra (2026-10-14): `shotmap` - every shot with its player,
+# coordinates and outcome (football, hockey); `point_by_point` - every point
+# of every tennis game; `incidents` - the measured sports' scoring plays.
+EXTRA_KINDS = frozenset({"shotmap", "point_by_point", "incidents"})
+
+
 class SofaCache:
     def __init__(self, config: SofaConfig) -> None:
         self.config = config
@@ -226,6 +233,54 @@ class SofaCache:
                     lineups_json = excluded.lineups_json
                 """,
                 (sofascore_event_id, now().isoformat(), payload, status_type),
+            )
+            conn.commit()
+
+    def get_event_extra(
+        self, sofascore_event_id: int, kind: str
+    ) -> dict[str, Any] | None:
+        """One finished event's extra payload (EXTRA_KINDS), or None if never
+        asked. ``{}`` is the asked-and-empty answer, kept like the lineups'."""
+        if kind not in EXTRA_KINDS:
+            raise ValueError(f"unknown extra kind {kind!r}")
+        with get_connection(self.config.db_path) as conn:
+            row = conn.execute(
+                "SELECT payload_json FROM sofa_event_extra "
+                "WHERE sofascore_event_id = ? AND kind = ?",
+                (sofascore_event_id, kind),
+            ).fetchone()
+        if not row:
+            return None
+        return cast(dict[str, Any], json.loads(row["payload_json"]))
+
+    def save_event_extra(
+        self,
+        sofascore_event_id: int,
+        kind: str,
+        payload: dict[str, Any] | None,
+        status_type: str,
+    ) -> None:
+        """Persist a finished event's extra payload; ``None`` records the
+        empty answer. Same terminal-status guard as the lineups."""
+        if kind not in EXTRA_KINDS:
+            raise ValueError(f"unknown extra kind {kind!r}")
+        if status_type not in ("finished", "canceled", "abandoned"):
+            raise ValueError(
+                f"Cannot save event {kind} for non-terminal status: {status_type}"
+            )
+        with get_connection(self.config.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO sofa_event_extra
+                (sofascore_event_id, kind, fetched_at, status_type, payload_json)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(sofascore_event_id, kind) DO UPDATE SET
+                    fetched_at = excluded.fetched_at,
+                    status_type = excluded.status_type,
+                    payload_json = excluded.payload_json
+                """,
+                (sofascore_event_id, kind, now().isoformat(), status_type,
+                 json.dumps(payload if payload is not None else {})),
             )
             conn.commit()
 

@@ -1,0 +1,532 @@
+{
+"shotmap": [
+{
+"player": {
+"id": 1129935,
+"name": "Tom Bischof"
+},
+"isHome": false,
+"shotType": "miss",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 25.8,
+"y": 37.3,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 90
+},
+{
+"player": {
+"id": 873106,
+"name": "Hiroki Itō"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "set-piece",
+"playerCoordinates": {
+"x": 14.5,
+"y": 41.6,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 90
+},
+{
+"player": {
+"id": 946393,
+"name": "Peter Christiansen"
+},
+"isHome": true,
+"shotType": "save",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 6.4,
+"y": 35.1,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 90
+},
+{
+"player": {
+"id": 1034970,
+"name": "Herman Johan Haugen"
+},
+"isHome": true,
+"shotType": "goal",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 5.2,
+"y": 55.9,
+"z": 0
+},
+"bodyPart": "other",
+"time": 90
+},
+{
+"player": {
+"id": 954855,
+"name": "Kristoffer Askildsen"
+},
+"isHome": true,
+"shotType": "miss",
+"situation": "corner",
+"playerCoordinates": {
+"x": 21.7,
+"y": 43.5,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 87
+},
+{
+"player": {
+"id": 954855,
+"name": "Kristoffer Askildsen"
+},
+"isHome": true,
+"shotType": "miss",
+"situation": "corner",
+"playerCoordinates": {
+"x": 24.6,
+"y": 41.1,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 78
+},
+{
+"player": {
+"id": 844292,
+"name": "Erik Botheim"
+},
+"isHome": true,
+"shotType": "miss",
+"situation": "corner",
+"playerCoordinates": {
+"x": 6.7,
+"y": 58.5,
+"z": 0
+},
+"bodyPart": "head",
+"time": 78
+},
+{
+"player": {
+"id": 883537,
+"name": "Luis Díaz"
+},
+"isHome": false,
+"shotType": "goal",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 2.6,
+"y": 46.6,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 71
+},
+{
+"player": {
+"id": 1129935,
+"name": "Tom Bischof"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "corner",
+"playerCoordinates": {
+"x": 23.6,
+"y": 46.6,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 65
+},
+{
+"player": {
+"id": 1063767,
+"name": "Ismael Saibari"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 10.8,
+"y": 35.8,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 64
+},
+{
+"player": {
+"id": 108579,
+"name": "Harry Kane"
+},
+"isHome": false,
+"shotType": "goal",
+"situation": "corner",
+"playerCoordinates": {
+"x": 4.8,
+"y": 44.4,
+"z": 0
+},
+"bodyPart": "head",
+"time": 60
+},
+{
+"player": {
+"id": 355492,
+"name": "Konrad Laimer"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "corner",
+"playerCoordinates": {
+"x": 12.6,
+"y": 63.1,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 59
+},
+{
+"player": {
+"id": 108579,
+"name": "Harry Kane"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "corner",
+"playerCoordinates": {
+"x": 8.8,
+"y": 42.5,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 57
+},
+{
+"player": {
+"id": 1129935,
+"name": "Tom Bischof"
+},
+"isHome": false,
+"shotType": "save",
+"situation": "corner",
+"playerCoordinates": {
+"x": 21.3,
+"y": 48.9,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 57
+},
+{
+"player": {
+"id": 798583,
+"name": "Dayot Upamecano"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 27.8,
+"y": 60.6,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 56
+},
+{
+"player": {
+"id": 108579,
+"name": "Harry Kane"
+},
+"isHome": false,
+"shotType": "goal",
+"situation": "penalty",
+"playerCoordinates": {
+"x": 11.5,
+"y": 50,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 54
+},
+{
+"player": {
+"id": 1063767,
+"name": "Ismael Saibari"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "throw-in-set-piece",
+"playerCoordinates": {
+"x": 2.4,
+"y": 45,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 50
+},
+{
+"player": {
+"id": 1129935,
+"name": "Tom Bischof"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "regular",
+"playerCoordinates": {
+"x": 16.1,
+"y": 69.1,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 41
+},
+{
+"player": {
+"id": 946393,
+"name": "Peter Christiansen"
+},
+"isHome": true,
+"shotType": "goal",
+"situation": "fast-break",
+"playerCoordinates": {
+"x": 12.8,
+"y": 40.1,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 38
+},
+{
+"player": {
+"id": 1031399,
+"name": "Henrik Heggheim"
+},
+"isHome": true,
+"shotType": "save",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 7.9,
+"y": 65.7,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 35
+},
+{
+"player": {
+"id": 108579,
+"name": "Harry Kane"
+},
+"isHome": false,
+"shotType": "save",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 7.1,
+"y": 51.1,
+"z": 0
+},
+"bodyPart": "head",
+"time": 34
+},
+{
+"player": {
+"id": 259117,
+"name": "Joshua Kimmich"
+},
+"isHome": false,
+"shotType": "miss",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 1.8,
+"y": 66.2,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 34
+},
+{
+"player": {
+"id": 978838,
+"name": "Michael Olise"
+},
+"isHome": false,
+"shotType": "miss",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 18.3,
+"y": 70.3,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 32
+},
+{
+"player": {
+"id": 108579,
+"name": "Harry Kane"
+},
+"isHome": false,
+"shotType": "save",
+"situation": "corner",
+"playerCoordinates": {
+"x": 7.3,
+"y": 55.2,
+"z": 0
+},
+"bodyPart": "head",
+"time": 18
+},
+{
+"player": {
+"id": 1861975,
+"name": "Lennart Karl"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "corner",
+"playerCoordinates": {
+"x": 18.8,
+"y": 46.6,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 17
+},
+{
+"player": {
+"id": 883537,
+"name": "Luis Díaz"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "regular",
+"playerCoordinates": {
+"x": 15,
+"y": 43.8,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 16
+},
+{
+"player": {
+"id": 227672,
+"name": "Jonathan Tah"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "corner",
+"playerCoordinates": {
+"x": 8.9,
+"y": 53.4,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 16
+},
+{
+"player": {
+"id": 883537,
+"name": "Luis Díaz"
+},
+"isHome": false,
+"shotType": "save",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 21.2,
+"y": 29.9,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 14
+},
+{
+"player": {
+"id": 978838,
+"name": "Michael Olise"
+},
+"isHome": false,
+"shotType": "save",
+"situation": "free-kick",
+"playerCoordinates": {
+"x": 20.3,
+"y": 77.5,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 10
+},
+{
+"player": {
+"id": 1861975,
+"name": "Lennart Karl"
+},
+"isHome": false,
+"shotType": "miss",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 8,
+"y": 68.5,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 6
+},
+{
+"player": {
+"id": 978838,
+"name": "Michael Olise"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 14.3,
+"y": 71.2,
+"z": 0
+},
+"bodyPart": "left-foot",
+"time": 6
+},
+{
+"player": {
+"id": 355492,
+"name": "Konrad Laimer"
+},
+"isHome": false,
+"shotType": "block",
+"situation": "assisted",
+"playerCoordinates": {
+"x": 11.5,
+"y": 61.5,
+"z": 0
+},
+"bodyPart": "right-foot",
+"time": 3
+},
+{
+"player": {
+"id": 978815,
+"name": "Gianni Stensness"
+},
+"isHome": true,
+"shotType": "goal",
+"situation": "corner",
+"playerCoordinates": {
+"x": 6.3,
+"y": 50,
+"z": 0
+},
+"bodyPart": "head",
+"time": 2
+}
+]
+}

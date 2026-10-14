@@ -167,6 +167,16 @@ def migrate(db_path: str) -> None:
         );
         """,
         """
+        CREATE TABLE IF NOT EXISTS sofa_event_extra (
+            sofascore_event_id INTEGER NOT NULL,
+            kind               TEXT    NOT NULL,
+            fetched_at         TEXT    NOT NULL,
+            status_type        TEXT    NOT NULL,
+            payload_json       TEXT    NOT NULL,
+            PRIMARY KEY (sofascore_event_id, kind)
+        );
+        """,
+        """
         CREATE TABLE IF NOT EXISTS sofa_event_detail (
             sofascore_event_id INTEGER PRIMARY KEY,
             fetched_at         TEXT    NOT NULL,

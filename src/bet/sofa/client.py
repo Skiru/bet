@@ -432,6 +432,16 @@ class SofascoreClient:
         url = f"https://api.sofascore.com/api/v1/event/{id}/lineups"
         return self._execute(url)
 
+    def event_shotmap(self, id: int) -> Any | None:
+        """Every shot of a finished match: player, coordinates, outcome,
+        body part, minute (football; hockey has its own shape)."""
+        return self._execute(f"https://api.sofascore.com/api/v1/event/{id}/shotmap")
+
+    def event_point_by_point(self, id: int) -> Any | None:
+        """Every point of every game of a tennis match."""
+        return self._execute(
+            f"https://api.sofascore.com/api/v1/event/{id}/point-by-point")
+
     def esports_games(self, event_id: int) -> Any | None:
         """The maps of an esports series: per-map score, incl. overtime.
 
