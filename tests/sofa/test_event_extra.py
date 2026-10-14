@@ -40,11 +40,12 @@ def _ev(eid: int, ts: int, comp: int = 7, status: str = "finished") -> dict[str,
     return {"id": eid, "startTimestamp": ts, "status": status, "competition": comp}
 
 
-def test_select_targets_skips_asked_unfinished_friendlies_newest_first() -> None:
+def test_select_targets_skips_asked_and_friendlies_newest_first() -> None:
     friendly = next(iter(bx.FRIENDLY_COMPETITION_IDS))
-    events = [_ev(1, 100), _ev(2, 300), _ev(3, 200), _ev(4, 250, status="postponed"),
+    # 4's index copy is the pre-match one: its cached row says it finished
+    events = [_ev(1, 100), _ev(2, 300), _ev(3, 200), _ev(4, 250, status="notstarted"),
               _ev(5, 260, comp=friendly)]
-    assert [e["id"] for e in bx.select_targets(events, done={3})] == [2, 1]
+    assert [e["id"] for e in bx.select_targets(events, done={3})] == [2, 4, 1]
 
 
 def test_candidate_events_reads_the_index_in_sql(tmp_path: Path) -> None:

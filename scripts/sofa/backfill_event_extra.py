@@ -127,11 +127,14 @@ def candidate_events(
 def select_targets(
     events: Iterable[dict[str, Any]], done: set[int]
 ) -> list[dict[str, Any]]:
-    """Finished, non-friendly, never asked; newest first."""
+    """Non-friendly, never asked; newest first. The index's status is NOT
+    read: its copy of an event may be the pre-match one (17318393 on
+    2026-10-14: `notstarted` in sofa_listed_event, finished 7-5 6-2), while
+    eligibility itself - a cached lineups / statistics row - exists only for
+    a terminal match."""
     out = [e for e in events
            if e["id"] not in done
-           and e.get("competition") not in FRIENDLY_COMPETITION_IDS
-           and (e.get("status") or "finished") == "finished"]
+           and e.get("competition") not in FRIENDLY_COMPETITION_IDS]
     return sorted(out, key=lambda e: -int(e.get("startTimestamp") or 0))
 
 
