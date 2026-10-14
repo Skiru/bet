@@ -240,12 +240,16 @@ def test_confidence_calls_the_gates_through_gate_values() -> None:
 # --- switch ----------------------------------------------------------------
 
 
-def test_the_switch_is_off_and_reads_the_day_and_the_clock(
+def test_the_switch_is_on_and_reads_the_day_and_the_clock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC is None
-    assert not epochs.sample_opponent_correction(
+    # on with the refit installed 2026-10-14 05:31Z
+    on = datetime(2026, 10, 14, 5, 45, tzinfo=UTC)
+    assert epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC == on
+    assert epochs.sample_opponent_correction(
         "2027-01-01", datetime(2027, 1, 1, tzinfo=UTC))
+    assert not epochs.sample_opponent_correction(
+        "2026-10-14", datetime(2026, 10, 14, 5, 44, tzinfo=UTC))
     start = datetime(2026, 10, 20, tzinfo=UTC)
     monkeypatch.setattr(epochs, "SAMPLE_OPPONENT_CORRECTION_FROM_UTC", start)
     assert epochs.sample_opponent_correction("2026-10-20", start)
@@ -271,6 +275,7 @@ def test_rebuild_reruns_sheet_on_a_raw_sample_sheet_once_on(
         [{"sport": "tennis"}, fb])
     at = datetime(2026, 10, 20, 7, tzinfo=UTC)
     limit = timedelta(minutes=45)
+    monkeypatch.setattr(epochs, "SAMPLE_OPPONENT_CORRECTION_FROM_UTC", None)
     assert "SHEET" not in rp.build_plan(
         rp.DayState("2026-10-20", at, limit, sheet_opponent=False)).names()
     monkeypatch.setattr(epochs, "SAMPLE_OPPONENT_CORRECTION_FROM_UTC",

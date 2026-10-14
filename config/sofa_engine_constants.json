@@ -1,10 +1,10 @@
 {
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
-    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-13/sofa_replay.db",
-    "settled_rows": 104493327,
+    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-14/sofa_replay.db",
+    "settled_rows": 119249400,
     "distinct_competitions": 11421,
-    "fitted_at_utc": "2026-10-13T16:30:34+00:00",
+    "fitted_at_utc": "2026-10-14T04:22:52+00:00",
     "max_settled_run_date": "2026-10-12",
     "friendly_competitions_excluded": 79
   },
@@ -15,14 +15,14 @@
       "tennis": 8.0
     },
     "curve": {
-      "0.0": 0.182284,
-      "2.0": 0.180295,
-      "5.0": 0.179174,
-      "8.0": 0.178898,
-      "10.0": 0.178905,
-      "15.0": 0.179171,
-      "25.0": 0.179895,
-      "1000.0": 0.183821
+      "0.0": 0.182027,
+      "2.0": 0.180063,
+      "5.0": 0.178964,
+      "8.0": 0.178703,
+      "10.0": 0.178718,
+      "15.0": 0.179002,
+      "25.0": 0.179753,
+      "1000.0": 0.183792
     },
     "status": "FITTED",
     "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid",

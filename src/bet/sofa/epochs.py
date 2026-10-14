@@ -1267,7 +1267,11 @@ def tennis_set_rating_prices(date: str, build_at: datetime | None = None) -> boo
 # football curves. None: the raw sample, byte for byte.
 # Measured: docs/sofa/evidence/sample_opponent_correction_2026-10-13.md.
 SAMPLE_OPPONENT_CORRECTION = "sample_opponent_v1"
-SAMPLE_OPPONENT_CORRECTION_FROM_UTC: datetime | None = None
+# On with the football refit installed 2026-10-14 05:31Z (curves fitted on the
+# replay carrying it, audit standing go); 10-14 not yet built - not a mixed day.
+# SAMPLES writes opponent_id from 2026-10-13 evening; older samples are raw.
+SAMPLE_OPPONENT_CORRECTION_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 5, 45, tzinfo=UTC)
 
 
 def sample_opponent_correction(date: str, build_at: datetime | None = None) -> bool:
