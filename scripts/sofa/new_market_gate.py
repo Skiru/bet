@@ -10,10 +10,15 @@ Gate (step 4): a curve fitted on the training window is read on the holdout
 the way CONFIDENCE would read it - every holdout forecast gets its training
 bucket's `realised_lo95` (its "curve value"; a forecast outside every kept
 bucket has none and would not print). Over the forecasts whose curve value is
-at least PRINT_FLOOR (0.70, what can print), realised minus the mean curve
-value must be within MAX_GAP (2 pp) with at least MIN_N (300) of them -
-measure_calibration.py's PASS rule. Else the key FAILS and gets no curve.
-The 95% interval (resampling matches) is reported, never gated on.
+at least PRINT_FLOOR (0.70, what can print), at least MIN_N (300) of them,
+realised minus the mean curve value must not be below -MAX_GAP (2 pp): the
+gate is ONE-SIDED (operator, 2026-10-14 ~18:55Z) - a key fails only when
+its curve OVERSTATES on the holdout; a curve that understates (realised
+above it, by any amount) passes - the printed confidence is cautious.
+Else the key FAILS and gets no curve. The old two-sided verdict
+(|gap| <= MAX_GAP, measure_calibration.py's PASS rule) stays in the result
+as `two_sided_pass`, for reference only. The 95% interval (resampling
+matches) is reported, never gated on.
 
 Pure functions; nothing is read or written here.
 """
@@ -32,6 +37,11 @@ PRINT_FLOOR = 0.70
 MAX_GAP = 0.02
 MIN_N = 300
 BOOT_REPS = 1000
+
+RULE = "one_sided"  # since the operator's decision of 2026-10-14 ~18:55Z
+RULE_TEXT = (f"curve value >= {PRINT_FLOOR}: n >= {MIN_N} and realised - curve "
+             f">= -{MAX_GAP} (one-sided: only an overstatement fails)")
+_EPS = 1e-9
 
 # (p, outcome 0/1, match id) - one forecast of one line.
 Forecast = tuple[float, int, int]
@@ -77,6 +87,43 @@ def curve_value(curve: Mapping[str, Mapping[str, Any]], p: float) -> float | Non
     return None
 
 
+def one_sided_pass(n: int, gap: float | None) -> bool:
+    """The gate: enough printable forecasts and the curve not overstating by
+    more than MAX_GAP (realised - curve >= -MAX_GAP)."""
+    return gap is not None and n >= MIN_N and gap >= -MAX_GAP - _EPS
+
+
+def two_sided_pass(n: int, gap: float | None) -> bool:
+    """The rule before 2026-10-14 ~18:55Z (|realised - curve| <= MAX_GAP),
+    kept in the reports for reference only."""
+    return gap is not None and n >= MIN_N and abs(gap) <= MAX_GAP + _EPS
+
+
+def fail_reason(n: int, gap: float | None) -> str:
+    """Why one_sided_pass refuses ("" when it passes)."""
+    if gap is None or n < MIN_N:
+        return f"n {n} < {MIN_N}"
+    if gap < -MAX_GAP - _EPS:
+        return f"overstates: gap {gap:+.4f} < -{MAX_GAP}"
+    return ""
+
+
+def final_reaches_floor(curve: Mapping[str, Mapping[str, Any]]) -> bool:
+    """A final curve with no bucket whose realised_lo95 reaches PRINT_FLOOR
+    prints nothing: such a key fails (operator, 2026-10-14)."""
+    return any(float(e["realised_lo95"]) >= PRINT_FLOOR for e in curve.values())
+
+
+def require_final(g: dict[str, Any], final_curve: Mapping[str, Mapping[str, Any]]
+                  ) -> dict[str, Any]:
+    """A passing verdict turned FAIL when the final curve never reaches
+    PRINT_FLOOR (it would print nothing); `g` is changed and returned."""
+    if g.get("pass") and not final_reaches_floor(final_curve):
+        g["pass"] = False
+        g["why"] = f"final curve has no bucket with realised_lo95 >= {PRINT_FLOOR}"
+    return g
+
+
 def _boot_gap(matches: Sequence[int], diff: Sequence[float], reps: int,
               seed: int) -> tuple[float, float]:
     """95% interval of sum(diff) / n, resampling matches."""
@@ -103,6 +150,7 @@ def gate(
         "n": len(printable),
         "matches": len({m for *_, m in printable}),
         "min_n": MIN_N, "max_gap": MAX_GAP, "print_floor": PRINT_FLOOR,
+        "rule": RULE,
     }
     by_bucket: dict[str, list[tuple[float, int]]] = defaultdict(list)
     for p, y, _m in holdout:
@@ -115,7 +163,7 @@ def gate(
         for b, v in sorted(by_bucket.items())}
     if not printable:
         out.update({"mean_curve": None, "realised": None, "gap": None,
-                    "gap_ci95": None, "pass": False,
+                    "gap_ci95": None, "pass": False, "two_sided_pass": False,
                     "why": "no holdout forecast reads a curve value >= "
                            f"{PRINT_FLOOR}"})
         return out
@@ -125,12 +173,11 @@ def gate(
     gap = realised - mean_curve
     ci = _boot_gap([m for *_, m in printable],
                    [y - cv for cv, y, _ in printable], reps, seed)
-    passed = n >= MIN_N and abs(gap) <= MAX_GAP
-    why = "" if passed else (f"n {n} < {MIN_N}" if n < MIN_N
-                             else f"|gap| {abs(gap):.4f} > {MAX_GAP}")
+    passed = one_sided_pass(n, gap)
     out.update({"mean_curve": round(mean_curve, 4), "realised": round(realised, 4),
                 "gap": round(gap, 4), "gap_ci95": [round(ci[0], 4), round(ci[1], 4)],
-                "pass": passed, "why": why})
+                "pass": passed, "why": fail_reason(n, gap),
+                "two_sided_pass": two_sided_pass(n, gap)})
     return out
 
 
@@ -138,6 +185,9 @@ def gate_lines(key: str, g: Mapping[str, Any]) -> list[str]:
     """A markdown block of one key's verdict."""
     verdict = "PASS" if g["pass"] else "FAIL"
     head = (f"## {key}: {verdict}" + (f" ({g['why']})" if g.get("why") else ""))
+    if "two_sided_pass" in g:
+        head += (" - two-sided rule (before 2026-10-14 18:55Z, reference): "
+                 + ("PASS" if g["two_sided_pass"] else "FAIL"))
     lines = [head, "",
              f"holdout forecasts {g['holdout_forecasts']}, read by the training "
              f"curve {g['with_curve_value']}; curve value >= {g['print_floor']}: "

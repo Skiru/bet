@@ -6,6 +6,11 @@ dwóch grup (strzały zawodnika `bet.sofa.shot_detail`, podwójna szansa
 przygotowane (STAGED), NIE zainstalowane** - instalacja zmienia druk i
 wymaga zgody operatora / pętli porannej przed budową 10-15.
 
+**Od 2026-10-14 ~18:55Z bramka jest jednostronna** (decyzja operatora) -
+werdykty i tabele niżej to reguła dwustronna, z jaką grupy powstały; obecne
+werdykty: sekcja „Bramka jednostronna (decyzja operatora 2026-10-14)” na
+końcu.
+
 ## Bramka (wspólna, `scripts/sofa/new_market_gate.py`)
 
 - Krzywa: kubełki `fit_confidence.EDGES`, kubełek tylko z >= 400 wierszy
@@ -264,3 +269,137 @@ tylko PASS, `gate` każdego klucza z krzywą treningową i kubełkami holdoutu),
 `rows.csv` (key, p, y, event_id, date, klasa, link), `gate_report.md`.
 Test: `tests/sofa/test_fit_incident_set_curves.py`. Nie sprawdzone: E2E
 (krok 6), przedział bootstrapowy luki (bramka go nie używa).
+
+## Bramka jednostronna (decyzja operatora 2026-10-14)
+
+Decyzja operatora 2026-10-14 ~18:55Z: klucz odpada tylko wtedy, gdy jego
+krzywa **zawyża** na holdoucie. PASS: wśród prognoz holdoutu z wartością
+krzywej treningowej >= 0,70 n >= 300 **i** zrealizowane - krzywa >= -2 pp;
+niedoszacowanie dowolnej wielkości przechodzi (drukowana pewność jest wtedy
+ostrożna). Bez zmian: reguła dopuszczenia sportów (`sport_confidence.admission`:
+żaden kubełek holdoutu n >= 200 nie zawyża o > 3 pp - już jednostronna);
+każdy klucz „12” (bez remisu) odpada z zasady (brak przewagi nad bazą,
+zmierzone; log-loss dalej raportowana); klucz, którego krzywa nie sięga
+0,70, odpada - teraz także wtedy, gdy kubełka >= 0,70 nie ma krzywa
+**końcowa** (`new_market_gate.require_final`; żaden obecny klucz tego nie
+dotyczy). Dawny werdykt dwustronny zostaje w każdym wpisie bramki jako
+`two_sided_pass` i w raportach (kolumna „dwustronna”), tylko do porównania.
+
+Kod: `scripts/sofa/new_market_gate.py` (`one_sided_pass`, `two_sided_pass`,
+`require_final`, `RULE_TEXT`), bramki w `fit_shot_detail.py`,
+`fit_double_chance_curve.py`, `fit_incident_set_curves.py`,
+`fit_sport_derived.py`. Każdy skrypt ma `--regate`: nowa decyzja z wierszy
+zapisanych w katalogu, bez kopii bazy i bez replayu. Testy offline:
+`tests/sofa/test_install_new_market_curves.py` (reguła, podłoga krzywej
+końcowej), `test_new_market_curve_fits.py`, `test_fit_incident_set_curves.py`,
+`test_fit_sport_derived.py` (re-gate z wierszy).
+
+**Ponowna bramka** (2026-10-14, `data/refit_new_markets_2026-10-15/`, nic nie
+liczono od nowa poza bramką):
+
+- `shot_detail`: `rows_holdout.csv.gz` przez zapisane `training_curves`;
+  krzywe końcowe = zapisane `final_curves_all_keys` (zainstalowany
+  estymator, wszystkie starty sprzed 2026-10-15). Liczby odtworzone 1:1.
+- `double_chance`: wiersze holdoutu z `rows.csv.gz` przez zapisane krzywe
+  treningowe, krzywe końcowe zapisane. Krzywych NIE dopasowano z
+  `rows.csv.gz` od nowa: p jest tam zaokrąglone do 6 miejsc i kilka z 1,7 mln
+  wierszy przechodzi przez granicę kubełka (różnica n o 1-5 w kubełku).
+  Liczby bramki odtworzone 1:1.
+- `football_incidents`, `tennis_sets`: `rows.csv` (p zaokrąglone już w
+  replayu, więc odtworzenie jest dokładne): trening, holdout i krzywe
+  końcowe przeliczone z wierszy - liczby i dawne krzywe końcowe identyczne;
+  krzywe nowych kluczy dopasowane na wszystkich wierszach sprzed 2026-10-15,
+  tak jak dla dotychczasowych.
+- `sport_derived`: `rows/<sport>_{fit,holdout,final}.jsonl` -> krzywe fit,
+  `evaluate`, `admission`, krzywe końcowe (okno final 2025-10-15..2026-10-14,
+  jak wcześniej) przeliczone; log-loss względem bazy wzięta z zapisanego
+  `partial_<sport>.json` (tylko raport). Liczby identyczne.
+
+Przedziały 95% (losowanie meczów) dla incydentów / tenisa policzone teraz
+(1000 losowań; bramka ich nie używa).
+
+| klucz | n (mecze) | krzywa | zrealizowane | luka [95%] | dwustronnie | jednostronnie |
+|---|---|---|---|---|---|---|
+| `player_right_foot_shots_for\|OVER` | 2 076 | - | - | +1,01 pp [-0,71; +2,84] | PASS | PASS |
+| `player_left_foot_shots_for\|OVER` | 818 (603) | 0,7666 | 0,8166 | +5,00 pp [+2,09; +7,63] | FAIL | **PASS (nowy)** |
+| `player_shots_outside_box_for\|OVER` | 156 | - | - | +3,54 pp | FAIL | FAIL (n < 300) |
+| strzały głową / celne (5 kluczy) | 0 | - | - | - | FAIL | FAIL (brak wartości >= 0,70) |
+| `double_chance\|OVER` | 50 711 | 0,8018 | 0,7914 | -1,04 pp [-1,35; -0,75] | PASS | PASS |
+| `women:double_chance\|OVER` | 4 226 | 0,8266 | 0,8199 | -0,67 pp [-1,65; +0,34] | PASS | PASS |
+| `first_goal\|OVER` | 520 (520) | 0,7381 | 0,7442 | +0,62 pp [-3,41; +4,28] | PASS | PASS |
+| `red_cards_total\|UNDER` | 5 030 (4 727) | 0,8248 | 0,8302 | +0,54 pp [-0,52; +1,62] | PASS | PASS |
+| `penalties_total\|UNDER` | 4 729 (4 352) | 0,7836 | 0,8008 | +1,72 pp [+0,57; +2,84] | PASS | PASS |
+| OVER kartek / karnych, wszystkie `women:` piłki | 0-264 | - | - | - | FAIL | FAIL (n < 300) |
+| `set1_won_for\|OVER` i `\|UNDER` | 2 239 (2 239) | 0,7737 | 0,8026 | +2,89 pp [+1,21; +4,42] | FAIL | **PASS (nowe)** |
+| `set2_won_for\|OVER` i `\|UNDER` | 2 192 (2 192) | 0,7723 | 0,7974 | +2,51 pp [+0,92; +4,19] | FAIL | **PASS (nowe)** |
+| `set_score\|OVER` | 590 (590) | 0,7414 | 0,7983 | +5,69 pp [+2,53; +8,76] | FAIL | **PASS (nowy)** |
+| `tennis_women:set1_won_for\|OVER` i `\|UNDER` | 1 564 | 0,7686 | 0,7884 | +1,98 pp [-0,23; +4,02] | PASS | PASS |
+| `tennis_women:set2_won_for\|OVER` i `\|UNDER` | 1 642 | 0,7712 | 0,7923 | +2,11 pp [+0,06; +4,00] | FAIL | **PASS (nowe)** |
+| `tennis_women:set_score\|OVER` | 304 | 0,7604 | 0,8125 | +5,21 pp [+1,14; +9,59] | FAIL | **PASS (nowy)** |
+| hokej `period_double_chance\|TEAM` | 4 303 (1 790) | 0,721 | 0,724 | +0,35 pp [-0,97; +1,69] | PASS | PASS |
+| hokej `double_chance\|TEAM` | 346 (346) | 0,728 | 0,751 | +2,32 pp [-2,01; +6,66] | FAIL | **PASS (nowy)** |
+| kosz `double_chance\|TEAM` | 460 (460) | 0,736 | 0,759 | +2,29 pp [-1,61; +6,33] | FAIL | **PASS (nowy)** |
+| siatkówka `team_sets_exact\|NO` | 7 987 (1 997) | 0,853 | 0,868 | +1,50 pp [+0,96; +2,06] | PASS | PASS |
+| siatkówka `team_wins_set\|YES` | 2 271 (1 997) | 0,895 | 0,907 | +1,20 pp [+0,04; +2,31] | PASS | PASS |
+| hokej `double_chance\|12`, `period_double_chance\|12` | 2 216 / 3 646 | 0,771 / 0,707 | 0,804 / 0,743 | +3,24 / +3,52 pp | FAIL | FAIL (polityka „12”; LL vs baza -0,0024 [-0,0067; +0,0022] / -0,0018 [-0,0034; -0,0000]) |
+| kosz `double_chance\|12` i połów / kwart „12” | 2 096-8 432 | - | - | +0,4..+1,5 pp | FAIL | FAIL (polityka „12”) |
+| kosz `h1/h2/quarter_double_chance\|TEAM` | 135 / 132 / 285 | - | - | - | FAIL | FAIL (n < 300; h1/h2 też dopuszczenie sportu) |
+| siatkówka `sets_count`, `team_sets_exact\|YES`, `team_wins_set\|NO` | 0 | - | - | - | FAIL | FAIL (n = 0) |
+
+Zmiana werdyktu: **11 kluczy** przechodzi teraz, choć odpadało (każdy przez
+niedoszacowanie, nigdy przez zawyżenie): lewa noga, `set1_won_for` x2,
+`set2_won_for` x2, `set_score`, `tennis_women:set2_won_for` x2,
+`tennis_women:set_score`, hokej i kosz `double_chance|TEAM`. Żaden klucz,
+który przechodził, nie odpadł.
+
+Krzywe końcowe nowych kluczy (kubełki z `realised_lo95` >= 0,70; reszta
+kubełków jest w `curves.json`):
+- lewa noga (9 kubełków): 0,75-0,80 0,743 (n 2 382), 0,80-0,825 0,747, 0,825-0,85
+  0,784, 0,85-0,875 0,817, 0,875-0,90 0,830, 0,90-0,925 0,817 (n 400);
+  kubełek 0,70-0,75 ma lo95 0,689 (nie drukuje). Kubełek 0,90-0,925 nie
+  był sprawdzony poza próbą (holdout czytał kubełki 0,75-0,90 krzywej
+  treningowej) - bramka jest na kluczu, jak przy prawej nodze;
+- `set1_won_for` (10 kubełków; OVER = UNDER): 0,7256 (0,70-0,75, n 7 053) ..
+  0,9158 (0,925-0,95); `set2_won_for` (10): 0,7263 .. 0,9357; `set_score`
+  (7): 0,7147 (0,70-0,75) .. 0,8865 (0,90-0,925);
+- `tennis_women:set2_won_for` (8): 0,7210 .. 0,9076; `tennis_women:set_score`
+  (6): kubełek 0,70-0,75 ma lo95 0,6817 (nie drukuje), 0,75-0,80 0,7517 ..
+  0,825-0,85 0,8168;
+- hokej `double_chance|TEAM` (5): 0,75-0,80 0,7734 (n 596), 0,80-0,825
+  0,7836 (n 206); 0,70-0,75 ma 0,6979 (nie drukuje). Na holdoucie drukował
+  się tylko kubełek 0,75-0,80 (n 346);
+- kosz `double_chance|TEAM` (4): 0,70-0,75 0,7207 (n 415), 0,75-0,80 0,7408
+  (n 309).
+
+Czytanie:
+- Tenis: krzywe męskie (wcześniej FAIL z powodu niedoszacowania) teraz
+  przechodzą; po instalacji męskie nogi setów drukowałyby się z pewnością
+  ostrożną na holdoucie o 2,5-5,7 pp. **Podejrzenie (niezmierzone)**:
+  część tego niedoszacowania to look-ahead współczynników
+  `config/tennis_rating.json` (dopasowane do 2026-10-01, więc holdout jest
+  ostrzejszy niż trening). Krzywa końcowa obejmuje holdout, więc
+  nieprzyszłe dni mogą się zachowywać raczej jak trening niż holdout -
+  nie da się tego tu odróżnić; line evidence po instalacji może tylko obniżyć.
+- Hokej / kosz `double_chance|TEAM`: n ledwo ponad 300, przedział luki
+  szeroki i przez zero ([-2,0; +6,7] / [-1,6; +6,3]) - przechodzą, bo nie
+  zawyżają, nie dlatego, że kalibracja jest dokładna.
+- `set_score` i `tennis_women:set_score` niedoszacowują najmocniej (+5,2..+5,7 pp,
+  dolna granica > 0) - pewność wydrukowana wyraźnie poniżej realizacji.
+
+**Instalator na sucho** (2026-10-14, po ponownej bramce,
+`install_new_market_curves.py --dir data/refit_new_markets_2026-10-15
+--dry-run`): **22 klucze ADD** - do `config/sofa_confidence_calibration.json`:
+`player_left_foot_shots_for|OVER` (9 kubełków), `player_right_foot_shots_for|OVER`
+(8), `double_chance|OVER` (10), `women:double_chance|OVER` (10),
+`first_goal|OVER` (5), `penalties_total|UNDER` (9), `red_cards_total|UNDER` (9),
+`set1_won_for|OVER` / `|UNDER` (10 / 10), `set2_won_for|OVER` / `|UNDER`
+(10 / 10), `set_score|OVER` (7), `tennis_women:set1_won_for|OVER` / `|UNDER`
+(8 / 8), `tennis_women:set2_won_for|OVER` / `|UNDER` (8 / 8),
+`tennis_women:set_score|OVER` (6); do
+`config/sofa_sport_confidence_calibration.json` (i `.next.json`):
+`basketball:double_chance|TEAM` (4), `hockey:double_chance|TEAM` (5),
+`hockey:period_double_chance|TEAM` (6), `volleyball:team_sets_exact|NO` (9),
+`volleyball:team_wins_set|YES` (11). **Nie uruchomiono `--confirm`.**
+Kopia stanu sprzed ponownej bramki (curves.json / raporty): katalog
+roboczy sesji, nie w repozytorium; dawne werdykty są też w polu
+`regated.previous_pass` (`fitted_from` / `partial_<sport>.json`).

@@ -92,9 +92,14 @@ def test_gate_passes_a_calibrated_key_and_fails_a_short_or_off_one() -> None:
     good = [(0.81, 1)] * 330 + [(0.81, 0)] * 70  # realised 0.825
     g = fit.gate(train, good)
     assert g["ge_070"]["n"] == 400
-    assert g["pass"] is (abs(0.825 - lo) <= 0.02)
-    bad = [(0.81, 1)] * 280 + [(0.81, 0)] * 120  # realised 0.70
+    assert g["pass"] is (0.825 - lo >= -0.02)
+    bad = [(0.81, 1)] * 280 + [(0.81, 0)] * 120  # realised 0.70: overstated
     assert fit.gate(train, bad)["pass"] is False
+    assert fit.gate(train, bad)["reason"].startswith("overstates")
+    # one-sided (operator 2026-10-14): realised far above the curve passes,
+    # the old two-sided verdict is kept for reference
+    under = fit.gate(train, [(0.81, 1)] * 400)
+    assert under["pass"] is True and under["two_sided_pass"] is False
     short = good[:299]
     assert fit.gate(train, short)["reason"].startswith("n <")
     # a holdout row whose bucket has no train curve is not read
@@ -113,3 +118,28 @@ def test_staged_curves_read_through_calibration() -> None:
     assert cal.realised("first_goal", 0.81, "football", "OVER", "women") is None
     assert cal.realised("red_cards_total", 0.81, "football", "UNDER",
                         "women") is not None
+
+
+def test_regate_from_rows_csv_reproduces_the_build(tmp_path: Any) -> None:
+    """--regate re-reads rows.csv and decides as the replay run did."""
+    rows = []
+    for i in range(1600):
+        ts = T0 + (i % 40) * DAY
+        rows.append(fit._row("red_cards_total", "UNDER", "", 0.5, 0.82,
+                             int(i % 10 < 9), 1000 + i, ts, "", fr.LINKED, 1))
+    stamp = {"train_before": fit.iso_day(T0 + 20 * DAY),
+             "holdout_to": fit.iso_day(T0 + 40 * DAY),
+             "final_before": fit.iso_day(T0 + 41 * DAY), "rows": len(rows),
+             "curve_rows": len(rows)}
+    keys, classes = fit.GROUP_KEYS["football_incidents"]
+    built = fit.build(rows, keys, classes, fit.day_ts(stamp["train_before"]),
+                      fit.day_ts(stamp["holdout_to"]),
+                      fit.day_ts(stamp["final_before"]), fit.football_usable)
+    out = tmp_path / "football_incidents"
+    out.mkdir()
+    fit.write_group(out, "football_incidents", rows, built, stamp)
+    doc = fit.regate(tmp_path, "football_incidents")
+    assert doc["gate"] == built["gate"]
+    assert doc["by_market_direction"] == built["by_market_direction"]
+    assert doc["gate"]["red_cards_total|UNDER"]["pass"] is True
+    assert doc["fitted_from"]["regated"]["rule"] == "one_sided"

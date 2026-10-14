@@ -50,11 +50,16 @@ Plan: docs/sofa/history/PLAN_KRZYWE_NOWE_RYNKI_2026-10-14.md, steps 1-4
 4. Gate: a curve fitted on rows before ``--train-before`` (2026-09-01) is
    read on the holdout ``--train-before`` .. ``--holdout-to`` (exclusive,
    2026-10-14): of the holdout selections whose curve value (the train
-   bucket's realised_lo95) is >= 0.70, |realised - mean curve value| <=
-   2 pp with n >= 300 (measure_calibration's PASS), else FAIL. A main key
+   bucket's realised_lo95) is >= 0.70, n >= 300 and realised - mean curve
+   value >= -2 pp - ONE-SIDED since 2026-10-14 ~18:55Z (operator): only a
+   curve that overstates fails; the old two-sided verdict (|gap| <= 2 pp,
+   measure_calibration's PASS) is kept as ``two_sided_pass``. A main key
    is judged on the unclassed holdout (the legs that read it), a class key
    on its class. The final curve of a passing key is refitted on every row
-   before ``--final-before`` (2026-10-15).
+   before ``--final-before`` (2026-10-15); a final curve with no bucket
+   reaching 0.70 fails the key (it would print nothing).
+   ``--regate`` re-decides a saved run from its rows.csv (no copy, no
+   replay; the rows hold p as the replay rounded it, so it is exact).
 
 Writes ``<out-root>/<group>/{curves.json,rows.csv,gate_report.md}``.
 ``curves.json`` = {"target", "fitted_from", "by_market_direction" (passing
@@ -126,6 +131,7 @@ from bet.sofa.tennis_sets import (  # noqa: E402
     score_probs,
     set_win_p,
 )
+from scripts.sofa import new_market_gate as gate_mod  # noqa: E402
 from scripts.sofa.fit_confidence import (  # noqa: E402
     EDGES,
     MIN_MARKET_BUCKET,
@@ -418,13 +424,17 @@ def gate(train: Sequence[tuple[float, int]], holdout: Sequence[tuple[float, int]
 
     everything = [x for xs in by_bucket.values() for x in xs]
     pooled = cell(everything) if everything else None
-    if pooled is None or pooled["n"] < MIN_SETTLED:
+    n = len(everything)
+    gap = (sum(y - c for _, c, y in everything) / n) if everything else None
+    two_sided = gate_mod.two_sided_pass(n, gap)
+    if gap is None or n < MIN_SETTLED:
         passed, reason = False, f"n < {MIN_SETTLED}"
-    elif abs(pooled["gap_pp"]) > 100.0 * MAX_GAP + 1e-9:
-        passed, reason = False, f"|gap| > {100.0 * MAX_GAP:g} pp"
+    elif not gate_mod.one_sided_pass(n, gap):
+        passed, reason = False, f"overstates: gap < -{100.0 * MAX_GAP:g} pp"
     else:
         passed, reason = True, "PASS"
-    return {"pass": passed, "reason": reason, "train_n": len(train),
+    return {"pass": passed, "reason": reason, "rule": gate_mod.RULE,
+            "two_sided_pass": two_sided, "train_n": len(train),
             "holdout_n": len(holdout), "ge_070": pooled,
             "buckets": {k: cell(v) for k, v in sorted(by_bucket.items())},
             "train_curve": curve}
@@ -445,7 +455,9 @@ def build(rows: Sequence[Mapping[str, Any]], keys: Sequence[str],
         g["symmetric"] = key.split("|", 1)[0] in SYMMETRIC
         out["gate"][key] = g
         if g["pass"]:
-            out["by_market_direction"][key] = fit_curve(selections(final, key))
+            curve = fit_curve(selections(final, key))
+            if _final_ok(g, curve):
+                out["by_market_direction"][key] = curve
     for klass in classes:
         def of(rs: Sequence[Mapping[str, Any]], k: str = klass
                ) -> list[Mapping[str, Any]]:
@@ -455,11 +467,20 @@ def build(rows: Sequence[Mapping[str, Any]], keys: Sequence[str],
             g["symmetric"] = key.split("|", 1)[0] in SYMMETRIC
             out["gate"][f"{klass}:{key}"] = g
             if g["pass"]:
-                section = out["by_class"].setdefault(
-                    klass, {"by_market_direction": {}})
-                section["by_market_direction"][key] = fit_curve(
-                    selections(of(final), key))
+                curve = fit_curve(selections(of(final), key))
+                if _final_ok(g, curve):
+                    section = out["by_class"].setdefault(
+                        klass, {"by_market_direction": {}})
+                    section["by_market_direction"][key] = curve
     return out
+
+
+def _final_ok(g: dict[str, Any], curve: Mapping[str, Mapping[str, Any]]) -> bool:
+    """new_market_gate.require_final in this script's verdict shape."""
+    if not gate_mod.final_reaches_floor(curve):
+        g["pass"] = False
+        g["reason"] = f"final curve has no bucket with realised_lo95 >= {PRINT_FLOOR}"
+    return bool(g["pass"])
 
 
 # ---------------------------------------------------------------- report
@@ -471,23 +492,27 @@ def render(group: str, doc: Mapping[str, Any]) -> str:
         f"# Bramka krzywych: {group}", "",
         f"Trening: wiersze przed {ff['train_before']}; holdout "
         f"{ff['train_before']} .. {ff['holdout_to']} (wyłącznie); krzywa "
-        f"końcowa: wiersze przed {ff['final_before']}. Bramka: selekcje "
-        f"holdoutu z wartością krzywej treningowej (realised_lo95 kubełka) "
-        f">= 0,70, |realizacja - średnia wartość krzywej| <= "
-        f"{100 * MAX_GAP:g} pp przy n >= {MIN_SETTLED}. Klucz główny "
-        "oceniany na holdoucie bez klasy, klucz klasy na jej holdoucie.", "",
+        f"końcowa: wiersze przed {ff['final_before']}. Bramka (jednostronna, "
+        "decyzja operatora 2026-10-14): selekcje holdoutu z wartością krzywej "
+        "treningowej (realised_lo95 kubełka) >= 0,70, n >= "
+        f"{MIN_SETTLED}, realizacja - średnia wartość krzywej >= "
+        f"-{100 * MAX_GAP:g} pp (odpada tylko zawyżająca krzywa); kolumna "
+        "„dwustronna” = dawna reguła |luka| <= 2 pp, tylko dla porównania. "
+        "Klucz główny oceniany na holdoucie bez klasy, klucz klasy na jej "
+        "holdoucie.", "",
         f"Wiersze: {ff['rows']}; użyte w krzywych: {ff['curve_rows']}.", "",
         "| klasa | klucz | n trening | n holdout >= 0,70 | krzywa | realizacja "
-        "| luka pp | wynik |", "|---|---|---|---|---|---|---|---|"]
+        "| luka pp | wynik | dwustronna |", "|---|---|---|---|---|---|---|---|---|"]
 
     def line(klass: str, key: str, g: Mapping[str, Any]) -> str:
         c = g["ge_070"]
+        two = "PASS" if g.get("two_sided_pass") else "FAIL"
         if c is None:
             return (f"| {klass} | {key} | {g['train_n']} | 0 | - | - | - | "
-                    f"FAIL ({g['reason']}) |")
+                    f"FAIL ({g['reason']}) | {two} |")
         return (f"| {klass} | {key} | {g['train_n']} | {c['n']} | "
                 f"{c['curve']:.4f} | {c['realised']:.4f} | {c['gap_pp']:+.2f} | "
-                f"{'PASS' if g['pass'] else 'FAIL'} ({g['reason']}) |")
+                f"{'PASS' if g['pass'] else 'FAIL'} ({g['reason']}) | {two} |")
 
     def split(gk: str) -> tuple[str, str]:
         klass, _, key = gk.rpartition(":")
@@ -548,9 +573,7 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
             direction_key(RED_CARDS, "OVER"), direction_key(RED_CARDS, "UNDER"),
             direction_key(PENALTIES, "OVER"), direction_key(PENALTIES, "UNDER"))
 
-    def usable(r: Mapping[str, Any]) -> bool:
-        return bool(r["link"] != fr.UNLINKED)
-
+    usable = football_usable
     built = build(rows, keys, (CLASS_WOMEN,), day_ts(args.train_before),
                   day_ts(args.holdout_to), final_before, usable)
     stamp = {
@@ -612,6 +635,60 @@ def run_tennis(args: argparse.Namespace, source: str) -> dict[str, Any]:
     return write_group(out, "tennis_sets", rows, built, stamp)
 
 
+_INT_FIELDS = ("y", "event_id", "ts")
+
+
+def read_rows(path: Path) -> list[dict[str, Any]]:
+    """rows.csv as the replay wrote it (p float, y / event_id / ts int)."""
+    rows: list[dict[str, Any]] = []
+    with path.open(newline="") as fh:
+        for r in csv.DictReader(fh):
+            row: dict[str, Any] = dict(r)
+            row["p"] = float(r["p"])
+            row["line"] = float(r["line"])
+            for f in _INT_FIELDS:
+                row[f] = int(r[f])
+            rows.append(row)
+    return rows
+
+
+GROUP_KEYS = {
+    "football_incidents": (
+        (direction_key(FIRST_GOAL, "OVER"), direction_key(RED_CARDS, "OVER"),
+         direction_key(RED_CARDS, "UNDER"), direction_key(PENALTIES, "OVER"),
+         direction_key(PENALTIES, "UNDER")), (CLASS_WOMEN,)),
+    "tennis_sets": (
+        (direction_key(SET1_WON_FOR, "OVER"), direction_key(SET1_WON_FOR, "UNDER"),
+         direction_key(SET2_WON_FOR, "OVER"), direction_key(SET2_WON_FOR, "UNDER"),
+         direction_key(SET_SCORE, "OVER")), (CLASS_TENNIS_WOMEN,)),
+}
+
+
+def football_usable(r: Mapping[str, Any]) -> bool:
+    return bool(r["link"] != fr.UNLINKED)
+
+
+def regate(out_root: Path, group: str) -> dict[str, Any]:
+    """Re-decide a saved run from its rows.csv under today's gate."""
+    out = out_root / group
+    old = json.loads((out / "curves.json").read_text(encoding="utf-8"))
+    stamp = old["fitted_from"]
+    rows = read_rows(out / "rows.csv")
+    keys, classes = GROUP_KEYS[group]
+    usable = football_usable if group == GROUPS[0] else (lambda r: True)
+    built = build(rows, keys, classes, day_ts(stamp["train_before"]),
+                  day_ts(stamp["holdout_to"]), day_ts(stamp["final_before"]),
+                  usable)
+    stamp["regated"] = {
+        "at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "rule": gate_mod.RULE, "from": "rows.csv",
+        "previous_pass": sorted(k for k, g in old["gate"].items() if g.get("pass"))}
+    doc = {"target": TARGET, "fitted_from": stamp, **built}
+    write_atomic(out / "curves.json", json.dumps(doc, indent=1) + "\n")
+    write_atomic(out / "gate_report.md", render(group, doc))
+    return doc
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--group", default="all", choices=(*GROUPS, "all"))
@@ -621,7 +698,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--holdout-to", default="2026-10-14")
     ap.add_argument("--final-before", default="2026-10-15")
     ap.add_argument("--tennis-from", default="2026-04-01")
+    ap.add_argument("--regate", action="store_true",
+                    help="no copy, no replay: re-gate the saved rows.csv")
     args = ap.parse_args(argv)
+    if args.regate:
+        result = {}
+        for group in GROUPS:
+            if args.group in (group, "all"):
+                doc = regate(Path(args.out_root), group)
+                result[group] = {k: g["pass"] for k, g in doc["gate"].items()}
+        print(json.dumps(result, indent=1))
+        return 0
     source = str(SofaConfig.from_env().db_path)
     t0 = time.time()
     summary: dict[str, Any] = {}

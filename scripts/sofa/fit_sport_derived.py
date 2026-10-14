@@ -21,14 +21,17 @@ Per sport, on a COPY of the history tables (--db-path; never data/sofa.db):
    bucket's Wilson lower bound `realised_lo95` is the confidence) on fit;
 3. gate per key on the holdout read through the fit curve
    (sport_confidence.evaluate): the rows whose curve value >= 0.70 pooled,
-   n >= GATE_MIN_N and |realised - curve value| <= GATE_MAX_GAP (the PASS rule
-   of measure_calibration.py), AND fit_sport_confidence's own admission rule
-   (sport_confidence.admission: no out-of-sample bucket of n >= 200 more than
-   3 pp above realised, printable rows pooled not overstating); a draw-free
-   "12" key must also beat the line's base rate in log-loss (95% interval
-   over games below zero) - measured no better on 2026-10-14
-   (docs/sofa/evidence/sport_derived_2026-10-14.md), so FAIL by policy unless
-   the holdout shows skill;
+   n >= GATE_MIN_N and realised - curve value >= -GATE_MAX_GAP - ONE-SIDED
+   since 2026-10-14 ~18:55Z (operator): only an overstating curve fails; the
+   old two-sided verdict (|gap| <= GATE_MAX_GAP, measure_calibration.py's
+   PASS) is kept as `two_sided_pass` - AND fit_sport_confidence's own
+   admission rule (sport_confidence.admission: no out-of-sample bucket of
+   n >= 200 more than 3 pp above realised, printable rows pooled not
+   overstating; one-sided already); a draw-free "12" key FAILS by policy
+   (no skill over the line's base rate, measured 2026-10-14,
+   docs/sofa/evidence/sport_derived_2026-10-14.md; its log-loss against the
+   base rate is still reported), and so does a key whose final curve has
+   no bucket reaching 0.70 (it would print nothing);
 4. a passing key's curve is refitted on `final` and written in the sport
    calibration's own shape (`sports.<sport>.curves / curve_source /
    admitted`) to <out>/curves.json; failing keys never enter `sports`.
@@ -37,6 +40,7 @@ Per sport, on a COPY of the history tables (--db-path; never data/sofa.db):
         --db-path data/refit_new_markets_2026-10-15/sport_derived/sport_history.db \\
         --out-dir data/refit_new_markets_2026-10-15/sport_derived --sport hockey
     ... --assemble   # after every sport: curves.json + gate_report.md
+    ... --regate     # no replay: re-gate rows/<sport>_*.jsonl, then --assemble
 
 No price is read. Read-only on the database.
 """
@@ -132,20 +136,25 @@ def gate_key(key: str, check: Mapping[str, Any] | None,
             k: skill[k] for k in ("logloss_model", "logloss_base", "diff",
                                   "diff_lo", "diff_hi", "n", "games")}
     reasons: list[str] = []
+    gap = float(out["holdout_gap"]) if n else None
     if n < GATE_MIN_N:
         reasons.append(f"HOLDOUT_PRINTABLE_N<{GATE_MIN_N} (n={n})")
-    elif abs(float(out["holdout_gap"])) > GATE_MAX_GAP:
-        reasons.append(f"HOLDOUT_GAP>{GATE_MAX_GAP:.2f} "
-                       f"({float(out['holdout_gap']):+.4f})")
+    elif gap is not None and gap < -GATE_MAX_GAP - 1e-9:
+        reasons.append(f"HOLDOUT_OVERSTATES>{GATE_MAX_GAP:.2f} ({gap:+.4f})")
     if admission_reason is not None:
         reasons.append(f"SPORT_ADMISSION: {admission_reason}")
     if side_of_key(key) in NO_DRAW_SIDES:
-        if not skill or float(skill["diff_hi"]) >= 0:
-            d = (f"{skill['diff']:+.4f} [{skill['diff_lo']:+.4f}, "
-                 f"{skill['diff_hi']:+.4f}]" if skill else "not measured")
-            reasons.append(f"NO_DRAW_POLICY: log-loss vs base rate {d}")
+        d = (f"{skill['diff']:+.4f} [{skill['diff_lo']:+.4f}, "
+             f"{skill['diff_hi']:+.4f}]" if skill else "not measured")
+        reasons.append(f"NO_DRAW_POLICY: log-loss vs base rate {d}")
     out["pass"] = not reasons
     out["reasons"] = reasons
+    out["rule"] = "one_sided"
+    out["two_sided_pass"] = (
+        gap is not None and n >= GATE_MIN_N and abs(gap) <= GATE_MAX_GAP + 1e-9
+        and admission_reason is None
+        and (side_of_key(key) not in NO_DRAW_SIDES
+             or (skill is not None and float(skill["diff_hi"]) < 0)))
     return out
 
 
@@ -158,6 +167,64 @@ def _events(db_path: str, sport: str, cache: Path) -> dict[int, Any]:
     cache.mkdir(parents=True, exist_ok=True)
     path.write_bytes(pickle.dumps(events))
     return events
+
+
+def judge(rows: Mapping[str, Sequence[scf.Row]],
+          skill: Mapping[str, Any]) -> dict[str, Any]:
+    """Every key's verdict from the fit / holdout / final rows and the
+    holdout's log-loss against the base rate (reported only)."""
+    fit_curves = scf.fit_curves(rows["fit"])
+    check = scf.evaluate(fit_curves, rows["holdout"])
+    admitted, refused = scf.admission(fit_curves, {"history_holdout": check})
+    final_curves = scf.fit_curves(rows["final"])
+    keys = sorted({r["key"] for rs in rows.values() for r in rs})
+    gate: dict[str, Any] = {}
+    for key in keys:
+        if key not in fit_curves:
+            entry: dict[str, Any] = {
+                "pass": False, "two_sided_pass": False,
+                "reasons": [f"NO_FIT_BUCKET_WITH_N>={scf.MIN_BUCKET}"]}
+        else:
+            entry = gate_key(key, check.get(key),
+                             None if key in admitted else refused.get(key),
+                             skill.get(key))
+            entry["holdout_buckets"] = (check.get(key) or {}).get("buckets", {})
+        entry["fit_curve"] = fit_curves.get(key, {})
+        entry["final_curve"] = final_curves.get(key, {})
+        if entry["pass"] and key not in final_curves:
+            entry["pass"] = False
+            entry["reasons"] = [f"FINAL_NO_BUCKET_WITH_N>={scf.MIN_BUCKET}"]
+        elif entry["pass"] and not any(
+                float(b["realised_lo95"]) >= scf.PRINTABLE_FROM
+                for b in final_curves[key].values()):
+            entry["pass"] = False
+            entry["reasons"] = [f"FINAL_CURVE_BELOW_{scf.PRINTABLE_FROM} "
+                                "(prints nothing)"]
+        gate[key] = entry
+    return gate
+
+
+def regate_sport(sport: str, out: Path) -> dict[str, Any]:
+    """Re-decide a saved sport from rows/<sport>_{fit,holdout,final}.jsonl;
+    the log-loss against the base rate is taken from the saved partial
+    (reported, never decisive)."""
+    part: dict[str, Any] = json.loads(
+        (out / f"partial_{sport}.json").read_text(encoding="utf-8"))
+    rows: dict[str, list[scf.Row]] = {}
+    for name in ("fit", "holdout", "final"):
+        path = out / "rows" / f"{sport}_{name}.jsonl"
+        rows[name] = [json.loads(line) for line in
+                      path.read_text(encoding="utf-8").splitlines() if line]
+    skill = {k: g["logloss_vs_base"] for k, g in part["gate"].items()
+             if g.get("logloss_vs_base")}
+    previous = sorted(k for k, g in part["gate"].items() if g.get("pass"))
+    part["gate"] = judge(rows, skill)
+    part["regated"] = {"at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+                       "rule": "one_sided", "previous_pass": previous,
+                       "from": f"rows/{sport}_{{fit,holdout,final}}.jsonl"}
+    (out / f"partial_{sport}.json").write_text(
+        json.dumps(part, indent=1) + "\n", encoding="utf-8")
+    return part
 
 
 def run_sport(sport: str, args: argparse.Namespace) -> dict[str, Any]:
@@ -190,34 +257,9 @@ def run_sport(sport: str, args: argparse.Namespace) -> dict[str, Any]:
     for name, rs in rows.items():
         (rows_dir / f"{sport}_{name}.jsonl").write_text(
             "".join(json.dumps(r) + "\n" for r in rs), encoding="utf-8")
-    fit_curves = scf.fit_curves(rows["fit"])
-    check = scf.evaluate(fit_curves, rows["holdout"])
-    admitted, refused = scf.admission(fit_curves, {"history_holdout": check})
     base = msd.base_rates(history, shadow_sport, fit_ts)
     skill = msd.summarise(rows["holdout"], base)
-    final_curves = scf.fit_curves(rows["final"])
-    keys = sorted({r["key"] for rs in rows.values() for r in rs})
-    gate: dict[str, Any] = {}
-    for key in keys:
-        if key not in fit_curves:
-            entry: dict[str, Any] = {
-                "pass": False,
-                "reasons": [f"NO_FIT_BUCKET_WITH_N>={scf.MIN_BUCKET}"]}
-        else:
-            entry = gate_key(key, check.get(key),
-                             None if key in admitted else refused.get(key),
-                             skill.get(key))
-            entry["holdout_buckets"] = (check.get(key) or {}).get("buckets", {})
-        entry["fit_curve"] = fit_curves.get(key, {})
-        entry["final_curve"] = final_curves.get(key, {})
-        if entry["pass"] and not any(
-                float(b["realised_lo95"]) >= scf.PRINTABLE_FROM
-                for b in final_curves.get(key, {}).values()):
-            entry["note"] = "final curve has no bucket >= 0.70 (prints nothing)"
-        if entry["pass"] and key not in final_curves:
-            entry["pass"] = False
-            entry["reasons"] = [f"FINAL_NO_BUCKET_WITH_N>={scf.MIN_BUCKET}"]
-        gate[key] = entry
+    gate = judge(rows, skill)
     partial = {
         "sport": sport,
         "switches": sw,
@@ -284,10 +326,12 @@ def assemble(partials: Sequence[Mapping[str, Any]], args: argparse.Namespace
             "gate": {"fit_before": args.fit_before,
                      "holdout": [args.fit_before, args.holdout_end],
                      "min_n": GATE_MIN_N, "max_gap": GATE_MAX_GAP,
+                     "rule": "one_sided: realised - curve >= -max_gap "
+                             "(operator 2026-10-14 ~18:55Z)",
                      "sport_admission": "sport_confidence.admission "
                                         "(MIN_BUCKET 200, MAX_OVERSTATEMENT 0.03)",
-                     "no_draw_policy": "12 keys need log-loss vs base rate "
-                                       "with the 95% upper bound < 0"},
+                     "no_draw_policy": "12 keys fail (no skill over the base "
+                                       "rate, measured 2026-10-14)"},
             "never_mid_day": True,
             "installed": False,
         },
@@ -323,16 +367,19 @@ def report_md(doc: Mapping[str, Any], partials: Sequence[Mapping[str, Any]]) -> 
     lines += [
         "", "## Bramka", "",
         f"Holdout czytany przez krzywą z okna fit. Druk = wiersze z wartością "
-        f"krzywej (realised_lo95) >= 0,70. PASS: n >= {GATE_MIN_N} i "
-        f"|zrealizowane - krzywa| <= {GATE_MAX_GAP * 100:.0f} pp, ORAZ reguła "
+        f"krzywej (realised_lo95) >= 0,70. PASS (bramka jednostronna, decyzja "
+        f"operatora 2026-10-14): n >= {GATE_MIN_N} i zrealizowane - krzywa >= "
+        f"-{GATE_MAX_GAP * 100:.0f} pp (odpada tylko zawyżenie), ORAZ reguła "
         "dopuszczenia `fit_sport_confidence` (`sport_confidence.admission`: "
         "żaden kubełek n >= 200 nie zawyża o > 3 pp, druk łącznie nie zawyża), "
-        "ORAZ dla „12” (bez remisu) log-loss lepsza od bazy (górna granica "
-        "95% < 0). Konwencja sportów: kubełek krzywej n >= 200 "
+        "ORAZ klucz nie jest „12” (bez remisu: FAIL z zasady, brak przewagi "
+        "nad bazą; log-loss tylko raportowana), ORAZ krzywa końcowa sięga "
+        "0,70. Kolumna „dwustronna” = dawna reguła |luka| <= 2 pp, tylko do "
+        "porównania. Konwencja sportów: kubełek krzywej n >= 200 "
         "(`MIN_BUCKET`, nie 400 piłki), dolna granica Wilsona jako pewność.", "",
-        "| klucz | wynik | druk n (mecze) | krzywa | zrealizowane | luka [95%] | "
-        "LL model - baza [95%] | powód |",
-        "|---|---|---|---|---|---|---|---|"]
+        "| klucz | wynik | dwustronna | druk n (mecze) | krzywa | zrealizowane | "
+        "luka [95%] | LL model - baza [95%] | powód |",
+        "|---|---|---|---|---|---|---|---|---|"]
     for key, g in sorted(doc["gate"].items()):
         ll = g.get("logloss_vs_base")
         lld = (f"{ll['diff']:+.4f} [{ll['diff_lo']:+.4f}; {ll['diff_hi']:+.4f}]"
@@ -342,6 +389,7 @@ def report_md(doc: Mapping[str, Any], partials: Sequence[Mapping[str, Any]]) -> 
         lines.append(
             f"| `{key.replace('|', chr(92) + '|')}` | "
             f"{'PASS' if g['pass'] else 'FAIL'} | "
+            f"{'PASS' if g.get('two_sided_pass') else 'FAIL'} | "
             f"{g.get('holdout_printable_n', 0)} ({g.get('holdout_printable_games', 0)})"
             f" | {_f(g.get('holdout_printable_confidence'))} | "
             f"{_f(g.get('holdout_printable_realised'))} | {gap} | {lld} | "
@@ -432,6 +480,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--assemble", action="store_true",
                     help="no replay: partial_<sport>.json -> curves.json + "
                     "gate_report.md")
+    ap.add_argument("--regate", action="store_true",
+                    help="no replay: re-gate rows/<sport>_*.jsonl into "
+                    "partial_<sport>.json (then --assemble)")
     ap.add_argument("--fit-before", default="2026-09-01")
     ap.add_argument("--holdout-end", default="2026-10-14",
                     help="holdout end, exclusive (default: through 2026-10-13)")
@@ -447,6 +498,10 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     sports = list(SCORE_SPORTS) if args.sport == "all" else [args.sport]
+    if args.regate:
+        for sport in sports:
+            regate_sport(sport, out)
+        return 0
     if not args.assemble:
         for sport in sports:
             run_sport(sport, args)

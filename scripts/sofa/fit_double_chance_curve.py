@@ -34,7 +34,9 @@ is confidence.match_class).
 
 Gate (new_market_gate.gate): the curve fitted on matches in [--from,
 --holdout-from) is read on [--holdout-from, --holdout-to); PASS = curve
-value >= 0.70 forecasts with |realised - curve| <= 2 pp and n >= 300. The
+value >= 0.70 forecasts, n >= 300, realised - curve >= -2 pp (one-sided
+since 2026-10-14 ~18:55Z: only an overstatement fails; the two-sided
+verdict is kept as `two_sided_pass`), and a final curve reaching 0.70. The
 final curve of every PASSING key is refitted on [--from, --before). The
 dispersion r is the config's, measured on 2024-10-01..2026-06-08 (before the
 holdout). Per-selection gates are reported, never decisive.
@@ -42,7 +44,8 @@ holdout). Per-selection gates are reported, never decisive.
 Writes curves.json (`target`, `fitted_from`, `by_market_direction` and
 `by_class` of PASSING keys only, `gate` of every key), rows.csv.gz (every
 priced selection with its phase and curve value) and gate_report.md.
-Exit 0, 2 on a crash.
+`--regate` re-decides a saved run from its rows.csv.gz (no history, no
+replay) and writes curves.json / gate_report.md again. Exit 0, 2 on a crash.
 """
 
 from __future__ import annotations
@@ -53,7 +56,7 @@ import gzip
 import json
 import pickle
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -152,19 +155,27 @@ def _forecasts(rows: Iterable[Priced]) -> list[gate_mod.Forecast]:
     return [(r.p, r.y, r.match.event_id) for r in rows]
 
 
-def run(priced: Sequence[Priced], h0: int, h1: int, cut: int) -> dict[str, Any]:
-    """Training curves, gates and final curves of both keys."""
+def run(priced: Sequence[Priced], h0: int, h1: int, cut: int,
+        saved: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Training curves, gates and final curves of both keys. `saved`
+    ({"training": ..., "final": ...} of an earlier run) re-gates with those
+    curves: rows.csv.gz rounds p to 6 decimals, which moves a handful of
+    the 1.7M rows across a bucket edge, so its curves are not refitted."""
     train = [r for r in priced if r.match.ts < h0]
     hold = [r for r in priced if h0 <= r.match.ts < h1]
     final_rows = [r for r in priced if r.match.ts < cut]
     women = {KEY: False, WOMEN_KEY: True}
-    training = {
-        KEY: gate_mod.fit_curve((r.p, r.y) for r in train),
-        WOMEN_KEY: gate_mod.fit_curve((r.p, r.y) for r in train if r.match.women)}
-    final = {
-        KEY: gate_mod.fit_curve((r.p, r.y) for r in final_rows),
-        WOMEN_KEY: gate_mod.fit_curve((r.p, r.y) for r in final_rows
-                                      if r.match.women)}
+    if saved is not None:
+        training, final = dict(saved["training"]), dict(saved["final"])
+    else:
+        training = {
+            KEY: gate_mod.fit_curve((r.p, r.y) for r in train),
+            WOMEN_KEY: gate_mod.fit_curve((r.p, r.y) for r in train
+                                          if r.match.women)}
+        final = {
+            KEY: gate_mod.fit_curve((r.p, r.y) for r in final_rows),
+            WOMEN_KEY: gate_mod.fit_curve((r.p, r.y) for r in final_rows
+                                          if r.match.women)}
     gates: dict[str, Any] = {}
     diagnostics: dict[str, Any] = {}
     for key, w in women.items():
@@ -174,6 +185,8 @@ def run(priced: Sequence[Priced], h0: int, h1: int, cut: int) -> dict[str, Any]:
             sel: gate_mod.gate(training[key],
                                _forecasts(r for r in pop if r.selection == sel))
             for sel in res.SELECTIONS}
+    for key, g in gates.items():
+        gate_mod.require_final(g, final[key])
     diagnostics["double_chance|OVER on every holdout match"] = gate_mod.gate(
         training[KEY], _forecasts(hold))
     return {"training": training, "final": final, "gate": gates,
@@ -192,9 +205,13 @@ def main() -> int:
     ap.add_argument("--holdout-to", default="2026-10-14")
     ap.add_argument("--before", default="2026-10-15")
     ap.add_argument("--result-config")
+    ap.add_argument("--regate", action="store_true",
+                    help="no replay: re-gate the rows.csv.gz saved in --out-dir")
     args = ap.parse_args()
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    if args.regate:
+        return regate(out, args)
     hist_path = Path(args.history or _REPO / "data" / "cache" / "football_history.pkl")
     fingerprint, history = pickle.loads(hist_path.read_bytes())
     cfg_path = Path(args.result_config) if args.result_config else config_path(
@@ -223,9 +240,72 @@ def main() -> int:
         "selections": result["counts"],
         "holdout": {"train_window": [args.from_, args.holdout_from],
                     "holdout_window": [args.holdout_from, args.holdout_to],
-                    "rule": f"curve value >= {gate_mod.PRINT_FLOOR}: |realised - "
-                            f"curve| <= {gate_mod.MAX_GAP}, n >= {gate_mod.MIN_N}"},
+                    "rule": gate_mod.RULE_TEXT},
     }
+    write_docs(out, args, result, fitted_from,
+               f"nb_r {cfg.nb_r}; rated matches {len(matches)}, UNLINKED left out "
+               f"{fitted_from['matches_unlinked_excluded']}; selections "
+               f"{result['counts']}")
+    with gzip.open(out / "rows.csv.gz", "wt", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(ROW_HEADER)
+        for r in priced:
+            m = r.match
+            phase = ("train" if m.ts < h0 else "holdout" if m.ts < h1
+                     else "final_only")
+            cv = gate_mod.curve_value(
+                result["training"][WOMEN_KEY if m.women else KEY], r.p)
+            w.writerow([phase, m.ts, m.event_id, int(m.women), m.link,
+                        round(m.lh, 5), round(m.la, 5), m.x, m.y, r.selection,
+                        round(r.p, 6), r.y, "" if cv is None else cv])
+    print(json.dumps({"out_dir": str(out), "pass": sorted(passing),
+                      "fail": sorted(set(result["gate"]) - passing),
+                      "counts": result["counts"]}))
+    return 0
+
+
+ROW_HEADER = ("phase", "start_ts", "event_id", "women", "link", "lh", "la",
+              "home_goals", "away_goals", "selection", "p", "y",
+              "train_curve_value")
+
+
+def regate(out: Path, args: argparse.Namespace) -> int:
+    """Re-decide a saved run under today's gate from its rows.csv.gz."""
+    old = json.loads((out / "curves.json").read_text(encoding="utf-8"))
+    ff = old["fitted_from"]
+    priced: list[Priced] = []
+    with gzip.open(out / "rows.csv.gz", "rt", newline="") as fh:
+        for r in csv.DictReader(fh):
+            m = Match(int(r["start_ts"]), int(r["event_id"]), r["women"] == "1",
+                      r["link"], float(r["lh"]), float(r["la"]),
+                      int(r["home_goals"]), int(r["away_goals"]))
+            priced.append(Priced(m, r["selection"], float(r["p"]), int(r["y"])))
+    h0, h1 = (_ts(d) for d in ff["holdout"]["holdout_window"])
+    result = run(priced, h0, h1, _ts(ff["before"]),
+                 {"training": old["training_curves"],
+                  "final": old["final_curves_all_keys"]})
+    ff["holdout"]["rule"] = gate_mod.RULE_TEXT
+    ff["regated"] = {"at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+                     "rule": gate_mod.RULE,
+                     "from": "rows.csv.gz holdout rows read through the saved "
+                             "training_curves; final_curves_all_keys as saved",
+                     "previous_pass": sorted(k for k, g in old["gate"].items()
+                                             if g.get("pass"))}
+    args.holdout_from, args.holdout_to = ff["holdout"]["holdout_window"]
+    args.from_, args.before = ff["window"]
+    write_docs(out, args, result, ff,
+               f"nb_r {ff['nb_r']}; rated matches {ff['matches_rated']}, UNLINKED "
+               f"left out {ff['matches_unlinked_excluded']}; selections "
+               f"{result['counts']}; re-gated from rows.csv.gz")
+    passing = sorted(k for k, g in result["gate"].items() if g["pass"])
+    print(json.dumps({"out_dir": str(out), "pass": passing}))
+    return 0
+
+
+def write_docs(out: Path, args: argparse.Namespace, result: dict[str, Any],
+               fitted_from: dict[str, Any], header: str) -> None:
+    """curves.json and gate_report.md of one gated run."""
+    passing = {k for k, g in result["gate"].items() if g["pass"]}
     doc: dict[str, Any] = {
         "target": TARGET, "group": "double_chance", "fitted_from": fitted_from,
         "by_market_direction": ({KEY: result["final"][KEY]}
@@ -239,25 +319,9 @@ def main() -> int:
         "final_curves_all_keys": result["final"],
     }
     (out / "curves.json").write_text(json.dumps(doc, indent=1) + "\n")
-    with gzip.open(out / "rows.csv.gz", "wt", newline="") as fh:
-        w = csv.writer(fh)
-        w.writerow(["phase", "start_ts", "event_id", "women", "link", "lh", "la",
-                    "home_goals", "away_goals", "selection", "p", "y",
-                    "train_curve_value"])
-        for r in priced:
-            m = r.match
-            phase = ("train" if m.ts < h0 else "holdout" if m.ts < h1
-                     else "final_only")
-            cv = gate_mod.curve_value(
-                result["training"][WOMEN_KEY if m.women else KEY], r.p)
-            w.writerow([phase, m.ts, m.event_id, int(m.women), m.link,
-                        round(m.lh, 5), round(m.la, 5), m.x, m.y, r.selection,
-                        round(r.p, 6), r.y, "" if cv is None else cv])
     lines = [f"# Double chance - holdout gate ({args.holdout_from} .. "
              f"{args.holdout_to}, train {args.from_} ..)", "",
-             f"nb_r {cfg.nb_r}; rated matches {len(matches)}, UNLINKED left out "
-             f"{fitted_from['matches_unlinked_excluded']}; selections "
-             f"{result['counts']}", ""]
+             f"Rule: {gate_mod.RULE_TEXT}.", "", header, ""]
     for key in (KEY, WOMEN_KEY):
         lines += gate_mod.gate_lines(key, result["gate"][key])
         for sel, g in result["diagnostics"][key].items():
@@ -272,10 +336,6 @@ def main() -> int:
                   f"{e['realised_lo95']}" for b, e in c.items()]
         lines.append("")
     (out / "gate_report.md").write_text("\n".join(lines) + "\n")
-    print(json.dumps({"out_dir": str(out), "pass": sorted(passing),
-                      "fail": sorted(set(result["gate"]) - passing),
-                      "counts": result["counts"]}))
-    return 0
 
 
 if __name__ == "__main__":

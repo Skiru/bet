@@ -6,6 +6,7 @@ on a COPY of the tables it reads - never installed by this script.
         --before <d> [--out-dir data/refit_shot_detail_<d>] \\
         [--holdout-from 2026-09-01 [--holdout-to 2026-10-14]] \\
         [--estimator config/sofa_shot_detail.json] [--copy-from <db>]
+    ... --out-dir <dir> --regate   # no replay: re-gate a saved holdout run
 
 1. Copy: the shotmap rows of sofa_event_extra, the lineups of those events and
    their kickoff from sofa_listing_event go into <out-dir>/shot_detail.db
@@ -41,7 +42,11 @@ Writes <out-dir>/sofa_shot_detail.json (an estimator fitted here), curves.json
 .json at an install the operator approves - scripts/sofa/
 install_new_market_curves.py), fit_report.md / gate_report.md, and with a
 holdout rows_holdout.csv.gz (every holdout forecast) and rows_final.csv.gz
-(the final forecasts at p >= 0.60). Exit 0, 2 on a crash.
+(the final forecasts at p >= 0.60). The gate is one-sided since 2026-10-14
+~18:55Z (new_market_gate). `--regate` re-reads a holdout run's
+rows_holdout.csv.gz through its saved `training_curves`, re-decides every key
+and writes curves.json / gate_report.md again with the saved
+`final_curves_all_keys` (no copy, no replay). Exit 0, 2 on a crash.
 """
 
 from __future__ import annotations
@@ -185,6 +190,55 @@ def write_rows(path: Path, fc: Forecasts, min_p: float = 0.0,
     return n
 
 
+def write_gate_report(out: Path, gates: Mapping[str, Any], h0: str, h1: str
+                      ) -> None:
+    lines = [f"# Shot detail - holdout gate ({h0} .. {h1})", "",
+             f"Rule: {gate_mod.RULE_TEXT}.", ""]
+    for key in sorted(gates):
+        lines += gate_mod.gate_lines(key, gates[key])
+    (out / "gate_report.md").write_text("\n".join(lines) + "\n")
+
+
+def regate(out: Path) -> dict[str, Any]:
+    """Re-decide a saved holdout run under today's gate (module docstring)."""
+    doc: dict[str, Any] = json.loads((out / "curves.json").read_text(encoding="utf-8"))
+    training, final = doc["training_curves"], doc["final_curves_all_keys"]
+    hold: dict[str, list[gate_mod.Forecast]] = defaultdict(list)
+    with gzip.open(out / "rows_holdout.csv.gz", "rt", newline="") as fh:
+        for r in csv.DictReader(fh):
+            hold[r["key"]].append((float(r["p"]), int(r["y"]), int(r["event_id"])))
+    old = doc.get("gate") or {}
+    gates: dict[str, Any] = {}
+    for key in sorted(old):
+        gates[key] = gate_mod.require_final(
+            gate_mod.gate(training.get(key, {}), hold.get(key, [])),
+            final.get(key, {}))
+    doc["gate"] = gates
+    doc["by_market_direction"] = {k: final[k] for k, g in gates.items()
+                                  if g["pass"] and final.get(k)}
+    ff = doc["fitted_from"]
+    ff.setdefault("holdout", {})["rule"] = gate_mod.RULE_TEXT
+    ff["regated"] = {"at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+                     "rule": gate_mod.RULE,
+                     "from": ["rows_holdout.csv.gz", "training_curves",
+                              "final_curves_all_keys"],
+                     "previous_pass": sorted(k for k, g in old.items()
+                                             if g.get("pass"))}
+    (out / "curves.json").write_text(json.dumps(doc, indent=1) + "\n")
+    window = ff.get("holdout", {}).get("holdout_window") or ["?", "?"]
+    write_gate_report(out, gates, window[0], window[1])
+    report = out / "fit_report.md"
+    if report.exists():
+        text = []
+        for line in report.read_text(encoding="utf-8").splitlines():
+            key = line[3:].rsplit(" - ", 1)[0] if line.startswith("## ") else ""
+            if key in gates and line.endswith((" - PASS", " - FAIL")):
+                line = f"## {key} - {'PASS' if gates[key]['pass'] else 'FAIL'}"
+            text.append(line)
+        report.write_text("\n".join(text) + "\n")
+    return doc
+
+
 def _ts(day: str) -> int:
     d = date.fromisoformat(day)
     return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp())
@@ -201,8 +255,17 @@ def main() -> int:
                     "priced with (e.g. config/sofa_shot_detail.json); default: "
                     "refitted on every start before --before")
     ap.add_argument("--copy-from", help="make the copy from this DB, not the live one")
+    ap.add_argument("--regate", action="store_true",
+                    help="no replay: re-gate the holdout run saved in --out-dir")
     args = ap.parse_args()
     out = Path(args.out_dir or f"data/refit_shot_detail_{args.before}")
+    if args.regate:
+        redone = regate(out)
+        passing = sorted(k for k, g in redone["gate"].items() if g["pass"])
+        print(json.dumps({"out_dir": str(out), "pass": passing,
+                          "curves": {k: len(v) for k, v in
+                                     redone["by_market_direction"].items()}}))
+        return 0
     out.mkdir(parents=True, exist_ok=True)
     copy = out / "shot_detail.db"
     if not copy.exists():
@@ -239,8 +302,7 @@ def main() -> int:
             "train_starts": len(train_rows),
             "holdout_starts": sum(1 for r in rows if h0 <= r[0] < h1),
             "train_estimator": est_train,
-            "rule": f"curve value >= {gate_mod.PRINT_FLOOR}: |realised - curve| "
-                    f"<= {gate_mod.MAX_GAP}, n >= {gate_mod.MIN_N}"}
+            "rule": gate_mod.RULE_TEXT}
         report += ["## Training estimator (before " + args.holdout_from + ")", "",
                    *est_report, ""]
 
@@ -260,6 +322,8 @@ def main() -> int:
     final_fc = forecasts(rows, {"metrics": est_final}, 0, cut)
     final = curves_of(final_fc)
     if args.holdout_from:
+        for key, g in gates.items():
+            gate_mod.require_final(g, final.get(key, {}))
         installable = {k: v for k, v in final.items() if gates.get(k, {}).get("pass")}
         write_rows(out / "rows_final.csv.gz", final_fc, min_p=FINAL_ROWS_FROM_P)
     else:
@@ -280,11 +344,8 @@ def main() -> int:
         report.append("")
     (out / "fit_report.md").write_text("\n".join(report) + "\n")
     if gates:
-        lines = [f"# Shot detail - holdout gate ({args.holdout_from} .. "
-                 f"{args.holdout_to or args.before})", ""]
-        for key in sorted(gates):
-            lines += gate_mod.gate_lines(key, gates[key])
-        (out / "gate_report.md").write_text("\n".join(lines) + "\n")
+        write_gate_report(out, gates, args.holdout_from,
+                          args.holdout_to or args.before)
     print(json.dumps({"out_dir": str(out), "starts": len(rows),
                       "pass": sorted(k for k, g in gates.items() if g["pass"]),
                       "fail": sorted(k for k, g in gates.items() if not g["pass"]),

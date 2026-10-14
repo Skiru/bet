@@ -28,7 +28,13 @@ curves.json - which keys install:
     `gate`: {"<sport>:<family>|<SIDE>": {"pass": bool, ...}}
   A key installs only when its `gate` entry says `"pass": true` (a key
   without a gate entry, or a group without `gate`, installs nothing). A curve
-  is {"<lo>-<hi>": {"n", "realised", "realised_lo95"}}.
+  is {"<lo>-<hi>": {"n", "realised", "realised_lo95"}}. The verdict is the
+  fit scripts' (scripts/sofa/new_market_gate.py): ONE-SIDED since the
+  operator's decision of 2026-10-14 ~18:55Z - a key fails only when its
+  curve overstates on the holdout by more than 2 pp (n >= 300 at curve
+  value >= 0.70); the two-sided verdict is `two_sided_pass`, never read
+  here. A group re-gated under a new rule is re-read as is (the fit
+  scripts' --regate).
 
 Refusals (exit 2, nothing written): a key already present in the target (its
 direction curve or, football / tennis, its market curve - a refit replaces

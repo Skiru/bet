@@ -4,6 +4,11 @@ past (offline, synthetic)."""
 
 from __future__ import annotations
 
+import csv
+import gzip
+import json
+from typing import Any
+
 import pytest
 
 from bet.sofa import football_rating as fr
@@ -56,3 +61,42 @@ def test_shot_forecasts_read_only_earlier_starts() -> None:
     assert eid == 100 and y == 1
     assert p == pytest.approx(sd.forecast([0.0] * sd.MIN_STARTS, "F", m, 0.5,
                                           fitted))
+
+
+def test_shot_regate_rereads_holdout_rows_one_sided(tmp_path: Any) -> None:
+    """--regate: saved holdout rows through the saved training curve; a curve
+    that understates now passes and its saved final curve is staged."""
+    key = "player_left_foot_shots_for|OVER"
+    train = {key: {"0.750-0.800": {"n": 900, "realised": 0.74, "realised_lo95": 0.71}}}
+    final = {key: {"0.750-0.800": {"n": 1200, "realised": 0.76, "realised_lo95": 0.74}}}
+    doc = {"target": fsd.TARGET, "group": "shot_detail",
+           "fitted_from": {"holdout": {"holdout_window": ["a", "b"]}},
+           "by_market_direction": {},
+           "gate": {key: {"pass": False}}, "training_curves": train,
+           "final_curves_all_keys": final}
+    (tmp_path / "curves.json").write_text(json.dumps(doc))
+    with gzip.open(tmp_path / "rows_holdout.csv.gz", "wt", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["key", "line", "start_ts", "event_id", "player_id", "p", "y",
+                    "curve_value"])
+        for i in range(400):
+            w.writerow([key, 0.5, i, i, 7, 0.77, int(i % 5 != 0), 0.71])
+    out = fsd.regate(tmp_path)
+    g = out["gate"][key]
+    assert g["n"] == 400 and g["gap"] == pytest.approx(0.09)
+    assert g["pass"] and not g["two_sided_pass"]
+    assert out["by_market_direction"] == final
+    assert out["fitted_from"]["regated"]["rule"] == "one_sided"
+    assert "two-sided rule" in (tmp_path / "gate_report.md").read_text()
+
+
+def test_dc_run_regates_with_saved_curves() -> None:
+    day = 86400
+    hold = [dc.Priced(_m(10_000 + i, fr.LINKED, ts=10 * day + i), "1X", 0.72,
+                      int(i % 10 != 0)) for i in range(400)]  # realised 0.90
+    curve = {"0.700-0.750": {"n": 900, "realised": 0.72, "realised_lo95": 0.70}}
+    saved = {"training": {dc.KEY: curve, dc.WOMEN_KEY: {}},
+             "final": {dc.KEY: curve, dc.WOMEN_KEY: {}}}
+    out = dc.run(hold, 10 * day, 20 * day, 30 * day, saved)
+    assert out["training"][dc.KEY] == curve
+    assert out["gate"][dc.KEY]["pass"] and not out["gate"][dc.KEY]["two_sided_pass"]

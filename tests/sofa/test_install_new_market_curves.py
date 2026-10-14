@@ -173,3 +173,35 @@ def test_gate_passes_a_calibrated_curve_and_fails_a_thin_or_off_one() -> None:
                                     "realised_lo95": 0.64}},
                    [(0.65, 1, i) for i in range(500)], reps=50)
     assert not below["pass"] and below["n"] == 0
+
+
+def test_gate_is_one_sided_an_understating_curve_passes() -> None:
+    """Operator 2026-10-14 ~18:55Z: only an overstating curve fails."""
+    curve = {"0.700-0.750": {"n": 1000, "realised": 0.75, "realised_lo95": 0.70}}
+    under = g.gate(curve, [(0.72, int(i % 10 != 0), i) for i in range(400)], reps=50)
+    assert under["gap"] == pytest.approx(0.20)  # realised 0.90 vs curve 0.70
+    assert under["pass"] and not under["two_sided_pass"] and under["why"] == ""
+    assert under["rule"] == "one_sided"
+    over = g.gate({"0.700-0.750": {"n": 1000, "realised": 0.75,
+                                   "realised_lo95": 0.725}},
+                  [(0.72, int(i % 10 < 7), i) for i in range(400)], reps=50)
+    assert over["gap"] == pytest.approx(-0.025)
+    assert not over["pass"] and over["why"].startswith("overstates")
+
+
+@pytest.mark.parametrize(("n", "gap", "one", "two"), [
+    (300, -0.02, True, True), (300, 0.02, True, True), (300, 0.05, True, False),
+    (300, -0.0201, False, False), (299, 0.0, False, False), (500, None, False, False),
+])
+def test_one_and_two_sided_rules(n: int, gap: float | None, one: bool,
+                                 two: bool) -> None:
+    assert g.one_sided_pass(n, gap) is one
+    assert g.two_sided_pass(n, gap) is two
+
+
+def test_a_final_curve_below_the_floor_fails_the_key() -> None:
+    ok = {"pass": True, "why": ""}
+    assert g.require_final(dict(ok), {"0.700-0.750": {"realised_lo95": 0.71}})["pass"]
+    v = g.require_final(dict(ok), {"0.700-0.750": {"realised_lo95": 0.69}})
+    assert not v["pass"] and "final curve" in v["why"]
+    assert not g.require_final({"pass": False, "why": "n"}, {})["pass"]

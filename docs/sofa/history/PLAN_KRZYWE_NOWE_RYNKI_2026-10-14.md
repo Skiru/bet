@@ -168,3 +168,12 @@ rozliczyć (SETTLE pobiera shotmapy / incydenty; SHADOW_SETTLE sety i DC sportó
 sprawdzić `07_settle_skips.json` pod kątem nowych rynków); ledger;
 `refresh_line_evidence.py` (pierwsze linie nowych kluczy); budowa 10-15;
 weryfikacja: liczba nóg nowych rynków na kuponie, sofa-verifier.
+
+**~19:00Z - bramka jednostronna** (decyzja operatora ~18:55Z: odpada tylko
+krzywa zawyżająca o > 2 pp; „12” i krzywe poniżej 0,70 dalej odpadają):
+wszystkie 5 grup przebramkowane z zapisanych wierszy (`--regate`, bez
+replayu), 11 nowych PASS (lewa noga, męskie `set1/set2_won_for` x4,
+`set_score`, `tennis_women:set2_won_for` x2, `tennis_women:set_score`, hokej i
+kosz `double_chance|TEAM`), żaden dawny PASS nie odpadł; instalator na sucho:
+**22 klucze**. Szczegóły: `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
+sekcja „Bramka jednostronna”. `--confirm` nie uruchomiony.
