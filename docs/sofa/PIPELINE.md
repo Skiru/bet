@@ -1363,6 +1363,17 @@ wierszy turniejów; kopia `sofa_entity` w
 `data/backup_entity_map_20261014T093901Z/`). Raport:
 `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
 
+**DAY_ANCHOR (plan tożsamości K2, od `epochs.DAY_ANCHOR_FROM_UTC` 2026-10-15
+00:00Z; hokej, kosz, siatka — nie CS2).** Gdy w listingu nie ma meczu z obiema
+nazwami: jedyny mecz drużyny-kotwicy (strona z rozpoznanym id) w ±1 h od
+startu Superbetu (sport, płeć, nie przełożony) jest tym zdarzeniem bez względu
+na nazwę drugiej strony (`match_method: "DAY_ANCHOR"`). Dwa takie mecze →
+`AMBIGUOUS`; własne id drugiej strony, którego w meczu nie ma →
+`RESOLVED_ID_DISAGREES`. Nazwa przeciwnika trafia tylko do kolejki kandydatów.
+Backtest z ukrytą nazwą przeciwnika (`measure_day_anchor.py`, 10-05..10-14):
+1 578 / 1 578 zidentyfikowanych meczów trafionych, 0 sprzeczności z SETTLE.
+Raport: `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
+
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
 `config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,

@@ -356,3 +356,18 @@ def test_run_resolve_tournament_write_never_fails_the_stage(tmp_path: Path) -> N
     migrate(path)
     assert run_resolve.learn_tournaments(path, [("football", 1, 2, "L", 3)]) == 1
     assert run_resolve.learn_tournaments(str(tmp_path / "no" / "x.db"), []) is None
+
+
+def test_reteach_learns_a_newly_learnable_side_and_closes_its_candidate(
+    tmp_path: Path,
+) -> None:
+    conn = _db(tmp_path)
+    rec = _rec(match_method="LISTING_ID_AND_OPPONENT",
+               name_scores={"team1": 40.0, "team2": 100.0}, team1_id=174744)
+    side = em.record_sides(rec)[0]
+    em.queue_candidate(conn, side, "LISTING_ID_AND_OPPONENT", AT)  # the old rule
+    got = em.reteach_sides(conn, [rec], AT)
+    assert got[em.LEARNED] == 1 and got["closed"] == 1
+    assert _row(conn, "basketball", "spartak subotica")[0] == 174744
+    st = conn.execute("SELECT status FROM sofa_entity_candidate").fetchone()[0]
+    assert st == "HELD"

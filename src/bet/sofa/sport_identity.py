@@ -431,13 +431,45 @@ def _anchored(board_id: int | None, ev_id: int | None, board_name: str,
         searched_side=normalize_name(ev_name))
 
 
+def day_anchor_orientation(t1_id: int | None, t2_id: int | None, hid: int | None,
+                           aid: int | None) -> bool | None:
+    """DAY_ANCHOR (identity plan K2): does this game read team1 at home (True)
+    or away (False) by a side's resolved id, or not name either side's id
+    (None)? A side's resolved id on the wrong side, or the other side's own
+    resolved id missing from the game, is None too: an id that disagrees
+    refuses, as in match_shadow."""
+    straight = ((t1_id is not None and t1_id == hid)
+                or (t2_id is not None and t2_id == aid))
+    crossed = ((t1_id is not None and t1_id == aid)
+               or (t2_id is not None and t2_id == hid))
+    if straight == crossed:
+        return None
+    home_t1 = straight
+    sides = ((t1_id, hid if home_t1 else aid), (t2_id, aid if home_t1 else hid))
+    for own, ev_id in sides:
+        if own is not None and own != ev_id:
+            return None
+    return home_t1
+
+
 def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
-                 t1_id: int | None, t2_id: int | None) -> dict[str, Any]:
-    """The one listed event that is this Superbet game, or why not."""
+                 t1_id: int | None, t2_id: int | None,
+                 day_anchor: bool = False) -> dict[str, Any]:
+    """The one listed event that is this Superbet game, or why not.
+
+    `day_anchor` (epochs.DAY_ANCHOR_FROM_UTC): with no game on both names,
+    the anchor team's ONLY game in the window (sport, gender, not off
+    schedule) is this one whatever the other name says - DAY_ANCHOR; two
+    such games are AMBIGUOUS. Measured on 10-05..10-14 with the opponent's
+    name hidden: 1,578 of 1,578 IDENTIFIED games picked right, 0 of the
+    settle's later finds contradicted (scripts/sofa/measure_day_anchor.py).
+    This relaxes "the other team must be named in the listing" for one
+    reason: a club does not play two games in one hour; CS2 keeps it."""
     slug = SPORTS[ev.sport].sofascore_slug  # type: ignore[index]
     gender = "W" if "W" in {superbet_gender(ev.team1), superbet_gender(ev.team2)} \
         else "M"
     fits: list[dict[str, Any]] = []
+    anchored: list[tuple[dict[str, Any], bool | None]] = []
     near = 0
     off_schedule = 0
     for e in candidates:
@@ -456,6 +488,8 @@ def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
             continue
         gap_s = abs((start - ev.kickoff).total_seconds())
         (hid, hname), (aid, aname) = _side(e, "homeTeam"), _side(e, "awayTeam")
+        if {t1_id, t2_id} & {hid, aid} - {None}:
+            anchored.append((e, day_anchor_orientation(t1_id, t2_id, hid, aid)))
         s_h1, sc_h1 = _side_ok(ev.team1, t1_id, hid, hname, ev.sport)
         s_a2, sc_a2 = _side_ok(ev.team2, t2_id, aid, aname, ev.sport)
         c_a1, sc_a1 = _side_ok(ev.team1, t1_id, aid, aname, ev.sport)
@@ -490,6 +524,22 @@ def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
         })
     if len(fits) > 1:
         return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
+    if not fits and day_anchor and anchored:
+        if len(anchored) > 1:
+            return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
+        e, home_t1 = anchored[0]
+        if home_t1 is None:
+            return {"status": NOT_IDENTIFIED, "reason": "RESOLVED_ID_DISAGREES",
+                    "candidate_event_id": e.get("id")}
+        (_, hname), (_, aname) = _side(e, "homeTeam"), _side(e, "awayTeam")
+        a, b = (hname, aname) if home_t1 else (aname, hname)
+        return {"status": IDENTIFIED, "event": e, "home_is_team1": home_t1,
+                "name_scores": {
+                    "team1": round(side_score(ev.sport, normalize_name(ev.team1),
+                                              normalize_name(a)), 1),
+                    "team2": round(side_score(ev.sport, normalize_name(ev.team2),
+                                              normalize_name(b)), 1)},
+                "match_method": "DAY_ANCHOR"}
     if not fits:
         if off_schedule and off_schedule == near:
             return {"status": NOT_IDENTIFIED, "reason": "NOT_AS_SCHEDULED"}
@@ -523,7 +573,12 @@ def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
       marker-free score, or one shared distinctive word not of the anchored
       team when the two clocks agree within 15 minutes), with the same
       women's and roster markers (an academy, an ex- roster is another team);
-    - the anchored side reads one way round only."""
+    - the anchored side reads one way round only.
+
+    DAY_ANCHOR (identity plan K2) is not applied to CS2: series run late
+    (the settle's starts of 10-05..10-14 up to 2-4 h off Superbet's), a team
+    plays several a day, and 10-06's BAKS - Clutchain was BakS - OldBoys at
+    the same hour (test_cs2_anchored_another_opponent_is_not_this_series)."""
     t1, t2 = cs2.esports_name(ev.team1), cs2.esports_name(ev.team2)
     near: list[tuple[dict[str, Any], datetime]] = []
     for e in candidates:
@@ -622,10 +677,12 @@ def _record(ev: BoardEvent, at: datetime, **extra: Any) -> dict[str, Any]:
 
 def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | None,
                    teams: Callable[[str, str], int | None], at: datetime,
-                   query_teams: Callable[[str, str], int | None] | None = None
-                   ) -> dict[str, Any]:
+                   query_teams: Callable[[str, str], int | None] | None = None,
+                   day_anchor: bool = False) -> dict[str, Any]:
     """`query_teams` (TeamResolver.query_id): the team to ask about when
-    neither side has an exact id; its id is never an id match."""
+    neither side has an exact id; its id is never an id match. `day_anchor`:
+    match_shadow's DAY_ANCHOR, hockey / basketball / volleyball only (a
+    query-only team is no anchor - it has no resolved id)."""
     t1_id, t2_id = teams(ev.sport, ev.team1), teams(ev.sport, ev.team2)
     query = t1_id if t1_id is not None else t2_id
     query_only = False
@@ -638,7 +695,7 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         return _record(ev, at, status=NOT_IDENTIFIED, reason="TEAM_UNRESOLVED")
     listing, cached = next_listing(client, cache, query)
     found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
-             else match_shadow(ev, listing, t1_id, t2_id))
+             else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
     extra = {"queried_team_id": query, "listing_from_cache": cached,
              "team1_id": t1_id, "team2_id": t2_id}
     if query_only:
@@ -678,7 +735,8 @@ def identify(events: list[BoardEvent], client: ListingClient,
              cache: ListingCache | None, teams: Callable[[str, str], int | None],
              at: datetime, date: str,
              pinned: Mapping[str, dict[str, Any]] | None = None,
-             query_teams: Callable[[str, str], int | None] | None = None
+             query_teams: Callable[[str, str], int | None] | None = None,
+             day_anchor: bool = False
              ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Every event of the day's window identified or refused, and the
     per-sport counts. `pinned`: the records of an earlier run - an
@@ -717,7 +775,7 @@ def identify(events: list[BoardEvent], client: ListingClient,
             continue
         try:
             records.append(identify_event(ev, client, cache, teams, at,
-                                          query_teams))
+                                          query_teams, day_anchor))
         except BridgeAbortedError as exc:
             aborted = str(exc)
             records.append(_record(ev, at, status=NOT_IDENTIFIED,

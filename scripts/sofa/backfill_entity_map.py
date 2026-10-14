@@ -127,6 +127,9 @@ def run(conn: sqlite3.Connection, runs_dir: str, at: str) -> dict[str, Any]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--reteach", action="store_true",
+                    help="re-read the sides of already taught events under the "
+                    "current rule (entity_map.reteach_sides); no tournaments")
     ap.add_argument("--db-path", default=None)
     ap.add_argument("--runs-dir", default=None)
     args = ap.parse_args()
@@ -139,7 +142,10 @@ def main() -> int:
         with get_connection(db_path) as conn:
             if not args.dry_run:
                 print(f"backup: {backup(conn, Path(db_path).parent)}")
-            report = run(conn, runs_dir, at)
+            if args.reteach:
+                report = em.reteach_sides(conn, sport_records(runs_dir), at)
+            else:
+                report = run(conn, runs_dir, at)
             if args.dry_run:
                 conn.rollback()
             else:
@@ -147,7 +153,8 @@ def main() -> int:
     except sqlite3.Error as exc:
         print(f"FAILED: {exc}", file=sys.stderr)
         return 2
-    print(json.dumps({"dry_run": args.dry_run, **report}, indent=1, ensure_ascii=False))
+    print(json.dumps({"dry_run": args.dry_run, "reteach": args.reteach, **report},
+                     indent=1, ensure_ascii=False))
     return 0
 
 

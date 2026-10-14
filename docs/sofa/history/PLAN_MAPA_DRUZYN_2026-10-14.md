@@ -160,7 +160,11 @@ kolejki kandydatów (jak `remember()` w RESOLVE). Plan pierwotny:
 - Mapa turniejów: nazwa turnieju Superbetu → `unique_tournament_id` Sofascore, uczona
   z przypiętych meczów (`competition_id`). Potrzebna do K2/K3.
 
-**K2. Kandydaci z listingu dnia (mecz-first, mostek).**
+**K2. Kandydaci z listingu dnia (mecz-first, mostek).** *Zrobione 2026-10-14 (od 2026-10-15
+00:00Z):* reguła `DAY_ANCHOR` dla hokeja / kosza / siatki na listingu, który
+SPORT_IDENTITY już pobiera (0 dodatkowych zapytań); CS2 i tenis wyłączone;
+okno 1 h; listing dnia przeniesiony do K3 / K5. Raport
+`docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`. Plan pierwotny:
 - Raz na dzień i sport: `sport/{s}/scheduled-tournaments/{d}/page/{1..}` (do
   `hasNextPage=false`), potem `unique-tournament/{ut}/scheduled-events/{d}` dla turniejów,
   w których mamy niedopasowane zdarzenia (nie dla wszystkich). Cache jak listingi

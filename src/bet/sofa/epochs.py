@@ -1573,3 +1573,31 @@ def entity_map(date: str | None, build_at: datetime | None = None) -> bool:
     if at < ENTITY_MAP_FROM_UTC:
         return False
     return date is None or date >= ENTITY_MAP_FROM_UTC.strftime("%Y-%m-%d")
+
+
+# DAY_ANCHOR (identity plan K2, sport_identity.match_shadow,
+# docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md): with no listed game
+# on both names, the anchor team's (a side's resolved id) ONLY game within
+# MAX_START_GAP of Superbet's start is this hockey / basketball / volleyball
+# event, whatever the other name says (a club does not play twice in an
+# hour; CS2 is left out - series run late and a team plays several a day).
+# Measured 2026-10-05..10-14 (scripts/sofa/measure_day_anchor.py, the ids
+# the resolver had at identification, the opponent's name hidden): hockey
+# 591/591, basketball 793/793, volleyball 194/194 IDENTIFIED games picked
+# right; on NOT_IDENTIFIED events every pick the settle later found on its
+# own rules agreed (79 of 79). Live gain on those days: the
+# NO_MATCH_IN_LISTING events (hockey 2, basketball 6, volleyball 4); a
+# replay on 10-13/10-14's cached listings identifies 8. A wider window adds
+# one basketball game (2 h): the window stays 1 h. The opponent's name is
+# never learned from it (entity_map.OPPONENT_METHODS: a candidate). Changes
+# what prints: a day >= the date, built at or after the moment.
+DAY_ANCHOR_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def day_anchor(date: str, build_at: datetime | None = None) -> bool:
+    """Does SPORT_IDENTITY accept DAY_ANCHOR (DAY_ANCHOR_FROM_UTC)?"""
+    if DAY_ANCHOR_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= DAY_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= DAY_ANCHOR_FROM_UTC)

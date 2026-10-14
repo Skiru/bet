@@ -56,7 +56,12 @@ LEARNED_SOURCES = frozenset({SOURCE_IDENTITY_NAMES, SOURCE_MANUAL})
 # threshold (sport_identity._side_ok, cs2.pick_event). The opponent-rule
 # methods (LISTING_ID_AND_OPPONENT, CS2_LISTING_ID_AND_OPPONENT) do not.
 NAME_METHODS = frozenset({"LISTING_NAMES", "LISTING_ID_AND_NAME", "CS2_PICK_EVENT"})
-OPPONENT_METHODS = frozenset({"LISTING_ID_AND_OPPONENT", "CS2_LISTING_ID_AND_OPPONENT"})
+# Methods whose other side is at most a NEEDS_ALIAS candidate: the opponent
+# rule (a shared word) and DAY_ANCHOR (no name at all - K2 found the anchor's
+# game listed with another opponent: BC Barcelos (K) - Francisco Franco (K)
+# is Sofascore's BC Barcelos - CAB Madeira).
+OPPONENT_METHODS = frozenset({"LISTING_ID_AND_OPPONENT", "CS2_LISTING_ID_AND_OPPONENT",
+                              "DAY_ANCHOR"})
 
 # The shadow sports' sofa_entity key space is Sofascore's sport slug, as
 # RESOLVE / SHADOW_SETTLE write it; CS2's is backfill_cs2.ENTITY_SPORT.
@@ -146,6 +151,9 @@ class Side:
     event_id: int
     score: float | None
     method: str
+    # The id the resolver had for this side at identification (team1_id /
+    # team2_id of the record), if any.
+    resolved_id: int | None = None
 
 
 def _split_match(sofascore_match: str | None) -> tuple[str, str]:
@@ -175,16 +183,23 @@ def record_sides(rec: Mapping[str, Any]) -> list[Side]:
         if not isinstance(sid, int) or not name:
             continue
         sc = scores.get(side)
+        own = rec.get(f"{side}_id")
         out.append(Side(str(rec["sport"]), str(name), sid, sname,
                         int(rec["sofascore_event_id"]),
                         float(sc) if isinstance(sc, (int, float)) else None,
-                        str(rec.get("match_method") or "")))
+                        str(rec.get("match_method") or ""),
+                        own if isinstance(own, int) else None))
     return out
 
 
 def name_confirmed(side: Side) -> bool:
-    """The side's own name confirmed it (NAME_METHODS, score above the
-    threshold) - learnable; anything else is a candidate at most."""
+    """Learnable: the side's own name confirmed it (NAME_METHODS, score
+    above the threshold), or the resolver already had this very id for it
+    (the anchor of an opponent-rule or DAY_ANCHOR game - learning it only
+    holds what the resolver's index knew). Anything else is a candidate at
+    most."""
+    if side.resolved_id is not None and side.resolved_id == side.sofascore_id:
+        return True
     return (side.method in NAME_METHODS and side.score is not None
             and side.score > NAME_MATCH_THRESHOLD)
 
@@ -336,3 +351,25 @@ def learn_resolve_tournaments(
                           superbet_tournament_id=tid)
         n += 1
     return n
+
+
+def reteach_sides(conn: sqlite3.Connection, records: Iterable[Mapping[str, Any]],
+                  at: str) -> dict[str, int]:
+    """Re-read the sides of already taught events under the current
+    name_confirmed (no tournament counted again): a newly learnable side is
+    learned and its OPEN candidate row closed (status HELD). For a rule
+    change after a backfill; the caller commits."""
+    counts: dict[str, int] = {LEARNED: 0, ALREADY_HELD: 0, CONFLICT: 0, "closed": 0}
+    for rec in records:
+        for side in record_sides(rec):
+            if not name_confirmed(side):
+                continue
+            counts[learn(conn, side, at)] += 1
+            cur = conn.execute(
+                "UPDATE sofa_entity_candidate SET status = 'HELD', last_seen_utc = ?"
+                " WHERE sport = ? AND query_key = ? AND candidate_id = ?"
+                " AND status = 'OPEN'",
+                (at, entity_sport(side.sport), entity_key(side.sport, side.name),
+                 side.sofascore_id))
+            counts["closed"] += cur.rowcount
+    return counts

@@ -40,7 +40,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import entity_map  # noqa: E402
+from bet.sofa import entity_map, epochs  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
@@ -86,7 +86,8 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
     resolver = si.TeamResolver(conn, int(at.timestamp()),
                                learned=entity_map.learned_reads(date, at))
     records, summary = si.identify(events, client, cache, resolver.team_id, at,
-                                   date, pinned, resolver.query_id)
+                                   date, pinned, resolver.query_id,
+                                   day_anchor=epochs.day_anchor(date, at))
     # Sports not asked this run keep their earlier records.
     kept = [r for r in (prior or {}).get("fixtures") or []
             if r.get("sport") not in sports]

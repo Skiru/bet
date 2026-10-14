@@ -411,6 +411,19 @@ measurement of Superbet's price and feed nothing else.
   not-identified events in 10 days had a side learned from an earlier game;
   the rest of the plan (K2 day anchor) needs these ids.
   `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
+- **Day anchor** (identity plan K2, `DAY_ANCHOR_FROM_UTC` 2026-10-15
+  00:00Z; hockey / basketball / volleyball, not CS2, not tennis): with no
+  listed game on both names, the anchor team's (a side's resolved id) ONLY
+  game within the hour (sport, gender, not postponed) is the event, whatever
+  the other name says (`match_method: "DAY_ANCHOR"`); two such games
+  AMBIGUOUS, the other side's own id missing RESOLVED_ID_DISAGREES; the
+  opponent's name is only a candidate, never learned. Backtest with the
+  opponent hidden (`measure_day_anchor.py`, ids as at identification, newest
+  fetched version of each game): 1,578 / 1,578 IDENTIFIED picked right, 79
+  settle finds agreed, 0 contradicted; live gain the NO_MATCH_IN_LISTING
+  events (12 in 10 days; replay on 10-13/14 caches: 8). Window stays 1 h.
+  Open: BC Barcelos (K) - Francisco Franco (K) is Sofascore's BC Barcelos -
+  CAB Madeira. `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md`.
 - **History is kept current by `refresh_sport_history.py`** (bridge;
   `bet.sofa.sport_history`, run first by `refresh_line_evidence.py` every
   morning): SPORT_IDENTITY asks listings before the game, so until 2026-10-12
@@ -806,7 +819,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from <d> --to <d> [--min-matches N]   # evidence, never a bet list
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # a wrongly verified team alias; --list-suspects
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_entity_map.py [--dry-run]   # identity plan K1, once: the entity map learns from every sport_fixtures.json / RESOLVE day on disk; --dry-run rolls back; --apply backs up sofa_entity first
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_entity_map.py [--dry-run] [--reteach]   # identity plan K1, once: the entity map learns from every sport_fixtures.json / RESOLVE day on disk; --dry-run rolls back; --apply backs up sofa_entity first
 ```
 
 **Refit - on a copy of the DB, installed only with the operator's go** ("Changing the pipeline" 4; `docs/sofa/CONFIG.md` section 7)
@@ -857,6 +870,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_bucket_design_effect.py -
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_unit_strength.py [--from <d>] [--to <d>]   # audit A1
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_settled_by_market.py --from <d> --to <d> [--p-min 0.70] [--min-n 20] [--md-out f] [--json-out f]   # every sport, every market x direction: n, hit, raw model p, 1/odds, ROI + game bootstrap; sports never pooled
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from <d>] [--to <d>] [--sport all|football|...] [--md-out f] [--json-out f]   # identity plan K0: UNEXPLAINED events / players per kickoff day, sport and entity (IDENTIFIED / EXCLUDED / EXPLAINED / UNEXPLAINED); names judged on today's DB; T-IDENTITY-unexplained
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>] [--to <d>] [--md-out f] [--json-out f]   # identity plan K2: DAY_ANCHOR precision with the opponent hidden, picks on NOT_IDENTIFIED vs the settle, start gaps
 ```
 
 **Gates before a commit**
