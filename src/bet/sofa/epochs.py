@@ -1799,3 +1799,59 @@ def sport_derived_markets(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= SPORT_DERIVED_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= SPORT_DERIVED_MARKETS_FROM_UTC)
+
+
+# Football markets read off the incident list (bet.sofa.football_incidents):
+# "1. gol" (which side scores first / nikt) as first_goal (subject "1" / "2" /
+# "nikt", line 0.5, OVER only - one-sided), "Liczba czerwonych kartek" and
+# "Liczba przyznanych rzutow karnych" O/U as red_cards_total /
+# penalties_total. SHEET prices the first goal from the double chance's NB
+# goals on the PURE rating centres (FootballForecast.centre("goals_for",
+# side), r from config/sofa_football_result.json) and the counts from the
+# competition's as-of full-feed rate shrunk to the gender's (no sample, no
+# price; rows marked `incident_rule`); SETTLE grades from the match's
+# regular-time incidents (a partial feed: no grade). The first-goal minute
+# bands never reach 0.70 and are not read. No curve is installed: CONFIDENCE
+# reads the keys' own Superbet lines, NO_LINE_EVIDENCE until a bucket holds
+# enough of them - so nothing prints at first. Adds rows, so a day >= the
+# date built at or after the moment. Off (None, until the operator sets it):
+# OFFER, SAMPLES, SHEET and SETTLE byte-identical. Evidence: docs/sofa/
+# evidence/football_incidents_tennis_sets_2026-10-14.md.
+FOOTBALL_INCIDENT_MARKETS = "incident_markets_v1"
+FOOTBALL_INCIDENT_MARKETS_FROM_UTC: datetime | None = None
+
+
+def football_incident_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the football first goal, red cards and
+    penalties (FOOTBALL_INCIDENT_MARKETS_FROM_UTC)?"""
+    if FOOTBALL_INCIDENT_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_INCIDENT_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_INCIDENT_MARKETS_FROM_UTC)
+
+
+# Tennis set winner and exact score in sets (bet.sofa.tennis_sets), the match
+# winner's pattern: OFFER reads "X. set - zwyciezca" ("1. set - <name>" /
+# "2. set - <name>") as set1_won_for / set2_won_for (subject the listing's
+# first name, line 0.5, two-sided) and the tennis "Dokladny wynik" ("2:0" ..
+# "0:2") as set_score (subject "<first name> a:b", OVER only - one-sided);
+# SHEET prices them from the as-of rating's neighbours (best of three only;
+# rows marked `set_market_rule`); SETTLE grades from the listing's set
+# scores. No curve is installed: CONFIDENCE reads the keys' own Superbet
+# lines, NO_LINE_EVIDENCE until a bucket holds enough of them. Adds rows, so
+# a day >= the date built at or after the moment. Off (None, until the
+# operator sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
+# Evidence: docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md.
+TENNIS_SET_MARKETS = "tennis_set_markets_v1"
+TENNIS_SET_MARKETS_FROM_UTC: datetime | None = None
+
+
+def tennis_set_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the tennis set winner and exact sets
+    score (TENNIS_SET_MARKETS_FROM_UTC)?"""
+    if TENNIS_SET_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TENNIS_SET_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TENNIS_SET_MARKETS_FROM_UTC)

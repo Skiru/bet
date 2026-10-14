@@ -15,10 +15,12 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.epochs import (
     ampersand_subjects,
+    football_incident_markets,
     football_result_markets,
     mappable_families,
     shot_detail_markets,
     tennis_match_winner,
+    tennis_set_markets,
 )
 from bet.sofa.locked_print import starts_after
 from bet.sofa.offer import OfferFetcher
@@ -129,7 +131,11 @@ def main() -> int:
                            # D1: the football double chance (epochs).
                            football_result=football_result_markets(args.date),
                            # the footballer shot-detail markets (epochs).
-                           shot_detail=shot_detail_markets(args.date))
+                           shot_detail=shot_detail_markets(args.date),
+                           # the football incident and tennis set markets
+                           # (epochs).
+                           football_incidents=football_incident_markets(args.date),
+                           tennis_sets=tennis_set_markets(args.date))
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():

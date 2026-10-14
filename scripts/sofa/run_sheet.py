@@ -63,6 +63,16 @@ from bet.sofa.epochs import (
     tennis_rating_prices,
 )
 from bet.sofa.epochs import stats_only as stats_only_epoch
+from bet.sofa.football_incidents import (
+    FG_SUBJECTS,
+    FIRST_GOAL,
+    IncidentPricing,
+    first_goal_probs,
+    incident_note,
+)
+from bet.sofa.football_incidents import INCIDENT_MARKETS as FOOTBALL_INCIDENT_MARKETS
+from bet.sofa.football_incidents import UNFITTED_CONSTANTS as INCIDENT_UNFITTED
+from bet.sofa.football_incidents import load_rates as load_incident_rates
 from bet.sofa.football_rating import (
     CROSS_LEAGUE_UNLINKED_NOTE,
     MIN_LEAGUE_MATCHES,
@@ -138,6 +148,16 @@ from bet.sofa.tennis_rating import (
     load_coefficients,
     load_history,
     start_for_rule,
+)
+from bet.sofa.tennis_sets import (
+    SET1_WON_FOR,
+    SET_MARKETS,
+    SET_SCORE,
+    flip,
+    score_probs,
+    set_note,
+    set_win_p,
+    split_score_subject,
 )
 from bet.sofa.tennis_winner import (
     MATCH_WON_FOR,
@@ -1333,6 +1353,206 @@ def double_chance_rows(
     return [row], []
 
 
+def _model_only_row(
+    fixture: Fixture,
+    rung: PricedRung,
+    direction: Literal["OVER", "UNDER"],
+    p: float,
+    notes: list[str],
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+    source: str,
+    marker: dict[str, str],
+) -> SheetRow:
+    """One row of a market priced by a model alone (no sample, no price):
+    the football incident and tennis set markets. p_bar = p_central
+    ("rating_only"): 06_coupon.json's priced selector never calls it VALUE."""
+    offered = rung.over_odds if direction == "OVER" else rung.under_odds
+    m_p = market_ps.get((rung.market, rung.subject, rung.line, direction))
+    p_out = round(p, 4)
+    m_p_out = round(m_p, 4) if m_p is not None else None
+    req = round(get_required_odds(p_out, "LEAN"), 4)
+    surplus = round(offered - req, 4) if offered is not None else None
+    verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
+        "NO_PRICE" if offered is None
+        else "LEAN" if surplus is not None and surplus > 0 else "BELOW_BAR")
+    row_notes = list(notes)
+    if verdict == "LEAN":
+        row_notes.append("RATING_ONLY: no sample and no ladder check - "
+                         "VALUE withheld (06_coupon.json is not the coupon)")
+    return SheetRow(
+        sofascore_event_id=fixture.sofascore_event_id,
+        sport=fixture.sport,
+        market=rung.market,
+        subject=rung.subject,
+        line=rung.line,
+        direction=direction,
+        sample_size=0,
+        sample_mean=0.0,
+        sample_sd=0.0,
+        centre=p_out,
+        p_central=p_out,
+        market_p=m_p_out,
+        ladder_centre=None,
+        ladder_sigma=None,
+        p_bar=p_out,
+        bar_reason="rating_only",
+        calibration_correction=0.0,
+        sample_newest_days=None,
+        sample_frequency=None,
+        required_odds=req,
+        offered_odds=offered,
+        edge=round(p_out - m_p_out, 4) if m_p_out is not None else None,
+        surplus=surplus,
+        verdict=verdict,
+        notes=row_notes,
+        epoch=STATS_ONLY if stats_only else None,
+        forecast_p=p_out if stats_only else None,
+        forecast_source=source if stats_only else None,
+    ).model_copy(update=marker)
+
+
+# The sides a two-sided model row is written for - both, like the match
+# winner (a side Superbet does not quote is NO_PRICE).
+_BOTH_DIRECTIONS: tuple[Literal["OVER", "UNDER"], ...] = ("OVER", "UNDER")
+
+
+def incident_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    football: FootballForecast | None,
+    incidents: IncidentPricing,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.FOOTBALL_INCIDENT_MARKETS: the rows of one football first-goal,
+    red-cards or penalties rung (bet.sofa.football_incidents) - no sample,
+    no price.
+
+    first_goal (OVER only, one-sided): the double chance's NB goals on the
+    PURE rating centres - no goals centre for a side, no row; UNLINKED keeps
+    its row with CROSS_LEAGUE_UNLINKED like every rated football row. Red
+    cards / penalties (OVER and UNDER): the competition's as-of full-feed
+    rate shrunk to the gender's, on the measured lines (0.5, 1.5) only."""
+    marker = {"incident_rule": epochs.FOOTBALL_INCIDENT_MARKETS}
+    unfitted = "UNFITTED_CONSTANTS: " + ", ".join(INCIDENT_UNFITTED)
+    if rung.market == FIRST_GOAL:
+        if rung.subject not in FG_SUBJECTS:
+            return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                         f"first goal selection {rung.subject!r} unknown")]
+        home = football.centre("goals_for", "side_a") if football else None
+        away = football.centre("goals_for", "side_b") if football else None
+        if football is None or home is None or away is None:
+            return [], [(rung, GapReason.NOT_RATED,
+                         "no football rating goals centre for one of the sides "
+                         "(thin team, friendly, no league rate)")]
+        lh, la = home[0], away[0]
+        try:
+            p = first_goal_probs(lh, la, incidents.result.nb_r)[rung.subject]
+        except ValueError as exc:
+            return [], [(rung, GapReason.NOT_RATED, str(exc))]
+        if outside_model_resolution(p):
+            return [], [(rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                         f"p={p:.4g} for OVER is outside [{P_FLOOR}, {P_CEILING}]")]
+        notes = [incident_note(
+            rung.market, rung.subject, p,
+            f"NB goals (r {incidents.result.nb_r:g}) on the pure rating centres "
+            f"home {lh:.3f} / away {la:.3f}")]
+        if football.fixture_link() == UNLINKED:
+            notes.append(
+                f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+                "and their leagues' strengths are unmeasured - the rating "
+                "describes other leagues")
+        notes.append(f"{unfitted}, "
+                     f"{', '.join(RESULT_UNFITTED + RATING_UNFITTED)}")
+        return [_model_only_row(fixture, rung, "OVER", p, notes, market_ps,
+                                stats_only, "football_rating", marker)], []
+    p_over = incidents.rates.p_over(rung.market, fixture.competition_id, rung.line)
+    if p_over is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     f"{rung.market} line {rung.line:g}: not a measured line "
+                     "or no gender rate behind it")]
+    n_comp = incidents.rates.n_comp(rung.market, fixture.competition_id)
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    for direction in _BOTH_DIRECTIONS:
+        p = p_over if direction == "OVER" else 1.0 - p_over
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        notes = [incident_note(
+            rung.market, "", p,
+            f"the competition's as-of rate ({n_comp} full-feed matches) shrunk "
+            "toward the gender's"), unfitted]
+        rows.append(_model_only_row(fixture, rung, direction, p, notes,
+                                    market_ps, stats_only, "league_rate", marker))
+    return rows, skipped
+
+
+def set_market_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    rating: MatchForecast | None,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.TENNIS_SET_MARKETS: the rows of one tennis set-winner rung (OVER
+    and UNDER, like the match winner) or exact-sets rung (OVER only), from
+    the as-of rating's neighbours (bet.sofa.tennis_sets) - no sample, no
+    price. Best of three only: no forecast, no row."""
+    marker = {"set_market_rule": epochs.TENNIS_SET_MARKETS}
+    if rung.market == SET_SCORE:
+        parsed = split_score_subject(rung.subject)
+        name = parsed[0] if parsed is not None else ""
+    else:
+        parsed = None
+        name = rung.subject
+    side = determine_side(name, fixture) if name else None
+    if side is None:
+        return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                     f"subject {rung.subject!r} matches neither side")]
+    if rating is None or not rating.neighbours_home:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "no rating forecast (best of five, or a player under "
+                     "MIN_RATED rated matches)")]
+    pool = len(rating.neighbours_home)
+    if rung.market == SET_SCORE:
+        assert parsed is not None
+        probs = score_probs(rating.neighbours_home)
+        if probs is None:
+            return [], [(rung, GapReason.NOT_RATED, "no neighbours")]
+        score = parsed[1] if side == "side_a" else flip(parsed[1])
+        p = probs[score]
+        if outside_model_resolution(p):
+            return [], [(rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                         f"p={p:.4g} for OVER is outside [{P_FLOOR}, {P_CEILING}]")]
+        notes = [set_note(rung.market, rung.subject, p, side, pool,
+                          rating.table_scope)]
+        return [_model_only_row(fixture, rung, "OVER", p, notes, market_ps,
+                                stats_only, "tennis_rating", marker)], []
+    set_index = 1 if rung.market == SET1_WON_FOR else 2
+    p_home = set_win_p(rating.neighbours_home, set_index)
+    if p_home is None:
+        return [], [(rung, GapReason.NOT_RATED, "no neighbours")]
+    p_side = p_home if side == "side_a" else 1.0 - p_home
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    for direction in _BOTH_DIRECTIONS:
+        p = p_side if direction == "OVER" else 1.0 - p_side
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        notes = [set_note(rung.market, rung.subject, p_side, side, pool,
+                          rating.table_scope)]
+        rows.append(_model_only_row(fixture, rung, direction, p, notes,
+                                    market_ps, stats_only, "tennis_rating", marker))
+    return rows, skipped
+
+
 def shot_detail_rows(
     fixture: Fixture,
     rung: PricedRung,
@@ -1507,7 +1727,9 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
         out.pop("corrected_sample", None)
     # and the audit 2026-10-13 switches' markers while off, and the config
     # fingerprint of a row priced outside main (tests, replays)
-    for key in AUDIT_MARKER_FIELDS + ("result_rule", "shot_detail_rule", "config_sha"):
+    for key in AUDIT_MARKER_FIELDS + ("result_rule", "shot_detail_rule",
+                                      "incident_rule", "set_market_rule",
+                                      "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
     return out
@@ -1538,6 +1760,8 @@ def process_fixture(
     sample_corrector: SampleCorrector | None = None,
     tennis_winner_on: bool = False,
     result_config: ResultConfig | None = None,
+    incident_pricing: IncidentPricing | None = None,
+    set_markets_on: bool = False,
     sheet_margins_on: bool = False,
     season_phase: SeasonPhaseTable | None = None,
     season_phase_label: str | None = None,
@@ -1634,6 +1858,21 @@ def process_fixture(
                     stats_only)
                 rows.extend(dc_rows)
                 skipped.extend(dc_skipped)
+            # epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS (None /
+            # False while off - OFFER maps no such rung)
+            if (incident_pricing is not None and fixture.sport == "football"
+                    and rung.market in FOOTBALL_INCIDENT_MARKETS):
+                i_rows, i_skipped = incident_rows(
+                    fixture, rung, football, incident_pricing, market_ps,
+                    stats_only)
+                rows.extend(i_rows)
+                skipped.extend(i_skipped)
+            if (set_markets_on and fixture.sport == "tennis"
+                    and rung.market in SET_MARKETS):
+                s_rows, s_skipped = set_market_rows(
+                    fixture, rung, rating, market_ps, stats_only)
+                rows.extend(s_rows)
+                skipped.extend(s_skipped)
             continue
         # epochs.SHOT_DETAIL_MARKETS: a footballer's shots by place / body
         # part, priced by bet.sofa.shot_detail's estimator, not the sample
@@ -2535,6 +2774,7 @@ def _main() -> int:
     # the link rule of the day being built (epochs.link_shared_league)
     link_shared = epochs.link_shared_league(args.date)
     football_book: RatingBook | None = None
+    football_history: list[Any] | None = None
     # epochs.SEASON_PHASE (audit 2026-10-13 C1): read only while on
     season_phase_on = (stats_only_epoch(args.date)
                        and epochs.season_phase_enabled(args.date))
@@ -2607,6 +2847,22 @@ def _main() -> int:
     # every such rung NO_SHOT_DETAIL_FIT)
     shot_detail_on = stats_only and epochs.shot_detail_markets(args.date)
     shot_detail_fit = load_shot_detail() if shot_detail_on else None
+    # epochs.FOOTBALL_INCIDENT_MARKETS (off: None, no such rung reaches
+    # SHEET): the as-of red-card / penalty rates from the cached incident
+    # lists of the football history (read-only) and the double chance's NB r
+    # (a missing / malformed config raises, rc 2)
+    incident_pricing = (
+        IncidentPricing(
+            load_incident_rates(
+                config.db_path, football_history,
+                int(datetime.strptime(args.date, "%Y-%m-%d")
+                    .replace(tzinfo=UTC).timestamp())),
+            load_result_config())
+        if (stats_only and football_history is not None
+            and epochs.football_incident_markets(args.date))
+        else None)
+    # epochs.TENNIS_SET_MARKETS: the tennis set winner and exact sets score
+    set_markets_on = stats_only and epochs.tennis_set_markets(args.date)
     # Audit 2026-10-13 C1 / B14 (None = byte for byte; a missing / malformed
     # config raises, rc 2): the season-phase term of the goals centre, the
     # rating's weight per market.
@@ -2679,6 +2935,8 @@ def _main() -> int:
                 sample_corrector=sample_corrector,
                 tennis_winner_on=tennis_winner_on,
                 result_config=result_config,
+                incident_pricing=incident_pricing,
+                set_markets_on=set_markets_on,
                 season_phase=(season_phase_table if season_index is not None
                               else None),
                 season_phase_label=(

@@ -10,6 +10,8 @@ and sofa leaves unmapped -
 
     match_winner   the home player wins the match           (p_home)
     set1_winner    the home player wins set 1               (neighbours)
+    set2_winner    the home player wins set 2               (neighbours;
+                   added 2026-10-14 - Superbet's "X. set - zwycięzca")
     deciding_set   a third set is played = exact sets is 3 (neighbours)
     set_score      2-0 / 2-1 / 1-2 / 0-2 from the home side (neighbours)
 
@@ -85,12 +87,17 @@ FloatArr = npt.NDArray[np.float64]
 
 DEFAULT_DB = "data/refit_2026-10-12/sofa_replay.db"
 DEFAULT_OUT = "data/refit_2026-10-12/c3"
-MARKETS: tuple[str, ...] = ("match_winner", "set1_winner", "deciding_set", "set_score")
-BINARY = ("match_winner", "set1_winner", "deciding_set")
+MARKETS: tuple[str, ...] = (
+    "match_winner", "set1_winner", "set2_winner", "deciding_set", "set_score")
+BINARY = ("match_winner", "set1_winner", "set2_winner", "deciding_set")
 SCORES: tuple[str, ...] = ("2-0", "2-1", "1-2", "0-2")
 BIN_EDGES: tuple[float, ...] = (0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0001)
 SCORE_EDGES: tuple[float, ...] = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0001)
 PRINT_FLOOR = 0.70
+# The wiring bar (2026-10-14): at p >= PRINT_FLOOR |realised - p| <= 2 pp
+# with n >= 300.
+CAL_GAP_PP = 2.0
+CAL_MIN_N = 300
 EPS = 1e-6
 
 
@@ -165,10 +172,22 @@ def boot_ci(
     return float(lo), float(hi)
 
 
+def wilson_lower(k: float, n: int, z: float = 1.96) -> float:
+    """Wilson 95% lower bound of a realised rate k / n."""
+    if n <= 0:
+        return math.nan
+    p = k / n
+    den = 1.0 + z * z / n
+    centre = p + z * z / (2 * n)
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return (centre - half) / den
+
+
 def bucket_table(
     p: FloatArr, y: FloatArr, edges: Sequence[float]
 ) -> list[dict[str, float]]:
-    """n, mean p, realised and gap per [edge, next edge)."""
+    """n, mean p, realised, its Wilson lower bound and gap per [edge, next
+    edge)."""
     out: list[dict[str, float]] = []
     for lo, hi in zip(edges[:-1], edges[1:], strict=True):
         m = (p >= lo) & (p < hi)
@@ -177,7 +196,8 @@ def bucket_table(
             continue
         mp, ry = float(p[m].mean()), float(y[m].mean())
         out.append({"lo": lo, "hi": min(hi, 1.0), "n": n, "p": mp,
-                    "realised": ry, "gap_pp": 100.0 * (ry - mp)})
+                    "realised": ry, "wilson_lo": wilson_lower(ry * n, n),
+                    "gap_pp": 100.0 * (ry - mp)})
     return out
 
 
@@ -196,13 +216,16 @@ class BaseRates:
     n: int = 0
     home: int = 0
     set1: int = 0
+    set2: int = 0
     third: int = 0
     scores: tuple[int, int, int, int] = (0, 0, 0, 0)
 
-    def add(self, home_won: bool, set1_home: bool, code: int) -> None:
+    def add(self, home_won: bool, set1_home: bool, code: int,
+            set2_home: bool = False) -> None:
         self.n += 1
         self.home += home_won
         self.set1 += set1_home
+        self.set2 += set2_home
         self.third += code in (1, 2)
         s = list(self.scores)
         s[code] += 1
@@ -212,6 +235,7 @@ class BaseRates:
         return {
             "match_winner": smoothed(self.home, self.n, 2),
             "set1_winner": smoothed(self.set1, self.n, 2),
+            "set2_winner": smoothed(self.set2, self.n, 2),
             "deciding_set": smoothed(self.third, self.n, 2),
             "set_score": [smoothed(k, self.n, 4) for k in self.scores],
         }
@@ -311,7 +335,8 @@ def walk(
                             sum(b > a for a, b in h.sets)) == 2
                     and not is_team_cup(text)):
                 base[class_label(h.tier, h.female)].add(
-                    h.home_won, h.sets[0][0] > h.sets[0][1], score_code(h.sets))
+                    h.home_won, h.sets[0][0] > h.sets[0][1], score_code(h.sets),
+                    h.sets[1][0] > h.sets[1][1])
         cat, text = meta.get(r.event_id, ("", ""))
         if is_team_cup(text):
             skips["team_cup"] += 1
@@ -332,6 +357,7 @@ def walk(
         pool = fc.neighbours_home
         n = len(pool)
         k_set1 = sum(1 for o in pool if o.set1[0] > o.set1[1])
+        k_set2 = sum(1 for o in pool if o.set2[0] > o.set2[1])
         k_third = sum(1 for o in pool if o.sets == 3)
         ks = [0, 0, 0, 0]
         for o in pool:
@@ -348,16 +374,20 @@ def walk(
             "event_id": r.event_id, "ts": r.ts, "cls": cls,
             "scope": fc.table_scope, "base_n": base[cls].n,
             "y_match": int(r.home_won), "y_set1": int(r.sets[0][0] > r.sets[0][1]),
+            "y_set2": int(r.sets[1][0] > r.sets[1][1]),
             "y_third": int(len(r.sets) == 3), "y_score": code,
             "p_match": fc.p_home,
             "p_match_nb": smoothed(sum(1 for o in pool if _won_match(o)), n, 2),
             "p_set1": smoothed(k_set1, n, 2),
+            "p_set2": smoothed(k_set2, n, 2),
             "p_third": smoothed(k_third, n, 2),
             **{f"p_s{i}": smoothed(ks[i], n, 4) for i in range(4)},
             "iid_set1": set_prob_from_match(fc.p_home),
+            "iid_set2": set_prob_from_match(fc.p_home),
             "iid_third": iid[1] + iid[2],
             **{f"iid_s{i}": iid[i] for i in range(4)},
             "b_match": br["match_winner"], "b_set1": br["set1_winner"],
+            "b_set2": br["set2_winner"],
             "b_third": br["deciding_set"],
             **{f"b_s{i}": br["set_score"][i] for i in range(4)},
         })
@@ -392,6 +422,7 @@ def score_rows(rows: Sequence[Mapping[str, Any]], boot: int) -> dict[str, Any]:
     spec = {
         "match_winner": ("y_match", "p_match", "b_match", None),
         "set1_winner": ("y_set1", "p_set1", "b_set1", "iid_set1"),
+        "set2_winner": ("y_set2", "p_set2", "b_set2", "iid_set2"),
         "deciding_set": ("y_third", "p_third", "b_third", "iid_third"),
     }
     for market, (yk, pk, bk, ik) in spec.items():
@@ -418,6 +449,7 @@ def score_rows(rows: Sequence[Mapping[str, Any]], boot: int) -> dict[str, Any]:
         res["n_ge_070"] = int(hi.sum())
         res["p_ge_070"] = float(pf[hi].mean()) if hi.any() else math.nan
         res["realised_ge_070"] = float(yf[hi].mean()) if hi.any() else math.nan
+        res.update(_verdict(pf, yf))
         out[market] = res
     code = np.array([int(r["y_score"]) for r in rows], dtype=np.int64)
     pm = np.stack([col(f"p_s{i}") for i in range(4)], axis=1)
@@ -438,8 +470,24 @@ def score_rows(rows: Sequence[Mapping[str, Any]], boot: int) -> dict[str, Any]:
         "share_ge_070": float(hi.mean()), "n_ge_070": int(hi.sum()),
         "p_ge_070": float(flat_p[hi].mean()) if hi.any() else math.nan,
         "realised_ge_070": float(flat_y[hi].mean()) if hi.any() else math.nan,
+        **_verdict(flat_p, flat_y),
     }
     return out
+
+
+def _verdict(p: FloatArr, y: FloatArr) -> dict[str, Any]:
+    """The wiring bar at p >= PRINT_FLOOR: Wilson lower bound of the
+    realised rate and whether |realised - p| <= CAL_GAP_PP with n >=
+    CAL_MIN_N."""
+    hi = p >= PRINT_FLOOR
+    n = int(hi.sum())
+    if n == 0:
+        return {"wilson_lo_ge_070": math.nan, "gap_ge_070_pp": math.nan,
+                "calibrated": False}
+    k = float(y[hi].sum())
+    gap = 100.0 * (k / n - float(p[hi].mean()))
+    return {"wilson_lo_ge_070": wilson_lower(k, n), "gap_ge_070_pp": gap,
+            "calibrated": bool(n >= CAL_MIN_N and abs(gap) <= CAL_GAP_PP)}
 
 
 # ---------------------------------------------------------------- report
@@ -458,8 +506,9 @@ def render(results: Mapping[str, Any]) -> str:
         lines += ["", f"## Variant `{variant}`", "",
                   f"Skips: {vres['skips']}", ""]
         lines.append("| class | market | n | LL model | LL base | d vs base [CI] "
-                     "| d vs iid [CI] | share p>=.70 | p / realised at >=.70 |")
-        lines.append("|---|---|---|---|---|---|---|---|---|")
+                     "| d vs iid [CI] | share p>=.70 | p / realised at >=.70 "
+                     "| Wilson lo | bar |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
         for cls, cres in vres["classes"].items():
             for market in MARKETS:
                 m = cres.get(market)
@@ -472,17 +521,19 @@ def render(results: Mapping[str, Any]) -> str:
                     f"{m['ll_base']:.4f} | {1e4 * m['d_vs_base']:+.0f} "
                     f"{_ci(m['ci_vs_base'])} | {iid} | "
                     f"{100 * m['share_ge_070']:.1f}% | "
-                    f"{m['p_ge_070']:.3f} / {m['realised_ge_070']:.3f} |")
+                    f"{m['p_ge_070']:.3f} / {m['realised_ge_070']:.3f} | "
+                    f"{m['wilson_lo_ge_070']:.3f} | "
+                    f"{'PASS' if m['calibrated'] else 'no'} |")
         lines += ["", "### Calibration (all classes, favoured selection)", ""]
         allres = vres["classes"]["ALL"]
         for market in MARKETS:
             lines += [f"**{market}**", "",
-                      "| p bucket | n | mean p | realised | gap pp |",
-                      "|---|---|---|---|---|"]
+                      "| p bucket | n | mean p | realised | Wilson lo | gap pp |",
+                      "|---|---|---|---|---|---|"]
             for b in allres[market]["buckets"]:
                 lines.append(f"| {b['lo']:.2f}-{b['hi']:.2f} | {b['n']} | "
                              f"{b['p']:.3f} | {b['realised']:.3f} | "
-                             f"{b['gap_pp']:+.1f} |")
+                             f"{b['wilson_lo']:.3f} | {b['gap_pp']:+.1f} |")
             lines.append("")
     return "\n".join(lines) + "\n"
 

@@ -408,6 +408,50 @@ z `totalShots` 0 to 0, niezgodność to luka). Pomiar:
 SHEET i SETTLE są bajt w bajt jak przed zmianą
 (`tests/sofa/test_shot_detail_markets.py`).
 
+**Rynki piłki z incydentów za przełącznikiem
+`FOOTBALL_INCIDENT_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
+`incident_markets_v1`; **wyłączony** (`None`) do decyzji operatora).
+Włączony, OFFER czyta (tylko piłka) „1. gol” jako `first_goal` (wybór
+drużyny z nazw listingu Superbetu: `subject` „1” / „2”, „nikt” = „nikt”,
+linia 0,5, tylko OVER – szczebel jednostronny, bez krzywej się nie drukuje),
+„Liczba czerwonych kartek” jako `red_cards_total` i „Liczba przyznanych
+rzutów karnych” jako `penalties_total` (Poniżej / Powyżej X.5, dwustronne);
+połowy, warianty drużyn, przedziały minut i „1. gol & …” zostają
+nieczytane. SAMPLES nie buduje próbki. SHEET: `first_goal` z niezależnych NB
+goli na **czystym ratingu** (jak podwójna szansa, r z
+`config/sofa_football_result.json`): P(nikt) = P(0:0), P(strona pierwsza) =
+(1 − P(nikt)) × jej udział w oczekiwanych golach; kartki i karne – as-of
+częstość rozgrywek (mecze z pełnym zapisem incydentów, czyli z
+substytucjami, sprzed dnia) ściągnięta do częstości płci z wagą 30 meczów
+(`FOOTBALL_INCIDENT_BASE_M` w `UNFITTED_CONSTANTS`), tylko linie 0,5 i 1,5;
+wczytanie częstości z `sofa_event_stats` to ~1 min SHEET (tylko przy
+włączonym). Wiersz ma `incident_rule`, `sample_size` 0, `bar_reason`
+`rating_only`; para `UNLINKED` dostaje przy `first_goal`
+`CROSS_LEAGUE_UNLINKED`. Krzywej nie ma: `NO_LINE_EVIDENCE` do 50
+rozliczonych linii w kubełku – na początku nic się nie drukuje. SETTLE
+rozlicza z incydentów czasu regularnego (`football_incidents.incident_value`:
+dogrywka i seria karnych się nie liczą; czerwona = `red` i `yellowRed`
+zawodnika, bez sztabu i anulowanych; karny przyznany = gol z karnego +
+`inGamePenalty`); zapis niepełny (bez substytucji) to brak oceny kartek i
+karnych, lista niezgodna z wynikiem z 90 minut – brak oceny w ogóle.
+
+**Tenis: zwycięzca seta i dokładny wynik w setach za przełącznikiem
+`TENNIS_SET_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
+`tennis_set_markets_v1`; **wyłączony** (`None`)). Włączony, OFFER czyta
+(tylko tenis) „X. set - zwycięzca” („1. set - <nazwisko>” / „2. set - …”)
+jako `set1_won_for` / `set2_won_for` (podmiot = pierwsze nazwisko listingu,
+linia 0,5, OVER on wygrywa seta, UNDER kurs rywala – jak zwycięzca meczu) i
+tenisowy „Dokładny wynik” („2:0” … „0:2”) jako `set_score` (podmiot
+„<pierwsze nazwisko> a:b”, tylko OVER – jednostronny). SHEET liczy p z 600
+sąsiadów ratingu gospodarza (`MatchForecast.neighbours_home`, wygładzenie
+jak w pomiarze), tylko best of three; wiersz ma `set_market_rule`. Krzywej
+nie ma – `NO_LINE_EVIDENCE`. SETTLE rozlicza z wyników setów listingu
+(`tennis_sets.set_value`). Pomiar obu grup:
+`docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`. Przy
+`None` OFFER i SHEET są bajt w bajt jak przed zmianą
+(`tests/sofa/test_football_incident_markets.py`,
+`tests/sofa/test_tennis_set_markets.py`).
+
 **Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
 `snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
 nazw (`report_market_coverage.py --date <d> --sports-only`, plan nocy

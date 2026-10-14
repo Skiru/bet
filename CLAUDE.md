@@ -748,8 +748,21 @@ on together or not at all, re-measured on rows from 10-13 on
 (`docs/sofa/evidence/derived_curves_2026-10-14.md`). None of them changes
 the coupon while `THIN_SAMPLE_FOR_BUILDER` refuses every derived football
 row (it reads the derived row's own market as its sample; 0 derived legs in
-`08_confidence.json` 10-09..10-13) - the operator's decision first. Open
-questions: Superbet's game count of a tennis match tiebreak. Measured
+`08_confidence.json` 10-09..10-13) - the operator's decision first.
+`FOOTBALL_INCIDENT_MARKETS_FROM_UTC` (`bet.sofa.football_incidents`: "1. gol"
+as one-sided `first_goal` from the double chance's NB goals on the pure
+rating, "Liczba czerwonych kartek" / "Liczba przyznanych rzutów karnych" O/U
+0.5 / 1.5 as `red_cards_total` / `penalties_total` from the competition's
+as-of full-feed rate, graded from regular-time incidents; at p >= 0.70
+calibrated walk-forward 06-09..10-14: first goal +1.0 pp n 1,376, reds +0.7
+pp n 10,152, penalties +1.0 pp n 9,518; the minute bands never reach 0.70 and
+are not read) and `TENNIS_SET_MARKETS_FROM_UTC` (`bet.sofa.tennis_sets`: "X.
+set - zwycięzca" as `set1_won_for` / `set2_won_for`, the tennis "Dokładny
+wynik" as one-sided `set_score`, from the rating's neighbours; set 1 +1.0 pp
+n 12,174, set 2 +0.4 pp n 12,502, exact sets +1.5 pp n 4,107) - rating-only
+markets with no curve, so NO_LINE_EVIDENCE until their own Superbet lines
+settle; `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`.
+Open questions: Superbet's game count of a tennis match tiebreak. Measured
 2026-10-12 night: the line-evidence offsets of the repriced families moved
 <= 1.3 pp a day over 10-09..10-12 (stable, reproduced from the legs); the
 tennis `games_won_for` OVER offsets (-8.5 men, -12.1 women) were measured on

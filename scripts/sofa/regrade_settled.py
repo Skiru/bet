@@ -62,6 +62,7 @@ from typing import Any
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
+from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.locked_print import kickoff_clocks
@@ -76,11 +77,14 @@ from bet.sofa.players import is_player_metric, player_sample_key, squad_statisti
 from bet.sofa.settle import MOVED_BEYOND_VOID, moved_beyond_void, settle
 from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.tennis_score import match_tiebreak_sets
+from bet.sofa.tennis_sets import SET_MARKETS
 from scripts.sofa.calibrate_from_cache import market_name, match_values
 from scripts.sofa.run_settle import (
     _settle_derived,
     _settle_double_chance,
+    _settle_incident,
     _settle_player,
+    _settle_set_market,
     _subject_is_home,
     load_player_sample_names,
     load_player_sides,
@@ -172,6 +176,12 @@ def grade_live(
     if row["market"] == DOUBLE_CHANCE:
         # D1: the selection, not a side - graded like run_settle
         return _settle_double_chance(row, event)
+    if row["market"] in INCIDENT_MARKETS:
+        # the match's regular-time incidents - graded like run_settle
+        return _settle_incident(row, event, incidents)
+    if row["market"] in SET_MARKETS:
+        # the listing's set scores - graded like run_settle
+        return _settle_set_market(row, event, fixture)
     if fixture is None:
         return "NO_FIXTURE"
     is_home = _subject_is_home(row["subject"] or "", fixture)

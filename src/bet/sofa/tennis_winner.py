@@ -36,8 +36,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.market_mapper import fold
+from bet.sofa.tennis_sets import SET_MARKETS
 
 MATCH_WON_FOR = "match_won_for"
 WINNER_LINE = 0.5
@@ -45,8 +47,12 @@ WINNER_LINE = 0.5
 # not build one, SHEET needs none, CONFIDENCE's sample gates do not apply,
 # no pool stands in for their curve (confidence.OWN_CURVE_ONLY). The football
 # double chance (bet.sofa.football_result, epochs.FOOTBALL_RESULT_MARKETS) is
-# one too; without that switch no such rung or row exists.
-RATING_ONLY_MARKETS = frozenset({MATCH_WON_FOR, DOUBLE_CHANCE})
+# one too; without that switch no such rung or row exists. So are the football
+# incident markets (bet.sofa.football_incidents, epochs.
+# FOOTBALL_INCIDENT_MARKETS: a rating or a league rate, never a sample) and
+# the tennis set markets (bet.sofa.tennis_sets, epochs.TENNIS_SET_MARKETS).
+RATING_ONLY_MARKETS = frozenset(
+    {MATCH_WON_FOR, DOUBLE_CHANCE} | INCIDENT_MARKETS | SET_MARKETS)
 # The sheet note a winner row carries (and the rule it was priced under).
 WINNER_NOTE = "TENNIS_MATCH_WINNER"
 

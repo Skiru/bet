@@ -5,6 +5,7 @@ from typing import Any
 from bet.sofa import unmapped_prices
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.errors import CircuitOpenError
+from bet.sofa.football_incidents import classify_incident
 from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
 from bet.sofa.market_mapper import (
     classify_derived_market,
@@ -20,6 +21,7 @@ from bet.sofa.superbet import (
     split_match_name,
     superbet_kickoff,
 )
+from bet.sofa.tennis_sets import classify_set_market
 from bet.sofa.tennis_winner import classify_winner
 from bet.sofa.timeutil import now
 
@@ -84,6 +86,8 @@ def classify_odd(
     tennis_winner: bool = False,
     football_result: bool = False,
     shot_detail: bool = False,
+    football_incidents: bool = False,
+    tennis_sets: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -119,6 +123,14 @@ def classify_odd(
     `shot_detail` (epochs.shot_detail_markets, a football fixture only) reads
     the eight footballer shot-detail names (shot_detail.MARKET_NAMES) as
     player markets, parsed exactly as PLAYER_MARKET_NAMES are. Off, the
+    default, changes nothing.
+
+    `football_incidents` (epochs.football_incident_markets, a football
+    fixture only) reads "1. gol", "Liczba czerwonych kartek" and "Liczba
+    przyznanych rzutów karnych" (bet.sofa.football_incidents) against
+    `listing_names`; `tennis_sets` (epochs.tennis_set_markets, a tennis
+    fixture only) reads "X. set - zwycięzca" and the exact sets score
+    "Dokładny wynik" (bet.sofa.tennis_sets). Both tried last; off, the
     default, changes nothing.
     """
     market_name = item.get("marketName")
@@ -179,6 +191,15 @@ def classify_odd(
         result = classify_result(market_name, selection_name)
         if result:
             return result, None
+    if football_incidents:
+        incident = classify_incident(
+            market_name, selection_name, line_text, listing_names)
+        if incident:
+            return incident, None
+    if tennis_sets:
+        set_market = classify_set_market(market_name, selection_name, listing_names)
+        if set_market:
+            return set_market, None
     return None, str(market_name)
 
 
@@ -198,8 +219,16 @@ class OfferFetcher:
         record_unmapped: bool = False,
         football_result: bool = False,
         shot_detail: bool = False,
+        football_incidents: bool = False,
+        tennis_sets: bool = False,
     ) -> None:
         self.client = client
+        # epochs.football_incident_markets(date) / tennis_set_markets(date):
+        # the football first goal, red cards and penalties
+        # (bet.sofa.football_incidents) and the tennis set winner and exact
+        # sets score (bet.sofa.tennis_sets). Off is the old rule.
+        self.football_incidents = football_incidents
+        self.tennis_sets = tennis_sets
         # epochs.shot_detail_markets(date): read the footballer shot-detail
         # markets (bet.sofa.shot_detail). Off is the old rule.
         self.shot_detail = shot_detail
@@ -289,9 +318,12 @@ class OfferFetcher:
                 winner = self.tennis_winner and fixture.sport == "tennis"
                 result = self.football_result and fixture.sport == "football"
                 shots = self.shot_detail and fixture.sport == "football"
+                incidents = self.football_incidents and fixture.sport == "football"
+                set_markets = self.tennis_sets and fixture.sport == "tennis"
                 names = (
                     listing_sides(payload)
-                    if self.ampersand_subjects or self.mappable_families or winner
+                    if (self.ampersand_subjects or self.mappable_families or winner
+                        or incidents or set_markets)
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
@@ -299,7 +331,7 @@ class OfferFetcher:
                 for item in items:
                     classified_odd, unmapped_label = classify_odd(
                         item, sides, self.mappable_families, names, winner,
-                        result, shots,
+                        result, shots, incidents, set_markets,
                     )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)

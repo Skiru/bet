@@ -387,6 +387,12 @@ class SheetRow(BaseModel):
     # bet.sofa.epochs.SHOT_DETAIL_MARKETS: the rule's name on a footballer
     # shot-detail row (bet.sofa.shot_detail); absent when off.
     shot_detail_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS: the
+    # rule's name on a first_goal / red_cards_total / penalties_total row
+    # (bet.sofa.football_incidents) and on a set1_won_for / set2_won_for /
+    # set_score row (bet.sofa.tennis_sets); absent when off.
+    incident_rule: str | None = None
+    set_market_rule: str | None = None
     # bet.sofa.sheet_config.fingerprint(): the SHEET-read config files
     # (constants, baselines, reliability, rating, dispersion, ...) the row was
     # priced on. rebuild_plan names a sheet built on other constants (a refit
