@@ -100,3 +100,20 @@ def test_backfill_stores_hits_and_empties_and_stops_on_refusal(
     assert cache.get_event_extra(2, "shotmap") == {}
     assert cache.get_event_extra(3, "shotmap") is None  # refused: never stored
     assert run.stop.is_set() and run.counts["hit"] == 1 and run.counts["empty"] == 1
+
+
+def test_fallback_never_admits_an_event_indexed_under_another_sport(
+    tmp_path: Path,
+) -> None:
+    import json
+    import sqlite3
+
+    db = str(tmp_path / "sofa.db")
+    migrate(db)
+    conn = sqlite3.connect(db)
+    conn.execute("INSERT INTO sofa_listed_event VALUES (7, 'ice-hockey', 150, 'x', ?)",
+                 (json.dumps({"status": {"type": "finished"}}),))
+    conn.execute("INSERT INTO sofa_listing_event VALUES (50, 'last', 7, 150, 'x')")
+    conn.commit()
+    conn.close()
+    assert bx.candidate_events(db, {7}, 100, 200, "football", True) == []

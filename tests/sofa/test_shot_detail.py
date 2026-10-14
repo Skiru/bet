@@ -72,3 +72,9 @@ def test_forecast_shrinks_to_the_position_and_needs_five_starts() -> None:
     assert sd.forecast(values[:4], "M", "player_shots_outside_box_for", 0.5,
                        fitted) is None
     assert sd.forecast(values, "M", "player_headed_shots_for", 0.5, fitted) is None
+
+
+def test_a_hockey_shotmap_is_not_a_football_record() -> None:
+    hockey = {"shotmap": [{"player": {"id": 5}, "x": 10, "y": 40,
+                           "shotType": "wrist"}]}
+    assert sd.player_counts(hockey, 5) is None

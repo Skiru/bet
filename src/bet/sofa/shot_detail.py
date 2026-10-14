@@ -64,14 +64,21 @@ def _selects(metric: str, shot: Mapping[str, Any]) -> bool:
     return not metric.startswith("player_sot_") or shot.get("shotType") in ON_TARGET
 
 
+def is_football_shotmap(shots: list[Any]) -> bool:
+    """A football shotmap places every shot by `playerCoordinates`; a hockey
+    one (same endpoint, same cache kind) has top-level x / y instead."""
+    return all(isinstance(s, dict) and "playerCoordinates" in s for s in shots)
+
+
 def player_counts(
     payload: Mapping[str, Any] | None, player_id: int
 ) -> dict[str, int] | None:
     """Every METRIC for one player in one match, or None when the shotmap is
-    missing / empty (a player with no shot in a match that HAS a shotmap
-    counts zero - an empty shotmap is not evidence of no shots)."""
+    missing, empty or not a football one (a player with no shot in a match
+    that HAS a football shotmap counts zero - an empty shotmap is not
+    evidence of no shots)."""
     shots = (payload or {}).get("shotmap")
-    if not shots:
+    if not shots or not is_football_shotmap(shots):
         return None
     mine = [s for s in shots if (s.get("player") or {}).get("id") == player_id]
     return {m: sum(1 for s in mine if _selects(m, s)) for m in METRICS}

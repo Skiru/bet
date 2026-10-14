@@ -111,9 +111,14 @@ def candidate_events(
         ):
             out[int(eid)] = {"id": int(eid), "startTimestamp": ts,
                              "competition": comp, "status": status or "finished"}
+        # Only events the listing index does not hold at all: one it holds
+        # under another sport is that sport's (2026-10-14: hockey games, whose
+        # lineups SHADOW_SETTLE caches, came in here and got shotmaps).
         fallback = conn.execute(
             "SELECT l.event_id, MIN(l.start_ts) FROM sofa_listing_event l "
-            "JOIN want w ON w.id = l.event_id GROUP BY l.event_id"
+            "JOIN want w ON w.id = l.event_id WHERE NOT EXISTS ("
+            "SELECT 1 FROM sofa_listed_event x WHERE x.event_id = l.event_id) "
+            "GROUP BY l.event_id"
         ) if index_fallback else []
         for eid, ts in fallback:
             out.setdefault(int(eid), {"id": int(eid), "startTimestamp": ts,
