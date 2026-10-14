@@ -56,9 +56,9 @@ def test_side_is_replaced_only_as_a_whole_word() -> None:
         ("Duje Ajdukovic wygra bez straty seta", "tennis", TN, "COMPUTABLE", "tn.sets"),
         ("1. set - dokładny wynik", "tennis", TN, "COMPUTABLE", "tn.set_score"),
         ("Kto wykona 1. rzut rożny", "football", FB, "NOT_COMPUTABLE", "fb.non_goal_event_timing"),
-        ("Zawodnik - liczba strzałów głową", "football", FB, "NOT_COMPUTABLE", "fb.player_shot_detail"),
-        ("1. set - będzie prowadzić po 2 gemach", "tennis", TN, "NOT_COMPUTABLE", "tn.game_order"),
-        ("Duje Ajdukovic 1. gem serwisowy - dokładny wynik", "tennis", TN, "NOT_COMPUTABLE", "tn.points_in_game"),
+        ("Zawodnik - liczba strzałów głową", "football", FB, "COMPUTABLE", "fb.player_shot_detail"),
+        ("1. set - będzie prowadzić po 2 gemach", "tennis", TN, "COMPUTABLE", "tn.game_order"),
+        ("Duje Ajdukovic 1. gem serwisowy - dokładny wynik", "tennis", TN, "COMPUTABLE", "tn.points_in_game"),
         ("Boost", "tennis", TN, "NOT_COMPUTABLE", "boost"),
     ],
 )
@@ -74,7 +74,7 @@ def test_alternatives_are_anchored_as_a_whole() -> None:
     c = classify_market_name(
         "Dokładny wynik - wynik po 3 punktach w 1. gemie serwisowym Duje Ajdukovic", "tennis", TN
     )
-    assert c.label == "NOT_COMPUTABLE"
+    assert c.label == "COMPUTABLE"  # /point-by-point is a source (2026-10-14)
     assert c.family == "tn.points_in_game"
 
 
@@ -89,10 +89,10 @@ def test_set_three_is_not_the_declared_set_metrics() -> None:
 
 def test_combination_takes_its_worst_part() -> None:
     nc = classify_market_name(
-        "Duje Ajdukovic 1. gem serwisowy - Duje Ajdukovic wygra; Zwycięzca - Duje Ajdukovic", "tennis", TN
+        "Kto wykona 1. rzut rożny; Powyżej 1.5 gola w meczu", "football", FB
     )
     assert nc.label == "NOT_COMPUTABLE"
-    assert "tn.game_order" in nc.note
+    assert "fb.non_goal_event_timing" in nc.note
     unknown = classify_market_name("Powyżej 1.5 gola w meczu; Coś zupełnie nowego", "football", FB)
     assert unknown.label == "UNCLASSIFIED"
     ok = classify_market_name("Powyżej 1.5 gola w meczu; GS Marko wygra lub zremisuje", "football", FB)

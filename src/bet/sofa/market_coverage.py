@@ -120,24 +120,26 @@ NEED_RESULT = "model wyniku (łączny rozkład goli obu stron) - " + SRC_GOALS
 NEED_SET_MODEL = "model setów/gemów z " + SRC_SETS
 NEED_JOINT = "łączny rozkład części (jak combined_probability buildera)"
 
-NC_POINTS = (
-    "brak historii punkt po punkcie (Sofascore /point-by-point nie jest pobierane do cache): "
-    "wyniku nie widać ani w historii, ani w SETTLE - model punktu dałby liczbę, której nie da się "
-    "skalibrować ani rozliczyć"
-)
-NC_GAME_ORDER = (
-    "brak historii gem po gemie: wynik seta nie mówi, kto wygrał który gem ani jaki był stan po "
-    "N gemach (/point-by-point nie w cache); model z częstości utrzymań serwisu (serviceGamesWon) "
-    "dałby liczbę, której nie da się skalibrować ani rozliczyć"
-)
+# 2026-10-14: Sofascore's /point-by-point IS a source - every game's server,
+# winner and running points (bet.sofa.point_by_point, sofa_event_extra kind
+# point_by_point, scripts/sofa/backfill_event_extra.py). Measured
+# (scripts/sofa/measure_tennis_game_order.py, ~7,800 matches): a serve-hold
+# model forecasts these, but over-states at the top - no curve bucket clears
+# 0.70 yet (docs/sofa/evidence/tennis_game_order_2026-10-14.md).
+SRC_PBP = "/point-by-point (sofa_event_extra, bet.sofa.point_by_point)"
+NEED_POINTS = ("model punktu serwisowego (servicePointsScored) - " + SRC_PBP
+               + "; zmierzone: do 0,60 nie dochodzi")
+NEED_GAME_ORDER = ("model utrzymań serwisu (serviceGamesWon) - " + SRC_PBP
+                   + "; zmierzone: na górze przeszacowuje, żaden kubełek >= 0,70")
 NC_EVENT_ORDER = (
     "brak kolejności/minuty zdarzeń innych niż gole i kartki "
     "(incydenty Sofascore nie zawierają rożnych, fauli, strzałów, autów, wybić, spalonych)"
 )
-NC_SHOT_DETAIL = (
-    "brak części ciała / miejsca strzałów niebędących golem (shotmap nie w cache; "
-    "/lineups podaje tylko sumy)"
-)
+# 2026-10-14: every shot's place and body part come from /shotmap
+# (bet.sofa.shot_detail, sofa_event_extra kind shotmap); read by OFFER behind
+# epochs.SHOT_DETAIL_MARKETS_FROM_UTC (docs/sofa/evidence/shot_detail_2026-10-14.md).
+NEED_SHOT_DETAIL = ("miejsce / część ciała strzału z /shotmap (bet.sofa.shot_detail); "
+                    "czytane przez OFFER za przełącznikiem SHOT_DETAIL_MARKETS")
 NC_VAR = "brak źródła: incydent varDecision zapisuje decyzję, nie podejście sędziego do monitora"
 NC_SPECIAL = "brak źródła w danych Sofascore (zdarzenie spoza statystyk meczu)"
 NC_BOOST = "promocja Superbetu bez zdefiniowanej wielkości (boost; osobny snapshot run_boosts)"
@@ -325,9 +327,9 @@ FOOTBALL_RULES: list[Rule] = [
     _c(r"ktorykolwiek z zawodnikow (?:odda powyzej x (?:celnych )?strzalow|strzeli powyzej x goli"
        r"|popelni powyzej x fauli|powyzej x odbiorow|powyzej x spalonych)",
        "fb.any_player", "maksimum po zawodnikach - " + SRC_LINEUPS),
-    _n(r"zawodnik - liczba (?:celnych )?strzalow (?:glowa|lewa noga|prawa noga|spoza pola karnego)"
+    _c(r"zawodnik - liczba (?:celnych )?strzalow (?:glowa|lewa noga|prawa noga|spoza pola karnego)"
        r"|#\+ celnych strzalow spoza pola karnego",
-       "fb.player_shot_detail", NC_SHOT_DETAIL),
+       "fb.player_shot_detail", NEED_SHOT_DETAIL),
     _c(r"zawodnik - liczba fauli na zawodniku", "fb.player_fouled",
        "klucz wasFouled w /lineups (market_mapper 2026-09-29 uznał, że żaden klucz tego nie dowodzi - do weryfikacji na rozliczeniu) - "
        + SRC_LINEUPS),
@@ -430,26 +432,26 @@ TENNIS_RULES: list[Rule] = [
     _m(r"podwojne bledy - handicap", "tn.handicap_double_faults",
        "handicap_double_faults (double_faults_for; wzorzec 'liczba X - handicap' nie łapie tej nazwy)"),
     # --- inside a game: points and game order ------------------------------
-    _n(r"pierwszy gem serwisowy " + S + r" - dokladny wynik #:# po # pierwszych punktach"
+    _c(r"pierwszy gem serwisowy " + S + r" - dokladny wynik #:# po # pierwszych punktach"
        r"|dokladny wynik - wynik po # punktach w [0-9]+\. gemie serwisowym " + S
        + r"|" + S + r" [0-9]+\. gem serwisowy - (?:dokladny wynik|wynik po # punktach)"
        r"|dokladny wynik - " + S + r" [0-9]+\. gem serwisowy - " + S + r" do #",
-       "tn.points_in_game", NC_POINTS),
-    _n(r"[123]\.\s?set - (?:bedzie prowadzic po # gemach|dokladny wynik po # gemach(?:: #:#)?)"
+       "tn.points_in_game", NEED_POINTS),
+    _c(r"[123]\.\s?set - (?:bedzie prowadzic po # gemach|dokladny wynik po # gemach(?:: #:#)?)"
        r"|remis po # gemach w [123]\.\s?secie"
        r"|" + S + r" [0-9]+\. gem serwisowy - (?:zwyciezca|" + S + r" wygra|" + S + r" przelamie)"
        r"|" + S + r" wygra swoj [0-9]+\. gem serwisowy"
        r"|" + S + r" przelamie [0-9]+\. gem serwisowy wykonywany przez " + S,
-       "tn.game_order", NC_GAME_ORDER),
+       "tn.game_order", NEED_GAME_ORDER),
     # Any other question about one numbered game ("1. set - 5. gem - ...",
     # "x set - x i y gem", "gem 5. i 6.", "x.gem - zwyciezca: {a}"): points
     # inside it, or who won it.
-    _n(r".*(?:\b(?:\d+|x|y)\.?\s?gem(?:ie|ow)?\b|\bgem (?:\d+|x)\.).*(?:punkt|rownowag|przewag|przelaman|do #).*",
-       "tn.points_in_game", NC_POINTS),
-    _n(r".*(?:\b(?:\d+|x|y)\.?\s?gem(?:ie|ow)?\b|\bgem (?:\d+|x)\.).*", "tn.game_order", NC_GAME_ORDER),
-    _n(r"[123x]\.?\s?set tiebreak (?:\d+|x)\. punkt - zwyciezca|[123x]\.?\s?set - (?:\d+|x)\. as serwisowy",
-       "tn.points_in_game", NC_POINTS),
-    _n(r"[123x]\.?\s?set - kto pierwszy wygra x gemy", "tn.game_order", NC_GAME_ORDER),
+    _c(r".*(?:\b(?:\d+|x|y)\.?\s?gem(?:ie|ow)?\b|\bgem (?:\d+|x)\.).*(?:punkt|rownowag|przewag|przelaman|do #).*",
+       "tn.points_in_game", NEED_POINTS),
+    _c(r".*(?:\b(?:\d+|x|y)\.?\s?gem(?:ie|ow)?\b|\bgem (?:\d+|x)\.).*", "tn.game_order", NEED_GAME_ORDER),
+    _c(r"[123x]\.?\s?set tiebreak (?:\d+|x)\. punkt - zwyciezca|[123x]\.?\s?set - (?:\d+|x)\. as serwisowy",
+       "tn.points_in_game", NEED_POINTS),
+    _c(r"[123x]\.?\s?set - kto pierwszy wygra x gemy", "tn.game_order", NEED_GAME_ORDER),
 ]
 
 # ---------------------------------------------------------------------------
