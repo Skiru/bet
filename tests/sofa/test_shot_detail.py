@@ -48,3 +48,27 @@ def test_missing_shotmap_is_unknown_and_absent_player_is_zero() -> None:
 def test_market_names_cover_every_metric_once() -> None:
     assert sorted(set(sd.MARKET_NAMES.values())) == list(sd.METRICS)
     assert len(sd.METRICS) == 8
+
+
+def test_p_over_is_the_poisson_tail() -> None:
+    import math
+
+    m = 0.8
+    assert abs(sd.p_over(m, 0.5) - (1 - math.exp(-m))) < 1e-12
+    assert abs(sd.p_over(m, 1.5) - (1 - math.exp(-m) * (1 + m))) < 1e-12
+    assert sd.p_over(0.0, 0.5) == 0.0
+
+
+def test_forecast_shrinks_to_the_position_and_needs_five_starts() -> None:
+    fitted = {"metrics": {"player_shots_outside_box_for": {
+        "k": 5, "pool": {"M": 0.5}, "pool_all": 0.3}}}
+    values = [2.0, 1.0, 2.0, 1.0, 2.0, 1.0]  # mean 1.5
+    p = sd.forecast(values, "M", "player_shots_outside_box_for", 0.5, fitted)
+    mean = (9.0 + 5 * 0.5) / 11
+    assert p is not None and abs(p - sd.p_over(mean, 0.5)) < 1e-12
+    # an unknown position reads the all-positions mean
+    q = sd.forecast(values, "G", "player_shots_outside_box_for", 0.5, fitted)
+    assert q is not None and abs(q - sd.p_over((9.0 + 1.5) / 11, 0.5)) < 1e-12
+    assert sd.forecast(values[:4], "M", "player_shots_outside_box_for", 0.5,
+                       fitted) is None
+    assert sd.forecast(values, "M", "player_headed_shots_for", 0.5, fitted) is None

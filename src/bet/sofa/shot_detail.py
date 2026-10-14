@@ -18,6 +18,7 @@ Measured, not assumed (docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md):
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -74,3 +75,44 @@ def player_counts(
         return None
     mine = [s for s in shots if (s.get("player") or {}).get("id") == player_id]
     return {m: sum(1 for s in mine if _selects(m, s)) for m in METRICS}
+
+
+# The estimator measured by scripts/sofa/measure_shot_detail.py: the player's
+# last WINDOW starts, shrunk to his position's mean with K pseudo-starts, read
+# through a Poisson. K and the position means are fitted per metric
+# (config/sofa_shot_detail.json, scripts/sofa/fit_shot_detail.py); a
+# position the file does not know reads the metric's all-positions mean.
+WINDOW = 10
+MIN_STARTS = 5
+
+
+def shrunk_mean(values: list[float], pool_mean: float, k: float) -> float:
+    """The player's mean pulled toward the pool by k pseudo-starts."""
+    return (sum(values) + k * pool_mean) / (len(values) + k)
+
+
+def p_over(mean: float, line: float) -> float:
+    """P(count > line) for a Poisson count with this mean; line is N - 0.5."""
+    k = int(line)
+    term = math.exp(-mean)
+    below = term
+    for j in range(1, k + 1):
+        term *= mean / j
+        below += term
+    return max(0.0, 1.0 - below)
+
+
+def forecast(
+    values: list[float], position: str | None, metric: str, line: float,
+    fitted: Mapping[str, Any],
+) -> float | None:
+    """P(OVER line) for one player from his own starts (newest last), or None
+    when he has fewer than MIN_STARTS or the file lacks the metric."""
+    spec = (fitted.get("metrics") or {}).get(metric)
+    if spec is None or len(values) < MIN_STARTS:
+        return None
+    pools = spec.get("pool") or {}
+    pool = pools.get(position or "", spec.get("pool_all"))
+    if pool is None:
+        return None
+    return p_over(shrunk_mean(values[-WINDOW:], float(pool), float(spec["k"])), line)
