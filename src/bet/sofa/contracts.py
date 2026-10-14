@@ -41,6 +41,11 @@ class GapReason(StrEnum):
     # A rating-only market (D2, the tennis match winner) on a fixture the
     # rating gives no forecast for (best of five, a player under MIN_RATED).
     NOT_RATED = "NOT_RATED"
+    # A tennis market whose range depends on the match format (sets_total)
+    # on a fixture not known to be best of three (2026-10-14): its curve is
+    # fitted on best-of-three matches only (calibrate_from_cache.set_values),
+    # and an unknown format would be read as best of three.
+    BEST_OF_FIVE_NOT_MODELLED = "BEST_OF_FIVE_NOT_MODELLED"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
     STALE_PRICE = "STALE_PRICE"

@@ -1083,6 +1083,27 @@ def _stats_only_rating_p(
     return read
 
 
+# Tennis markets whose range is set by the format: a best-of-five match
+# always has >= 3 sets. Their history curve is fitted on best-of-three matches
+# only (calibrate_from_cache.set_values, 2026-10-14), and with no known format
+# the neighbour table (tennis_forecast) would price the fixture as best of
+# three - so a fixture not known to be best of three is refused, never priced.
+FORMAT_BOUND_TENNIS_MARKETS: frozenset[str] = frozenset({"sets_total"})
+
+
+def format_bound_refusal(fixture: Fixture, market: str) -> str | None:
+    """Why a format-bound tennis market is refused on this fixture, or None
+    (BEST_OF_FIVE_NOT_MODELLED)."""
+    if (fixture.sport != "tennis" or market not in FORMAT_BOUND_TENNIS_MARKETS
+            or fixture.default_period_count == 3):
+        return None
+    if fixture.default_period_count is None:
+        return (f"{market}: the match format is unknown (no "
+                "defaultPeriodCount); its curve is fitted on best of three only")
+    return (f"{market}: best of {fixture.default_period_count} is not "
+            "modelled; its curve is fitted on best of three only")
+
+
 def tennis_forecast(
     model: TennisRatingModel | None, fixture: Fixture
 ) -> MatchForecast | None:
@@ -1379,6 +1400,11 @@ def process_fixture(
         # sample to be priced against. derived.py handles it below; falling
         # through here would silently drop it as "metric not in samples".
         if is_derived(rung.market):
+            continue
+        refused_format = format_bound_refusal(fixture, rung.market)
+        if refused_format is not None:
+            skipped.append((rung, GapReason.BEST_OF_FIVE_NOT_MODELLED,
+                            refused_format))
             continue
         ladder_rungs = rungs_by_market_subject.get((rung.market, rung.subject), [])
         extra_notes: list[str] = []
