@@ -362,8 +362,11 @@ def test_reteach_learns_a_newly_learnable_side_and_closes_its_candidate(
     tmp_path: Path,
 ) -> None:
     conn = _db(tmp_path)
-    rec = _rec(match_method="LISTING_ID_AND_OPPONENT",
-               name_scores={"team1": 40.0, "team2": 100.0}, team1_id=174744)
+    rec = _rec(
+        match_method="LISTING_ID_AND_OPPONENT",
+        name_scores={"team1": 40.0, "team2": 100.0},
+        team1_id=174744,
+    )
     side = em.record_sides(rec)[0]
     em.queue_candidate(conn, side, "LISTING_ID_AND_OPPONENT", AT)  # the old rule
     got = em.reteach_sides(conn, [rec], AT)
@@ -371,3 +374,115 @@ def test_reteach_learns_a_newly_learnable_side_and_closes_its_candidate(
     assert _row(conn, "basketball", "spartak subotica")[0] == 174744
     st = conn.execute("SELECT status FROM sofa_entity_candidate").fetchone()[0]
     assert st == "HELD"
+
+
+def test_manual_aliases_replace_a_held_id_and_close_the_queue_only_from_the_switch(
+    tmp_path: Path,
+) -> None:
+    conn = _db(tmp_path)
+    nip = em.Side(
+        "cs2", "Ninjas in Pyjamas", 366560, "NIP", 17317278, 100.0, "CS2_PICK_EVENT"
+    )
+    conn.execute(
+        "INSERT INTO sofa_entity (sport, query_key, sofascore_id,"
+        " sofascore_name, entity_type, status, source) VALUES ('cs2',"
+        " 'ninjas in pyjamas', 448738, 'NIP Impact', 'team', 'verified',"
+        " 'backfill_cs2')"
+    )
+    assert em.learn(conn, nip, AT) == em.CONFLICT
+    weak = em.Side(
+        "basketball", "Takamatsu", 124602, "Kagawa Five Arrows", 1, 20.0, "DAY_ANCHOR"
+    )
+    em.queue_candidate(conn, weak, "DAY_ANCHOR", AT)
+    other = em.Side("basketball", "Takamatsu", 999, "Other", 2, 20.0, "DAY_ANCHOR")
+    em.queue_candidate(conn, other, "DAY_ANCHOR", AT)
+    decisions = {
+        "aliases": [
+            {
+                "sport": "cs2",
+                "superbet_name": "Ninjas in Pyjamas",
+                "sofascore_id": 366560,
+                "sofascore_name": "NIP",
+                "decided_by": "operator",
+                "decided_at": "2026-10-15",
+            },
+            {
+                "sport": "basketball",
+                "superbet_name": "Takamatsu",
+                "sofascore_id": 124602,
+                "decided_by": "operator",
+                "decided_at": "2026-10-15",
+            },
+        ],
+        "rejected": [],
+    }
+    before = em.sync_manual(conn, decisions, AT, datetime(2026, 10, 14, 12, tzinfo=UTC))
+    assert before["skipped_before_switch"] == 2
+    assert _row(conn, "cs2", "ninjas in pyjamas")[0] == 448738  # untouched
+    after = em.sync_manual(conn, decisions, AT, datetime(2026, 10, 15, 1, tzinfo=UTC))
+    assert after["aliases"] == 2
+    assert _row(conn, "cs2", "ninjas in pyjamas")[:2] == (366560, "manual")
+    assert em.open_queue(conn) == {"conflicts": [], "candidates": []}
+    states = dict(
+        conn.execute("SELECT candidate_id, status FROM sofa_entity_candidate")
+    )
+    assert states == {124602: "ACCEPTED", 999: "SUPERSEDED"}
+
+
+def test_load_manual_refuses_a_malformed_entry(tmp_path: Path) -> None:
+    import json
+
+    p = tmp_path / "a.json"
+    assert em.load_manual(str(tmp_path / "none.json")) == {
+        "aliases": [],
+        "rejected": [],
+    }
+    p.write_text(
+        json.dumps(
+            {"aliases": [{"sport": "cs2", "superbet_name": "X", "sofascore_id": "12"}]}
+        )
+    )
+    with pytest.raises(ValueError):
+        em.load_manual(str(p))
+    p.write_text(
+        json.dumps(
+            {
+                "aliases": [
+                    {
+                        "sport": "darts",
+                        "superbet_name": "X",
+                        "sofascore_id": 1,
+                        "decided_by": "o",
+                        "decided_at": "2026-10-15",
+                    }
+                ]
+            }
+        )
+    )
+    with pytest.raises(ValueError):
+        em.load_manual(str(p))
+    real = em.load_manual()  # the shipped file parses
+    assert set(real) == {"aliases", "rejected"}
+
+
+def test_the_queue_report_lists_conflicts_and_candidates(tmp_path: Path) -> None:
+    from scripts.sofa import report_entity_queue as rq
+
+    conn = _db(tmp_path)
+    em.queue_candidate(
+        conn,
+        em.Side(
+            "basketball",
+            "Takamatsu",
+            124602,
+            "Kagawa Five Arrows",
+            16491061,
+            20.0,
+            "DAY_ANCHOR",
+        ),
+        "DAY_ANCHOR",
+        AT,
+    )
+    md = rq.render(em.open_queue(conn), "2026-10-14", 10)
+    assert "Kolejka mapy encji" in md and "Takamatsu" in md
+    assert '"sofascore_id": 124602' in md and '"sport": "basketball"' in md

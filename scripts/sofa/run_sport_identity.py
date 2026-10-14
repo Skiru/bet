@@ -58,10 +58,17 @@ def learn(db_path: str, doc: dict[str, Any], sports: list[str]) -> dict[str, Any
 
     records = [r for r in doc.get("fixtures") or [] if r.get("sport") in sports]
     try:
+        decisions = entity_map.load_manual()
+    except ValueError as exc:  # a person's typo must be heard, not crash the stage
+        print(f"ENTITY_ALIASES_INVALID: {exc}", file=sys.stderr)
+        decisions = {"aliases": [], "rejected": []}
+    try:
         with get_connection(db_path) as conn:
-            counts = entity_map.learn_records(conn, records, si.iso(now()))
+            manual = entity_map.sync_manual(conn, decisions, si.iso(now()))
+            counts: dict[str, Any] = entity_map.learn_records(conn, records,
+                                                              si.iso(now()))
             conn.commit()
-        return counts
+        return {**counts, "manual": manual}
     except sqlite3.Error as exc:
         print(f"ENTITY_MAP_LEARN_FAILED: {exc}", file=sys.stderr)
         return {"error": str(exc)}

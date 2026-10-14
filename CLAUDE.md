@@ -411,6 +411,18 @@ measurement of Superbet's price and feed nothing else.
   not-identified events in 10 days had a side learned from an earlier game;
   the rest of the plan (K2 day anchor) needs these ids.
   `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
+- **Manual decisions** (identity plan K4): `config/sofa_entity_aliases.json`
+  (`aliases`: the Superbet name IS this id; `rejected`: NOT this candidate;
+  sport, superbet_name, sofascore_id, decided_by, decided_at, evidence) is
+  applied by every SPORT_IDENTITY run (`entity_map.sync_manual`, from
+  `ENTITY_MAP_FROM_UTC`): an alias is held with `source = manual`, replacing
+  a held id, and closes that name's conflicts / candidates. The queue to
+  decide from: `report_entity_queue.py --date <d>` ->
+  `runs/sofa/<d>/entity_queue.md` (2026-10-14: 2 conflicts - NIP, Golden
+  Horde - and 55 candidates). Fuzzy matching never writes the file. Polish
+  country names were already in `sofa_name_aliases.json`; the national teams
+  still unresolved (Jordania, Kuwejt...) play tournaments Sofascore does not
+  list (K5).
 - **Day anchor** (identity plan K2, `DAY_ANCHOR_FROM_UTC` 2026-10-15
   00:00Z; hockey / basketball / volleyball, not CS2, not tennis): with no
   listed game on both names, the anchor team's (a side's resolved id) ONLY
@@ -820,6 +832,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from <d> --to <d> [--min-matches N]   # evidence, never a bet list
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # a wrongly verified team alias; --list-suspects
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_entity_map.py [--dry-run] [--reteach]   # identity plan K1, once: the entity map learns from every sport_fixtures.json / RESOLVE day on disk; --dry-run rolls back; --apply backs up sofa_entity first
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_entity_queue.py --date <d>   # identity plan K4: the NEEDS_ALIAS queue (OPEN conflicts and candidates, ready JSON entries for config/sofa_entity_aliases.json) -> runs/sofa/<d>/entity_queue.md; no network
 ```
 
 **Refit - on a copy of the DB, installed only with the operator's go** ("Changing the pipeline" 4; `docs/sofa/CONFIG.md` section 7)

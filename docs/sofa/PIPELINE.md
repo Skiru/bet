@@ -1363,6 +1363,15 @@ wierszy turniejów; kopia `sofa_entity` w
 `data/backup_entity_map_20261014T093901Z/`). Raport:
 `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
 
+**Decyzje ręczne (plan tożsamości K4).** `config/sofa_entity_aliases.json`
+(`aliases` — nazwa Superbetu to ta drużyna; `rejected` — to nie ten kandydat)
+stosuje każdy przebieg SPORT_IDENTITY (`entity_map.sync_manual`, od
+przełącznika): alias trzymany ze `source = manual` zastępuje trzymane id i
+zamyka konflikty / kandydatów tej nazwy. Kolejka do decyzji:
+`scripts/sofa/report_entity_queue.py --date <d>` →
+`runs/sofa/<d>/entity_queue.md` (konflikty, kandydaci, gotowe wpisy JSON).
+Fuzzy nigdy nie wpisuje decyzji.
+
 **DAY_ANCHOR (plan tożsamości K2, od `epochs.DAY_ANCHOR_FROM_UTC` 2026-10-15
 00:00Z; hokej, kosz, siatka — nie CS2).** Gdy w listingu nie ma meczu z obiema
 nazwami: jedyny mecz drużyny-kotwicy (strona z rozpoznanym id) w ±1 h od

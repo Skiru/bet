@@ -1,0 +1,5 @@
+{
+  "_doc": "Manual Superbet -> Sofascore decisions (identity plan K4, bet.sofa.entity_map.load_manual / sync_manual). `aliases`: the Superbet name IS this Sofascore id (held with source 'manual', replacing any held id, its conflicts and candidates closed). `rejected`: the name is NOT this candidate. Each entry: sport (football|tennis|hockey|basketball|volleyball|cs2), superbet_name (as Superbet writes it), sofascore_id (int), sofascore_name, decided_by, decided_at (YYYY-MM-DD), evidence (event id, page, why), optional evidence_event_id. Written only after a person's decision from runs/sofa/<d>/entity_queue.md; read from epochs.ENTITY_MAP_FROM_UTC. Fuzzy matching never writes here.",
+  "aliases": [],
+  "rejected": []
+}

@@ -185,7 +185,13 @@ dopasowanie nazw (fuzzy) tylko wewnątrz tej małej listy, jeden kandydat z wyra
 przewagą → `IDENTIFIED` + dwa aliasy; inaczej `NEEDS_ALIAS` z kandydatami (Bilbao – Slavia).
 Wymaga mapy turniejów z K1.
 
-**K4. Nazwy, których nic nie połączy automatycznie.**
+**K4. Nazwy, których nic nie połączy automatycznie.** *Zrobione 2026-10-14:* plik
+`config/sofa_entity_aliases.json` + `entity_map.sync_manual` (w każdym
+przebiegu SPORT_IDENTITY, od 2026-10-15 00:00Z) + raport kolejki
+`report_entity_queue.py` → `runs/sofa/<d>/entity_queue.md`. Słownik państw
+już istniał (`sofa_name_aliases.json`: jordania, kuwejt, arabia saudyjska,
+algieria, bahrajn…); nierozpoznane reprezentacje grają turnieje, których w
+Sofascore nie ma (K5). Plan pierwotny:
 - Słownik polskich nazw państw (egzonimy Superbetu: „Jordania”, „Kuwejt”,
   „Arabia Saudyjska”, „Algieria”, „Bahrajn”…) → kod kraju / nazwa angielska;
   deterministyczny, w `config/`.
