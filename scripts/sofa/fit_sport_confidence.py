@@ -154,10 +154,15 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         # epochs.CS2_TEAM_ROUNDS_RACE: the estimator of the day the fit is for
         race = args.cs2_team_rounds_race or epochs.cs2_team_rounds_race(
             before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
+        # epochs.CS2_SERIES_ROUNDS: the series rounds replayed for a day >= it
+        series_rounds = epochs.cs2_series_rounds(
+            before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
         rows["history_fit"] = scf.cs2_walk_forward_rows(
-            maps, series, fit_start, hold_ts, "history_fit", race)
+            maps, series, fit_start, hold_ts, "history_fit", race,
+            series_rounds=series_rounds)
         rows["history_holdout"] = scf.cs2_walk_forward_rows(
-            maps, series, hold_ts, before_ts, "history_holdout", race)
+            maps, series, hold_ts, before_ts, "history_holdout", race,
+            series_rounds=series_rounds)
         rows["superbet_settled"] = scf.cs2_settled_rows(runs_dir, dates)
         fit_dates: list[str] = []
         oos_dates = dates

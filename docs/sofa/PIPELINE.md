@@ -2207,6 +2207,20 @@ starym p; kontroli na liniach Superbetu 10-05..10-12 nie wykonano
 (`docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`,
 `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`).
 
+**Rundy serii** (`epochs.CS2_SERIES_ROUNDS_FROM_UTC` 2026-10-15 00:00Z,
+zlecenie operatora 2026-10-14): `rounds_total`, `rounds_handicap`,
+`team_rounds` całej serii z `cs2_engine.series_rounds_side_p` - liczba map
+wygranych przez każdą drużynę z rozkładu serii (`SERIES_KAPPA`), rundy każdej
+mapy z wyścigu rund pod warunkiem jej zwycięzcy; mapa nierozegrana nic nie
+dodaje. Wycena w SPORT_CONFIDENCE, `model_p` przy CS2_SETTLE, odtworzenie w
+historii dopasowania. Krzywe historii przygotowane, **nie zainstalowane**
+(`data/refit_new_markets_2026-10-15/cs2_series_rounds/`): bramka na drabince
+linii historii przepuszcza `rounds_handicap|TEAM`, `rounds_total|OVER`,
+`team_rounds|OVER`, ale na liniach Superbetu 09-28..10-13 strony z krzywą >=
+0,70 trafiły 0,33 przy 0,74 (21 / 19 serii) - do decyzji operatora
+(`docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`). Do tego czasu klucz
+czyta tylko własne rozliczone linie (`NO_LINE_EVIDENCE` do 50 w kubełku).
+
 Pozostałe rodziny nie dostają liczby (nigdy zgadywanej). Stałe silnika są
 `UNFITTED` i tak raportowane. `audit_cs2.py` sekcja 3b porównuje Brier kursu,
 modelu i ich średniej na tych samych stronach; `--history` pokazuje zawartość

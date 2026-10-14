@@ -244,7 +244,8 @@ class DbForecaster:
                 maps, ratings, bool(fixture["home_is_team1"]),
                 team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at),
                 map_identity=epochs.cs2_map_identity(str(self.date), self.at),
-                exposure=self._cs2_counts(maps))
+                exposure=self._cs2_counts(maps),
+                series_rounds=epochs.cs2_series_rounds(str(self.date), self.at))
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability, overtime_minutes
 
@@ -338,11 +339,13 @@ def _shape(sport: str, line: Any) -> str:
 
 
 def _allowed(sport: str, line: Any, extended: bool = False,
-             derived: bool = False) -> str | None:
+             derived: bool = False, series_rounds: bool = False) -> str | None:
     """`extended` (epochs.line_evidence): EXTENDED_MARKETS too; `derived`
-    (epochs.sport_derived_markets): the derived markets too."""
+    (epochs.sport_derived_markets): the derived markets too; `series_rounds`
+    (epochs.cs2_series_rounds): CS2's series rounds too."""
     if sport == "cs2":
-        return scf.family_of("cs2", None, line.family, extended)
+        return scf.family_of("cs2", None, line.family, extended,
+                             series_rounds=series_rounds)
     return scf.family_of(sport, line.market_id, line.family, extended, derived)
 
 
@@ -386,6 +389,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
     # epochs.SPORT_DERIVED_MARKETS: the derived markets' lines are allowed
     # (read through the line evidence only - they have no curve)
     derived = evidence is not None and epochs.sport_derived_markets(date, at)
+    # epochs.CS2_SERIES_ROUNDS_FROM_UTC: CS2's series rounds allowed and priced
+    series_rounds = sport == "cs2" and epochs.cs2_series_rounds(date, at)
     fixture_status = fixture_status or {}
     not_scheduled: list[dict[str, Any]] = []
     fixtures = si.fixtures_by_event(fixtures_doc)
@@ -407,7 +412,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
         newest = max(ev.fetched_at.values(), key=_utc)
         current = {k: ln for k, ln in ev.sides.items() if ev.fetched_at[k] == newest}
         allowed = {k: ln for k, ln in current.items()
-                   if _allowed(sport, ln, evidence is not None, derived)}
+                   if _allowed(sport, ln, evidence is not None, derived,
+                            series_rounds)}
         _bump(refused, "MARKET_NOT_ALLOWED", len(current) - len(allowed))
         if not allowed:
             continue
@@ -477,7 +483,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if cs2.group_fair(group_odds, _shape(sport, ln)) is None:  # type: ignore[arg-type]
                 _bump(refused, "INCOMPLETE_GROUP")
                 continue
-            family = _allowed(sport, ln, evidence is not None, derived)
+            family = _allowed(sport, ln, evidence is not None, derived,
+                              series_rounds)
             assert family is not None
             p = forecaster.probability(sport, fixture, ev, ln)
             if p is None:

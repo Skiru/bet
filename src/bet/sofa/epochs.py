@@ -951,6 +951,36 @@ def cs2_team_rounds_race(date: str, build_at: datetime | None = None) -> bool:
             and at >= CS2_TEAM_ROUNDS_RACE_FROM_UTC)
 
 
+# Operator 2026-10-14 ~18:55Z: CS2 series rounds - "Liczba rund (z dogrywką)"
+# (rounds_total), "Handicap rund (z dogrywką)" (rounds_handicap), "<team>
+# liczba rund (z dogrywką)" (team_rounds) over every map played. From this
+# moment cs2_engine.model_probability prices them (series_rounds_side_p: the
+# maps each team wins from series_distribution_mixed, each map's rounds from
+# the round race given its winner) in SPORT_CONFIDENCE (the families allowed),
+# at CS2_SETTLE (model_p, the line evidence's input) and in a fit's history
+# replay for a day >= it. The CS2 snapshot read and graded them before
+# (cs2.parse_line / actual_value): off is byte-identical. Gate (operator, one
+# sided: holdout 2026-09-01..10-13 printable n >= 300, realised - curve >=
+# -0.02, sport admission): rounds_handicap|TEAM, rounds_total|OVER and
+# team_rounds|OVER pass; their curves are STAGED, not installed
+# (data/refit_new_markets_2026-10-15/cs2_series_rounds/), so with the switch
+# alone a leg reads its own settled Superbet lines (NO_LINE_EVIDENCE until a
+# bucket holds 50). At Superbet's own lines (CS2_SETTLE 2026-09-28..10-13,
+# 212 series) the passing keys' curve reached 0.70 on 21 sides / 19 series,
+# which realised 0.33 at a curve of 0.74 - install only on the operator's
+# go: docs/sofa/evidence/cs2_series_rounds_2026-10-15.md.
+CS2_SERIES_ROUNDS_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+
+
+def cs2_series_rounds(date: str, build_at: datetime | None = None) -> bool:
+    """Are CS2's series rounds priced (CS2_SERIES_ROUNDS_FROM_UTC)?"""
+    if CS2_SERIES_ROUNDS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CS2_SERIES_ROUNDS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CS2_SERIES_ROUNDS_FROM_UTC)
+
+
 # Audit 2026-10-13 B1: the favourite / outsider (game-state) term of a
 # football side's centre. From this moment the centre of a market of
 # game_state.GAME_STATE_MARKETS with a beta in config/sofa_game_state.json is

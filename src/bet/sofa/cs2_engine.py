@@ -833,6 +833,94 @@ def round_probability(p_map: float) -> float:
     return round((lo + hi) / 2, 6)
 
 
+# --- series rounds (epochs.CS2_SERIES_ROUNDS_FROM_UTC) --------------------------------
+
+# A series' rounds over every map played: Superbet's "Liczba rund (z dogrywką)"
+# (rounds_total), "Handicap rund (z dogrywką)" (rounds_handicap, team1's rounds
+# minus team2's) and "<team> liczba rund (z dogrywką)" (team_rounds), graded on
+# the played maps only (cs2.actual_value) - a map never played adds nothing.
+SERIES_ROUND_FAMILIES = frozenset({"rounds_total", "rounds_handicap", "team_rounds"})
+_SERIES_ROUNDS_MIN_Q = 1e-12  # (r1, r2) cells under this mass are dropped
+
+
+def _convolve(a: dict[tuple[int, int], float], b: dict[tuple[int, int], float]
+              ) -> dict[tuple[int, int], float]:
+    out: dict[tuple[int, int], float] = defaultdict(float)
+    for (a1, a2), qa in a.items():
+        for (b1, b2), qb in b.items():
+            q = qa * qb
+            if q >= _SERIES_ROUNDS_MIN_Q:
+                out[(a1 + b1, a2 + b2)] += q
+    return dict(out)
+
+
+@lru_cache(maxsize=8192)
+def _series_rounds_dist(p_key: float, best_of: int
+                        ) -> tuple[tuple[tuple[int, int], float], ...]:
+    """(team1 rounds, team2 rounds) over the series -> probability.
+
+    The number of maps each team wins is the series distribution the series
+    families price with (series_distribution_mixed, SERIES_KAPPA); a map a
+    team won is one draw from the map's round race (map_distribution_for, as
+    map_rounds_handicap and team_rounds_from_race) given that team won it.
+    The race is read at the series' p, not the Beta-mixed one: the mixing
+    sets how many maps each side wins, the race only the margins inside."""
+    race = dict(_race_dist(p_key))
+    p1 = sum(q for (a, b), q in race.items() if a > b)
+    p2 = sum(q for (a, b), q in race.items() if a < b)
+    won1 = {k: q / p1 for k, q in race.items() if k[0] > k[1]}
+    won2 = {k: q / p2 for k, q in race.items() if k[0] < k[1]}
+    out: dict[tuple[int, int], float] = defaultdict(float)
+    for (m1, m2), q in series_distribution_mixed(p_key, best_of).items():
+        acc: dict[tuple[int, int], float] = {(0, 0): 1.0}
+        for _ in range(m1):
+            acc = _convolve(acc, won1)
+        for _ in range(m2):
+            acc = _convolve(acc, won2)
+        for k, v in acc.items():
+            out[k] += q * v
+    return tuple(sorted(out.items()))
+
+
+def series_rounds_distribution(p_map: float, best_of: int
+                               ) -> dict[tuple[int, int], float]:
+    """_series_rounds_dist at p_map (team1's map-win probability) clamped to
+    the race's range and rounded to 3 decimals (the cache)."""
+    p_key = round(min(max(p_map, 0.05), 0.95), 3)
+    return dict(_series_rounds_dist(p_key, best_of))
+
+
+def series_rounds_side_p(p_map: float, best_of: int, family: str,
+                         line: float | None, side: str, team_idx: int | None
+                         ) -> float | None:
+    """One side of a series-rounds line given no push; None when it cannot be
+    told. rounds_handicap: `line` is team1's handicap on team1 - team2 rounds
+    (cs2.grade); team_rounds: `team_idx` 0 / 1 is the line's team."""
+    if family not in SERIES_ROUND_FAMILIES or line is None:
+        return None
+    try:
+        dist = series_rounds_distribution(p_map, best_of)
+    except ValueError:
+        return None
+    if family == "rounds_handicap":
+        if side not in ("T1", "T2"):
+            return None
+        p_t1 = sum(q for (a, b), q in dist.items() if a - b + line > 0)
+        p_t2 = sum(q for (a, b), q in dist.items() if a - b + line < 0)
+        return side_given_no_push(p_t1, p_t2, side == "T1")
+    if side not in ("OVER", "UNDER"):
+        return None
+    if family == "rounds_total":
+        p_over = sum(q for (a, b), q in dist.items() if a + b > line)
+        p_under = sum(q for (a, b), q in dist.items() if a + b < line)
+    else:
+        if team_idx not in (0, 1):
+            return None
+        p_over = sum(q for k, q in dist.items() if k[team_idx] > line)
+        p_under = sum(q for k, q in dist.items() if k[team_idx] < line)
+    return side_given_no_push(p_over, p_under, side == "OVER")
+
+
 # --- the models ---------------------------------------------------------------------
 
 
@@ -1243,6 +1331,7 @@ def model_probability(
     team_rounds_race: bool = False,
     map_identity: bool = False,
     exposure: ExposureBook | None = None,
+    series_rounds: bool = False,
 ) -> ModelP | None:
     """The model's probability for this side of this line, or None.
     `team_rounds_race` (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC): a team's
@@ -1251,12 +1340,24 @@ def model_probability(
     its own map's p (RatingModel.p_map_nr; ratings built with MAP_TERMS).
     `exposure` (epochs.CS2_COUNT_EXPOSURE_FROM_UTC, build_exposure of the
     same history): an EXPOSURE_FAMILIES line from the rounds' exposure, the
-    old sample model where the exposure has no number."""
+    old sample model where the exposure has no number.
+    `series_rounds` (epochs.CS2_SERIES_ROUNDS_FROM_UTC): SERIES_ROUND_FAMILIES
+    from series_rounds_side_p; without it they have no number."""
     fam = line.family
-    if fam not in MODELLED:
-        return None
     subject = line.subject.strip()
     side_team = team1_id if subject == team1 else team2_id if subject == team2 else None
+    if fam in SERIES_ROUND_FAMILIES:
+        if not series_rounds:
+            return None
+        p = ratings.p_map(team1_id, team2_id, team1_is_home)
+        if p is None:
+            return None
+        idx = None if side_team is None else (0 if side_team == team1_id else 1)
+        side = series_rounds_side_p(p, best_of, fam, line.line, line.side, idx)
+        n = min(ratings.book.played[team1_id], ratings.book.played[team2_id])
+        return None if side is None else ModelP(clamp(side), n, "series_round_race")
+    if fam not in MODELLED:
+        return None
 
     if fam in SERIES_FAMILIES:
         p = ratings.p_map(team1_id, team2_id, team1_is_home)

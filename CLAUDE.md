@@ -529,8 +529,15 @@ measurement of Superbet's price and feed nothing else.
   round handicap uses), live, at CS2_SETTLE and in the replay; walk-forward
   log-loss -0.0213 [-0.0237, -0.0188]; the CS2 curve refitted on it is staged
   in the `.next.json` from 2026-10-13 and promoted over the installed file
-  on 2026-10-14 (bc69b56e). Still unpriced: CS2 series rounds (rounds_*,
-  team_rounds) and round parity.
+  on 2026-10-14 (bc69b56e). CS2 series rounds (rounds_total,
+  rounds_handicap, team_rounds) are priced from `CS2_SERIES_ROUNDS_FROM_UTC`
+  (2026-10-15 00:00Z; `cs2_engine.series_rounds_side_p`: maps won from the
+  mixed series distribution, each map's rounds from the race) with their
+  history curves staged, not installed (three keys pass the gate on the
+  history ladder, but at Superbet's own lines 21 sides / 19 series realised
+  0.33 at 0.74; `docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`,
+  `T-CS2-SERIES-ROUNDS-superbet`), so they read only their own settled lines
+  until the operator decides; round parity is still unpriced.
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
   names, `teams_source`); no history curve, so `NO_LINE_EVIDENCE` until a
@@ -806,10 +813,9 @@ work, each through a curve and its own Superbet lines): football / tennis
 outcome markets - 1X2, double chance, draw-no-bet, both teams to score, goals
 parity, half-time/full-time, exact score; tennis set winner, set
 score, games parity (OFFER's `unmapped_markets`, ~27,800 lines on 10-07,
-part of them Superbet's own combinations); CS2 series rounds and round
-parity; derived football / tennis joints and women's tennis per-set markets
-above their measured range wait for 50 settled lines a bucket
-(`NO_LINE_EVIDENCE`).
+part of them Superbet's own combinations); CS2 round parity; derived
+football / tennis joints and women's tennis per-set markets above their
+measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
 
 **Measured and declined - do not re-propose without new evidence:**
 - a second coupon or a variant (operator: one coupon, many sports);

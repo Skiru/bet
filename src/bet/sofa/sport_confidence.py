@@ -202,8 +202,10 @@ CS2_FAMILIES: frozenset[str] = frozenset(
 # pre-match p to each graded side (settle_cs2.attach_model): their evidence.
 # The series families (maps_total, maps_handicap, team_maps, exact_maps) from
 # cs2_engine's series-level term (SERIES_KAPPA, 2026-10-07), scored from the
-# history like the winners. Still out: the series rounds (rounds_*,
-# team_rounds) and a map's round parity - the engine prices none of them.
+# history like the winners. The series rounds (rounds_total, rounds_handicap,
+# team_rounds; cs2_engine.SERIES_ROUND_FAMILIES) only from
+# epochs.CS2_SERIES_ROUNDS_FROM_UTC (family_of's `series_rounds`). Still out:
+# a map's round parity - the engine does not price it.
 CS2_EXTENDED_FAMILIES: frozenset[str] = frozenset(
     {"map_rounds_handicap", "map_rounds_total", "team_kills", "player_kills",
      "player_deaths", "player_assists", "player_headshots",
@@ -216,6 +218,24 @@ CS2_SERIES_LINES: dict[int, dict[str, tuple[float, ...]]] = {
     5: {"maps_total": (3.5, 4.5), "maps_handicap": (-2.5, -1.5, 1.5, 2.5),
         "team_maps": (1.5, 2.5)},
     2: {"maps_handicap": (-0.5, 0.5), "team_maps": (0.5, 1.5)},
+}
+# epochs.CS2_SERIES_ROUNDS_FROM_UTC: the series rounds (cs2_engine.
+# SERIES_ROUND_FAMILIES) a historical series is scored on per format - the
+# range of the lines Superbet posted on 2026-09-28..10-14 (one main line an
+# event; rounds_handicap is team1's handicap, both signs).
+CS2_SERIES_ROUND_LINES: dict[int, dict[str, tuple[float, ...]]] = {
+    1: {"rounds_total": tuple(x + 0.5 for x in range(19, 24)),
+        "rounds_handicap": tuple(s * (x + 0.5) for x in range(2, 7)
+                                 for s in (-1, 1)),
+        "team_rounds": tuple(x + 0.5 for x in range(8, 14))},
+    3: {"rounds_total": tuple(x + 0.5 for x in range(41, 56)),
+        "rounds_handicap": tuple(s * (x + 0.5) for x in range(0, 11)
+                                 for s in (-1, 1)),
+        "team_rounds": tuple(x + 0.5 for x in range(18, 29))},
+    5: {"rounds_total": tuple(x + 0.5 for x in range(75, 96, 2)),
+        "rounds_handicap": tuple(s * (x + 0.5) for x in range(0, 11, 2)
+                                 for s in (-1, 1)),
+        "team_rounds": tuple(x + 0.5 for x in range(38, 49))},
 }
 
 # The families the results history fits, with the market id a synthetic line
@@ -352,11 +372,16 @@ def curve_key(family: str, side: str) -> str:
 
 
 def family_of(sport: str, market_id: int | None, family: str,
-              extended: bool = False, derived: bool = False) -> str | None:
+              extended: bool = False, derived: bool = False,
+              series_rounds: bool = False) -> str | None:
     """The allowed family of a line, or None when it may not be a leg.
-    `derived` (epochs.sport_derived_markets): DERIVED_ALLOWED too."""
+    `derived` (epochs.sport_derived_markets): DERIVED_ALLOWED too.
+    `series_rounds` (epochs.cs2_series_rounds, with `extended`): CS2's
+    cs2_engine.SERIES_ROUND_FAMILIES too."""
     if sport == "cs2":
         allowed = CS2_FAMILIES | (CS2_EXTENDED_FAMILIES if extended else frozenset())
+        if extended and series_rounds:
+            allowed |= cs2_engine.SERIES_ROUND_FAMILIES
         return family if family in allowed else None
     if market_id is None:
         return None
@@ -1101,7 +1126,11 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
                           series: Mapping[int, SeriesRow], start_ts: int,
                           end_ts: int, source: str,
                           team_rounds_race: bool = False,
-                          map_identity: bool = False) -> list[Row]:
+                          map_identity: bool = False,
+                          series_rounds: bool = False,
+                          series_round_lines: Mapping[
+                              int, Sequence[tuple[str, float, str, str]]]
+                          | None = None) -> list[Row]:
     """CS2 rows for the series in [start_ts, end_ts), each from the engine's
     state at the series' start: the map and player Elo replayed in time
     order (cs2_engine.walk_forward_players), their logistic calibration
@@ -1110,7 +1139,10 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
     for rounds. Numbers through the engine's own functions. `map_identity`
     (epochs.CS2_MAP_IDENTITY, audit B11): the map pool replayed too and the
     order / pool terms refitted with the calibration, each map's rows from
-    its own map's p."""
+    its own map's p. `series_rounds` (epochs.CS2_SERIES_ROUNDS): the series
+    rounds on CS2_SERIES_ROUND_LINES too, and on `series_round_lines`
+    (Sofascore event id -> (family, line, side, subject) in the home / away
+    orientation, subject T1 / T2 or "") with source `<source>_superbet`."""
     book = cs2_engine.EloBook()
     players = cs2_engine.PlayerEloBook()
     points: list[tuple[float, float]] = []
@@ -1138,6 +1170,12 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
             rows += _cs2_series_rows(eid, smaps, series.get(eid), model,
                                      team_rounds, all_rounds, source,
                                      team_rounds_race, map_identity)
+            if series_rounds:
+                p_home = model.p_map(home, away, True)
+                if p_home is not None:
+                    rows += cs2_series_rounds_rows(
+                        eid, smaps, series.get(eid), p_home, source,
+                        (series_round_lines or {}).get(eid))
         if pool is not None:
             mpoints.extend(cs2_engine.series_map_points(list(smaps), book, players,
                                                         pool))
@@ -1206,6 +1244,84 @@ def _cs2_series_family_rows(eid: int, ts: int, srow: SeriesRow, p_map: float,
                 add("team_maps", ln, "UNDER", subject, idx, own < ln)
     for score in dist:
         add("exact_maps", None, f"{score[0]}:{score[1]}", "", None, score == final)
+    return rows
+
+
+def series_rounds_played(smaps: Sequence[cs2_engine.MapRow],
+                         srow: SeriesRow | None) -> tuple[int, int] | None:
+    """(home rounds, away rounds) over the whole series, or None when a map
+    has no round score or the maps stored are not the series' final score
+    (a series graded on part of its maps would read a short total)."""
+    if (srow is None or not srow.best_of or srow.home_maps is None
+            or srow.away_maps is None or srow.home_maps == srow.away_maps
+            and srow.best_of != 2):
+        return None
+    if len(smaps) != srow.home_maps + srow.away_maps:
+        return None
+    if any(m.home_rounds is None or m.away_rounds is None for m in smaps):
+        return None
+    if sum(1 for m in smaps if m.home_won) != srow.home_maps:
+        return None
+    return (sum(int(m.home_rounds or 0) for m in smaps),
+            sum(int(m.away_rounds or 0) for m in smaps))
+
+
+def cs2_series_rounds_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
+                           srow: SeriesRow | None, p_home: float, source: str,
+                           superbet: Sequence[tuple[str, float, str, str]] | None
+                           = None) -> list[Row]:
+    """The series rounds of one finished series (home = team1), priced as
+    cs2_engine.model_probability prices them live (series_rounds_side_p), on
+    CS2_SERIES_ROUND_LINES of its format and on `superbet` lines (source
+    `<source>_superbet`), graded on every played map's rounds."""
+    played = series_rounds_played(smaps, srow)
+    if played is None or srow is None or not srow.best_of:
+        return []
+    best_of = int(srow.best_of)
+    rows: list[Row] = []
+
+    def add(family: str, line: float, side: str, subject: str, src: str) -> None:
+        idx = {"T1": 0, "T2": 1}.get(subject)
+        if family == "rounds_total":
+            actual = played[0] + played[1]
+        elif family == "rounds_handicap":
+            actual = played[0] - played[1]
+        else:
+            if idx is None:
+                return
+            actual = played[idx]
+        if family == "rounds_handicap":
+            margin = actual + line
+            if margin == 0:
+                return
+            y = (margin > 0) == (side == "T1")
+        else:
+            if actual == line:
+                return
+            y = (actual > line) == (side == "OVER")
+        p = cs2_engine.series_rounds_side_p(p_home, best_of, family, line, side, idx)
+        if p is None:
+            return
+        rows.append({"sport": "cs2", "family": family, "market_id": None,
+                     "period": 0, "subject": subject, "line": line, "side": side,
+                     "key": curve_key(family, side),
+                     "p": round(cs2_engine.clamp(p), 4), "y": 1 if y else 0,
+                     "game": f"h:{eid}", "ts": smaps[0].start_ts, "source": src,
+                     "best_of": best_of})
+
+    lines = CS2_SERIES_ROUND_LINES.get(best_of, {})
+    for ln in lines.get("rounds_total", ()):
+        for side in ("OVER", "UNDER"):
+            add("rounds_total", ln, side, "", source)
+    for ln in lines.get("rounds_handicap", ()):
+        for side in ("T1", "T2"):
+            add("rounds_handicap", ln, side, "", source)
+    for ln in lines.get("team_rounds", ()):
+        for subject in ("T1", "T2"):
+            for side in ("OVER", "UNDER"):
+                add("team_rounds", ln, side, subject, source)
+    for family, ln, side, subject in superbet or ():
+        add(family, ln, side, subject, f"{source}_superbet")
     return rows
 
 
@@ -1329,7 +1445,10 @@ def cs2_settled_rows(runs_dir: str, dates: Sequence[str]) -> list[Row]:
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue
+                # series rounds carry a model_p only from
+                # epochs.CS2_SERIES_ROUNDS_FROM_UTC (settle_cs2.attach_model)
                 if g.get("family") not in CS2_FAMILIES | CS2_EXTENDED_FAMILIES \
+                        | cs2_engine.SERIES_ROUND_FAMILIES \
                         or g.get("model_p") is None:
                     continue
                 rows.append({

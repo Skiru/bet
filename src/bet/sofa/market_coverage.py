@@ -522,7 +522,7 @@ CS2_RULES: list[Rule] = [
        "zabójstwa / śmierci / asysty / headshoty zawodnika na mapie (CS2_EXTENDED_FAMILIES, czytane)"),
     _c(r"druzyna - najwiecej wygranych rund w meczu" + OT + r"|liczba rund" + OT
        + r"|" + S + r" - liczba rund" + OT + r"|handicap rund" + OT, "cs2.series_rounds",
-       "rundy serii (rounds_* / team_rounds - wciąż bez wyceny; cs2_map trzyma wynik rund map)"),
+       "rundy serii (rounds_* / team_rounds; wycena od epochs.CS2_SERIES_ROUNDS_FROM_UTC, w kombinacjach nieczytane)"),
     _c(r"(?:[123x]\.\s?mapa - )?nieparzysta/parzysta liczba rund" + OT, "cs2.round_parity",
        "parzystość rund (bez wyceny; cs2_map trzyma wynik rund map)"),
     _c(r"liczba dogrywek", "cs2.overtimes",
