@@ -72,3 +72,16 @@ linii). Nie obejmuje refitu istniejących krzywych piłki / tenisa / sportów.
 - Koszykówka / siatkówka: nazwy rynków niesprawdzone na surowym payloadzie -
   pierwsze migawki 10-14 po 14:50Z obejrzeć (`runs/sofa/shadow/...`).
 - Strzały zawodnika „zwykłe” były po cenie -14,3% (10-09..10-13).
+
+## Dane historyczne pod krzywe (stan 2026-10-14 15:05Z)
+
+| rynki | źródło historii | stan |
+|---|---|---|
+| podwójna szansa piłka, piłka z incydentów | listing (wyniki) + `sofa_event_stats.incidents_json` - w cache | gotowe, bez pobierania |
+| tenis sety | listing (wyniki setów) - w cache | gotowe |
+| sporty: DC, sety siatkówki | historia sportów (`refresh_sport_history.py` co rano) | gotowe |
+| strzały zawodnika | `/shotmap` dla meczów z `/lineups` zawodników: 5 760 meczów | **poszerzane**: `backfill_football_lineups.py`, potem `backfill_event_extra.py --kind shotmap` (kolejka od 16:30Z, porcje, stop przy odmowie) |
+| hokej / koszykówka / siatkówka z incydentów (1. gol, wyścig do X) | `/incidents` 120 dni (~10 tys. meczów) | pobiera agent od 15:05Z; najpierw pomiar - krzywa tylko jeśli przejdzie |
+| tenis „po N gemach / punktach” | `/point-by-point` 60 dni (19 624 meczów) | pomiar: nie drukuje; reszta roku na końcu kolejki (niski priorytet) |
+
+Log kolejki: `runs/sofa/backfill/history_for_curves_2026-10-14.log`.
