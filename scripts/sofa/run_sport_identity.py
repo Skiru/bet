@@ -15,11 +15,15 @@ an event that has started keeps its last (pre-start) record, unasked: the
 `events/next` listing no longer shows a game under way.
 
 Writes runs/sofa/<date>/sport_fixtures.json; the team ids come from the
-database read-only. Exit: 0 OK, 1 PARTIAL (an event not identified, or the
-bridge refused), 2 FAILED (no snapshot of any sport). With --if-snapshot a
-date that has no snapshot yet is NOTHING_TO_DO, exit 0, and no file is
-written: the daily loops ask D+1 after every snapshot, long before D+1 has
-one, and logged that as FAILED every half hour (2026-10-12).
+database read-only. After the file, the entity map learns from the
+IDENTIFIED records (bet.sofa.entity_map: names confirmed by their own name,
+the opponent-rule sides as NEEDS_ALIAS candidates, the tournament map) - a
+write of its own; its learned rows are read from epochs.ENTITY_MAP_FROM_UTC.
+Exit: 0 OK, 1 PARTIAL (an event not identified, or the bridge refused),
+2 FAILED (no snapshot of any sport). With --if-snapshot a date that has
+no snapshot yet is NOTHING_TO_DO, exit 0, and no file is written: the
+daily loops ask D+1 after every snapshot, long before D+1 has one, and
+logged that as FAILED every half hour (2026-10-12).
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import entity_map  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
@@ -43,6 +48,23 @@ from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 NOTHING_TO_DO = 3  # internal: --if-snapshot and no snapshot (exit 0)
+
+
+def learn(db_path: str, doc: dict[str, Any], sports: list[str]) -> dict[str, Any]:
+    """The entity map learns from this run's IDENTIFIED records (K1;
+    entity_map.learn_records, once per Sofascore event). A write failure is
+    reported and never fails the stage: the records are already written."""
+    from bet.sofa.db import get_connection
+
+    records = [r for r in doc.get("fixtures") or [] if r.get("sport") in sports]
+    try:
+        with get_connection(db_path) as conn:
+            counts = entity_map.learn_records(conn, records, si.iso(now()))
+            conn.commit()
+        return counts
+    except sqlite3.Error as exc:
+        print(f"ENTITY_MAP_LEARN_FAILED: {exc}", file=sys.stderr)
+        return {"error": str(exc)}
 
 
 def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
@@ -61,7 +83,8 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
     if not events and if_snapshot:
         return {"sports": (prior or {}).get("sports") or {},
                 "aborted": None}, NOTHING_TO_DO
-    resolver = si.TeamResolver(conn, int(at.timestamp()))
+    resolver = si.TeamResolver(conn, int(at.timestamp()),
+                               learned=entity_map.learned_reads(date, at))
     records, summary = si.identify(events, client, cache, resolver.team_id, at,
                                    date, pinned, resolver.query_id)
     # Sports not asked this run keep their earlier records.
@@ -122,11 +145,14 @@ def main() -> int:
                         config.runs_dir, client, cache, conn, args.if_snapshot)
     finally:
         conn.close()
+    learned = (learn(config.db_path, doc, list(args.sport or si.SPORT_KEYS))
+               if code != NOTHING_TO_DO else {})
     print("SOFA_SUMMARY: " + json.dumps({
         "stage": "SPORT_IDENTITY",
         "verdict": {0: "OK", 1: "PARTIAL", 2: "FAILED",
                     NOTHING_TO_DO: "NOTHING_TO_DO"}[code],
         "sports": doc["sports"], "aborted": doc["aborted"],
+        "entity_map": learned,
         "output_path": str(Path(config.runs_dir) / args.date / si.FIXTURES_FILE),
     }), flush=True)
     return 0 if code == NOTHING_TO_DO else code

@@ -326,7 +326,8 @@ class Backfill:
             # team the store has never seen, and a "verified" entity is never
             # searched again (review 2026-10-03, two rounds).
             self.cache.save_entity(
-                ENTITY_SPORT, key, tid, team_name, "team", None, "verified"
+                ENTITY_SPORT, key, tid, team_name, "team", None, "verified",
+                source="backfill_cs2",
             )
         else:
             self.stats.add("teams_seeded_uncached")

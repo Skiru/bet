@@ -1538,3 +1538,38 @@ def men_friendly_baseline(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= MEN_FRIENDLY_BASELINE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= MEN_FRIENDLY_BASELINE_FROM_UTC)
+
+
+# The entity map (identity plan K1, bet.sofa.entity_map,
+# docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md): SPORT_IDENTITY
+# learns the Superbet names it pinned by their own name (a name-checked
+# method, score above NAME_MATCH_THRESHOLD) into sofa_entity, source
+# `identity_names`; manual aliases (K4) are `manual`. Reading those rows
+# identifies more events, so it changes what prints: a reader uses them only
+# for a day >= the date AND at a clock at or after the moment
+# (`entity_map`). The same moment ends the overwrite of a held verified id
+# (cache.save_entity, entity_map.learn): another id for a held name is
+# queued in sofa_entity_conflict instead. Measured on the pinned events of
+# 2026-10-05..10-14 (K1 report): 477 names the resolver could not resolve
+# become known (basketball 286, hockey 78, volleyball 107, CS2 6), 485 it
+# resolved through the listing index are now held with the same id; 0 names
+# pinned to two ids, 0 learned ids differing from the resolver's; 2 held CS2
+# rows (backfill_cs2) contradict the pinned events and are queued. Upper
+# bound of the direct gain: 32 not-identified events in 10 days had a side
+# learned from an earlier game. Next day's 00:00Z by the default rule.
+ENTITY_MAP_FROM_UTC: datetime | None = datetime(2026, 10, 15, 0, 0, tzinfo=UTC)
+# Stamped on a row whose teams a reader resolved with the map's learned rows
+# (player_model's pre-game rows by name; absent when off).
+ENTITY_MAP_RULE = "entity_map_v1"
+
+
+def entity_map(date: str | None, build_at: datetime | None = None) -> bool:
+    """Are learned entity-map rows read, and a held verified id never
+    overwritten (ENTITY_MAP_FROM_UTC)? `date` None judges the clock alone
+    (a reader with no day of its own: RESOLVE's / SHADOW_SETTLE's cache)."""
+    if ENTITY_MAP_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if at < ENTITY_MAP_FROM_UTC:
+        return False
+    return date is None or date >= ENTITY_MAP_FROM_UTC.strftime("%Y-%m-%d")

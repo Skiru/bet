@@ -142,6 +142,7 @@ MODEL_KEYS = (
     "model_teams_resolved",
     "model_pregame_rejected",
     "player_team_rule",
+    "entity_map_rule",
     "unfitted_constants",
 )
 
@@ -1037,19 +1038,20 @@ def team_name_index(
 
 
 def resolve_team(
-    conn: sqlite3.Connection, slug: str, name: str, index: dict[str, set[int]]
+    conn: sqlite3.Connection, slug: str, name: str, index: dict[str, set[int]],
+    learned: bool = False,
 ) -> int | None:
-    """A Superbet team name's Sofascore id, offline: RESOLVE's verified
-    entity first (read-only, no hit counter), else an exact normalised name
-    in the listed games that names one team only. No fuzzy guess."""
+    """A Superbet team name's Sofascore id, offline: the entity map's
+    verified id first (read-only, no hit counter; a row SPORT_IDENTITY
+    learned only when `learned`, entity_map.learned_reads), else an exact
+    normalised name in the listed games that names one team only. No fuzzy
+    guess."""
+    from bet.sofa.entity_map import verified_id
+
     key = normalize_name(name)
-    row = conn.execute(
-        "SELECT sofascore_id, status FROM sofa_entity "
-        "WHERE sport = ? AND query_key = ?",
-        (slug, key),
-    ).fetchone()
-    if row and row[1] == "verified" and row[0] is not None:
-        return int(row[0])
+    tid = verified_id(conn, slug, key, learned)
+    if tid is not None:
+        return tid
     ids = index.get(key) or set()
     return next(iter(ids)) if len(ids) == 1 else None
 
@@ -1110,6 +1112,10 @@ def forecast_records(
             kickoff.astimezone(UTC).strftime("%Y-%m-%d"),
             datetime.fromtimestamp(now_ts, UTC),
         )
+        learned = epochs.entity_map(
+            kickoff.astimezone(UTC).strftime("%Y-%m-%d"),
+            datetime.fromtimestamp(now_ts, UTC),
+        )
         teams: list[int] = []
         pin = (pinned or {}).get(str(rec["superbet_event_id"]))
         teams_source = "pinned" if pin is not None else "name"
@@ -1118,11 +1124,11 @@ def forecast_records(
         for name in () if pin is not None else (rec.get("team1"), rec.get("team2")):
             if not isinstance(name, str):
                 continue
-            tid = resolve_team(conn, slug, name, {})
+            tid = resolve_team(conn, slug, name, {}, learned)
             if tid is None:
                 if index is None:
                     index = team_name_index(conn, slug, now_ts)
-                tid = resolve_team(conn, slug, name, index)
+                tid = resolve_team(conn, slug, name, index, learned)
             if tid is not None:
                 teams.append(tid)
         ckey = (tuple(sorted(teams)), before, from_side)
@@ -1179,6 +1185,9 @@ def forecast_records(
             }
             if from_side:
                 row["player_team_rule"] = epochs.PLAYER_TEAM_RULE
+            if learned and pin is None:
+                # Teams read by name, learned rows of the entity map included.
+                row["entity_map_rule"] = epochs.ENTITY_MAP_RULE
             ident, sig = forecast_line(row), forecast_signature(row)
             if last.get(ident) == sig:
                 continue

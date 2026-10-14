@@ -263,6 +263,66 @@ def migrate(db_path: str) -> None:
         # are instant on the live file; filled once by
         # scripts/sofa/index_listing_events.py, then by every page save.
         *LISTING_INDEX_SCHEMA,
+        # The entity map (bet.sofa.entity_map, identity plan K1): a name
+        # offered with another id than the one held, the NEEDS_ALIAS queue,
+        # Superbet tournament -> Sofascore competition, and the events that
+        # already taught the map (one lesson per event).
+        """
+        CREATE TABLE IF NOT EXISTS sofa_entity_conflict (
+            sport             TEXT    NOT NULL,
+            query_key         TEXT    NOT NULL,
+            held_id           INTEGER NOT NULL,
+            held_name         TEXT,
+            held_source       TEXT,
+            offered_id        INTEGER NOT NULL,
+            offered_name      TEXT,
+            offered_source    TEXT,
+            evidence_event_id INTEGER,
+            first_seen_utc    TEXT    NOT NULL,
+            last_seen_utc     TEXT    NOT NULL,
+            seen              INTEGER NOT NULL DEFAULT 1,
+            status            TEXT    NOT NULL DEFAULT 'OPEN',
+            PRIMARY KEY (sport, query_key, offered_id)
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS sofa_entity_candidate (
+            sport             TEXT    NOT NULL,
+            query_key         TEXT    NOT NULL,
+            superbet_name     TEXT    NOT NULL,
+            candidate_id      INTEGER NOT NULL,
+            candidate_name    TEXT,
+            reason            TEXT    NOT NULL,
+            evidence_event_id INTEGER,
+            first_seen_utc    TEXT    NOT NULL,
+            last_seen_utc     TEXT    NOT NULL,
+            seen              INTEGER NOT NULL DEFAULT 1,
+            status            TEXT    NOT NULL DEFAULT 'OPEN',
+            PRIMARY KEY (sport, query_key, candidate_id)
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS sofa_tournament_map (
+            sport                  TEXT    NOT NULL,
+            superbet_tournament    TEXT    NOT NULL,
+            competition_id         INTEGER NOT NULL,
+            sofascore_tournament   TEXT,
+            superbet_tournament_id INTEGER,
+            events                 INTEGER NOT NULL DEFAULT 0,
+            evidence_event_id      INTEGER,
+            first_seen_utc         TEXT    NOT NULL,
+            last_seen_utc          TEXT    NOT NULL,
+            PRIMARY KEY (sport, superbet_tournament, competition_id)
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS sofa_entity_taught (
+            sofascore_event_id INTEGER NOT NULL,
+            sport              TEXT    NOT NULL,
+            taught_at_utc      TEXT    NOT NULL,
+            PRIMARY KEY (sofascore_event_id, sport)
+        );
+        """,
     ]
 
     # Columns added after the first schema shipped. ALTER TABLE ADD COLUMN is
@@ -284,6 +344,10 @@ def migrate(db_path: str) -> None:
         # alongside statistics and incidents because it is the same fact about
         # the same finished event and expires on the same schedule: never.
         ("sofa_event_stats", "lineups_json", "TEXT"),
+        # Entity map (K1): where a verified name came from (NULL: RESOLVE /
+        # SHADOW_SETTLE / backfill_cs2 before K1) and the event that showed it.
+        ("sofa_entity", "source", "TEXT"),
+        ("sofa_entity", "evidence_event_id", "INTEGER"),
     ]
 
     enable_wal(db_path)

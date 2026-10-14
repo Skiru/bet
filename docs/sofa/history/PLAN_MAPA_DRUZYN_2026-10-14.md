@@ -144,7 +144,11 @@ mypy --strict, ruff, wpis w rejestrze testów `check_test_registry.py`). Dodać 
 dla piłki/tenisa (RESOLVE gaps) i zawodników (`NO_ENTITY_FOUND` z `03_samples.json`).
 To jest miernik całego planu: liczba stanów niewyjaśnionych na dzień, per sport.
 
-**K1. Jedna mapa encji + uczenie (najtańsze, bez mostka).**
+**K1. Jedna mapa encji + uczenie (najtańsze, bez mostka).** *Zrobione 2026-10-14 (odczyt od
+2026-10-15 00:00Z):* `bet.sofa.entity_map`, raport
+`docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`. Zmiana względem planu:
+strona potwierdzona tylko regułą przeciwnika nie jest uczona, tylko trafia do
+kolejki kandydatów (jak `remember()` w RESOLVE). Plan pierwotny:
 - `sofa_entity` jako jedyna mapa nazwa Superbetu → id Sofascore dla wszystkich sportów,
   z polem źródła (`resolve` / `identity_both_names` / `identity_anchor` / `manual`) i
   id meczu-dowodu.

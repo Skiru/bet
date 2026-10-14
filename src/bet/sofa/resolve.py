@@ -1051,6 +1051,7 @@ class SofaResolver:
                 entity_type="team",
                 country=cand.get("country", {}).get("name"),
                 status="verified",
+                source="resolve",
             )
 
         if len(matching_events) == 1:

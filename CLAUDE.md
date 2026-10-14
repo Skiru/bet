@@ -389,6 +389,28 @@ record, `frozen_at_start`, and is not asked again) -> SPORT_CONFIDENCE reads the
 prices) and corrects it with line evidence. SHADOW / CS2 themselves stay a
 measurement of Superbet's price and feed nothing else.
 
+- **Entity map** (identity plan K1, `bet.sofa.entity_map`; reads from
+  `ENTITY_MAP_FROM_UTC` 2026-10-15 00:00Z, day and clock): after writing
+  `sport_fixtures.json` SPORT_IDENTITY teaches `sofa_entity`, once per
+  Sofascore event (`sofa_entity_taught`). A side its own name confirmed
+  (`entity_map.NAME_METHODS`, score > 82) is a `verified` row with
+  `source = identity_names` and `evidence_event_id`; a side only the
+  opponent rule confirmed is a NEEDS_ALIAS candidate
+  (`sofa_entity_candidate`), never an identity; a held name offered another
+  id is queued (`sofa_entity_conflict`) and from the switch never
+  overwritten - `cache.save_entity` (RESOLVE, SHADOW_SETTLE) follows the
+  same rule. Tournaments go to `sofa_tournament_map` (football / tennis from
+  RESOLVE, keyed `id:<superbet tournament id>`; read by nothing yet). Learned
+  rows are read by `TeamResolver`, `player_model.resolve_team` (rows by name
+  carry `entity_map_rule`) and `cache.get_entity` only from the switch; CS2
+  reads learned rows only, never backfill_cs2's own (one holds "Ninjas in
+  Pyjamas" as NIP Impact 448738 - queued). Backfill of the days on disk:
+  `backfill_entity_map.py` (2026-10-14 09:39Z: 477 new names, 0
+  contradictions, 2 CS2 conflicts, 71 candidates; backup
+  `data/backup_entity_map_20261014T093901Z/`). Measured direct gain: 32
+  not-identified events in 10 days had a side learned from an earlier game;
+  the rest of the plan (K2 day anchor) needs these ids.
+  `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
 - **History is kept current by `refresh_sport_history.py`** (bridge;
   `bet.sofa.sport_history`, run first by `refresh_line_evidence.py` every
   morning): SPORT_IDENTITY asks listings before the game, so until 2026-10-12
@@ -784,6 +806,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from <d> --to <d> [--min-matches N]   # evidence, never a bet list
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # a wrongly verified team alias; --list-suspects
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_entity_map.py [--dry-run]   # identity plan K1, once: the entity map learns from every sport_fixtures.json / RESOLVE day on disk; --dry-run rolls back; --apply backs up sofa_entity first
 ```
 
 **Refit - on a copy of the DB, installed only with the operator's go** ("Changing the pipeline" 4; `docs/sofa/CONFIG.md` section 7)

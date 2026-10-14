@@ -70,6 +70,7 @@ from typing import Any, Protocol
 
 from bet.sofa import cs2
 from bet.sofa.comparability import competition_id
+from bet.sofa.entity_map import learned_id
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.fixture_status import NOT_AS_SCHEDULED
 from bet.sofa.names import levels_compatible, normalize_name
@@ -279,6 +280,9 @@ class TeamResolver:
 
     conn: sqlite3.Connection
     now_ts: int
+    # Read the entity map's learned rows (entity_map.learned_reads for the
+    # day and clock; K1). Off: exactly the resolver before K1.
+    learned: bool = False
     _indexes: dict[str, dict[str, set[int]]] = field(default_factory=dict)
 
     def _index(self, slug: str) -> dict[str, set[int]]:
@@ -293,15 +297,22 @@ class TeamResolver:
                 self._indexes["cs2"] = cs2_team_index(self.conn)
                 self._indexes["cs2_core"] = cs2_core_index(self._indexes["cs2"])
             ids = self._indexes["cs2"].get(cs2.esports_name(name)) or set()
+            if not ids and self.learned:
+                # Only the rows SPORT_IDENTITY learned: backfill_cs2's own
+                # verified rows were never read here (one of them holds
+                # "Ninjas in Pyjamas" as NIP Impact, 448738).
+                tid = learned_id(self.conn, "cs2", cs2.esports_name(name))
+                if tid is not None:
+                    return tid
             if not ids:
                 ids = self._indexes["cs2_core"].get(cs2_core(name)) or set()
             return next(iter(ids)) if len(ids) == 1 else None
         slug = SPORTS[sport].sofascore_slug  # type: ignore[index]
         try:
-            tid = resolve_team(self.conn, slug, name, {})
+            tid = resolve_team(self.conn, slug, name, {}, self.learned)
             if tid is not None:
                 return tid
-            return resolve_team(self.conn, slug, name, self._index(slug))
+            return resolve_team(self.conn, slug, name, self._index(slug), self.learned)
         except sqlite3.Error:
             return None
 
@@ -651,6 +662,10 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         sofascore_start_utc=iso(start),
         sofascore_match=f"{(event.get('homeTeam') or {}).get('name')} - "
                         f"{(event.get('awayTeam') or {}).get('name')}",
+        # The two names apart (the entity map learns them; a name with " - "
+        # in it cannot be split back out of sofascore_match).
+        sofascore_home=(event.get("homeTeam") or {}).get("name"),
+        sofascore_away=(event.get("awayTeam") or {}).get("name"),
         sofascore_tournament=tournament.get("name"),
         **extra)
     if ev.sport == "cs2":

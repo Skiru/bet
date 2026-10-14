@@ -243,6 +243,25 @@ def resolve_board_concurrently(
         )
 
 
+def learn_tournaments(
+        db_path: str, rows: list[tuple[str, int | None, int, str | None, int]]
+) -> int | None:
+    """The day's fixtures into the entity map's tournament map (K1). A
+    write failure is reported and never fails the stage."""
+    from bet.sofa import entity_map
+    from bet.sofa.db import get_connection
+
+    try:
+        with get_connection(db_path) as conn:
+            n = entity_map.learn_resolve_tournaments(
+                conn, rows, now().isoformat().replace("+00:00", "Z"))
+            conn.commit()
+        return n
+    except Exception as exc:  # the artifact is written; the map can wait
+        print(f"TOURNAMENT_MAP_FAILED: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> int:
     # Every request underneath this call is this stage's cost (F22).
     set_stage("RESOLVE")
@@ -268,6 +287,9 @@ def main() -> int:
     )
 
     resolved_fixtures: dict[int, Fixture] = {}
+    # (sport, Superbet tournament id, competition, name, event) for the
+    # entity map's tournament map (identity plan K1); read by nothing yet.
+    tournaments: list[tuple[str, int | None, int, str | None, int]] = []
     duplicates = 0
     gaps: dict[GapReason, int] = defaultdict(int)
     breaker_open = False
@@ -328,6 +350,10 @@ def main() -> int:
 
             assert outcome.event_id is not None and outcome.fixture is not None
             sf_id = outcome.event_id
+            tournaments.append((
+                str(outcome.fixture.sport), outcome.board.tournament_id,
+                int(outcome.fixture.competition_id),
+                outcome.fixture.competition_name, sf_id))
             if sf_id in resolved_fixtures:
                 # A2/L12: two board entries pointing at one Sofascore event are
                 # one fixture with two superbet ids, not two fixtures.
@@ -384,6 +410,7 @@ def main() -> int:
         else:
             clear_incomplete(out_path)
 
+    learned_tournaments = learn_tournaments(config.db_path, tournaments)
     fuzzy = sum(1 for f in resolved_fixtures.values() if f.identity == "FUZZY")
     recall = len(resolved_fixtures) / len(fixtures) if fixtures else 0.0
     # `carried` is bound in the finally block above, which always runs first.
@@ -398,6 +425,7 @@ def main() -> int:
         "identity_fuzzy": fuzzy,
         "recall": round(recall, 4),
         "gaps": {k.value: v for k, v in gaps.items()},
+        "tournament_map_events": learned_tournaments,
     }
 
     # A slate that resolved nothing is not a quiet day, it is a broken stage.

@@ -321,15 +321,22 @@ class SofaCache:
         """
         Pobiera encję z bazy (trafienie w cache, w tym 'rejected').
         """
+        from bet.sofa.entity_map import LEARNED_SOURCES, learned_reads
+
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
                 """
-                SELECT sofascore_id, sofascore_name, entity_type, country, status
+                SELECT sofascore_id, sofascore_name, entity_type, country, status,
+                       source
                 FROM sofa_entity
                 WHERE sport = ? AND query_key = ?
                 """,
                 (sport, query_key),
             ).fetchone()
+            # A row SPORT_IDENTITY learned is read from the entity map's
+            # switch on (epochs.ENTITY_MAP_FROM_UTC); before it, as if absent.
+            if row and row["source"] in LEARNED_SOURCES and not learned_reads(None):
+                row = None
 
             if row:
                 conn.execute(
@@ -506,21 +513,36 @@ class SofaCache:
         entity_type: str,
         country: str | None,
         status: str,
+        source: str | None = None,
     ) -> None:
         """
         Zapisuje encję (np. po weryfikacji).
         status='verified' ustawiany wyłącznie po znalezieniu eventu
         potwierdzonego datą i przeciwnikiem.
         """
+        from bet.sofa import entity_map
+
         verified_at = now().isoformat() if status == "verified" else None
 
         with get_connection(self.config.db_path) as conn:
+            held = entity_map.held_row(conn, sport, query_key)
+            if (held is not None and held["status"] == "verified"
+                    and int(held["sofascore_id"]) != int(sofascore_id)):
+                # Another id for a held name: queued (entity map K1). From
+                # ENTITY_MAP_FROM_UTC the held id stays; before it the old
+                # overwrite below still happens.
+                entity_map.record_conflict(
+                    conn, sport, query_key, held, int(sofascore_id), sofascore_name,
+                    source, None, now().isoformat())
+                if entity_map.learned_reads(None):
+                    conn.commit()
+                    return
             conn.execute(
                 """
                 INSERT OR REPLACE INTO sofa_entity
                 (sport, query_key, sofascore_id, sofascore_name, entity_type,
-                 country, status, verified_at, last_used_at, hit_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                 country, status, verified_at, last_used_at, hit_count, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
                 """,
                 (
                     sport,
@@ -532,6 +554,7 @@ class SofaCache:
                     status,
                     verified_at,
                     now().isoformat(),
+                    source,
                 ),
             )
             conn.commit()

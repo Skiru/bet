@@ -1328,6 +1328,41 @@ migawki to `NOTHING_TO_DO`, kod 0, bez zapisu pliku — tak pętle
 godziny logowały FAILED). Blok `sports` w pliku podmienia liczniki tylko
 sportów, o które pytano (wcześniej pętla CS2 zerowała hokej i odwrotnie).
 
+**Mapa encji (plan tożsamości K1, od 2026-10-14; odczyt od
+`epochs.ENTITY_MAP_FROM_UTC` 2026-10-15 00:00Z, `bet.sofa.entity_map`).** Po
+zapisaniu pliku SPORT_IDENTITY uczy `sofa_entity` (osobne połączenie do
+zapisu; błąd zapisu nie psuje etapu — `ENTITY_MAP_LEARN_FAILED`, licznik
+`entity_map` w `SOFA_SUMMARY`), raz na mecz Sofascore (`sofa_entity_taught`):
+
+- strona potwierdzona **własną nazwą** (metoda `LISTING_NAMES`,
+  `LISTING_ID_AND_NAME`, `CS2_PICK_EVENT`, wynik nazwy > 82) → wiersz
+  `verified` ze `source = identity_names` i `evidence_event_id`;
+- strona potwierdzona tylko **regułą przeciwnika** (`*_ID_AND_OPPONENT`,
+  wspólne słowo) → kandydat w `sofa_entity_candidate` (kolejka NEEDS_ALIAS,
+  K4), nigdy tożsamość — ta sama zasada co `remember()` w RESOLVE;
+- nazwa trzymana z **innym id** → `sofa_entity_conflict`, nigdy nadpisanie
+  (od przełącznika także w `cache.save_entity`, czyli RESOLVE i
+  SHADOW_SETTLE; wcześniej stare nadpisanie zostaje, konflikt i tak jest
+  zapisywany);
+- turniej Superbetu → `competition_id` Sofascore w `sofa_tournament_map` (z
+  licznikiem; piłka / tenis z RESOLVE pod kluczem `id:<id turnieju
+  Superbetu>`); na razie nikt go nie czyta (K2).
+
+Wiersze `identity_names` (i przyszłe `manual`) czytają `TeamResolver`
+(SPORT_IDENTITY), `player_model.resolve_team` (wiersze przed meczem
+zawodników; wiersz po nazwie niesie `entity_map_rule`) i `cache.get_entity`
+dopiero od przełącznika — dzień >= 2026-10-15 i zegar po 00:00Z. CS2 czyta
+tylko wiersze nauczone (po dokładnej nazwie z `cs2_series`, przed jej formą
+bez afiksów); własne wiersze `backfill_cs2.py` nadal nie są czytane — jeden
+z nich trzyma „Ninjas in Pyjamas” jako NIP Impact (448738), wbrew każdemu
+przypiętemu meczowi NIP (366560): jest w kolejce konfliktów. Jednorazowe
+uzupełnienie z dni na dysku: `scripts/sofa/backfill_entity_map.py
+[--dry-run]` (2026-10-14 09:39Z: 477 nowych nazw, 485 już rozpoznawanych
+indeksem — to samo id; 0 sprzeczności; 2 konflikty CS2; 71 kandydatów; 1 470
+wierszy turniejów; kopia `sofa_entity` w
+`data/backup_entity_map_20261014T093901Z/`). Raport:
+`docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md`.
+
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
 `config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,
