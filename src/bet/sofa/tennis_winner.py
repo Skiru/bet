@@ -36,13 +36,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.market_mapper import fold
 
 MATCH_WON_FOR = "match_won_for"
 WINNER_LINE = 0.5
 # Markets priced by a rating alone, with no sample behind them: SAMPLES does
-# not build one, SHEET needs none, CONFIDENCE's sample gates do not apply.
-RATING_ONLY_MARKETS = frozenset({MATCH_WON_FOR})
+# not build one, SHEET needs none, CONFIDENCE's sample gates do not apply,
+# no pool stands in for their curve (confidence.OWN_CURVE_ONLY). The football
+# double chance (bet.sofa.football_result, epochs.FOOTBALL_RESULT_MARKETS) is
+# one too; without that switch no such rung or row exists.
+RATING_ONLY_MARKETS = frozenset({MATCH_WON_FOR, DOUBLE_CHANCE})
 # The sheet note a winner row carries (and the rule it was priced under).
 WINNER_NOTE = "TENNIS_MATCH_WINNER"
 

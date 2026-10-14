@@ -5,6 +5,7 @@ from typing import Any
 from bet.sofa import unmapped_prices
 from bet.sofa.contracts import Fixture, FixtureOffer, PricedRung
 from bet.sofa.errors import CircuitOpenError
+from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
 from bet.sofa.market_mapper import (
     classify_derived_market,
     classify_mappable_family,
@@ -80,6 +81,7 @@ def classify_odd(
     mappable_families: bool = False,
     listing_names: Sequence[str] = (),
     tennis_winner: bool = False,
+    football_result: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -106,6 +108,11 @@ def classify_odd(
     "Zwycięzca" "1" / "2" as match_won_for of the first of `listing_names`
     (bet.sofa.tennis_winner), tried before the "unmapped" label like the
     MAPPABLE families. Off, the default, changes nothing.
+
+    `football_result` (epochs.football_result_markets, a football fixture
+    only) reads the full-match "Podwójna szansa" as double_chance OVER and
+    the "Mecz" outcome it leaves out as its UNDER (bet.sofa.football_result),
+    tried last, like the winner. Off, the default, changes nothing.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -158,6 +165,10 @@ def classify_odd(
         winner = classify_winner(market_name, selection_name, listing_names)
         if winner:
             return winner, None
+    if football_result:
+        result = classify_result(market_name, selection_name)
+        if result:
+            return result, None
     return None, str(market_name)
 
 
@@ -175,6 +186,7 @@ class OfferFetcher:
         mappable_families: bool = False,
         tennis_winner: bool = False,
         record_unmapped: bool = False,
+        football_result: bool = False,
     ) -> None:
         self.client = client
         # bet.sofa.unmapped_prices: keep the price of every odd that goes into
@@ -182,6 +194,9 @@ class OfferFetcher:
         # Recording only - it changes no rung and no label.
         self.record_unmapped = record_unmapped
         self.unmapped_odds: list[dict[str, Any]] = []
+        # epochs.football_result_markets(date): read the football double
+        # chance (bet.sofa.football_result). Off is the old rule.
+        self.football_result = football_result
         # epochs.tennis_match_winner(date): read the tennis "Zwycięzca" as
         # match_won_for (bet.sofa.tennis_winner). Off is the old rule.
         self.tennis_winner = tennis_winner
@@ -258,6 +273,7 @@ class OfferFetcher:
 
                 fetched_at = now()
                 winner = self.tennis_winner and fixture.sport == "tennis"
+                result = self.football_result and fixture.sport == "football"
                 names = (
                     listing_sides(payload)
                     if self.ampersand_subjects or self.mappable_families or winner
@@ -267,7 +283,8 @@ class OfferFetcher:
 
                 for item in items:
                     classified_odd, unmapped_label = classify_odd(
-                        item, sides, self.mappable_families, names, winner
+                        item, sides, self.mappable_families, names, winner,
+                        result,
                     )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
@@ -329,6 +346,11 @@ class OfferFetcher:
             for key, entry in answer_odds.items():
                 if key not in combined_odds:
                     combined_odds[key] = entry
+            # FOOTBALL_RESULT_MARKETS: a "Mecz" price is only the UNDER of a
+            # double chance Superbet quotes - alone it is no DC offer.
+            for key in [k for k, e in combined_odds.items()
+                        if k[0] == DOUBLE_CHANCE and e["over_odds"] is None]:
+                del combined_odds[key]
 
             rungs = []
             price_collisions: list[str] = []

@@ -15,6 +15,7 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
 from bet.sofa.epochs import (
     ampersand_subjects,
+    football_result_markets,
     mappable_families,
     tennis_match_winner,
 )
@@ -123,7 +124,9 @@ def main() -> int:
                            # D2: the tennis match winner (epochs).
                            tennis_winner=tennis_match_winner(args.date),
                            # bet.sofa.unmapped_prices: recording only.
-                           record_unmapped=True)
+                           record_unmapped=True,
+                           # D1: the football double chance (epochs).
+                           football_result=football_result_markets(args.date))
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():

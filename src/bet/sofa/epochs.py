@@ -1703,3 +1703,31 @@ def football_day_anchor(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_DAY_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_DAY_ANCHOR_FROM_UTC)
+
+
+# Audit 2026-10-13 D1, double chance only (DNB waits): OFFER reads the full-
+# match "Podwójna szansa" (1X / X2 / 12) as market double_chance, the
+# selection in `subject`, its price the OVER, and the "Mecz" 1X2 outcome it
+# leaves out the UNDER (bet.sofa.football_result); SHEET prices the selection
+# from independent NB goals on the PURE rating centres (FootballForecast.
+# centre("goals_for", side), r from config/sofa_football_result.json, rows
+# marked `result_rule`); SETTLE grades it on the 90-minute score. No curve is
+# installed: CONFIDENCE reads the key's own Superbet lines, NO_LINE_EVIDENCE
+# until a bucket holds enough of them - so nothing prints at first. Adds rows,
+# so a day >= the date built at or after the moment. Off (None, until the
+# operator sets it): OFFER, SAMPLES, SHEET and CONFIDENCE byte-identical.
+# Evidence: docs/sofa/evidence/football_result_phase_2026-10-13.md (DC met
+# the registered threshold: -0.0394 log-loss vs base, -0.91 pp after the
+# training curve at p >= 0.70, n 121,589).
+FOOTBALL_RESULT_MARKETS = "result_markets_v1"
+FOOTBALL_RESULT_MARKETS_FROM_UTC: datetime | None = None
+
+
+def football_result_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the football double chance
+    (FOOTBALL_RESULT_MARKETS_FROM_UTC)?"""
+    if FOOTBALL_RESULT_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_RESULT_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_RESULT_MARKETS_FROM_UTC)

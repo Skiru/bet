@@ -699,7 +699,14 @@ refitted on the live centre (2026-10-13 20:57Z) before that replay.
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
 `BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), the coupon form dials, and the derived football joints -
+builders), `FOOTBALL_RESULT_MARKETS_FROM_UTC` (audit D1, double chance only:
+OFFER reads "Podwójna szansa" as `double_chance` with the left-out "Mecz"
+outcome as its UNDER, SHEET prices the selection from NB goals on the pure
+rating centres, r 7.586 in `config/sofa_football_result.json`, unfitted, OVER
+only, `result_rule`; no curve, so `NO_LINE_EVIDENCE` until its own lines
+settle; graded on the 90-minute score; `bet.sofa.football_result`,
+`docs/sofa/evidence/football_result_phase_2026-10-13.md`), the coupon form
+dials, and the derived football joints -
 `DERIVED_CURVES_FROM_UTC` (joints read a history curve),
 `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126;
 the 10-14 cards joint curves were fitted with it, so it must go on with

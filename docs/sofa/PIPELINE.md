@@ -358,6 +358,31 @@ plik staged poza `config/`); pomiar i próg:
 `docs/sofa/evidence/tennis_match_winner_2026-10-13.md`. Przy `None` OFFER jest
 bajt w bajt jak przed zmianą (`tests/sofa/test_audit_2026_10_13_d2.py`).
 
+**Podwójna szansa w piłce za przełącznikiem `FOOTBALL_RESULT_MARKETS_FROM_UTC`**
+(`bet.sofa.epochs`, audyt D1, znacznik `result_markets_v1`; **wyłączony**
+(`None`) do decyzji operatora; DNB czeka). Włączony, OFFER czyta pełnomeczową
+„Podwójna szansa” (wybory „1X” / „X2” / „12”; nie połowy, nie kombinacje
+„Podwójna szansa & …”) jako rynek `double_chance`: wybór w `subject`, linia
+0,5, kurs DC = OVER, a kurs wyniku z „Mecz”, który ten wybór wyklucza
+(`2` / `1` / `X`), = UNDER – marża drabiny działa jak wszędzie. Bez „Mecz”
+szczebel jest jednostronny (nie drukuje się bez krzywej), sam „Mecz” bez DC
+nie tworzy szczebla. SAMPLES nie buduje próbki; SHEET liczy p wyboru z
+niezależnych NB goli obu stron na **czystym ratingu**
+(`FootballForecast.centre("goals_for", side)`, `football_result.result_probs`),
+r = 7,586 z `config/sofa_football_result.json` (zmierzone, nie z fitu – notka
+`UNFITTED_CONSTANTS: FOOTBALL_RESULT_NB_R`); tylko OVER (UNDER to pojedynczy
+wynik 1X2, który progu nie spełnił), wiersz ma `result_rule`, `sample_size` 0,
+`bar_reason` `rating_only`; brak środka ratingu = brak wiersza (`NOT_RATED`),
+para `UNLINKED` dostaje `CROSS_LEAGUE_UNLINKED` jak każdy wiersz piłki.
+Krzywej nie ma: CONFIDENCE czyta tylko własne linie Superbetu klucza
+`double_chance|OVER` (nigdy pulę, `confidence.OWN_CURVE_ONLY`), więc
+`NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w kubełku – na
+początku nic się nie drukuje. SETTLE rozlicza wybór po wyniku z 90 minut
+(`metrics.double_chance_value`, `normaltime` po dogrywce i karnych, jak gole).
+Plan i pomiar: `docs/sofa/evidence/football_result_phase_2026-10-13.md`.
+Przy `None` OFFER i SHEET są bajt w bajt jak przed zmianą
+(`tests/sofa/test_football_double_chance.py`).
+
 **Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
 `snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
 nazw (`report_market_coverage.py --date <d> --sports-only`, plan nocy

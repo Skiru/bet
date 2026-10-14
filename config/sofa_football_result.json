@@ -1,0 +1,6 @@
+{
+  "_doc": "NB dispersion r of the football result model (bet.sofa.football_result: double chance from independent NB goals on the pure rating centres). Read by SHEET only while epochs.FOOTBALL_RESULT_MARKETS_FROM_UTC is on. MEASURED, not written by a fit script: every row names FOOTBALL_RESULT_NB_R in UNFITTED_CONSTANTS. Not in sheet_config.SHEET_CONFIG_FILES yet (adding it moves every row's config_sha) - add it between days, with the switch.",
+  "nb_r": 7.586,
+  "status": "MEASURED",
+  "source": "scripts/sofa/measure_football_result_phase.py 2026-10-13, variant A (pure rating, no season phase), train 2024-10-01..2026-06-08; docs/sofa/evidence/football_result_phase_2026-10-13.md"
+}

@@ -1,6 +1,8 @@
 from typing import Any
 
 from bet.sofa.contracts import GapReason
+from bet.sofa.football_result import SELECTIONS as DC_SELECTIONS
+from bet.sofa.football_result import selection_holds
 from bet.sofa.tennis_score import match_tiebreak_sets, set_games
 
 # Finished after extra time (110 = AET) or penalties (120 = AP). 366 such
@@ -98,6 +100,23 @@ def regulation_score(event: dict[str, Any]) -> tuple[float, float] | None:
     if home is None or away is None:
         return None
     return float(home), float(away)
+
+
+def double_chance_value(selection: str, event: dict[str, Any]) -> float | GapReason:
+    """1.0 when the football double chance `selection` ("1X" / "X2" / "12")
+    won, else 0.0 - graded on the 90-minute score (epochs.
+    FOOTBALL_RESULT_MARKETS, bet.sofa.football_result). Superbet settles a
+    result market on regular time with added time: after extra time or a
+    shootout (codes 110 / 120) `regulation_score` reads `normaltime`, as the
+    goals markets do. SETTLE grades it at line 0.5 (OVER = the selection)."""
+    if selection not in DC_SELECTIONS:
+        return GapReason.STAT_KEY_ABSENT
+    if goal_score_inconsistent(event):
+        return GapReason.INTERNAL_INCONSISTENT
+    score = regulation_score(event)
+    if score is None:
+        return GapReason.STAT_KEY_ABSENT
+    return 1.0 if selection_holds(selection, *score) else 0.0
 
 
 FOOTBALL_METRICS = {

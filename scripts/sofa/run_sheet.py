@@ -76,6 +76,15 @@ from bet.sofa.football_rating import (
 )
 from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.football_rating import replay as replay_football
+from bet.sofa.football_result import (
+    DOUBLE_CHANCE,
+    LEFT_OUT,
+    ResultConfig,
+    dc_note,
+    result_probs,
+)
+from bet.sofa.football_result import UNFITTED_CONSTANTS as RESULT_UNFITTED
+from bet.sofa.football_result import load_config as load_result_config
 from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.market_mapper import (
@@ -1229,6 +1238,94 @@ def winner_rows(
     return rows, skipped
 
 
+def double_chance_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    football: FootballForecast | None,
+    result_config: ResultConfig,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """Audit D1 (epochs.FOOTBALL_RESULT_MARKETS): the row of one football
+    double chance rung, priced from independent NB goals on the PURE rating
+    centres (bet.sofa.football_result) - no sample, no price.
+
+    Only the OVER (the DC selection) is priced: its UNDER is a single 1X2
+    outcome, which did not meet the registered threshold. An UNLINKED
+    fixture keeps its row with CROSS_LEAGUE_UNLINKED (CONFIDENCE refuses it,
+    as every football row); no goals centre for either side - no row."""
+    if rung.subject not in LEFT_OUT:
+        return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                     f"double chance selection {rung.subject!r} unknown")]
+    home = football.centre("goals_for", "side_a") if football else None
+    away = football.centre("goals_for", "side_b") if football else None
+    if football is None or home is None or away is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "no football rating goals centre for one of the sides "
+                     "(thin team, friendly, no league rate)")]
+    lh, la = home[0], away[0]
+    try:
+        probs = result_probs(lh, la, result_config.nb_r)
+    except ValueError as exc:
+        return [], [(rung, GapReason.NOT_RATED, str(exc))]
+    p = probs[rung.subject]
+    if outside_model_resolution(p):
+        return [], [(rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                     f"p={p:.4g} for OVER is outside [{P_FLOOR}, {P_CEILING}]")]
+    offered = rung.over_odds
+    m_p = market_ps.get((rung.market, rung.subject, rung.line, "OVER"))
+    p_out = round(p, 4)
+    m_p_out = round(m_p, 4) if m_p is not None else None
+    req = round(get_required_odds(p_out, "LEAN"), 4)
+    surplus = round(offered - req, 4) if offered is not None else None
+    verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
+        "NO_PRICE" if offered is None
+        else "LEAN" if surplus is not None and surplus > 0 else "BELOW_BAR")
+    notes = [dc_note(rung.subject, p, lh, la, result_config.nb_r)]
+    if football.fixture_link() == UNLINKED:
+        notes.append(
+            f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+            "and their leagues' strengths are unmeasured - the rating "
+            "describes other leagues")
+    if verdict == "LEAN":
+        notes.append("RATING_ONLY: no sample and no ladder check - "
+                     "VALUE withheld (06_coupon.json is not the coupon)")
+    notes.append("UNFITTED_CONSTANTS: "
+                 f"{', '.join(RESULT_UNFITTED + RATING_UNFITTED)}")
+    row = SheetRow(
+        sofascore_event_id=fixture.sofascore_event_id,
+        sport=fixture.sport,
+        market=rung.market,
+        subject=rung.subject,
+        line=rung.line,
+        direction="OVER",
+        sample_size=0,
+        sample_mean=0.0,
+        sample_sd=0.0,
+        centre=p_out,
+        p_central=p_out,
+        market_p=m_p_out,
+        ladder_centre=None,
+        ladder_sigma=None,
+        p_bar=p_out,
+        bar_reason="rating_only",
+        calibration_correction=0.0,
+        sample_newest_days=None,
+        sample_frequency=None,
+        required_odds=req,
+        offered_odds=offered,
+        edge=round(p_out - m_p_out, 4) if m_p_out is not None else None,
+        surplus=surplus,
+        verdict=verdict,
+        notes=notes,
+        epoch=STATS_ONLY if stats_only else None,
+        forecast_p=p_out if stats_only else None,
+        forecast_source="football_rating" if stats_only else None,
+        result_rule=epochs.FOOTBALL_RESULT_MARKETS,
+    )
+    return [row], []
+
+
 # Fields a stats-only sheet row carries; an old-rule row is written without
 # them, so a sheet built before 2026-10-05 is byte-for-byte what it was.
 STATS_ONLY_ROW_FIELDS = ("epoch", "forecast_p", "forecast_source")
@@ -1280,7 +1377,7 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
         out.pop("corrected_sample", None)
     # and the audit 2026-10-13 switches' markers while off, and the config
     # fingerprint of a row priced outside main (tests, replays)
-    for key in AUDIT_MARKER_FIELDS + ("config_sha",):
+    for key in AUDIT_MARKER_FIELDS + ("result_rule", "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
     return out
@@ -1310,6 +1407,7 @@ def process_fixture(
     set_rating_prices: bool = False,
     sample_corrector: SampleCorrector | None = None,
     tennis_winner_on: bool = False,
+    result_config: ResultConfig | None = None,
     sheet_margins_on: bool = False,
     season_phase: SeasonPhaseTable | None = None,
     season_phase_label: str | None = None,
@@ -1395,6 +1493,15 @@ def process_fixture(
                     fixture, rung, rating, market_ps, stats_only)
                 rows.extend(w_rows)
                 skipped.extend(w_skipped)
+            # D1: the football double chance (`result_config` is None while
+            # epochs.FOOTBALL_RESULT_MARKETS is off - OFFER maps no such rung)
+            if (result_config is not None and fixture.sport == "football"
+                    and rung.market == DOUBLE_CHANCE):
+                dc_rows, dc_skipped = double_chance_rows(
+                    fixture, rung, football, result_config, market_ps,
+                    stats_only)
+                rows.extend(dc_rows)
+                skipped.extend(dc_skipped)
             continue
         # A derived market is about both sides at once and has no marginal
         # sample to be priced against. derived.py handles it below; falling
@@ -2344,6 +2451,11 @@ def _main() -> int:
     # Audit 2026-10-13 D2: the tennis match winner from the rating (off: no
     # such rung reaches SHEET at all - OFFER does not map it).
     tennis_winner_on = stats_only and epochs.tennis_match_winner(args.date)
+    # Audit D1: the football double chance from the pure rating (off: None,
+    # no such rung reaches SHEET; a missing / malformed config raises, rc 2)
+    result_config = (load_result_config()
+                     if stats_only and epochs.football_result_markets(args.date)
+                     else None)
     # Audit 2026-10-13 C1 / B14 (None = byte for byte; a missing / malformed
     # config raises, rc 2): the season-phase term of the goals centre, the
     # rating's weight per market.
@@ -2415,6 +2527,7 @@ def _main() -> int:
                 set_rating_prices=set_rating_prices,
                 sample_corrector=sample_corrector,
                 tennis_winner_on=tennis_winner_on,
+                result_config=result_config,
                 season_phase=(season_phase_table if season_index is not None
                               else None),
                 season_phase_label=(

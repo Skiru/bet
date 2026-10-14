@@ -356,6 +356,9 @@ class SheetRow(BaseModel):
     season_phase_rule: str | None = None
     rating_weight_rule: str | None = None
     tennis_set_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
+    # double_chance row (bet.sofa.football_result); absent when off.
+    result_rule: str | None = None
     # bet.sofa.sheet_config.fingerprint(): the SHEET-read config files
     # (constants, baselines, reliability, rating, dispersion, ...) the row was
     # priced on. rebuild_plan names a sheet built on other constants (a refit

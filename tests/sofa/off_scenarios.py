@@ -25,7 +25,9 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # 2026-10-14: the audit switches' markers, the config fingerprint
                 "game_state_rule", "rated_scope_rule", "venue_prior_rule",
                 "season_phase_rule", "rating_weight_rule", "tennis_set_rule",
-                "config_sha")
+                "config_sha",
+                # audit D1: the football double chance (FOOTBALL_RESULT_MARKETS)
+                "result_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

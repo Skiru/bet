@@ -62,6 +62,7 @@ from typing import Any
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
+from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
@@ -77,6 +78,7 @@ from bet.sofa.tennis_score import match_tiebreak_sets
 from scripts.sofa.calibrate_from_cache import market_name, match_values
 from scripts.sofa.run_settle import (
     _settle_derived,
+    _settle_double_chance,
     _settle_player,
     _subject_is_home,
     load_player_sample_names,
@@ -166,6 +168,9 @@ def grade_live(
         # sided like run_settle: the priced side as fallback (review round 3)
         graded = _settle_derived(row, row["sport"], flat, incidents, event, fixture)
         return graded
+    if row["market"] == DOUBLE_CHANCE:
+        # D1: the selection, not a side - graded like run_settle
+        return _settle_double_chance(row, event)
     if fixture is None:
         return "NO_FIXTURE"
     is_home = _subject_is_home(row["subject"] or "", fixture)

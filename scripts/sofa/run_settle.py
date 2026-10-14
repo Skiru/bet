@@ -48,9 +48,14 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
 from bet.sofa.errors import CircuitOpenError, ProviderError
+from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_keys
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
-from bet.sofa.metrics import extract_flat_statistics, extract_metric
+from bet.sofa.metrics import (
+    double_chance_value,
+    extract_flat_statistics,
+    extract_metric,
+)
 from bet.sofa.names import normalize_name
 from bet.sofa.players import (
     PLAYER_MATCH_MARGIN,
@@ -297,6 +302,18 @@ def _settled(
         offered_odds=row["offered_odds"],
         verdict=row["verdict"],
     )
+
+
+def _settle_double_chance(
+    row: dict[str, Any], event: dict[str, Any]
+) -> tuple[float, str] | str:
+    """(actual, outcome) of a football double chance row, or why not (D1,
+    epochs.FOOTBALL_RESULT_MARKETS). The subject is the selection, not a
+    side; graded on the 90-minute score (metrics.double_chance_value)."""
+    value = double_chance_value(row["subject"] or "", event)
+    if isinstance(value, GapReason):
+        return f"{row['market']}:{value.value}"
+    return float(value), settle_value(float(value), row["line"], row["direction"])
 
 
 def _settle_derived(
@@ -1307,6 +1324,20 @@ def main() -> int:
                         continue
                     value, outcome = graded
                     emit(row, event_id, competition_id, value, outcome)
+                    continue
+
+                if row["market"] == DOUBLE_CHANCE:
+                    # D1 (epochs.FOOTBALL_RESULT_MARKETS): the subject is the
+                    # selection, not a side; graded on the 90-minute score.
+                    graded = _settle_double_chance(row, event)
+                    if isinstance(graded, str):
+                        skips.add(event_id, graded)
+                        continue
+                    value, outcome = graded
+                    if outcome == "PUSH":
+                        skips.add(event_id, "PUSH")
+                        continue
+                    emit(row, event_id, competition_id, float(value), outcome)
                     continue
 
                 is_home = _subject_is_home(row["subject"] or "", fixture)
