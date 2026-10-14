@@ -135,3 +135,36 @@ spoza pola FAIL n 156; głową i „celne” nadal bez prognoz >= 0,70. Grupa
 `shot_detail/` w katalogu instalacji to teraz ta wersja (8 kubełków prawej nogi);
 pierwsza w `data/refit_new_markets_2026-10-15_superseded/shot_detail_v1/`.
 Instalator na sucho: nadal 11 kluczy.
+
+## Plan nocy (aktualny, 2026-10-14 19:00Z)
+
+Cel: od budowy 10-15 kupon czyta wszystkie nowe rynki, które przeszły bramkę
+(jednostronną - decyzja operatora 18:55Z), na czystym dniu.
+
+**Do północy (agenci, w tle):**
+- A. bramka jednostronna, ponowna ocena 5 grup -> lista kluczy instalatora;
+- B. piłka 1X2 + DNB z krzywą znającą fazę sezonu; przełącznik
+  `FOOTBALL_RESULT_1X2_DNB_FROM_UTC` = 10-15 00:00Z tylko jeśli klucz przejdzie;
+- C. CS2 rundy serii; `CS2_SERIES_ROUNDS_FROM_UTC` = 10-15 00:00Z tylko jeśli przejdzie;
+- pobieranie tenisa point-by-point (reszta roku, nadzorca kolejki wznawia po
+  odmowie); po nim ponowny pomiar „po N gemach” - podpięcie tylko jeśli
+  przejdzie (osobny etap, raczej nie na 10-15).
+- Każdy wynik: przegląd, bramki (`pytest tests/sofa`, ruff, mypy), commit na main.
+
+**N1 (00:10Z, przypomnienie w sesji):** wszystkie commity agentów na main,
+bramki zielone, `install_new_market_curves.py --dry-run` = oczekiwana lista.
+**N2:** `install_new_market_curves.py --dir data/refit_new_markets_2026-10-15 --confirm`
+(kopia `config/backup_2026-10-15_new_markets/`, testy, przywrócenie przy błędzie).
+**N3:** epoka ledgera „od 10-15” w `audit_ledger.EPOCH_GROUPS` (instalacja krzywych
+= nowa epoka), test.
+**N4:** E2E na kopii 10-14 (scratch, `SOFA_NOW` tylko w skrypcie scratch): CONFIDENCE
++ SPORT_CONFIDENCE + COUPON_ASSEMBLY z nowymi krzywymi - ile nóg nowych rynków
+się drukuje, przy jakim kursie, ile z pewnością poniżej 1/kurs, czy `first_goal`
+przechodzi jako singiel jednostronny; md5 prawdziwych plików przed i po.
+**N5:** CLAUDE.md (sekcja Confidence: nowe krzywe i bramka jednostronna;
+Comparability: „od 10-15”), raport `RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
+**Rano (dzień operatora, `/sofa-day`):** rozliczenie 10-14 - nowe rynki muszą się
+rozliczyć (SETTLE pobiera shotmapy / incydenty; SHADOW_SETTLE sety i DC sportów;
+sprawdzić `07_settle_skips.json` pod kątem nowych rynków); ledger;
+`refresh_line_evidence.py` (pierwsze linie nowych kluczy); budowa 10-15;
+weryfikacja: liczba nóg nowych rynków na kuponie, sofa-verifier.
