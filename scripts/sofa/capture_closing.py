@@ -40,6 +40,7 @@ from bet.sofa.epochs import (
     ampersand_subjects,
     football_result_markets,
     mappable_families,
+    shot_detail_markets,
     tennis_match_winner,
 )
 from bet.sofa.locked_print import kickoff_clocks
@@ -248,7 +249,8 @@ def main() -> int:
         ampersand_subjects=ampersand_subjects(args.date),
         mappable_families=mappable_families(args.date),
         tennis_winner=tennis_match_winner(args.date),
-        football_result=football_result_markets(args.date))
+        football_result=football_result_markets(args.date),
+        shot_detail=shot_detail_markets(args.date))
     try:
         return loop(day_dir, fetcher, repeat=args.loop)
     finally:

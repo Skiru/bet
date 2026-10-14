@@ -705,7 +705,14 @@ outcome as its UNDER, SHEET prices the selection from NB goals on the pure
 rating centres, r 7.586 in `config/sofa_football_result.json`, unfitted, OVER
 only, `result_rule`; no curve, so `NO_LINE_EVIDENCE` until its own lines
 settle; graded on the 90-minute score; `bet.sofa.football_result`,
-`docs/sofa/evidence/football_result_phase_2026-10-13.md`), the coupon form
+`docs/sofa/evidence/football_result_phase_2026-10-13.md`),
+`SHOT_DETAIL_MARKETS_FROM_UTC` (footballer shots outside the box / headed /
+left / right foot, all and on target: OFFER reads the eight names as player
+markets, SAMPLES and SETTLE count them from `/shotmap` only where it gives the
+player his lineups `totalShots`, SHEET prices `shot_detail.forecast` from
+`config/sofa_shot_detail.json` - not installed, so `NO_SHOT_DETAIL_FIT` -
+rows `shot_detail_rule`; no curve, `NO_LINE_EVIDENCE`;
+`docs/sofa/evidence/shot_detail_2026-10-14.md`), the coupon form
 dials, and the derived football joints -
 `DERIVED_CURVES_FROM_UTC` (joints read a history curve),
 `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126;

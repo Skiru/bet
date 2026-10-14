@@ -13,6 +13,7 @@ from bet.sofa.market_mapper import (
     classify_player_market,
     is_ladder_answer,
 )
+from bet.sofa.shot_detail import MARKET_NAMES as SHOT_DETAIL_NAMES
 from bet.sofa.superbet import (
     event_started,
     odds_items,
@@ -82,6 +83,7 @@ def classify_odd(
     listing_names: Sequence[str] = (),
     tennis_winner: bool = False,
     football_result: bool = False,
+    shot_detail: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -113,6 +115,11 @@ def classify_odd(
     only) reads the full-match "Podwójna szansa" as double_chance OVER and
     the "Mecz" outcome it leaves out as its UNDER (bet.sofa.football_result),
     tried last, like the winner. Off, the default, changes nothing.
+
+    `shot_detail` (epochs.shot_detail_markets, a football fixture only) reads
+    the eight footballer shot-detail names (shot_detail.MARKET_NAMES) as
+    player markets, parsed exactly as PLAYER_MARKET_NAMES are. Off, the
+    default, changes nothing.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -152,7 +159,10 @@ def classify_odd(
     # F54. Player markets are the same shape as the derived ones - one market
     # name, the subject and the line both on the selection - and are tried
     # last so nothing above changes behaviour.
-    player = classify_player_market(market_name, selection_name, line_text)
+    player = classify_player_market(
+        market_name, selection_name, line_text,
+        SHOT_DETAIL_NAMES if shot_detail else None,
+    )
     if player:
         return player, None
     if mappable_families:
@@ -187,8 +197,12 @@ class OfferFetcher:
         tennis_winner: bool = False,
         record_unmapped: bool = False,
         football_result: bool = False,
+        shot_detail: bool = False,
     ) -> None:
         self.client = client
+        # epochs.shot_detail_markets(date): read the footballer shot-detail
+        # markets (bet.sofa.shot_detail). Off is the old rule.
+        self.shot_detail = shot_detail
         # bet.sofa.unmapped_prices: keep the price of every odd that goes into
         # unmapped_markets, so a market modelled later has a price history.
         # Recording only - it changes no rung and no label.
@@ -274,6 +288,7 @@ class OfferFetcher:
                 fetched_at = now()
                 winner = self.tennis_winner and fixture.sport == "tennis"
                 result = self.football_result and fixture.sport == "football"
+                shots = self.shot_detail and fixture.sport == "football"
                 names = (
                     listing_sides(payload)
                     if self.ampersand_subjects or self.mappable_families or winner
@@ -284,7 +299,7 @@ class OfferFetcher:
                 for item in items:
                     classified_odd, unmapped_label = classify_odd(
                         item, sides, self.mappable_families, names, winner,
-                        result,
+                        result, shots,
                     )
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)

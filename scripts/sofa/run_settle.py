@@ -71,7 +71,7 @@ from bet.sofa.players import (
     started,
 )
 from bet.sofa.resolve import NAME_MATCH_THRESHOLD, name_score
-from bet.sofa.samples import fetch_lineups
+from bet.sofa.samples import fetch_lineups, fetch_shotmap
 from bet.sofa.settle import (
     AWARDED,
     CANCELED,
@@ -91,6 +91,7 @@ from bet.sofa.settle import (
     settle_completed,
 )
 from bet.sofa.settle import settle as settle_value
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.stage import current_stage, set_stage
 from bet.sofa.timeutil import now
 
@@ -1267,8 +1268,14 @@ def main() -> int:
             squads: dict[bool, dict[str, Any] | None] | None = None
             lineups_failed = False
             if any(is_player_metric(r["market"]) for r in event_rows):
+                # epochs.SHOT_DETAIL_MARKETS: a shot-detail row is graded from
+                # the match's shotmap (players.squad_statistics); asked only
+                # when the sheet carries one, so an off day asks nothing more.
+                shotmap: dict[str, Any] | None = None
                 try:
                     lineups = fetch_lineups(client, cache, event)
+                    if any(r["market"] in SHOT_DETAIL_METRICS for r in event_rows):
+                        shotmap = fetch_shotmap(client, cache, event) or {}
                 except CircuitOpenError:
                     breaker_open = True
                     lineups_failed = True
@@ -1281,10 +1288,12 @@ def main() -> int:
                 else:
                     squads = {
                         True: squad_statistics(
-                            lineups, is_home=True, statistics=statistics
+                            lineups, is_home=True, statistics=statistics,
+                            shotmap=shotmap,
                         ),
                         False: squad_statistics(
-                            lineups, is_home=False, statistics=statistics
+                            lineups, is_home=False, statistics=statistics,
+                            shotmap=shotmap,
                         ),
                     }
 

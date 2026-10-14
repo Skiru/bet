@@ -17,6 +17,7 @@ from bet.sofa.epochs import (
     ampersand_subjects,
     football_result_markets,
     mappable_families,
+    shot_detail_markets,
     tennis_match_winner,
 )
 from bet.sofa.locked_print import starts_after
@@ -126,7 +127,9 @@ def main() -> int:
                            # bet.sofa.unmapped_prices: recording only.
                            record_unmapped=True,
                            # D1: the football double chance (epochs).
-                           football_result=football_result_markets(args.date))
+                           football_result=football_result_markets(args.date),
+                           # the footballer shot-detail markets (epochs).
+                           shot_detail=shot_detail_markets(args.date))
 
     fixtures_path = Path(config.runs_dir) / args.date / "02_fixtures.json"
     if not fixtures_path.exists():

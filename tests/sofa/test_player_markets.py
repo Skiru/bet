@@ -249,6 +249,15 @@ def test_a_player_and_his_team_are_one_mechanism() -> None:
         "player_fouls_for": "fouls_for",
         "player_tackles_for": "tackles_for",
         "player_interceptions_for": "tackles_for",
+        # bet.sofa.shot_detail: a footballer's shots by place / body part
+        "player_shots_outside_box_for": "shots_for",
+        "player_sot_outside_box_for": "shots_for",
+        "player_headed_shots_for": "shots_for",
+        "player_sot_headed_for": "shots_for",
+        "player_left_foot_shots_for": "shots_for",
+        "player_sot_left_foot_for": "shots_for",
+        "player_right_foot_shots_for": "shots_for",
+        "player_sot_right_foot_for": "shots_for",
     }
     assert set(team_metric) == set(PLAYER_METRICS)
     for metric, team in team_metric.items():
@@ -1046,6 +1055,15 @@ def test_every_player_metric_shares_its_teams_quantity_family() -> None:
         "player_offsides_for": "offsides_for",
         "player_tackles_for": "tackles_for",
         "player_interceptions_for": "tackles_for",
+        # bet.sofa.shot_detail: a footballer's shots by place / body part
+        "player_shots_outside_box_for": "shots_for",
+        "player_sot_outside_box_for": "shots_for",
+        "player_headed_shots_for": "shots_for",
+        "player_sot_headed_for": "shots_for",
+        "player_left_foot_shots_for": "shots_for",
+        "player_sot_left_foot_for": "shots_for",
+        "player_right_foot_shots_for": "shots_for",
+        "player_sot_right_foot_for": "shots_for",
     }
     assert set(team) == set(PLAYER_METRICS)
     for metric, team_metric in team.items():

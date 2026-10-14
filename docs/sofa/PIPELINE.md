@@ -383,6 +383,31 @@ Plan i pomiar: `docs/sofa/evidence/football_result_phase_2026-10-13.md`.
 Przy `None` OFFER i SHEET są bajt w bajt jak przed zmianą
 (`tests/sofa/test_football_double_chance.py`).
 
+**Strzały zawodnika według miejsca i części ciała za przełącznikiem
+`SHOT_DETAIL_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
+`shot_detail_v1`; **wyłączony** (`None`) do decyzji operatora). Włączony,
+OFFER czyta osiem rynków „Zawodnik - liczba (celnych) strzałów spoza pola
+karnego / głową / lewą nogą / prawą nogą” (`shot_detail.MARKET_NAMES`) tak
+samo jak pozostałe rynki zawodnika (`market_mapper.classify_player_market`,
+ten sam odczyt zawodnika, linii i kierunku). SAMPLES pobiera do każdego meczu
+próbki obok `/lineups` także `/shotmap` (`samples.fetch_shotmap`, cache
+`sofa_event_extra`), a `players.squad_statistics(..., shotmap=...)` wpisuje
+liczby tylko wtedy, gdy strzały zawodnika w shotmapie równają się jego
+`totalShots` z `/lineups` – inaczej (brak shotmapy, niezgodność) to luka
+`STAT_KEY_ABSENT`, nigdy zero; próbka zapisuje też pozycję zawodnika z
+najnowszego meczu (`position`). SHEET liczy p z `shot_detail.forecast`
+(ostatnie starty skurczone do średniej pozycji, Poisson) na pliku
+`config/sofa_shot_detail.json`, którego jeszcze nie ma (instaluje go
+operator; fit staged w `data/refit_shot_detail_2026-10-14/`) – bez pliku
+wiersza nie ma (`NO_SHOT_DETAIL_FIT`); wiersz ma `shot_detail_rule`,
+`bar_reason` `shot_detail`. Krzywej nie ma, więc CONFIDENCE czyta tylko
+własne linie Superbetu klucza: `NO_LINE_EVIDENCE` – na początku nic się nie
+drukuje. SETTLE rozlicza z shotmapy meczu (starter bez strzału w shotmapie
+z `totalShots` 0 to 0, niezgodność to luka). Pomiar:
+`docs/sofa/evidence/shot_detail_2026-10-14.md`. Przy `None` OFFER, SAMPLES,
+SHEET i SETTLE są bajt w bajt jak przed zmianą
+(`tests/sofa/test_shot_detail_markets.py`).
+
 **Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
 `snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
 nazw (`report_market_coverage.py --date <d> --sports-only`, plan nocy

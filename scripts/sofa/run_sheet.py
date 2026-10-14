@@ -7,7 +7,7 @@ import re
 import statistics
 import sys
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
@@ -20,7 +20,7 @@ from bet.sofa import epochs, sheet_config
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
-from bet.sofa.config import SofaConfig, config_path
+from bet.sofa.config import SofaConfig, config_dir, config_path
 from bet.sofa.contracts import (
     Fixture,
     FixtureOffer,
@@ -117,6 +117,13 @@ from bet.sofa.season_phase import (
 )
 from bet.sofa.season_phase import apply as apply_season_phase
 from bet.sofa.season_phase import load_table as load_season_phase_table
+from bet.sofa.shot_detail import FIT_FILE as SHOT_DETAIL_FIT_FILE
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
+from bet.sofa.shot_detail import MIN_STARTS as SHOT_DETAIL_MIN_STARTS
+from bet.sofa.shot_detail import WINDOW as SHOT_DETAIL_WINDOW
+from bet.sofa.shot_detail import forecast as shot_detail_forecast
+from bet.sofa.shot_detail import load_fit as load_shot_detail_fit
+from bet.sofa.shot_detail import shrunk_mean as shot_detail_shrunk_mean
 from bet.sofa.stage import set_stage
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
@@ -1326,6 +1333,129 @@ def double_chance_rows(
     return [row], []
 
 
+def shot_detail_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    samples: FixtureSamples,
+    fitted: Mapping[str, Any] | None,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.SHOT_DETAIL_MARKETS: the two rows of one footballer shot-detail
+    rung, priced by shot_detail.forecast - the player's last starts (newest
+    last) shrunk to his position's mean, read through a Poisson - from the
+    operator-installed config/sofa_shot_detail.json (`fitted`; None: not
+    installed, no row, NO_SHOT_DETAIL_FIT). No price enters p_central; p_bar
+    = p_central and VALUE is withheld (no ladder check)."""
+    player_sample = samples.players.get(player_sample_key(rung.market, rung.subject))
+    if player_sample is None:
+        return [], [(rung, GapReason.NO_ENTITY_FOUND,
+                     f"player {rung.subject!r} has no sample for {rung.market}")]
+    if fitted is None:
+        return [], [(rung, GapReason.NO_SHOT_DETAIL_FIT,
+                     f"NO_SHOT_DETAIL_FIT: config/{SHOT_DETAIL_FIT_FILE} is not "
+                     "installed (scripts/sofa/fit_shot_detail.py; the operator's "
+                     "install)")]
+    spec = (fitted.get("metrics") or {}).get(rung.market)
+    if spec is None:
+        return [], [(rung, GapReason.NO_SHOT_DETAIL_FIT,
+                     f"NO_SHOT_DETAIL_FIT: config/{SHOT_DETAIL_FIT_FILE} has no "
+                     f"{rung.market}")]
+    obs = player_sample.observations  # newest first
+    values = [o.value for o in reversed(obs)]
+    p_over = shot_detail_forecast(values, player_sample.position, rung.market,
+                                  rung.line, fitted)
+    if p_over is None:
+        return [], [(rung, GapReason.THIN_SAMPLE,
+                     f"{len(values)} observations < MIN_STARTS="
+                     f"{SHOT_DETAIL_MIN_STARTS} (or no pool for position "
+                     f"{player_sample.position!r})")]
+    pools = spec.get("pool") or {}
+    pool = float(pools.get(player_sample.position or "", spec.get("pool_all")))
+    window = values[-SHOT_DETAIL_WINDOW:]
+    centre = shot_detail_shrunk_mean(window, pool, float(spec["k"]))
+    n = len(values)
+    mean = statistics.mean(values)
+    sample_sd = statistics.stdev(values) if n > 1 else 0.0
+    newest_days = stalest_side_newest_days([], now(), obs)
+    note = (f"SHOT_DETAIL: mean {centre:.3f} = last {len(window)} starts "
+            f"{statistics.mean(window):.3f} shrunk to position "
+            f"{player_sample.position or 'all'} {pool:.3f} with k={spec['k']} "
+            f"(config/{SHOT_DETAIL_FIT_FILE}), Poisson; epochs.SHOT_DETAIL_MARKETS")
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    for direction in ("OVER", "UNDER"):
+        p = p_over if direction == "OVER" else 1.0 - p_over
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        offered = rung.over_odds if direction == "OVER" else rung.under_odds
+        m_p = market_ps.get((rung.market, rung.subject, rung.line, direction))
+        p_out = round(p, 4)
+        m_p_out = round(m_p, 4) if m_p is not None else None
+        req = round(get_required_odds(p_out, "LEAN"), 4)
+        surplus = round(offered - req, 4) if offered is not None else None
+        verdict: Literal["VALUE", "LEAN", "BELOW_BAR", "NO_PRICE", "BLOCKED"] = (
+            "NO_PRICE" if offered is None
+            else "LEAN" if surplus is not None and surplus > 0 else "BELOW_BAR")
+        notes = [note]
+        if player_sample.appearances == "starts":
+            notes.append("PLAYER_STARTS_ONLY: the sample is his starts - "
+                         "Superbet voids a player market unless he starts")
+        if player_sample.match_rule == "tokens":
+            notes.append(f"PLAYER_NAME_TOKENS: Superbet {rung.subject!r} read as "
+                         f"Sofascore {player_sample.matched_name!r} by whole "
+                         "name tokens (players.match_player_by_tokens)")
+        if player_sample.match_rule == "surname":
+            notes.append(f"PLAYER_NAME_SURNAME: Superbet {rung.subject!r} read as "
+                         f"Sofascore {player_sample.matched_name!r} by surname "
+                         "and first-name prefix (players.match_player_by_surname)")
+        if verdict == "LEAN":
+            notes.append("SHOT_DETAIL_ONLY: no ladder check - VALUE withheld "
+                         "(06_coupon.json is not the coupon)")
+        rows.append(SheetRow(
+            sofascore_event_id=fixture.sofascore_event_id,
+            sport=fixture.sport,
+            market=rung.market,
+            subject=rung.subject,
+            line=rung.line,
+            direction=direction,
+            sample_size=n,
+            sample_mean=round(mean, 4),
+            sample_sd=round(sample_sd, 4),
+            centre=round(centre, 4),
+            p_central=p_out,
+            market_p=m_p_out,
+            ladder_centre=None,
+            ladder_sigma=None,
+            p_bar=p_out,
+            bar_reason="shot_detail",
+            calibration_correction=0.0,
+            sample_newest_days=newest_days,
+            sample_frequency=None,
+            required_odds=req,
+            offered_odds=offered,
+            edge=round(p_out - m_p_out, 4) if m_p_out is not None else None,
+            surplus=surplus,
+            verdict=verdict,
+            notes=notes,
+            epoch=STATS_ONLY if stats_only else None,
+            forecast_p=None,
+            forecast_source=None,
+            shot_detail_rule=epochs.SHOT_DETAIL_MARKETS,
+        ))
+    return rows, skipped
+
+
+def load_shot_detail(config_directory: Path | None = None) -> dict[str, Any] | None:
+    """config/sofa_shot_detail.json, or None while the operator has not
+    installed it (shot_detail_rows then writes NO_SHOT_DETAIL_FIT)."""
+    base = config_directory if config_directory is not None else config_dir()
+    return load_shot_detail_fit(base / SHOT_DETAIL_FIT_FILE)
+
+
 # Fields a stats-only sheet row carries; an old-rule row is written without
 # them, so a sheet built before 2026-10-05 is byte-for-byte what it was.
 STATS_ONLY_ROW_FIELDS = ("epoch", "forecast_p", "forecast_source")
@@ -1377,7 +1507,7 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
         out.pop("corrected_sample", None)
     # and the audit 2026-10-13 switches' markers while off, and the config
     # fingerprint of a row priced outside main (tests, replays)
-    for key in AUDIT_MARKER_FIELDS + ("result_rule", "config_sha"):
+    for key in AUDIT_MARKER_FIELDS + ("result_rule", "shot_detail_rule", "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
     return out
@@ -1413,6 +1543,8 @@ def process_fixture(
     season_phase_label: str | None = None,
     rating_weights: RatingWeightTable | None = None,
     men_friendly_baseline: FriendlyBaseline | None = None,
+    shot_detail_on: bool = False,
+    shot_detail_fit: Mapping[str, Any] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1502,6 +1634,20 @@ def process_fixture(
                     stats_only)
                 rows.extend(dc_rows)
                 skipped.extend(dc_skipped)
+            continue
+        # epochs.SHOT_DETAIL_MARKETS: a footballer's shots by place / body
+        # part, priced by bet.sofa.shot_detail's estimator, not the sample
+        # centre below (off: OFFER maps no such rung).
+        if rung.market in SHOT_DETAIL_METRICS:
+            if shot_detail_on and fixture.sport == "football":
+                sd_rows, sd_skipped = shot_detail_rows(
+                    fixture, rung, samples, shot_detail_fit, market_ps,
+                    stats_only)
+                rows.extend(sd_rows)
+                skipped.extend(sd_skipped)
+            else:
+                skipped.append((rung, GapReason.NO_SHOT_DETAIL_FIT,
+                                "epochs.SHOT_DETAIL_MARKETS is off"))
             continue
         # A derived market is about both sides at once and has no marginal
         # sample to be priced against. derived.py handles it below; falling
@@ -2456,6 +2602,11 @@ def _main() -> int:
     result_config = (load_result_config()
                      if stats_only and epochs.football_result_markets(args.date)
                      else None)
+    # epochs.SHOT_DETAIL_MARKETS: the footballer shot-detail estimator (off:
+    # no such rung reaches SHEET; on without config/sofa_shot_detail.json:
+    # every such rung NO_SHOT_DETAIL_FIT)
+    shot_detail_on = stats_only and epochs.shot_detail_markets(args.date)
+    shot_detail_fit = load_shot_detail() if shot_detail_on else None
     # Audit 2026-10-13 C1 / B14 (None = byte for byte; a missing / malformed
     # config raises, rc 2): the season-phase term of the goals centre, the
     # rating's weight per market.
@@ -2539,6 +2690,8 @@ def _main() -> int:
                     else None),
                 rating_weights=rating_weight_table,
                 men_friendly_baseline=men_friendly_prior,
+                shot_detail_on=shot_detail_on,
+                shot_detail_fit=shot_detail_fit,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

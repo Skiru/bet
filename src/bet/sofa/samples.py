@@ -64,6 +64,7 @@ from bet.sofa.players import (
     squad_statistics,
     started,
 )
+from bet.sofa.players import position as squad_position
 from bet.sofa.reserve_squads import (
     RESERVE_COMPETITIONS,
     TeamMatch,
@@ -72,6 +73,7 @@ from bet.sofa.reserve_squads import (
 )
 from bet.sofa.schedule import fixture_schedule
 from bet.sofa.settle import is_completed_event, surfaces_comparable
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.superbet import SuperbetClient, odds_items
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
@@ -889,6 +891,24 @@ def fetch_lineups(
     return payload
 
 
+def fetch_shotmap(
+    client: SofascoreClient, cache: SofaCache, event: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Every shot of one historical event (epochs.SHOT_DETAIL_MARKETS), cached
+    forever like the lineups: ``{}`` - asked, nothing there - is a fact and is
+    not paid for again; a non-terminal event is not saved."""
+    event_id = int(event["id"])
+    cached = cache.get_event_extra(event_id, "shotmap")
+    if cached is not None:
+        return cached or None
+    fetched = client.event_shotmap(event_id)
+    payload = fetched if isinstance(fetched, dict) else None
+    status_type = event.get("status", {}).get("type", "finished")
+    if status_type in ("finished", "canceled", "abandoned"):
+        cache.save_event_extra(event_id, "shotmap", payload, status_type)
+    return payload
+
+
 def process_historical_event(
     client: SofascoreClient,
     cache: SofaCache,
@@ -898,6 +918,7 @@ def process_historical_event(
     metrics_to_collect: set[str],
     fixture: Fixture,
     want_lineups: bool = False,
+    want_shotmap: bool = False,
 ) -> dict[str, Any]:
     event_id = event["id"]
 
@@ -1034,11 +1055,26 @@ def process_historical_event(
     # with no player rungs pays nothing.
     squad: dict[str, dict[str, Any]] | None = None
     if want_lineups:
-        squad = squad_statistics(
-            fetch_lineups(client, cache, event),
-            is_home=is_home,
-            statistics=statistics_json,
-        )
+        lineups = fetch_lineups(client, cache, event)
+        if want_shotmap:
+            # epochs.SHOT_DETAIL_MARKETS: the shot-detail counts come from
+            # the shotmap. A provider error on it costs those metrics only
+            # (no shotmap: gaps), never the event's other samples; an open
+            # breaker still stops the fixture.
+            try:
+                shotmap = fetch_shotmap(client, cache, event)
+            except ProviderError:
+                shotmap = None
+            squad = squad_statistics(
+                lineups, is_home=is_home, statistics=statistics_json,
+                shotmap=shotmap if shotmap is not None else {},
+            )
+        else:
+            squad = squad_statistics(
+                lineups,
+                is_home=is_home,
+                statistics=statistics_json,
+            )
 
     return {
         "event_id": event_id,
@@ -1174,6 +1210,8 @@ def build_player_samples(
                 metric, player, side_results, gaps, match_player, starts_only
             )
             match_rule = "fuzzy"
+            matcher: Callable[[str, dict[str, dict[str, Any]]], str | None] = (
+                match_player)
             if token_fallback and not named:
                 t_gaps: list[GapEntry] = []
                 t_side, t_names, t_named = _player_observations(
@@ -1185,6 +1223,7 @@ def build_player_samples(
                     per_side, per_side_names, named = t_side, t_names, t_named
                     gaps.extend(t_gaps)
                     match_rule = "tokens"
+                    matcher = match_player_by_tokens
                 elif answered:
                     gaps.append(
                         GapEntry(
@@ -1209,6 +1248,7 @@ def build_player_samples(
                     per_side, per_side_names, named = s_side, s_names, s_named
                     gaps.extend(s_gaps)
                     match_rule = "surname"
+                    matcher = match_player_by_surname
 
             n_a, n_b = len(per_side["side_a"]), len(per_side["side_b"])
             if n_a == 0 and n_b == 0:
@@ -1241,7 +1281,7 @@ def build_player_samples(
             observations = sorted(
                 per_side[side], key=lambda o: o.match_date_utc, reverse=True
             )
-            samples[player_sample_key(metric, player)] = PlayerSample(
+            sample = PlayerSample(
                 metric=metric,
                 player=player,
                 matched_name=per_side_names[side][0],
@@ -1251,7 +1291,31 @@ def build_player_samples(
                 match_rule=match_rule,  # type: ignore[arg-type]
                 appearances="starts" if starts_only else "all",
             )
+            if metric in SHOT_DETAIL_METRICS:
+                # epochs.SHOT_DETAIL_MARKETS: the estimator pools by position
+                sample.position = newest_position(
+                    player, side_results[side], observations, matcher)
+            samples[player_sample_key(metric, player)] = sample
     return samples
+
+
+def newest_position(
+    player: str,
+    results: list[dict[str, Any]],
+    observations: list[Observation],
+    matcher: Callable[[str, dict[str, dict[str, Any]]], str | None],
+) -> str | None:
+    """The player's position (players.POSITION_KEY) in the newest sampled
+    match that gave an observation, found by the matcher the sample used."""
+    observed = {o.sofascore_event_id for o in observations}
+    for res in sorted(results, key=lambda r: r["match_date_utc"], reverse=True):
+        squad = res.get("squad")
+        if not squad or res["event_id"] not in observed:
+            continue
+        matched = matcher(player, squad)
+        if matched is not None:
+            return squad_position(squad[matched])
+    return None
 
 
 def _player_observations(
@@ -1355,6 +1419,7 @@ def process_fixture_samples(
     starts_only: bool = False,
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
+    shot_detail: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1369,6 +1434,7 @@ def process_fixture_samples(
             token_fallback=token_fallback, starts_only=starts_only,
             men_friendly_window=men_friendly_window,
             surname_fallback=surname_fallback,
+            shot_detail=shot_detail,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1397,6 +1463,7 @@ def _process_fixture_samples(
     starts_only: bool = False,
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
+    shot_detail: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1424,6 +1491,10 @@ def _process_fixture_samples(
     # was 4 of 182 football fixtures, so the whole family costs ~80 extra
     # requests a day rather than the ~3,600 an unconditional fetch would.
     want_lineups = fixture.sport == "football" and bool(wanted_players)
+    # epochs.SHOT_DETAIL_MARKETS: each sample match's shotmap too, only when a
+    # shot-detail player market is quoted (off: never asked).
+    want_shotmap = want_lineups and shot_detail and any(
+        metric in SHOT_DETAIL_METRICS for metric in wanted_players)
 
     if not metrics_to_collect and not wanted_players:
         return FixtureSamples(
@@ -1481,6 +1552,7 @@ def _process_fixture_samples(
             metrics_to_collect,
             fixture,
             want_lineups,
+            want_shotmap,
         )
         for e in side_a_events
     ]
@@ -1494,6 +1566,7 @@ def _process_fixture_samples(
             metrics_to_collect,
             fixture,
             want_lineups,
+            want_shotmap,
         )
         for e in side_b_events
     ]

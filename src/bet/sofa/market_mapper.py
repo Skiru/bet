@@ -1,6 +1,8 @@
 import re
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 
 # Letters NFD cannot help with. Stripping diacritics by decomposing to NFD and
 # dropping the combining marks works for ó ż ę ą ś ć ń ź — each is a letter plus
@@ -313,6 +315,7 @@ def classify_player_market(
     market_name: str | None,
     selection_name: str | None,
     special_bet_value: str | None,
+    extra_names: Mapping[str, str] | None = None,
 ) -> tuple[str, str, float, str] | None:
     """Map one Superbet selection to (market, player, line, direction).
 
@@ -324,9 +327,15 @@ def classify_player_market(
     2026-09-22 said "powyzej" and none said "ponizej". A family that is
     one-sided today is not one-sided by definition, and a defaulted direction
     would price the first UNDER Superbet posts as its own complement.
+
+    `extra_names` is a further folded name -> metric table read the same way
+    (epochs.shot_detail_markets: shot_detail.MARKET_NAMES); None, the
+    default, reads PLAYER_MARKET_NAMES alone.
     """
     folded = fold(market_name)
     market = PLAYER_MARKET_NAMES.get(folded)
+    if market is None and extra_names is not None:
+        market = extra_names.get(folded)
     if market is None:
         return None
 
@@ -366,7 +375,7 @@ def classify_player_market(
 
 
 def is_player_market(market: str) -> bool:
-    return market in set(PLAYER_MARKET_NAMES.values())
+    return market in set(PLAYER_MARKET_NAMES.values()) or market in SHOT_DETAIL_METRICS
 
 
 def get_mechanism_family(market: str) -> str:
@@ -420,6 +429,8 @@ def get_mechanism_family(market: str) -> str:
         "player_shots_on_target_for",
         "player_assists_for",
         "player_offsides_for",
+        # a footballer's shots by place / body part (bet.sofa.shot_detail)
+        *SHOT_DETAIL_METRICS,
         "shots_total",
         "shots_for",
         "shots_on_target_total",

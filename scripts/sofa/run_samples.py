@@ -33,6 +33,7 @@ from bet.sofa.epochs import (
     player_name_surname,
     player_name_tokens,
     player_starts_only,
+    shot_detail_markets,
 )
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
@@ -153,6 +154,7 @@ def sample_fixtures_concurrently(
     starts_only: bool = False,
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
+    shot_detail: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -188,6 +190,7 @@ def sample_fixtures_concurrently(
                 starts_only=starts_only,
                 men_friendly_window=men_friendly_window,
                 surname_fallback=surname_fallback,
+                shot_detail=shot_detail,
             )
             for fixture in fixtures
         ]
@@ -211,6 +214,7 @@ def sample_fixtures_concurrently(
             starts_only=starts_only,
             men_friendly_window=men_friendly_window,
             surname_fallback=surname_fallback,
+            shot_detail=shot_detail,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -318,6 +322,8 @@ def main() -> int:
         men_friendly_window=men_friendly_sample_window(args.date),
         # epochs.PLAYER_NAME_SURNAME (identity plan K7; off: byte-identical)
         surname_fallback=player_name_surname(args.date),
+        # epochs.SHOT_DETAIL_MARKETS (off: no shotmap asked, byte-identical)
+        shot_detail=shot_detail_markets(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):

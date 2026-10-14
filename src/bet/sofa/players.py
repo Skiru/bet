@@ -45,6 +45,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from bet.sofa import shot_detail
 from bet.sofa.contracts import GapReason
 from bet.sofa.names import normalize_name
 
@@ -117,6 +118,17 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
         "zero_when_absent": True,
         "team_sum": "offsides",
     },
+    # epochs.SHOT_DETAIL_MARKETS: a footballer's shots by place / body part,
+    # counted from the match's /shotmap (bet.sofa.shot_detail), never from
+    # /lineups. `squad_statistics(..., shotmap=...)` writes them under
+    # shot_detail.stat_key(metric) only where the player's shotmap shots
+    # equal his lineups `totalShots`; anywhere else (no shotmap, a mismatch)
+    # the key is absent and the value is a gap, never a zero.
+    **{
+        metric: {"sofascore": shot_detail.stat_key(metric),
+                 "zero_when_absent": False}
+        for metric in shot_detail.METRICS
+    },
 }
 
 # Written by `squad_statistics` into each appearing player's statistics: the
@@ -129,6 +141,16 @@ ZERO_PROVEN_KEY = "_zero_proven_by_team_sum"
 # for 30 minutes with 2 shots on target and his "celne strzały powyżej 0.5"
 # came back as "Zwrot" on the operator's slip (operator, 2026-10-11: the rule).
 STARTED_KEY = "_started"
+
+# Written by `squad_statistics` when it is given a shotmap: the entry's
+# position ("G" / "D" / "M" / "F"; the lineups entry's, else the player's),
+# which the shot-detail estimator pools by (shot_detail.forecast).
+POSITION_KEY = "_position"
+
+
+def position(stats: dict[str, Any] | None) -> str | None:
+    value = (stats or {}).get(POSITION_KEY)
+    return value if isinstance(value, str) and value else None
 
 
 def started(stats: dict[str, Any] | None) -> bool | None:
@@ -247,6 +269,7 @@ def squad_statistics(
     *,
     is_home: bool,
     statistics: Any = None,
+    shotmap: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]] | None:
     """`{normalised player name: statistics}` for one side of one match.
 
@@ -257,6 +280,14 @@ def squad_statistics(
     it: it is what proves a team_sum metric's missing keys zero (each
     appearing player's statistics then carry ZERO_PROVEN_KEY). Without it a
     missing key of such a metric stays a gap.
+
+    `shotmap` is the match's `/shotmap` payload (epochs.SHOT_DETAIL_MARKETS),
+    when the caller asked for it: each entry with statistics then carries
+    POSITION_KEY and, when the shotmap is a football one with content and
+    gives him exactly his lineups `totalShots`, his shot-detail counts under
+    shot_detail.stat_key(metric). A starter with no shot in the shotmap and
+    `totalShots` 0 counts zero; a mismatch is a gap. None, the default,
+    writes neither.
     """
     if not lineups:
         return None
@@ -284,6 +315,8 @@ def squad_statistics(
         substitute = entry.get("substitute")
         if record and isinstance(substitute, bool):
             record[STARTED_KEY] = not substitute
+        if record and shotmap is not None:
+            _add_shot_detail(record, entry, player, shotmap)
         if key in out:
             # Two squad members with one name (24 of 1,806 cached football
             # squad-sides, 2026-09-29: "ederson", "marcos paulo"): which one
@@ -300,6 +333,30 @@ def squad_statistics(
                 if _statistic(st, "minutesPlayed") is not None:
                     st[ZERO_PROVEN_KEY] = proven
     return out
+
+
+def _add_shot_detail(
+    record: dict[str, Any], entry: dict[str, Any], player: dict[str, Any],
+    shotmap: dict[str, Any],
+) -> None:
+    """POSITION_KEY and the shot-detail counts of one squad entry (see
+    squad_statistics); the counts only where the shotmap's total for him is
+    his lineups `totalShots`."""
+    pos = entry.get("position") or player.get("position")
+    if isinstance(pos, str) and pos:
+        record[POSITION_KEY] = pos
+    pid = player.get("id")
+    if not isinstance(pid, int) or isinstance(pid, bool):
+        return
+    total = shot_detail.player_shot_total(shotmap, pid)
+    lineup_total = _statistic(record, "totalShots")
+    if total is None or lineup_total is None or abs(lineup_total - total) > 1e-9:
+        return
+    counts = shot_detail.player_counts(shotmap, pid)
+    if counts is None:
+        return
+    for metric, value in counts.items():
+        record[shot_detail.stat_key(metric)] = value
 
 
 # How close a Superbet player name has to come to a Sofascore one.

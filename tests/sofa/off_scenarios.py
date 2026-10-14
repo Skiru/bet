@@ -27,7 +27,9 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 "season_phase_rule", "rating_weight_rule", "tennis_set_rule",
                 "config_sha",
                 # audit D1: the football double chance (FOOTBALL_RESULT_MARKETS)
-                "result_rule")
+                "result_rule",
+                # footballer shot-detail markets (SHOT_DETAIL_MARKETS)
+                "shot_detail_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

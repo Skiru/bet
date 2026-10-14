@@ -1,9 +1,16 @@
 import re
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from bet.sofa.schedule import FixtureSchedule
 
@@ -46,6 +53,10 @@ class GapReason(StrEnum):
     # fitted on best-of-three matches only (calibrate_from_cache.set_values),
     # and an unknown format would be read as best of three.
     BEST_OF_FIVE_NOT_MODELLED = "BEST_OF_FIVE_NOT_MODELLED"
+    # A footballer shot-detail row (epochs.SHOT_DETAIL_MARKETS) while the
+    # operator has not installed config/sofa_shot_detail.json, or a fitted
+    # file without the metric: no estimator, no row.
+    NO_SHOT_DETAIL_FIT = "NO_SHOT_DETAIL_FIT"
     SURFACE_UNKNOWN = "SURFACE_UNKNOWN"
     NO_PRICE = "NO_PRICE"
     STALE_PRICE = "STALE_PRICE"
@@ -204,6 +215,20 @@ class PlayerSample(BaseModel):
     # (epochs.PLAYER_STARTS_ONLY_FROM_UTC) - Superbet voids the market of a
     # player who does not start, so the bet is conditional on the start.
     appearances: Literal["all", "starts"] = "all"
+    # His position in the newest sampled match ("G" / "D" / "M" / "F"), which
+    # the shot-detail estimator pools by (epochs.SHOT_DETAIL_MARKETS). Written
+    # only on a shot-detail sample; absent from the artifact when None, so a
+    # sample without it is byte-for-byte what it was.
+    position: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _drop_absent_position(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        out: dict[str, Any] = handler(self)
+        if out.get("position") is None:
+            out.pop("position", None)
+        return out
 
 
 class GapEntry(BaseModel):
@@ -359,6 +384,9 @@ class SheetRow(BaseModel):
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None
+    # bet.sofa.epochs.SHOT_DETAIL_MARKETS: the rule's name on a footballer
+    # shot-detail row (bet.sofa.shot_detail); absent when off.
+    shot_detail_rule: str | None = None
     # bet.sofa.sheet_config.fingerprint(): the SHEET-read config files
     # (constants, baselines, reliability, rating, dispersion, ...) the row was
     # priced on. rebuild_plan names a sheet built on other constants (a refit

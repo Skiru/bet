@@ -74,6 +74,7 @@ from bet.sofa.metrics import (
 )
 from bet.sofa.players import is_player_metric, player_sample_key, squad_statistics
 from bet.sofa.settle import MOVED_BEYOND_VOID, moved_beyond_void, settle
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.tennis_score import match_tiebreak_sets
 from scripts.sofa.calibrate_from_cache import market_name, match_values
 from scripts.sofa.run_settle import (
@@ -388,6 +389,20 @@ def _player_grades(
         )
         if eid in events
     }
+    # epochs.SHOT_DETAIL_MARKETS: a shot-detail row grades from the cached
+    # shotmap (sofa_event_extra); asked only when there is such a row.
+    sd_events = {r["sofascore_event_id"] for r in rows
+                 if r["market"] in SHOT_DETAIL_METRICS}
+    shotmaps: dict[int, dict[str, Any]] = {}
+    if sd_events:
+        shotmaps = {
+            int(eid): json.loads(payload) if payload else {}
+            for eid, payload in conn.execute(
+                "SELECT sofascore_event_id, payload_json FROM sofa_event_extra"
+                " WHERE kind = 'shotmap'"
+            )
+            if eid in sd_events
+        }
     details = detail_events(conn, events)
     missing = events - set(details)
     listings = listing_events(conn, missing) if missing else {}
@@ -411,10 +426,19 @@ def _player_grades(
             tally[f"left:{reason}"] += 1
             continue
         statistics = json.loads(sj) if sj else None
-        squads = {
-            True: squad_statistics(lineups, is_home=True, statistics=statistics),
-            False: squad_statistics(lineups, is_home=False, statistics=statistics),
-        }
+        if row["market"] in SHOT_DETAIL_METRICS:
+            shotmap = shotmaps.get(eid, {})
+            squads = {
+                True: squad_statistics(lineups, is_home=True,
+                                       statistics=statistics, shotmap=shotmap),
+                False: squad_statistics(lineups, is_home=False,
+                                        statistics=statistics, shotmap=shotmap),
+            }
+        else:
+            squads = {
+                True: squad_statistics(lineups, is_home=True, statistics=statistics),
+                False: squad_statistics(lineups, is_home=False, statistics=statistics),
+            }
         sample_key = player_sample_key(row["market"], row["subject"] or "")
         side = sides[day].get((eid, sample_key))
         own = player_own_home(side, fixtures[day].get(eid), event)

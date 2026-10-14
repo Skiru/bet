@@ -58,6 +58,8 @@ from bet.sofa.market_mapper import (
 )
 from bet.sofa.metrics import FOOTBALL_METRICS, TENNIS_METRICS
 from bet.sofa.players import PLAYER_METRICS
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
+from bet.sofa.shot_detail import stat_key as shot_detail_key
 
 SAME_VARIABLE_IMPLIES = "SAME_VARIABLE_IMPLIES"
 SAME_VARIABLE_EXCLUSIVE = "SAME_VARIABLE_EXCLUSIVE"
@@ -185,6 +187,29 @@ _LINKS: dict[str, dict[frozenset[str], str]] = {
         frozenset({"serve_points", "sets"}): "more sets, more service games",
     },
 }
+
+
+# A footballer's shots by place / body part (bet.sofa.shot_detail): each its
+# own statistic, part of the shots (on target: of the shots on target), and an
+# on-target count part of the same place's shots.
+def _shot_detail_stat(metric: str) -> str:
+    return metric.removeprefix("player_").removesuffix("_for")
+
+
+for _metric in SHOT_DETAIL_METRICS:
+    _stat = _shot_detail_stat(_metric)
+    _PLAYER_TEAM_STAT[shot_detail_key(_metric)] = _stat
+    _LINKS["football"][frozenset({_stat, "totalShotsOnGoal"})] = (
+        "a shot of one kind is a shot")
+    if _stat.startswith("sot_"):
+        _LINKS["football"][frozenset({_stat, "shotsOnGoal"})] = (
+            "a shot on target of one kind is a shot on target")
+        _whole = _shot_detail_stat(_metric.replace("player_sot_", "player_shots_")
+                                   if "outside_box" in _metric
+                                   else _metric.replace("player_sot_", "player_")
+                                   .replace("_for", "_shots_for"))
+        _LINKS["football"][frozenset({_stat, _whole})] = (
+            "a shot on target of one kind is a shot of that kind")
 
 # ---------------------------------------------------------------------------
 # The measured sports. `bet.sofa.shadow.MARKETS` gives each family its kind
@@ -698,7 +723,7 @@ def mapped_sheet_markets() -> list[tuple[str, str]]:
         out.add(("football", metric))
     for metric in TENNIS_METRICS:
         out.add(("tennis", metric))
-    for metric in PLAYER_MARKET_NAMES.values():
+    for metric in [*PLAYER_MARKET_NAMES.values(), *SHOT_DETAIL_METRICS]:
         out.add(("football", metric))
     for sport, table in (("football", FOOTBALL_METRICS), ("tennis", TENNIS_METRICS)):
         for metric, spec in table.items():

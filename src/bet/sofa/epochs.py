@@ -1731,3 +1731,33 @@ def football_result_markets(date: str, build_at: datetime | None = None) -> bool
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_RESULT_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_RESULT_MARKETS_FROM_UTC)
+
+
+# Superbet's footballer shot-detail markets (bet.sofa.shot_detail): "Zawodnik
+# - liczba (celnych) strzalow spoza pola karnego / glowa / lewa noga / prawa
+# noga". OFFER reads the eight names as player markets (market_mapper.
+# classify_player_market with shot_detail.MARKET_NAMES), SAMPLES asks each
+# sample match's /shotmap beside its /lineups (players.squad_statistics:
+# counted only where the player's shotmap shots equal his lineups
+# totalShots, else a gap), SHEET prices a row with shot_detail.forecast (the
+# player's last starts shrunk to his position's mean, Poisson) from the
+# operator-installed config/sofa_shot_detail.json - absent: no row,
+# NO_SHOT_DETAIL_FIT - rows marked `shot_detail_rule`; SETTLE grades from the
+# match's shotmap. No curve is installed: CONFIDENCE reads the keys' own
+# Superbet lines, NO_LINE_EVIDENCE until a bucket holds enough of them - so
+# nothing prints at first. Adds rows, so a day >= the date built at or after
+# the moment. Off (None, until the operator sets it): OFFER, SAMPLES, SHEET
+# and SETTLE byte-identical. Evidence: docs/sofa/evidence/
+# shot_detail_2026-10-14.md (staged fit data/refit_shot_detail_2026-10-14/).
+SHOT_DETAIL_MARKETS = "shot_detail_v1"
+SHOT_DETAIL_MARKETS_FROM_UTC: datetime | None = None
+
+
+def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read, SAMPLES sample and SHEET price the footballer
+    shot-detail markets (SHOT_DETAIL_MARKETS_FROM_UTC)?"""
+    if SHOT_DETAIL_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SHOT_DETAIL_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SHOT_DETAIL_MARKETS_FROM_UTC)

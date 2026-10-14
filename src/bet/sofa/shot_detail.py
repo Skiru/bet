@@ -18,8 +18,10 @@ Measured, not assumed (docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md):
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 OUTSIDE_X = 17.0
@@ -82,6 +84,42 @@ def player_counts(
         return None
     mine = [s for s in shots if (s.get("player") or {}).get("id") == player_id]
     return {m: sum(1 for s in mine if _selects(m, s)) for m in METRICS}
+
+
+def player_shot_total(payload: Mapping[str, Any] | None, player_id: int) -> int | None:
+    """How many shots the football shotmap gives this player (None as in
+    player_counts) - checked against his /lineups `totalShots` before any
+    of his counts is taken (players.squad_statistics)."""
+    shots = (payload or {}).get("shotmap")
+    if not shots or not is_football_shotmap(shots):
+        return None
+    return sum(1 for s in shots if (s.get("player") or {}).get("id") == player_id)
+
+
+# The Sofascore-style key each METRIC is written under in a squad entry's
+# statistics (players.PLAYER_METRICS): the shotmap's, not /lineups' own.
+STAT_PREFIX = "_sd_"
+
+
+def stat_key(metric: str) -> str:
+    return STAT_PREFIX + metric
+
+
+# The fitted estimator SHEET reads (scripts/sofa/fit_shot_detail.py), installed
+# by the operator; until then SHEET writes no shot-detail row
+# (NO_SHOT_DETAIL_FIT).
+FIT_FILE = "sofa_shot_detail.json"
+
+
+def load_fit(path: Path) -> dict[str, Any] | None:
+    """The fitted file, or None when it is not installed. A file without a
+    `metrics` table is refused like a missing one."""
+    if not path.is_file():
+        return None
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict) or not isinstance(doc.get("metrics"), dict):
+        return None
+    return doc
 
 
 # The estimator measured by scripts/sofa/measure_shot_detail.py: the player's

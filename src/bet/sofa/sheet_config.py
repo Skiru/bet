@@ -35,12 +35,18 @@ SHEET_CONFIG_FILES: tuple[str, ...] = (
     "sofa_season_phase.json",
     "sofa_rating_weight.json",
 )
+# Fitted files SHEET reads that enter the fingerprint only once installed, so
+# the fingerprint of every sheet priced before one existed is unchanged:
+# config/sofa_shot_detail.json (epochs.SHOT_DETAIL_MARKETS, the operator's
+# install of scripts/sofa/fit_shot_detail.py).
+SHEET_OPTIONAL_FILES: tuple[str, ...] = ("sofa_shot_detail.json",)
 DIGEST_CHARS = 16
 
 
 def fingerprint(directory: Path | None = None) -> str:
     """sha256 over the names and bytes of SHEET_CONFIG_FILES (a missing file
-    counts as absent), the first DIGEST_CHARS hex characters."""
+    counts as absent) and of the SHEET_OPTIONAL_FILES present, the first
+    DIGEST_CHARS hex characters."""
     base = directory if directory is not None else config_dir()
     h = hashlib.sha256()
     for name in SHEET_CONFIG_FILES:
@@ -49,4 +55,11 @@ def fingerprint(directory: Path | None = None) -> str:
         h.update(b"\0")
         h.update(path.read_bytes() if path.is_file() else b"<absent>")
         h.update(b"\0")
+    for name in SHEET_OPTIONAL_FILES:
+        path = base / name
+        if path.is_file():
+            h.update(name.encode())
+            h.update(b"\0")
+            h.update(path.read_bytes())
+            h.update(b"\0")
     return h.hexdigest()[:DIGEST_CHARS]

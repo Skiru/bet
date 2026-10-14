@@ -171,6 +171,12 @@ for _family, _prefixes in {
         "shots_on_target_",
         "player_shots_",
         "player_shots_on_target_",
+        # a footballer's shots by place / body part (bet.sofa.shot_detail;
+        # player_shots_outside_box_for is under "player_shots_" already)
+        "player_sot_",
+        "player_headed_",
+        "player_left_foot_",
+        "player_right_foot_",
         # A save is the opponent's shot on target that did not go in, a goal
         # kick mostly the opponent's shot that went wide: the shots family
         # seen from the other goal (2026-09-25 coverage audit).
@@ -221,6 +227,16 @@ PLAYER_PROP_MARKETS = frozenset(
         "player_tackles_for",
         "player_interceptions_for",
         "player_offsides_for",
+        # epochs.SHOT_DETAIL_MARKETS (bet.sofa.shot_detail.METRICS): no
+        # curve of their own; the line evidence alone reads them.
+        "player_shots_outside_box_for",
+        "player_sot_outside_box_for",
+        "player_headed_shots_for",
+        "player_sot_headed_for",
+        "player_left_foot_shots_for",
+        "player_sot_left_foot_for",
+        "player_right_foot_shots_for",
+        "player_sot_right_foot_for",
     }
 )
 
