@@ -361,23 +361,25 @@ class IncidentRates:
         loc = self.by_comp.get((market, competition_id))
         return loc.n if loc is not None else 0
 
+    def add(self, comp: int, women: bool, rec: IncidentRecord) -> None:
+        """Count one match (a curve replay adds them as of each day)."""
+        self.women_comp[comp] = women
+        for market, pair in ((RED_CARDS, rec.red_cards), (PENALTIES, rec.penalties)):
+            if pair is None:
+                continue
+            total = pair[0] + pair[1]
+            self.by_comp.setdefault((market, comp), _Count()).add(total)
+            self.by_gender.setdefault((market, women), _Count()).add(total)
+
 
 def rates_from_records(
     matches: Sequence[tuple[int, bool, IncidentRecord]],
 ) -> IncidentRates:
     """IncidentRates of (competition id, women, record) - full feeds only."""
-    by_comp: dict[tuple[str, int], _Count] = {}
-    by_gender: dict[tuple[str, bool], _Count] = {}
-    women_comp: dict[int, bool] = {}
+    rates = IncidentRates({}, {}, {})
     for comp, women, rec in matches:
-        women_comp[comp] = women
-        for market, pair in ((RED_CARDS, rec.red_cards), (PENALTIES, rec.penalties)):
-            if pair is None:
-                continue
-            total = pair[0] + pair[1]
-            by_comp.setdefault((market, comp), _Count()).add(total)
-            by_gender.setdefault((market, women), _Count()).add(total)
-    return IncidentRates(by_comp, by_gender, women_comp)
+        rates.add(comp, women, rec)
+    return rates
 
 
 def load_rates(db_path: str, history: Sequence[Any], before_ts: int) -> IncidentRates:

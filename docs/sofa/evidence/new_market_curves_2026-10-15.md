@@ -185,3 +185,82 @@ krzywą. `curves.json` niesie `sports.volleyball.fitted_lines`; wpis
 `sport_confidence.FITTED_LINES[("volleyball", "team_sets_exact")]` ->
 `LINE_OUTSIDE_FIT` to decyzja przy instalacji (zmienia, co się drukuje).
 Po instalacji line evidence nadal tylko obniża (offset, cap pasma ceny).
+
+## Grupy 3 i 4 - piłka z incydentów i tenis sety (`scripts/sofa/fit_incident_set_curves.py`)
+
+Plan kroki 1-4. **STAGED, nic nie zainstalowane.** Ta sama bramka co wyżej
+(`calibration_audit.MAX_GAP` 2 pp, `MIN_SETTLED` 300; trening przed
+2026-09-01, holdout 2026-09-01..2026-10-13, krzywa końcowa przed 2026-10-15,
+kubełki `fit_confidence.EDGES`, `MIN_MARKET_BUCKET` 400, Wilson). Klucz główny
+oceniany na holdoucie bez klasy (te nogi go czytają), klucz klasy
+(`women:`, `tennis_women:`) na holdoucie swojej klasy - CONFIDENCE czyta nogę
+klasy wyłącznie z krzywych klasy, bez nich `NO_CLASS_CURVE`.
+
+Kopie (nigdy żywa baza): `football_incidents/incidents.db` (listy incydentów
+z `sofa_event_stats`), `football_incidents/football_history.pkl` (historia,
+którą parsuje SHEET, kopia z `data/cache/` z 2026-10-14 16:58 lokalnie),
+`tennis_sets/tennis.db` (strony `last` tenisa i indeks listingów).
+
+Replay = estymator SHEET, cięcie na dzień UTC (jak SHEET buduje dzień):
+`first_goal_probs` na czystych centrach ratingu goli (`RatingBook` z
+regułą wspólnej ligi, NB r z `config/sofa_football_result.json`);
+`IncidentRates.p_over` meczów z pełnym zapisem sprzed dnia (linie 0,5 / 1,5,
+oba kierunki; ocena tylko na pełnym zapisie - tak rozlicza SETTLE);
+`tennis_sets.set_win_p` / `score_probs` na sąsiadach gospodarza z
+`AsOfRating.model_at(dzień)` i żywym `config/tennis_rating.json` (wariant
+`live`, od 2026-04-01 jak krzywa zwycięzcy meczu). p poza [0,05; 0,95]
+odrzucone jak w SHEET. `first_goal` meczu UNLINKED jest w wierszach, nie w
+krzywej (CONFIDENCE go odrzuca). Zwycięzca seta: OVER = pierwszy na liście
+Superbetu, kolejność nic nie znaczy w tenisie, więc obie krzywe kierunkowe
+z obu selekcji meczu (jak `match_won_for`) - są równe. Drobna zmiana kodu:
+`IncidentRates.add` (`rates_from_records` z niej korzysta, zachowanie
+bez zmian, test).
+
+Wiersze: piłka 736 984 selekcji (od 2024-10; 147 242 czytelne listy
+incydentów), tenis 392 039 selekcji (od 2026-04-01).
+
+| klucz | n trening | holdout n (krzywa >= 0,70) | krzywa | realizacja | luka pp | wynik |
+|---|---|---|---|---|---|---|
+| `first_goal|OVER` | 376 040 | 520 | 0,7381 | 0,7442 | +0,62 | **PASS** |
+| `red_cards_total|OVER` | 74 945 | 0 | - | - | - | FAIL (n) |
+| `red_cards_total|UNDER` | 74 945 | 5 030 | 0,8248 | 0,8302 | +0,54 | **PASS** |
+| `penalties_total|OVER` | 78 548 | 0 | - | - | - | FAIL (n) |
+| `penalties_total|UNDER` | 78 548 | 4 729 | 0,7836 | 0,8008 | +1,72 | **PASS** |
+| `women:first_goal|OVER` | 15 712 | 50 | 0,7270 | 0,8600 | +13,3 | FAIL (n) |
+| `women:red_cards_total|UNDER` | 2 713 | 264 | 0,9005 | 0,9167 | +1,62 | FAIL (n) |
+| `women:penalties_total|UNDER` | 3 806 | 206 | 0,7760 | 0,7718 | -0,42 | FAIL (n) |
+| `women:` OVER kartek / karnych | - | 0 | - | - | - | FAIL (n) |
+| `set1_won_for|OVER/UNDER` | 79 244 | 2 239 | 0,7737 | 0,8026 | +2,89 | FAIL (luka) |
+| `set2_won_for|OVER/UNDER` | 78 968 | 2 192 | 0,7723 | 0,7974 | +2,51 | FAIL (luka) |
+| `set_score|OVER` | 152 579 | 590 | 0,7414 | 0,7983 | +5,69 | FAIL (luka) |
+| `tennis_women:set1_won_for|OVER/UNDER` | 34 108 | 1 564 | 0,7686 | 0,7884 | +1,98 | **PASS** (na granicy) |
+| `tennis_women:set2_won_for|OVER/UNDER` | 33 730 | 1 642 | 0,7712 | 0,7923 | +2,11 | FAIL (luka) |
+| `tennis_women:set_score|OVER` | 65 212 | 304 | 0,7604 | 0,8125 | +5,21 | FAIL (luka) |
+
+Czytanie wyników:
+- Piłka: przechodzą `first_goal|OVER`, `red_cards_total|UNDER`,
+  `penalties_total|UNDER` (krzywe końcowe 5 / 9 / 9 kubełków). OVER kartek i
+  karnych nigdy nie sięga 0,70 - nie ma czego drukować. Kobiety: za mało
+  holdoutu (n < 300) - nogi kobiet czytałyby `NO_CLASS_CURVE`.
+  `first_goal` jest jednostronny: nawet z krzywą drukuje się jako single
+  tylko, jeśli operator rozszerzy `confidence.one_sided_single` (plan,
+  „Ograniczenia”).
+- Tenis: wszystkie klucze bez klasy odpadają, bo krzywa **zaniża** (realizacja
+  2,5-5,7 pp powyżej krzywej) - bramka jest dwustronna, więc FAIL. Podejrzenie
+  (niezmierzone): współczynniki `config/tennis_rating.json` dopasowano na
+  historii do 2026-10-01, więc w holdoucie prognozy są ostrzejsze niż w
+  treningu (look-ahead wariantu `live`). Przechodzi tylko
+  `tennis_women:set1_won_for` (+1,98 pp, o włos) - po instalacji drukowałyby
+  się wyłącznie nogi seta 1 kobiet, mężczyźni nadal bez krzywej. Decyzja
+  operatora, czy instalować klucz klasy bez klucza głównego.
+- Dry run instalatora (2026-10-14): ADD `first_goal|OVER`,
+  `penalties_total|UNDER`, `red_cards_total|UNDER`,
+  `tennis_women:set1_won_for|OVER`, `tennis_women:set1_won_for|UNDER`.
+  **Nie uruchomiono `--confirm`.**
+
+Pliki: `data/refit_new_markets_2026-10-15/{football_incidents,tennis_sets}/`
+`curves.json` (`target`, `fitted_from`, `by_market_direction` / `by_class`
+tylko PASS, `gate` każdego klucza z krzywą treningową i kubełkami holdoutu),
+`rows.csv` (key, p, y, event_id, date, klasa, link), `gate_report.md`.
+Test: `tests/sofa/test_fit_incident_set_curves.py`. Nie sprawdzone: E2E
+(krok 6), przedział bootstrapowy luki (bramka go nie używa).
