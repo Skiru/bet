@@ -104,3 +104,25 @@ Nazwy rynków koszykówki / siatkówki sprawdzone 15:20Z na surowych ofertach
 Superbetu (6+6 meczów): czytane podwójna szansa (mecz, 2. połowa), „wygra
 seta”, „wygra dokładnie N set(y)”, „dokładna liczba setów”; migawki SHADOW
 mają już `derived_rule`.
+
+## Wyniki bramek i decyzje operatora (2026-10-14 ~15:45Z)
+
+Wszystkie 5 grup dopasowane i sprawdzone (`docs/sofa/evidence/new_market_curves_2026-10-15.md`;
+commity 979b5db2, ab77ba33, a4f2a3b9). Instalator na sucho dodaje **11 kluczy**:
+`player_right_foot_shots_for|OVER`, `double_chance|OVER`, `women:double_chance|OVER`,
+`first_goal|OVER`, `penalties_total|UNDER`, `red_cards_total|UNDER`,
+`tennis_women:set1_won_for|OVER` i `|UNDER`, `hockey:period_double_chance|TEAM`,
+`volleyball:team_sets_exact|NO`, `volleyball:team_wins_set|YES`.
+
+Decyzje operatora (AskUserQuestion, 15:45Z) - **instalować tak, jak instalator na sucho**:
+1. prawa noga: cała krzywa, łącznie z przedziałami 0,80-0,85 nieobjętymi sprawdzianem;
+2. tenis: zainstalować klucz kobiecy 1. seta mimo braku męskiego;
+3. siatkówka „wygra dokładnie N setów”: nie odrzucać linii N = 0 / 3;
+4. „pierwszy gol” ma drukować się jako singiel jednostronny - kod już na to
+   pozwala (`run_confidence`: OVER bez UNDER = `one_sided_market`;
+   `confidence.one_sided_single`: krzywa `market:` z n >= 300) - sprawdzić w E2E.
+
+**Po 00:00Z 10-15, przed budową dnia:**
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_2026-10-15 --confirm`,
+potem E2E (krok 6: ile nóg nowych rynków się drukuje, ile z pewnością poniżej 1/kurs,
+czy `first_goal` przechodzi jako singiel), raport i CLAUDE.md (krok 7; epoka ledgera „od 10-15”).
