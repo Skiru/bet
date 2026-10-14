@@ -23,6 +23,16 @@ naprawi, a zgadywanie meczu byłoby błędem gorszym niż brak.
 Dziś wszystkie trzy giną w jednym worku `NOT_IDENTIFIED` (`NO_GAME_WITHIN_1H`,
 `NO_MATCH_IN_LISTING`, `TEAM_UNRESOLVED`) i nic się z nich nie uczy.
 
+## Zakres: wszystko (operator, 2026-10-14)
+
+Każdy sport (piłka, tenis, hokej, kosz, siatka, CS2), każda encja: drużyny, zawodnicy
+tenisa (to „drużyny” RESOLVE), zawodnicy w rynkach graczy (piłka, hokej, kosz, CS2),
+turnieje. **Zmierzone w tej notatce:** drużyny czterech sportów z SPORT_IDENTITY i
+zawodnicy piłkarscy z SAMPLES (jeden dzień). **Jeszcze niezmierzone** (K0 robi to
+najpierw): piłka/tenis RESOLVE (`NO_MATCHING_EVENT`, `AMBIGUOUS_ENTITY`) na wszystkich
+dniach, zawodnicy hokeja/kosza (`player_model`), gracze CS2 (rynki kills/deaths…),
+zawodnicy piłkarscy na wszystkich dniach. Żaden sport ani typ encji nie wypada z planu.
+
 ## 2. Stan dziś (pomiar, 10 dni 2026-10-05..10-14)
 
 Skrypt: `docs/sofa/evidence/identity_coverage_2026-10-14/measure_team_ids.py`
