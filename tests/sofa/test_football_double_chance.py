@@ -90,10 +90,12 @@ def _item(market: str, selection: str, price: float) -> dict[str, Any]:
 def test_switch_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
     # operator 2026-10-14: on from 14:20Z into the built day (mixed)
-    assert epochs.FOOTBALL_RESULT_MARKETS_FROM_UTC == datetime(2026, 10, 14, 14, 20, tzinfo=UTC)
-    assert not epochs.football_result_markets("2026-10-13", datetime(2027, 1, 1, tzinfo=UTC))
-    assert not epochs.football_result_markets("2026-10-14", datetime(2026, 10, 14, 14, 19, tzinfo=UTC))
-    assert epochs.football_result_markets("2026-10-14", datetime(2026, 10, 14, 14, 20, tzinfo=UTC))
+    on = datetime(2026, 10, 14, 14, 20, tzinfo=UTC)
+    assert epochs.FOOTBALL_RESULT_MARKETS_FROM_UTC == on
+    switch = epochs.football_result_markets
+    assert not switch("2026-10-13", datetime(2027, 1, 1, tzinfo=UTC))
+    assert not switch("2026-10-14", datetime(2026, 10, 14, 14, 19, tzinfo=UTC))
+    assert switch("2026-10-14", on)
     monkeypatch.setattr(epochs, "FOOTBALL_RESULT_MARKETS_FROM_UTC", None)
     assert epochs.FOOTBALL_RESULT_MARKETS == "result_markets_v1"
     late = datetime(2027, 1, 1, tzinfo=UTC)
