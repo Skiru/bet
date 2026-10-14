@@ -1720,7 +1720,11 @@ def football_day_anchor(date: str, build_at: datetime | None = None) -> bool:
 # the registered threshold: -0.0394 log-loss vs base, -0.91 pp after the
 # training curve at p >= 0.70, n 121,589).
 FOOTBALL_RESULT_MARKETS = "result_markets_v1"
-FOOTBALL_RESULT_MARKETS_FROM_UTC: datetime | None = None
+# Operator 2026-10-14 ~14:10Z, "WŁĄCZ OD TERAZ": moved into the day built -
+# 10-14 is mixed. No curve: CONFIDENCE reads the key's own Superbet lines
+# (NO_LINE_EVIDENCE until a bucket holds enough), so nothing prints at first.
+FOOTBALL_RESULT_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 14, 20, 0, tzinfo=UTC)
 
 
 def football_result_markets(date: str, build_at: datetime | None = None) -> bool:
@@ -1750,7 +1754,12 @@ def football_result_markets(date: str, build_at: datetime | None = None) -> bool
 # and SETTLE byte-identical. Evidence: docs/sofa/evidence/
 # shot_detail_2026-10-14.md (staged fit data/refit_shot_detail_2026-10-14/).
 SHOT_DETAIL_MARKETS = "shot_detail_v1"
-SHOT_DETAIL_MARKETS_FROM_UTC: datetime | None = None
+# Operator 2026-10-14 ~14:10Z, "WŁĄCZ OD TERAZ": moved into the day built -
+# 10-14 is mixed. The estimator file is installed (config/
+# sofa_shot_detail.json), its history curve is NOT: CONFIDENCE refuses the
+# legs NO_LINE_EVIDENCE until their own settled Superbet lines decide.
+SHOT_DETAIL_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 14, 20, 0, tzinfo=UTC)
 
 
 def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:

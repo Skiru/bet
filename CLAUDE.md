@@ -695,11 +695,10 @@ B1 / B2 / B14 / C1 / B5 are on since 2026-10-13 18:10Z and B15 since
 2026-10-14 05:45Z ("Refit of 2026-10-14" under Confidence); B1's betas were
 refitted on the live centre (2026-10-13 20:57Z) before that replay.
 
-**Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
-`CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
-printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
-`BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), `FOOTBALL_RESULT_MARKETS_FROM_UTC` (audit D1, double chance only:
+**Switched on 2026-10-14 14:20Z** (operator, "WŁĄCZ OD TERAZ"; into the built
+day - 10-14 is mixed; no curve installed for either, so both read only their
+own settled Superbet lines and nothing prints until a bucket holds enough):
+`FOOTBALL_RESULT_MARKETS_FROM_UTC` (audit D1, double chance only:
 OFFER reads "Podwójna szansa" as `double_chance` with the left-out "Mecz"
 outcome as its UNDER, SHEET prices the selection from NB goals on the pure
 rating centres, r 7.586 in `config/sofa_football_result.json`, unfitted, OVER
@@ -710,9 +709,19 @@ settle; graded on the 90-minute score; `bet.sofa.football_result`,
 left / right foot, all and on target: OFFER reads the eight names as player
 markets, SAMPLES and SETTLE count them from `/shotmap` only where it gives the
 player his lineups `totalShots`, SHEET prices `shot_detail.forecast` from
-`config/sofa_shot_detail.json` - not installed, so `NO_SHOT_DETAIL_FIT` -
+`config/sofa_shot_detail.json` (absent file: `NO_SHOT_DETAIL_FIT`) -
 rows `shot_detail_rule`; no curve, `NO_LINE_EVIDENCE`;
-`docs/sofa/evidence/shot_detail_2026-10-14.md`), the coupon form
+`docs/sofa/evidence/shot_detail_2026-10-14.md`). The shot-detail estimator file
+`config/sofa_shot_detail.json` is installed (fit `data/refit_shot_detail_2026-10-14/`);
+its history curve (`curves.json` there) is not - the operator decides after the
+lines settle. Every OFFER also records the unread markets' prices
+(`unmapped_prices/`). Report: `docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md`.
+
+**Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
+`CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
+printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
+`BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
+builders), the coupon form
 dials, and the derived football joints -
 `DERIVED_CURVES_FROM_UTC` (joints read a history curve),
 `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126;

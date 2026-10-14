@@ -1,0 +1,95 @@
+{
+ "fitted_from": {
+  "db_path": "data/refit_shot_detail_2026-10-14/shot_detail.db",
+  "before": "2026-10-14",
+  "fitted_at_utc": "2026-10-14T13:30:08.496196+00:00",
+  "starts": 114107,
+  "matches": 5187,
+  "script": "scripts/sofa/fit_shot_detail.py"
+ },
+ "window": 10,
+ "min_starts": 5,
+ "outside_x": 17.0,
+ "metrics": {
+  "player_headed_shots_for": {
+   "k": 5,
+   "pool": {
+    "G": 0.00222,
+    "D": 0.2057,
+    "M": 0.11031,
+    "F": 0.38492
+   },
+   "pool_all": 0.1783
+  },
+  "player_left_foot_shots_for": {
+   "k": 2,
+   "pool": {
+    "G": 0.00106,
+    "D": 0.16433,
+    "M": 0.42406,
+    "F": 0.61704
+   },
+   "pool_all": 0.32545
+  },
+  "player_right_foot_shots_for": {
+   "k": 5,
+   "pool": {
+    "G": 0.00299,
+    "D": 0.18391,
+    "M": 0.67051,
+    "F": 0.98174
+   },
+   "pool_all": 0.48901
+  },
+  "player_shots_outside_box_for": {
+   "k": 5,
+   "pool": {
+    "G": 0.00039,
+    "D": 0.17438,
+    "M": 0.58324,
+    "F": 0.52657
+   },
+   "pool_all": 0.37742
+  },
+  "player_sot_headed_for": {
+   "k": 10,
+   "pool": {
+    "G": 0.00077,
+    "D": 0.05743,
+    "M": 0.03414,
+    "F": 0.12595
+   },
+   "pool_all": 0.0541
+  },
+  "player_sot_left_foot_for": {
+   "k": 5,
+   "pool": {
+    "G": 0.00087,
+    "D": 0.04656,
+    "M": 0.13947,
+    "F": 0.24473
+   },
+   "pool_all": 0.11119
+  },
+  "player_sot_outside_box_for": {
+   "k": 10,
+   "pool": {
+    "G": 0.0,
+    "D": 0.03641,
+    "M": 0.1511,
+    "F": 0.16029
+   },
+   "pool_all": 0.09854
+  },
+  "player_sot_right_foot_for": {
+   "k": 10,
+   "pool": {
+    "G": 0.00241,
+    "D": 0.05142,
+    "M": 0.21503,
+    "F": 0.40214
+   },
+   "pool_all": 0.16838
+  }
+ }
+}
