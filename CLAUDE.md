@@ -717,17 +717,32 @@ its history curve (`curves.json` there) is not - the operator decides after the
 lines settle. Every OFFER also records the unread markets' prices
 (`unmapped_prices/`). Report: `docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md`.
 
-**Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
-`CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
-printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
-`BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
-builders), `SPORT_DERIVED_MARKETS_FROM_UTC` (SHADOW reads, SHADOW_SETTLE
+**Switched on 2026-10-14 14:50Z** (operator, "1. 2. tak"; into the built day,
+10-14 mixed; no curve, own Superbet lines only): `SPORT_DERIVED_MARKETS_FROM_UTC` (SHADOW reads, SHADOW_SETTLE
 grades and SPORT_CONFIDENCE prices from the score model the hockey /
 basketball double chance - regulation, as the 1X2 - and volleyball's team
 sets and sets count, `shadow.DERIVED_MARKETS`; no curve, so
 NO_LINE_EVIDENCE until their own lines settle; history log-loss vs base
 better on every 1X / X2 and volleyball key, none on "12";
-`docs/sofa/evidence/sport_derived_2026-10-14.md`), the coupon form
+`docs/sofa/evidence/sport_derived_2026-10-14.md`); `FOOTBALL_INCIDENT_MARKETS_FROM_UTC` (`bet.sofa.football_incidents`: "1. gol"
+as one-sided `first_goal` from the double chance's NB goals on the pure
+rating, "Liczba czerwonych kartek" / "Liczba przyznanych rzutów karnych" O/U
+0.5 / 1.5 as `red_cards_total` / `penalties_total` from the competition's
+as-of full-feed rate, graded from regular-time incidents; at p >= 0.70
+calibrated walk-forward 06-09..10-14: first goal +1.0 pp n 1,376, reds +0.7
+pp n 10,152, penalties +1.0 pp n 9,518; the minute bands never reach 0.70 and
+are not read) and `TENNIS_SET_MARKETS_FROM_UTC` (`bet.sofa.tennis_sets`: "X.
+set - zwycięzca" as `set1_won_for` / `set2_won_for`, the tennis "Dokładny
+wynik" as one-sided `set_score`, from the rating's neighbours; set 1 +1.0 pp
+n 12,174, set 2 +0.4 pp n 12,502, exact sets +1.5 pp n 4,107) - rating-only
+markets with no curve, so NO_LINE_EVIDENCE until their own Superbet lines
+settle; `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`.
+
+**Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
+`CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
+printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
+`BUILDER_SCREEN_PRICE_FROM_UTC` (switched off 2026-10-05: sofa does not price
+builders), the coupon form
 dials, and the derived football joints -
 `DERIVED_CURVES_FROM_UTC` (joints read a history curve),
 `CARDS_CORRELATION_FROM_UTC` (cards joints with side correlation +0.126;
@@ -749,19 +764,6 @@ on together or not at all, re-measured on rows from 10-13 on
 the coupon while `THIN_SAMPLE_FOR_BUILDER` refuses every derived football
 row (it reads the derived row's own market as its sample; 0 derived legs in
 `08_confidence.json` 10-09..10-13) - the operator's decision first.
-`FOOTBALL_INCIDENT_MARKETS_FROM_UTC` (`bet.sofa.football_incidents`: "1. gol"
-as one-sided `first_goal` from the double chance's NB goals on the pure
-rating, "Liczba czerwonych kartek" / "Liczba przyznanych rzutów karnych" O/U
-0.5 / 1.5 as `red_cards_total` / `penalties_total` from the competition's
-as-of full-feed rate, graded from regular-time incidents; at p >= 0.70
-calibrated walk-forward 06-09..10-14: first goal +1.0 pp n 1,376, reds +0.7
-pp n 10,152, penalties +1.0 pp n 9,518; the minute bands never reach 0.70 and
-are not read) and `TENNIS_SET_MARKETS_FROM_UTC` (`bet.sofa.tennis_sets`: "X.
-set - zwycięzca" as `set1_won_for` / `set2_won_for`, the tennis "Dokładny
-wynik" as one-sided `set_score`, from the rating's neighbours; set 1 +1.0 pp
-n 12,174, set 2 +0.4 pp n 12,502, exact sets +1.5 pp n 4,107) - rating-only
-markets with no curve, so NO_LINE_EVIDENCE until their own Superbet lines
-settle; `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`.
 Open questions: Superbet's game count of a tennis match tiebreak. Measured
 2026-10-12 night: the line-evidence offsets of the repriced families moved
 <= 1.3 pp a day over 10-09..10-12 (stable, reproduced from the legs); the

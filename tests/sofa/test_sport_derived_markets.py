@@ -67,9 +67,12 @@ def _item(market: str, name: str, price: float, market_id: int = 999001,
 # --- the switch ------------------------------------------------------------------
 
 
-def test_switch_is_off_by_default() -> None:
-    assert epochs.SPORT_DERIVED_MARKETS_FROM_UTC is None
-    assert not epochs.sport_derived_markets("2026-10-14", ON)
+def test_switch_is_on_from_the_operators_time() -> None:
+    # operator 2026-10-14: on from 14:50Z into the built day (mixed)
+    on = datetime(2026, 10, 14, 14, 50, 0, tzinfo=UTC)
+    assert epochs.SPORT_DERIVED_MARKETS_FROM_UTC == on
+    assert epochs.sport_derived_markets("2026-10-14", on)
+    assert not epochs.sport_derived_markets("2026-10-13", on)
     assert epochs.SPORT_DERIVED_MARKETS == "sport_derived_v1"
 
 
@@ -198,7 +201,9 @@ def _snapshot(tmp_path: Path) -> dict[str, Any]:
     return dict(rec)
 
 
-def test_snapshot_off_is_what_it_was(tmp_path: Path) -> None:
+def test_snapshot_off_is_what_it_was(tmp_path: Path,
+                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "SPORT_DERIVED_MARKETS_FROM_UTC", None)
     rec = _snapshot(tmp_path)
     assert "derived_rule" not in rec
     assert rec["lines"] == [ln.as_dict() for ln in _parse(_events()[0], False)]

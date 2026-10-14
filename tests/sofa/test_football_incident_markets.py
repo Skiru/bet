@@ -91,10 +91,13 @@ def _item(
 # --- the switch ------------------------------------------------------------------
 
 
-def test_switch_is_off_and_reads_the_day_and_the_clock(
+def test_switch_reads_the_day_and_the_clock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert epochs.FOOTBALL_INCIDENT_MARKETS_FROM_UTC is None
+    # operator 2026-10-14: on from 14:50Z into the built day (mixed)
+    on = datetime(2026, 10, 14, 14, 50, 0, tzinfo=UTC)
+    assert epochs.FOOTBALL_INCIDENT_MARKETS_FROM_UTC == on
+    monkeypatch.setattr(epochs, "FOOTBALL_INCIDENT_MARKETS_FROM_UTC", None)
     assert epochs.FOOTBALL_INCIDENT_MARKETS == "incident_markets_v1"
     late = datetime(2027, 1, 1, tzinfo=UTC)
     assert not epochs.football_incident_markets("2027-01-01", late)

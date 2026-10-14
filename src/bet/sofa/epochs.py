@@ -1788,7 +1788,11 @@ def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:
 # sets it): SHADOW snapshots, SHADOW_SETTLE and SPORT_CONFIDENCE
 # byte-identical. Evidence: docs/sofa/evidence/sport_derived_2026-10-14.md.
 SPORT_DERIVED_MARKETS = "sport_derived_v1"
-SPORT_DERIVED_MARKETS_FROM_UTC: datetime | None = None
+# Operator 2026-10-14 ~14:45Z ("1. 2. tak"): on from 14:50Z into the built
+# day - 10-14 is mixed. No curve: these keys read only their own settled
+# Superbet lines (NO_LINE_EVIDENCE until a bucket holds enough).
+SPORT_DERIVED_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 14, 50, 0, tzinfo=UTC)
 
 
 def sport_derived_markets(date: str, build_at: datetime | None = None) -> bool:
@@ -1818,7 +1822,11 @@ def sport_derived_markets(date: str, build_at: datetime | None = None) -> bool:
 # OFFER, SAMPLES, SHEET and SETTLE byte-identical. Evidence: docs/sofa/
 # evidence/football_incidents_tennis_sets_2026-10-14.md.
 FOOTBALL_INCIDENT_MARKETS = "incident_markets_v1"
-FOOTBALL_INCIDENT_MARKETS_FROM_UTC: datetime | None = None
+# Operator 2026-10-14 ~14:45Z ("1. 2. tak"): on from 14:50Z into the built
+# day - 10-14 is mixed. No curve: these keys read only their own settled
+# Superbet lines (NO_LINE_EVIDENCE until a bucket holds enough).
+FOOTBALL_INCIDENT_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 14, 50, 0, tzinfo=UTC)
 
 
 def football_incident_markets(date: str, build_at: datetime | None = None) -> bool:
@@ -1844,7 +1852,11 @@ def football_incident_markets(date: str, build_at: datetime | None = None) -> bo
 # operator sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
 # Evidence: docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md.
 TENNIS_SET_MARKETS = "tennis_set_markets_v1"
-TENNIS_SET_MARKETS_FROM_UTC: datetime | None = None
+# Operator 2026-10-14 ~14:45Z ("1. 2. tak"): on from 14:50Z into the built
+# day - 10-14 is mixed. No curve: these keys read only their own settled
+# Superbet lines (NO_LINE_EVIDENCE until a bucket holds enough).
+TENNIS_SET_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 14, 14, 50, 0, tzinfo=UTC)
 
 
 def tennis_set_markets(date: str, build_at: datetime | None = None) -> bool:
