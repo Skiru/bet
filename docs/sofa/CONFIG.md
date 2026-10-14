@@ -515,30 +515,35 @@ refit krzywych odtworzony z jego flagą) i zawsze od następnego dnia 00:00Z,
 chyba że operator poda dokładną godzinę. Raport ze staged refitu:
 `docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md`.
 
-### 7.7 Refit 2026-10-13 (piłka / tenis; zainstalowany 18:06Z, przełączniki od 18:10Z)
+### 7.7 Refit 2026-10-14 (piłka / tenis; zainstalowany 05:31Z, B15 od 05:45Z)
 
 Krzywe, stałe silnika, bazy lig i niezawodność dopasowane na
-`data/refit_2026-10-13/sofa_replay.db` (104,5 mln wierszy, ostatni rozliczony
-dzień 2026-10-12), zainstalowane przez `prepare_refit.py install` (testy
-`tests/sofa` przeszły; kopia `config/backup_2026-10-14`). `K_CENTRE`: wartość
-10 -> 15, tenis 5 -> 8, piłka 15.
+`data/refit_2026-10-14/sofa_replay.db` (121,9 mln wierszy, ostatni rozliczony
+dzień 2026-10-12; przed fitem usunięto z kopii 6 688 wierszy `sets_total`
+z meczów best-of-five - błąd replayu, poprawka 953f4ae9), zainstalowane przez
+`prepare_refit.py install` (testy `tests/sofa` przeszły; kopia
+`config/backup_2026-10-15`). `K_CENTRE`: tenis 8, piłka 15. Zastępuje refit
+z 2026-10-13 18:06Z (dzień 10-13 mieszany, kopia `config/backup_2026-10-14`,
+raport `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`). Dzień 10-14 nie był
+jeszcze zbudowany - nie jest mieszany. Raport nocy:
+`docs/sofa/history/RAPORT_NOC_2026-10-13_14.md`.
 
 | plik / flaga | kto pisze | status |
 |---|---|---|
-| `prepare_refit.py rebuild-cache-rows` / `calibrate_from_cache.py` | flagi `--football-rating --rated-scope --venue-prior --game-state --rating-weight --season-phase --tennis-set-ratings` (od 2026-10-13 wieczorem także `--opponent-correction`, B15 - w reficie 10-13 nieużyta) (obok `--count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`, `--derived cards_points`); zapis w `data/refit_2026-10-13/ft/replay_rules.json` | replay to estymator SHEET z ratingiem piłkarskim w centrum (audyt A6) i ratingiem setów tenisa (B5); nadal bez priorów tier / drabiny tenisa i bez łączników piłki poza kartkami |
-| `config/sofa_game_state.json`, `sofa_rating_weight.json`, `sofa_season_phase.json` | `fit_game_state.py` i fity audytu | czytane od 2026-10-13 18:10Z (`GAME_STATE`, `FOOTBALL_RATING_WEIGHT`, `SEASON_PHASE`); beta kartek B1 dopasowana na centrum bez ratingu - do ponownego fitu |
-| `epochs.FOOTBALL_RATED_SCOPE_FROM_UTC`, `FOOTBALL_VENUE_PRIOR_FROM_UTC`, `TENNIS_SET_RATING_PRICES_FROM_UTC` | przełączniki w kodzie | **włączone 2026-10-13 18:10Z** |
-| `config/sofa_confidence_calibration.next.json` | ten fit + krzywe zawodników tylko ze startów z 2026-10-11 (różnią się tylko klucze `player_*`) | `effective_from` 2026-10-13T18:10Z; `install` nie dotyka `.next.json` - stary plik ukryłby refit przed każdym dniem >= 10-12; przenieść nad główny plik później |
-| `config/sofa_sport_confidence_calibration.next.json` (CS2) | krzywa CS2 na wyścigu rund (B10) | `effective_from` 2026-10-13; `CS2_TEAM_ROUNDS_RACE` i `CS2_COUNT_EXPOSURE` przesunięte przez operatora z 2026-10-14 00:00Z na 2026-10-13 18:10Z |
+| `prepare_refit.py rebuild-cache-rows` / `calibrate_from_cache.py` | flagi z 10-13 (`--football-rating --rated-scope --venue-prior --game-state --rating-weight --season-phase --tennis-set-ratings`, obok `--count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`) plus `--opponent-correction` (B15), `--player-starts-only` (2e67dea3), `--derived cards_points,goals,corners,shots_on_target` | replay = estymator SHEET; nadal bez priorów tier / drabiny tenisa i bez meczów 851; próbki `games_total` / `games_won_for` best-of-five bez zakresu formatu (otwarte) |
+| `config/sofa_game_state.json` | `fit_game_state.py` na żywym centrum (B2 + waga B14) | bety B1 ponownie dopasowane, zainstalowane 2026-10-13 20:57Z (df5323ea); `fouls_for` bez zmian |
+| `epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC` | przełącznik w kodzie | **włączony 2026-10-14 05:45Z** (stała zgoda audytu); działa od próbek z `opponent_id` (SAMPLES od wieczora 10-13) |
+| `config/sofa_confidence_calibration.next.json` | - | **usunięty** przy instalacji: nowy fit sam ma krzywe zawodników ze startów (kopia w `config/backup_2026-10-15`) |
+| `match_won_for` w `config/sofa_confidence_calibration.json` | `fit_tennis_winner_curve.merge` | wklejony ponownie po fitcie (`fit_confidence` go gubi); `TENNIS_MATCH_WINNER` od 2026-10-14 00:00Z |
+| krzywe łączników (`both_over_*`, `most_*`, `handicap_*`) | ten fit | dopasowane, **nieczytane**: `DERIVED_CURVES`, `CARDS_CORRELATION`, `DERIVED_SHEET_MARGINS` = `None` (`docs/sofa/evidence/derived_curves_2026-10-14.md`) |
+| `config/sofa_sport_confidence_calibration.json` / `.next.json` | `fit_sport_confidence.py` | staged CS2 (B10) przeniesiony nad plik główny; nowy `.next.json` = to + koszykówka A7, `effective_from` 2026-10-14 (`MARKET_POSITIONED_LINES`); hokej / siatkówka / CS2 / zwykła koszykówka zmierzone, niezainstalowane |
 
-Dzień 10-13 jest mieszany: nogi wydrukowane wcześniej zostają zablokowane;
-grupa dziennika „10-13 mieszany” (`audit_ledger.EPOCH_GROUPS`), nie sumowana
-ani z „od 10-12”, ani z „od 10-14”. **Luka:** `rebuild_plan.py` nie zna tych
-sześciu przełączników ani refitu stałych, więc przebudowa zostawia
-`05_sheet.json` starej reguły - SHEET dnia 10-13 puszczono ręcznie
-(`run_pipeline.py --only SHEET`). Próba na 10-13 (zegar porannego buildu):
-drukowane single 900 -> 1323 (tenis 193 -> 454, gole piłki 319 -> 416, rożne
-163 -> 226), pewność wspólnych nóg +0,25 pp. `data/refit_2026-10-13/ft/
-compare_report.md` liczył SHEET z wyłączonymi przełącznikami: jego część
-z replayem kuponu mierzy nowe krzywe na starym centrum. Raport:
-`docs/sofa/history/RAPORT_REFIT_2026-10-13.md`.
+Próba na sucho (artefakty poranka 10-13, przełączniki dnia 10-14, nowe
+krzywe): drukowane single 1323 -> 1296; piłka / tenis stabilne (pewność
+wspólnych nóg +0,04 pp średnio, 0,3 pp w wartości bezwzględnej); koszykówka -
+sumy / handicapy / sumy drużyny 0 (A7); hokej i CS2 bez zmian; B15 nie
+skorygował żadnego wiersza (stare próbki bez `opponent_id`). Line evidence
+trzeba przeliczyć na nowych krzywych (`refresh_line_evidence.py`) po
+rozliczeniu 10-13. `data/refit_2026-10-14/sofa_replay.db` to baza, z której
+dopasowano zainstalowane krzywe - zachować; `data/refit_2026-10-13/sofa_replay.db`
+(53 GB) już nie (operator może usunąć).

@@ -303,8 +303,10 @@ do naszych metryk mapuje się około **jednej dziesiątej** ekranu Superbetu
 z nazwą — po to, żeby dało się zmierzyć, co tracimy.
 
 **Rodziny MAPPABLE za przełącznikiem `MAPPABLE_FAMILIES_FROM_UTC`**
-(`bet.sofa.epochs`, plan nocy 2026-10-12 C1; **`None` – wyłączony**, włącza
-operator). Włączony, OFFER czyta dodatkowo
+(`bet.sofa.epochs`, plan nocy 2026-10-12 C1; **włączony od 2026-10-14
+00:00Z** decyzją operatora z 2026-10-13 – E2E na próbkach 10-13 czyste on/off,
+część z mostem niesprawdzona, Sofascore 403:
+`docs/sofa/evidence/mappable_e2e_2026-10-14.md`). Włączony, OFFER czyta dodatkowo
 (`market_mapper.classify_mappable_family`, zawsze po wszystkich dotychczasowych
 klasyfikatorach): „<drużyna> strzeli gola” i połowy (`goals_for` /
 `goals_1h_for` / `goals_2h_for` 0,5; tak = OVER, nie = UNDER; podmiot musi być
@@ -324,7 +326,11 @@ mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
 `goals_*_for` 0,5 i `sets_total` czytają istniejące krzywe, więc mogą drukować.
 
 **Zwycięzca meczu w tenisie za przełącznikiem `TENNIS_MATCH_WINNER_FROM_UTC`**
-(`bet.sofa.epochs`, audyt 2026-10-13 D2; **`None` – wyłączony**). Włączony,
+(`bet.sofa.epochs`, audyt 2026-10-13 D2; **włączony od 2026-10-14 00:00Z**,
+decyzja operatora; umiejętność -0,1263 [-0,1303; -0,1228] log-loss wobec bazy
+klasy; próg kalibracji krzywej niespełniony, ale wyłącznie po stronie
+ostrożnej: >= 0,70 pewność 0,802 vs realizacja 0,828 na holdoucie; krzywa
+`match_won_for` wklejana po każdym fitcie, bo `fit_confidence` ją gubi). Włączony,
 OFFER czyta „Zwycięzca” (wybory „1” / „2”, tylko mecz tenisowy) jako jeden
 dwustronny szczebel `match_won_for`: podmiot = pierwsze nazwisko `matchName`
 Superbetu, linia 0,5, OVER = on wygrywa (kurs „1”), UNDER = wygrywa drugi
@@ -369,7 +375,7 @@ Dla każdej strony meczu i każdej metryki, którą ktoś wycenia, pobiera
 (`process_historical_event`, `src/bet/sofa/metrics.py`).
 
 Zakresy (scoping), zanim mecz historyczny wejdzie do próbki:
-- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera. Od 2026-10-04 wypada też 851 (towarzyskie reprezentacji mężczyzn), więc mecz towarzyski mężczyzn czyta gole z 10 najnowszych meczów o stawkę; `epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC` (dziś `None`, decyzja operatora) zmienia to tylko dla meczu dnia w 851 i tylko dla `goals_total` / `goals_for` - patrz sekcja 7, „Zmierzone 2026-10-13 (reprezentacje, poza audytem)”. 852 (kobiety) bez zmian;
+- **piłka:** mecze towarzyskie wypadają (`config/sofa_friendly_competitions.json`: 853, 1794 i od 30.09 28008 — towarzyskie klubowe kobiet); działa tylko w SAMPLES, więc próbka pobrana przed dodaniem id nadal je zawiera. Od 2026-10-04 wypada też 851 (towarzyskie reprezentacji mężczyzn), więc mecz towarzyski mężczyzn czyta gole z 10 najnowszych meczów o stawkę; `epochs.MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC` (od 2026-10-14 00:00Z, decyzja operatora) zmienia to tylko dla meczu dnia w 851 i tylko dla `goals_total` / `goals_for` - patrz sekcja 7, „Reprezentacje, poza audytem”. 852 (kobiety) bez zmian;
 - **piłka, druga drużyna pod id pierwszej** (od 2026-10-02, `src/bet/sofa/reserve_squads.py`): mecze, które klub zagrał rezerwami / U23 w rozgrywkach bez osobnego bytu „B” (Londrina — Copa Paraná), wypadają z próbki drużyny. Rozstrzyga kolizja terminów: dwa mecze drużyny w rozgrywkach X w odstępie 6–44 h od meczu jej głównej ligi czynią całą parę (drużyna, X) drugim składem (krajowe i kontynentalne puchary: 0 kolizji na ~7 800 meczów), a w rozgrywkach z listy `config/sofa_reserve_competitions.json` — główna liga drużyny z `reserve_when_main_in` (stanowe puchary Brazylii dla Série A/B, Copa Santa Fe dla Liga Profesional). Gdy mecz dnia sam jest meczem drugiego składu, strona zostaje pusta. Luka `RESERVE_SQUAD` mówi, co wypadło;
 - **tenis:** mecz historyczny liczy się tylko, gdy
   `surfaces_comparable(event.groundType, fixture.ground_type)` **i**
@@ -473,7 +479,7 @@ prior   = w tej kolejności (piłka):
           4. mecz kobiet: pula lig kobiecych (config/sofa_women_competitions.json,
              ≥300 meczów)                          notka PRIOR_GLOBAL_WOMEN
           5. globalna
-          (przed 2-5, tylko od epochs.MEN_FRIENDLY_BASELINE_FROM_UTC - dziś None:
+          (przed 2-5, od epochs.MEN_FRIENDLY_BASELINE_FROM_UTC - 2026-10-14 00:00Z:
            mecz 851, goals_total / goals_for: średnia goli meczów 851 sprzed
            dnia, ≥30 meczów, goals_for = połowa    notka PRIOR_MEN_FRIENDLY)
 w_c     = n / (n + K_CENTRE)                           (piłka 15, tenis 5; osobne K na rynek: `PER_MARKET_K`, od 2026-10-09)
@@ -623,30 +629,9 @@ z 404) nie jest pytane ponownie.
   one step ahead 06-01..10-12, mecze ponadligowe z jednostką: log-loss
   -0,0010 [-0,0029; +0,0008] na mecz (7 724 mecze) - kierunek zgodny,
   przedział obejmuje zero. Zostaje `None`.
-- `epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC` (B15 z A5,
-  `bet.sofa.opponent_correction`): próbka strony w piłce przeskalowana do
-  neutralnego rywala (`x / def(rywala)`, Maher 1982) i do domeny ligowej
-  dzisiejszego meczu przed środkiem SHEET-a (gole bez korekty); wiersz niesie
-  `corrected_sample` i `opponent_rule`, a bramki kształtu i
-  `MODEL_ABOVE_OWN_SAMPLE` w CONFIDENCE czytają skorygowane wartości (moda na
-  wartościach zaokrąglonych). Historia, cięcie 2026-06-09: log-loss po
-  kalibracji lepszy na 12 z 18 rynków rożnych / strzałów / fauli z
-  przedziałem poniżej zera, żaden gorszy; w parach ponadligowych 3-4 razy
-  więcej. Zostaje `None`: wymaga refitu krzywych na replayu z tą samą
-  korektą - replay ją ma: `calibrate_from_cache.py --opponent-correction`
-  (tylko z `--football-rating`; księga ratingu as-of dnia meczu, te same
-  `SampleCorrector.factors` i `corrected_metric`, gole i zawodnicy bez
-  korekty, suma z rozbiciem własne / rywala, spotkanie obu stron czytane z
-  listy gospodarza jak w `deduplicate_observations`; środki łączników z
-  `--derived` ze skorygowanej próbki, sam łącznik na surowej), przez
-  `prepare_refit.py rebuild-cache-rows --opponent-correction`, zapis w
-  `replay_rules`. Rebuild (`rebuild_plan`) uruchamia SHEET ponownie, gdy
-  któryś wiersz piłki nie ma `opponent_rule` (arkusz bez piłki nie jest
-  przestarzały - SHEET bez księgi piłki nie stempluje reguły)
-  (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 
-**Zmierzone 2026-10-13 (reprezentacje, poza audytem), niewłączone - decyzja
-operatora (żadna stała zgoda tego nie obejmuje)**
+**Reprezentacje, poza audytem - zmierzone 2026-10-13, włączone od 2026-10-14
+00:00Z decyzją operatora („Wszystkie rynki włączone”)**
 (`docs/sofa/evidence/national_friendly_samples_2026-10-13.md`,
 `scripts/sofa/measure_national_friendly_samples.py`; 2 209 meczów
 towarzyskich mężczyzn 2015-01-01..2026-10-12, log-loss NB środka przy liczbie
@@ -679,7 +664,7 @@ goli, bootstrap po meczach, bez ratingu w środku; kod: `bet.sofa.men_friendly`)
   na meczach ściśle wcześniejszych); bez tego krzywe tych rynków opisują mecze
   o stawkę, a mecz 851 czyta je jako przybliżenie.
 
-**Zmierzone 2026-10-13 (audyt B8, B9, B11, A7), sporty mierzone, przełączniki
+**Zmierzone 2026-10-13 (audyt B8, B9, B11, A3), sporty mierzone, przełączniki
 `None`** (kod za przełącznikiem, bez refitu, nic nie wchodzi do druku):
 - `epochs.HK_SHOTS_FROM_UTC`, `epochs.HK_EMPTY_NET_FROM_UTC` (B8, hokej:
   strzały x save% i dopasowana pusta bramka): zamiana centrum na strzały
@@ -698,16 +683,38 @@ goli, bootstrap po meczach, bez ratingu w środku; kod: `bet.sofa.men_friendly`)
 - `epochs.CS2_MAP_IDENTITY_FROM_UTC` (B11, CS2: kolejność i pula map): 24 995
   map / 11 217 serii, A vs baza +0,00021 [-0,00022; +0,00064] - bez efektu
   (`docs/sofa/evidence/cs2_map_identity_2026-10-13.md`).
-- `epochs.MARKET_POSITIONED_LINES_FROM_UTC` (A7, koszykówka: linie historii
-  tam, gdzie stał rynek Sofascore, p nadal z modelu wyników; działa tylko w
-  replayu fitu, na żywo dopiero z krzywą dopasowaną tak): wyniki pomiaru nie są
-  jeszcze wpisane do dokumentu dowodowego
-  (`docs/sofa/evidence/market_positioned_lines_2026-10-13.md`).
+- `epochs.BB_OVERTIME_FROM_UTC` (A3, koszykówka: dogrywka w replayu): 1X2
+  regulaminu -0,00354 [-0,00719; -0,00015], sumy i zwycięzca bez poprawy; jako
+  wariant krzywej +0,00113 [-0,00123; +0,00353]
+  (`docs/sofa/evidence/basketball_refit_2026-10-13.md`).
+- Refity krzywych na 2026-10-14 (`sport_refit_2026-10-13.md`,
+  `basketball_refit_2026-10-13.md`; linie Superbetu 10-05..10-12): koszykówka
+  zwykła -0,00042 [-0,00145; +0,00063], hokej +0,00151 [+0,00105; +0,00200]
+  gorzej, siatkówka -0,00032 [-0,00175; +0,00120], CS2 -0,00008 [-0,00030;
+  +0,00015] - żadna nie zainstalowana. Siatkówka zawyża ~16 pp przy pewności
+  >= 0,70 przy obu krzywych (nowa -15,4 pp [-24,4; -6,8]) - jak koszykówka,
+  sprawa krzywej / line evidence, otwarta.
+
+**Włączone od 2026-10-14 (koszykówka A7, standing go audytu):**
+- `epochs.MARKET_POSITIONED_LINES_FROM_UTC` (2026-10-14 00:00Z): krzywa
+  historii koszykówki dopasowana na liniach postawionych tam, gdzie stał rynek
+  Sofascore (`data/a7_odds/basketball.jsonl`), p nadal z modelu wyników;
+  krzywa w `config/sofa_sport_confidence_calibration.next.json`
+  (`effective_from` 2026-10-14; staged CS2 B10 przeniesiony nad plik główny,
+  bc69b56e). Log-loss -0,0622 [-0,0702; -0,0546] na 41 414 liniach / 651
+  meczach 10-05..10-12. Przy linii rynku p modelu do 0,70 realizuje
+  0,47-0,53, więc sumy / handicapy / sumy drużyny (stara krzywa ~0,77,
+  realizacja 0,618) trafiają w kubełki n < 200 i przestają drukować (próba na
+  sucho: 0 takich nóg). Cache A7 pokrywa ~40% celów (10 662 z 26 332;
+  priorytet 1, 15 670 meczów, wymaga mostu)
+  (`docs/sofa/evidence/market_positioned_lines_2026-10-13.md`,
+  `basketball_refit_2026-10-13.md`).
 
 **Włączone od 2026-10-13 18:10Z razem z refitem piłki / tenisa
 (zainstalowanym 18:06Z; krzywe dopasowane na replayu z tymi członami i
 ratingiem piłkarskim w centrum, audyt A6; dzień 10-13 mieszany, raport
-`docs/sofa/history/RAPORT_REFIT_2026-10-13.md`, pliki `CONFIG.md` 7.7)**
+`docs/sofa/history/RAPORT_REFIT_2026-10-13.md`; od 2026-10-14 05:31Z na
+krzywych refitu 2026-10-14, pliki `CONFIG.md` 7.7)**
 (pomiary B1 / B2: one step ahead na historii 2025-08-01..2026-10-12, log-loss
 NB centrum przy wyniku, nie linie Superbetu):
 - `epochs.GAME_STATE_FROM_UTC` (B1): centrum strony `corners_for`,
@@ -743,8 +750,27 @@ NB centrum przy wyniku, nie linie Superbetu):
   (`BEST_OF_FIVE_NOT_MODELLED`, `run_sheet.format_bound_refusal`): krzywa
   jest z best-of-three, a nieznany format sąsiedzi ratingu czytaliby jak
   best-of-three.
-- Beta kartek B1 dopasowano na centrum bez ratingu, a B2 ratinguje
-  `cards_points_for`: do ponownego fitu przed następnym refitem piłki.
+- Bety B1 dopasowano ponownie na żywym centrum (z B2 i wagą B14),
+  zainstalowane 2026-10-13 20:57Z (df5323ea): `corners_for` 0,129 -> 0,0986,
+  `shots_for` 0,0974 -> 0,0506, `cards_points_for` -0,0845 -> -0,0664,
+  `fouls_for` bez zmian (refit +0,000031 gorzej).
+- **Refit 2026-10-14** (zainstalowany 05:31Z, `CONFIG.md` 7.7, raport
+  `docs/sofa/history/RAPORT_NOC_2026-10-13_14.md`) zastąpił refit z 10-13:
+  ten sam replay plus B15, łączniki i zawodnicy ze startów. Od 2026-10-14
+  05:45Z `epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC` (B15 z A5,
+  `bet.sofa.opponent_correction`): próbka strony w piłce przeskalowana do
+  neutralnego rywala (`x / def(rywala)`, Maher 1982) i do domeny ligowej
+  dzisiejszego meczu przed środkiem SHEET-a (gole i zawodnicy bez korekty);
+  wiersz niesie `corrected_sample` i `opponent_rule`, a bramki kształtu i
+  `MODEL_ABOVE_OWN_SAMPLE` w CONFIDENCE czytają skorygowane wartości.
+  Historia: log-loss po kalibracji lepszy na 12 z 18 rynków rożnych /
+  strzałów / fauli z przedziałem poniżej zera, żaden gorszy; w parach
+  ponadligowych 3-4 razy więcej. Replay: `calibrate_from_cache.py
+  --opponent-correction` (z `--football-rating`). Rebuild uruchamia SHEET
+  ponownie, gdy wiersz piłki nie ma `opponent_rule`. SAMPLES zapisuje
+  `opponent_id` dopiero od wieczora 2026-10-13 - starsza próbka nie jest
+  korygowana, więc B15 działa od SAMPLES dnia 10-14
+  (`docs/sofa/evidence/sample_opponent_correction_2026-10-13.md`).
 - `K_CENTRE` po reficie: 15 (tenis 8, piłka 15).
 - Znaczniki wiersza (od 2026-10-14, poprawka): SHEET stempluje każdy z tych
   sześciu przełączników na wierszach, których dotyczy, gdy jest włączony
@@ -965,12 +991,10 @@ nogi `PLAYER_DID_NOT_PLAY` / `PLAYER_NOT_STARTED` są listowane per noga w
 `07_settle_skips.json` `void_legs`, a wydrukowana taka noga to w 7c i w
 ledgerze zwrot (0 j.). Od 2026-10-12 00:00Z (`PLAYER_STARTS_ONLY_FROM_UTC`)
 próbka to jego starty (`appearances: "starts"`, notka `PLAYER_STARTS_ONLY`),
-a krzywe zawodników z replayu ze startami są w
-`config/sofa_confidence_calibration.next.json`
-(`confidence.calibration_path_for`); od 2026-10-13 18:10Z ten plik to refit
-z 10-13 plus te krzywe zawodników (`effective_from` 2026-10-13T18:10Z;
-wcześniejszy dzień lub zegar czyta plik główny, czyli fit z 10-13 bez krzywych
-ze startów). Dowody:
+a krzywe zawodników są dopasowane na startach - od refitu 2026-10-14 w
+głównym `config/sofa_confidence_calibration.json` (replay z
+`--player-starts-only`); `.next.json`, który niósł je od 2026-10-12, usunięto
+przy instalacji (kopia w `config/backup_2026-10-15`). Dowody:
 `docs/sofa/evidence/player_starts_2026-10-11.md`.
 
 Wiersz zawodniczy niesie notkę `PLAYER_MINUTES` (mediana minut, ile występów
@@ -1959,7 +1983,7 @@ dwóch zegarów, rozliczana seria wykluczona po id):
   wyścigu rund (`cs2_engine.team_rounds_from_race`: rozkład wyniku mapy o
   prawdopodobieństwie wygranej z Elo, ten sam co handicap rund) - na żywo, przy
   CS2_SETTLE i w replayu historii; krzywa CS2 dopasowana na tym estymatorze
-  (`.next.json`, `effective_from` 2026-10-13). Walk-forward: log-loss -0,0213 [-0,0237;
+  (staged od 2026-10-13, od 2026-10-14 w pliku głównym). Walk-forward: log-loss -0,0213 [-0,0237;
   -0,0188] (`docs/sofa/evidence/cs2_team_rounds_race_2026-10-13.md`).
 
 **Liczba map, handicap map i mapy drużyny nie dostają liczby.** Model ze
