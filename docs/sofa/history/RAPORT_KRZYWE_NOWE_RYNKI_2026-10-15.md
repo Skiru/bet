@@ -145,3 +145,45 @@ kluczy, bramka jednostronna, wynik E2E), zdania „no curve /
 NO_LINE_EVIDENCE” przy przełącznikach z 10-14 poprawione, CS2 rundy serii i
 DNB „installed”, Comparability: „od 10-15” zaczyna też nowe krzywe, kopia
 na liście backupów. `audit_ledger.py`: komentarz przy „od 10-15”.
+
+## Rano 2026-10-15 - rozliczenie 10-14 i nogi z E2E
+
+Rozliczenie 10-14 (SETTLE 04:38Z; SHADOW_SETTLE pętli 05:15Z padł na
+odmowie mostu - 403 - i został powtórzony ręcznie 05:22Z: OK; CS2_SETTLE
+05:00Z OK; przegląd CS2 10-11 / 10-12 powtórzony 05:26Z po błędach mostu:
+OK): **nowe rynki rozliczają się** - piłka / tenis w `07_settled.json`:
+`double_chance` 308 (WIN 204 = 2 z 3 wyborów, jak musi), `first_goal` 197,
+`red_cards_total` 47, `penalties_total` 46, `set1_won_for` / `set2_won_for`
+94 / 94 (po połowie), `set_score` 167, strzały według miejsca / części ciała
+2 106 (reszta to starterzy, którzy nie wyszli - `PLAYER_NOT_STARTED`); w
+`07_settle_skips.json` żadnej przyczyny rynkowej dla nowych rynków. Hokej:
+`double_chance` 126, `period_double_chance` 129 stron (2:1, jak musi);
+siatkówka: `team_wins_set` 20, `team_sets_exact` 32, `sets_count` 21.
+
+**Usterka (otwarta): koszykarska podwójna szansa nie jest czytana.**
+Superbet wystawia ją tylko jako „1X” / „X2” (bez „12”; sprawdzone na żywo
+2026-10-15: 5 z 30 meczów, także „2. połowa - podwójna szansa”), a
+`shadow.parse_event` przyjmuje grupę podwójnej szansy tylko jako pełną
+{1X, X2, 12} (`cs2.complete_group`, `DOUBLE_CHANCE_SET`) - więc cała grupa
+odpada po cichu: 0 linii w 433 migawkach 10-14 / 10-15 po przełączniku,
+mimo włączonego `SPORT_DERIVED_MARKETS` i zainstalowanej krzywej
+`basketball:double_chance|TEAM`. Para 1X / X2 to nie rozkład (suma = 1 +
+P(remis)), więc marży nie da się z niej odczytać bez 1X2 meczu - naprawa to
+zmiana reguły marży (jak w piłce: UNDER = pominięty wynik „Mecz”), nie
+poprawka na szybko przed budową; do zrobienia z testem i pomiarem. Do tego
+czasu 0 nóg tego rynku. Hokej dostaje pełną grupę i działa.
+
+**Nogi E2E (kopia 10-14, nowe krzywe) rozliczone - fakt o dniu, nie wkład
+do decyzji:** 110 nóg, 87 wygranych, 23 przegrane, **-4,00 j.** (stawka 1).
+
+| grupa | nogi | wygrane | przegrane | j. | suma pewności | suma 1/kurs |
+|---|---|---|---|---|---|---|
+| piłka + tenis | 101 | 80 | 21 | -3,62 | 79,7 | 83,2 |
+| hokej | 9 | 7 | 2 | -0,38 | 6,8 | 7,35 |
+
+W tym `double_chance` 61 / 17 (-3,47 j.), `red_cards_total` UNDER 9 / 3
+(-1,34), `penalties_total` UNDER 5 / 1 (+0,08), sety 4 / 0 (+0,82),
+`first_goal` 1 / 0 (+0,29). Jeden dzień: zgodne z pewnością (80 przy 79,7),
+poniżej ceny (83,2) - tyle, ile mówiła bramka x >= 0,90 przy pewności poniżej
+1/kurs. Kupon 10-14 (ledger, dzień mieszany): 1 177 rozliczonych, 912 / 265,
+-67,43 j., ROI -5,7%; zdjęte przez odczyty 57, -10,4%.
