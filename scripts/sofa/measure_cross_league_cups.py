@@ -598,6 +598,239 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# in-book variant (E): the cup correction inside RatingBook.update, per metric
+# --------------------------------------------------------------------------
+
+INBOOK_METRICS = ("goals_for", "corners_for", "shots_for")
+GRID_INBOOK_ETA = (0.02, 0.05, 0.1, 0.2)
+
+
+def poisson_dev(x: F64, mu: F64) -> F64:
+    """Poisson deviance of a count at its centre - a consistent score for the
+    mean, so it ranks centres without a dispersion assumption."""
+    mu = np.clip(mu, 1e-9, None)
+    term: F64 = np.where(x > 0, x * np.log(np.where(x > 0, x, 1.0) / mu), 0.0)
+    out: F64 = 2.0 * (term - (x - mu))
+    return out
+
+
+def inbook_replay(
+    history: Iterable[fr.FootballResult], from_ts: int, metrics: Sequence[str],
+    etas: Sequence[float],
+) -> dict[str, list[dict[str, float]]]:
+    """Per metric, the cup cross-league rows priced by the base book (A) and
+    by one RatingBook per eta with the cup correction (E_<eta>), each as of
+    before the row's kick-off time group. Every book is fed the same matches
+    on the same metrics."""
+    books: dict[str, fr.RatingBook] = {"A": fr.RatingBook(shared_league_link=True)}
+    for e in etas:
+        books[f"E_{e}"] = fr.RatingBook(
+            shared_league_link=True, cup_competitions=frozenset(INTL_COMPS),
+            cup_eta={m: e for m in metrics})
+    rows: dict[str, list[dict[str, float]]] = {m: [] for m in metrics}
+    group: list[fr.FootballResult] = []
+    base = books["A"]
+
+    def flush() -> None:
+        for g in group:
+            if (g.competition_id not in INTL_COMPS or g.ts < from_ts or g.women
+                    or g.home_reserve or g.away_reserve):
+                continue
+            dh, da = base.domain(g.home_id), base.domain(g.away_id)
+            if dh is None or da is None:
+                continue
+            ch, ca = base.unit_competition(dh), base.unit_competition(da)
+            if ch == ca or ch in INTL_COMPS or ca in INTL_COMPS:
+                continue
+            for m in metrics:
+                if m not in g.values:
+                    continue
+                status, _lf = base.link(g.home_id, g.away_id, m)
+                row: dict[str, float] = {
+                    "ts": float(g.ts), "comp": float(g.competition_id),
+                    "ch": float(ch), "ca": float(ca),
+                    "status": float(STATUSES.index(status)),
+                    "x": float(g.values[m][0]), "y": float(g.values[m][1])}
+                ok = True
+                for name, book in books.items():
+                    fc = fr.FootballForecast(
+                        book, g.competition_id, g.home_id, g.away_id)
+                    h, a = fc.centre(m, "side_a"), fc.centre(m, "side_b")
+                    if h is None or a is None:
+                        ok = False
+                        break
+                    row[f"lh_{name}"], row[f"la_{name}"] = h[0], a[0]
+                    if name == "A":
+                        rates = book.league_rates(g.competition_id, m)
+                        th, ta = book.teams[(g.home_id, m)], book.teams[(g.away_id, m)]
+                        row.update(
+                            lf=_lf, rate_h=rates[0] if rates else math.nan,
+                            rate_a=rates[1] if rates else math.nan,
+                            att_h=th.attack, def_h=th.defence,
+                            att_a=ta.attack, def_a=ta.defence)
+                if ok:
+                    rows[m].append(row)
+        for g in group:
+            vals = {m: g.values[m] for m in metrics if m in g.values}
+            r2 = replace(g, values=vals)
+            for book in books.values():
+                book.update(r2)
+        group.clear()
+
+    for r in history:
+        if group and r.ts != group[0].ts:
+            flush()
+        group.append(r)
+    flush()
+    return rows
+
+
+def _scores(a: dict[str, F64], lh: F64, la: F64, metric: str,
+            r_nb: float) -> dict[str, F64]:
+    out = {"pdev": (poisson_dev(a["x"], lh) + poisson_dev(a["y"], la)) / 2,
+           "se_diff": ((a["x"] - a["y"]) - (lh - la)) ** 2}
+    if metric == "goals_for":
+        out["ll_1x2"] = ll_of(a, lh, la, r_nb)
+    return out
+
+
+def inbook_measure(
+    rows: Sequence[dict[str, float]], metric: str, etas: Sequence[float],
+    test_ts: int, r_nb: float,
+) -> dict[str, Any]:
+    """Pick E's eta (and D's) on TRAIN by the metric's primary score, score
+    every variant against A on TEST; residual of the side difference oriented
+    by the Elo proxy, A vs the chosen E."""
+    rows = [{**r, "ok": 1.0} for r in rows]   # every row here has a centre
+    elo, _delta = walk_cups(rows, GRID_ETA) if rows else (CupLeagueElo(), {})
+    keys = (["ts", "comp", "status", "x", "y", "lf", "rate_h", "rate_a", "att_h",
+             "def_h", "att_a", "def_a", "proxy"] + [f"d_{e}" for e in GRID_ETA]
+            + [f"{s}_{n}" for n in ["A", *(f"E_{e}" for e in etas)]
+               for s in ("lh", "la")])
+    a_all = arrays(rows, keys)
+    a_all["outcome"] = np.asarray(
+        [outcome_index(x, y) for x, y in zip(a_all["x"], a_all["y"], strict=True)],
+        dtype=np.float64)
+    a_all["lh"], a_all["la"] = a_all["lh_A"], a_all["la_A"]
+    lbs = a_all["status"] == STATUSES.index(fr.LINKED_BY_STRENGTH)
+    primary = "ll_1x2" if metric == "goals_for" else "pdev"
+
+    def sub(mask: NDArray[np.bool_]) -> dict[str, F64]:
+        return {k: v[mask] for k, v in a_all.items()}
+
+    def variant_scores(a: dict[str, F64], name: str) -> dict[str, F64]:
+        if name.startswith("D_"):
+            e = float(name[2:])
+            lh, la = variant_centres(a, a["lf"] + a[f"d_{e}"])
+            return _scores(a, lh, la, metric, r_nb)
+        return _scores(a, a[f"lh_{name}"], a[f"la_{name}"], metric, r_nb)
+
+    train = sub(lbs & (a_all["ts"] < test_ts))
+    test_mask = lbs & (a_all["ts"] >= test_ts)
+    e_names = [f"E_{e}" for e in etas]
+    d_names = [f"D_{e}" for e in GRID_ETA if e > 0]
+    pick: dict[str, Any] = {}
+    for fam, names in (("E", e_names), ("D", d_names)):
+        sc = [(float(variant_scores(train, n)[primary].mean()), n) for n in names]
+        pick[fam] = min(sc)[1]
+        pick[f"{fam}_train"] = {n: v for v, n in sc}
+    pick["A_train"] = float(variant_scores(train, "A")[primary].mean())
+    res: dict[str, Any] = {
+        "metric": metric, "n_rows": len(rows), "n_lbs": int(lbs.sum()),
+        "n_train": int(len(train["ts"])), "n_test": int(test_mask.sum()),
+        "pick": pick, "test": {}}
+    conf = np.asarray([CONFEDERATION[int(c)] for c in a_all["comp"]])
+    for scope, mask in (
+        ("all", test_mask), ("UEFA", test_mask & (conf == "UEFA")),
+        ("proxy_ge_0.5", test_mask & (np.abs(np.nan_to_num(a_all["proxy"])) >= 0.5
+                                      * (1.0 if metric == "goals_for" else 2.0))),
+    ):
+        a = sub(mask)
+        if len(a["ts"]) == 0:
+            continue
+        base = variant_scores(a, "A")
+        out: dict[str, Any] = {"n": int(len(a["ts"]))}
+        for sc_name, v in base.items():
+            out[f"A_{sc_name}"] = float(v.mean())
+            for n in (pick["E"], pick["D"], *e_names):
+                out[f"{n}-A_{sc_name}"] = bootstrap_mean(
+                    variant_scores(a, n)[sc_name] - v)
+        res["test"][scope] = out
+    # calibration of the side difference, oriented by the Elo proxy (TEST)
+    a = sub(test_mask & np.isfinite(a_all["proxy"]))
+    if len(a["ts"]):
+        sign = np.where(a["proxy"] >= 0, 1.0, -1.0)
+        real = sign * (a["x"] - a["y"])
+        cal = {}
+        for n in ("A", pick["E"]):
+            pred = sign * (a[f"lh_{n}"] - a[f"la_{n}"])
+            cal[n] = {"pred": float(pred.mean()), "real": float(real.mean()),
+                      "resid": bootstrap_mean(real - pred)}
+        res["calibration_test"] = {"n": int(len(a["ts"])), **cal}
+    res["elo_leagues"] = len(elo.n)
+    return res
+
+
+def inbook_markdown(res: dict[str, Any]) -> str:
+    lines = ["# cross-league cups, in-book variant E (RatingBook cup correction)",
+             "", f"params: `{json.dumps(res['params'])}`"]
+    for m, r in res["metrics"].items():
+        e_tr = {k: round(v, 5) for k, v in r["pick"]["E_train"].items()}
+        d_tr = {k: round(v, 5) for k, v in r["pick"]["D_train"].items()}
+        lines += ["", f"## {m}", "",
+                  f"rows {r['n_rows']}, LINKED_BY_STRENGTH {r['n_lbs']}, TRAIN "
+                  f"{r['n_train']}, TEST {r['n_test']}; picked E = {r['pick']['E']}, "
+                  f"D = {r['pick']['D']}", "",
+                  f"TRAIN: A {r['pick']['A_train']:.5f}, E "
+                  f"{json.dumps(e_tr)}, D {json.dumps(d_tr)}",
+                  "", "| scope | n | score | A | variant - A (95% match bootstrap) |",
+                  "|---|---|---|---|---|"]
+        for scope, d in r["test"].items():
+            for k, v in d.items():
+                if "-A_" not in k:
+                    continue
+                name, sc = k.split("-A_")
+                lines.append(f"| {scope} | {d['n']} | {sc} | {d['A_' + sc]:.4f} | "
+                             f"{name}: {_ci(v, '{:+.4f}')} |")
+        cal = r.get("calibration_test")
+        if cal:
+            lines += ["", "side difference oriented by the Elo proxy, "
+                      f"TEST n {cal['n']}:"]
+            for n, c in cal.items():
+                if n == "n":
+                    continue
+                lines.append(f"- {n}: pred {c['pred']:+.3f}, real {c['real']:+.3f}, "
+                             f"real - pred {_ci(c['resid'])}")
+    return "\n".join(lines) + "\n"
+
+
+def run_inbook(args: argparse.Namespace) -> dict[str, Any]:
+    r_nb = load_config().nb_r
+    note(f"loading {args.history}")
+    _fp, history = pickle.loads(Path(args.history).read_bytes())
+    etas = tuple(args.inbook_etas)
+    note(f"{len(history)} matches; in-book replay of {args.metrics}, etas {etas}")
+    cache = args.rows_cache
+    if cache is not None and cache.exists():
+        rows = pickle.loads(cache.read_bytes())
+        note(f"rows read from {cache}")
+    else:
+        rows = inbook_replay(history, ts_of(args.from_day), args.metrics, etas)
+        if cache is not None:
+            cache.write_bytes(pickle.dumps(rows))
+    test_ts = ts_of(args.test_from)
+    out: dict[str, Any] = {
+        "params": {"from": args.from_day, "test_from": args.test_from,
+                   "etas": etas, "metrics": list(args.metrics), "reps": REPS,
+                   "nb_r": r_nb},
+        "metrics": {}}
+    for m in args.metrics:
+        note(f"{m}: {len(rows[m])} rows")
+        out["metrics"][m] = inbook_measure(rows[m], m, etas, test_ts, r_nb)
+    return out
+
+
+# --------------------------------------------------------------------------
 # report
 # --------------------------------------------------------------------------
 
@@ -659,9 +892,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--top", type=int, default=40)
     p.add_argument("--json-out", type=Path, default=None)
     p.add_argument("--md-out", type=Path, default=None)
+    p.add_argument("--in-book", action="store_true",
+                   help="variant E: the cup correction inside RatingBook, per metric")
+    p.add_argument("--metrics", nargs="+", default=list(INBOOK_METRICS))
+    p.add_argument("--rows-cache", type=Path, default=None,
+                   help="pickle of the in-book replay rows (written / reused)")
+    p.add_argument("--inbook-etas", nargs="+", type=float,
+                   default=list(GRID_INBOOK_ETA))
     args = p.parse_args(argv)
-    res = run(args)
-    md = markdown(res)
+    if args.in_book:
+        res = run_inbook(args)
+        md = inbook_markdown(res)
+    else:
+        res = run(args)
+        md = markdown(res)
     if args.json_out:
         args.json_out.write_text(json.dumps(res, indent=1, default=float))
     if args.md_out:

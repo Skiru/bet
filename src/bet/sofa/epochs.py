@@ -1961,3 +1961,37 @@ def tennis_set_markets(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= TENNIS_SET_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= TENNIS_SET_MARKETS_FROM_UTC)
+
+
+# Football league strength in international club competitions (operator go
+# 2026-10-15; docs/sofa/history/RAPORT_SILA_PUCHAROW_2026-10-16.md). The
+# rating's league-strength book links leagues mostly through their own lower
+# divisions and orders top flights wrongly: on 3,740 cross-league matches of
+# the UEFA / AFC / CONMEBOL / CAF / CONCACAF club cups from 2024-07 it
+# under-rated the side from the stronger league by +5.2 pp P(win)
+# [+3.6, +7.0] (docs/sofa/evidence/cross_league_cups_2026-10-15.md). From
+# this moment the RatingBook SHEET prices with carries a per-(domestic
+# competition, metric) correction learnt only from those cups' cross-league
+# matches, inside the book's own update (football_rating.RatingBook
+# cup_competitions / cup_eta; the cup list and step in
+# config/sofa_cup_strength.json, bet.sofa.cup_strength), and a fixture of
+# such a cup reads it on top of the domains' sigma. The cache replay carries
+# the same rule (calibrate_from_cache --cup-strength) and the football curves
+# are refitted on it. Rows priced under it carry `cup_strength_rule`, so a
+# rebuild re-runs SHEET on a sheet of the other rule. None: the book as it
+# was, byte for byte.
+FOOTBALL_CUP_STRENGTH = "cup_strength_v1"
+FOOTBALL_CUP_STRENGTH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 16, 0, 0, tzinfo=UTC)
+FOOTBALL_CUP_STRENGTH_MARKER = (
+    "cup_strength_rule", FOOTBALL_CUP_STRENGTH, "football")
+
+
+def football_cup_strength(date: str, build_at: datetime | None = None) -> bool:
+    """Does the football rating read the league strength learnt in
+    international club cups (FOOTBALL_CUP_STRENGTH_FROM_UTC)?"""
+    if FOOTBALL_CUP_STRENGTH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_CUP_STRENGTH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_CUP_STRENGTH_FROM_UTC)

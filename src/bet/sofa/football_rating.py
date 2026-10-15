@@ -699,6 +699,21 @@ class RatingBook:
     # units stood at 0.168 / 0.108 against the whole J1's 0.419 after 34 / 35
     # links (ALPHA_STRENGTH 0.02 leaves half of the start in after 34).
     unit_strength_from_parent: bool = False
+    # epochs.FOOTBALL_CUP_STRENGTH_FROM_UTC: a cross-league match of an
+    # international club competition (cup_competitions, from
+    # config/sofa_cup_strength.json) reads, on top of the domains' sigma, a
+    # per-(domestic competition, metric) correction learnt only from such
+    # matches (step cup_eta on the same log residual that moves sigma). The
+    # sigma links leagues mostly through their own lower divisions and
+    # orders top flights wrongly; on 3,740 cup matches from 2024-07 the
+    # rating under-rated the side from the stronger league by +5.2 pp P(win)
+    # (docs/sofa/evidence/cross_league_cups_2026-10-15.md). Empty = off: the
+    # book is the book as it was.
+    cup_competitions: frozenset[int] = frozenset()
+    # metric -> step; a metric not here is neither corrected nor learnt
+    cup_eta: Mapping[str, float] = field(default_factory=dict)
+    cup_delta: dict[tuple[int, str], _Strength] = field(
+        default_factory=lambda: defaultdict(_Strength))
 
     @staticmethod
     def _global_key(metric: str, women: bool) -> str:
@@ -777,12 +792,44 @@ class RatingBook:
         """The competition a league unit belongs to (itself when unsplit)."""
         return self.unit_comp.get(unit, unit)
 
-    def link(self, home: int, away: int, metric: str) -> tuple[str, float]:
+    def link(
+        self, home: int, away: int, metric: str, competition: int | None = None,
+    ) -> tuple[str, float]:
         """(LINKED | LINKED_BY_STRENGTH | UNLINKED, log factor on home's rate).
 
-        The away side's rate takes the opposite factor."""
-        return self._link(
-            self.linked(home, away), self.domain(home), self.domain(away), metric)
+        The away side's rate takes the opposite factor. `competition` is the
+        match's: an international club competition adds the cup correction
+        (cup_competitions; None never does)."""
+        dh, da = self.domain(home), self.domain(away)
+        status, lf = self._link(self.linked(home, away), dh, da, metric)
+        if status == LINKED_BY_STRENGTH:
+            lf += self.cup_extra(competition, dh, da, metric)
+        return status, lf
+
+    def _cup_pair(
+        self, competition: int | None, dh: int | None, da: int | None,
+    ) -> tuple[int, int] | None:
+        """(home's, away's domestic competition) of a cross-league match of
+        an international club competition; None for anything else."""
+        if (competition is None or competition not in self.cup_competitions
+                or dh is None or da is None):
+            return None
+        ch, ca = self.unit_competition(dh), self.unit_competition(da)
+        if ch == ca or ch in self.cup_competitions or ca in self.cup_competitions:
+            return None
+        return ch, ca
+
+    def cup_extra(
+        self, competition: int | None, dh: int | None, da: int | None, metric: str,
+    ) -> float:
+        """The cup correction on home's log rate (0 off a cup cross-league
+        match or on a metric without a step)."""
+        pair = self._cup_pair(competition, dh, da)
+        if pair is None or metric not in self.cup_eta:
+            return 0.0
+        ph, pa = self.cup_delta.get((pair[0], metric)), self.cup_delta.get(
+            (pair[1], metric))
+        return (ph.sigma if ph else 0.0) - (pa.sigma if pa else 0.0)
 
     def _link(
         self, linked: bool, dh: int | None, da: int | None, metric: str
@@ -864,8 +911,11 @@ class RatingBook:
             return
         dh, da = self.domain(r.home_id), self.domain(r.away_id)
         linked = self._linked(r.home_id, r.away_id, dh, da)
+        cup_pair = self._cup_pair(r.competition_id, dh, da)
         for metric, (vh, va) in r.values.items():
             status, lf = self._link(linked, dh, da, metric)
+            if status == LINKED_BY_STRENGTH:
+                lf += self.cup_extra(r.competition_id, dh, da, metric)
             exp = self.expected(
                 r.competition_id, r.home_id, r.away_id, metric, lf,
                 cross=status != LINKED)
@@ -916,6 +966,14 @@ class RatingBook:
                     sa.sigma = min(max(sa.sigma - ALPHA_STRENGTH * resid, lo), hi)
                     sh.n += 1
                     sa.n += 1
+                    eta = self.cup_eta.get(metric, 0.0)
+                    if cup_pair is not None and eta > 0:
+                        ch = self.cup_delta[(cup_pair[0], metric)]
+                        ca = self.cup_delta[(cup_pair[1], metric)]
+                        ch.sigma = min(max(ch.sigma + eta * resid, lo), hi)
+                        ca.sigma = min(max(ca.sigma - eta * resid, lo), hi)
+                        ch.n += 1
+                        ca.n += 1
                 # A cross-league match moves the ratios too: measured
                 # 2026-09-30, moving only the strengths (PandaSkill) was worse.
                 th.attack, th.defence = th_attack, th_defence
@@ -937,10 +995,15 @@ def replay(
     history: Iterable[FootballResult], cut_ts: int,
     shared_league_link: bool | None = None,
     unit_strength_from_parent: bool = False,
+    cup_competitions: frozenset[int] = frozenset(),
+    cup_eta: Mapping[str, float] | None = None,
 ) -> RatingBook:
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     book.unit_strength_from_parent = unit_strength_from_parent
+    # epochs.FOOTBALL_CUP_STRENGTH (bet.sofa.cup_strength)
+    book.cup_competitions = cup_competitions
+    book.cup_eta = dict(cup_eta or {})
     for r in history:
         if r.ts >= cut_ts:
             break
@@ -1008,7 +1071,8 @@ class FootballForecast:
         # the raw sample there (3.19 vs 3.78 squared error), which carries
         # the same foreign league inside it. The row is flagged instead - see
         # CROSS_LEAGUE_UNLINKED - and CONFIDENCE defers it to the price.
-        status, lf = self.book.link(self.home_id, self.away_id, metric)
+        status, lf = self.book.link(
+            self.home_id, self.away_id, metric, self.competition_id)
         exp = self.book.expected(
             self.competition_id, self.home_id, self.away_id, metric, lf,
             cross=status != LINKED, strict=self.strict_league_rate,

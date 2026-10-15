@@ -381,6 +381,10 @@ class SheetRow(BaseModel):
     season_phase_rule: str | None = None
     rating_weight_rule: str | None = None
     tennis_set_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_CUP_STRENGTH: the rule's name on a football
+    # row priced by a rating book carrying the league strength learnt in
+    # international club cups (bet.sofa.cup_strength); absent when off.
+    cup_strength_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None

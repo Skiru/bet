@@ -33,7 +33,9 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # football incident / tennis set markets
                 "incident_rule", "set_market_rule",
                 # football 1X2 / draw no bet (FOOTBALL_RESULT_1X2_DNB)
-                "result_1x2_dnb_rule", "result_phase")
+                "result_1x2_dnb_rule", "result_phase",
+                # league strength learnt in cups (FOOTBALL_CUP_STRENGTH)
+                "cup_strength_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

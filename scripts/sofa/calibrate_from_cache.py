@@ -90,6 +90,9 @@ from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import GapReason
 from bet.sofa.count_dispersion import DispersionTable
 from bet.sofa.count_dispersion import load_table as load_dispersion_table
+from bet.sofa.cup_strength import CupStrength
+from bet.sofa.cup_strength import apply as apply_cup_strength
+from bet.sofa.cup_strength import load as load_cup_strength
 from bet.sofa.derived import (
     SideStats,
     load_side_correlations,
@@ -916,6 +919,10 @@ class CentreRules:
     shared_league_link: bool = True
     unit_strength_from_parent: bool = False
     strict_league_rate: bool = False
+    # epochs.FOOTBALL_CUP_STRENGTH (--cup-strength): the league strength the
+    # book learns in international club cups (bet.sofa.cup_strength)
+    cup_strength: CupStrength | None = None
+    cup_strength_path: str | None = None
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -932,6 +939,8 @@ class CentreRules:
             "shared_league_link": self.shared_league_link,
             "unit_strength_from_parent": self.unit_strength_from_parent,
             "strict_league_rate": self.strict_league_rate,
+            "cup_strength": (None if self.cup_strength is None
+                             else self.cup_strength_path or "in-memory"),
         }
 
 
@@ -969,6 +978,7 @@ class FootballRatingReplay:
         self.rules = rules
         self.book = RatingBook(shared_league_link=rules.shared_league_link)
         self.book.unit_strength_from_parent = rules.unit_strength_from_parent
+        apply_cup_strength(self.book, rules.cup_strength)
         self.forecasts = 0
         # --season-phase: each event's phase as of its kickoff, asked before
         # the event is added (season_phase.phases_by_event)
@@ -2436,6 +2446,14 @@ def main() -> int:
         "Goals and player markets stay raw. Default off: the raw sample",
     )
     parser.add_argument(
+        "--cup-strength", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: the rating book learns a per-league "
+        "correction in international club cups and reads it on their "
+        "cross-league fixtures, as SHEET under epochs.FOOTBALL_CUP_STRENGTH_"
+        "FROM_UTC (bet.sofa.cup_strength; CONFIG defaults to config/"
+        "sofa_cup_strength.json). Default off: the book as it was",
+    )
+    parser.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games "
         "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
@@ -2471,7 +2489,8 @@ def main() -> int:
         ("--game-state", args.game_state is not None),
         ("--rating-weight", args.rating_weight is not None),
         ("--season-phase", args.season_phase is not None),
-        ("--opponent-correction", args.opponent_correction)) if on]
+        ("--opponent-correction", args.opponent_correction),
+        ("--cup-strength", args.cup_strength is not None)) if on]
     if needs_rating and not args.football_rating:
         # SHEET applies them only through its FootballForecast
         parser.error(f"{', '.join(needs_rating)} need --football-rating")
@@ -2511,6 +2530,12 @@ def main() -> int:
                     Path(args.season_phase) if args.season_phase else None)
                 if args.season_phase is not None else None),
             opponent_correction=bool(args.opponent_correction),
+            cup_strength=(
+                load_cup_strength(
+                    Path(args.cup_strength) if args.cup_strength else None)
+                if args.cup_strength is not None else None),
+            cup_strength_path=(args.cup_strength or "config/sofa_cup_strength.json"
+                               if args.cup_strength is not None else None),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),

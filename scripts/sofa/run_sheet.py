@@ -34,6 +34,7 @@ from bet.sofa.contracts import (
 from bet.sofa.count_dispersion import Dispersion, DispersionTable
 from bet.sofa.count_dispersion import load_table as load_dispersion_table
 from bet.sofa.coupon import effective_kickoff
+from bet.sofa.cup_strength import load as load_cup_strength
 from bet.sofa.derived import load_side_correlations, price_derived_rungs
 from bet.sofa.engine import (
     MAX_LADDER_SIGMA,
@@ -1760,7 +1761,18 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.GAME_STATE_MARKER, epochs.FOOTBALL_RATED_SCOPE_MARKER,
     epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
     epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
+    epochs.FOOTBALL_CUP_STRENGTH_MARKER,
 ))
+
+
+def cup_book_args(on: bool) -> dict[str, Any]:
+    """football_rating.replay's cup arguments: the installed cup list and
+    step while epochs.FOOTBALL_CUP_STRENGTH is on, none (the book as it was)
+    when off."""
+    if not on:
+        return {}
+    cup = load_cup_strength()
+    return {"cup_competitions": cup.competitions, "cup_eta": cup.eta}
 
 
 def stamp_marker(rows: list[SheetRow], marker: tuple[str, str, str],
@@ -2865,6 +2877,8 @@ def _main() -> int:
     season_phase_on = (stats_only_epoch(args.date)
                        and epochs.season_phase_enabled(args.date))
     season_index: SeasonPhaseIndex | None = None
+    cup_strength_on = (stats_only_epoch(args.date)
+                       and epochs.football_cup_strength(args.date))
     if os.environ.get("SOFA_FOOTBALL_RATING", "1") != "0" and any(
         f.sport == "football" for f in fixtures
     ):
@@ -2882,6 +2896,9 @@ def _main() -> int:
             shared_league_link=link_shared,
             # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
             unit_strength_from_parent=epochs.unit_strength_from_parent(args.date),
+            # epochs.FOOTBALL_CUP_STRENGTH: the league strength learnt in
+            # international club cups (a missing / malformed file raises, rc 2)
+            **cup_book_args(cup_strength_on),
         )
 
     all_rows = []
@@ -3105,6 +3122,8 @@ def _main() -> int:
             (epochs.FOOTBALL_RATING_WEIGHT_MARKER,
              rating_weight_table is not None),
             (epochs.TENNIS_SET_RATING_PRICES_MARKER, set_rating_prices),
+            (epochs.FOOTBALL_CUP_STRENGTH_MARKER,
+             cup_strength_on and football_book is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
@@ -3162,6 +3181,9 @@ def _main() -> int:
             "rating_weight_rule": (
                 epochs.FOOTBALL_RATING_WEIGHT if rating_weight_table is not None
                 else "old"),
+            "cup_strength_rule": (
+                epochs.FOOTBALL_CUP_STRENGTH
+                if cup_strength_on and football_book is not None else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

@@ -117,6 +117,7 @@ class DayState:
     sheet_season_phase: bool = True
     sheet_rating_weight: bool = True
     sheet_tennis_set: bool = True
+    sheet_cup_strength: bool = True
     # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
     # sheet written before the stamp; "mixed": rows disagree) and the files'
     # as they stand
@@ -269,6 +270,7 @@ AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
     epochs.GAME_STATE_MARKER, epochs.FOOTBALL_RATED_SCOPE_MARKER,
     epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
     epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
+    epochs.FOOTBALL_CUP_STRENGTH_MARKER,
 )
 
 
@@ -300,6 +302,9 @@ def audit_sheet_stale(state: DayState) -> list[str]:
          and epochs.tennis_set_rating_prices(d, now), state.sheet_tennis_set,
          "tennis per-set games and sets_total read off the rating's "
          "neighbours (epochs.tennis_set_rating_prices)"),
+        (epochs.football_cup_strength(d, now), state.sheet_cup_strength,
+         "the football rating reads the league strength learnt in "
+         "international club cups (epochs.football_cup_strength)"),
     )
     return [why for on, has, why in checks if on and not has]
 
@@ -373,6 +378,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_season_phase=markers[epochs.SEASON_PHASE_MARKER],
         sheet_rating_weight=markers[epochs.FOOTBALL_RATING_WEIGHT_MARKER],
         sheet_tennis_set=markers[epochs.TENNIS_SET_RATING_PRICES_MARKER],
+        sheet_cup_strength=markers[epochs.FOOTBALL_CUP_STRENGTH_MARKER],
         sheet_config_sha=sheet_config_sha,
         config_sha=sheet_config.fingerprint(),
         offer_has_tennis=offer_has_tennis,

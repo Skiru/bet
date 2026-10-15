@@ -107,7 +107,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "cards_correlation", "per_market_k", "tennis_scoped_table",
     "football_rating", "rated_scope", "venue_prior", "game_state",
     "rating_weight", "season_phase", "opponent_correction",
-    "tennis_set_ratings",
+    "tennis_set_ratings", "cup_strength",
 )
 
 
@@ -567,12 +567,14 @@ def rebuild_cache_rows(
     opponent_correction: bool = False,
     tennis_set_ratings: bool = False,
     player_starts_only: bool = False,
+    cup_strength: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
         ("--game-state", game_state), ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
-        ("--opponent-correction", opponent_correction)) if on]
+        ("--opponent-correction", opponent_correction),
+        ("--cup-strength", cup_strength)) if on]
     if needs_rating and not football_rating:
         # SHEET applies them only through the football rating's forecast
         raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
@@ -587,7 +589,9 @@ def rebuild_cache_rows(
             (rating_weight, "--rating-weight", "sofa_rating_weight.json",
              "fit_rating_weight.py"),
             (season_phase, "--season-phase", "sofa_season_phase.json",
-             "fit_season_phase.py")):
+             "fit_season_phase.py"),
+            (cup_strength, "--cup-strength", "sofa_cup_strength.json",
+             "the operator's cup list")):
         if on and not (paths.config_dir / name).exists():
             raise RefitError(f"{paths.config_dir / name} is absent: {flag} "
                              f"cannot be replayed ({by} first)")
@@ -750,6 +754,8 @@ def rebuild_cache_rows(
         "season_phase": season_phase,
         "opponent_correction": opponent_correction,
         "tennis_set_ratings": tennis_set_ratings,
+        # epochs.FOOTBALL_CUP_STRENGTH (bet.sofa.cup_strength)
+        "cup_strength": cup_strength,
     }
     for name, on in new_flags.items():
         if on:
@@ -2205,6 +2211,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--tennis-set-ratings; epochs.TENNIS_SET_RATING_PRICES_FROM_UTC)",
     )
 
+    r.add_argument(
+        "--cup-strength", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_CUP_STRENGTH "
+        "(calibrate_from_cache --cup-strength; needs sofa_cup_strength.json "
+        "in the refit's config dir)",
+    )
+
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
 
@@ -2326,6 +2339,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     opponent_correction=args.opponent_correction,
                     tennis_set_ratings=args.tennis_set_ratings,
                     player_starts_only=args.player_starts_only,
+                    cup_strength=args.cup_strength,
                 )["exit"]
             )
         if args.command == "fit":

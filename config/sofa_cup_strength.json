@@ -1,0 +1,22 @@
+{
+  "description": "International club competitions whose cross-league matches teach the football rating book a per-(domestic competition, metric) league-strength correction, and the step per metric (epochs.FOOTBALL_CUP_STRENGTH_FROM_UTC, bet.sofa.cup_strength). Steps chosen on TRAIN (2024-07-01..2025-06-30) per metric; only metrics better out of sample (TEST from 2025-07-01, and from 2026-01-01 as a check) with the match-bootstrap interval below zero carry one - corners_for and shots_on_target_for did not. Evidence: docs/sofa/evidence/cross_league_cups_2026-10-15.md (section 'Wariant E').",
+  "competitions": {
+    "7": "UEFA Champions League",
+    "679": "UEFA Europa League",
+    "17015": "UEFA Conference League",
+    "463": "AFC Champions League Elite",
+    "668": "AFC Champions League Two",
+    "384": "CONMEBOL Libertadores",
+    "480": "CONMEBOL Sudamericana",
+    "1054": "CAF Champions League",
+    "498": "CONCACAF Champions Cup"
+  },
+  "eta": {
+    "goals_for": 0.05,
+    "goals_1h_for": 0.05,
+    "goals_2h_for": 0.02,
+    "shots_for": 0.02
+  },
+  "chosen_at_utc": "2026-10-15T10:30:00+00:00",
+  "measured_by": "scripts/sofa/measure_cross_league_cups.py --in-book"
+}
