@@ -359,8 +359,9 @@ plik staged poza `config/`); pomiar i próg:
 bajt w bajt jak przed zmianą (`tests/sofa/test_audit_2026_10_13_d2.py`).
 
 **Podwójna szansa w piłce za przełącznikiem `FOOTBALL_RESULT_MARKETS_FROM_UTC`**
-(`bet.sofa.epochs`, audyt D1, znacznik `result_markets_v1`; **wyłączony**
-(`None`) do decyzji operatora; DNB czeka). Włączony, OFFER czyta pełnomeczową
+(`bet.sofa.epochs`, audyt D1, znacznik `result_markets_v1`; **włączony od
+2026-10-14 14:20Z**, operator „WŁĄCZ OD TERAZ” – w dzień już zbudowany, 10-14
+mieszany; 1X2 i DNB osobnym przełącznikiem, niżej). Włączony, OFFER czyta pełnomeczową
 „Podwójna szansa” (wybory „1X” / „X2” / „12”; nie połowy, nie kombinacje
 „Podwójna szansa & …”) jako rynek `double_chance`: wybór w `subject`, linia
 0,5, kurs DC = OVER, a kurs wyniku z „Mecz”, który ten wybór wyklucza
@@ -374,18 +375,33 @@ r = 7,586 z `config/sofa_football_result.json` (zmierzone, nie z fitu – notka
 wynik 1X2, który progu nie spełnił), wiersz ma `result_rule`, `sample_size` 0,
 `bar_reason` `rating_only`; brak środka ratingu = brak wiersza (`NOT_RATED`),
 para `UNLINKED` dostaje `CROSS_LEAGUE_UNLINKED` jak każdy wiersz piłki.
-Krzywej nie ma: CONFIDENCE czyta tylko własne linie Superbetu klucza
-`double_chance|OVER` (nigdy pulę, `confidence.OWN_CURVE_ONLY`), więc
-`NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w kubełku – na
-początku nic się nie drukuje. SETTLE rozlicza wybór po wyniku z 90 minut
+Od 2026-10-15 00:17Z `double_chance|OVER` (i `women:double_chance|OVER`) ma
+**zainstalowaną krzywą z historii** (`fit_double_chance_curve.py`, ten sam
+estymator; przyjęta przez jednostronną bramkę holdoutu – patrz „Krzywe
+nowych rynków” niżej); CONFIDENCE czyta tylko ją (nigdy pulę,
+`confidence.OWN_CURVE_ONLY`), potem line evidence jak każdy klucz. Wybór
+(1X / X2 / 12) nie jest w kluczu, więc jedna krzywa łączy trzy wybory
+(`docs/sofa/evidence/new_market_curves_2026-10-15.md`). SETTLE rozlicza wybór po wyniku z 90 minut
 (`metrics.double_chance_value`, `normaltime` po dogrywce i karnych, jak gole).
 Plan i pomiar: `docs/sofa/evidence/football_result_phase_2026-10-13.md`.
 Przy `None` OFFER i SHEET są bajt w bajt jak przed zmianą
 (`tests/sofa/test_football_double_chance.py`).
 
+**1X2 i zakład bez remisu za przełącznikiem `FOOTBALL_RESULT_1X2_DNB_FROM_UTC`**
+(`bet.sofa.epochs`, `bet.sofa.football_1x2_dnb`; **włączony od 2026-10-15
+00:00Z**). OFFER czyta dodatkowo „Mecz” 1 / 2 jako `result_1x2` i „Zakład bez
+remisu” jako jeden szczebel `draw_no_bet` – OVER gospodarz, UNDER gość, remis
+to zwrot (`DNB_DRAW_REFUND`); noga męska we wczesnej fazie sezonu czyta klasę
+krzywej `season_early`. Klucze DNB (`draw_no_bet` OVER / UNDER, a także
+`season_early:` i `women:` OVER) przeszły jednostronną bramkę holdoutu i mają
+zainstalowane krzywe od 2026-10-15 00:17Z; każdy klucz 1X2 bramki nie
+przeszedł – krzywej nie ma, `NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15
+meczów w kubełku. Pomiar: `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md`.
+
 **Strzały zawodnika według miejsca i części ciała za przełącznikiem
 `SHOT_DETAIL_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
-`shot_detail_v1`; **wyłączony** (`None`) do decyzji operatora). Włączony,
+`shot_detail_v1`; **włączony od 2026-10-14 14:20Z**, operator „WŁĄCZ OD
+TERAZ”, 10-14 mieszany). Włączony,
 OFFER czyta osiem rynków „Zawodnik - liczba (celnych) strzałów spoza pola
 karnego / głową / lewą nogą / prawą nogą” (`shot_detail.MARKET_NAMES`) tak
 samo jak pozostałe rynki zawodnika (`market_mapper.classify_player_market`,
@@ -397,12 +413,16 @@ liczby tylko wtedy, gdy strzały zawodnika w shotmapie równają się jego
 `STAT_KEY_ABSENT`, nigdy zero; próbka zapisuje też pozycję zawodnika z
 najnowszego meczu (`position`). SHEET liczy p z `shot_detail.forecast`
 (ostatnie starty skurczone do średniej pozycji, Poisson) na pliku
-`config/sofa_shot_detail.json`, którego jeszcze nie ma (instaluje go
-operator; fit staged w `data/refit_shot_detail_2026-10-14/`) – bez pliku
-wiersza nie ma (`NO_SHOT_DETAIL_FIT`); wiersz ma `shot_detail_rule`,
-`bar_reason` `shot_detail`. Krzywej nie ma, więc CONFIDENCE czyta tylko
-własne linie Superbetu klucza: `NO_LINE_EVIDENCE` – na początku nic się nie
-drukuje. SETTLE rozlicza z shotmapy meczu (starter bez strzału w shotmapie
+`config/sofa_shot_detail.json` – **zainstalowany** (fit
+`data/refit_shot_detail_2026-10-14/`; w `config_sha` wchodzi jako plik
+opcjonalny, `sheet_config.SHEET_OPTIONAL_FILES`); bez pliku wiersza nie ma
+(`NO_SHOT_DETAIL_FIT`); wiersz ma `shot_detail_rule`, `bar_reason`
+`shot_detail`. Od 2026-10-15 00:17Z `player_left_foot_shots_for|OVER` i
+`player_right_foot_shots_for|OVER` mają zainstalowaną krzywą z historii
+(jednostronna bramka holdoutu); pozostałe sześć (spoza pola karnego, głową i
+każdy celny) krzywej nie mają – CONFIDENCE czyta tylko własne linie
+Superbetu klucza, `NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w
+kubełku. SETTLE rozlicza z shotmapy meczu (starter bez strzału w shotmapie
 z `totalShots` 0 to 0, niezgodność to luka). Pomiar:
 `docs/sofa/evidence/shot_detail_2026-10-14.md`. Przy `None` OFFER, SAMPLES,
 SHEET i SETTLE są bajt w bajt jak przed zmianą
@@ -410,7 +430,8 @@ SHEET i SETTLE są bajt w bajt jak przed zmianą
 
 **Rynki piłki z incydentów za przełącznikiem
 `FOOTBALL_INCIDENT_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
-`incident_markets_v1`; **wyłączony** (`None`) do decyzji operatora).
+`incident_markets_v1`; **włączony od 2026-10-14 14:50Z**, operator „1. 2.
+tak”, 10-14 mieszany).
 Włączony, OFFER czyta (tylko piłka) „1. gol” jako `first_goal` (wybór
 drużyny z nazw listingu Superbetu: `subject` „1” / „2”, „nikt” = „nikt”,
 linia 0,5, tylko OVER – szczebel jednostronny, bez krzywej się nie drukuje),
@@ -427,8 +448,11 @@ substytucjami, sprzed dnia) ściągnięta do częstości płci z wagą 30 meczó
 wczytanie częstości z `sofa_event_stats` to ~1 min SHEET (tylko przy
 włączonym). Wiersz ma `incident_rule`, `sample_size` 0, `bar_reason`
 `rating_only`; para `UNLINKED` dostaje przy `first_goal`
-`CROSS_LEAGUE_UNLINKED`. Krzywej nie ma: `NO_LINE_EVIDENCE` do 50
-rozliczonych linii w kubełku – na początku nic się nie drukuje. SETTLE
+`CROSS_LEAGUE_UNLINKED`. Od 2026-10-15 00:17Z zainstalowane krzywe z
+historii mają `first_goal|OVER` (drukuje się jako singiel jednostronny,
+`confidence.one_sided_single`), `red_cards_total|UNDER` i
+`penalties_total|UNDER`; OVER kartek i karnych krzywej nie ma –
+`NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w kubełku. SETTLE
 rozlicza z incydentów czasu regularnego (`football_incidents.incident_value`:
 dogrywka i seria karnych się nie liczą; czerwona = `red` i `yellowRed`
 zawodnika, bez sztabu i anulowanych; karny przyznany = gol z karnego +
@@ -437,20 +461,56 @@ karnych, lista niezgodna z wynikiem z 90 minut – brak oceny w ogóle.
 
 **Tenis: zwycięzca seta i dokładny wynik w setach za przełącznikiem
 `TENNIS_SET_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
-`tennis_set_markets_v1`; **wyłączony** (`None`)). Włączony, OFFER czyta
+`tennis_set_markets_v1`; **włączony od 2026-10-14 14:50Z**, operator „1. 2.
+tak”, 10-14 mieszany). Włączony, OFFER czyta
 (tylko tenis) „X. set - zwycięzca” („1. set - <nazwisko>” / „2. set - …”)
 jako `set1_won_for` / `set2_won_for` (podmiot = pierwsze nazwisko listingu,
 linia 0,5, OVER on wygrywa seta, UNDER kurs rywala – jak zwycięzca meczu) i
 tenisowy „Dokładny wynik” („2:0” … „0:2”) jako `set_score` (podmiot
 „<pierwsze nazwisko> a:b”, tylko OVER – jednostronny). SHEET liczy p z 600
 sąsiadów ratingu gospodarza (`MatchForecast.neighbours_home`, wygładzenie
-jak w pomiarze), tylko best of three; wiersz ma `set_market_rule`. Krzywej
-nie ma – `NO_LINE_EVIDENCE`. SETTLE rozlicza z wyników setów listingu
+jak w pomiarze), tylko best of three; wiersz ma `set_market_rule`. Od
+2026-10-15 00:17Z krzywe z historii są zainstalowane dla `set1_won_for` i
+`set2_won_for` (OVER i UNDER) oraz `set_score|OVER`, każda także w klasie
+`tennis_women:`. SETTLE rozlicza z wyników setów listingu
 (`tennis_sets.set_value`). Pomiar obu grup:
 `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`. Przy
 `None` OFFER i SHEET są bajt w bajt jak przed zmianą
 (`tests/sofa/test_football_incident_markets.py`,
 `tests/sofa/test_tennis_set_markets.py`).
+
+**Krzywe nowych rynków (zainstalowane 2026-10-15 00:17Z).** Zgoda operatora
+2026-10-14 („zbudować krzywe dla tych wszystkich rynków”); przed budową
+10-15, więc dzień nie jest mieszany. `scripts/sofa/install_new_market_curves.py
+--dir data/refit_new_markets_2026-10-15 --confirm`, testy `tests/sofa`
+przeszły, kopia `config/backup_2026-10-15_new_markets/`; każdy klucz ma w
+pliku pochodzenie `new_market_curves_fitted_from`. 29 krzywych z historii
+rynków włączonych 10-14 / 10-15, dopasowanych przed 2026-10-15 i przyjętych
+przez **jednostronną bramkę holdoutu** (operator 2026-10-14 18:55Z;
+`scripts/sofa/new_market_gate.py`: fit przed 2026-09-01, ocena na
+09-01..10-13; klucz przechodzi, gdy przy krzywej >= 0,70 ma n >= 300
+prognoz holdoutu i zrealizowane − krzywa >= −2 pp – odpada więc tylko za
+**zawyżenie**, zaniżenie przechodzi; każdy klucz „12” odrzucony z zasady; reguła dopuszczenia
+sportów bez zmian). Piłka / tenis (`config/sofa_confidence_calibration.json`):
+`player_left_foot_shots_for` / `player_right_foot_shots_for` OVER,
+`double_chance` OVER (+ `women:`), `first_goal` OVER, `penalties_total` /
+`red_cards_total` UNDER, `set1_won_for` / `set2_won_for` OVER i UNDER,
+`set_score` OVER (każdy + `tennis_women:`), `draw_no_bet` OVER / UNDER (+
+`season_early:` i `women:` OVER). Sporty
+(`config/sofa_sport_confidence_calibration.json` i jego `.next.json`): hokej
+`double_chance` / `period_double_chance` TEAM, koszykówka `double_chance`
+TEAM, siatkówka `team_sets_exact` NO / `team_wins_set` YES, CS2
+`rounds_handicap` TEAM, `rounds_total` OVER, `team_rounds` OVER. **Każdy inny
+nowy klucz** (1X2, „12”, strzały spoza pola / głową / celne, kartki i karne
+OVER, połowy i kwarty koszykówki, `sets_count` siatkówki) krzywej nie ma:
+`NO_LINE_EVIDENCE`, dopóki jego własne linie nie dadzą 50 rozliczonych linii
+/ 15 meczów w kubełku. Line evidence czyta zainstalowane klucze jak każdy
+inny (offset / limit pasma tylko obniżają). E2E na kopii 10-14 (zegar
+budowy, przed vs po): +110 nóg, 0 utraconych, pewność wspólnych nóg bez
+zmian; **102 ze 110 z pewnością poniżej 1/kurs** (przechodzą przez x >=
+0,90) – czy te rynki biją cenę Superbetu, nie jest zmierzone. Raport:
+`docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`; dowody bramki:
+`docs/sofa/evidence/new_market_curves_2026-10-15.md`.
 
 **Sporty mierzone nie mają `unmapped_markets`.** SHADOW i CS2 zapisują w
 `snapshots.jsonl` tylko linie, które czytają. Inwentaryzacja ich nieczytanych
@@ -1559,8 +1619,8 @@ gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt i
 tak powstaje, kupon piłki i tenisa buduje się dalej.
 
 **Rynki pochodne sportów mierzonych za przełącznikiem
-`epochs.SPORT_DERIVED_MARKETS_FROM_UTC`** (`None` - czeka na operatora;
-znacznik `sport_derived_v1`). Rynki, na które model wyniku już odpowiada, bez
+`epochs.SPORT_DERIVED_MARKETS_FROM_UTC`** (**włączony od 2026-10-14
+14:50Z**, operator „1. 2. tak”, 10-14 mieszany; znacznik `sport_derived_v1`). Rynki, na które model wyniku już odpowiada, bez
 nowego źródła danych (`shadow.DERIVED_MARKETS`): hokej - „Podwójna szansa”
 606 i „N. tercja - podwójna szansa” 616 (czytane po id, sprawdzone na
 ładunkach Superbetu z 2026-10-13: 1X / X2 / 12, kody 10 / 02 / 12, obok „Mecz”
@@ -1577,10 +1637,14 @@ nakładające się wyniki: devig proporcjonalnie do sumy 2
 (`cs2.group_fair` „double”), marża grupy = połowa nadwyżki
 (`cs2.group_overround`), czyli tyle, ile pokazałby szczebel 1X przeciw 2.
 SHADOW zapisuje je w migawce (rekord z `derived_rule`), SHADOW_SETTLE
-rozlicza, SPORT_CONFIDENCE wycenia z symulacji modelu wyniku i - bez krzywej
-z historii - czyta tylko własne rozliczone linie Superbetu klucza: do czasu
->= 50 linii w kubełku `NO_LINE_EVIDENCE`, więc na starcie nic się nie
-drukuje (test na zainstalowanych plikach). Wyłączony: migawki, SHADOW_SETTLE
+rozlicza, SPORT_CONFIDENCE wycenia z symulacji modelu wyniku. Od 2026-10-15
+00:17Z krzywe z historii są zainstalowane dla hokejowych `double_chance` /
+`period_double_chance` TEAM, koszykarskiego `double_chance` TEAM i
+siatkarskich `team_sets_exact` NO / `team_wins_set` YES (jednostronna bramka
+holdoutu, „Krzywe nowych rynków” w sekcji OFFER); każdy klucz „12”, połowy i
+kwarty koszykówki oraz `sets_count` siatkówki krzywej nie mają i czytają tylko
+własne rozliczone linie Superbetu klucza: do czasu >= 50 linii / 15 meczów w
+kubełku `NO_LINE_EVIDENCE`. Wyłączony: migawki, SHADOW_SETTLE
 i SPORT_CONFIDENCE bajt w bajt jak przedtem. Pomiar poza próbą na historii
 (`scripts/sofa/measure_sport_derived.py`):
 `docs/sofa/evidence/sport_derived_2026-10-14.md`.
@@ -2213,13 +2277,16 @@ zlecenie operatora 2026-10-14): `rounds_total`, `rounds_handicap`,
 wygranych przez każdą drużynę z rozkładu serii (`SERIES_KAPPA`), rundy każdej
 mapy z wyścigu rund pod warunkiem jej zwycięzcy; mapa nierozegrana nic nie
 dodaje. Wycena w SPORT_CONFIDENCE, `model_p` przy CS2_SETTLE, odtworzenie w
-historii dopasowania. Krzywe historii przygotowane, **nie zainstalowane**
-(`data/refit_new_markets_2026-10-15/cs2_series_rounds/`): bramka na drabince
-linii historii przepuszcza `rounds_handicap|TEAM`, `rounds_total|OVER`,
-`team_rounds|OVER`, ale na liniach Superbetu 09-28..10-13 strony z krzywą >=
-0,70 trafiły 0,33 przy 0,74 (21 / 19 serii) - do decyzji operatora
-(`docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`). Do tego czasu klucz
-czyta tylko własne rozliczone linie (`NO_LINE_EVIDENCE` do 50 w kubełku).
+historii dopasowania. Krzywe historii (`rounds_handicap|TEAM`,
+`rounds_total|OVER`, `team_rounds|OVER`, z
+`data/refit_new_markets_2026-10-15/cs2_series_rounds/`) **zainstalowane
+2026-10-15 00:17Z** - operator zainstalował je mimo ostrzeżenia: bramka na
+drabince linii historii je przepuszcza, ale na liniach Superbetu
+09-28..10-13 strony z krzywą >= 0,70 trafiły 0,33 przy 0,74 (21 / 19 serii;
+`docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`, kontrola na nowych
+danych `T-CS2-SERIES-ROUNDS-superbet`; raport
+`docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`). Line evidence
+czyta je jak każdy klucz (tylko obniża). Parzystość rund nadal bez wyceny.
 
 Pozostałe rodziny nie dostają liczby (nigdy zgadywanej). Stałe silnika są
 `UNFITTED` i tak raportowane. `audit_cs2.py` sekcja 3b porównuje Brier kursu,
