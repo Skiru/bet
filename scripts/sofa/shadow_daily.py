@@ -29,6 +29,9 @@ through the day, then settle and audit the next morning.
    already running (started by hand or by /sofa-day) is left alone - the
    new one refuses to start (exit 2). Stop the chain by killing the pid in
    daily_<date>.pid.
+5. At its start it starts the day's closing-price loop (capture_closing.py
+   --loop) unless one runs (cs2_daily.ensure_closing) - normally cs2_daily's
+   chained start at 23:30Z the day before already did.
 
 Every step is its own process (cs2_daily.step), so one crashing never takes
 the rest down. Nothing here feeds the coupon. Exit: the worst step's code.
@@ -55,6 +58,7 @@ from scripts.sofa.cs2_daily import (  # noqa: E402
     REPO,
     _at,
     _command_of,
+    ensure_closing,
     identity_steps,
     loop,
 )
@@ -149,7 +153,10 @@ def spawn_next_day(date: str) -> int:
     return proc.pid
 
 
-def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
+def main(
+    spawn: Callable[[str], int] = spawn_next_day,
+    closing: Callable[[str], str] | None = None,
+) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -188,6 +195,7 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
         )
         return 2
     pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    print((closing or ensure_closing)(args.date), flush=True)
 
     def chain() -> None:
         # When the snapshots end, as cs2_daily does: the morning settles and

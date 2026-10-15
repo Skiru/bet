@@ -348,6 +348,17 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <data>   # boosty; powtórz kilka razy w ciągu dnia
 ```
 
+Pętla ceny zamknięcia (`capture_closing.py --loop`) startuje sama: pętle
+dnia `cs2_daily.py` (z łańcucha o 23:30Z dnia poprzedniego) i
+`shadow_daily.py` (04:30Z) przy swoim starcie uruchamiają ją dla swojej daty
+(`capture_closing.ensure_loop`), chyba że pętla tej daty już żyje (plik pid
++ linia polecenia; druga pętla kończy się kodem 2). Uruchomiona przed
+budową czeka na `11_coupon.json` do końca dnia. Polecenie wyżej jest więc
+zapasowe (np. gdy łańcuch pętli dnia się przerwał). 2026-10-15 pętlę
+uruchomiono ręcznie o 08:01Z, 85 min po pierwszym druku - nogi meczów z tego
+okna nie mają ceny zamknięcia. `day_status.py` daje WARN
+`loop:capture_closing` także przed budową, gdy pętla nie działa.
+
 Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
 
 - **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza

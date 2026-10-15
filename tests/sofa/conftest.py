@@ -61,3 +61,18 @@ def _guard_network(
     monkeypatch.setattr(requests, "post", guard)
     monkeypatch.setattr(requests, "request", guard)
     monkeypatch.setattr(requests.Session, "request", guard)
+
+
+@pytest.fixture(autouse=True)
+def _no_detached_closing_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No unit test starts a real, detached capture_closing loop.
+
+    cs2_daily / shadow_daily start the day's closing loop as they start
+    (capture_closing.ensure_loop); a test running their main() with a date
+    not yet over would otherwise leave a process behind."""
+    from scripts.sofa import capture_closing
+
+    def refuse(date: str) -> int:
+        raise RuntimeError(f"detached capture_closing spawn in unit test ({date})")
+
+    monkeypatch.setattr(capture_closing, "spawn_loop", refuse)

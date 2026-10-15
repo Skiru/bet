@@ -9,6 +9,14 @@ runs/sofa/<d>/closing.jsonl. audit_clv.py reads the latest record per leg.
 Superbet only - no Sofascore, no bridge. Prints, stakes and changes nothing.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/capture_closing.py --date <d> --loop
+
+The loop for a day is started by the day's own daily loops, as they start
+(`ensure_loop`, called by cs2_daily.py - chained at 23:30Z the day before - and
+by shadow_daily.py - chained at 04:30Z): until 2026-10-15 it was started by
+hand after the build, and 10-15's started 85 min after the first print, so the
+legs that kicked off in between had no close. Started before the build, a
+loop waits for the day's coupon (11_coupon.json) until the day is over; one
+already alive for the date makes `ensure_loop` and a second loop step aside.
 """
 
 from __future__ import annotations
@@ -16,10 +24,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +37,7 @@ from pydantic import RootModel
 from bet.sofa import fixture_status as fs
 from bet.sofa.clv import CLOSE_MAX_MINUTES, CLOSE_MIN_MINUTES
 from bet.sofa.confidence import (
+    COUPON_ARTIFACT,
     coupon_artifact,
     is_sheet_sport,
     printed_builders,
@@ -37,6 +47,7 @@ from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
 from bet.sofa.epochs import (
+    STATS_ONLY_DATE,
     ampersand_subjects,
     football_incident_markets,
     football_result_1x2_dnb,
@@ -49,7 +60,7 @@ from bet.sofa.epochs import (
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
-from scripts.sofa.cs2_daily import _command_of, already_running
+from scripts.sofa.cs2_daily import PYTHON, REPO, _command_of, already_running
 
 LOOP_SLEEP_S = 300
 
@@ -231,6 +242,86 @@ def claim_loop(day_dir: Path) -> None:
     (day_dir / PID_FILE).write_text(str(os.getpid()), encoding="utf-8")
 
 
+def runs_root() -> Path:
+    """runs/sofa (SOFA_RUNS_DIR) against the repository, whatever the cwd."""
+    root = Path(SofaConfig.from_env().runs_dir)
+    return root if root.is_absolute() else REPO / root
+
+
+def coupon_built(day_dir: Path) -> bool:
+    """The day's coupon artifact exists. A stats-only day's is 11_coupon.json:
+    08_confidence.json alone is CONFIDENCE's output minutes before
+    COUPON_ASSEMBLY, not what the PDF prints."""
+    if day_dir.name >= STATS_ONLY_DATE:
+        return (day_dir / COUPON_ARTIFACT).exists()
+    return coupon_artifact(day_dir).exists()
+
+
+def day_over_at(date: str) -> datetime | None:
+    """00:00Z after the day; None for a directory that is not a date."""
+    try:
+        return datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC) + timedelta(
+            days=1)
+    except ValueError:
+        return None
+
+
+def waiting_for_coupon(day_dir: Path, now: datetime) -> bool:
+    """A loop started before the build (ensure_loop) keeps waiting for it -
+    until the day is over: a coupon built after that has nothing to close."""
+    end = day_over_at(day_dir.name)
+    return end is not None and now < end and not coupon_built(day_dir)
+
+
+def spawn_loop(date: str) -> int:
+    """Start `capture_closing.py --date <date> --loop` detached (own session,
+    stdin closed), appending to runs/sofa/<date>/capture_closing.log; its pid.
+    PYTHONPATH is set here: the script imports bet.sofa without a path shim."""
+    day_dir = runs_root() / date
+    day_dir.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(
+        p for p in (str(REPO / "src"), str(REPO), env.get("PYTHONPATH")) if p)
+    with (day_dir / "capture_closing.log").open("a", encoding="utf-8") as fh:
+        proc = subprocess.Popen(
+            [PYTHON, "scripts/sofa/capture_closing.py", "--date", date, "--loop"],
+            cwd=REPO,
+            stdout=fh,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            env=env,
+        )
+    return proc.pid
+
+
+def ensure_loop(
+    date: str,
+    *,
+    spawn: Callable[[str], int] | None = None,
+    holder: Callable[[Path], int | None] | None = None,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> str:
+    """Make sure the day's closing loop runs; one line saying what was done.
+
+    A live loop for the date (loop_holder: its pid file and command line) is
+    left alone; a day already over is not started. Never raises - a daily
+    loop calls this at its start and must go on whatever happens here."""
+    try:
+        end = day_over_at(date)
+        if end is None or clock() >= end:
+            return f"capture_closing {date}: day over, not started"
+        day_dir = runs_root() / date
+        pid = (holder or loop_holder)(day_dir)
+        if pid is not None:
+            return f"capture_closing {date}: already running (pid {pid})"
+        started = (spawn or spawn_loop)(date)
+        return (f"capture_closing {date}: started pid {started} "
+                f"(log {day_dir / 'capture_closing.log'})")
+    except Exception as exc:  # noqa: BLE001 - the caller's day goes on
+        return f"capture_closing {date}: NOT started - {type(exc).__name__}: {exc}"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--date", required=True)
@@ -281,6 +372,9 @@ def loop(
 ) -> int:
     """Pass after pass until the last printed leg is inside its close window.
 
+    Before the day's coupon exists (a loop the daily loops started ahead of
+    the build) it waits for it, pass after pass, until the day is over.
+
     Exit 0 when every pass ran, 1 when one raised (it is logged as
     pass_failed and the loop goes on - F6.1: the loop used to end 0 whatever
     its passes did, and a failure reading the legs between passes killed it
@@ -309,6 +403,9 @@ def loop(
             print(json.dumps({"loop_stopped": f"{in_a_row} failed passes in a row"}),
                   flush=True)
             return 2
+        if repeat and waiting_for_coupon(day_dir, now):
+            sleep(LOOP_SLEEP_S)
+            continue
         if not repeat or (legs is not None and (not legs or all(
                 minutes_to(leg["kickoff_utc"], now) < CLOSE_MIN_MINUTES
                 for _, leg in legs))):

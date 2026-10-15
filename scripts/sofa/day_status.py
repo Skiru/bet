@@ -11,7 +11,10 @@ named, never shown as passed:
 
     offer         newest / oldest fetched_at_utc in 04_offer.json
     sport:<s>     newest snapshot in runs/sofa/shadow/<s>/<d>/, runs/sofa/cs2/<d>/
-    loop:<name>   capture_closing (its pid file + ps), shadow_daily / cs2_daily
+    loop:<name>   capture_closing (its pid file + ps; WARN when it is not
+                  running and printed legs are still to close, or - before
+                  the day is over - the coupon is not built yet),
+                  shadow_daily / cs2_daily
                   (pid file + ps, and the last step time in their log)
     bridge        NOT_CHECKED (no network); the last FIXTURE_CHECK that read
                   through it is shown
@@ -58,6 +61,7 @@ from scripts.sofa.build_coupon_pdf import (  # noqa: E402
     coupon_older_than_sources,
 )
 from scripts.sofa.capture_closing import (  # noqa: E402
+    coupon_built,
     leg_key,
     loop_holder,
     minutes_to,
@@ -199,6 +203,15 @@ def loop_checks(runs: Path, date: str, now: datetime,
                          f"not running, {len(ahead)} printed official leg(s) "
                          "still to close - "
                          "their CLV will be a hole (start capture_closing.py --loop)"))
+    elif not _day_over(date, now) and not coupon_built(run):
+        # Before the build: the loop should already be waiting for the
+        # coupon (cs2_daily / shadow_daily start it with the day). Without it
+        # the legs of every match between the first print and a hand start
+        # close with no price (2026-10-15: 85 min of them).
+        out.append(Check("loop:capture_closing", WARN,
+                         "not running and the coupon is not built yet - the "
+                         "first printed legs will have no close (start "
+                         "capture_closing.py --loop now; it waits for the coupon)"))
     else:
         out.append(Check("loop:capture_closing", OK,
                          "not running; no printed official leg left to close"))

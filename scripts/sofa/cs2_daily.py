@@ -5,6 +5,10 @@ audit the next morning.
     PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py \\
         --date 2026-09-29 > runs/sofa/cs2/daily_2026-09-29.log 2>&1 &
 
+0. At its start (chained: 23:30Z the day before) it starts the day's
+   closing-price loop, capture_closing.py --loop, unless one runs
+   (ensure_closing; the loop waits for the coupon). shadow_daily.py does the
+   same at 04:30Z; whichever comes first starts it.
 1. CS2 every --interval-min (default 30) until --snapshots-until (default
    23:30Z on the day). Superbet only.
    With --chain, the NEXT day's loop (itself with --chain) is started
@@ -322,6 +326,22 @@ def spawn_next_day(date: str) -> int:
     return proc.pid
 
 
+def ensure_closing(date: str) -> str:
+    """Start the day's closing-price loop if none runs (capture_closing.ensure_loop);
+    one log line. Called by this loop and shadow_daily.py as they start, so
+    D's closes are captured from D's first print without anyone starting it
+    (2026-10-15: started by hand at 08:01Z, 85 min after the first print).
+    Never raises: the day's own steps go on whatever happens here."""
+    for path in (str(REPO), str(REPO / "src")):
+        if path not in sys.path:  # started without PYTHONPATH=src:.
+            sys.path.append(path)
+    try:
+        from scripts.sofa.capture_closing import ensure_loop
+    except Exception as exc:  # noqa: BLE001 - an import error must not stop the day
+        return f"capture_closing {date}: NOT started - import: {exc}"
+    return ensure_loop(date)
+
+
 def loop(
     snapshot: list[str],
     morning: list[list[str]],
@@ -417,7 +437,10 @@ def run_morning(
     return max(codes, default=0)
 
 
-def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
+def main(
+    spawn: Callable[[str], int] = spawn_next_day,
+    closing: Callable[[str], str] | None = None,
+) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -447,6 +470,8 @@ def main(spawn: Callable[[str], int] = spawn_next_day) -> int:
         )
         return 2
     pid_file(args.date).write_text(str(os.getpid()), encoding="utf-8")
+    print((closing or ensure_closing)(args.date), flush=True)
+
     def chain() -> None:
         pid = spawn(args.date)
         print(
