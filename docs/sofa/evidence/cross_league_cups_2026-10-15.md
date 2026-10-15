@@ -313,3 +313,20 @@ zmienia p, więc musi jechać z replayem: kod gotowy za
 `sample_cup_rule`, `calibrate_from_cache --sample-cup-strength`,
 `prepare_refit rebuild-cache-rows --sample-cup-strength`); włączyć z
 najbliższym refitem piłki.
+
+### Rożne i strzały po backfillu statystyk pucharów (2026-10-15 ~22:00Z)
+
+`backfill_event_stats.py --competitions <9 pucharów> --days 840`: 2 421
+meczów pucharowych bez `/statistics`, 1 748 dostało statystyki (673 bez, 0
+błędów). Historia przeliczona do scratch (926 338 meczów), pomiar `--in-book
+--history <scratch pickle>`:
+
+| metryka | wiersze | TEST 2025-07 (TRAIN 207) | TEST 2026-01 (TRAIN 658) | decyzja |
+|---|---|---|---|---|
+| strzały (0,02; wybór TRAIN na obu cięciach) | 1 834 | -0,0383 [-0,0625; -0,0129] | -0,0376 [-0,0686; -0,0054] | korekta zostaje |
+| rożne (0,02) | 1 947 | -0,0041 [-0,0204; +0,0103] | -0,0021 [-0,0220; +0,0179] | bez korekty |
+| strzały celne (0,02) | 1 939 | -0,0092 [-0,0226; +0,0053] | -0,0123 [-0,0292; +0,0046] | bez korekty |
+
+Dwa razy więcej danych potwierdza config (`goals_for` 0,05, `goals_1h_for`
+0,05, `goals_2h_for` 0,02, `shots_for` 0,02); zastrzeżenie strzałów z
+pierwszego pomiaru (TRAIN 38 meczów, drugie cięcie wybierało 0,05) znika.
