@@ -130,3 +130,20 @@ się w szumie, a próg z historii (>= 0,80) nie wystąpił ani razu. Post hoc i
 bez znaczenia statystycznego: P(1:1) >= 0,60 - 22 mecze, 15 trafień, ROI
 +9,8%. Pomiar do powtórzenia, gdy rozliczonych linii będzie kilkaset (ceny
 zapisywane codziennie od 10-14).
+
+### Aktualizacja 2026-10-15 ~22:00Z: 10-15 dokończone
+
+Ta sama komenda z `--fetch` (most: 150 zapytań, 125 zakończonych meczów z
+point-by-point, 0 odmów):
+
+| grupa | n | trafienia | realizacja | P(1:1) | 1/kurs | ROI [95% bootstrap meczów] |
+|---|---|---|---|---|---|---|
+| razem | 211 | 124 | 0,588 | 0,563 | 0,595 | -1,9% [-13,3; +9,1] |
+| 10-14 | 82 | 50 | 0,610 | 0,562 | 0,594 | +1,8% [-15,6; +19,8] |
+| 10-15 | 129 | 74 | 0,574 | 0,564 | 0,596 | -4,3% [-18,2; +10,0] |
+| P(1:1) >= 0,80 | 0 | | | | | |
+
+10-15: rozliczone 129, krecz 2 + 4 po 2. gemie (zwrot), nierozstrzygnięte
+22, nie znalezione 6. Werdykt bez zmian: dwa dni to za mało; trafność ~ cena;
+próg >= 0,80 z historii na tablicy Superbetu nie występuje (ITF) - do
+powtórzenia po kilkuset liniach.
