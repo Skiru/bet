@@ -177,3 +177,94 @@ piłkarskich na kopii bazy - krzywe są dopasowane na centrach replayu, a
 krzywe 1X2 / DNB są jeszcze tylko stage'owane. To nie jest pozycja audytu
 2026-10-13, więc stała zgoda jej nie obejmuje: potrzebna decyzja operatora.
 Do tego czasu weta CONTEXT na takich meczach mają oparcie w pomiarze.
+
+## Wariant E - korekta wbudowana w `RatingBook` (2026-10-15, przed wdrożeniem)
+
+Zgoda operatora 2026-10-15 na wdrożenie pod warunkiem: najpierw zmierzyć
+wersję wbudowaną w księgę (korekta zmienia ratingi drużyn, a nie jest
+dokładana po fakcie) i rynki inne niż gole; wdrożyć tylko wariant lepszy
+poza próbą z przedziałem nieobejmującym zera.
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_cross_league_cups.py --in-book \
+    [--metrics goals_for corners_for shots_for] [--test-from 2026-01-01] \
+    [--rows-cache <f>] --json-out <f> --md-out <f>          # ~80 s na replay
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_cross_league_cups.py \
+    --spill config/sofa_cup_strength.json --json-out <f>    # efekt uboczny
+```
+
+**Co to jest E.** Produkcyjny `football_rating.RatingBook` z
+`cup_competitions` (9 pucharów z `INTL_COMPS`) i `cup_eta` (krok per
+metryka). Mecz cross-league takiego pucharu (domeny obu stron w różnych
+rozgrywkach, żadna nie jest pucharem) czyta `sigma_h - sigma_a + d_h - d_a`,
+gdzie `d` jest per (rozgrywki krajowe, metryka). W `update` reszta liczona już
+z `d` przesuwa `d` o `eta x reszta`, a dalej - jak dotąd - sigmy i ilorazy
+drużyn. Ilorazy chłoną więc mniej luki ligowej. Mecz spoza pucharu nie czyta
+`d`, ale czuje zmienione ilorazy i sigmy drużyn, które grały w pucharach.
+Replay as-of jak wyżej: księga bazowa (A) i księgi E (krok 0,02 / 0,05 / 0,1
+/ 0,2) karmione tymi samymi meczami. Krok wybrany na TRAIN (2024-07-01..
+2025-06-30), ocena na TEST, bootstrap meczów 95%. Gole: log-loss 1X2 (NB, r
+7,586). Pozostałe metryki: dewiancja Poissona strony (spójna ocena średniej,
+bez założenia o dyspersji) i błąd kwadratowy różnicy stron.
+
+### Wynik na meczach pucharowych (LINKED_BY_STRENGTH), TEST od 2025-07-01
+
+| metryka | krok (TRAIN) | n TEST | A | E - A | D - A (post hoc) |
+|---|---|---|---|---|---|
+| gole, log-loss 1X2 | 0,05 | 2 194 | 1,0299 | **-0,0285 [-0,0381; -0,0188]** | -0,0262 [-0,0366; -0,0161] |
+| gole, tylko UEFA | 0,05 | 1 414 | 1,0305 | -0,0336 [-0,0464; -0,0213] | -0,0309 [-0,0452; -0,0168] |
+| gole, luka Elo >= 0,5 | 0,05 | 974 | 0,9933 | -0,0467 [-0,0641; -0,0293] | -0,0438 [-0,0638; -0,0244] |
+| gole 1. poł., dewiancja | 0,05 | 2 179 | 1,0963 | **-0,0209 [-0,0292; -0,0132]** | -0,0193 [-0,0286; -0,0108] |
+| gole 2. poł., dewiancja | 0,02 | 2 177 | 1,1463 | **-0,0143 [-0,0190; -0,0095]** | -0,0145 [-0,0200; -0,0087] |
+| strzały, dewiancja | 0,02 | 770 | 2,0629 | **-0,0478 [-0,0800; -0,0179]** | -0,0361 [-0,0738; +0,0018] |
+| strzały celne, dewiancja | 0,02 | 861 | 1,4559 | -0,0165 [-0,0322; -0,0014] | -0,0102 [-0,0289; +0,0086] |
+| rożne, dewiancja | 0,02 | 868 | 1,6851 | -0,0062 [-0,0232; +0,0105] | +0,0012 [-0,0192; +0,0219] |
+
+Sprawdzian wrażliwości na cięcie (TRAIN do 2025-12-31, TEST od 2026-01-01):
+gole -0,0233 [-0,0355; -0,0110] (1 168), gole 1. poł. -0,0191 [-0,0306;
+-0,0078], gole 2. poł. przy 0,02 -0,0147 [-0,0216; -0,0075] (na TRAIN
+wybrałby 0,05: -0,0200 [-0,0333; -0,0067]), strzały: krok wybrany na TRAIN
+(0,05) -0,0489 [-0,1126; +0,0170] - **przedział obejmuje zero** - przy 0,02
+-0,0461 [-0,0798; -0,0110]; strzały celne: żaden krok poza zerem (0,02:
+-0,0133 [-0,0305; +0,0034]); rożne: -0,0023 [-0,0227; +0,0179].
+
+Kalibracja różnicy stron (TEST, S = strona silniejszej ligi wg Elo
+pucharowego), realne - przewidywane: gole A +0,260 [+0,179; +0,335], E
+-0,065 [-0,145; +0,008]; strzały A +0,71 [+0,04; +1,42], E -0,12 [-0,79;
++0,58]. E usuwa skrzywienie, lekko przestrzeliwując (jak D).
+
+Uwaga o rożnych i strzałach: statystyki meczów pucharowych są w cache'u
+gęsto dopiero od ~2025, więc TRAIN przy pierwszym cięciu ma tylko 38 meczów
+z rożnymi / strzałami - krok jest tam wybrany na niczym; drugie cięcie (220-
+228 meczów TRAIN) jest tu ważniejsze.
+
+### Efekt uboczny na mecze spoza pucharów (`--spill`, kroki z configu)
+
+Każdy mecz mężczyzn (pierwsze składy) spoza 9 pucharów od 2025-07-01, w
+którym centrum E różni się od A:
+
+| metryka | meczów | średni ruch centrum strony | E - A |
+|---|---|---|---|
+| gole | 302 635 | 0,003 gola | log-loss 1X2 -0,00003 [-0,00006; -0,000003] |
+| gole 1. poł. | 207 480 | 0,001 | dewiancja -0,000006 [-0,00004; +0,00003] |
+| gole 2. poł. | 209 548 | 0,0008 | dewiancja -0,00003 [-0,00005; -0,000004] |
+| strzały | 30 143 | 0,02 strzału | dewiancja -0,0004 [-0,0008; -0,0001] |
+
+Nic nie pogarsza się; zmiany są o rzędy wielkości mniejsze niż w pucharach.
+
+### Werdykt i co wdrożono
+
+- **E jest lepszy od D** na każdej metryce, gdzie oba coś dają, i jest tym,
+  co księga faktycznie robi - wdrożony E.
+- Kroki (`config/sofa_cup_strength.json`): **gole 0,05, gole 1. poł. 0,05,
+  gole 2. poł. 0,02, strzały 0,02** (strzały: wybór z pierwszego cięcia; w
+  drugim krok 0,02 też poza zerem, wybrany na TRAIN 0,05 nie - zaznaczam).
+- **Bez korekty: rożne** (oba cięcia w zerze) **i strzały celne** (drugie
+  cięcie w zerze). Pozostałe metryki (kartki, faule, spalone, połowy rożnych
+  i strzałów) nie były mierzone - bez korekty.
+- Rożne / kartki / faule strony i tak przesuwają się na meczach pucharowych:
+  stan gry (B1, `game_state`) mnoży je przez exp(beta x oczekiwana różnica
+  goli), a ta czyta gole z księgi.
+- Ograniczenie: korekta próbki B15 (`opponent_correction.SampleCorrector`)
+  pyta `RatingBook.link` bez rozgrywek przeszłego meczu, więc mecz pucharowy
+  w próbce jest przeskalowany samą sigmą, bez `d`. Nie mierzone.
