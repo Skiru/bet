@@ -61,6 +61,7 @@ from bet.sofa.score_model import (
     parse_event,
 )
 from bet.sofa.shadow import (
+    DC_PAIR_MARKETS,
     DERIVED_MARKETS,
     MARKETS,
     ORIENTATION_FREE,
@@ -172,8 +173,12 @@ EXTENDED_MARKETS: dict[str, dict[int, str]] = {
 # count; basketball's and volleyball's under shadow's synthetic ids < 0),
 # priced from the score model's simulation. No history curve: a key reads its
 # own settled Superbet lines (bet.sofa.line_evidence) or is NO_LINE_EVIDENCE.
+# epochs.BASKETBALL_DC_PAIR_FROM_UTC: a basketball double chance read as pairs
+# (shadow.DC_PAIR_MARKETS) is the double chance's family - its curve, its
+# evidence key; such lines exist only where that switch let SHADOW read them.
 DERIVED_ALLOWED: dict[str, dict[int, str]] = {
-    sport: {mid: spec.family for mid, spec in specs.items()}
+    sport: {mid: spec.family for mid, spec in
+            {**specs, **DC_PAIR_MARKETS.get(sport, {})}.items()}
     for sport, specs in DERIVED_MARKETS.items()
 }
 

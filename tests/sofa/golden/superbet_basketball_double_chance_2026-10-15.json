@@ -1,0 +1,1115 @@
+{
+ "source": "Superbet /events/{id}, fetched 2026-10-15 (pre-match); trimmed to markets 201797 230595 233400 753 763 777",
+ "events": [
+  {
+   "eventId": 14175125,
+   "matchName": "Brisbane Bullets·SE Melbourne Phoenix",
+   "sportId": 4,
+   "utcDate": "2026-10-15T08:30:00Z",
+   "odds": [
+    {
+     "marketId": 777,
+     "outcomeId": 2221,
+     "price": 3.3,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Mecz",
+     "info": "Brisbane Bullets wygra mecz"
+    },
+    {
+     "marketId": 777,
+     "outcomeId": 2222,
+     "price": 13,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "Mecz",
+     "info": "Remis w meczu"
+    },
+    {
+     "marketId": 777,
+     "outcomeId": 2223,
+     "price": 1.41,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "Mecz",
+     "info": "SE Melbourne Phoenix wygra mecz"
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 3.05,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 182.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 182.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "182.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.34,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 182.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 182.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "182.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.85,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 183.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 183.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "183.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.38,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 183.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 183.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "183.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.7,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 184.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 184.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "184.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.42,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 184.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 184.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "184.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.55,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 185.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 185.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "185.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.46,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 185.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 185.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "185.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.42,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 186.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 186.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "186.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.51,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 186.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 186.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "186.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.3,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 187.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 187.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "187.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.57,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 187.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 187.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "187.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.17,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 188.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 188.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "188.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.62,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 188.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 188.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "188.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.07,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 189.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 189.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "189.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.68,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 189.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 189.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "189.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 190.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 190.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "190.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.73,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 190.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 190.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "190.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.92,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 191.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 191.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "191.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.8,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 191.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 191.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "191.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.85,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 192.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 192.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "192.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.87,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 192.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 192.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "192.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.78,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 193.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 193.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "193.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.95,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 193.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 193.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "193.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.71,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 194.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 194.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "194.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.02,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 194.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 194.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "194.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.65,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 195.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 195.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "195.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.12,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 195.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 195.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "195.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.6,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 196.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 196.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "196.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.2,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 196.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 196.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "196.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.55,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 197.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 197.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "197.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.32,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 197.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 197.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "197.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.5,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 198.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 198.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "198.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.45,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 198.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 198.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "198.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.45,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 199.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 199.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "199.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.57,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 199.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 199.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "199.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.41,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 200.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 200.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "200.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.7,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 200.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 200.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "200.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.38,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 201.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 201.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "201.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.85,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 201.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 201.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "201.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.35,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 202.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 202.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "202.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 3,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 202.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 202.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "202.5"
+     }
+    },
+    {
+     "marketId": 201797,
+     "outcomeId": 162139,
+     "price": 2.57,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "10",
+     "name": "1X",
+     "marketName": "Podwójna szansa",
+     "info": "Brisbane Bullets wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 201797,
+     "outcomeId": 162140,
+     "price": 1.27,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "02",
+     "name": "X2",
+     "marketName": "Podwójna szansa",
+     "info": "SE Melbourne Phoenix wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2190,
+     "price": 2.65,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "1.Połowa - 1X2",
+     "info": "Brisbane Bullets wygra 1.połowę"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2191,
+     "price": 16,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "1.Połowa - 1X2",
+     "info": "Remis w 1.połowie"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2192,
+     "price": 1.54,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "1.Połowa - 1X2",
+     "info": "SE Melbourne Phoenix wygra 1.połowę"
+    },
+    {
+     "marketId": 233400,
+     "outcomeId": 10000000391,
+     "price": 2.47,
+     "status": "active",
+     "tags": "v2",
+     "name": "Brisbane Bullets",
+     "marketName": "2.Połowa - 1X2",
+     "info": "Brisbane Bullets wygra 2.połowę"
+    },
+    {
+     "marketId": 233400,
+     "outcomeId": 10000000392,
+     "price": 17,
+     "status": "active",
+     "tags": "v2",
+     "name": "Remis",
+     "marketName": "2.Połowa - 1X2",
+     "info": "Remis w 2.połowie"
+    },
+    {
+     "marketId": 233400,
+     "outcomeId": 10000000393,
+     "price": 1.58,
+     "status": "active",
+     "tags": "v2",
+     "name": "SE Melbourne Phoenix",
+     "marketName": "2.Połowa - 1X2",
+     "info": "SE Melbourne Phoenix wygra 2.połowę"
+    },
+    {
+     "marketId": 230595,
+     "outcomeId": 4203507,
+     "price": 2.15,
+     "status": "active",
+     "tags": "v2",
+     "name": "1X",
+     "marketName": "2. połowa - podwójna szansa",
+     "info": "Brisbane Bullets wygra lub zremisuje w 2. połowie"
+    },
+    {
+     "marketId": 230595,
+     "outcomeId": 4203508,
+     "price": 1.45,
+     "status": "active",
+     "tags": "v2",
+     "name": "X2",
+     "marketName": "2. połowa - podwójna szansa",
+     "info": "SE Melbourne Phoenix wygra lub zremisuje w 2. połowie"
+    }
+   ]
+  },
+  {
+   "eventId": 15227146,
+   "matchName": "Horsens IC·Holbaek-Stenhus",
+   "sportId": 4,
+   "utcDate": "2026-10-15T16:30:00Z",
+   "odds": [
+    {
+     "marketId": 777,
+     "outcomeId": 2221,
+     "price": 1.01,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "Mecz",
+     "info": "Horsens IC wygra mecz"
+    },
+    {
+     "marketId": 777,
+     "outcomeId": 2222,
+     "price": 30,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "Mecz",
+     "info": "Remis w meczu"
+    },
+    {
+     "marketId": 777,
+     "outcomeId": 2223,
+     "price": 18,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "Mecz",
+     "info": "Holbaek-Stenhus wygra mecz"
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.27,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 161.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 161.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "161.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.53,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 161.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 161.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "161.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.15,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 162.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 162.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "162.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.59,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 162.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 162.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "162.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 2.05,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 163.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 163.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "163.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.65,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 163.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 163.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "163.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.95,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 164.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 164.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "164.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.71,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 164.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 164.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "164.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.87,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 165.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 165.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "165.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.78,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 165.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 165.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "165.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.78,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 166.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 166.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "166.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.87,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 166.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 166.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "166.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.7,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 167.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 167.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "167.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 1.97,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 167.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 167.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "167.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.63,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 168.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 168.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "168.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.07,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 168.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 168.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "168.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.57,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 169.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 169.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "169.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.17,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 169.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 169.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "169.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2169,
+     "price": 1.51,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "-",
+     "name": "poniżej 170.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Poniżej 170.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "170.5"
+     }
+    },
+    {
+     "marketId": 753,
+     "outcomeId": 2170,
+     "price": 2.3,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "+",
+     "name": "powyżej 170.5",
+     "marketName": "Liczba punktów (z dogrywką)",
+     "info": "Powyżej 170.5 punktów w meczu (z dogrywką)",
+     "specifiers": {
+      "total": "170.5"
+     }
+    },
+    {
+     "marketId": 201797,
+     "outcomeId": 162139,
+     "price": 1,
+     "status": "block",
+     "tags": "BPWM,v2",
+     "code": "10",
+     "name": "1X",
+     "marketName": "Podwójna szansa",
+     "info": "Horsens IC wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 201797,
+     "outcomeId": 162140,
+     "price": 12,
+     "status": "active",
+     "tags": "BPWM,v2",
+     "code": "02",
+     "name": "X2",
+     "marketName": "Podwójna szansa",
+     "info": "Holbaek-Stenhus wygra lub zremisuje mecz"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2190,
+     "price": 1.07,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "1",
+     "name": "1",
+     "marketName": "1.Połowa - 1X2",
+     "info": "Horsens IC wygra 1.połowę"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2191,
+     "price": 27,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "0",
+     "name": "X",
+     "marketName": "1.Połowa - 1X2",
+     "info": "Remis w 1.połowie"
+    },
+    {
+     "marketId": 763,
+     "outcomeId": 2192,
+     "price": 8.3,
+     "status": "active",
+     "tags": "BPWM,pm_boostable_market,v2",
+     "code": "2",
+     "name": "2",
+     "marketName": "1.Połowa - 1X2",
+     "info": "Holbaek-Stenhus wygra 1.połowę"
+    }
+   ]
+  }
+ ]
+}

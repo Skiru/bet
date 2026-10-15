@@ -409,6 +409,15 @@ _EXACT = re.compile(r"^(\d+):(\d+)$")
 # three OVERLAPPING outcomes of the 1X2 - each regulation result is in two of
 # them, so their fair probabilities sum to 2, never 1.
 DOUBLE_CHANCE_SET = frozenset({"1X", "X2", "12"})
+# A double chance quoted without its whole group (basketball 1X / X2 only,
+# epochs.BASKETBALL_DC_PAIR_FROM_UTC): each selection is paired with the one
+# 1X2 outcome it leaves out - "1", "X" or "2" - which together PARTITION the
+# results, so the pair is an ordinary two-way line (fair_probability, margin
+# 1/a + 1/b - 1). The partner side is a price only, never a leg.
+DC_COMPLEMENT = {"1X": "2", "X2": "1", "12": "X"}
+DC_PARTNER_SIDES = frozenset(DC_COMPLEMENT.values())
+DOUBLE_CHANCE_PAIRS = frozenset(
+    frozenset({dc, other}) for dc, other in DC_COMPLEMENT.items())
 # Volleyball's "Dokładna liczba setów" (same switch): the number of sets
 # played, one side per count - a partition of a best-of-5 (or best-of-3).
 SETS_COUNT_PREFIX = "SETS="
@@ -460,7 +469,7 @@ def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
     if shape == "three":
         return group == THREE_WAY_SET
     if shape == "double":
-        return group == DOUBLE_CHANCE_SET
+        return group == DOUBLE_CHANCE_SET or group in DOUBLE_CHANCE_PAIRS
     if shape == "count":
         return group in SETS_COUNT_SETS
     return group in EXACT_SETS
@@ -526,8 +535,9 @@ def grade_side(side: str, actual: float, value: float | None, three_way: bool) -
         return "WIN" if (actual == 1.0) == (side == "YES") else "LOSS"
     if exact_score(side) is not None:
         return "WIN" if actual == 1.0 else "LOSS"
-    if side in DOUBLE_CHANCE_SET:
-        # `actual` is team1 minus team2; a level score is the draw.
+    if side in DOUBLE_CHANCE_SET or side in DC_PARTNER_SIDES:
+        # `actual` is team1 minus team2; a level score is the draw. A pair's
+        # partner ("1" / "X" / "2") is the one result it names.
         result = "1" if actual > 0 else "2" if actual < 0 else "X"
         return "WIN" if result in side else "LOSS"
     count = sets_count_of(side)

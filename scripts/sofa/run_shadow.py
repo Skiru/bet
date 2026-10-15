@@ -188,8 +188,12 @@ def snapshot(
         # epochs.SPORT_DERIVED_MARKETS: the derived markets on the record's
         # own day and clock; off, the record is byte for byte what it was
         derived = epochs.sport_derived_markets(day, _utc_of(fetched_at))
+        # epochs.BASKETBALL_DC_PAIR: a basketball double chance quoted without
+        # its whole group read as pairs against the 1X2, same day and clock
+        dc_pair = (derived and sport.key == "basketball"
+                   and epochs.basketball_dc_pair(day, _utc_of(fetched_at)))
         lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2,
-                            derived)
+                            derived, dc_pair)
         if not lines and event_id not in seen[(sport.key, day)]:
             continue
         # An event already on file that now quotes nothing gets an empty
@@ -216,6 +220,7 @@ def snapshot(
                 "tournament": names.get(str(r.get("tournamentId"))) or None,
                 "lines": [ln.as_dict() for ln in lines],
                 **({"derived_rule": epochs.SPORT_DERIVED_MARKETS} if derived else {}),
+                **({"dc_pair_rule": epochs.BASKETBALL_DC_PAIR} if dc_pair else {}),
             }
         )
     for key, recs in records.items():

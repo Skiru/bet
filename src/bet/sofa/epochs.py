@@ -1866,6 +1866,39 @@ def sport_derived_markets(date: str, build_at: datetime | None = None) -> bool:
             and at >= SPORT_DERIVED_MARKETS_FROM_UTC)
 
 
+# Basketball double chance as two-way pairs (defect found 2026-10-15): Superbet
+# quotes basketball "Podwojna szansa" / "N. polowa - podwojna szansa" with
+# only 1X and X2 (no 12; live probe 2026-10-15: 5 of 30 events, e.g. 14175125
+# NBL), so the whole-group rule (cs2.complete_group "double") dropped every
+# basketball double chance: 0 lines in 433 snapshots of 10-14/10-15 although
+# SPORT_DERIVED_MARKETS was on and basketball:double_chance|TEAM has a curve.
+# On: SHADOW pairs each quoted double-chance selection with the complementary
+# outcome of the same scope's regulation 1X2 (777 / 763 / 233400 / 779; 1X
+# against "2", X2 against "1", 12 against the draw) - a partition, so the
+# pair is a two-way line devigged by fair_probability and its margin is
+# 1/a + 1/b - 1 (football's double chance reads "Mecz" the same way,
+# bet.sofa.football_result). The pair lives under its own synthetic market id
+# (shadow.DC_PAIR_MARKETS, same family and scope as the double chance), the
+# 1X2 outcome is never a leg nor a settled row. Records carry `dc_pair_rule`.
+# Only where the double-chance group is NOT complete and only with
+# SPORT_DERIVED_MARKETS on; hockey (606 / 616, all three quoted) never pairs.
+# Adds legs, so a day >= the date built at or after the moment. Off: SHADOW
+# snapshots, SHADOW_SETTLE and SPORT_CONFIDENCE byte-identical.
+BASKETBALL_DC_PAIR = "basketball_dc_pair_v1"
+BASKETBALL_DC_PAIR_FROM_UTC: datetime | None = datetime(
+    2026, 10, 16, 0, 0, 0, tzinfo=UTC)
+
+
+def basketball_dc_pair(date: str, build_at: datetime | None = None) -> bool:
+    """Does SHADOW read a basketball double chance quoted without its whole
+    group as pairs against the 1X2 (BASKETBALL_DC_PAIR_FROM_UTC)?"""
+    if BASKETBALL_DC_PAIR_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= BASKETBALL_DC_PAIR_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= BASKETBALL_DC_PAIR_FROM_UTC)
+
+
 # Football markets read off the incident list (bet.sofa.football_incidents):
 # "1. gol" (which side scores first / nikt) as first_goal (subject "1" / "2" /
 # "nikt", line 0.5, OVER only - one-sided), "Liczba czerwonych kartek" and

@@ -417,7 +417,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
         _bump(refused, "MARKET_NOT_ALLOWED", len(current) - len(allowed))
         if not allowed:
             continue
-        n_sides = len(allowed)
+        # a basketball double chance pair's 1X2 outcome (shadow.is_pair_partner,
+        # epochs.BASKETBALL_DC_PAIR) is its group's price, never a leg
+        n_sides = sum(1 for ln in allowed.values()
+                      if sport == "cs2" or not shadow.is_pair_partner(ln))
         fixture = fixtures.get((sport, str(ev.superbet_event_id)))
         # A game Superbet itself has started is KICKED_OFF whatever its
         # identity: Sofascore's events/next never lists a started game, so
@@ -479,6 +482,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
         for key, ln in allowed.items():
             groups[_group_key(sport, key)][ln.side] = ln.odds
         for key, ln in sorted(allowed.items(), key=lambda kv: repr(kv[0])):
+            if sport != "cs2" and shadow.is_pair_partner(ln):
+                continue
             group_odds = groups[_group_key(sport, key)]
             if cs2.group_fair(group_odds, _shape(sport, ln)) is None:  # type: ignore[arg-type]
                 _bump(refused, "INCOMPLETE_GROUP")
@@ -523,6 +528,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if derived and sport != "cs2" and int(ln.market_id) in \
                     scf.DERIVED_ALLOWED.get(sport, {}):
                 legs[-1]["derived_rule"] = epochs.SPORT_DERIVED_MARKETS
+            if sport != "cs2" and int(ln.market_id) in \
+                    shadow.DC_PAIR_MARKETS.get(sport, {}):  # type: ignore[call-overload]
+                legs[-1]["dc_pair_rule"] = epochs.BASKETBALL_DC_PAIR
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}

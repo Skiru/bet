@@ -52,7 +52,9 @@ Not read, each for a reason (measured on the live board 2026-09-30):
   outcomes, not a partition - it is the 1X2 re-sold, and the 1X2 is read;
   from epochs.SPORT_DERIVED_MARKETS_FROM_UTC (DERIVED_MARKETS) it is read,
   devigged to a total of 2 (cs2.group_fair "double"), with volleyball's
-  team-sets and sets-count markets;
+  team-sets and sets-count markets; basketball's, quoted 1X / X2 only, from
+  epochs.BASKETBALL_DC_PAIR_FROM_UTC as two-way pairs against the 1X2
+  (DC_PAIR_MARKETS);
 - first goal (666, 643) and race to N points (750): need the order of
   scoring, which the stored score does not have;
 - basketball milestone props ("Punkty zawodnika" 5+, 235311-235315,
@@ -75,6 +77,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 from bet.sofa.cs2 import (
+    DC_COMPLEMENT,
+    DC_PARTNER_SIDES,
+    DOUBLE_CHANCE_SET,
     Shape,
     complete_group,
     exact_score,
@@ -285,10 +290,51 @@ DERIVED_MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
 }
 
 
+# --- basketball double chance as pairs (epochs.BASKETBALL_DC_PAIR_FROM_UTC) -----
+#
+# Superbet quotes basketball's double chance with 1X and X2 only (no 12; live
+# probe 2026-10-15, e.g. event 14175125), which the whole-group rule never
+# reads. With the switch, each quoted selection is paired with the 1X2
+# outcome it leaves out (1X with "2", X2 with "1", 12 with the draw) of the
+# SAME scope's regulation 1X2 below - a partition, so a two-way line: the
+# double chance's fair p is fair_probability(its odds, the outcome's) and
+# its margin 1/a + 1/b - 1, which SPORT_CONFIDENCE's 15% rule judges. Each
+# pair has its own synthetic market id (dc_pair_id: the double chance's id
+# x 100 - 1 / 2 / 3 for 1X / X2 / 12), the double chance's family and scope -
+# so it reads the double chance's curve and grades as it (regulation) - and
+# the partner side ("1" / "X" / "2", cs2.DC_PARTNER_SIDES) is a price only:
+# never a leg (run_sport_confidence) and never a settled row (settle_event).
+DC_PAIR_SIDES = ("1X", "X2", "12")
+# the double chance's scope -> the 1X2 its partner is read from
+DC_PAIR_THREE_WAY: dict[int, int] = {-1: 777, -2: 763, -3: 233400, -4: 779}
+DC_PAIR_OUTCOME = {"1X": "T2", "X2": "T1", "12": "DRAW"}
+
+
+def dc_pair_id(dc_market_id: int, side: str) -> int:
+    """The synthetic market id of a double chance side's pair (-101 = 1X of
+    the game's double chance -1, -302 = X2 of the second half's -3)."""
+    return dc_market_id * 100 - (DC_PAIR_SIDES.index(side) + 1)
+
+
+DC_PAIR_MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
+    "basketball": {
+        dc_pair_id(mid, side): spec
+        for mid, spec in DERIVED_MARKETS["basketball"].items()
+        if spec.kind == "double_chance" for side in DC_PAIR_SIDES
+    },
+}
+
+
+def is_pair_partner(line: ShadowLine) -> bool:
+    """The 1X2 outcome a double chance pair is priced against - never a leg,
+    never a settled row (only pair lines carry these sides)."""
+    return line.side in DC_PARTNER_SIDES
+
+
 def spec_of(sport: str, market_id: int) -> MarketSpec | None:
     """A market's spec - shadow's own or a derived one (a derived line exists
     only where the switch let SHADOW read it)."""
-    for table in (MARKETS, DERIVED_MARKETS):
+    for table in (MARKETS, DERIVED_MARKETS, DC_PAIR_MARKETS):
         for key, specs in table.items():
             if key == sport and market_id in specs:
                 return specs[market_id]
@@ -748,9 +794,12 @@ def parse_event(
     team1: str,
     team2: str,
     derived: bool = False,
+    dc_pair: bool = False,
 ) -> list[ShadowLine]:
     """Every gradeable line whose two sides are both quoted exactly once.
-    `derived` (epochs.sport_derived_markets): DERIVED_MARKETS too."""
+    `derived` (epochs.sport_derived_markets): DERIVED_MARKETS too. `dc_pair`
+    (epochs.basketball_dc_pair, with `derived`): a basketball double chance
+    quoted without its whole group is read as pairs (DC_PAIR_MARKETS)."""
     by_key: dict[tuple[int, int, str, float | None], dict[str, list[ShadowLine]]] = {}
     for item in items:
         parsed = parse_line(item, sport, event_id, team1, team2, derived)
@@ -761,10 +810,46 @@ def parse_event(
     out: list[ShadowLine] = []
     for key, sides in by_key.items():
         if not complete_group(set(sides), group_shape(sport, key[0])):
+            if dc_pair and derived:
+                out.extend(_dc_pairs(sport, key, sides, by_key))
             continue
         if any(len(v) != 1 for v in sides.values()):
             continue
         out.extend(v[0] for v in sides.values())
+    return out
+
+
+def _dc_pairs(
+    sport: SportKey,
+    key: tuple[int, int, str, float | None],
+    sides: dict[str, list[ShadowLine]],
+    by_key: dict[tuple[int, int, str, float | None], dict[str, list[ShadowLine]]],
+) -> list[ShadowLine]:
+    """A basketball double chance group that is not whole, as pairs (each
+    quoted selection, its 1X2 complement) - [] unless every selection is
+    quoted once and the same scope's 1X2 is whole, each outcome once."""
+    if sport != "basketball":
+        return []
+    three_way_id = DC_PAIR_THREE_WAY.get(key[0])
+    if three_way_id is None or not set(sides) <= DOUBLE_CHANCE_SET:
+        return []
+    if any(len(v) != 1 for v in sides.values()):
+        return []
+    three = by_key.get((three_way_id, key[1], "", None))
+    if three is None or not complete_group(set(three), "three") \
+            or any(len(v) != 1 for v in three.values()):
+        return []
+    out: list[ShadowLine] = []
+    for side in DC_PAIR_SIDES:
+        if side not in sides:
+            continue
+        dc = sides[side][0]
+        pair_id = dc_pair_id(key[0], side)
+        out.append(ShadowLine(dc.superbet_event_id, pair_id, dc.family, dc.period,
+                              "", None, side, dc.odds))
+        out.append(ShadowLine(dc.superbet_event_id, pair_id, dc.family, dc.period,
+                              "", None, DC_COMPLEMENT[side],
+                              three[DC_PAIR_OUTCOME[side]][0].odds))
     return out
 
 
@@ -1317,6 +1402,10 @@ def settle_event(
     for key, line in ev.sides.items():
         groups.setdefault(key[:4], {})[line.side] = line
     for key, line in ev.sides.items():
+        if is_pair_partner(line):
+            # a double chance pair's 1X2 outcome: its price is the pair's
+            # partner_odds, the outcome itself is graded under the 1X2
+            continue
         is_player = is_player_line(sport.key, line.market_id)
         # A player line is about a named person, not a side: orientation
         # does not touch it.
