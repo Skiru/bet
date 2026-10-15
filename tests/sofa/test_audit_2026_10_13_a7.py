@@ -282,3 +282,19 @@ def test_tier_of_user_count() -> None:
     assert bfo.tier_of(None).startswith("D")
     assert bfo.tier_of(250_000).startswith("A")
     assert bfo.tier_of(12_000).startswith("B")
+
+
+def test_the_cache_keeps_hockeys_match_goals() -> None:
+    """2026-10-15: hockey's total is "Match goals" on Sofascore; the cache
+    trimmed it away and wrote 5,931 hockey games with no market at all."""
+    body = {"markets": [
+        {"marketId": 1, "marketName": "Full time", "choiceGroup": None,
+         "choices": [{"name": "1", "fractionalValue": "1/2"}]},
+        {"marketId": 9, "marketName": "Match goals", "marketPeriod": "Match",
+         "choiceGroup": "5.5", "isLive": False,
+         "choices": [{"name": "Over", "fractionalValue": "4/5", "winning": True},
+                     {"name": "Under", "fractionalValue": "1/1", "winning": False}]}]}
+    kept = trim_markets(body)
+    assert [m["marketName"] for m in kept] == ["Match goals"]
+    assert kept[0]["choiceGroup"] == "5.5"
+    assert all("fractionalValue" not in c for c in kept[0]["choices"])

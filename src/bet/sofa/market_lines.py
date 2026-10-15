@@ -31,6 +31,12 @@ from bet.sofa.names import normalize_name
 # Euroleague, Israeli Super League, Primera FEB, SuperCup Women).
 TOTAL_MARKET = "Game total"
 SPREAD_MARKET = "Point spread"
+# Hockey (checked 2026-10-15 on NHL and Liiga games): the full-game total is
+# "Match goals" (no spread is published); kept in the cache so a hockey A7
+# measurement can read it - parse_lines reads basketball's names only, until
+# that measurement checks hockey's market period.
+HOCKEY_TOTAL_MARKET = "Match goals"
+CACHED_MARKETS = frozenset({TOTAL_MARKET, SPREAD_MARKET, HOCKEY_TOTAL_MARKET})
 FULL_GAME_PERIOD = "Match"
 _SPREAD_CHOICE = re.compile(r"^\(\s*([+-]?\d+(?:\.\d+)?)\s*\)\s*(.+)$")
 # The keys of a market kept in the cache: enough to re-read the line and the
@@ -75,7 +81,7 @@ def trim_markets(body: Mapping[str, Any] | None) -> list[dict[str, Any]]:
     for m in (body or {}).get("markets") or []:
         if not isinstance(m, Mapping):
             continue
-        if m.get("marketName") not in (TOTAL_MARKET, SPREAD_MARKET):
+        if m.get("marketName") not in CACHED_MARKETS:
             continue
         kept = {k: m.get(k) for k in CACHED_MARKET_KEYS if k in m}
         kept["choices"] = [{k: c.get(k) for k in CACHED_CHOICE_KEYS if k in c}
