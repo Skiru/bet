@@ -207,7 +207,8 @@ def dc_note(selection: str, p: float, lh: float, la: float, r: float) -> str:
     return (
         f"{RESULT_NOTE}: double chance {selection} p {p:.4f} from NB goals "
         f"(r {r:g}) on the pure rating centres home {lh:.3f} / away {la:.3f} "
-        "(FootballForecast.centre goals_for); no sample, no price - no curve "
-        "installed, the confidence is the market's own Superbet lines "
+        "(FootballForecast.centre goals_for); no sample, no price - the "
+        "confidence is the market's history curve where one is installed "
+        "(2026-10-15), else its own Superbet lines "
         "(epochs.FOOTBALL_RESULT_MARKETS)"
     )

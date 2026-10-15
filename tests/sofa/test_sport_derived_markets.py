@@ -438,3 +438,26 @@ def test_measurement_summary_against_the_base_rate() -> None:
     # a line with no base rate is left out, never compared with nothing
     other = {**rows[0], "side": "1X", "key": "double_chance|TEAM"}
     assert msd.summarise([other], base) == {}
+
+
+def test_a_read_names_a_double_chance_side() -> None:
+    """2026-10-15: READ_SIDES had no 1X / X2 / 12, so a read of a sport
+    double-chance leg could only say direction null - which covers every
+    printed side of the market. A read naming 1X covers that side alone."""
+    from bet.sofa.contracts import LegRead
+    from bet.sofa.coupon_sports import apply_reads
+
+    def leg(side: str) -> dict[str, Any]:
+        return {"sofascore_event_id": 7, "sport": "hockey",
+                "family": "double_chance", "market": "double_chance",
+                "period": 0, "subject": "", "line": None, "side": side,
+                "direction": side}
+
+    read = LegRead.model_validate({
+        "sofascore_event_id": 7, "market": "double_chance", "subject": "",
+        "line": None, "direction": "1X", "period": 0, "verdict": "WATCH",
+        "author": "analyst", "reason": "test"})
+    kept, removed, vetoed = apply_reads([leg("1X"), leg("X2")], [], [read])
+    assert [x["side"] for x in removed] == ["1X"]
+    assert [x["side"] for x in kept] == ["X2"]
+    assert vetoed == 0

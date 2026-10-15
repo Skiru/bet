@@ -443,8 +443,12 @@ class Veto(BaseModel):
 
 
 LegVerdict = Literal["KEEP", "WATCH", "NO_BET"]
+# 1X / X2 / 12: a measured sport's double chance side (shadow.DERIVED_MARKETS,
+# 2026-10-15) - before it a read of such a leg could only say direction null,
+# which covers every printed side of the market.
 READ_SIDES = frozenset(
-    {"OVER", "UNDER", "T1", "T2", "DRAW", "ODD", "EVEN", "YES", "NO"})
+    {"OVER", "UNDER", "T1", "T2", "DRAW", "ODD", "EVEN", "YES", "NO",
+     "1X", "X2", "12"})
 _EXACT_SCORE = re.compile(r"^\d+[:-]\d+$")
 ReadAuthor = Literal["analyst", "verifier"]
 

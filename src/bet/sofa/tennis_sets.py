@@ -162,8 +162,9 @@ def set_note(
     who = "home" if side == "side_a" else "away"
     return (
         f"{SET_NOTE}: {market} {subject} ({who}) p {p:.4f} from the rating's "
-        f"{pool} neighbours (table {table_scope}); no sample, no price - no "
-        "curve installed, the confidence is the market's own Superbet lines "
+        f"{pool} neighbours (table {table_scope}); no sample, no price - the "
+        "confidence is the market's history curve where one is installed "
+        "(2026-10-15), else its own Superbet lines "
         "(epochs.TENNIS_SET_MARKETS)"
     )
 

@@ -246,7 +246,10 @@ PYTHONPATH=src:. .venv/bin/python - <<'PY'
 import json
 from pydantic import RootModel
 from bet.sofa.contracts import Fixture
-from bet.sofa.epochs import ampersand_subjects
+from bet.sofa.epochs import (
+    ampersand_subjects, football_incident_markets, football_result_1x2_dnb,
+    football_result_markets, mappable_families, shot_detail_markets,
+    tennis_match_winner, tennis_set_markets)
 from bet.sofa.offer import OfferFetcher
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.stage import set_stage
@@ -260,8 +263,19 @@ target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
 client = SuperbetClient(
     base_url="https://production-superbet-offer-pl.freetls.fastly.net"
 )
-# OFFER's own construction: a club named with "&" is a subject from 2026-10-06.
-fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects("<date>"))
+# OFFER's own construction (scripts/sofa/run_offer.py) - EVERY flag OFFER passes
+# for the day, or the markets behind a switch (double chance, 1X2 / DNB, first
+# goal, reds / pens, tennis winner / sets, shot detail, mappable families) come
+# back "missing" (2026-10-15: 160 new-market legs reported missing that way).
+d = "<date>"
+fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects(d),
+                       mappable_families=mappable_families(d),
+                       tennis_winner=tennis_match_winner(d),
+                       football_result=football_result_markets(d),
+                       shot_detail=shot_detail_markets(d),
+                       football_incidents=football_incident_markets(d),
+                       tennis_sets=tennis_set_markets(d),
+                       football_1x2_dnb=football_result_1x2_dnb(d))
 offers = fetcher.fetch_offers(target)
 print("listings asked:", [f.superbet_event_ids for f in target])
 print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]

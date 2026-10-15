@@ -227,7 +227,8 @@ def band_index(minute: float | None, edges: Sequence[float]) -> int:
 # before the day), shrunk toward the gender's rate with BASE_M matches - no
 # sample, no price. All three are rating-only markets
 # (tennis_winner.RATING_ONLY_MARKETS): no sample, no pool, own curve only;
-# with no curve installed CONFIDENCE reads their own Superbet lines -
+# CONFIDENCE reads the history curve where installed (2026-10-15), else
+# their own Superbet lines -
 # NO_LINE_EVIDENCE until a bucket holds enough of them.
 # =============================================================================
 
@@ -424,8 +425,9 @@ class IncidentPricing:
 def incident_note(market: str, subject: str, p: float, detail: str) -> str:
     return (
         f"{INCIDENT_NOTE}: {market} {subject or 'match'} p {p:.4f} from {detail}; "
-        "no sample, no price - no curve installed, the confidence is the "
-        "market's own Superbet lines (epochs.FOOTBALL_INCIDENT_MARKETS)"
+        "no sample, no price - the confidence is the market's history curve "
+        "where one is installed (2026-10-15), else its own Superbet lines "
+        "(epochs.FOOTBALL_INCIDENT_MARKETS)"
     )
 
 
