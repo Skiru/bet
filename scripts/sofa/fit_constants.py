@@ -651,6 +651,13 @@ def _brier_by_k(
     # does not depend on K at all - it would only dilute the K curve.
     if str(market).startswith("player_"):
         return None
+    # A row priced with no sample (the rating-only markets switched on
+    # 2026-10-14 / 10-15 - double_chance, first_goal, match_won_for, the
+    # tennis set winners and set score, reds / penalties - carry
+    # sample_size 0) does not depend on K either, and n = 0 divides by zero
+    # (the refit of 2026-10-16 crashed on 1,049 such live rows).
+    if not row["sample_size"] or row["sample_size"] <= 0:
+        return None
     comp_id = str(row["competition_id"])
     # Same precedence as run_sheet.get_prior, and the same tolerance
     # of both pool shapes: `{"mean": x, "n": k}` since 2026-09-21,
@@ -814,7 +821,7 @@ def fit_k_price(
             SELECT p_central, market_p, sample_size, outcome
             FROM sofa_settled_row
             WHERE outcome IN ('WIN', 'LOSS') AND market_p IS NOT NULL
-              AND {NOT_FRIENDLY}
+              AND sample_size > 0 AND {NOT_FRIENDLY}
             ORDER BY id
             """
         )

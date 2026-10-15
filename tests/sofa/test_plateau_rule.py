@@ -12,6 +12,7 @@ sat at 5.0.
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
 import pytest
 
@@ -156,3 +157,34 @@ def test_k_centre_curve_streams_and_matches_the_mean_of_squared_errors() -> None
         want = statistics.mean(e[i] for e in per_row if e is not None)
         assert abs(streamed[k] - want) < 1e-12
     assert fit_constants._k_centre_curve(iter(()), baselines) == {}
+
+
+def test_k_fits_skip_rows_priced_with_no_sample() -> None:
+    """The rating-only markets (double_chance, first_goal, match_won_for, the
+    tennis set winners / set score, reds / penalties) settle with
+    sample_size 0; their p does not depend on K and n = 0 divided by zero at
+    K = 0 - the refit of 2026-10-16 crashed in fit_constants on them."""
+    import sqlite3
+
+    base = {"market": "double_chance", "competition_id": 7, "sample_mean": 0.0,
+            "sample_sd": 0.0, "line": 0.5, "direction": "OVER", "outcome": "WIN"}
+    baselines: dict[str, Any] = {}
+    for n in (0, None):
+        assert fit_constants._brier_by_k({**base, "sample_size": n},
+                                         baselines, None) is None
+    ok = {**base, "market": "goals_total", "sample_mean": 2.0, "sample_sd": 1.0,
+          "line": 2.5, "sample_size": 10}
+    assert fit_constants._k_centre_curve(
+        iter([{**base, "sample_size": 0}, ok]), baselines) == \
+        fit_constants._k_centre_curve(iter([ok]), baselines)
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("""create table sofa_settled_row (id integer primary key,
+        p_central real, market_p real, sample_size integer, outcome text,
+        competition_id integer, sofascore_event_id integer, sport text)""")
+    conn.execute("insert into sofa_settled_row values "
+                 "(1, 0.8, 0.75, 0, 'WIN', 7, 1, 'football')")
+    conn.execute("insert into sofa_settled_row values "
+                 "(2, 0.7, 0.72, 12, 'LOSS', 7, 2, 'football')")
+    k, curve = fit_constants.fit_k_price(conn)
+    assert curve and all(v == v for v in curve.values())
