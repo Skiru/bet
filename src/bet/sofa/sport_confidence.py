@@ -778,7 +778,16 @@ def synthetic_lines(sport: ShadowSport, market_id: int, sims: Sequence[GameResul
 # imply. Only the POSITION comes from the market; p stays the score model's.
 MARKET_LINE_MARKETS: dict[str, frozenset[int]] = {
     "basketball": frozenset({753, 768, 758, 776}),
+    # hockey: the regulation total only - Sofascore publishes no spread, so
+    # the handicap and the team totals stay on the synthetic lines
+    "hockey": frozenset({623}),
 }
+# The sports whose installed curve was fitted on market-positioned lines: a
+# refit for a day under epochs.MARKET_POSITIONED_LINES reads their cache by
+# default. Hockey's was measured only (2026-10-16,
+# docs/sofa/evidence/hockey_a7_2026-10-16.md; the operator's decision) and
+# needs an explicit --market-lines.
+MARKET_LINE_DEFAULT_SPORTS = frozenset({"basketball"})
 
 
 def market_position_lines(sport: ShadowSport, market_id: int,

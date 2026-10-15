@@ -504,8 +504,16 @@ measurement of Superbet's price and feed nothing else.
   Sofascore; the installed curve was fitted on the 40% asked by 10-13, a
   refit on the full cache waits for the operator); hockey's 16,484 games
   were asked the same day (6,950 with the "Match goals" total, no spread
-  published) for a hockey A7 measurement - `market_lines.parse_lines` reads
-  basketball's names only until then. Overtime (A3,
+  published). Hockey A7 is measured and **not switched on** (operator
+  2026-10-15): `parse_lines` reads "Match goals" (it settles with overtime;
+  only its position is read, graded as the regulation total 623), the replay
+  puts hockey's total alone on it, handicap / team totals stay synthetic, and
+  a fit reads the hockey cache only with an explicit `--market-lines`
+  (`sport_confidence.MARKET_LINE_DEFAULT_SPORTS`). Log-loss -0.0055
+  [-0.0072, -0.0039] vs a synthetic refit, all of it on totals, but the
+  model never reaches 0.70 at the market's line: the 382 printable total
+  lines of 10-05..10-14 (Superbet's ladder, calibrated today: -0.4 pp
+  [-5.0, +4.0]) would read nothing (`hockey_a7_2026-10-16.md`). Overtime (A3,
   `BB_OVERTIME_FROM_UTC`) stays `None`: +0.00113 [-0.00123, +0.00353].
   `docs/sofa/evidence/basketball_refit_2026-10-13.md`,
   `market_positioned_lines_2026-10-13.md`.

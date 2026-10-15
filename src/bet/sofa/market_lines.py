@@ -32,10 +32,14 @@ from bet.sofa.names import normalize_name
 TOTAL_MARKET = "Game total"
 SPREAD_MARKET = "Point spread"
 # Hockey (checked 2026-10-15 on NHL and Liiga games): the full-game total is
-# "Match goals" (no spread is published); kept in the cache so a hockey A7
-# measurement can read it - parse_lines reads basketball's names only, until
-# that measurement checks hockey's market period.
+# "Match goals" (no spread is published). Checked 2026-10-15 on the whole
+# cache: 6,950 markets, every one marketPeriod "Match", none live; it settles
+# on the FINAL score (overtime and the shoot-out goal count: 117 / 117 games
+# whose regulation and final scores fall on different sides of the line).
+# Only its position is read; the replay grades it by Superbet's regulation
+# total (623), as basketball's line is graded by 753.
 HOCKEY_TOTAL_MARKET = "Match goals"
+TOTAL_MARKETS = frozenset({TOTAL_MARKET, HOCKEY_TOTAL_MARKET})
 CACHED_MARKETS = frozenset({TOTAL_MARKET, SPREAD_MARKET, HOCKEY_TOTAL_MARKET})
 FULL_GAME_PERIOD = "Match"
 _SPREAD_CHOICE = re.compile(r"^\(\s*([+-]?\d+(?:\.\d+)?)\s*\)\s*(.+)$")
@@ -107,9 +111,11 @@ def parse_lines(event_id: int, markets: Iterable[Mapping[str, Any]],
                 home_names: Iterable[str], away_names: Iterable[str]
                 ) -> MarketLines | None:
     """The total and home-spread lines of one game's cached markets, or None
-    when it has neither. A spread whose team cannot be named home or away by
-    Sofascore's own names is left out (never guessed by choice order). A live
-    market (isLive) is not a pre-game line."""
+    when it has neither (a total: basketball's "Game total" or hockey's
+    "Match goals"; a spread: basketball's "Point spread"). A spread whose
+    team cannot be named home or away by Sofascore's own names is left out
+    (never guessed by choice order). A live market (isLive) is not a pre-game
+    line."""
     home = list(home_names)
     away = list(away_names)
     totals: set[float] = set()
@@ -117,7 +123,7 @@ def parse_lines(event_id: int, markets: Iterable[Mapping[str, Any]],
     for m in markets:
         if m.get("isLive") or m.get("marketPeriod") not in (None, FULL_GAME_PERIOD):
             continue
-        if m.get("marketName") == TOTAL_MARKET:
+        if m.get("marketName") in TOTAL_MARKETS:
             line = _float(m.get("choiceGroup"))
             if line is not None and line > 0:
                 totals.add(line)

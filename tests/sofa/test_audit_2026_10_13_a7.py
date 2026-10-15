@@ -165,7 +165,10 @@ def test_fit_reads_no_cache_while_the_switch_is_off(
         monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(epochs, "MARKET_POSITIONED_LINES_FROM_UTC", None)
     assert market_lines_for("basketball", "2026-10-14", None) is None
-    assert market_lines_for("hockey", "2026-10-14", "/nonexistent") is None
+    # a sport without MARKET_LINE_MARKETS never reads one (hockey's total
+    # does since 2026-10-16, with an explicit flag: test_hockey_market_lines)
+    assert market_lines_for("volleyball", "2026-10-14", "/nonexistent") is None
+    assert market_lines_for("hockey", "2026-10-14", None) is None
 
 
 def _market() -> dict[int, MarketLines]:

@@ -102,12 +102,14 @@ def market_lines_for(sport: str, before: str, path: str | None
                      ) -> dict[int, MarketLines] | None:
     """The market-positioned lines of the history replay (audit A7): the
     --market-lines cache, or the default cache when the --before day's rule
-    (epochs.MARKET_POSITIONED_LINES) is on; None = synthetic lines. A sport
-    without MARKET_LINE_MARKETS never reads one."""
+    (epochs.MARKET_POSITIONED_LINES) is on for a sport of
+    MARKET_LINE_DEFAULT_SPORTS; None = synthetic lines. A sport without
+    MARKET_LINE_MARKETS never reads one."""
     if sport not in scf.MARKET_LINE_MARKETS:
         return None
     first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
-    if path is None and not epochs.market_positioned_lines(before, first):
+    if path is None and (sport not in scf.MARKET_LINE_DEFAULT_SPORTS
+                         or not epochs.market_positioned_lines(before, first)):
         return None
     cache = Path(path or epochs.MARKET_LINES_CACHE.format(sport=sport))
     if not cache.exists():
@@ -375,8 +377,9 @@ def main() -> int:
     ap.add_argument("--market-lines", default=None, metavar="CACHE",
                     help="basketball: fit the total / handicap / team total "
                     "history on lines placed where the market stood (audit "
-                    "A7; backfill_event_odds.py cache); default: the "
-                    "--before day's rule (epochs.MARKET_POSITIONED_LINES)")
+                    "A7; backfill_event_odds.py cache); hockey: the regulation "
+                    "total only; default: the --before day's rule "
+                    "(epochs.MARKET_POSITIONED_LINES), basketball only")
     ap.add_argument("--fit-days", type=int, default=365)
     ap.add_argument("--sims", type=int, default=1000,
                     help=f"simulated games per forecast (pipeline: {N_SIMS})")
