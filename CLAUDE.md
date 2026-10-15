@@ -638,7 +638,10 @@ measurement of Superbet's price and feed nothing else.
   PLAYER_NAME_SURNAME, FOOTBALL_DAY_ANCHOR - moved by the operator into
   10-14 at 11:30Z: 10-14 is mixed, ledger group "10-14 mieszany", the days
   after it "od 10-15", which also starts the new-market curves installed
-  2026-10-15 00:17Z and the 1X2 / DNB and CS2 series-rounds switches; before them ledger group "od 10-14"
+  2026-10-15 00:17Z and the 1X2 / DNB and CS2 series-rounds switches; from
+  10-16 "od 10-16": the cup-strength football refit installed 2026-10-15
+  23:02Z before 10-16's build (not mixed) with FOOTBALL_CUP_STRENGTH and
+  BASKETBALL_DC_PAIR from 00:00Z; before them ledger group "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
   PLAYER_TEAM_FROM_SIDE, MARKET_POSITIONED_LINES with the A7 basketball
@@ -710,19 +713,46 @@ not postponed, the opponent's own verified id (if any) in it
 10-05..10-14 with the opponent hidden, ~11 more fixtures a day; the one
 unsettled (Hapoel / Maccabi Petah Tikva U19 10-11) accepted by the operator.
 Tennis never (replaced opponents).
-**Measured, waiting for the operator - football rating in international
-club cups** (2026-10-15, `scripts/sofa/measure_cross_league_cups.py`,
-`docs/sofa/evidence/cross_league_cups_2026-10-15.md`; the pattern behind
-the day's 104 analyst CONTEXT vetoes): on 3,740 cross-league cup matches
-from 2024-07 the rating under-rates the side from the stronger league by
-+5.2 pp P(win) [+3.6, +7.0] (+16.6 pp at a cup-Elo gap >= 1), because the
-league-strength book orders top flights wrongly (it links leagues mostly
-through their own lower divisions); rescaling the book does nothing
-(-0.0014 [-0.0035, +0.0009]), a per-league correction learnt only from
-earlier cup results is better out of sample (1X2 log-loss -0.0262
-[-0.0366, -0.0161]). A fix changes what prints: a switch, a cup strength
-in `RatingBook`, a SHEET marker, the replay and a football refit on a copy
-- the operator's go (not an item of the 10-13 audit).
+**Football league strength in international club cups**
+(`FOOTBALL_CUP_STRENGTH_FROM_UTC` 2026-10-16 00:00Z, operator go 2026-10-15;
+refit installed 2026-10-15 23:02Z, before 10-16's build - not a mixed day;
+`docs/sofa/history/RAPORT_SILA_PUCHAROW_2026-10-16.md`): the
+league-strength book links leagues mostly through their own lower
+divisions and ordered top flights wrongly - on 3,740 cross-league cup
+matches from 2024-07 the rating under-rated the side from the stronger
+league by +5.2 pp P(win) [+3.6, +7.0]. `football_rating.RatingBook` now
+carries a per-(domestic competition, metric) correction `cup_delta`, learnt
+only from cross-league matches of the nine cups of
+`config/sofa_cup_strength.json` (UCL / UEL / UECL, AFC Elite / Two,
+Libertadores, Sudamericana, CAF, CONCACAF) inside `update`, read on such a
+cup's fixture on top of the domains' sigma (`RatingBook.cup_extra`,
+`bet.sofa.cup_strength`). Steps per metric, only where better out of sample
+with the interval below zero (`measure_cross_league_cups.py --in-book`,
+TRAIN 2024-07..2025-06, TEST from 2025-07 and from 2026-01): goals_for 0.05
+(1X2 log-loss -0.0285 [-0.0381, -0.0188], 2,194 matches; better than the
+post-hoc D), goals_1h_for 0.05, goals_2h_for 0.02, shots_for 0.02 (re-measured
+on 1,748 backfilled cup statistics, both cuts below zero); corners, shots on
+target, fouls, cards, offsides, halves of corners / shots measured no better
+(some worse) - no step. Non-cup matches feel the changed ratios: on 302,635
+moved matches goals -0.00003 [-0.00006, -0.000003], nothing worse
+(`--spill`). Rows carry `cup_strength_rule`; a rebuild of a day >= 10-16
+re-runs SHEET on a sheet without it. The file is an operator list with
+chosen steps, outside `config_sha`. Replay `--cup-strength`. The football /
+tennis curves were refitted on that replay (`data/refit_2026-10-16/
+sofa_replay.db`, 125.4M rows; `fit_constants` K fits skip the rating-only
+markets' sample-less rows since 3f77701e) and the double chance / DNB /
+first goal curves refitted on the same book (gate verdicts unchanged); E2E
+on 10-15: 1,238 common legs, the new curves move none by > 0.006, the cups
+move 60 legs (59 cup), +65 / -37 legs, all but a few cup legs - Lech -
+Leverkusen, Celje - Omonia, CSKA - Monaco, Egnatia - Midtjylland move the
+way the analysts' vetoes said. B15's sample correction does not read the cup
+correction (`SAMPLE_CUP_STRENGTH_FROM_UTC` None, below).
+**Measured, not switched on - B15 through the cup strength**
+(`SAMPLE_CUP_STRENGTH_FROM_UTC` None; `SampleCorrector(cup_aware=True)`,
+marker `sample_cup_rule`, replay `--sample-cup-strength`): shots_for
+calibrated log-loss -0.00006 [-0.00012, -0.000003], -0.00044 on rows with a
+cup, shots_total zero - better but small, goes on with the football refit
+whose replay carries it.
 **Measured and not switched on, identity plan** (2026-10-14,
 `docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`): hockey / basketball players found only
 under another team (K7: 25 of 30 / 20 of 48 NOT_IN_HISTORY names - pricing
@@ -865,22 +895,29 @@ tennis `games_won_for` OVER offsets (-8.5 men, -12.1 women) were measured on
 old-estimator rows, while the new estimator's rows are calibrated there
 (-0.2 pp, n 117) - over-lowered, a candidate (evidence on rows >= 10-09 for
 the repriced families) once a walk-forward has the days.
-**Before the next refit:** measure the admitted football props separately;
-measure the tennis games population of replay matches without `/statistics`;
-measure the best-of-five `games_total` / `games_won_for` samples of the
-replay (not format-scoped) before a fix; a refit carrying the men's
-friendlies (851 rows in the goals fit, variant C, the as-of 851 prior).
+**Before the next refit:** measure the tennis games population of replay
+matches without `/statistics`; a refit carrying the men's friendlies (851
+rows in the goals fit, variant C, the as-of 851 prior); replay with
+`--tennis-sample-scope` (the replay took a tennis side's last ten matches of
+any format and surface, where SAMPLES scopes both: 13% of best-of-three rows,
+57% ATP, held a Grand Slam five-setter, centre +1.97 games, log-loss +0.0445;
+`docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md`). Football
+props measured separately (2026-10-15, 10-12..10-14): the curve is
+calibrated (-2.1 pp [-6.9, +2.7], 319 lines / 51 games), ROI -16.5% at
+Superbet's short prices, ~nothing prints (`football_props_2026-10-15.md`).
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
 `config/backup_2026-10-09`, `config/backup_2026-10-14` (before the 10-13
 refit), `config/backup_2026-10-15` (before the 10-14 refit, with the removed
 `.next.json`), `config/backup_2026-10-15_new_markets/` (before the
 new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
-basketball A7 keys from the full cache), `data/backup_2026-10-05/sofa.db`;
-`data/refit_2026-10-14/sofa_replay.db` is the DB the installed football /
+basketball A7 keys from the full cache), `config/backup_2026-10-16` (before
+the cup-strength refit), `data/backup_2026-10-05/sofa.db`;
+`data/refit_2026-10-16/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
-`data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-13/sofa_replay.db`
-(53 GB) no longer is - the operator may delete it.
+`data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-14/sofa_replay.db`
+(57 GB) and `data/refit_2026-10-13/sofa_replay.db` no longer are - the
+operator may delete them.
 
 **Measured for the next refit (2026-10-12 night, out of sample on the history,
 `docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis set-1 winner and set
