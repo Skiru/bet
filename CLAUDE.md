@@ -533,11 +533,11 @@ measurement of Superbet's price and feed nothing else.
   rounds_handicap, team_rounds) are priced from `CS2_SERIES_ROUNDS_FROM_UTC`
   (2026-10-15 00:00Z; `cs2_engine.series_rounds_side_p`: maps won from the
   mixed series distribution, each map's rounds from the race) with their
-  history curves staged, not installed (three keys pass the gate on the
-  history ladder, but at Superbet's own lines 21 sides / 19 series realised
-  0.33 at 0.74; `docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`,
-  `T-CS2-SERIES-ROUNDS-superbet`), so they read only their own settled lines
-  until the operator decides; round parity is still unpriced.
+  history curves installed 2026-10-15 00:17Z ("New-market curves" below;
+  the operator installed them despite the warning: three keys pass the gate
+  on the history ladder, but at Superbet's own lines 21 sides / 19 series
+  realised 0.33 at 0.74; `docs/sofa/evidence/cs2_series_rounds_2026-10-15.md`,
+  `T-CS2-SERIES-ROUNDS-superbet`); round parity is still unpriced.
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
   names, `teams_source`); no history curve, so `NO_LINE_EVIDENCE` until a
@@ -615,7 +615,8 @@ measurement of Superbet's price and feed nothing else.
   switches - ENTITY_MAP, DAY_ANCHOR, TOURNAMENT_DAY, NOT_ON_SOFASCORE,
   PLAYER_NAME_SURNAME, FOOTBALL_DAY_ANCHOR - moved by the operator into
   10-14 at 11:30Z: 10-14 is mixed, ledger group "10-14 mieszany", the days
-  after it "od 10-15"; before them ledger group "od 10-14"
+  after it "od 10-15", which also starts the new-market curves installed
+  2026-10-15 00:17Z and the 1X2 / DNB and CS2 series-rounds switches; before them ledger group "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
   PLAYER_TEAM_FROM_SIDE, MARKET_POSITIONED_LINES with the A7 basketball
@@ -703,40 +704,38 @@ B1 / B2 / B14 / C1 / B5 are on since 2026-10-13 18:10Z and B15 since
 refitted on the live centre (2026-10-13 20:57Z) before that replay.
 
 **Switched on 2026-10-14 14:20Z** (operator, "WŁĄCZ OD TERAZ"; into the built
-day - 10-14 is mixed; no curve installed for either, so both read only their
-own settled Superbet lines and nothing prints until a bucket holds enough):
+day - 10-14 is mixed; on 10-14 neither had a curve and nothing printed; the
+curves that passed the gate are installed from 2026-10-15 00:17Z, "New-market
+curves" below):
 `FOOTBALL_RESULT_MARKETS_FROM_UTC` (audit D1, double chance only:
 OFFER reads "Podwójna szansa" as `double_chance` with the left-out "Mecz"
 outcome as its UNDER, SHEET prices the selection from NB goals on the pure
 rating centres, r 7.586 in `config/sofa_football_result.json`, unfitted, OVER
-only, `result_rule`; no curve, so `NO_LINE_EVIDENCE` until its own lines
-settle; graded on the 90-minute score; `bet.sofa.football_result`,
+only, `result_rule`; graded on the 90-minute score; `bet.sofa.football_result`,
 `docs/sofa/evidence/football_result_phase_2026-10-13.md`; from
 `FOOTBALL_RESULT_1X2_DNB_FROM_UTC` 2026-10-15 00:00Z also "Mecz" 1 / 2 as
 `result_1x2` and "Zakład bez remisu" as one `draw_no_bet` rung - OVER home,
 UNDER away, a draw a refund `DNB_DRAW_REFUND` - with an early-phase men's
 leg reading the curve class `season_early`, `bet.sofa.football_1x2_dnb`;
-DNB keys passed the one-sided holdout gate, every 1X2 key failed, curves
-staged in `data/refit_new_markets_2026-10-15/football_result_1x2_dnb/`, not
-installed; `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md`),
+DNB keys passed the one-sided holdout gate and are installed, every 1X2 key
+failed (no curve, NO_LINE_EVIDENCE); `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md`),
 `SHOT_DETAIL_MARKETS_FROM_UTC` (footballer shots outside the box / headed /
 left / right foot, all and on target: OFFER reads the eight names as player
 markets, SAMPLES and SETTLE count them from `/shotmap` only where it gives the
 player his lineups `totalShots`, SHEET prices `shot_detail.forecast` from
 `config/sofa_shot_detail.json` (absent file: `NO_SHOT_DETAIL_FIT`) -
-rows `shot_detail_rule`; no curve, `NO_LINE_EVIDENCE`;
+rows `shot_detail_rule`;
 `docs/sofa/evidence/shot_detail_2026-10-14.md`). The shot-detail estimator file
 `config/sofa_shot_detail.json` is installed (fit `data/refit_shot_detail_2026-10-14/`);
-its history curve (`curves.json` there) is not - the operator decides after the
-lines settle. Every OFFER also records the unread markets' prices
+its left / right foot shots curves are installed (2026-10-15), the other six
+keys failed the gate. Every OFFER also records the unread markets' prices
 (`unmapped_prices/`). Report: `docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md`.
 
 **Switched on 2026-10-14 14:50Z** (operator, "1. 2. tak"; into the built day,
-10-14 mixed; no curve, own Superbet lines only): `SPORT_DERIVED_MARKETS_FROM_UTC` (SHADOW reads, SHADOW_SETTLE
+10-14 mixed; curves of the keys that passed installed 2026-10-15 00:17Z): `SPORT_DERIVED_MARKETS_FROM_UTC` (SHADOW reads, SHADOW_SETTLE
 grades and SPORT_CONFIDENCE prices from the score model the hockey /
 basketball double chance - regulation, as the 1X2 - and volleyball's team
-sets and sets count, `shadow.DERIVED_MARKETS`; no curve, so
-NO_LINE_EVIDENCE until their own lines settle; history log-loss vs base
+sets and sets count, `shadow.DERIVED_MARKETS`; history log-loss vs base
 better on every 1X / X2 and volleyball key, none on "12";
 `docs/sofa/evidence/sport_derived_2026-10-14.md`); `FOOTBALL_INCIDENT_MARKETS_FROM_UTC` (`bet.sofa.football_incidents`: "1. gol"
 as one-sided `first_goal` from the double chance's NB goals on the pure
@@ -749,8 +748,41 @@ are not read) and `TENNIS_SET_MARKETS_FROM_UTC` (`bet.sofa.tennis_sets`: "X.
 set - zwycięzca" as `set1_won_for` / `set2_won_for`, the tennis "Dokładny
 wynik" as one-sided `set_score`, from the rating's neighbours; set 1 +1.0 pp
 n 12,174, set 2 +0.4 pp n 12,502, exact sets +1.5 pp n 4,107) - rating-only
-markets with no curve, so NO_LINE_EVIDENCE until their own Superbet lines
-settle; `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`.
+markets; `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md`.
+
+**New-market curves installed 2026-10-15 00:17Z** (operator go 2026-10-14,
+"zbudować krzywe dla tych wszystkich rynków"; before 10-15's build, so not a
+mixed day; `scripts/sofa/install_new_market_curves.py --dir
+data/refit_new_markets_2026-10-15 --confirm`, backup
+`config/backup_2026-10-15_new_markets/`, `tests/sofa` passed; each key's
+`new_market_curves_fitted_from` in the file): 29 history curves of the
+markets switched on 10-14 / 10-15, fitted before 2026-10-15 and admitted by
+the **one-sided holdout gate** (operator 2026-10-14 18:55Z;
+`scripts/sofa/new_market_gate.py`: fit before 2026-09-01, judged on
+09-01..10-13, a key fails only if its curve **overstates** - n >= 300
+holdout forecasts at curve >= 0.70 and realised - curve >= -2 pp;
+under-statement passes; every "12" key refused by policy; the sports'
+admission rule unchanged). Football / tennis
+(`config/sofa_confidence_calibration.json`): `player_left_foot_shots_for` /
+`player_right_foot_shots_for` OVER, `double_chance` OVER (+ `women:`),
+`first_goal` OVER, `penalties_total` / `red_cards_total` UNDER,
+`set1_won_for` / `set2_won_for` OVER and UNDER, `set_score` OVER (each
++ `tennis_women:`), `draw_no_bet` OVER / UNDER (+ `season_early:` and
+`women:` OVER). Sports (`config/sofa_sport_confidence_calibration.json` and
+its `.next.json`): hockey `double_chance` / `period_double_chance` TEAM,
+basketball `double_chance` TEAM, volleyball `team_sets_exact` NO /
+`team_wins_set` YES, CS2 `rounds_handicap` TEAM, `rounds_total` OVER,
+`team_rounds` OVER. Every other new key (1X2, "12", shots outside the box /
+headed / on target, reds / pens OVER, basketball halves / quarters,
+volleyball sets_count) has no curve: `NO_LINE_EVIDENCE` until its own lines
+settle. Line evidence reads the installed keys like any other (offset /
+band cap only lower). E2E on a copy of 10-14 (build clock, before vs after):
++110 legs (double chance 78, reds UNDER 12, pens UNDER 6, hockey DC 9, set
+winners 4, first goal 1 - a one-sided single), 0 legs lost, no common leg's
+confidence moved; **102 of the 110 at a confidence below 1/odds** (they pass
+x >= 0.90); whether these markets beat Superbet's price is unmeasured.
+`docs/sofa/evidence/new_market_curves_2026-10-15.md`,
+`docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
 
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
@@ -794,7 +826,8 @@ Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
 `config/backup_2026-10-09`, `config/backup_2026-10-14` (before the 10-13
 refit), `config/backup_2026-10-15` (before the 10-14 refit, with the removed
-`.next.json`), `data/backup_2026-10-05/sofa.db`;
+`.next.json`), `config/backup_2026-10-15_new_markets/` (before the
+new-market curves), `data/backup_2026-10-05/sofa.db`;
 `data/refit_2026-10-14/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
 `data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-13/sofa_replay.db`

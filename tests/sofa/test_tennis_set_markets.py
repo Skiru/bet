@@ -20,7 +20,7 @@ import pytest
 
 from bet.sofa import epochs
 from bet.sofa import offer as offer_mod
-from bet.sofa.confidence import OWN_CURVE_ONLY, Calibration, direction_key
+from bet.sofa.confidence import OWN_CURVE_ONLY, Calibration
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     FixtureOffer,
@@ -30,7 +30,6 @@ from bet.sofa.contracts import (
     Observation,
     PricedRung,
 )
-from bet.sofa.line_evidence import LineEvidence
 from bet.sofa.offer import classify_odd
 from bet.sofa.samples import metrics_from_offer
 from bet.sofa.tennis_rating import MatchForecast, Outcome
@@ -50,6 +49,7 @@ from bet.sofa.tennis_sets import (
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 from scripts.sofa.run_settle import _settle_set_market
 from scripts.sofa.run_sheet import process_fixture, set_market_rows, sheet_row_json
+from tests.sofa.calibration_without import calibration_without
 from tests.sofa.offer_mappable_scenarios import (
     FROZEN,
     GOLDEN_DIR,
@@ -420,13 +420,15 @@ def test_no_rating_or_no_side_no_row() -> None:
 # --- CONFIDENCE --------------------------------------------------------------------
 
 
-def test_installed_curves_and_evidence_give_the_markets_nothing() -> None:
+def test_installed_set_curves_men_and_women() -> None:
+    """Installed 2026-10-15 00:17Z: every set market OVER, men's and
+    women's, reads its own curve (set winners also UNDER)."""
     cal = Calibration.load()
-    evidence = LineEvidence.load(v2=True, bucket_deff=True)
     for market in SET_MARKETS:
-        assert cal.realised(market, 0.8, "tennis", "OVER") is None
-        key = direction_key(market, "OVER")
-        assert evidence.read("tennis", key, 0.8, None, 1.3) is None
+        hit = cal.realised(market, 0.8, "tennis", "OVER")
+        assert hit is not None and hit[1] == f"market:{market}|OVER"
+        women = cal.realised(market, 0.8, "tennis", "OVER", klass="tennis_women")
+        assert women is not None and f"{market}|OVER" in women[1]
 
 
 def test_confidence_refuses_the_leg_no_line_evidence(
@@ -517,8 +519,13 @@ def test_confidence_refuses_the_leg_no_line_evidence(
         )
     )
     monkeypatch.setenv("SOFA_NOW", z(t0))
+    # without the set-1 curve (installed 2026-10-15): no curve, no lines
+    cal = calibration_without(tmp_path, [SET1_WON_FOR])
     monkeypatch.setattr(
-        sys, "argv", ["run_confidence.py", "--date", day, "--runs-dir", str(tmp_path)]
+        sys,
+        "argv",
+        ["run_confidence.py", "--date", day, "--runs-dir", str(tmp_path),
+         "--calibration", str(cal)],
     )
     assert run_confidence.main() == 0
     summary = json.loads(capsys.readouterr().out.strip().splitlines()[-1])

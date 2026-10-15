@@ -22,7 +22,7 @@ import pytest
 from bet.sofa import epochs
 from bet.sofa import football_rating as fr
 from bet.sofa import offer as offer_mod
-from bet.sofa.confidence import OWN_CURVE_ONLY, Calibration, direction_key
+from bet.sofa.confidence import OWN_CURVE_ONLY, Calibration
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import (
     FixtureOffer,
@@ -50,13 +50,13 @@ from bet.sofa.football_incidents import (
     read_incidents,
 )
 from bet.sofa.football_result import ResultConfig, count_pmf
-from bet.sofa.line_evidence import LineEvidence
 from bet.sofa.offer import classify_odd
 from bet.sofa.samples import metrics_from_offer
 from bet.sofa.settle import settle as settle_value
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 from scripts.sofa.run_settle import _settle_incident
 from scripts.sofa.run_sheet import incident_rows, process_fixture, sheet_row_json
+from tests.sofa.calibration_without import calibration_without
 from tests.sofa.offer_mappable_scenarios import (
     FROZEN,
     GOLDEN_DIR,
@@ -678,14 +678,23 @@ def test_unlinked_first_goal_carries_the_refusal_note() -> None:
 # --- CONFIDENCE: no curve, its own lines -> NO_LINE_EVIDENCE --------------------
 
 
-def test_installed_curves_and_evidence_give_the_markets_nothing() -> None:
+# The keys that passed the one-sided holdout gate and were installed
+# 2026-10-15 00:17Z (docs/sofa/evidence/new_market_curves_2026-10-15.md);
+# every other direction of these markets has no curve.
+INSTALLED_INCIDENT_KEYS = {
+    (FIRST_GOAL, "OVER"), (PENALTIES, "UNDER"), (RED_CARDS, "UNDER")}
+
+
+def test_installed_curves_are_the_gated_keys_only() -> None:
     cal = Calibration.load()
-    evidence = LineEvidence.load(v2=True, bucket_deff=True)
     for market in INCIDENT_MARKETS:
-        for p in (0.72, 0.85):
-            assert cal.realised(market, p, "football", "UNDER") is None
-        key = direction_key(market, "UNDER")
-        assert evidence.read("football", key, 0.85, None, 1.15) is None
+        for direction in ("OVER", "UNDER"):
+            # 0.76: inside every installed curve (first goal's ends at 0.825)
+            hit = cal.realised(market, 0.76, "football", direction)
+            if (market, direction) in INSTALLED_INCIDENT_KEYS:
+                assert hit is not None and hit[1] == f"market:{market}|{direction}"
+            else:
+                assert hit is None, (market, direction)
 
 
 def test_confidence_refuses_the_leg_no_line_evidence(
@@ -771,8 +780,13 @@ def test_confidence_refuses_the_leg_no_line_evidence(
         )
     )
     monkeypatch.setenv("SOFA_NOW", z(t0))
+    # without the penalties curve (installed 2026-10-15): no curve, no lines
+    cal = calibration_without(tmp_path, [PENALTIES])
     monkeypatch.setattr(
-        sys, "argv", ["run_confidence.py", "--date", day, "--runs-dir", str(tmp_path)]
+        sys,
+        "argv",
+        ["run_confidence.py", "--date", day, "--runs-dir", str(tmp_path),
+         "--calibration", str(cal)],
     )
     assert run_confidence.main() == 0
     summary = json.loads(capsys.readouterr().out.strip().splitlines()[-1])

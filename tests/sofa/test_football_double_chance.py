@@ -63,6 +63,7 @@ from scripts.sofa.run_sheet import (
     process_fixture,
     sheet_row_json,
 )
+from tests.sofa.calibration_without import calibration_without
 from tests.sofa.offer_mappable_scenarios import (
     FROZEN,
     GOLDEN_DIR,
@@ -421,15 +422,19 @@ def test_no_rating_no_row() -> None:
 # --- CONFIDENCE: no curve, its own lines -> NO_LINE_EVIDENCE --------------------
 
 
-def test_installed_curves_and_evidence_give_double_chance_nothing() -> None:
+def test_installed_double_chance_reads_its_own_curve() -> None:
+    """From 2026-10-15 00:17Z (install_new_market_curves.py) double chance
+    OVER has its own history curve, men's and women's; the UNDER (the
+    left-out outcome, never offered as a bet) has none and no pool stands in
+    (OWN_CURVE_ONLY)."""
     assert has_calibratable_model(DOUBLE_CHANCE)
     cal = Calibration.load()
+    hit = cal.realised(DOUBLE_CHANCE, 0.85, "football", "OVER")
+    assert hit is not None and hit[1] == "market:double_chance|OVER"
+    women = cal.realised(DOUBLE_CHANCE, 0.85, "football", "OVER", klass="women")
+    assert women is not None and "double_chance|OVER" in women[1]
     for p in (0.72, 0.85, 0.93):
-        # no own curve, and no pool stands in (OWN_CURVE_ONLY)
-        assert cal.realised(DOUBLE_CHANCE, p, "football", "OVER") is None
-    evidence = LineEvidence.load(v2=True, bucket_deff=True)
-    key = direction_key(DOUBLE_CHANCE, "OVER")
-    assert evidence.read("football", key, 0.85, None, 1.35) is None
+        assert cal.realised(DOUBLE_CHANCE, p, "football", "UNDER") is None
 
 
 def test_enough_settled_lines_would_give_a_confidence() -> None:
@@ -485,12 +490,14 @@ def test_confidence_refuses_the_leg_no_line_evidence(
                    "over_odds": 1.35, "under_odds": 3.05,
                    "fetched_at_utc": z(t0 - timedelta(minutes=1))}]}]))
     monkeypatch.setenv("SOFA_NOW", z(t0))
+    # a calibration without the double chance curve (installed 2026-10-15):
+    # a key with no curve and no settled lines stops at the line evidence
+    cal = calibration_without(tmp_path, [DOUBLE_CHANCE])
     monkeypatch.setattr(sys, "argv", [
-        "run_confidence.py", "--date", day, "--runs-dir", str(tmp_path)])
+        "run_confidence.py", "--date", day, "--runs-dir", str(tmp_path),
+        "--calibration", str(cal)])
     assert run_confidence.main() == 0
     summary = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
-    # the installed curves and line evidence (read-only): the leg reached the
-    # line-evidence read and stopped there
     assert summary["metrics"]["refused"] == {"NO_LINE_EVIDENCE": 1}
     doc = json.loads((run / "08_confidence.json").read_text())
     assert doc["singles"] == [] and doc["legs"] == []

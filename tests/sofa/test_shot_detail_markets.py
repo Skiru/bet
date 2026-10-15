@@ -26,7 +26,6 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.confidence import (
     PLAYER_PROP_MARKETS,
     Calibration,
-    direction_key,
     one_sided_single,
     quantity_family,
 )
@@ -39,7 +38,6 @@ from bet.sofa.contracts import (
     PlayerSample,
     PricedRung,
 )
-from bet.sofa.line_evidence import LineEvidence
 from bet.sofa.market_mapper import (
     classify_player_market,
     fold,
@@ -505,14 +503,21 @@ def test_the_fit_file_enters_the_fingerprint_only_once_installed(
 # --- CONFIDENCE: no curve, no lines -> nothing prints today -------------------
 
 
-def test_installed_curves_and_evidence_give_the_keys_nothing() -> None:
+# Installed 2026-10-15 00:17Z (the one-sided holdout gate passed only the
+# left / right foot shots; docs/sofa/evidence/new_market_curves_2026-10-15.md)
+INSTALLED_SHOT_DETAIL = frozenset({"player_left_foot_shots_for",
+                                   "player_right_foot_shots_for"})
+
+
+def test_installed_curves_are_the_gated_keys_only() -> None:
     cal = Calibration.load()
-    evidence = LineEvidence.load(v2=True, bucket_deff=True)
     for metric in sd.METRICS:
-        for p in (0.72, 0.85):
-            assert cal.realised(metric, p, "football", "OVER") is None
-        key = direction_key(metric, "OVER")
-        assert evidence.read("football", key, 0.85, None, 1.35) is None
+        hit = cal.realised(metric, 0.85, "football", "OVER")
+        if metric in INSTALLED_SHOT_DETAIL:
+            assert hit is not None and hit[1] == f"market:{metric}|OVER"
+        else:
+            for p in (0.72, 0.85):
+                assert cal.realised(metric, p, "football", "OVER") is None, metric
     # the one-sided single needs its own market's history curve
     assert not one_sided_single({
         "one_sided_market": True, "overround": None,

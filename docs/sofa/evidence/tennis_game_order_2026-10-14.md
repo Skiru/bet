@@ -48,3 +48,32 @@ roku point-by-point (~5x więcej meczów). Ceny Superbetu tych rynków są
 zapisywane od 2026-10-14 (`bet.sofa.unmapped_prices`); bez rozliczonych linii
 nie wiadomo, czy nawet trafny model bije kurs (np. remis po 2 gemach @1,61).
 Nic nie jest podłączone do kuponu.
+
+## Ponowny pomiar na pełnym roku (2026-10-14 23:15Z)
+
+Pobieranie `/point-by-point` za rok (`backfill_event_extra.py`, 2026-10-14
+15:30-23:12Z, ~1,7 tys. celów zostało, prawie same puste - starsze turnieje
+bez point-by-point): 91 187 meczów z point-by-point, 70 275 ze statystykami
+serwisu; ten sam skrypt (`measure_tennis_game_order.py`, K domyślne),
+walk-forward.
+
+| rynek | n | log-loss względem średniej | prognoza >= 0,70: prognoza → zrealizowane (n, Wilson dolna) |
+|---|---|---|---|
+| remis po 2 gemach | 45 689 | -0,0313 | 0,724 → 0,695 (1 453, 0,671); 0,773 → 0,717 (911, 0,687); 0,822 → 0,745 (486, 0,704); 0,871 → 0,783 (304, 0,733); 0,907 → 0,730 (37) |
+| 2:2 po 4 gemach | 45 618 | -0,0097 | 0,724 → 0,615 (275); 0,773 → 0,625 (224); 0,818 → 0,705 (78) |
+| prowadzenie po 2 gemach | 45 689 | -0,0149 | nic >= 0,60 |
+| wynik po 2 / 3 punktach gemu serwisowego | 91 400 | -0,0007 .. -0,0078 | nic >= 0,50 |
+
+Werdykt: obraz z 60 dni potwierdzony na ~6x większej próbie - surowa
+prognoza **zawyża o 3-9 pp** na górze. Jedyny kandydat to **remis po 2
+gemach**: kubełek prognozy 0,80-0,85 realizuje 0,745 (n 486, dolna 0,704), czyli
+krzywa z historii (ona mapuje prognozę na zrealizowane, więc zawyżenie
+modelu nie przechodzi do pewności) dałaby pewność ~0,72-0,75 przy prognozie
+>= 0,80. Kurs Superbetu na „1. set - po 2 - Remis” 10-14: mediana 1,675
+(1,40-1,97, 104 mecze, ostatnia cena przed startem). **Nie podpięte**: to
+nowy rynek (OFFER, SHEET, SETTLE z point-by-point, przełącznik, krzywa z
+bramką jednostronną na holdoucie) - osobny etap, zgodnie z planem nocy. Czy
+Superbet nie wycenia niżej właśnie meczów o wysokiej prognozie (dwóch
+mocnych serwujących), nie wiadomo bez rozliczonych linii: zapis cen
+(`unmapped_prices`) jest od 2026-10-14, a wynik po 2 gemach daje
+point-by-point, więc te linie da się rozliczyć wstecz od 10-14.

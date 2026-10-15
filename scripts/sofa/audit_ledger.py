@@ -153,7 +153,9 @@ REFIT_1013_MIXED_DATE = "2026-10-13"
 AUDIT_EPOCH_FROM_DATE = "2026-10-14"
 # The identity plan's switches (entity map, day anchors, tournament day, proven
 # absence, player surnames) moved by the operator into 10-14 at 11:30Z: 10-14
-# is mixed, and the days after it are their own epoch.
+# is mixed, and the days after it are their own epoch. "od 10-15" also starts
+# the new-market curves (installed 2026-10-15 00:17Z, before 10-15's build)
+# and the 1X2 / DNB and CS2 series-rounds switches (2026-10-15 00:00Z).
 IDENTITY_1014_MIXED_DATE = "2026-10-14"
 IDENTITY_EPOCH_FROM_DATE = "2026-10-15"
 

@@ -347,9 +347,24 @@ def test_derived_families_are_allowed_only_when_on() -> None:
     assert scf.side_class("SETS=4") == "SETS=4"
 
 
-def test_nothing_prints_today_every_derived_key_is_no_line_evidence() -> None:
-    """The installed calibration has no curve for a derived key and the
-    installed line evidence no line of one: every read is NO_LINE_EVIDENCE."""
+# Installed 2026-10-15 00:17Z: the derived keys that passed the one-sided
+# holdout gate ("TEAM" = 1X / X2; "12" refused by policy).
+INSTALLED_DERIVED = {("hockey", "double_chance", "TEAM"),
+                     ("hockey", "period_double_chance", "TEAM"),
+                     ("basketball", "double_chance", "TEAM"),
+                     ("volleyball", "team_sets_exact", "NO"),
+                     ("volleyball", "team_wins_set", "YES")}
+
+
+def _installed(sport: str, family: str, side: str) -> bool:
+    team = "TEAM" if side in ("1X", "X2") else side
+    return (sport, family, team) in INSTALLED_DERIVED
+
+
+def test_derived_keys_without_a_curve_are_no_line_evidence() -> None:
+    """A derived key the gate refused has no curve; with no settled line in
+    the installed evidence its every read is NO_LINE_EVIDENCE. A key that
+    passed reads its curve somewhere at or above the floor."""
     rsc = importlib.import_module("scripts.sofa.run_sport_confidence")
     date = "2026-10-15"
     cal = scf.SportCalibration.load(scf.calibration_path_for(date))
@@ -360,11 +375,19 @@ def test_nothing_prints_today_every_derived_key_is_no_line_evidence() -> None:
     for sport in ("hockey", "basketball", "volleyball"):
         for spec in shadow.DERIVED_MARKETS[sport].values():  # type: ignore[index]
             for side in sides[spec.kind]:
-                for p in (0.55, 0.7, 0.8, 0.9, 0.97):
-                    conf, _, _, why = rsc.read_confidence(
-                        cal, evidence, sport, spec.family, side, p, 1.3)
+                reads = [rsc.read_confidence(cal, evidence, sport, spec.family,
+                                             side, p, 1.3)
+                         for p in (0.55, 0.7, 0.8, 0.9, 0.97)]
+                if _installed(sport, spec.family, side):
+                    assert any(r[0] is not None for r in reads), (
+                        sport, spec.family, side)
+                    continue
+                for conf, _, _, why in reads:
+                    if evidence.read(sport, scf.curve_key(spec.family, side),
+                                     0.8, None, 1.3) is not None:
+                        break  # its own settled lines arrived (morning refresh)
                     assert conf is None and why == "NO_LINE_EVIDENCE", (
-                        sport, spec.family, side, p)
+                        sport, spec.family, side)
 
 
 def test_history_replay_scores_only_the_markets_asked() -> None:
