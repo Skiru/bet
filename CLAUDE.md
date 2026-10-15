@@ -781,6 +781,13 @@ band cap only lower). E2E on a copy of 10-14 (build clock, before vs after):
 winners 4, first goal 1 - a one-sided single), 0 legs lost, no common leg's
 confidence moved; **102 of the 110 at a confidence below 1/odds** (they pass
 x >= 0.90); whether these markets beat Superbet's price is unmeasured.
+Open defects (2026-10-15, not yet fixed): basketball double chance is never
+read - Superbet quotes it as 1X / X2 only and `shadow.parse_event` takes a
+double-chance group only whole (`cs2.DOUBLE_CHANCE_SET`), so its installed
+curve reads nothing (a pair is not a partition: its margin needs the 1X2);
+`contracts.READ_SIDES` has no 1X / X2 / 12, so a read of a sport
+double-chance leg cannot name its side (`direction: null` covers every
+printed side of that market).
 `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
 `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
 
