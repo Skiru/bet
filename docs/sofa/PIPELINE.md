@@ -740,6 +740,36 @@ ligi przeciw mocnej siła ligi uczy się wolno (`ALPHA_STRENGTH = 0.02` wygrywa
 backfillu: 1,21 : 1,20 zamiast 2,59 : 1,45 — lepiej, ale daleko od 0:8.
 Tam chroni głównie bramka `DISAGREES_WITH_PRICE`.
 
+**Siła ligi w pucharach międzynarodowych (od 2026-10-16 00:00Z,
+`epochs.FOOTBALL_CUP_STRENGTH_FROM_UTC`, zgoda operatora 2026-10-15).**
+Sigma domeny uczy się z każdego meczu niepołączonego - głównie krajowych
+pucharów z własnymi niższymi ligami - więc mierzy przewagę ligi nad jej
+zapleczem, a czołowe ligi różnych krajów porządkuje źle (Ekstraklasa -
+Bundesliga -0,09, PrvaLiga nad ligą cypryjską). Na 3 740 meczach
+pucharowych od 2024-07 rating zaniżał stronę z silniejszej ligi o +5,2 pp
+P(wygranej) [+3,6; +7,0]. Teraz `RatingBook` niesie dodatkową korektę `d`
+na (rozgrywki krajowe, metrykę), uczoną **tylko** z meczów cross-league
+dziewięciu pucharów z `config/sofa_cup_strength.json` (LM, LE, LK, AFC
+Elite / Two, Libertadores, Sudamericana, CAF, CONCACAF), krokiem z tego
+pliku, wewnątrz `update` (reszta liczona już z `d`, więc ilorazy drużyn
+chłoną mniej luki ligowej). Mecz takiego pucharu czyta `sigma_h - sigma_a +
+d_h - d_a`; mecz spoza tych pucharów `d` nie czyta (czuje tylko zmienione
+ilorazy drużyn, które w pucharach grały). Korekta tylko tam, gdzie poza
+próbą lepsza z przedziałem poza zerem: gole (krok 0,05; log-loss 1X2
+-0,0285 [-0,0381; -0,0188] na 2 194 meczach TEST), gole 1. poł. (0,05),
+gole 2. poł. (0,02), strzały (0,02). Rożne i strzały celne - nie (w zerze);
+pozostałe metryki niemierzone, bez korekty. Rożne / kartki / faule meczu
+pucharowego i tak się ruszają przez stan gry (B1), który czyta gole. Efekt
+uboczny na 302 635 meczach spoza pucharów: gole -0,00003 [-0,00006;
+-0,000003] - nic nie pogorszone. Wiersze SHEET-u niosą `cup_strength_rule`
+(`cup_strength_v1`); przebudowa dnia >= 10-16 puszcza SHEET na arkuszu bez
+niego. Plik `sofa_cup_strength.json` to lista operatora z wybranym krokiem,
+nie fit: nie wchodzi do `config_sha`. Replay: `calibrate_from_cache.py
+--cup-strength` (`prepare_refit.py rebuild-cache-rows --cup-strength`).
+Ograniczenie: korekta próbki B15 przeskalowuje mecz pucharowy z próbki samą
+sigmą (bez `d`). Dowód: `docs/sofa/evidence/cross_league_cups_2026-10-15.md`;
+raport: `docs/sofa/history/RAPORT_SILA_PUCHAROW_2026-10-16.md`.
+
 **Grupy regionalne (od 2026-10-02).** Jedno `uniqueTournament` Sofascore
 potrafi trzymać kilka grup, które ze sobą nie grają (Kakkonen 11509: grupy
 A/B/C jako osobne `tournament.id`; szwedzka Division 2 2026: sześć grup bez
