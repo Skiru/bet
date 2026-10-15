@@ -499,8 +499,13 @@ measurement of Superbet's price and feed nothing else.
   651 games of 10-05..10-12. At the market's line the model's p up to 0.70
   realises 0.47-0.53, so totals / handicaps / team totals (old curve ~0.77,
   realised 0.618) land in buckets with n < 200 and stop printing (dry run:
-  0 such legs). The A7 cache covers ~40% of the targets (10,662 of 26,332
-  asked; priority 1, 15,670 games, needs the bridge). Overtime (A3,
+  0 such legs). The A7 cache (`data/a7_odds/`) covers every target since
+  2026-10-15 (basketball 26,536 asked: 5,910 with line markets, 5,943 not on
+  Sofascore; the installed curve was fitted on the 40% asked by 10-13, a
+  refit on the full cache waits for the operator); hockey's 16,484 games
+  were asked the same day (6,950 with the "Match goals" total, no spread
+  published) for a hockey A7 measurement - `market_lines.parse_lines` reads
+  basketball's names only until then. Overtime (A3,
   `BB_OVERTIME_FROM_UTC`) stays `None`: +0.00113 [-0.00123, +0.00353].
   `docs/sofa/evidence/basketball_refit_2026-10-13.md`,
   `market_positioned_lines_2026-10-13.md`.
