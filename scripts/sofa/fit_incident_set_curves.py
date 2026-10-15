@@ -107,6 +107,7 @@ from bet.sofa.confidence import (  # noqa: E402
     match_class,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.cup_strength import apply as apply_cup_strength  # noqa: E402
 from bet.sofa.engine import outside_model_resolution  # noqa: E402
 from bet.sofa.football_incidents import (  # noqa: E402
     COUNT_LINES,
@@ -131,6 +132,7 @@ from bet.sofa.tennis_sets import (  # noqa: E402
     score_probs,
     set_win_p,
 )
+from scripts.sofa import fit_double_chance_curve as dc_fit  # noqa: E402
 from scripts.sofa import new_market_gate as gate_mod  # noqa: E402
 from scripts.sofa.fit_confidence import (  # noqa: E402
     EDGES,
@@ -245,6 +247,8 @@ def replay_football(history: Sequence[fr.FootballResult],
     UTC day: the book and the rates hold only earlier days' matches."""
     book = fr.RatingBook(shared_league_link=True)
     book.unit_strength_from_parent = False
+    # --cup-strength (epochs.FOOTBALL_CUP_STRENGTH)
+    apply_cup_strength(book, dc_fit.CUP)
     rates = IncidentRates({}, {}, {})
     rows: list[dict[str, Any]] = []
     pending: list[fr.FootballResult] = []
@@ -700,7 +704,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--tennis-from", default="2026-04-01")
     ap.add_argument("--regate", action="store_true",
                     help="no copy, no replay: re-gate the saved rows.csv")
+    ap.add_argument("--cup-strength", nargs="?", const="", default=None,
+                    metavar="CONFIG", help="the football book with the cup "
+                    "league strength (fit_double_chance_curve.set_cup)")
     args = ap.parse_args(argv)
+    dc_fit.set_cup(args.cup_strength)
     if args.regate:
         result = {}
         for group in GROUPS:

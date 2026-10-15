@@ -82,6 +82,7 @@ from bet.sofa import football_result as res  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.engine import outside_model_resolution  # noqa: E402
 from bet.sofa.season_phase import PHASE_EARLY, phases_by_event  # noqa: E402
+from scripts.sofa import fit_double_chance_curve as dc_fit  # noqa: E402
 from scripts.sofa import new_market_gate as gate_mod  # noqa: E402
 from scripts.sofa.fit_double_chance_curve import Match, replay  # noqa: E402
 
@@ -268,7 +269,11 @@ def main() -> int:
     ap.add_argument("--result-config")
     ap.add_argument("--matches-cache", help="replayed matches (csv.gz): read "
                     "when present, else written")
+    ap.add_argument("--cup-strength", nargs="?", const="", default=None,
+                    metavar="CONFIG", help="the book with the cup league strength "
+                    "(fit_double_chance_curve.set_cup)")
     args = ap.parse_args()
+    dc_fit.set_cup(args.cup_strength)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     hist_path = Path(args.history or _REPO / "data" / "cache" / "football_history.pkl")
@@ -295,6 +300,8 @@ def main() -> int:
                     "women": "women's match, every phase",
                     "(none)": "men's match, any other phase or none"},
         "nb_r": cfg.nb_r, "nb_r_source": cfg.source,
+        "cup_strength": (None if dc_fit.CUP is None
+                         else args.cup_strength or "config"),
         "matches_rated": len(matches),
         "matches_unlinked_excluded": sum(1 for pm in matches
                                          if pm.m.link == fr.UNLINKED),

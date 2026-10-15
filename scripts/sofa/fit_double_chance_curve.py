@@ -72,6 +72,9 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import football_rating as fr  # noqa: E402
 from bet.sofa import football_result as res  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
+from bet.sofa.cup_strength import CupStrength  # noqa: E402
+from bet.sofa.cup_strength import apply as apply_cup_strength  # noqa: E402
+from bet.sofa.cup_strength import load as load_cup_strength  # noqa: E402
 from bet.sofa.engine import outside_model_resolution  # noqa: E402
 from scripts.sofa import new_market_gate as gate_mod  # noqa: E402
 
@@ -102,11 +105,16 @@ class Priced:
     y: int
 
 
+# --cup-strength (epochs.FOOTBALL_CUP_STRENGTH): the book carries the league
+# strength learnt in international club cups, as SHEET's from 2026-10-16.
+CUP: CupStrength | None = None
+
+
 def replay(history: Iterable[fr.FootballResult], from_ts: int,
            to_ts: int) -> list[Match]:
     """Every match in [from_ts, to_ts) with both pure rating goals centres,
     priced before the book learns it."""
-    book = fr.RatingBook()
+    book = apply_cup_strength(fr.RatingBook(), CUP)
     out: list[Match] = []
     for r in history:
         if r.ts >= to_ts:
@@ -195,6 +203,12 @@ def run(priced: Sequence[Priced], h0: int, h1: int, cut: int,
                        "final": len(final_rows)}}
 
 
+def set_cup(arg: str | None) -> None:
+    """--cup-strength: None off, "" the installed file, else a path."""
+    global CUP
+    CUP = None if arg is None else load_cup_strength(Path(arg) if arg else None)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--out-dir", required=True)
@@ -207,7 +221,12 @@ def main() -> int:
     ap.add_argument("--result-config")
     ap.add_argument("--regate", action="store_true",
                     help="no replay: re-gate the rows.csv.gz saved in --out-dir")
+    ap.add_argument("--cup-strength", nargs="?", const="", default=None,
+                    metavar="CONFIG", help="the book with the cup league strength "
+                    "(epochs.FOOTBALL_CUP_STRENGTH; default config/"
+                    "sofa_cup_strength.json)")
     args = ap.parse_args()
+    set_cup(args.cup_strength)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if args.regate:
@@ -234,6 +253,7 @@ def main() -> int:
                      "rating centres (FootballForecast.centre goals_for), "
                      f"nb_r {cfg.nb_r} from {cfg_path}",
         "nb_r": cfg.nb_r, "nb_r_source": cfg.source,
+        "cup_strength": None if CUP is None else args.cup_strength or "config",
         "matches_rated": len(matches),
         "matches_unlinked_excluded": sum(1 for m in matches
                                          if m.link == fr.UNLINKED),
