@@ -1,6 +1,8 @@
 # A7 koszykówka - krzywa na pełnym cache kursów Sofascore (2026-10-16)
 
-**Wynik: nie instalować.** Reguła decyzji (koordynator 2026-10-15:
+**Wynik: pełnej sekcji nie instalować; zainstalowano hybrydę** - krzywe
+tylko rodzin A7 z pełnego cache (operator 2026-10-15, „WŁĄCZ JUŻ DZISIAJ”;
+sekcja „Hybryda” na końcu). Reguła decyzji (koordynator 2026-10-15:
 log-loss lepszy z przedziałem nieobejmującym zera **i** żadna rodzina nie
 zawyża pewności o więcej niż 2 pp przy >= 0,70 na n >= 200) nie jest
 spełniona - log-loss na wszystkich kluczach jest gorszy. `config/`
@@ -116,13 +118,50 @@ krzywą - pełny cache tego nie zmienia.
   kubełku; żadna taka linia nie dostaje pewności 0,70.
 - Refit całej sekcji koszykówki jest gorszy (log-loss +0,00034
   [+0,00001; +0,00068], luka -12,9 -> -16,4 pp): nie instalować.
-- Do decyzji operatora (niezarejestrowane, nie zrobione): sekcja z nowymi
-  krzywymi tylko dla rodzin A7 (-0,00260 [-0,00319; -0,00199]) i
-  zainstalowanymi dla reszty - druku nie zmienia (rodziny A7 i tak nie
-  drukują), poprawia tylko odczyt linii, które nie drukują.
+- Hybryda (nowe krzywe tylko rodzin A7, reszta z 10-14) - zainstalowana na
+  polecenie operatora, sekcja niżej.
+
+## Hybryda - zainstalowana 2026-10-15 11:29:38Z
+
+Polecenie operatora 2026-10-15 („WŁĄCZ JUŻ DZISIAJ”) po pomiarze pełnej
+sekcji. **Wariant nie był zarejestrowany przed pomiarem** - wybrany po
+obejrzeniu wyników per rodzina; zapisane tutaj jawnie.
+
+- Sekcja koszykówki `config/sofa_sport_confidence_calibration.next.json`
+  (`effective_from` 2026-10-14, bez zmiany): pięć kluczy A7 (`total|OVER`,
+  `total|UNDER`, `handicap|TEAM`, `team_total|OVER`, `team_total|UNDER` -
+  krzywa, `curve_source`, `oos`, `not_calibrated`) z dopasowania na pełnym
+  cache; każdy inny klucz, z `double_chance|TEAM`, jak w dopasowaniu z
+  10-14. Pozostałe sporty i metadane pliku bez zmian (sprawdzone przed
+  zapisem). Ślad: `fitted_from.a7_families_refit`. Plik główny
+  (`sofa_sport_confidence_calibration.json`, dni < 10-14) nietknięty.
+- Działa od razu dla każdego dnia >= 10-14 (także przebudowy 10-14 /
+  10-15). Kupon 10-15 nie był przebudowany. Druk się nie zmienia (niżej),
+  więc dzień nie jest mieszany i ledger nie otwiera epoki.
+- Kopia zapasowa: `config/backup_2026-10-15_bb_a7_hybrid/` (oba pliki
+  krzywych sportów). Po zapisie `pytest tests/sofa`: 4 835 przeszło, 2
+  pominięte. Test-strażnik `tests/sofa/test_basketball_a7_hybrid.py`.
+
+**Pomiar** (ta sama populacja i metryka co wyżej, hybryda - zainstalowana
+przed zmianą): wszystkie klucze 54 325 linii / 792 mecze, log-loss 0,73169
+-> 0,73046, **-0,00123 [-0,00151; -0,00096]**; luka przy >= 0,70 bez zmian
+(684 / 301, -12,9 pp); linie drukowalne bez zmian w każdej rodzinie.
+
+**E2E** na kopii dnia 10-15 w scratch (`SOFA_RUNS_DIR`, `SOFA_CONFIG_DIR`,
+`SOFA_NOW=2026-10-15T08:35:00Z`, budowa 08:32:21Z), `run_sport_confidence.py`
+trzy razy:
+
+| konfiguracja | nogi sportów | nogi koszykówki | kursy | poniżej 1/kurs |
+|---|---|---|---|---|
+| dziś (przed zmianą) | 221 | 3 (`winner`) | 1,31 / 1,32 / 1,43 | 2 |
+| hybryda | 221 | 3 - te same, pewność bez zmian | 1,31 / 1,32 / 1,43 | 2 |
+| pełna sekcja | 218 | 0 (trzy `winner` wypadają) | - | - |
+
+Wariant „dziś” odtwarza prawdziwy `08_confidence_sports.json` 10-15 co do
+nogi (221, 0 różnic pewności). md5 36 prawdziwych plików `runs/sofa/2026-10-15/`
+przed i po - identyczne.
 
 ## Czego nie sprawdzono
 
-- Line evidence (offset / cap pasma) na nowej krzywej; ROI.
-- E2E na kopii 10-15 (krok e) - bez kandydata do instalacji.
+- Line evidence (offset / cap pasma) na nowych krzywych poza E2E 10-15; ROI.
 - Dogrywka (A3) - pozostaje wyłączona, nie mierzona ponownie.

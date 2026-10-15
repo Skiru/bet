@@ -501,12 +501,16 @@ measurement of Superbet's price and feed nothing else.
   realised 0.618) land in buckets with n < 200 and stop printing (dry run:
   0 such legs). The A7 cache (`data/a7_odds/`) covers every target since
   2026-10-15 (basketball 26,536 asked: 5,910 with line markets, 5,943 not on
-  Sofascore; the installed curve was fitted on the 40% asked by 10-13, a
-  refit on the full cache was measured 2026-10-15 and NOT installed: the A7
-  families' curves improve, -0.0026 [-0.0032, -0.0020], and still never read
-  0.70 - 50,360 market-line rows, buckets >= 0.70 realise 0.56-0.65 - but the
-  whole section is worse on 56,740 Superbet lines of 10-05..10-14, +0.00034
-  [+0.00001, +0.00068], printable gap -12.9 -> -16.4 pp;
+  Sofascore; the 10-14 curve was fitted on the 40% asked by 10-13; the
+  whole section refitted on the full cache is worse, +0.00034 [+0.00001,
+  +0.00068] on 56,740 Superbet lines of 10-05..10-14, printable gap -12.9 ->
+  -16.4 pp, and was not installed; its five A7 keys alone (total, handicap,
+  team total - 50,360 market-line rows, buckets >= 0.70 realise 0.56-0.65,
+  never a printable confidence) replaced those of the staged section at
+  2026-10-15 11:29:38Z (operator, "WŁĄCZ JUŻ DZISIAJ"; every other key the
+  10-14 fit's, `fitted_from.a7_families_refit`): -0.00123 [-0.00151,
+  -0.00096], printable lines and the 10-15 E2E unchanged, so no mixed day;
+  backup `config/backup_2026-10-15_bb_a7_hybrid/`;
   `basketball_a7_full_2026-10-16.md`); hockey's 16,484 games
   were asked the same day (6,950 with the "Match goals" total, no spread
   published). Hockey A7 is measured and **not switched on** (operator
@@ -871,7 +875,8 @@ Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-09`, `config/backup_2026-10-14` (before the 10-13
 refit), `config/backup_2026-10-15` (before the 10-14 refit, with the removed
 `.next.json`), `config/backup_2026-10-15_new_markets/` (before the
-new-market curves), `data/backup_2026-10-05/sofa.db`;
+new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
+basketball A7 keys from the full cache), `data/backup_2026-10-05/sofa.db`;
 `data/refit_2026-10-14/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
 `data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-13/sofa_replay.db`
