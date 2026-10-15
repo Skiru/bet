@@ -97,7 +97,46 @@ zmian** (różnica 0 na każdej).
 - md5 prawdziwych plików 10-14 (`08_confidence*.json`, `11_coupon.json`,
   `12_printed.json`, PDF) - bez zmian przed i po.
 
-<!-- N4b -->
+### N4b - próbna budowa 10-15 w katalogu scratch (00:21-00:37Z)
+
+Pełny łańcuch na prawdziwych danych 10-15 (`SOFA_RUNS_DIR` scratch, zegar
+na żywo, po instalacji; BOARD → ... → COUPON, SHADOW, CS2, SPORT_IDENTITY,
+`rebuild_day.py` do PDF), żeby zobaczyć na żywej ofercie to, czego kopia
+10-14 nie mogła: 1X2 / DNB i CS2 rundy serii (przełączniki od 10-15 00:00Z).
+Wszystkie etapy OK / PARTIAL (normalny kształt), most bez odmowy;
+prawdziwy katalog `runs/sofa/2026-10-15/` nietknięty (tylko pętle sportów).
+
+- SHEET: 58 811 wierszy; nowe rynki z ceną: `double_chance` 352,
+  `result_1x2` 238, `draw_no_bet` 236, `first_goal` 244, `red_cards_total`
+  102, `penalties_total` 104, `set1/set2_won_for` 346 / 342, `set_score` 619,
+  strzały zawodnika według miejsca / części ciała 4 685.
+- Kupon (o 00:37Z, dzień jeszcze cały przed nami): 1 609 singli, sporty:
+  hokej 176, kosz 2, siatkówka 0, CS2 19. **Nowe rynki: 157 nóg, z czego 133
+  z pewnością poniżej 1/kurs (na minusie według naszych liczb):**
+
+| rynek | nogi | kurs (mediana) | pewność (mediana) | < 1/kurs |
+|---|---|---|---|---|
+| piłka `double_chance` OVER | 84 (67 meczów) | 1,24 | 0,774 | 73 |
+| piłka `red_cards_total` UNDER | 34 | 1,19 | 0,844 | 26 |
+| piłka `draw_no_bet` OVER / UNDER | 11 / 1 | 1,20 / 1,18 | 0,834 / 0,791 | 6 / 1 |
+| piłka `penalties_total` UNDER | 6 | 1,27 | 0,753 | 6 |
+| piłka `first_goal` OVER (jednostronny) | 1 | 1,29 | 0,718 | 1 |
+| tenis `set1_won_for` / `set2_won_for` | 7 / 5 | 1,14-1,23 | 0,76-0,84 | 12 |
+| tenis `set_score` OVER | 3 | 1,23 | 0,755 | 3 |
+| hokej `period_double_chance` / `double_chance` 1X | 3 / 2 | 1,21-1,23 | 0,76 | 5 |
+
+- `result_1x2`: 0 nóg (bez krzywej, NO_LINE_EVIDENCE) - zgodnie z bramką.
+- DNB: pasmo cenowe (`price_band_cap`, pula sportu) obniża 8 z 12 nóg;
+  jedna noga (Palmeiras U20 - Botafogo U20 @1,20) ma pewność 0,939, +10,6 pp
+  nad ceną - flaga `price_gap`.
+- **CS2 rundy serii: 0 nóg.** 76 stron przeczytanych (rounds_handicap 28,
+  rounds_total 28, team_rounds 20); najwyższe p modelu 0,65, więc wszystkie
+  poniżej progu 0,70; strony UNDER bez krzywej są NO_LINE_EVIDENCE (24).
+- Strzały według miejsca / części ciała: 0 nóg (jak na 10-14 - zwykłe
+  bramki).
+
+Prawdziwa budowa 10-15 jest rano (z rozliczeniem 10-14 i odświeżonym line
+evidence) - liczby się zmienią.
 
 ## N5 - dokumentacja
 
