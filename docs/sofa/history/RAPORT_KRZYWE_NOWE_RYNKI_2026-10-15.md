@@ -187,3 +187,48 @@ W tym `double_chance` 61 / 17 (-3,47 j.), `red_cards_total` UNDER 9 / 3
 poniżej ceny (83,2) - tyle, ile mówiła bramka x >= 0,90 przy pewności poniżej
 1/kurs. Kupon 10-14 (ledger, dzień mieszany): 1 177 rozliczonych, 912 / 265,
 -67,43 j., ROI -5,7%; zdjęte przez odczyty 57, -10,4%.
+
+## Budowa 2026-10-15 (pierwszy dzień na nowych krzywych)
+
+`run_pipeline.py --date 2026-10-15` (run `sofa_20261015_0621`, 06:21-06:33Z),
+`rebuild_day.py`, odczyty analityków (piłka, tenis, hokej, koszykówka, CS2,
+pierwsza runda + 6 rund C3, bo każde zdjęcie wpuszcza kolejny mecz do 30
+najlepszych), weryfikator (08:01Z), ostatnia przebudowa 08:12-08:15Z:
+`audit_variants` C3 0 uwag. Most w tym czasie kilka razy 403 / 504
+(operator odświeżał); FIXTURE_CHECK czytał wtedy cache do 60 min.
+
+- **Kupon:** 1 467 singli (10-14: 1 221), z czego 65 zablokowanych (wydrukowane
+  o 06:34Z przed swoim startem); 1 builder (B1); 57 nóg zdjętych odczytami.
+  Sporty: piłka 888, tenis 360, hokej 191, CS2 24, kosz 3, siatkówka 1.
+- **Odczyty:** 587 (528 KEEP / 59 WATCH / 0 NO_BET), 104 weta CONTEXT -
+  wszystkie w meczach pucharowych / AFC, w których rating stawia drużynę z
+  ligi słabszej wyżej (Lech - Leverkusen, Celje - Omonia, CSKA Sofia -
+  Monaco, Egnatia - Midtjylland, Salzburg - Milan na sumach i in.;
+  powtarzający się wzorzec Aktobe / Austria Wien - kandydat na pomiar siły
+  domen w pucharach, nie poprawka).
+- **Nowe rynki na kuponie: 158 nóg, 124 z pewnością poniżej 1/kurs (na
+  minusie według naszych liczb):** `double_chance` 95 (kurs 1,24, pewność
+  0,782), `red_cards_total` UNDER 28, `draw_no_bet` 12, `penalties_total`
+  UNDER 6, hokej `period_double_chance` 5 / `double_chance` 3, tenis
+  `set1_won_for` 5 / `set2_won_for` 2 / `set_score` 1, `first_goal` 1
+  (singiel jednostronny). Odczyty zdjęły 8 nóg nowych rynków (DC 5, czerwone
+  2, DNB 1). **CS2 rundy serii: 0 nóg** (najwyższe p modelu na tablicy < 0,70).
+  `result_1x2`, strzały według miejsca / części ciała, siatkówka: 0.
+- **Weryfikator:** brak defektu; nowe rynki sprawdzone na surowym ładunku
+  Superbetu (160 nóg: wybór, strona, kolejność 1/2, DNB „1” = gospodarz,
+  ceny DC zgodne z 1X2). Uwagi (nie defekty): krzywa `double_chance|OVER`
+  piłki łączy 1X / X2 / 12 (68 z 97 nóg to „12”; zmierzone na holdoucie:
+  log-loss -0,0088 [-0,0103; -0,0072] względem bazy, 0,806 deklarowane /
+  0,798 zrealizowane); `first_goal` idzie regułą singla jednostronnego, choć
+  jego marża 3-drogowa jest mierzalna (6,6%); notki arkusza DC / kartek /
+  karnych mówią jeszcze „no curve installed” (tekst, nie odczyt). 5 WATCH
+  weryfikatora: hokejowe punkty w przewagach UNDER na 5-7 meczach.
+- **Pętla kursów zamknięcia 10-15 nie działała** (weryfikator, `day_status`
+  BROKEN) - uruchomiona 08:01Z.
+
+**Usterki otwarte (do naprawy z testem, osobno):**
+1. Koszykarska podwójna szansa nigdy nie czytana (Superbet tylko 1X / X2).
+2. `contracts.READ_SIDES` nie zna stron 1X / X2 / 12 - odczyt nogi DC sportu
+   nie może nazwać strony (dziś `direction: null`, drukowana była tylko 1X).
+3. Notki arkusza nowych rynków („no curve installed”) nieaktualne.
+4. Snippet `OfferFetcher` w protokole weryfikatora bez flag nowych rynków.
