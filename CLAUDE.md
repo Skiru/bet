@@ -502,7 +502,12 @@ measurement of Superbet's price and feed nothing else.
   0 such legs). The A7 cache (`data/a7_odds/`) covers every target since
   2026-10-15 (basketball 26,536 asked: 5,910 with line markets, 5,943 not on
   Sofascore; the installed curve was fitted on the 40% asked by 10-13, a
-  refit on the full cache waits for the operator); hockey's 16,484 games
+  refit on the full cache was measured 2026-10-15 and NOT installed: the A7
+  families' curves improve, -0.0026 [-0.0032, -0.0020], and still never read
+  0.70 - 50,360 market-line rows, buckets >= 0.70 realise 0.56-0.65 - but the
+  whole section is worse on 56,740 Superbet lines of 10-05..10-14, +0.00034
+  [+0.00001, +0.00068], printable gap -12.9 -> -16.4 pp;
+  `basketball_a7_full_2026-10-16.md`); hockey's 16,484 games
   were asked the same day (6,950 with the "Match goals" total, no spread
   published). Hockey A7 is measured and **not switched on** (operator
   2026-10-15): `parse_lines` reads "Match goals" (it settles with overtime;
