@@ -688,6 +688,19 @@ not postponed, the opponent's own verified id (if any) in it
 10-05..10-14 with the opponent hidden, ~11 more fixtures a day; the one
 unsettled (Hapoel / Maccabi Petah Tikva U19 10-11) accepted by the operator.
 Tennis never (replaced opponents).
+**Measured, waiting for the operator - football rating in international
+club cups** (2026-10-15, `scripts/sofa/measure_cross_league_cups.py`,
+`docs/sofa/evidence/cross_league_cups_2026-10-15.md`; the pattern behind
+the day's 104 analyst CONTEXT vetoes): on 3,740 cross-league cup matches
+from 2024-07 the rating under-rates the side from the stronger league by
++5.2 pp P(win) [+3.6, +7.0] (+16.6 pp at a cup-Elo gap >= 1), because the
+league-strength book orders top flights wrongly (it links leagues mostly
+through their own lower divisions); rescaling the book does nothing
+(-0.0014 [-0.0035, +0.0009]), a per-league correction learnt only from
+earlier cup results is better out of sample (1X2 log-loss -0.0262
+[-0.0366, -0.0161]). A fix changes what prints: a switch, a cup strength
+in `RatingBook`, a SHEET marker, the replay and a football refit on a copy
+- the operator's go (not an item of the 10-13 audit).
 **Measured and not switched on, identity plan** (2026-10-14,
 `docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`): hockey / basketball players found only
 under another team (K7: 25 of 30 / 20 of 48 NOT_IN_HISTORY names - pricing
@@ -781,13 +794,19 @@ band cap only lower). E2E on a copy of 10-14 (build clock, before vs after):
 winners 4, first goal 1 - a one-sided single), 0 legs lost, no common leg's
 confidence moved; **102 of the 110 at a confidence below 1/odds** (they pass
 x >= 0.90); whether these markets beat Superbet's price is unmeasured.
-Open defects (2026-10-15, not yet fixed): basketball double chance is never
-read - Superbet quotes it as 1X / X2 only and `shadow.parse_event` takes a
-double-chance group only whole (`cs2.DOUBLE_CHANCE_SET`), so its installed
-curve reads nothing (a pair is not a partition: its margin needs the 1X2);
-`contracts.READ_SIDES` has no 1X / X2 / 12, so a read of a sport
-double-chance leg cannot name its side (`direction: null` covers every
-printed side of that market).
+Basketball double chance: Superbet quotes it as 1X / X2 only, and
+`shadow.parse_event` takes a double-chance group only whole
+(`cs2.DOUBLE_CHANCE_SET`), so until 10-16 it was never read; from
+`BASKETBALL_DC_PAIR_FROM_UTC` (2026-10-16 00:00Z, a correctness fix of a
+switched-on market, next-day default) a basketball group that is not whole
+is read as two-way pairs - each selection against the regulation 1X2
+outcome it leaves out, same scope (game / halves / quarter), fair p and
+margin of that partition, synthetic ids `dc_id x 100 - 1/2/3`, the
+complement a price only (`partner_odds`), never a leg or a row; records /
+legs carry `dc_pair_rule`; hockey, volleyball and a whole group unchanged
+(`tests/sofa/test_basketball_dc_pair.py`). A read can name a sport
+double-chance side (`contracts.READ_SIDES` has 1X / X2 / 12 from
+2026-10-15).
 `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
 `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
 

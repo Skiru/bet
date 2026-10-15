@@ -1649,6 +1649,27 @@ i SPORT_CONFIDENCE bajt w bajt jak przedtem. Pomiar poza próbą na historii
 (`scripts/sofa/measure_sport_derived.py`):
 `docs/sofa/evidence/sport_derived_2026-10-14.md`.
 
+**Koszykarska podwójna szansa jako para z 1X2
+(`epochs.BASKETBALL_DC_PAIR_FROM_UTC`, od 2026-10-16 00:00Z; znacznik
+`dc_pair_rule` = `basketball_dc_pair_v1`).** Superbet wystawia koszykarską
+„Podwójną szansę” (i „N. połowa - podwójna szansa”) tylko jako 1X / X2, bez
+12 - sprawdzone na żywo 2026-10-15 (5 z 30 meczów). Grupa podwójnej szansy
+jest przyjmowana tylko w całości (`cs2.DOUBLE_CHANCE_SET`), więc do 10-16
+ten rynek nie był czytany wcale (0 linii w 433 migawkach 10-14 / 10-15),
+choć przełącznik był włączony, a krzywa zainstalowana. Od 10-16 niepełna
+grupa koszykówki jest czytana jako pary dwustronne: każdy wybór przeciw
+wynikowi regulaminowego 1X2 tego samego zakresu (mecz 777, połowy 763 /
+233400, kwarta 779), który on wyklucza - 1X przeciw „2”, X2 przeciw „1”, 12
+przeciw „X”. Te dwa wyniki dzielą wszystkie rozstrzygnięcia, więc p bez
+marży i marża (`1/a + 1/b - 1`, reguła 15%) są dokładne. Para ma
+syntetyczne id `dc_id x 100 - 1/2/3`, tę samą rodzinę i zakres co podwójna
+szansa (czyta krzywą `basketball:double_chance|TEAM`, rozlicza się
+regulaminowo); wynik 1X2 w parze to tylko cena (`partner_odds`), nigdy noga
+ani rozliczony wiersz. Hokej, siatkówka i pełna grupa bez zmian; wyłączony -
+migawki bajt w bajt (`tests/sofa/test_basketball_dc_pair.py`). Odczyt
+analityka może nazwać stronę 1X / X2 / 12 (`contracts.READ_SIDES`, od
+2026-10-15).
+
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 
 `scripts/sofa/build_coupon.py --date <d>` (albo `run_pipeline.py --only
