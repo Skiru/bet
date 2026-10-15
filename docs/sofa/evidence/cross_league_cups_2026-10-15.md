@@ -268,3 +268,24 @@ Nic nie pogarsza się; zmiany są o rzędy wielkości mniejsze niż w pucharach.
 - Ograniczenie: korekta próbki B15 (`opponent_correction.SampleCorrector`)
   pyta `RatingBook.link` bez rozgrywek przeszłego meczu, więc mecz pucharowy
   w próbce jest przeskalowany samą sigmą, bez `d`. Nie mierzone.
+
+### Pozostałe metryki (2026-10-15 wieczorem)
+
+Ten sam pomiar (`--in-book`, oba cięcia) dla metryk, które nie dostały
+kroku; kartki i połowy rożnych z `rated_scope` (B2), tak jak SHEET je
+wycenia. Dewiancja E - A na TEST, krok wybrany na TRAIN:
+
+| metryka | TEST 2025-07 | TEST 2026-01 |
+|---|---|---|
+| faule | 0,05: +0,0276 [+0,0028; +0,0511] (gorzej) | 0,02: -0,0021 [-0,0133; +0,0085] |
+| faule 1. poł. | +0,0113 [+0,0015; +0,0216] (gorzej) | +0,0100 [-0,0003; +0,0203] |
+| spalone | +0,0044 [-0,0028; +0,0107] | +0,0042 [-0,0040; +0,0120] |
+| strzały 1. poł. | -0,0032 [-0,0280; +0,0200] | +0,0054 [-0,0222; +0,0330] |
+| strzały celne 1. poł. | 0,05: +0,0167 [-0,0078; +0,0396] | 0,05: +0,0273 [+0,0010; +0,0521] (gorzej) |
+| kartki (punkty) | +0,0066 [+0,0010; +0,0127] (gorzej) | +0,0062 [-0,0008; +0,0129] |
+| rożne 1. poł. | +0,0081 [-0,0056; +0,0231] | +0,0111 [-0,0056; +0,0270] |
+| rożne 2. poł. | +0,0064 [-0,0083; +0,0217] | +0,0109 [-0,0075; +0,0282] |
+
+Żadna nie jest lepsza; faule, kartki i celne 1. połowy bywają gorsze.
+Korekta zostaje tylko na golach (całość i połowy) i strzałach - config bez
+zmian. (Liga pucharowa wpływa na nie dalej przez stan gry B1 z goli.)

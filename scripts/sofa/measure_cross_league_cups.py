@@ -653,8 +653,11 @@ def inbook_replay(
                     "x": float(g.values[m][0]), "y": float(g.values[m][1])}
                 ok = True
                 for name, book in books.items():
+                    # rated_scope as SHEET prices (epochs.FOOTBALL_RATED_SCOPE):
+                    # cards_points_for / corners halves have a rating centre
                     fc = fr.FootballForecast(
-                        book, g.competition_id, g.home_id, g.away_id)
+                        book, g.competition_id, g.home_id, g.away_id,
+                        rated_scope=fr.RATED_SCOPE_MARKETS)
                     h, a = fc.centre(m, "side_a"), fc.centre(m, "side_b")
                     if h is None or a is None:
                         ok = False
@@ -855,8 +858,10 @@ def spill_replay(
             if (g.competition_id in INTL_COMPS or g.ts < from_ts or g.women
                     or g.home_reserve or g.away_reserve):
                 continue
-            fa = fr.FootballForecast(base, g.competition_id, g.home_id, g.away_id)
-            fe = fr.FootballForecast(cup, g.competition_id, g.home_id, g.away_id)
+            fa = fr.FootballForecast(base, g.competition_id, g.home_id, g.away_id,
+                                     rated_scope=fr.RATED_SCOPE_MARKETS)
+            fe = fr.FootballForecast(cup, g.competition_id, g.home_id, g.away_id,
+                                     rated_scope=fr.RATED_SCOPE_MARKETS)
             for m in metrics:
                 if m not in g.values:
                     continue
