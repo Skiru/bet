@@ -77,3 +77,56 @@ Superbet nie wycenia niżej właśnie meczów o wysokiej prognozie (dwóch
 mocnych serwujących), nie wiadomo bez rozliczonych linii: zapis cen
 (`unmapped_prices`) jest od 2026-10-14, a wynik po 2 gemach daje
 point-by-point, więc te linie da się rozliczyć wstecz od 10-14.
+
+## Rozliczenie kursów Superbetu 10-14 / 10-15 (2026-10-15 10:17Z)
+
+`scripts/sofa/measure_tennis_draw_after_two.py` (tylko odczyt, nic nie jest
+podłączone): „1. set - będzie prowadzić po 2 gemach”, selekcja „po 2 - Remis”
+z `runs/sofa/<d>/unmapped_prices/`. Na mecz ostatnia cena pobrana **przed**
+najwcześniejszym zegarem startu (02_fixtures `kickoff_utc` /
+`superbet_kickoff_utc`, 04_offer `superbet_started_utc` /
+`superbet_kickoff_seen_utc`, fixture_status, `/event startTimestamp`); kurs w
+stanie live (`offerStateId` 2) nigdy. Parowanie Superbet → Sofascore to
+parowanie RESOLVE zapisane w rekordzie. Wynik z `/point-by-point`: wygrana,
+gdy po 2. gemie seta 1 jest 1:1 - **oba gemy utrzymane LUB oba przełamane**.
+Prognoza: model serwisu z tego skryptu as-of meczu, P(1:1) = hA·hB +
+(1-hA)(1-hB). Uwaga: wiersz „remis po 2 gemach” w sekcjach wyżej to hA·hB
+(oba utrzymane) - to nie jest zdarzenie, które rozlicza Superbet (1:1 po
+dwóch przełamaniach też wygrywa); kandydat „prognoza >= 0,80” dotyczył hA·hB.
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_draw_after_two.py \
+    --date 2026-10-14 --date 2026-10-15 --fetch --max-minutes 5 \
+    --json-out <f> --md-out <f>
+```
+
+(`--fetch`: `/event` i `/point-by-point` przez most tylko dla tych meczów;
+`backfill_event_extra.py` nie nadaje się - bierze tylko mecze z `/statistics`
+i starsze niż 72 h. 10:09-10:17Z: 185 zapytań `/event` i 115 `/point-by-point`, 0 odmów.)
+
+| grupa | n | trafione | trafność | śr. P(1:1) | śr. hA·hB | śr. 1/kurs | ROI [95% bootstrap po meczach, 2000] |
+|---|---|---|---|---|---|---|---|
+| razem | 93 | 56 | 0,602 | 0,558 | 0,437 | 0,589 | +1,6% [-15,1, +19,2] |
+| 10-14 | 79 | 48 | 0,608 | 0,560 | 0,440 | 0,592 | +1,7% [-16,1, +20,3] |
+| 10-15 (zakończone do 10:16Z) | 14 | 8 | 0,571 | 0,545 | 0,420 | 0,568 | +1,3% [-41,0, +45,5] |
+| P(1:1) >= 0,80 lub hA·hB >= 0,80 | 0 | | | | | | |
+
+Kurs: 1,40-1,97, mediana 1,67. Najwyższa prognoza P(1:1) 0,69 (hA·hB 0,65) -
+tablica 10-14/15 to głównie ITF, więc grupa „>= 0,80” jest pusta.
+
+Poza pieniędzmi (na dzień, 10-14 / 10-15): mecze z ceną 104 / 162, z ceną
+przed startem 92 / 161 (12 / 1 meczów miało tylko ceny po zaplanowanym
+starcie - odrzucone, 82 / 12 rekordów); rozliczone 79 / 14; zwrot (krecz)
+2 / 2, z tego 1 krecz już po 2. gemie seta 1 (Superbet mógłby taki rynek
+rozliczyć - liczony jako zwrot, jak SETTLE); brak point-by-point 2 / 3;
+point-by-point niezgodne z wynikiem seta 1 (np. gemy do 6:3 przy 6:4) 3 / 0 -
+wykluczone; nierozstrzygnięte 6 / 142 (10-14: mecze przerwane / przeniesione
+w Edmond i Lexington). 24 z 186 stron nie miało żadnego wcześniejszego meczu
+ze statystykami serwisu (prognoza = średnia puli).
+
+Werdykt: **jeden-dwa dni to za mało na jakąkolwiek decyzję** - przedział ROI
+ma szerokość ~34 pp (od -15% do +19%), trafność 0,602 przy cenie 0,589 mieści
+się w szumie, a próg z historii (>= 0,80) nie wystąpił ani razu. Post hoc i
+bez znaczenia statystycznego: P(1:1) >= 0,60 - 22 mecze, 15 trafień, ROI
++9,8%. Pomiar do powtórzenia, gdy rozliczonych linii będzie kilkaset (ceny
+zapisywane codziennie od 10-14).

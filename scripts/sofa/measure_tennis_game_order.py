@@ -86,6 +86,11 @@ def load(db: sqlite3.Connection) -> tuple[list[Row], dict[int, Any]]:
     """Every tennis match with serve statistics, kickoff order:
     (ts, event, home id, away id, home numbers, away numbers); and the
     point-by-point payload of the events that have one."""
+    return load_rows(db), load_pbps(db)
+
+
+def load_rows(db: sqlite3.Connection) -> list[Row]:
+    """Every tennis match with serve statistics, kickoff order."""
     meta = {int(e): (int(t), int(h), int(a)) for e, t, h, a in db.execute(
         "SELECT event_id, start_ts, json_extract(event_json, '$.homeTeam.id'), "
         "json_extract(event_json, '$.awayTeam.id') FROM sofa_listed_event "
@@ -104,10 +109,47 @@ def load(db: sqlite3.Connection) -> tuple[list[Row], dict[int, Any]]:
             continue
         rows.append((m[0], int(eid), m[1], m[2], nums[0], nums[1]))
     rows.sort()
-    pbps = {int(e): json.loads(p) for e, p in db.execute(
-        "SELECT sofascore_event_id, payload_json FROM sofa_event_extra "
-        "WHERE kind = 'point_by_point' AND length(payload_json) > 2")}
-    return rows, pbps
+    return rows
+
+
+def load_pbps(db: sqlite3.Connection,
+              ids: set[int] | None = None) -> dict[int, Any]:
+    """The point-by-point payload of the events that have one (of `ids`
+    only, when given)."""
+    sql = ("SELECT sofascore_event_id, payload_json FROM sofa_event_extra "
+           "WHERE kind = 'point_by_point' AND length(payload_json) > 2")
+    if ids is None:
+        return {int(e): json.loads(p) for e, p in db.execute(sql)}
+    out: dict[int, Any] = {}
+    for eid in sorted(ids):
+        for e, p in db.execute(sql + " AND sofascore_event_id = ?", (eid,)):
+            out[int(e)] = json.loads(p)
+    return out
+
+
+def hold_rate(s: list[float], r: list[float], ph: float, k_games: float) -> float:
+    """The server's (running sums `s`) hold against the receiver (`r`):
+    both shrunk to the pool hold `ph` with k_games pseudo-games, combined on
+    the logit scale."""
+    h = (s[0] + k_games * ph) / (s[1] + k_games)
+    br = (r[4] + k_games * (1 - ph)) / (r[5] + k_games)
+    return expit(logit(h) + logit(1 - br) - logit(ph))
+
+
+def learn(acc: dict[int, list[float]], pool: list[float], home: int, away: int,
+          hn: list[int], an: list[int]) -> None:
+    """Add one finished match's serve numbers to the players' and the pool's
+    running sums (only after it was forecast)."""
+    for pid, mine, theirs in ((home, hn, an), (away, an, hn)):
+        # own serve points won + lost to the returner; return games won
+        # = the opponent's service games lost; return points played =
+        # the opponent's serve points won + our return points won
+        add = (mine[0], mine[1], mine[2], mine[2] + theirs[3],
+               theirs[1] - theirs[0], theirs[1], mine[3], theirs[2] + mine[3])
+        acc[pid] = [x + y for x, y in zip(acc[pid], add, strict=True)]
+    for mine, theirs in ((hn, an), (an, hn)):
+        add_pool = (mine[0], mine[1], mine[2], mine[2] + theirs[3])
+        pool[:4] = [x + y for x, y in zip(pool[:4], add_pool, strict=True)]
 
 
 def point_state(points: tuple[tuple[str, str], ...], n: int, server: int) -> str | None:
@@ -156,9 +198,7 @@ def measure(rows: list[Any], pbps: dict[int, Any], k_games: float,
                 pp = pool[2] / pool[3]
 
                 def hold(s: list[float], r: list[float]) -> float:
-                    h = (s[0] + k_games * ph) / (s[1] + k_games)
-                    br = (r[4] + k_games * (1 - ph)) / (r[5] + k_games)
-                    return expit(logit(h) + logit(1 - br) - logit(ph))
+                    return hold_rate(s, r, ph, k_games)
 
                 def spt(s: list[float], r: list[float]) -> float:
                     w = (s[2] + k_points * pp) / (s[3] + k_points)
@@ -197,16 +237,7 @@ def measure(rows: list[Any], pbps: dict[int, Any], k_games: float,
                             preds[f"serve_after_{n}|{name}"].append(
                                 (p, base[name], int(state == name)))
         # learn the match only after forecasting it
-        for pid, mine, theirs in ((home, hn, an), (away, an, hn)):
-            # own serve points won + lost to the returner; return games won
-            # = the opponent's service games lost; return points played =
-            # the opponent's serve points won + our return points won
-            add = (mine[0], mine[1], mine[2], mine[2] + theirs[3],
-                   theirs[1] - theirs[0], theirs[1], mine[3], theirs[2] + mine[3])
-            acc[pid] = [x + y for x, y in zip(acc[pid], add, strict=True)]
-        for mine, theirs in ((hn, an), (an, hn)):
-            add_pool = (mine[0], mine[1], mine[2], mine[2] + theirs[3])
-            pool[:4] = [x + y for x, y in zip(pool[:4], add_pool, strict=True)]
+        learn(acc, pool, home, away, hn, an)
     return preds
 
 
