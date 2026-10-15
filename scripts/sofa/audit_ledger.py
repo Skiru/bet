@@ -146,7 +146,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # group, added to neither neighbour. One table row per (variant, group),
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
-                "10-13 mieszany", "10-14 mieszany", "od 10-15")
+                "10-13 mieszany", "10-14 mieszany", "od 10-15", "od 10-16")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -158,10 +158,17 @@ AUDIT_EPOCH_FROM_DATE = "2026-10-14"
 # and the 1X2 / DNB and CS2 series-rounds switches (2026-10-15 00:00Z).
 IDENTITY_1014_MIXED_DATE = "2026-10-14"
 IDENTITY_EPOCH_FROM_DATE = "2026-10-15"
+# The football refit carrying the league strength learnt in international club
+# cups (epochs.FOOTBALL_CUP_STRENGTH_FROM_UTC 2026-10-16 00:00Z), installed
+# after 2026-10-15 23:00Z and before 10-16's build - not a mixed day, but a
+# refit install starts an epoch; BASKETBALL_DC_PAIR (2026-10-16 00:00Z) too.
+CUP_STRENGTH_EPOCH_FROM_DATE = "2026-10-16"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= CUP_STRENGTH_EPOCH_FROM_DATE:
+            return "od 10-16"
         if str(row.get("date", "")) >= IDENTITY_EPOCH_FROM_DATE:
             return "od 10-15"
         if str(row.get("date", "")) == IDENTITY_1014_MIXED_DATE:
@@ -209,7 +216,7 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
         )
     out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
             "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / "
-            "10-14 mieszany / od 10-15): the "
+            "10-14 mieszany / od 10-15 / od 10-16): the "
             "coupon before and after "
             "each cutover "
             "is not one experiment, so the groups are never added."]
