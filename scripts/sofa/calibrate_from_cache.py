@@ -923,6 +923,9 @@ class CentreRules:
     # book learns in international club cups (bet.sofa.cup_strength)
     cup_strength: CupStrength | None = None
     cup_strength_path: str | None = None
+    # epochs.SAMPLE_CUP_STRENGTH (--sample-cup-strength): B15's gaps read
+    # the cup strength with the past match's and the fixture's competition
+    sample_cup_strength: bool = False
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -941,6 +944,7 @@ class CentreRules:
             "strict_league_rate": self.strict_league_rate,
             "cup_strength": (None if self.cup_strength is None
                              else self.cup_strength_path or "in-memory"),
+            "sample_cup_strength": self.sample_cup_strength,
         }
 
 
@@ -1093,8 +1097,12 @@ class ReplayOpponentCorrection:
     One instance per match: the corrector caches the book's link gaps, and
     the book moves on with the next day."""
 
-    def __init__(self, book: RatingBook) -> None:
-        self.corrector = SampleCorrector(book)
+    def __init__(
+        self, book: RatingBook, cup_aware: bool = False,
+        today_competition: int | None = None,
+    ) -> None:
+        self.corrector = SampleCorrector(book, cup_aware=cup_aware)
+        self.today_competition = today_competition
 
     def side(
         self, recent: Sequence[Past], market: str, team: int,
@@ -1108,7 +1116,8 @@ class ReplayOpponentCorrection:
         out: list[float] = []
         for p in recent:
             f = (None if p.opponent is None else
-                 self.corrector.factors(team, p.opponent, today_opponent, metric))
+                 self.corrector.factors(team, p.opponent, today_opponent, metric,
+                                        p.competition_id, self.today_competition))
             out.append(p.own if f is None else p.own * f[0])
         return out
 
@@ -1130,7 +1139,9 @@ class ReplayOpponentCorrection:
                     continue
                 seen.add(p.event_id)
                 f = (None if metric is None or p.opponent is None else
-                     self.corrector.factors(team, p.opponent, other, metric))
+                     self.corrector.factors(team, p.opponent, other, metric,
+                                            p.competition_id,
+                                            self.today_competition))
                 out.append(p.total if f is None
                            else p.own * f[0] + (p.total - p.own) * f[1])
         return out
@@ -1332,7 +1343,8 @@ def _match_rows(
     if (football is not None and football.rules.opponent_correction
             and match.sport == "football"):
         football.advance(day_start(match.timestamp))
-        opponent = ReplayOpponentCorrection(football.book)
+        opponent = ReplayOpponentCorrection(
+            football.book, football.rules.sample_cup_strength, match.competition_id)
 
     def settle_rows(
         market: str, subject: str, actual: float, sample: list[float],
@@ -2454,6 +2466,12 @@ def main() -> int:
         "sofa_cup_strength.json). Default off: the book as it was",
     )
     parser.add_argument(
+        "--sample-cup-strength", action="store_true",
+        help="with --opponent-correction and --cup-strength: the sample "
+        "correction's gaps read the cup league strength with the past match's "
+        "and the fixture's competition (epochs.SAMPLE_CUP_STRENGTH_FROM_UTC)",
+    )
+    parser.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games "
         "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
@@ -2491,6 +2509,10 @@ def main() -> int:
         ("--season-phase", args.season_phase is not None),
         ("--opponent-correction", args.opponent_correction),
         ("--cup-strength", args.cup_strength is not None)) if on]
+    if args.sample_cup_strength and not (
+            args.opponent_correction and args.cup_strength is not None):
+        parser.error("--sample-cup-strength needs --opponent-correction and "
+                     "--cup-strength")
     if needs_rating and not args.football_rating:
         # SHEET applies them only through its FootballForecast
         parser.error(f"{', '.join(needs_rating)} need --football-rating")
@@ -2536,6 +2558,7 @@ def main() -> int:
                 if args.cup_strength is not None else None),
             cup_strength_path=(args.cup_strength or "config/sofa_cup_strength.json"
                                if args.cup_strength is not None else None),
+            sample_cup_strength=bool(args.sample_cup_strength),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),

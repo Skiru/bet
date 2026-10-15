@@ -1995,3 +1995,31 @@ def football_cup_strength(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_CUP_STRENGTH_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_CUP_STRENGTH_FROM_UTC)
+
+
+# B15's sample correction read through the cup league strength: a past match
+# of an international club cup in a football side's sample, and today's cup
+# fixture, take the book's cup correction into the gaps
+# (opponent_correction.SampleCorrector.cup_aware; the observation's and the
+# fixture's competition). Rides on SAMPLE_OPPONENT_CORRECTION and
+# FOOTBALL_CUP_STRENGTH; only shots_for / shots_total move (the corrected
+# metrics with a cup step). MEASURED, NOT SWITCHED ON (2026-10-15,
+# measure_sample_opponent_correction.py history --cup-strength --bases
+# shots_for; docs/sofa/evidence/cross_league_cups_2026-10-15.md): shots_for
+# calibrated log-loss K - C -0.00006 [-0.00012, -0.000003] on 26,384 rows,
+# -0.00044 [-0.00088, -0.000004] on rows with a cup, shots_total zero. Better
+# but small; it changes p, so it goes on with the next football refit whose
+# replay carries it (calibrate_from_cache --sample-cup-strength). None: off.
+SAMPLE_CUP_STRENGTH = "sample_cup_v1"
+SAMPLE_CUP_STRENGTH_FROM_UTC: datetime | None = None
+SAMPLE_CUP_STRENGTH_MARKER = ("sample_cup_rule", SAMPLE_CUP_STRENGTH, "football")
+
+
+def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
+    """Does the football sample correction read the cup league strength
+    (SAMPLE_CUP_STRENGTH_FROM_UTC)?"""
+    if SAMPLE_CUP_STRENGTH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SAMPLE_CUP_STRENGTH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SAMPLE_CUP_STRENGTH_FROM_UTC)

@@ -288,3 +288,87 @@ def test_the_spill_measurement_reads_only_non_cup_matches_that_moved() -> None:
     assert all(r[3] != r[5] or r[4] != r[6] for r in rows["goals_for"])
     res = m.spill_measure(rows, 0, 7.586)
     assert res["goals_for"]["n_moved"] == len(rows["goals_for"])
+
+
+# --- B15's sample correction read through the cup strength (off) -------------
+
+
+def _shots_book() -> fr.RatingBook:
+    return _book(True, {"goals_for": 0.05, "shots_for": 0.05})
+
+
+def test_the_sample_correction_reads_the_cup_only_when_cup_aware() -> None:
+    from bet.sofa.opponent_correction import SampleCorrector
+
+    book = _shots_book()
+    plain = SampleCorrector(book)
+    aware = SampleCorrector(book, cup_aware=True)
+    # a league-A side's past cup match against league B, today a domestic one
+    base = plain.factors(1, 11, 2, "shots_for")
+    assert plain.factors(1, 11, 2, "shots_for", CUP, LEAGUE_A) == base
+    cup = aware.factors(1, 11, 2, "shots_for", CUP, LEAGUE_A)
+    assert base is not None and cup is not None and cup != base
+    # not a cup competition: the same factors as the plain reading
+    assert aware.factors(1, 11, 2, "shots_for", 999, None) == base
+    # a metric without a cup step: unchanged
+    assert (aware.factors(1, 11, 2, "corners_for", CUP, None)
+            == plain.factors(1, 11, 2, "corners_for"))
+
+
+def test_correct_total_hands_today_competition_to_each_pool() -> None:
+    from bet.sofa import opponent_correction as oc
+
+    seen: list[int | None] = []
+
+    class Spy:
+        def correct(self, obs: Any, market: str, team: int, other: int | None,
+                    split: Any = None, today_competition: int | None = None
+                    ) -> list[Any]:
+            seen.append(today_competition)
+            return list(obs)
+
+    class Sample:
+        side_a: list[Any] = []
+        side_b: list[Any] = []
+        h2h: list[Any] = []
+
+    oc.correct_total(Spy(), {"shots_total": Sample()}, "shots_total",  # type: ignore[arg-type,dict-item]
+                     1, 2, CUP)
+    assert seen == [CUP, CUP]
+
+
+def test_the_sample_cup_switch_is_off_and_never_re_runs_a_sheet() -> None:
+    assert epochs.SAMPLE_CUP_STRENGTH_FROM_UTC is None
+    at = datetime(2026, 10, 16, 6, tzinfo=UTC)
+    assert not epochs.sample_cup_strength("2026-10-16", at)
+    assert "SHEET" not in rp.build_plan(rp.DayState(
+        "2026-10-16", at, LIMIT, sheet_sample_cup=False)).names()
+    assert epochs.SAMPLE_CUP_STRENGTH_MARKER[0] in run_sheet.AUDIT_MARKER_FIELDS
+
+
+def test_once_on_a_sheet_without_its_marker_is_re_run(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    at = datetime(2026, 10, 17, 6, tzinfo=UTC)
+    monkeypatch.setattr(epochs, "SAMPLE_CUP_STRENGTH_FROM_UTC",
+                        datetime(2026, 10, 17, tzinfo=UTC))
+    sheet = next(s for s in rp.build_plan(rp.DayState(
+        "2026-10-17", at, LIMIT, sheet_sample_cup=False)).steps if s.name == "SHEET")
+    assert "sample_cup_strength" in sheet.reason
+
+
+def test_the_replay_correction_matches_sheets_when_cup_aware() -> None:
+    from bet.sofa.opponent_correction import SampleCorrector
+    from scripts.sofa import calibrate_from_cache as cfc
+
+    book = _shots_book()
+    past = [cfc.Past(0, 1, 15.0, 25.0, competition_id=CUP, opponent=11),
+            cfc.Past(0, 2, 12.0, 22.0, competition_id=LEAGUE_A, opponent=2)]
+    rep = cfc.ReplayOpponentCorrection(book, True, LEAGUE_A)
+    want = SampleCorrector(book, cup_aware=True)
+    got = rep.side(past, "shots_for", 1, 3)
+    for p, v in zip(past, got, strict=True):
+        f = want.factors(1, p.opponent or 0, 3, "shots_for", p.competition_id,
+                         LEAGUE_A)
+        assert v == pytest.approx(p.own if f is None else p.own * f[0])
+    off = cfc.ReplayOpponentCorrection(book)
+    assert off.side(past, "shots_for", 1, 3) != got

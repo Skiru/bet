@@ -75,21 +75,34 @@ class SampleCorrector:
     """The correction of one build, on the rating book SHEET holds."""
 
     book: RatingBook
-    _gaps: dict[tuple[int, int, str], tuple[bool, float]] = field(
+    # epochs.SAMPLE_CUP_STRENGTH_FROM_UTC (off: False): the gaps read the
+    # book's cup correction (RatingBook.cup_extra) with the competition of the
+    # past match and of today's fixture - a sample match of a European cup is
+    # rescaled through the league strength learnt in the cups, like the
+    # rating reads that fixture. Off: competitions are ignored (as before).
+    cup_aware: bool = False
+    _gaps: dict[tuple[int, int, str, int | None], tuple[bool, float]] = field(
         default_factory=dict, repr=False)
 
-    def _gap(self, team: int, opponent: int, metric: str) -> tuple[bool, float]:
-        """(LINKED?, log strength factor on `team`'s rate against `opponent`)."""
-        key = (team, opponent, metric)
+    def _gap(
+        self, team: int, opponent: int, metric: str,
+        competition: int | None = None,
+    ) -> tuple[bool, float]:
+        """(LINKED?, log strength factor on `team`'s rate against `opponent`
+        in `competition` - read only while cup_aware)."""
+        comp = competition if self.cup_aware else None
+        key = (team, opponent, metric, comp)
         hit = self._gaps.get(key)
         if hit is None:
-            status, lf = self.book.link(team, opponent, metric)
+            status, lf = self.book.link(team, opponent, metric, comp)
             hit = (status == LINKED, lf if status == LINKED_BY_STRENGTH else 0.0)
             self._gaps[key] = hit
         return hit
 
     def factors(
-        self, team: int, opponent: int, today_opponent: int | None, metric: str
+        self, team: int, opponent: int, today_opponent: int | None, metric: str,
+        past_competition: int | None = None,
+        today_competition: int | None = None,
     ) -> tuple[float, float] | None:
         """(multiplier of the side's own count, of the opponent's count) for a
         match `team` played against `opponent`; None if the opponent is not
@@ -97,8 +110,8 @@ class SampleCorrector:
         rated = self.book.teams.get((opponent, metric))
         if rated is None or rated.n < MIN_TEAM_MATCHES:
             return None
-        linked, lf_k = self._gap(team, opponent, metric)
-        lf_0 = (self._gap(team, today_opponent, metric)[1]
+        linked, lf_k = self._gap(team, opponent, metric, past_competition)
+        lf_0 = (self._gap(team, today_opponent, metric, today_competition)[1]
                 if today_opponent is not None else 0.0)
         power = 1.0 if linked else CROSS_RATIO_POWER
         g = lf_0 - lf_k
@@ -112,10 +125,12 @@ class SampleCorrector:
         team: int,
         today_opponent: int | None,
         split: Mapping[tuple[int, int], Observation] | None = None,
+        today_competition: int | None = None,
     ) -> list[Observation]:
         """The observations of `team`'s sample for `market`, corrected where
         they can be. `split` (split_index): the ``*_for`` observations by
-        (event, opponent), needed for a match total."""
+        (event, opponent), needed for a match total. `today_competition` and
+        each observation's competition are read only while cup_aware."""
         metric = corrected_metric(market)
         if metric is None:
             return list(observations)
@@ -125,7 +140,8 @@ class SampleCorrector:
             if o.opponent_id is None:
                 out.append(o)
                 continue
-            f = self.factors(team, o.opponent_id, today_opponent, metric)
+            f = self.factors(team, o.opponent_id, today_opponent, metric,
+                             o.competition_id, today_competition)
             if f is None:
                 out.append(o)
                 continue
@@ -163,21 +179,25 @@ def correct_total(
     market: str,
     home: int,
     away: int,
+    today_competition: int | None = None,
 ) -> list[list[Observation]]:
     """A total's three pools (side_a, side_b, h2h) corrected, in SHEET's
     order. An h2h match is read from the side its opponent_id says it was
-    recorded for."""
+    recorded for. `today_competition` is read only while cup_aware."""
     sample = metrics[market]
     fm = for_market(market)
     split = split_index(metrics.get(fm) if fm else None)
-    side_a = corrector.correct(sample.side_a, market, home, away, split)
-    side_b = corrector.correct(sample.side_b, market, away, home, split)
+    side_a = corrector.correct(sample.side_a, market, home, away, split,
+                               today_competition)
+    side_b = corrector.correct(sample.side_b, market, away, home, split,
+                               today_competition)
     h2h: list[Observation] = []
     for o in sample.h2h:
         team, other = ((home, away) if o.opponent_id == away
                        else (away, home) if o.opponent_id == home
                        else (None, None))
-        h2h.extend(corrector.correct([o], market, team, other, split)
+        h2h.extend(corrector.correct([o], market, team, other, split,
+                                     today_competition)
                    if team is not None else [o])
     return [side_a, side_b, h2h]
 

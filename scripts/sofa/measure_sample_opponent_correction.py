@@ -86,7 +86,7 @@ W_RATING = 0.5
 P_CLIP = 0.02
 REPS = 2000
 SEED = 0
-ARMS = ("T", "C", "O", "D")
+ARMS = ("T", "C", "O", "D", "K")
 BASES = (
     "corners_for", "corners_1h_for", "corners_2h_for",
     "shots_for", "shots_1h_for", "shots_on_target_for", "shots_on_target_1h_for",
@@ -171,24 +171,37 @@ def lines_for(centre: float) -> list[float]:
 # ---------------------------------------------------------------------------
 
 class Entry:
-    __slots__ = ("against", "eid", "opp", "own")
+    __slots__ = ("against", "comp", "eid", "opp", "own")
 
-    def __init__(self, eid: int, opp: int, own: float, against: float) -> None:
+    def __init__(self, eid: int, opp: int, own: float, against: float,
+                 comp: int | None = None) -> None:
         self.eid, self.opp, self.own, self.against = eid, opp, own, against
+        self.comp = comp
 
 
 def arm_values(
     corrector: SampleCorrector, book: RatingBook, team: int, today_opp: int,
     metric: str, sample: Sequence[Entry], total: bool,
+    cup_corrector: SampleCorrector | None = None, today_comp: int | None = None,
 ) -> tuple[list[list[float]], int]:
-    """Each arm's values (T, C, O, D) and how many observations C moved."""
-    out: list[list[float]] = [[], [], [], []]
+    """Each arm's values (T, C, O, D, K) and how many observations C moved.
+    K is C read by `cup_corrector` (cup_aware: the past match's and today's
+    competitions reach the gaps; C when None)."""
+    out: list[list[float]] = [[], [], [], [], []]
     moved = 0
     lf0 = corrector._gap(team, today_opp, metric)[1]
     for e in sample:
         raw = e.own + e.against if total else e.own
         out[0].append(raw)
         f = corrector.factors(team, e.opp, today_opp, metric)
+        fk = (f if cup_corrector is None else cup_corrector.factors(
+            team, e.opp, today_opp, metric, e.comp, today_comp))
+        if fk is None:
+            out[4].append(raw)
+        elif total:
+            out[4].append(e.own * fk[0] + e.against * fk[1])
+        else:
+            out[4].append(e.own * fk[0])
         if f is None:
             out[1].append(raw)
             out[2].append(raw)
@@ -233,14 +246,23 @@ def cmd_history(args: argparse.Namespace) -> int:
     table: DispersionTable = load_dispersion_table()
     train_from, cut, eval_to = _ts(args.train_from), _ts(args.cut), _ts(args.to) + 86400
     book = RatingBook(shared_league_link=True)
+    cup_comps: frozenset[int] = frozenset()
+    if args.cup_strength is not None:
+        # epochs.FOOTBALL_CUP_STRENGTH: the book SHEET holds from 2026-10-16
+        from bet.sofa.cup_strength import apply as apply_cup
+        from bet.sofa.cup_strength import load as load_cup
+        cup = load_cup(args.cup_strength)
+        apply_cup(book, cup)
+        cup_comps = cup.competitions
+    bases = tuple(args.bases) if args.bases else BASES
     samples: dict[tuple[int, str], deque[Entry]] = defaultdict(
         lambda: deque(maxlen=SAMPLE_N))
-    markets = [m for b in BASES for m in (b, total_of(b))]
+    markets = [m for b in bases for m in (b, total_of(b))]
     m_index = {m: i for i, m in enumerate(markets)}
     rows_p: list[np.ndarray] = []
     rows_o: list[np.ndarray] = []
     meta: dict[str, list[int]] = {k: [] for k in ("ev", "mk", "train", "cross",
-                                                   "moved", "n")}
+                                                   "moved", "n", "cup")}
     se: list[list[float]] = []
     checked = 0
     i = 0
@@ -253,11 +275,12 @@ def cmd_history(args: argparse.Namespace) -> int:
         group = history[i:j]
         if train_from <= ts < eval_to:
             corrector = SampleCorrector(book)
+            cup_corrector = SampleCorrector(book, cup_aware=True)
             for r in group:
                 if book.link(r.home_id, r.away_id, "goals_for")[0] == UNLINKED:
                     continue
                 fc = FootballForecast(book, r.competition_id, r.home_id, r.away_id)
-                for base in BASES:
+                for base in bases:
                     pair = r.values.get(base)
                     if pair is None:
                         continue
@@ -275,17 +298,19 @@ def cmd_history(args: argparse.Namespace) -> int:
                         if reserve or len(smp) < MIN_SAMPLE:
                             continue
                         vals, moved = arm_values(corrector, book, team, opp, base,
-                                                 smp[::-1], False)
+                                                 smp[::-1], False, cup_corrector,
+                                                 r.competition_id)
                         units.append((base, y, vals, moved, side))
                     if all(not s[3] and len(s[5]) >= MIN_SAMPLE for s in sides):
                         a_vals, a_moved = arm_values(
                             corrector, book, sides[0][0], sides[0][1], base,
-                            sides[0][5][::-1], True)
+                            sides[0][5][::-1], True, cup_corrector,
+                            r.competition_id)
                         seen = {e.eid for e in sides[0][5]}
                         b_smp = [e for e in sides[1][5][::-1] if e.eid not in seen]
                         b_vals, b_moved = arm_values(
                             corrector, book, sides[1][0], sides[1][1], base,
-                            b_smp, True)
+                            b_smp, True, cup_corrector, r.competition_id)
                         units.append((total_of(base), pair[0] + pair[1],
                                       [a + b for a, b in zip(a_vals, b_vals,
                                                              strict=True)],
@@ -336,17 +361,23 @@ def cmd_history(args: argparse.Namespace) -> int:
                         meta["cross"].append(1 if status == LINKED_BY_STRENGTH else 0)
                         meta["moved"].append(moved)
                         meta["n"].append(n)
+                        meta["cup"].append(1 if r.competition_id in cup_comps
+                                           or any(e.comp in cup_comps
+                                                  for s in sides for e in s[5])
+                                           else 0)
         for r in group:
-            for base in BASES:
+            for base in bases:
                 pair = r.values.get(base)
                 if pair is None:
                     continue
                 if not r.home_reserve:
                     samples[(r.home_id, base)].append(
-                        Entry(r.event_id, r.away_id, pair[0], pair[1]))
+                        Entry(r.event_id, r.away_id, pair[0], pair[1],
+                              r.competition_id))
                 if not r.away_reserve:
                     samples[(r.away_id, base)].append(
-                        Entry(r.event_id, r.home_id, pair[1], pair[0]))
+                        Entry(r.event_id, r.home_id, pair[1], pair[0],
+                              r.competition_id))
             book.update(r)
         if (i // 200_000) != (j // 200_000):
             log(f"match {j}/{nh} rows {len(rows_p)}")
@@ -364,6 +395,7 @@ def cmd_history(args: argparse.Namespace) -> int:
     boot = Boot(m["ev"][ev].astype(np.int64), reps=args.reps, seed=SEED)
     lc_e, ll_e, se_e = lc_all[ev], ll[ev], sea[ev]
     mk_e, cross_e, moved_e = m["mk"][ev], m["cross"][ev], m["moved"][ev]
+    cup_e = m["cup"][ev]
     nine = np.full(int(ev.sum()), 9.0)
     ones = np.ones(int(ev.sum()))
     result: dict[str, Any] = {
@@ -378,7 +410,8 @@ def cmd_history(args: argparse.Namespace) -> int:
     }
     for market, mi in m_index.items():
         for label, mask in (("all", mk_e == mi),
-                            ("cross", (mk_e == mi) & (cross_e == 1))):
+                            ("cross", (mk_e == mi) & (cross_e == 1)),
+                            ("cup", (mk_e == mi) & (cup_e == 1))):
             if int(mask.sum()) < 50:
                 continue
             cell: dict[str, Any] = {
@@ -396,10 +429,18 @@ def cmd_history(args: argparse.Namespace) -> int:
                     "ll_all": boot.ratio(ll_e[:, a] - ll_e[:, 0], nine, mask),
                     "se": boot.ratio(se_e[:, a] - se_e[:, 0], ones, mask),
                 }
+            cell["K-C"] = {
+                "lc_all": boot.ratio(lc_e[:, 4] - lc_e[:, 1], nine, mask),
+                "ll_all": boot.ratio(ll_e[:, 4] - ll_e[:, 1], nine, mask),
+                "se": boot.ratio(se_e[:, 4] - se_e[:, 1], ones, mask),
+            }
             result["markets"].setdefault(market, {})[label] = cell
             c = cell["C-T"]["lc_all"]
             log(f"{market:28s} {label:5s} rows {cell['rows']:6d} C-T lc "
                 f"{c['est']:+.5f} [{c['lo']:+.5f}; {c['hi']:+.5f}]")
+            kc = cell["K-C"]["lc_all"]
+            log(f"{'':28s} {label:5s} K-C lc {kc['est']:+.5f} "
+                f"[{kc['lo']:+.5f}; {kc['hi']:+.5f}]")
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
@@ -667,6 +708,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     h.add_argument("--to", default=EVAL_TO)
     h.add_argument("--reps", type=int, default=REPS)
     h.add_argument("--out", type=Path, default=None)
+    h.add_argument("--cup-strength", type=Path, default=None, metavar="CONFIG",
+                   help="the book carries the cup league strength of CONFIG "
+                   "(config/sofa_cup_strength.json); arm K = C read cup-aware")
+    h.add_argument("--bases", nargs="+", default=None,
+                   help="only these base metrics (default: all of BASES)")
     g = sub.add_parser("gates")
     g.add_argument("--pickle", type=Path, default=PICKLE)
     g.add_argument("--from", dest="start", default="2026-10-09")

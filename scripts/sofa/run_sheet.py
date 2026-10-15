@@ -1761,7 +1761,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.GAME_STATE_MARKER, epochs.FOOTBALL_RATED_SCOPE_MARKER,
     epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
     epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
-    epochs.FOOTBALL_CUP_STRENGTH_MARKER,
+    epochs.FOOTBALL_CUP_STRENGTH_MARKER, epochs.SAMPLE_CUP_STRENGTH_MARKER,
 ))
 
 
@@ -2111,7 +2111,8 @@ def process_fixture(
                     raw_values = [o.value for o in obs]
                     obs = deduplicate_observations(correct_total(
                         corrector, samples.metrics, rung.market,
-                        fixture.home_entity_id, fixture.away_entity_id))
+                        fixture.home_entity_id, fixture.away_entity_id,
+                        fixture.competition_id))
                 own_sides = [metric_sample.side_a, metric_sample.side_b]
                 own_teams = [fixture.home_entity_id, fixture.away_entity_id]
             else:
@@ -2140,7 +2141,8 @@ def process_fixture(
                     obs = corrector.correct(
                         obs, rung.market, own_teams[0],
                         fixture.away_entity_id if side == "side_a"
-                        else fixture.home_entity_id)
+                        else fixture.home_entity_id,
+                        today_competition=fixture.competition_id)
 
         n = len(obs)
         if n < config.min_sample:
@@ -2937,7 +2939,11 @@ def _main() -> int:
     # football sample read through the rating book (None: the raw sample)
     opponent_on = (stats_only and football_book is not None
                    and epochs.sample_opponent_correction(args.date))
-    sample_corrector = (SampleCorrector(football_book)
+    # epochs.SAMPLE_CUP_STRENGTH (off): the correction's gaps read the cup
+    # league strength, with the observation's and the fixture's competition
+    sample_cup_on = (opponent_on and cup_strength_on
+                     and epochs.sample_cup_strength(args.date))
+    sample_corrector = (SampleCorrector(football_book, cup_aware=sample_cup_on)
                         if opponent_on and football_book is not None else None)
     # Audit 2026-10-13 D2: the tennis match winner from the rating (off: no
     # such rung reaches SHEET at all - OFFER does not map it).
@@ -3124,6 +3130,7 @@ def _main() -> int:
             (epochs.TENNIS_SET_RATING_PRICES_MARKER, set_rating_prices),
             (epochs.FOOTBALL_CUP_STRENGTH_MARKER,
              cup_strength_on and football_book is not None),
+            (epochs.SAMPLE_CUP_STRENGTH_MARKER, sample_cup_on),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
@@ -3184,6 +3191,8 @@ def _main() -> int:
             "cup_strength_rule": (
                 epochs.FOOTBALL_CUP_STRENGTH
                 if cup_strength_on and football_book is not None else "old"),
+            "sample_cup_rule": (
+                epochs.SAMPLE_CUP_STRENGTH if sample_cup_on else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

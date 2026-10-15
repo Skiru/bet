@@ -107,7 +107,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "cards_correlation", "per_market_k", "tennis_scoped_table",
     "football_rating", "rated_scope", "venue_prior", "game_state",
     "rating_weight", "season_phase", "opponent_correction",
-    "tennis_set_ratings", "cup_strength",
+    "tennis_set_ratings", "cup_strength", "sample_cup_strength",
 )
 
 
@@ -568,6 +568,7 @@ def rebuild_cache_rows(
     tennis_set_ratings: bool = False,
     player_starts_only: bool = False,
     cup_strength: bool = False,
+    sample_cup_strength: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -575,6 +576,9 @@ def rebuild_cache_rows(
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
         ("--cup-strength", cup_strength)) if on]
+    if sample_cup_strength and not (opponent_correction and cup_strength):
+        raise RefitError("--sample-cup-strength needs --opponent-correction "
+                         "and --cup-strength")
     if needs_rating and not football_rating:
         # SHEET applies them only through the football rating's forecast
         raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
@@ -756,6 +760,7 @@ def rebuild_cache_rows(
         "tennis_set_ratings": tennis_set_ratings,
         # epochs.FOOTBALL_CUP_STRENGTH (bet.sofa.cup_strength)
         "cup_strength": cup_strength,
+        "sample_cup_strength": sample_cup_strength,
     }
     for name, on in new_flags.items():
         if on:
@@ -2218,6 +2223,12 @@ def build_parser() -> argparse.ArgumentParser:
         "in the refit's config dir)",
     )
 
+    r.add_argument(
+        "--sample-cup-strength", action="store_true",
+        help="with --opponent-correction --cup-strength: epochs."
+        "SAMPLE_CUP_STRENGTH (calibrate_from_cache --sample-cup-strength)",
+    )
+
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
 
@@ -2340,6 +2351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     tennis_set_ratings=args.tennis_set_ratings,
                     player_starts_only=args.player_starts_only,
                     cup_strength=args.cup_strength,
+                    sample_cup_strength=args.sample_cup_strength,
                 )["exit"]
             )
         if args.command == "fit":

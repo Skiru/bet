@@ -289,3 +289,27 @@ wycenia. Dewiancja E - A na TEST, krok wybrany na TRAIN:
 Żadna nie jest lepsza; faule, kartki i celne 1. połowy bywają gorsze.
 Korekta zostaje tylko na golach (całość i połowy) i strzałach - config bez
 zmian. (Liga pucharowa wpływa na nie dalej przez stan gry B1 z goli.)
+
+### Korekta próbki B15 przez siłę pucharową (2026-10-15 wieczorem)
+
+`measure_sample_opponent_correction.py history --cup-strength
+config/sofa_cup_strength.json --bases shots_for` (Test H B15: TRAIN od
+2025-10-12, cięcie 2026-06-09, ocena do 2026-10-12; 2 000 powtórzeń
+bootstrapu meczów). Księga z korektą pucharową; ramię K = B15 z rozgrywkami
+meczu z próbki i dzisiejszego (`SampleCorrector(cup_aware=True)`) wobec C =
+dzisiejsze B15 na tej samej księdze. Jedyna metryka, gdzie B15 i krok
+pucharowy się pokrywają, to strzały.
+
+| rynek | zakres | wiersze / mecze | K - C (log-loss po kalibracji) |
+|---|---|---|---|
+| shots_for | wszystkie | 26 384 / 13 646 | -0,00006 [-0,00012; -0,000003] |
+| shots_for | cross-league | 4 871 / 2 550 | -0,00040 [-0,00068; -0,00013] |
+| shots_for | mecz lub próbka z pucharem | 3 511 / 1 781 | -0,00044 [-0,00088; -0,000004] |
+| shots_total | wszystkie / cross / puchar | 12 738 / 2 321 / 1 730 | +0,00001 / +0,000004 / +0,00009, każde w zerze |
+
+Lepiej na stronie z przedziałem poza zerem, suma neutralna - ale mało, a
+zmienia p, więc musi jechać z replayem: kod gotowy za
+`epochs.SAMPLE_CUP_STRENGTH_FROM_UTC` = None (SHEET, marker
+`sample_cup_rule`, `calibrate_from_cache --sample-cup-strength`,
+`prepare_refit rebuild-cache-rows --sample-cup-strength`); włączyć z
+najbliższym refitem piłki.
