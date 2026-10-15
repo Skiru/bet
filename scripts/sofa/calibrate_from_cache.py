@@ -156,7 +156,7 @@ from bet.sofa.samples import (
 from bet.sofa.season_phase import SeasonPhaseTable, phases_by_event
 from bet.sofa.season_phase import apply as apply_season_phase
 from bet.sofa.season_phase import load_table as load_season_phase_table
-from bet.sofa.settle import is_completed_event, settle
+from bet.sofa.settle import is_completed_event, settle, surfaces_comparable
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
     SET_RATING_PRICED_MARKETS,
@@ -373,6 +373,9 @@ class TennisContext:
     category_name: str
     ground_type: str | None
     best_of_five: bool
+    # metrics.infer_best_of (3 / 5 / None): what --tennis-sample-scope
+    # matches a past match's format against, as SAMPLES does
+    best_of: int | None = None
 
 
 def match_values(
@@ -614,6 +617,7 @@ def load_cache(
                             # defaultPeriodCount is not on a listing; a completed
                             # best-of-five has a winner with 3 sets.
                             best_of_five=infer_best_of(event) == 5,
+                            best_of=infer_best_of(event),
                         )
                         if sport == "tennis" else None
                     ),
@@ -709,15 +713,39 @@ class Past(NamedTuple):
     # the side's opponent in that match (Observation.opponent_id): what
     # --opponent-correction rescales the observation by
     opponent: int | None = None
+    # tennis: the match's format (infer_best_of) and surface (groundType),
+    # what --tennis-sample-scope filters on
+    best_of: int | None = None
+    surface: str | None = None
 
 
 def recent_for(
-    history: list[Past], market: str, competition_id: int | None
+    history: list[Past], market: str, competition_id: int | None,
+    tennis: TennisContext | None = None,
 ) -> list[Past]:
     """A side's sample for ``market``, as SAMPLES picks it: the newest
     SAMPLE_N, or for a goal market (SAME_COMPETITION_METRICS) the newest
     SAMPLE_N REGULAR matches of the fixture's competition when there are at
-    least SAME_COMPETITION_MIN of them. Oldest first, like the history."""
+    least SAME_COMPETITION_MIN of them. Oldest first, like the history.
+
+    `tennis` (a tennis fixture) under --tennis-sample-scope
+    (TENNIS_SAMPLE_SCOPE): only past matches of the fixture's format and a
+    comparable surface (samples.py's rule: infer_best_of equal to the
+    fixture's, settle.surfaces_comparable; an unknown fixture surface has no
+    sample - SURFACE_UNKNOWN), looking back INDEXED_HISTORY_LIMIT matches."""
+    if TENNIS_SAMPLE_SCOPE and tennis is not None:
+        if tennis.ground_type is None:
+            return []
+        scoped: list[Past] = []
+        for past in history[: -INDEXED_HISTORY_LIMIT - 1 : -1]:
+            if (tennis.best_of is not None and past.best_of != tennis.best_of):
+                continue
+            if not surfaces_comparable(past.surface, tennis.ground_type):
+                continue
+            scoped.append(past)
+            if len(scoped) >= SAMPLE_N:
+                break
+        return list(reversed(scoped))
     if market in SAME_COMPETITION_METRICS and competition_id is not None:
         # SAMPLES picks from the pages it read and the listed-event index -
         # at most INDEXED_HISTORY_LIMIT matches back - so the replay looks no
@@ -954,6 +982,12 @@ CENTRE_RULES = CentreRules()
 # --tennis-set-ratings (audit 2026-10-13 B5): the set bases are loaded
 # (load_cache tennis_sets) and their markets read off the rating's neighbours.
 TENNIS_SET_RATINGS = False
+# --tennis-sample-scope (2026-10-16): a tennis side's sample is scoped as
+# SAMPLES scopes it - the fixture's format and a comparable surface. Without
+# it, 13% of the replayed best-of-three rows (57% ATP) held a Grand Slam
+# five-setter in the games sample, centre +1.97 games, log-loss +0.0445
+# (docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md).
+TENNIS_SAMPLE_SCOPE = False
 
 
 def day_start(ts: int) -> int:
@@ -1295,13 +1329,17 @@ def iter_rows(
         regular = match.kind == MatchKind.REGULAR
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
+            fmt = (None if match.tennis is None else match.tennis.best_of)
+            surf = (None if match.tennis is None else match.tennis.ground_type)
             history[(match.home_id, base)].append(
                 Past(match.timestamp, match.event_id, home_value, total,
-                     match.competition_id, regular, "home", match.away_id)
+                     match.competition_id, regular, "home", match.away_id,
+                     fmt, surf)
             )
             history[(match.away_id, base)].append(
                 Past(match.timestamp, match.event_id, away_value, total,
-                     match.competition_id, regular, "away", match.home_id)
+                     match.competition_id, regular, "away", match.home_id,
+                     fmt, surf)
             )
 
 
@@ -1374,10 +1412,12 @@ def _match_rows(
         rated_base = base == "games" or (
             set_markets is not None and TENNIS_SET_RATINGS)
         home_recent = recent_for(
-            history[(match.home_id, base)], for_market, sample_competition
+            history[(match.home_id, base)], for_market, sample_competition,
+            match.tennis,
         )
         away_recent = recent_for(
-            history[(match.away_id, base)], for_market, sample_competition
+            history[(match.away_id, base)], for_market, sample_competition,
+            match.tennis,
         )
 
         # `*_for`: each side from its own history only, as SHEET does
@@ -1411,15 +1451,18 @@ def _match_rows(
         # SAMPLE_N matches that HAVE this statistic, where SAMPLES takes
         # the last sample_n events and loses the gaps; and SAMPLES'
         # scoping of tennis (surface / best-of) is not replayed - the same
-        # differences every `*_for` row already has. Friendlies are out of
+        # differences every `*_for` row already has (the tennis scoping is
+        # replayed under --tennis-sample-scope). Friendlies are out of
         # the history since 2026-10-04 (Played.kind), and a goal total
         # picks its sides the way SAMPLES does (recent_for).
         total_market = market_name(base, "total")
         home_total = recent_for(
-            history[(match.home_id, base)], total_market, sample_competition
+            history[(match.home_id, base)], total_market, sample_competition,
+            match.tennis,
         )
         away_total = recent_for(
-            history[(match.away_id, base)], total_market, sample_competition
+            history[(match.away_id, base)], total_market, sample_competition,
+            match.tennis,
         )
         if len(home_total) >= MIN_SAMPLE and len(away_total) >= MIN_SAMPLE:
             yield from settle_rows(
@@ -2466,6 +2509,12 @@ def main() -> int:
         "sofa_cup_strength.json). Default off: the book as it was",
     )
     parser.add_argument(
+        "--tennis-sample-scope", action="store_true",
+        help="a tennis side's sample scoped as SAMPLES scopes it: the "
+        "fixture's format (best of 3 / 5) and a comparable surface. Default "
+        "off: the last SAMPLE_N matches of any format and surface",
+    )
+    parser.add_argument(
         "--sample-cup-strength", action="store_true",
         help="with --opponent-correction and --cup-strength: the sample "
         "correction's gaps read the cup league strength with the past match's "
@@ -2529,10 +2578,11 @@ def main() -> int:
                      "(they were fitted jointly); give both or neither")
 
     global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
-    global CENTRE_RULES, TENNIS_SET_RATINGS
+    global CENTRE_RULES, TENNIS_SET_RATINGS, TENNIS_SAMPLE_SCOPE
     CARDS_CORRELATION = bool(args.cards_correlation)
     PER_MARKET_K = bool(args.per_market_k)
     TENNIS_SET_RATINGS = bool(args.tennis_set_ratings)
+    TENNIS_SAMPLE_SCOPE = bool(args.tennis_sample_scope)
     if args.football_rating:
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         CENTRE_RULES = CentreRules(
@@ -2718,6 +2768,7 @@ def main() -> int:
             "replay_rules": {
                 **CENTRE_RULES.describe(),
                 "tennis_set_ratings": TENNIS_SET_RATINGS,
+                "tennis_sample_scope": TENNIS_SAMPLE_SCOPE,
                 "tennis_rating": args.tennis_rating,
                 "tennis_scoped_table": args.tennis_scoped_table,
                 "count_dispersion": args.count_dispersion is not None,

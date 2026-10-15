@@ -108,6 +108,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "football_rating", "rated_scope", "venue_prior", "game_state",
     "rating_weight", "season_phase", "opponent_correction",
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
+    "tennis_sample_scope",
 )
 
 
@@ -569,6 +570,7 @@ def rebuild_cache_rows(
     player_starts_only: bool = False,
     cup_strength: bool = False,
     sample_cup_strength: bool = False,
+    tennis_sample_scope: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -761,6 +763,8 @@ def rebuild_cache_rows(
         # epochs.FOOTBALL_CUP_STRENGTH (bet.sofa.cup_strength)
         "cup_strength": cup_strength,
         "sample_cup_strength": sample_cup_strength,
+        # SAMPLES' tennis format / surface scoping (2026-10-16)
+        "tennis_sample_scope": tennis_sample_scope,
     }
     for name, on in new_flags.items():
         if on:
@@ -2229,6 +2233,12 @@ def build_parser() -> argparse.ArgumentParser:
         "SAMPLE_CUP_STRENGTH (calibrate_from_cache --sample-cup-strength)",
     )
 
+    r.add_argument(
+        "--tennis-sample-scope", action="store_true",
+        help="a tennis side's sample scoped as SAMPLES scopes it - format and "
+        "surface (calibrate_from_cache --tennis-sample-scope)",
+    )
+
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
 
@@ -2352,6 +2362,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     player_starts_only=args.player_starts_only,
                     cup_strength=args.cup_strength,
                     sample_cup_strength=args.sample_cup_strength,
+                    tennis_sample_scope=args.tennis_sample_scope,
                 )["exit"]
             )
         if args.command == "fit":
