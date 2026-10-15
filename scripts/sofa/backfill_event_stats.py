@@ -59,7 +59,7 @@ import sqlite3
 import sys
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -621,6 +621,11 @@ def main() -> int:
                     help="only matches of the teams/players on the last N "
                     "boards (RESOLVE artifacts; for hockey/basketball/"
                     "volleyball the shadow boards)")
+    ap.add_argument("--competitions", type=int, nargs="+", default=None,
+                    metavar="ID",
+                    help="football: only these uniqueTournament ids, in "
+                    "place of the competitions on the boards (e.g. the "
+                    "international club cups of config/sofa_cup_strength.json)")
     ap.add_argument("--with-lineups", action="store_true",
                     help="hockey/basketball/volleyball: also ask /lineups "
                     "(the box score player lines are graded on)")
@@ -637,7 +642,7 @@ def main() -> int:
     if args.sport in SHADOW_SPORTS:
         return _main_shadow(args, config)
 
-    comps = board_competitions(config.runs_dir) if args.sport == "football" else None
+    comps = target_competitions(args.sport, args.competitions, config.runs_dir)
     entities = (
         None if args.board_days is None
         else board_entities(config.runs_dir, args.sport, args.board_days)
@@ -677,6 +682,18 @@ def main() -> int:
                **runner.counts, "competitions_given_up": len(runner.exhausted())}
     print(json.dumps(summary), flush=True)
     return 2 if runner.stop.is_set() else (1 if runner.counts["errors"] else 0)
+
+
+def target_competitions(
+    sport: str, given: Sequence[int] | None, runs_dir: str,
+) -> set[int] | None:
+    """The competitions a football run asks: `given` (--competitions) when
+    set, else the ones on the boards; None (every competition) for tennis."""
+    if sport != "football":
+        if given:
+            raise SystemExit("--competitions is for football")
+        return None
+    return set(given) if given else board_competitions(runs_dir)
 
 
 def _main_shadow(args: argparse.Namespace, config: SofaConfig) -> int:

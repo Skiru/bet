@@ -175,3 +175,20 @@ def test_a_tennis_backfill_asks_statistics_only() -> None:
     client, cache = _NoIncidents({1: {"statistics": []}}), _Cache()
     Backfill(client, cache, sport="tennis").fetch_one(_event(1, 2000, sport="tennis"))
     assert cache.saved[1] == ({"statistics": []}, None, "finished")
+
+
+def test_competitions_option_replaces_the_board_competitions(monkeypatch: Any) -> None:
+    """--competitions (2026-10-15: the international club cups, so the cup
+    league-strength measurement has corners / shots for 2024/25) asks only
+    those ids; without it the board's; tennis takes every competition and
+    refuses the option."""
+    import pytest
+
+    from scripts.sofa import backfill_event_stats as b
+
+    monkeypatch.setattr(b, "board_competitions", lambda runs_dir: {1, 2})
+    assert b.target_competitions("football", [7, 679], "runs") == {7, 679}
+    assert b.target_competitions("football", None, "runs") == {1, 2}
+    assert b.target_competitions("tennis", None, "runs") is None
+    with pytest.raises(SystemExit):
+        b.target_competitions("tennis", [7], "runs")
