@@ -272,3 +272,19 @@ def test_the_measurement_prices_cup_rows_from_both_books() -> None:
     assert rows["goals_for"]
     r0 = rows["goals_for"][-1]
     assert r0["lh_E_0.05"] != r0["lh_A"]
+
+
+def test_the_spill_measurement_reads_only_non_cup_matches_that_moved() -> None:
+    from scripts.sofa import measure_cross_league_cups as m
+
+    hist = _history()
+    # one more league round after the cup run: its centres feel the cup
+    last = hist[-1].ts
+    tail = [_match(10_000 + i, last + DAY_S * (i + 1), LEAGUE_A, 1 + i % 4,
+                   1 + (i + 1) % 4, (1, 1)) for i in range(4)]
+    rows = m.spill_replay(hist + tail, last + 1, {"goals_for": 0.05})
+    assert rows["goals_for"]
+    assert all(r[0] > last for r in rows["goals_for"])          # never a cup row
+    assert all(r[3] != r[5] or r[4] != r[6] for r in rows["goals_for"])
+    res = m.spill_measure(rows, 0, 7.586)
+    assert res["goals_for"]["n_moved"] == len(rows["goals_for"])

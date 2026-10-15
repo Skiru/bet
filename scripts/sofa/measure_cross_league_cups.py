@@ -831,6 +831,84 @@ def run_inbook(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# spill-over: what the in-book correction does to every OTHER match
+# --------------------------------------------------------------------------
+
+
+def spill_replay(
+    history: Iterable[fr.FootballResult], from_ts: int, cup_eta: dict[str, float],
+) -> dict[str, list[tuple[float, float, float, float, float, float, float]]]:
+    """Every men's first-team match outside INTL_COMPS from from_ts, priced by
+    the base book and by the book with the cup correction at cup_eta (each as
+    of before its kick-off time group), where the two centres differ:
+    per metric (ts, x, y, lh_A, la_A, lh_E, la_E)."""
+    base = fr.RatingBook(shared_league_link=True)
+    cup = fr.RatingBook(shared_league_link=True,
+                        cup_competitions=frozenset(INTL_COMPS), cup_eta=dict(cup_eta))
+    metrics = tuple(cup_eta)
+    out: dict[str, list[tuple[float, float, float, float, float, float, float]]] = {
+        m: [] for m in metrics}
+    group: list[fr.FootballResult] = []
+
+    def flush() -> None:
+        for g in group:
+            if (g.competition_id in INTL_COMPS or g.ts < from_ts or g.women
+                    or g.home_reserve or g.away_reserve):
+                continue
+            fa = fr.FootballForecast(base, g.competition_id, g.home_id, g.away_id)
+            fe = fr.FootballForecast(cup, g.competition_id, g.home_id, g.away_id)
+            for m in metrics:
+                if m not in g.values:
+                    continue
+                ah, aa = fa.centre(m, "side_a"), fa.centre(m, "side_b")
+                eh, ea = fe.centre(m, "side_a"), fe.centre(m, "side_b")
+                if ah is None or aa is None or eh is None or ea is None:
+                    continue
+                if abs(ah[0] - eh[0]) < 1e-12 and abs(aa[0] - ea[0]) < 1e-12:
+                    continue
+                x, y = g.values[m]
+                out[m].append((float(g.ts), float(x), float(y),
+                               ah[0], aa[0], eh[0], ea[0]))
+        for g in group:
+            vals = {m: g.values[m] for m in metrics if m in g.values}
+            r2 = replace(g, values=vals)
+            base.update(r2)
+            cup.update(r2)
+        group.clear()
+
+    for r in history:
+        if group and r.ts != group[0].ts:
+            flush()
+        group.append(r)
+    flush()
+    return out
+
+
+def spill_measure(
+    rows: dict[str, list[tuple[float, float, float, float, float, float, float]]],
+    test_ts: int, r_nb: float,
+) -> dict[str, Any]:
+    res: dict[str, Any] = {}
+    for m, rs in rows.items():
+        t = [r for r in rs if r[0] >= test_ts]
+        if not t:
+            res[m] = {"n_moved": 0}
+            continue
+        a = np.asarray(t, dtype=np.float64)
+        arr = {"x": a[:, 1], "y": a[:, 2]}
+        arr["outcome"] = np.asarray(
+            [outcome_index(x, y) for x, y in zip(a[:, 1], a[:, 2], strict=True)],
+            dtype=np.float64)
+        sa = _scores(arr, a[:, 3], a[:, 4], m, r_nb)
+        se = _scores(arr, a[:, 5], a[:, 6], m, r_nb)
+        res[m] = {"n_moved": len(t),
+                  "mean_abs_shift": float(np.mean(np.abs(a[:, 5] - a[:, 3])
+                                                  + np.abs(a[:, 6] - a[:, 4])) / 2),
+                  **{f"E-A_{k}": bootstrap_mean(se[k] - sa[k]) for k in sa}}
+    return res
+
+
+# --------------------------------------------------------------------------
 # report
 # --------------------------------------------------------------------------
 
@@ -899,8 +977,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                    help="pickle of the in-book replay rows (written / reused)")
     p.add_argument("--inbook-etas", nargs="+", type=float,
                    default=list(GRID_INBOOK_ETA))
+    p.add_argument("--spill", type=Path, default=None, metavar="CUP_CONFIG",
+                   help="the in-book correction's effect on every non-cup match, "
+                        "steps from this config/sofa_cup_strength.json")
     args = p.parse_args(argv)
-    if args.in_book:
+    if args.spill is not None:
+        cfg = json.loads(args.spill.read_text())
+        _fp, history = pickle.loads(Path(args.history).read_bytes())
+        note("spill-over replay")
+        sp = spill_replay(history, ts_of(args.from_day),
+                          {k: float(v) for k, v in cfg["eta"].items()})
+        res = {"params": {"from": args.from_day, "test_from": args.test_from,
+                          "eta": cfg["eta"]},
+               "spill": spill_measure(sp, ts_of(args.test_from), load_config().nb_r)}
+        md = "# spill-over on non-cup matches (TEST)\n\n```\n" + json.dumps(
+            res, indent=1) + "\n```\n"
+    elif args.in_book:
         res = run_inbook(args)
         md = inbook_markdown(res)
     else:
