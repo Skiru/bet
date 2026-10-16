@@ -309,8 +309,8 @@ every sport alike, and nothing that could win is cut by name.
     their curve (-0.5..+1.5 pp) but ~1 pp below the passing ones (5 starts
     -1.9 pp [-2.9, -0.8] vs PASS) - the gates select slightly, they do not
     protect the printed number; Superbet's lines 10-12..10-15 with line
-    evidence 60 legs / 40 matches -6.0 pp [-18.4, +5.1], ROI -12.0% [-26.8,
-    +1.1] (curve in sample; at the price, no edge); a player offset on
+    evidence 55 legs / 37 matches -5.9 pp [-15.9, +4.5], ROI -11.7% [-23.8,
+    +1.2] (curve in sample; at the price, no edge); a player offset on
     x >= 0.90 lines only was measured and declined. E2E 10-15 (clean copy,
     clock 12:59Z): +40 player singles (22 LINE_BEYOND, 18 THIN), 0 legs
     lost or changed, builders identical
@@ -682,7 +682,8 @@ measurement of Superbet's price and feed nothing else.
   10-16's build, FOOTBALL_CUP_STRENGTH and BASKETBALL_DC_PAIR from 00:00Z,
   and the football score markets / tennis set complements moved by the
   operator into the built day at 07:46Z - 10-16 is mixed, ledger group
-  "10-16 mieszany"; from 10-17 "od 10-17"; before them ledger group
+  "10-16 mieszany"; from 10-17 "od 10-17" (also PLAYER_SAMPLE_GATES from
+  2026-10-17 00:00Z); before them ledger group
   "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
@@ -1055,7 +1056,7 @@ their measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
 - (2026-10-16, walk-forward 10-12..10-15,
   `docs/sofa/evidence/player_line_evidence_2026-10-16.md`) a footballer's
   line-evidence offset measured only on lines with curve x odds >= 0.90:
-  the legs it dropped were not measurably worse (-7.1 pp [-23.9, +8.5] vs
+  the legs it dropped were not measurably worse (-7.3 pp [-22.2, +7.3] vs
   -4.1 kept), it acted on player_shots_for alone and raised tackles (its lines
   fell back to the football pool) - the shape of the 10-12 per-bin offset;
 - (2026-10-16, history holdout + Superbet's lines,

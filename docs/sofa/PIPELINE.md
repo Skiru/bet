@@ -1220,8 +1220,8 @@ na historii (OVER, pewność ≥ 0,70) grupy odcinane realizują się na swojej
 krzywej (−0,5..+1,5 pp), ale ~1 pp słabiej niż przepuszczane (5 startów
 −1,9 pp [−2,9; −0,8] względem PASS) - bramki lekko wybierają, nie chronią
 wydrukowanej pewności; na liniach Superbetu 10-12..10-15 z line evidence:
-60 nóg / 40 meczów, −6,0 pp [−18,4; +5,1] pod pewnością, ROI −12,0%
-[−26,8; +1,1] (krzywa in-sample) - przy cenie, bez zmierzonej przewagi.
+55 nóg / 37 meczów, −5,9 pp [−15,9; +4,5] pod pewnością, ROI −11,7%
+[−23,8; +1,2] (krzywa in-sample) - przy cenie, bez zmierzonej przewagi.
 Offset zawodników liczony tylko na liniach x ≥ 0,90 zmierzony i odrzucony.
 E2E na 10-15 (czysta kopia, zegar 12:59Z): +40 singli zawodników (22 z
 `LINE_BEYOND_SAMPLE`, 18 z `THIN_SAMPLE_FOR_BUILDER`), 0 nóg straconych ani

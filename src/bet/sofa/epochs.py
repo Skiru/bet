@@ -779,8 +779,8 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
 # confidence >= 0.70) the refused groups realise on their curve (-0.5 ..
 # +1.5 pp) but ~1 pp below the passing ones (5 starts -1.9 pp [-2.9, -0.8]
 # vs OVER PASS); on Superbet's lines 10-12..10-15, with the line evidence,
-# the gate-free legs read -6.0 pp [-18.4, +5.1] under their confidence, ROI
-# -12.0% [-26.8, +1.1] (60 legs / 40 matches, the curve in sample). With the
+# the gate-free legs read -5.9 pp [-15.9, +4.5] under their confidence, ROI
+# -11.7% [-23.8, +1.2] (55 legs / 37 matches, the curve in sample). With the
 # switch a football row on a lineup market (confidence.player_shape_gate_scope:
 # not the /shotmap shot-detail markets, whose curves come from their own
 # estimator and were not measured) needs only PLAYER_MIN_SAMPLE values; a leg

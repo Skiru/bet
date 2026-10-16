@@ -43,7 +43,6 @@ from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.football_score_markets import curve_market as score_curve_market
 from bet.sofa.football_score_markets import is_curve_slice
 from bet.sofa.players import is_player_metric
-from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 # Markets read from their own curve or not at all, like the derived joints:
@@ -1042,14 +1041,22 @@ def shape_gate_refusal(
     return None
 
 
+# The lineup-statistics player markets the 2026-10-16 measurement read (the
+# replay's player rows; player_interceptions_for has no curve and was not).
+PLAYER_SHAPE_GATE_MARKETS = frozenset({
+    "player_shots_for", "player_shots_on_target_for", "player_fouls_for",
+    "player_tackles_for", "player_assists_for", "player_offsides_for",
+})
+
+
 def player_shape_gate_scope(sport: object, market: str) -> bool:
     """Is this row in epochs.PLAYER_SAMPLE_GATES' scope: a footballer's
     lineup-statistics market (his starts in the team's last 10 matches, the
     sample the player curves were replayed and measured on)? The shot-detail
     markets (/shotmap, bet.sofa.shot_detail's own estimator) are not: their
-    curves were never measured against the gates."""
-    return (sport == "football" and is_player_metric(market)
-            and market not in SHOT_DETAIL_METRICS)
+    curves were never measured against the gates; nor is a market without a
+    measured curve (interceptions)."""
+    return sport == "football" and market in PLAYER_SHAPE_GATE_MARKETS
 
 
 def builder_legs_are_coherent(legs: list[dict[str, Any]]) -> bool:

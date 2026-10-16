@@ -60,6 +60,7 @@ if str(ROOT) not in sys.path:
 
 from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
+    MIN_ODDS_FOR_CEILING,
     Calibration,
     player_shape_gate_scope,
     shape_gate_refusal,
@@ -170,8 +171,8 @@ def day_rows(runs_dir: Path, day: str, cal: Calibration) -> list[Row]:
         if not player_shape_gate_scope(r.get("sport"), str(r["market"])):
             continue
         odds = r.get("offered_odds")
-        if not odds:
-            continue
+        if not odds or float(odds) < MIN_ODDS_FOR_CEILING:
+            continue  # unpriced / ODDS_TOO_LOW
         key = (r["sofascore_event_id"], r["market"], str(r.get("subject") or ""),
                float(r["line"]), r["direction"])
         o = outcome.get(key)

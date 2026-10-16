@@ -126,8 +126,8 @@ def _confidence(runs: Path, monkeypatch: pytest.MonkeyPatch,
     return dict(json.loads((runs / DAY / "08_confidence.json").read_text()))
 
 
-@pytest.fixture(autouse=True)
-def _player_legs_would_print() -> None:
+@pytest.fixture
+def player_legs_would_print() -> None:
     """The installed curves and line evidence print both player markets at
     (P, ODDS) at all - else every assertion below would be vacuous."""
     cal = dataclasses.replace(Calibration.load(), gap_shrink_k=0.0,
@@ -174,6 +174,8 @@ def test_the_scope_is_the_lineup_markets_of_football() -> None:
     assert not player_shape_gate_scope("football", "player_sot_headed_for")
     assert not player_shape_gate_scope("football", "goals_total")
     assert not player_shape_gate_scope("tennis", SHOTS)
+    # no curve was measured for interceptions: outside until it is
+    assert not player_shape_gate_scope("football", "player_interceptions_for")
 
 
 def test_the_gate_order_is_confidences() -> None:
@@ -194,6 +196,7 @@ PLAYERS = {1: (SHOTS, ALWAYS_OVER), 2: (SHOTS, SIX_WITH_BLANK),
            7: (RIGHT_FOOT, TEN_WITH_BLANK), 8: (RIGHT_FOOT, ALWAYS_OVER)}
 
 
+@pytest.mark.usefixtures("player_legs_would_print")
 def test_off_the_gates_refuse_as_before(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -205,6 +208,7 @@ def test_off_the_gates_refuse_as_before(
     assert _in_builders(doc, SHOTS) == {3}
 
 
+@pytest.mark.usefixtures("player_legs_would_print")
 def test_on_the_lifted_legs_print_with_their_gate_and_nothing_else_moves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -222,3 +226,85 @@ def test_on_the_lifted_legs_print_with_their_gate_and_nothing_else_moves(
     assert TEAM not in {int(x["sofascore_event_id"]) for x in doc["legs"]}
     # a leg every gate passed is a builder leg as before; a lifted one never is
     assert _in_builders(doc, SHOTS) == {3}
+
+
+# --- the live path: a stats-only day on the switch's own clock ------------------
+
+LIVE_DAY = "2026-10-17"
+T0 = datetime(2026, 10, 17, 9, 0, tzinfo=UTC)
+KICKOFF_LIVE = "2026-10-17T18:00:00Z"
+
+
+def _z(t: datetime) -> str:
+    return t.isoformat().replace("+00:00", "Z")
+
+
+def _live_day(tmp_path: Path, players: dict[int, list[int]],
+              team_leg_beside: int) -> Path:
+    """A real-epoch day: stats-only sheet rows, every switch as installed."""
+    run = tmp_path / LIVE_DAY
+    run.mkdir()
+    fixtures, samples, offers, sheet = [], [], [], []
+    for eid, values in players.items():
+        fx = _fixture(eid)
+        fx.update({"kickoff_utc": KICKOFF_LIVE, "superbet_kickoff_utc": KICKOFF_LIVE})
+        fixtures.append(fx)
+        smp = _samples(eid)
+        for side in ("side_a", "side_b"):
+            for i, o in enumerate(smp["metrics"]["goals_total"][side]):
+                o["match_date_utc"] = _z(T0 - timedelta(days=3 + i))
+        obs = _player_obs(values)
+        for i, o in enumerate(obs):
+            o["match_date_utc"] = _z(T0 - timedelta(days=4 + 4 * i))
+        smp["players"] = {f"{SHOTS}|{PLAYER}": {"observations": obs}}
+        samples.append(smp)
+        offer = _player_offer(eid, SHOTS)
+        if eid == team_leg_beside:
+            offer["rungs"] += _offer(eid, 1.40, 2.75)["rungs"]
+        for rung in offer["rungs"]:
+            rung["fetched_at_utc"] = _z(T0 - timedelta(minutes=1))
+        offers.append(offer)
+        rows = [_player_row(eid, SHOTS)]
+        if eid == team_leg_beside:
+            rows.append(_sheet_row(eid, 0.72, 1.40, 0.69))
+        for row in rows:
+            row.update({"epoch": "stats_only", "forecast_p": None,
+                        "forecast_source": None})
+        sheet += rows
+    (run / "02_fixtures.json").write_text(json.dumps(fixtures))
+    (run / "03_samples.json").write_text(json.dumps(samples))
+    (run / "04_offer.json").write_text(json.dumps(offers))
+    (run / "05_sheet.json").write_text(json.dumps(sheet))
+    (run / "vetoes.json").write_text("[]")
+    return tmp_path
+
+
+@pytest.mark.usefixtures("player_legs_would_print")
+def test_live_a_lifted_leg_keeps_its_marker_when_a_read_removes_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import scripts.sofa.run_confidence as rc
+
+    runs = _live_day(tmp_path, {1: ALWAYS_OVER, 2: SIX_WITH_BLANK,
+                                3: TEN_WITH_BLANK}, team_leg_beside=3)
+    (runs / LIVE_DAY / "reads.json").write_text(json.dumps([{
+        "sofascore_event_id": 2, "market": SHOTS, "subject": PLAYER,
+        "line": 0.5, "direction": "OVER", "verdict": "WATCH",
+        "author": "analyst", "reason": "5 of 6 starts at 90', thin"}]))
+    monkeypatch.setenv("SOFA_NOW", _z(T0))
+    monkeypatch.setattr(sys, "argv", ["run_confidence.py", "--date", LIVE_DAY,
+                                      "--runs-dir", str(runs)])
+    assert rc.main() == 0
+    doc = json.loads((runs / LIVE_DAY / "08_confidence.json").read_text())
+    assert doc["epoch"] == "stats_only"
+    singles = _by_id(doc["singles"], SHOTS)
+    assert set(singles) == {1, 3}
+    assert singles[1][epochs.PLAYER_SAMPLE_MARKER] == "LINE_BEYOND_SAMPLE"
+    assert epochs.PLAYER_SAMPLE_MARKER not in singles[3]
+    removed = _by_id(doc["removed_by_reads"], SHOTS)
+    assert removed[2][epochs.PLAYER_SAMPLE_MARKER] == "THIN_SAMPLE_FOR_BUILDER"
+    assert removed[2]["refusal"] == "WATCHED"
+    # the stats-only builder pool: the passing leg joins, a lifted one never
+    assert _in_builders(doc, SHOTS) <= {3}
+    assert not any(leg.get(epochs.PLAYER_SAMPLE_MARKER)
+                   for b in doc["builders"] for leg in b["legs"])

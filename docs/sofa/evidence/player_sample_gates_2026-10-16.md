@@ -22,7 +22,7 @@
 
 Per rynek OVER (vs PASS tego rynku): strzały THIN -0.9 [-2.3, +0.7], LINE_BEYOND -1.2 [-2.8, +0.3]; faule i odbiory w granicach ±1 pp.
 
-**Linie Superbetu (134 linie rynków `/lineups`, 4 dni, pewność przed line evidence):** strzały OVER odcinane przez THIN / LINE_BEYOND realizowały -17 / -16 pp pod krzywą (po ~40 linii), PASS ma 7 linii - porównania nie da się zrobić. Z line evidence (offset + limit pasma) cała populacja bez bramek: -6.0 pp [-18.4, +5.1] (`player_line_evidence_2026-10-16.md`).
+**Linie Superbetu (121 linii rynków `/lineups` z kursem >= 1.0867, 4 dni, pewność przed line evidence):** OVER odcinane przez THIN / LINE_BEYOND realizowały -13.0 / -13.6 pp pod krzywą (61 / 46 linii; strzały -16.6 / -19.4), PASS ma 10 linii - porównania nie da się zrobić. Z line evidence (offset + limit pasma) cała populacja bez bramek: -5.9 pp [-15.9, +4.5] (`player_line_evidence_2026-10-16.md`).
 
 ## Wniosek
 
@@ -120,20 +120,20 @@ Zastrzeżenia: krzywa in-sample na historii; historia bez cen (nie da się zasto
 
 | grupa | n | mecze | pewność | zrealizowane | zreal. - pewn. (pp) | vs PASS (pp) | ROI % |
 |---|---|---|---|---|---|---|---|
-| OVER LINE_BEYOND_SAMPLE | 57 | 40 | 0.821 | 0.702 | -11.9 [-23.6, -0.1] | -14.5 [-42.1, +18.2] | -16.7 [-31.3, -2.8] |
+| OVER LINE_BEYOND_SAMPLE | 46 | 34 | 0.810 | 0.674 | -13.6 [-26.6, +0.5] | -16.2 [-43.8, +15.1] | -17.5 [-33.3, -0.5] |
 | OVER MODE_LOSES | 4 | 4 | 0.747 | 0.000 | -74.7 [-76.1, -73.2] | -77.3 [-98.8, -49.7] | -100.0 [-100.0, -100.0] |
 | OVER PASS | 10 | 8 | 0.774 | 0.800 | +2.6 [-23.4, +23.7] | - | +2.9 [-27.9, +33.1] |
-| OVER THIN_SAMPLE_FOR_BUILDER | 63 | 42 | 0.771 | 0.635 | -13.6 [-26.7, -1.4] | -16.2 [-43.8, +16.0] | -17.3 [-34.7, -0.9] |
+| OVER THIN_SAMPLE_FOR_BUILDER | 61 | 41 | 0.769 | 0.639 | -13.0 [-26.1, -0.6] | -15.5 [-40.9, +16.3] | -16.3 [-33.8, +0.8] |
 
 ### OVER wg liczby startów w próbce (vs OVER PASS)
 
 | grupa | n | mecze | pewność | zrealizowane | zreal. - pewn. (pp) | vs PASS (pp) | ROI % |
 |---|---|---|---|---|---|---|---|
 | OVER n=05 | 28 | 19 | 0.786 | 0.500 | -28.6 [-48.1, -9.2] | -31.1 [-62.9, +4.4] | -38.5 [-62.4, -15.0] |
-| OVER n=06 | 25 | 18 | 0.799 | 0.560 | -23.9 [-49.5, +5.7] | -26.5 [-62.2, +14.3] | -29.4 [-61.4, +7.9] |
-| OVER n=07 | 19 | 15 | 0.787 | 0.684 | -10.2 [-33.2, +11.0] | -12.8 [-45.7, +19.9] | -13.5 [-45.4, +15.8] |
-| OVER n=08 | 25 | 17 | 0.791 | 0.680 | -11.1 [-31.7, +5.4] | -13.7 [-42.4, +19.1] | -16.6 [-42.4, +4.2] |
-| OVER n=09 | 27 | 18 | 0.803 | 0.815 | +1.1 [-14.9, +15.4] | -1.4 [-31.2, +30.8] | +1.4 [-20.7, +19.0] |
+| OVER n=06 | 22 | 17 | 0.788 | 0.545 | -24.3 [-50.2, +6.2] | -26.9 [-61.0, +11.5] | -29.3 [-63.0, +11.8] |
+| OVER n=07 | 17 | 14 | 0.778 | 0.647 | -13.1 [-35.5, +9.5] | -15.7 [-48.8, +17.2] | -15.7 [-47.5, +17.1] |
+| OVER n=08 | 22 | 15 | 0.781 | 0.682 | -9.9 [-30.4, +4.9] | -12.5 [-42.4, +17.3] | -14.8 [-41.4, +5.2] |
+| OVER n=09 | 22 | 16 | 0.792 | 0.818 | +2.6 [-11.5, +16.3] | +0.0 [-30.6, +35.2] | +5.1 [-15.8, +23.9] |
 | OVER n=10 | 10 | 8 | 0.774 | 0.800 | +2.6 [-23.4, +23.7] | - | +2.9 [-27.9, +33.1] |
 
 ### tylko próbki 10/10 - LINE_BEYOND / MODE vs PASS tego kierunku
@@ -149,10 +149,10 @@ Zastrzeżenia: krzywa in-sample na historii; historia bez cen (nie da się zasto
 | player_fouls_for OVER / LINE_BEYOND_SAMPLE | 6 | 6 | 0.759 | 0.833 | +7.5 [-25.9, +25.0] | +27.6 [-40.0, +94.6] | +0.3 [-40.0, +22.2] |
 | player_fouls_for OVER / PASS | 2 | 2 | 0.701 | 0.500 | -20.1 [-70.1, +29.9] | - | -32.0 [-100.0, +36.0] |
 | player_fouls_for OVER / THIN_SAMPLE_FOR_BUILDER | 13 | 13 | 0.739 | 0.692 | -4.7 [-29.3, +19.2] | +15.4 [-54.0, +81.0] | -8.8 [-41.4, +22.8] |
-| player_shots_for OVER / LINE_BEYOND_SAMPLE | 43 | 30 | 0.831 | 0.674 | -15.7 [-30.9, -0.4] | -21.7 [-48.1, +22.3] | -19.8 [-38.3, -1.5] |
+| player_shots_for OVER / LINE_BEYOND_SAMPLE | 32 | 23 | 0.819 | 0.625 | -19.4 [-37.7, -1.8] | -25.4 [-53.1, +17.3] | -22.0 [-45.6, -0.7] |
 | player_shots_for OVER / MODE_LOSES | 2 | 2 | 0.748 | 0.000 | -74.8 [-74.8, -74.8] | -80.9 [-97.8, -43.3] | -100.0 [-100.0, -100.0] |
 | player_shots_for OVER / PASS | 7 | 6 | 0.796 | 0.857 | +6.1 [-32.4, +22.9] | - | +9.0 [-35.4, +35.8] |
-| player_shots_for OVER / THIN_SAMPLE_FOR_BUILDER | 41 | 29 | 0.784 | 0.610 | -17.4 [-33.5, -2.1] | -23.5 [-52.5, +23.3] | -20.2 [-41.5, +0.9] |
+| player_shots_for OVER / THIN_SAMPLE_FOR_BUILDER | 39 | 28 | 0.781 | 0.615 | -16.6 [-33.4, -0.5] | -22.7 [-53.2, +24.8] | -18.9 [-41.6, +3.6] |
 | player_tackles_for OVER / LINE_BEYOND_SAMPLE | 8 | 8 | 0.816 | 0.750 | -6.6 [-41.7, +19.1] | -30.1 [-63.6, -3.9] | -13.0 [-53.2, +18.0] |
 | player_tackles_for OVER / MODE_LOSES | 2 | 2 | 0.746 | 0.000 | -74.6 [-76.5, -72.6] | -98.1 [-100.0, -96.1] | -100.0 [-100.0, -100.0] |
 | player_tackles_for OVER / PASS | 1 | 1 | 0.765 | 1.000 | +23.5 [+23.5, +23.5] | - | +30.0 [+30.0, +30.0] |

@@ -170,7 +170,9 @@ CUP_STRENGTH_EPOCH_FROM_DATE = "2026-10-16"
 # operator into the built day 2026-10-16 at 07:46Z ("Włącz od teraz"): its
 # legs printed before stay locked without them, so 10-16 is mixed - its own
 # group, summed with neither "od 10-15" nor "od 10-17"; the days after it
-# are the new epoch.
+# are the new epoch - which also starts epochs.PLAYER_SAMPLE_GATES
+# (2026-10-17 00:00Z: a footballer's lineup-market leg without the sample-
+# shape gates); moving either switch must move this boundary.
 SCORE_MARKETS_1016_MIXED_DATE = "2026-10-16"
 SCORE_MARKETS_EPOCH_FROM_DATE = "2026-10-17"
 

@@ -25,7 +25,7 @@ football / tennis sheet rows, the installed curves) in two variants:
 
 Every priced football player row of D's sheet with a WIN / LOSS is read as
 CONFIDENCE reads it (curve, then LineEvidence.read: offset and price-band
-cap; floor 0.70, x >= 0.90, one-sided single on a "market:" curve of
+cap; odds >= 1.0867, floor 0.70, x >= 0.90, one-sided single on a "market:" curve of
 n >= 300), with the sample-shape gates ON (today) and OFF (the player-gate
 switch). Reported per variant and scenario: legs that print, confidence,
 realised, realised minus confidence and ROI (match bootstrap, days pooled),
@@ -62,6 +62,7 @@ for _p in (str(ROOT), str(ROOT / "src")):
 
 from bet.sofa import line_evidence as le  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    MIN_ODDS_FOR_CEILING,
     Calibration,
     curve_market,
     direction_key,
@@ -125,6 +126,8 @@ def read(cal: Calibration, ev: le.LineEvidence, r: dict[str, Any]) -> float | No
     hit = cal.realised(curve_market(r), p, "football", r["direction"], None)
     key = le.evidence_key(direction_key(r["market"], r["direction"]))
     got = ev.read("football", key, p, hit, odds)
+    if odds < MIN_ODDS_FOR_CEILING:
+        return None  # ODDS_TOO_LOW
     if got is None or got.value < FLOOR or got.value * odds < MIN_X:
         return None
     if not (str(got.source).startswith("market:") and got.n >= ONE_SIDED_MIN_CURVE_N):

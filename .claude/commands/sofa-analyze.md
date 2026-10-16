@@ -193,7 +193,10 @@ Three things to check before you accept a veto list:
    `THIN_SAMPLE_FOR_BUILDER`, `SAMPLE_CROSSES_SEASON`,
    `CROSS_LEAGUE_UNLINKED`, `NO_CLASS_CURVE`, `NO_LINE_EVIDENCE`,
    `FIXTURE_NOT_AS_SCHEDULED` and (football) `MODEL_ABOVE_OWN_SAMPLE` are
-   already enforced. A veto for one of those adds nothing and buries the
+   already enforced - except on a leg carrying `player_sample_rule` (a
+   footballer's lineup market from 2026-10-17, epochs.PLAYER_SAMPLE_GATES:
+   the code lifted that gate, so a veto or read on its sample's shape is the
+   analyst's own judgement and stays). A veto for one of those adds nothing and buries the
    real reasons in noise.
 
 Then merge the reads of every analyst - appended to whatever `reads.json`
