@@ -929,9 +929,9 @@ the cup-strength refit), `config/backup_2026-10-16b` (before refit
 2026-10-16b), `data/backup_2026-10-05/sofa.db`;
 `data/refit_2026-10-16b/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
-`data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-16/`,
-`data/refit_2026-10-14/` (57 GB each) and `data/refit_2026-10-13/` no longer
-are - the operator may delete them.
+`data/refit_2026-10-08/sofa_replay.db`; the replay DBs of
+`data/refit_2026-10-16/` and `data/refit_2026-10-14/` were deleted 2026-10-16
+(their logs / manifests kept).
 
 **Measured for the next refit (2026-10-12 night, out of sample on the history,
 `docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis set-1 winner and set
