@@ -189,6 +189,9 @@ the wall clock: `link_shared_league` (when the caller gives no clock) and
 | `TENNIS_SCOPED_TABLE` | 2026-10-09 00:00 | tennis rating neighbours from the tier x gender cell (tier, then pooled, when a cell holds < 1200 outcomes) and the tier start `lp_t`; rows carry `tennis_table_rule`; replay `--tennis-scoped-table` |
 | `CARDS_CORRELATION` | OFF (`None`, waiting for the operator; its joints' curves are not read while `DERIVED_CURVES` is `None`) | cards joints priced with side correlation +0.126 (`epochs.CARDS_CORRELATION_RHO`), not independent; rows carry `cards_rule`; replay `--cards-correlation` |
 | `PER_MARKET_K` | 2026-10-09 00:00 | `K_CENTRE.by_market.football` (cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15); rows carry `k_rule`; replay `--per-market-k` |
+| later switches | 2026-10-12 .. 2026-10-16 | player starts / tokens / one-sided singles, the 2026-10-13 audit switches, identity plan, new markets (double chance, 1X2 / DNB, first goal, reds / pens, tennis winner / sets, shot detail), cup strength: listed in CLAUDE.md, the authority - this table is not kept per switch |
+| `FOOTBALL_SCORE_MARKETS` | 2026-10-17 00:00 | football "or" result markets (`result_or_over` / `result_or_under` / `btts_or_over` / `result_or_btts` / `result_or_clean_sheet`), the +1.5..+3.5 handicap (`result_handicap`), `dc_and_over` "12" / `dc_and_under` "1X" - priced from the double chance's NB grid on the pure rating, a history curve PER SLICE (`market@subject@line`, `confidence.curve_market`; `season_early:` / `women:` classes), graded on the 90-minute score at 0.5; rows carry `score_market_rule` |
+| `TENNIS_SET_COMPLEMENTS` | 2026-10-17 00:00 | tennis `set_score_not` "<player> 0:2" (he wins a set: "wygra seta" Tak, "Handicap setowy" (1.5), "liczba setów" pow. 0.5, the other's "wygra bez straty seta" Nie) = 1 - the 0:2 share of the rating's neighbours; rows carry `set_complement_rule` |
 | OFF (`None`) | - | `CURVE_STATUS` (a failing curve stops printing), `MODEL_FIXES` (tennis NB dispersion), `BUILDER_SCREEN_PRICE` (switched off 2026-10-05: sofa never prices a builder), `DERIVED_CURVES` (derived joints read a history curve; date 2026-10-09) |
 
 A refit install is also a comparability epoch but NOT an `epochs` switch: it is
@@ -340,11 +343,16 @@ Band-cap strictness; Superbet's game count of a match tiebreak (tennis).
 
 ### Not modelled yet
 
-Football / tennis outcome markets (1X2, double chance, dnb, BTTS, goals
-parity, HT/FT, exact score; tennis match / set winner, set score, games
-parity - OFFER's `unmapped_markets`), CS2 series rounds and round parity;
-derived football / tennis joints and women's tennis per-set markets above
-their measured range wait for 50 settled lines a bucket.
+Modelled by now (each its own curve or nothing): football double chance,
+1X2 (no curve passed), DNB, first goal, red cards / penalties, the score
+markets of 2026-10-17 (above), tennis match / set winner, exact sets score
+and its complement `set_score_not`, CS2 series rounds. Still not modelled
+(OFFER's `unmapped_markets`, `market_coverage.md` classifies them): BTTS
+alone, goals parity and exact numbers (measured: never 0.70), HT/FT and the
+half-result markets, the "&" result markets (measured overstating or never
+0.70), Superbet's `;` combinations, game order / points in a game, CS2 round
+parity; derived football / tennis joints and women's tennis per-set markets
+above their measured range wait for 50 settled lines a bucket.
 
 ## The arithmetic — the chain every row must be able to reproduce
 

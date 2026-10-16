@@ -72,3 +72,23 @@ Dokumenty:
 5. Tenis: „X bez straty seta – Nie” ≡ „Y wygra seta – Tak” → kanoniczny podmiot.
 6. fit_line_evidence czyta krzywą tym samym kluczem (curve_market) — inaczej offsety liczone od innej krzywej.
 7. Znane, nie moje: fit_line_evidence nie stosuje leg_class (1X2 season_early) — tak samo dla nowych rynków; do zgłoszenia.
+
+## D. Przegląd końcowy — macierz etap → kod → test
+
+| etap | zmiana | test |
+|---|---|---|
+| OFFER (`offer.py`, `run_offer`) | klasyfikacja, ciche łączenie, UNDER bez OVER odrzucony, `day_flags` | `test_classify_*`, `test_switch_on_offer_*`, `test_switch_off_offer_*`, `test_day_flags_cover_every_offerfetcher_switch` |
+| SAMPLES | bez próbki (rating-only) | `test_rating_only_and_never_derived`, `test_samples_never_builds_a_set_sample` (SET_MARKETS) |
+| SHEET | `score_market_rows`, `set_market_rows` (1 − p), znaczniki, faza | `test_sheet_*`, `test_sheet_prices_one_minus_the_score`, `test_switch_off_sheet_has_no_such_row`, `off_identical_head` |
+| CONFIDENCE | `curve_market` (wycinek), `leg_class`, pula nigdy | `test_confidence_reads_the_installed_slice_curves` (cały etap), `test_a_slice_without_its_curve_*`, `test_own_curve_or_nothing` |
+| line evidence (`fit_line_evidence`) | krzywa wycinka, klucz rynku | `test_line_evidence_reads_the_slice_curve_and_keys_the_market` |
+| COUPON_ASSEMBLY / PDF / HTML | `display_market` | `test_the_coupon_names_the_leg_in_superbets_words`; E2E PDF |
+| capture_closing | `day_flags`, `close_record` | `test_the_closing_capture_finds_a_score_market_leg`, `test_day_flags_*` |
+| SETTLE / regrade | przy 0,5, 90 min, sety | `test_settle_*`, `test_regrade_grades_like_settle` (oba pliki) |
+| ledger | grupa „od 10-17” | `test_audit_2026_10_13` |
+| refit (`fit_confidence`, `fit_sport_confidence`) | przenoszenie krzywych osobnych | `test_refit_carries_new_market_curves.py` (6, w tym na zainstalowanych plikach) |
+| krzywe | fit + instalacja | `test_installed_set_curves_men_and_women` (SET_MARKETS ⊇ set_score_not), E2E |
+| agenci / skille | verifier, scout, analysis-core, football-, tennis-analysis, sofa-pipeline | `day_flags` w przepisach sprawdzany testem |
+| dokumenty | CLAUDE.md, PIPELINE, CONFIG 7.9, evidence, raport | — |
+
+Nie testowane automatycznie (nazwane): prawdziwy OFFER z sieci (E2E szedł na zapisanych kursach), rozliczenie przez `run_settle` na żywej bazie (E2E oceniał funkcjami SETTLE w trybie tylko-do-odczytu).

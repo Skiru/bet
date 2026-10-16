@@ -492,3 +492,168 @@ def test_sheet_row_carries_the_phase() -> None:
     rows, _ = score_market_rows(_fixture_model(), _rung("result_or_over", "1", 2.5),
                                 _forecast(), CFG, {}, True)
     assert "result_phase" not in sheet_row_json(rows[0])
+
+
+# --- every OFFER reader builds its fetcher from one list of the day's switches ----
+
+
+def test_day_flags_cover_every_offerfetcher_switch(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    import inspect
+    from pathlib import Path
+
+    params = {n for n, p in inspect.signature(offer_mod.OfferFetcher).parameters.items()
+              if p.annotation in (bool, "bool")}
+    monkeypatch.setenv("SOFA_NOW", "2026-10-17T06:00:00Z")  # the build clock
+    flags = offer_mod.day_flags("2026-10-17")
+    assert set(flags) == params - {"record_unmapped"}
+    assert flags["football_score_markets"] and flags["tennis_set_complements"]
+    assert not offer_mod.day_flags("2026-10-16")["football_score_markets"]
+    repo = Path(__file__).resolve().parents[2]
+    for reader in ("scripts/sofa/run_offer.py", "scripts/sofa/capture_closing.py",
+                   ".claude/agents/sofa-verifier.md",
+                   ".claude/agents/sofa-market-scout.md"):
+        assert "**day_flags(" in (repo / reader).read_text(), reader
+
+
+def test_the_closing_capture_finds_a_score_market_leg() -> None:
+    from scripts.sofa.capture_closing import close_record
+
+    leg = {"market": "result_or_over", "subject": "X", "line": 2.5,
+           "direction": "OVER", "offered_odds": 1.21, "sofascore_event_id": 1,
+           "kickoff_utc": "2026-10-17T18:00:00Z"}
+    offer = FixtureOffer(sofascore_event_id=1, status="PRICED", unmapped_markets=[],
+                         rungs=[_rung("result_or_over", "X", 2.5, 1.19, 3.9)])
+    rec = close_record("official", leg, offer, datetime(2026, 10, 17, 17, 0, tzinfo=UTC))
+    assert rec is not None and rec["odds_close"] == 1.19 and rec["partner_close"] == 3.9
+
+
+def test_line_evidence_reads_the_slice_curve_and_keys_the_market(
+        tmp_path: Any) -> None:
+    """fit_line_evidence measures a settled score-market line against the
+    curve CONFIDENCE read (the slice's), under the row's market key."""
+    import json as _json
+
+    from scripts.sofa.fit_line_evidence import sheet_rows
+
+    day = tmp_path / "2026-10-17"
+    day.mkdir()
+    (day / "02_fixtures.json").write_text(_json.dumps([
+        {"sofascore_event_id": 1, "superbet_event_ids": ["9"],
+         "competition_name": "Liga", "competition_id": 3}]))
+    (day / "07_settled.json").write_text(_json.dumps([
+        {"sofascore_event_id": 1, "sport": "football", "market": "result_or_over",
+         "subject": "X", "line": 2.5, "direction": "OVER", "p_central": 0.81,
+         "offered_odds": 1.2, "outcome": "WIN"}]))
+    curve = {"0.800-0.825": {"n": 900, "realised": 0.80, "realised_lo95": 0.78}}
+    cal = Calibration(pooled={}, by_market={},
+                      by_market_direction={"result_or_over@X@2.5|OVER": curve})
+    rows = list(sheet_rows(tmp_path, ["2026-10-17"], cal))
+    assert len(rows) == 1
+    assert rows[0]["key"] == "result_or_over|OVER"
+    assert rows[0]["base"] == 0.78
+
+
+def test_confidence_reads_the_installed_slice_curves(
+        tmp_path: Any, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """The whole CONFIDENCE stage on one fixture, with the installed curves:
+    a slice with a curve prints from it (one-sided rungs included), a
+    refused slice (result_or_over 1 @ 5.5 overstated on the holdout) reads
+    no pool - NO_LINE_EVIDENCE - and an early-phase row reads season_early."""
+    import json as _json
+    import sys as _sys
+
+    from scripts.sofa import run_confidence
+    from tests.sofa.test_locked_print import _fixture as base_fixture
+
+    day = "2026-10-17"
+    t0 = datetime(2026, 10, 17, 9, 0, tzinfo=UTC)
+    ko = "2026-10-17T18:00:00Z"
+    run = tmp_path / day
+    run.mkdir()
+
+    def z(t: datetime) -> str:
+        return t.isoformat().replace("+00:00", "Z")
+
+    fx = {**base_fixture(1), "kickoff_utc": ko, "superbet_kickoff_utc": ko}
+    (run / "02_fixtures.json").write_text(_json.dumps([fx]))
+    (run / "03_samples.json").write_text(_json.dumps([{
+        "sofascore_event_id": 1, "readiness": "READY", "gaps": [],
+        "players": {}, "metrics": {}}]))
+
+    def row(market: str, subject: str, line: float, p: float, odds: float,
+            phase: str | None = None) -> dict[str, Any]:
+        return {
+            "sofascore_event_id": 1, "sport": "football", "market": market,
+            "subject": subject, "line": line, "direction": "OVER",
+            "sample_size": 0, "sample_mean": 0.0, "sample_sd": 0.0,
+            "centre": p, "p_central": p, "market_p": None, "ladder_centre": None,
+            "ladder_sigma": None, "p_bar": p, "bar_reason": "rating_only",
+            "required_odds": 1.1, "offered_odds": odds, "edge": 0.0,
+            "surplus": 0.0, "verdict": "LEAN", "notes": [f"{fsm.NOTE}: test"],
+            "epoch": "stats_only", "forecast_p": p,
+            "forecast_source": "football_rating",
+            "score_market_rule": epochs.FOOTBALL_SCORE_MARKETS,
+            **({"result_phase": phase} if phase else {})}
+
+    rows = [row("result_or_over", "X", 2.5, 0.86, 1.25),
+            row("result_or_over", "1", 5.5, 0.86, 1.25),
+            row("result_or_under", "1", 3.5, 0.84, 1.2, phase="early"),
+            # the same slice at 1.30-1.60: football's pooled price-band cap
+            # (no own lines yet) reads 0.69 there - below the floor
+            row("result_or_under", "1", 2.5, 0.84, 1.35, phase="early")]
+    (run / "05_sheet.json").write_text(_json.dumps(rows))
+    (run / "vetoes.json").write_text("[]")
+    fetched = z(t0 - timedelta(minutes=1))
+    (run / "04_offer.json").write_text(_json.dumps([{
+        "sofascore_event_id": 1, "status": "PRICED", "unmapped_markets": [],
+        "price_collisions": [],
+        "rungs": [
+            {"market": "result_or_over", "subject": "X", "line": 2.5,
+             "over_odds": 1.25, "under_odds": None, "fetched_at_utc": fetched},
+            {"market": "result_or_over", "subject": "1", "line": 5.5,
+             "over_odds": 1.25, "under_odds": 4.0, "fetched_at_utc": fetched},
+            {"market": "result_or_under", "subject": "1", "line": 3.5,
+             "over_odds": 1.2, "under_odds": 4.5, "fetched_at_utc": fetched},
+            {"market": "result_or_under", "subject": "1", "line": 2.5,
+             "over_odds": 1.35, "under_odds": 3.0, "fetched_at_utc": fetched}]}]))
+    monkeypatch.setenv("SOFA_NOW", z(t0))
+    monkeypatch.setattr(_sys, "argv", [
+        "run_confidence.py", "--date", day, "--runs-dir", str(tmp_path)])
+    assert run_confidence.main() == 0
+    summary = _json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    doc = _json.loads((run / "08_confidence.json").read_text())
+    assert summary["metrics"]["refused"] == {"NO_LINE_EVIDENCE": 1,
+                                             "BELOW_CONFIDENCE_FLOOR": 1}
+    legs = {(leg["market"], leg["subject"], leg["line"]): leg for leg in doc["singles"]}
+    assert set(legs) == {("result_or_over", "X", 2.5), ("result_or_under", "1", 3.5)}
+    x = legs[("result_or_over", "X", 2.5)]
+    assert x["calibrated_on"].startswith("market:result_or_over@X@2.5|OVER")
+    assert x["one_sided_market"] is True and x["overround"] is None
+    early = legs[("result_or_under", "1", 3.5)]
+    assert early["calibrated_on"].startswith(
+        "season_early:market:result_or_under@1@3.5|OVER")
+    assert early["overround"] is not None
+
+
+@pytest.mark.parametrize("market,subject,line,want", [
+    ("result_or_over", "X", 2.5, "Mecz lub liczba goli: remis lub powyżej 2.5 (Tak)"),
+    ("result_or_under", "1", 3.5,
+     "Mecz lub liczba goli: Hoffenheim lub poniżej 3.5 (Tak)"),
+    ("btts_or_over", "", 2.5, "Obie drużyny strzelą gola lub powyżej 2.5 gola (Tak)"),
+    ("result_or_btts", "2", 0.5, "Besiktas wygra lub obie drużyny strzelą gola (Tak)"),
+    ("result_or_btts", "X", 0.5, "remis lub obie drużyny strzelą gola (Tak)"),
+    ("result_or_clean_sheet", "1", 0.5,
+     "Hoffenheim wygra lub którakolwiek drużyna zachowa czyste konto (Tak)"),
+    ("result_handicap", "2", 1.5, "Handicap: Besiktas (+1.5)"),
+    ("dc_and_over", "12", 2.5, "Podwójna szansa & liczba goli: 12 & powyżej 2.5"),
+    ("dc_and_under", "1X", 4.5, "Podwójna szansa & liczba goli: 1X & poniżej 4.5"),
+    ("set_score_not", "Daniil Medvedev 0:2", 0.5, "Daniil Medvedev wygra seta (Tak)"),
+    ("goals_total", "", 2.5, None),
+])
+def test_the_coupon_names_the_leg_in_superbets_words(
+        market: str, subject: str, line: float, want: str | None) -> None:
+    leg = {"market": market, "subject": subject, "line": line,
+           "match": "Hoffenheim - Besiktas"}
+    assert fsm.display_market(leg) == want

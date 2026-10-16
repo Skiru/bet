@@ -109,3 +109,28 @@ evidence obniży klucz, gdy uzbiera 50 linii / 30 meczów.
 - `fit_line_evidence.py` nie stosuje `leg_class` (season_early) – tak samo
   jak dla 1X2 / DNB;
 - tylko OVER każdego rungu jest wyceniany (UNDER to rodzina „&”).
+- dopóki klucz nie ma własnych rozliczonych linii, line evidence obniża go
+  pulowanym offsetem piłki (−1 pp) i limituje pulowanym pasmem ceny piłki
+  (`cap:*@1.30-1.60`: ~0,69 przy p 0,83) – większość nóg powyżej kursu 1,30
+  nie drukuje (E2E 10-15: 125 nóg z limitem); to istniejący bezpiecznik,
+  liczby E2E już go zawierają.
+
+## Przegląd końcowy (2026-10-16) – poprawki
+
+- refit gubił krzywe dopasowane osobno (nowe rynki 10-15 i 10-17,
+  `match_won_for`; dotąd ręczny `carry_over.py`) → `fit_meta.
+  carry_separately_fitted_curves` w `fit_confidence`,
+  `carry_sport_new_market_curves` w `fit_sport_confidence`, test na
+  prawdziwych zainstalowanych plikach;
+- przepis weryfikatora i scouta tworzył `OfferFetcher` bez nowych flag
+  (jak 10-15: 160 „brakujących” nóg) → `offer.day_flags(date)` dla
+  wszystkich czytelników + test, że obejmuje każdy parametr;
+- PDF / HTML nazywał nogi `result_or_under (1) 5.5 OVER` → etykieta w
+  słowach Superbetu (`display_market`);
+- test całego etapu CONFIDENCE na zainstalowanych krzywych (wycinek z
+  krzywą, wycinek odrzucony → NO_LINE_EVIDENCE, season_early, limit pasma)
+  i `fit_line_evidence` (krzywa wycinka, klucz rynku);
+- dokumenty: „Not modelled yet” (CLAUDE.md, sofa-pipeline) poprawione,
+  odrzucone rynki dopisane do „Measured and declined”, tabela przełączników
+  w skillu, verifier / analysis-core opisują nogi tylko-z-ratingu.
+

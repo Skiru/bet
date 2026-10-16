@@ -53,6 +53,7 @@ from bet.sofa import epochs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.config import SofaConfig, config_path  # noqa: E402
+from bet.sofa.fit_meta import carry_sport_new_market_curves  # noqa: E402
 from bet.sofa.market_lines import MarketLines, load_market_lines  # noqa: E402
 from bet.sofa.score_model import N_SIMS, load_box_scores, load_events  # noqa: E402
 from bet.sofa.shadow import MARKETS, SPORTS  # noqa: E402
@@ -410,6 +411,9 @@ def main() -> int:
     doc: dict[str, Any] = (json.loads(out_path.read_text(encoding="utf-8"))
                            if out_path.exists() else {})
     doc.setdefault("sports", {})
+    # the installed new-market curves are not refitted here (their own
+    # scripts, install_new_market_curves.py): a refit keeps them
+    prior = json.loads(json.dumps(doc))
     summary: dict[str, Any] = {}
     for sport in sports:
         t0 = time.monotonic()
@@ -417,6 +421,9 @@ def main() -> int:
                                   config.runs_dir)
         print(f"{sport}: {section['fitted_from']['rows']} in "
               f"{time.monotonic() - t0:.0f} s", file=sys.stderr, flush=True)
+        carried = carry_sport_new_market_curves(section, sport, prior)
+        if carried:
+            print(f"{sport}: kept {len(carried)} new-market curves", file=sys.stderr)
         doc["sports"][sport] = section
         summary[sport] = {"admitted": section["admitted"],
                           "not_calibrated": section["not_calibrated"],

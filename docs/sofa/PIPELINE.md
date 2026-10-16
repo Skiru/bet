@@ -340,7 +340,8 @@ mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
 decyzja operatora; umiejętność -0,1263 [-0,1303; -0,1228] log-loss wobec bazy
 klasy; próg kalibracji krzywej niespełniony, ale wyłącznie po stronie
 ostrożnej: >= 0,70 pewność 0,802 vs realizacja 0,828 na holdoucie; krzywa
-`match_won_for` wklejana po każdym fitcie, bo `fit_confidence` ją gubi). Włączony,
+`match_won_for` od 2026-10-16 przenoszona przez sam `fit_confidence`,
+`fit_meta.carry_separately_fitted_curves` – wcześniej wklejana ręcznie). Włączony,
 OFFER czyta „Zwycięzca” (wybory „1” / „2”, tylko mecz tenisowy) jako jeden
 dwustronny szczebel `match_won_for`: podmiot = pierwsze nazwisko `matchName`
 Superbetu, linia 0,5, OVER = on wygrywa (kurs „1”), UNDER = wygrywa drugi

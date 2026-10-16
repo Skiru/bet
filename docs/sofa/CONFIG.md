@@ -537,7 +537,7 @@ jeszcze zbudowany - nie jest mieszany. Raport nocy:
 | `config/sofa_game_state.json` | `fit_game_state.py` na żywym centrum (B2 + waga B14) | bety B1 ponownie dopasowane, zainstalowane 2026-10-13 20:57Z (df5323ea); `fouls_for` bez zmian |
 | `epochs.SAMPLE_OPPONENT_CORRECTION_FROM_UTC` | przełącznik w kodzie | **włączony 2026-10-14 05:45Z** (stała zgoda audytu); działa od próbek z `opponent_id` (SAMPLES od wieczora 10-13) |
 | `config/sofa_confidence_calibration.next.json` | - | **usunięty** przy instalacji: nowy fit sam ma krzywe zawodników ze startów (kopia w `config/backup_2026-10-15`) |
-| `match_won_for` w `config/sofa_confidence_calibration.json` | `fit_tennis_winner_curve.merge` | wklejony ponownie po fitcie (`fit_confidence` go gubi); `TENNIS_MATCH_WINNER` od 2026-10-14 00:00Z |
+| `match_won_for` w `config/sofa_confidence_calibration.json` | `fit_tennis_winner_curve.merge` | od 2026-10-16 przenoszony przez sam `fit_confidence` (`fit_meta.carry_separately_fitted_curves`; wcześniej wklejany ręcznie po fitcie); `TENNIS_MATCH_WINNER` od 2026-10-14 00:00Z |
 | krzywe łączników (`both_over_*`, `most_*`, `handicap_*`) | ten fit | dopasowane, **nieczytane**: `DERIVED_CURVES`, `CARDS_CORRELATION`, `DERIVED_SHEET_MARGINS` = `None` (`docs/sofa/evidence/derived_curves_2026-10-14.md`) |
 | `config/sofa_sport_confidence_calibration.json` / `.next.json` | `fit_sport_confidence.py` | staged CS2 (B10) przeniesiony nad plik główny; nowy `.next.json` = to + koszykówka A7, `effective_from` 2026-10-14 (`MARKET_POSITIONED_LINES`); hokej / siatkówka / CS2 / zwykła koszykówka zmierzone, niezainstalowane |
 
@@ -589,5 +589,13 @@ n >= 300 nie zawyża o więcej niż 2 pp. Wynik w
 
 | plik | co dopisano |
 |---|---|
-| `config/sofa_confidence_calibration.json` | 133 krzywe wycinków piłki `<rynek>@<podmiot>@<linia>|OVER` (bez klasy 50, `season_early:` 40, `women:` 43) oraz `set_score_not|OVER` i `tennis_women:set_score_not|OVER`; każdy klucz w `new_market_curves_fitted_from` – refit przenosi je jak inne nowe rynki |
+| `config/sofa_confidence_calibration.json` | 133 krzywe wycinków piłki `<rynek>@<podmiot>@<linia>|OVER` (bez klasy 50, `season_early:` 40, `women:` 43) oraz `set_score_not|OVER` i `tennis_women:set_score_not|OVER`; każdy klucz w `new_market_curves_fitted_from` |
+
+**Refit nie gubi krzywych dopasowanych osobno** (od 2026-10-16):
+`fit_confidence.py` przenosi z poprzedniego pliku każdy klucz z
+`new_market_curves_fitted_from` i `match_won_for`
+(`fit_meta.carry_separately_fitted_curves`), a `fit_sport_confidence.py`
+klucze nowych rynków sportu (`fit_meta.carry_sport_new_market_curves`); klucz,
+który refit dopasował sam, nigdy nie jest nadpisywany. Wcześniej każdy refit
+musiał je przenosić ręcznie (`data/refit_2026-10-16/carry_over.py`).
 

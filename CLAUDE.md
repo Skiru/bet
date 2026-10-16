@@ -207,7 +207,7 @@ every sport alike, and nothing that could win is cut by name.
   The starts-only player curves are in the installed file
   (`config/sofa_confidence_calibration.next.json` removed at the install -
   promoted; its copy in the backup); `match_won_for` (tennis winner) is
-  re-merged after the fit (`fit_confidence` drops it). Dry run (10-13 morning
+  re-merged after the fit (from 2026-10-16 `fit_confidence` carries it itself, `fit_meta.carry_separately_fitted_curves`). Dry run (10-13 morning
   artifacts, 10-14 switch set, new curves): printed singles 1323 -> 1296;
   football / tennis stable (common legs' confidence +0.04 pp mean, 0.3 pp
   absolute); basketball totals / handicaps / team totals 0 (A7); hockey and
@@ -910,14 +910,27 @@ rows the installed 1X2/DNB (cup book) and tennis set fits already wrote - no
 replay - one-sided gate plus no slice overstating; installed by
 `install_new_market_curves.py --dir data/refit_new_markets_2026-10-17`
 (133 football slice curves: men 50, season_early 40, women 43; set_score_not
-men + `tennis_women:`; `new_market_curves_fitted_from`, so refits carry
-them). E2E in a scratch replay (10-14 / 10-15 / 10-16, off vs on on the same
+men + `tennis_women:`; listed in `new_market_curves_fitted_from`, which a
+refit now carries itself - `fit_meta.carry_separately_fitted_curves` in
+`fit_confidence`, `carry_sport_new_market_curves` in `fit_sport_confidence`,
+for every new-market key and `match_won_for`; until 2026-10-16 a refit
+dropped them unless carried by hand). E2E in a scratch replay (10-14 / 10-15 / 10-16, off vs on on the same
 input): SHEET off = on minus the new rows byte for byte, 0 legs lost or
 changed, +484 / +536 / +1,068 legs; settled 10-14..15: 1,018 legs / 233
 matches realised +1.2 pp [-1.8, +4.2] over confidence, ROI -2.4% [-6.1,
 +1.2] (at the price, no measured edge); set_score_not 27 legs -9.8 pp
 [-27, +7] (open, `T-SCORE-MARKETS-superbet`). Several rungs of one match are
-one script but not grouped as a ladder (two-dimensional, like DC / 1X2).
+one script but not grouped as a ladder (two-dimensional, like DC / 1X2). A
+rung Superbet quotes OVER only ("Mecz lub liczba goli" without its "wygra lub"
+pair, `dc_and_*`) prints as a one-sided single (its slice curve n >= 300);
+until a key has its own settled lines, line evidence lowers it by football's
+pooled offset and caps it by football's pooled price band (`cap:*@...` -
+at 1.30-1.60 that cell realised ~0.69 at p 0.83, so most such legs above
+1.30 do not print). The PDF / HTML name these legs in Superbet's words
+(`football_score_markets.display_market`, "Mecz lub liczba goli: <team> lub
+powyżej 2.5 (Tak)", "<player> wygra seta (Tak)"). Every OFFER reader builds
+its fetcher from `offer.day_flags(date)` (run_offer, capture_closing, the
+verifier's and the scout's re-asks), so no reader misses a switch.
 `docs/sofa/evidence/football_score_markets_2026-10-16.md`,
 `docs/sofa/history/RAPORT_NOWE_RYNKI_2026-10-16.md`.
 
@@ -986,15 +999,26 @@ football DNB / double chance / 1X2 from the pure rating centre with NB r ~7
 BTTS has no skill vs the league base rate, parity and exact score never reach
 0.70 (`measure_football_result_model.py`).
 **Not modelled yet** (operator 10-07: every market that could win; the next
-work, each through a curve and its own Superbet lines): football / tennis
-outcome markets - 1X2, double chance, draw-no-bet, both teams to score, goals
-parity, half-time/full-time, exact score; tennis set winner, set
-score, games parity (OFFER's `unmapped_markets`, ~27,800 lines on 10-07,
-part of them Superbet's own combinations); CS2 round parity; derived
-football / tennis joints and women's tennis per-set markets above their
-measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
+work, each through a curve and its own Superbet lines). Modelled since: the
+double chance, 1X2 (no curve passed), DNB, first goal, reds / penalties,
+tennis match / set winner and exact sets score (10-14 / 10-15), the football
+score markets and `set_score_not` (10-17). Still not: BTTS alone, half-time /
+full-time and the half-result markets, Superbet's `;` combinations, tennis
+game order / points in a game / games parity (measured: never 0.70), CS2
+round parity (OFFER's `unmapped_markets`, `market_coverage.md` labels each);
+derived football / tennis joints and women's tennis per-set markets above
+their measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
 
 **Measured and declined - do not re-propose without new evidence:**
+- (2026-10-16, history holdout + Superbet's lines,
+  `docs/sofa/evidence/football_score_markets_2026-10-16.md`) the football
+  "&" result markets (result & goals, result & BTTS, goals & BTTS, DC & goals
+  other than 12 & over / 1X & under) - overstate or never reach 0.70; the
+  favourite's European handicap (-5.2 pp); goals parity, exact goals and a
+  side's goal intervals (never 0.70); the total goals interval (passes, but 0
+  legs clear the coupon at Superbet's prices); copies of read markets ("Każdy
+  wygra seta", "Dokładna liczba setów", "liczba setów 1.5": the same event,
+  1-3% better price in ~8% of pairs, no new leg);
 - a second coupon or a variant (operator: one coupon, many sports);
 - a 0.80 confidence floor (operator: "many options");
 - current-season-only samples (worse on every metric); same-competition

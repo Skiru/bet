@@ -75,8 +75,7 @@ sys.path.insert(0, "src")
 from pydantic import RootModel
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
-from bet.sofa.epochs import ampersand_subjects
-from bet.sofa.offer import OfferFetcher
+from bet.sofa.offer import OfferFetcher, day_flags
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.stage import set_stage
 
@@ -90,7 +89,9 @@ target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
 client = SuperbetClient(
     base_url="https://production-superbet-offer-pl.freetls.fastly.net"
 )
-fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects("<date>"))
+# every market switch of the day (offer.day_flags), as OFFER read it - with
+# fewer flags a market behind a switch looks "not offered"
+fetcher = OfferFetcher(client, **day_flags("<date>"))
 offers = fetcher.fetch_offers(target)
 print("listings asked:", [f.superbet_event_ids for f in target])
 print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]

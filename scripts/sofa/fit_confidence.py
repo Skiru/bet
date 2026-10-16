@@ -43,6 +43,7 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.engine import has_calibratable_model  # noqa: E402
 from bet.sofa.fit_meta import (  # noqa: E402
     carry_operator_keys,
+    carry_separately_fitted_curves,
     fit_stamp,
     friendly_exclusion_sql,
 )
@@ -395,8 +396,13 @@ def main() -> int:
     # The full fit rebuilds the file from the DB; an operator-owned key
     # (admitted_player_markets) is not in the DB and must survive it.
     out_path = Path(args.out)
+    carried: list[str] = []
     if out_path.exists():
-        carry_operator_keys(doc, json.loads(out_path.read_text(encoding="utf-8")))
+        prior = json.loads(out_path.read_text(encoding="utf-8"))
+        carry_operator_keys(doc, prior)
+        # the separately fitted curves (new markets, the tennis winner):
+        # not in the DB either, so a refit must not drop them
+        carried = carry_separately_fitted_curves(doc, prior)
     write_atomic(out_path, json.dumps(doc, indent=1) + "\n")
     print(
         json.dumps(
@@ -412,6 +418,7 @@ def main() -> int:
                     "pooled_by_sport": {
                         sp: len(c) for sp, c in doc["pooled_by_sport"].items()
                     },
+                    "carried_separate_curves": len(carried),
                 },
                 "output_path": args.out,
             }

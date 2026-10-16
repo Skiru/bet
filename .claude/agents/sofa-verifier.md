@@ -136,6 +136,32 @@ a `TENNIS_RATING` note on a row outside the rating-priced families below.
 `forecast_p` with `forecast_source`; compare it, report a large gap as a
 note, never use it as a reason.
 
+**Rating-only legs have no sample to rebuild** (`tennis_winner.RATING_ONLY_MARKETS`:
+football `double_chance`, `result_1x2`, `draw_no_bet`, `first_goal`,
+`red_cards_total`, `penalties_total`, and from 2026-10-17 the score markets
+`result_or_over` / `result_or_under` / `btts_or_over` / `result_or_btts` /
+`result_or_clean_sheet` / `result_handicap` / `dc_and_over` / `dc_and_under`;
+tennis `match_won_for`, `set1_won_for` / `set2_won_for`, `set_score`,
+`set_score_not`). `sample_size` 0 and no próbka are correct there, not a
+defect. Check instead that `p_central` == `forecast_p` and recompute it: a
+football one from the goals centres its note names ("pure rating centres
+home <lh> / away <la>"), r from `config/sofa_football_result.json`:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python -c "
+from bet.sofa.football_score_markets import row_p, score_grid
+print(row_p('<market>', '<subject>', <line>, score_grid(<lh>, <la>, 7.586)))"
+```
+
+A score-market leg's `calibrated_on` reads `market:<market>@<subject>@<line>|OVER`
+(its curve is per slice, `confidence.curve_market`), `season_early:` /
+`women:` before it for a class - correct, not a defect; it is graded on the
+90-minute score at 0.5 (the event), never at its goals line. A
+`set_score_not` "<player> 0:2" leg is "<player> wygra seta" Tak on
+Superbet (also "Handicap setowy" (1.5), "liczba setów" powyżej 0.5, the
+other player's "wygra bez straty seta" Nie - one bet); its p is 1 - the 0:2
+share of the rating's neighbours (the note).
+
 **Model packages open from 2026-10-07 14:05Z** (`epochs`, each dated by the
 day built **and** the build clock; a leg built before it is the old
 estimator - a note, not a defect):
@@ -246,11 +272,7 @@ PYTHONPATH=src:. .venv/bin/python - <<'PY'
 import json
 from pydantic import RootModel
 from bet.sofa.contracts import Fixture
-from bet.sofa.epochs import (
-    ampersand_subjects, football_incident_markets, football_result_1x2_dnb,
-    football_result_markets, mappable_families, shot_detail_markets,
-    tennis_match_winner, tennis_set_markets)
-from bet.sofa.offer import OfferFetcher
+from bet.sofa.offer import OfferFetcher, day_flags
 from bet.sofa.superbet import SuperbetClient
 from bet.sofa.stage import set_stage
 
@@ -263,19 +285,13 @@ target = [f for f in fixtures if f.sofascore_event_id == <event_id>]
 client = SuperbetClient(
     base_url="https://production-superbet-offer-pl.freetls.fastly.net"
 )
-# OFFER's own construction (scripts/sofa/run_offer.py) - EVERY flag OFFER passes
-# for the day, or the markets behind a switch (double chance, 1X2 / DNB, first
-# goal, reds / pens, tennis winner / sets, shot detail, mappable families) come
-# back "missing" (2026-10-15: 160 new-market legs reported missing that way).
-d = "<date>"
-fetcher = OfferFetcher(client, ampersand_subjects=ampersand_subjects(d),
-                       mappable_families=mappable_families(d),
-                       tennis_winner=tennis_match_winner(d),
-                       football_result=football_result_markets(d),
-                       shot_detail=shot_detail_markets(d),
-                       football_incidents=football_incident_markets(d),
-                       tennis_sets=tennis_set_markets(d),
-                       football_1x2_dnb=football_result_1x2_dnb(d))
+# OFFER's own construction (scripts/sofa/run_offer.py): offer.day_flags gives
+# EVERY market switch of the day, or the markets behind a switch (double chance,
+# 1X2 / DNB, first goal, reds / pens, tennis winner / sets / set_score_not,
+# shot detail, mappable families, the football score markets result_or_* /
+# btts_or_over / result_handicap / dc_and_*) come back "missing" (2026-10-15:
+# 160 new-market legs reported missing that way).
+fetcher = OfferFetcher(client, **day_flags("<date>"))
 offers = fetcher.fetch_offers(target)
 print("listings asked:", [f.superbet_event_ids for f in target])
 print("fetcher.errors:", fetcher.errors)   # [(superbet_event_id, "ExcType: message"), ...]

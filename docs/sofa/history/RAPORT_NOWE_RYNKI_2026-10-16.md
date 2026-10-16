@@ -47,6 +47,17 @@ sesji sofa-day. Lista kontrolna: `PLAN_NOWE_RYNKI_2026-10-16.md`.
 - prawdziwe pliki 10-15 nietknięte (md5); 10-16 zmieniała tylko żywa
   przebudowa sofa-day (0 nowych rungów / nóg w prawdziwym 10-16).
 
+## Przegląd końcowy – znalezione i naprawione
+
+1. refit gubił wszystkie osobno dopasowane krzywe (także 29 kluczy 10-15 i
+   `match_won_for`) – teraz przenosi je sam `fit_confidence` /
+   `fit_sport_confidence` (`fit_meta`), z testem na zainstalowanych plikach;
+2. weryfikator i scout pytali Superbet bez nowych flag – `offer.day_flags`;
+3. etykiety PDF / HTML w słowach Superbetu;
+4. testy etapów CONFIDENCE (cały etap) i `fit_line_evidence`;
+5. sprzeczności w dokumentach (Not modelled yet, match_won_for „wklejany”,
+   tabela przełączników skilla) usunięte.
+
 ## Nie zrobione / otwarte
 
 - merge do `main` – decyzja operatora (żywa sesja sofa-day na `main`);

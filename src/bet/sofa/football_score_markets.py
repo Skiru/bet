@@ -342,3 +342,41 @@ def leg_class(row: Mapping[str, Any], klass: str | None) -> str | None:
             and row.get(RULE_FIELD) and row.get("result_phase") == PHASE_EARLY):
         return CLASS_SEASON_EARLY
     return klass
+
+
+def display_market(leg: Mapping[str, Any]) -> str | None:
+    """How the PDF / HTML name a score-market or set_score_not leg - in
+    Superbet's own words, the side by name (the first / second name of
+    `match`), "(Tak)" for the OVER this module prices; None for any other
+    market. The line column beside it still prints "<line> OVER"."""
+    from bet.sofa.tennis_sets import SET_SCORE_NOT, split_score_subject
+
+    market = str(leg.get("market") or "")
+    subject = str(leg.get("subject") or "")
+    if market == SET_SCORE_NOT:
+        parsed = split_score_subject(subject)
+        return f"{parsed[0]} wygra seta (Tak)" if parsed else None
+    if market not in MARKETS:
+        return None
+    teams = str(leg.get("match") or "").split(" - ", 1)
+    home = teams[0].strip() if len(teams) == 2 else "gospodarz"
+    away = teams[1].strip() if len(teams) == 2 else "gość"
+    name = {"1": home, "X": "remis", "2": away}.get(subject, subject)
+    line = f"{float(leg.get('line') or 0):g}"
+    if market == RESULT_OR_OVER:
+        return f"Mecz lub liczba goli: {name} lub powyżej {line} (Tak)"
+    if market == RESULT_OR_UNDER:
+        return f"Mecz lub liczba goli: {name} lub poniżej {line} (Tak)"
+    if market == BTTS_OR_OVER:
+        return f"Obie drużyny strzelą gola lub powyżej {line} gola (Tak)"
+    if market == RESULT_OR_BTTS:
+        wins = "" if subject == "X" else "wygra "
+        return f"{name} {wins}lub obie drużyny strzelą gola (Tak)"
+    if market == RESULT_OR_CLEAN_SHEET:
+        return (f"{name} {'' if subject == 'X' else 'wygra '}lub którakolwiek "
+                "drużyna zachowa czyste konto (Tak)")
+    if market == HANDICAP_RESULT:
+        return f"Handicap: {name} (+{line})"
+    if market == DC_AND_OVER:
+        return f"Podwójna szansa & liczba goli: 12 & powyżej {line}"
+    return f"Podwójna szansa & liczba goli: 1X & poniżej {line}"

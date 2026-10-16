@@ -81,3 +81,91 @@ def carry_operator_keys(new: dict[str, Any], prior: dict[str, Any] | None) -> No
     for key in OPERATOR_KEYS:
         if key in prior and key not in new:
             new[key] = prior[key]
+
+
+# Curves fitted by their own scripts and installed apart (not from the replay
+# fit_confidence reads): the new-market keys listed in
+# `new_market_curves_fitted_from` (scripts/sofa/install_new_market_curves.py)
+# and the tennis match winner (`match_won_for`, fit_tennis_winner_curve.py,
+# `match_won_for_fitted_from`). A full fit rebuilds the file and would drop
+# them silently - every market they price would stop printing (until
+# 2026-10-16 each refit carried them by hand, data/refit_2026-10-16/
+# carry_over.py). A key the new fit produced itself is never overwritten.
+SEPARATE_FIT_META: tuple[str, ...] = (
+    "new_market_curves_fitted_from", "match_won_for_fitted_from")
+
+
+def _section(doc: dict[str, Any], klass: str, field: str) -> dict[str, Any]:
+    if not klass:
+        out: dict[str, Any] = doc.setdefault(field, {})
+        return out
+    cls: dict[str, Any] = doc.setdefault("by_class", {}).setdefault(klass, {})
+    sec: dict[str, Any] = cls.setdefault(field, {})
+    return sec
+
+
+def _get(doc: dict[str, Any], klass: str, field: str) -> dict[str, Any] | None:
+    sec = (doc.get(field) if not klass
+           else ((doc.get("by_class") or {}).get(klass) or {}).get(field))
+    return sec if isinstance(sec, dict) else None
+
+
+def carry_separately_fitted_curves(
+    new: dict[str, Any], prior: dict[str, Any] | None
+) -> list[str]:
+    """Copy into `new`, in place, every separately fitted curve of `prior`
+    (SEPARATE_FIT_META) that `new` lacks; returns the carried keys."""
+    if not prior:
+        return []
+    carried: list[str] = []
+    for key in prior.get("new_market_curves_fitted_from") or {}:
+        klass, _, mk = str(key).rpartition(":")
+        src = _get(prior, klass, "by_market_direction")
+        if src is None or mk not in src:
+            continue
+        dst = _section(new, klass, "by_market_direction")
+        if mk not in dst:
+            dst[mk] = src[mk]
+            carried.append(str(key))
+    if prior.get("match_won_for_fitted_from"):
+        for klass in ["", *sorted(prior.get("by_class") or {})]:
+            src = _get(prior, klass, "by_market")
+            if src is None or "match_won_for" not in src:
+                continue
+            dst = _section(new, klass, "by_market")
+            if "match_won_for" not in dst:
+                dst["match_won_for"] = src["match_won_for"]
+                carried.append(f"{klass + ':' if klass else ''}match_won_for")
+    for meta in SEPARATE_FIT_META:
+        if meta in prior and meta not in new:
+            new[meta] = prior[meta]
+    return carried
+
+
+def carry_sport_new_market_curves(
+    section: dict[str, Any], sport: str, prior: dict[str, Any] | None
+) -> list[str]:
+    """The same for one measured sport's freshly fitted section of
+    config/sofa_sport_confidence_calibration.json: every
+    `new_market_curves_fitted_from` key "<sport>:<family>|<SIDE>" of `prior`
+    the new section lacks is copied in (with its `curve_source`), in place;
+    returns the carried keys. fit_sport_confidence replaces a sport's whole
+    section, which would otherwise drop the installed new-market curves."""
+    if not prior:
+        return []
+    old = ((prior.get("sports") or {}).get(sport) or {})
+    old_curves = old.get("curves") or {}
+    carried: list[str] = []
+    for key in prior.get("new_market_curves_fitted_from") or {}:
+        sp, _, ck = str(key).partition(":")
+        if sp != sport or ck not in old_curves:
+            continue
+        curves = section.setdefault("curves", {})
+        if ck in curves:
+            continue
+        curves[ck] = old_curves[ck]
+        src = (old.get("curve_source") or {}).get(ck)
+        if src is not None:
+            section.setdefault("curve_source", {})[ck] = src
+        carried.append(str(key))
+    return carried

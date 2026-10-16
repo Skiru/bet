@@ -206,6 +206,29 @@ def classify_odd(
     return None, str(market_name)
 
 
+def day_flags(date: str) -> dict[str, bool]:
+    """Every OfferFetcher switch as the day's epochs set it - the one place
+    OFFER (run_offer.py), the closing capture and the verifier / scout
+    re-asks build their fetcher from, so a reader can never miss a market
+    behind a switch (2026-10-15: the verifier's own flag list missed the new
+    markets and reported 160 legs "missing"). `record_unmapped` is OFFER's
+    alone and not a day switch."""
+    from bet.sofa import epochs
+
+    return {
+        "ampersand_subjects": epochs.ampersand_subjects(date),
+        "mappable_families": epochs.mappable_families(date),
+        "tennis_winner": epochs.tennis_match_winner(date),
+        "football_result": epochs.football_result_markets(date),
+        "shot_detail": epochs.shot_detail_markets(date),
+        "football_incidents": epochs.football_incident_markets(date),
+        "tennis_sets": epochs.tennis_set_markets(date),
+        "football_1x2_dnb": epochs.football_result_1x2_dnb(date),
+        "football_score_markets": epochs.football_score_markets(date),
+        "tennis_set_complements": epochs.tennis_set_complements(date),
+    }
+
+
 def listing_sides(payload: Mapping[str, Any] | None) -> tuple[str, ...]:
     """Superbet's own two participant names of an event payload (matchName)."""
     side_a, side_b = split_match_name(str((payload or {}).get("matchName") or ""))

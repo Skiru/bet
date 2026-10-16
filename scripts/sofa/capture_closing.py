@@ -46,21 +46,9 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
-from bet.sofa.epochs import (
-    STATS_ONLY_DATE,
-    ampersand_subjects,
-    football_incident_markets,
-    football_result_1x2_dnb,
-    football_result_markets,
-    football_score_markets,
-    mappable_families,
-    shot_detail_markets,
-    tennis_match_winner,
-    tennis_set_complements,
-    tennis_set_markets,
-)
+from bet.sofa.epochs import STATS_ONLY_DATE
 from bet.sofa.locked_print import kickoff_clocks
-from bet.sofa.offer import OfferFetcher
+from bet.sofa.offer import OfferFetcher, day_flags
 from bet.sofa.superbet import SuperbetClient
 from scripts.sofa.cs2_daily import PYTHON, REPO, _command_of, already_running
 
@@ -342,16 +330,7 @@ def main() -> int:
     # finds its close.
     fetcher = OfferFetcher(SuperbetClient(
         base_url="https://production-superbet-offer-pl.freetls.fastly.net"),
-        ampersand_subjects=ampersand_subjects(args.date),
-        mappable_families=mappable_families(args.date),
-        tennis_winner=tennis_match_winner(args.date),
-        football_result=football_result_markets(args.date),
-        shot_detail=shot_detail_markets(args.date),
-        football_incidents=football_incident_markets(args.date),
-        tennis_sets=tennis_set_markets(args.date),
-        football_1x2_dnb=football_result_1x2_dnb(args.date),
-        football_score_markets=football_score_markets(args.date),
-        tennis_set_complements=tennis_set_complements(args.date))
+        **day_flags(args.date))
     try:
         return loop(day_dir, fetcher, repeat=args.loop)
     finally:

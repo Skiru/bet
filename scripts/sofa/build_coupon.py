@@ -73,6 +73,9 @@ from bet.sofa.epochs import (  # noqa: E402
     read_by_event,
     read_by_value,
 )
+from bet.sofa.football_score_markets import (  # noqa: E402
+    display_market as score_display_market,
+)
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 
@@ -211,6 +214,13 @@ def assemble(
         leg.pop("price_gap", None)
         if price_gap_active and (gap := pg.annotate(leg)) is not None:
             leg["price_gap"] = gap
+    # epochs.FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: the leg named in
+    # Superbet's words ("Mecz lub liczba goli: <team> lub powyżej 2.5 (Tak)"),
+    # not "result_or_over (1) 2.5 OVER"; no other leg is touched
+    for leg in out_singles:
+        if not leg.get("display_market") and (
+                label := score_display_market(leg)) is not None:
+            leg["display_market"] = label
     structure = coupon_structure(out_singles, builders, form, form_active,
                                  removed_by_form)
     asked = [
