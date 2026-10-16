@@ -1201,6 +1201,31 @@ za `epochs.ONE_SIDED_SINGLES_FROM_UTC` — włączone przez operatora od
 2026-10-12 00:00Z (pomiar przed: 49 nóg 10-05..10-10, ROI −10,3% [−27; +4]
 wobec −3,0% nóg drużynowych — do sprawdzenia na nowych dniach).
 
+**Bramki kształtu próbki u zawodników (od 2026-10-17 00:00Z,
+`epochs.PLAYER_SAMPLE_GATES_FROM_UTC`, operator 2026-10-16).** Próbka
+zawodnika to jego starty w 10 ostatnich meczach drużyny (5-10 wartości), więc
+`THIN_SAMPLE_FOR_BUILDER` (< 10) przepuszczał tylko zawodnika z 10/10
+startów, a `LINE_BEYOND_SAMPLE` odrzucał OVER 0,5 zawodnikowi, który w każdym
+starcie miał ≥ 1 (10-15: z 57 nóg zawodników po krzywej, line evidence i x
+bramki te odcięły 54, wydrukowało się 5). Krzywe zawodników są dopasowane na
+replayu z próbką od 5 startów i bez bramek kształtu. Od przełącznika wiersz
+`player_*` w piłce nie czyta `LINE_BEYOND_SAMPLE` ani `MODE_LOSES`, a
+`THIN_SAMPLE_FOR_BUILDER` żąda `PLAYER_MIN_SAMPLE` (5) wartości; wiek
+próbki, krzywa, line evidence, próg 0,70 i x ≥ 0,90 bez zmian. Noga ma
+`player_sample_rule: "NO_SHAPE_GATES"` i **nie wchodzi do Bet Buildera**
+(pomiar dotyczył singli). Pomiar: na historii (959 656 wierszy z pewnością
+≥ 0,70) grupy odcinane realizują się na krzywej i nie gorzej niż
+przepuszczane (OVER THIN +0,9 pp [+0,5; +1,4] względem PASS); walk-forward
+na liniach Superbetu 10-12..10-15 z line evidence: 77 nóg / 42 mecze,
+−3,2 pp [−13,8; +6,5] pod pewnością, ROI −8,6% [−21,2; +2,9] — przy cenie,
+bez zmierzonej przewagi. Offset zawodników liczony tylko na liniach x ≥ 0,90
+zmierzony i odrzucony (zdjęte nogi nie gorsze w granicach przedziału).
+E2E na 10-15 (zegar 12:59Z): +47 singli zawodników, 0 nóg straconych ani
+zmienionych, buildery bez zmian. Dowody:
+`docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
+`docs/sofa/evidence/player_line_evidence_2026-10-16.md`; test na nowych
+danych `T-PLAYER-SAMPLE-GATES`.
+
 **Nazwiska (od 2026-10-12 00:00Z, `epochs.PLAYER_NAME_TOKENS_FROM_UTC`).**
 Superbet pisze wielu zawodników pełnym nazwiskiem rejestrowym („Andrade,
 Matheus Araujo”), Sofascore boiskowym („Matheus Araujo”); `token_sort_ratio`

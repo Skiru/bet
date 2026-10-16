@@ -766,6 +766,41 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
             and at >= ONE_SIDED_SINGLES_FROM_UTC)
 
 
+# CONFIDENCE's sample-shape gates (LINE_BEYOND_SAMPLE, MODE_LOSES and
+# THIN_SAMPLE_FOR_BUILDER's 10 values) were written for team samples. A
+# footballer's sample is his starts in his team's last 10 matches
+# (PLAYER_STARTS_ONLY), 5-10 values, so the 10-value gate admitted only a
+# player who started all ten (2026-10-15: 54 of the 57 player legs that
+# cleared the curve, the line evidence and x were refused by these gates; 5
+# printed). The player curves are fitted on the replay with a sample of
+# PLAYER_MIN_SAMPLE starts and no shape gate. Measured 2026-10-16: on the
+# history (959,656 player rows at confidence >= 0.70) the refused groups
+# realise on their curve and no worse than the passing ones (OVER
+# THIN_SAMPLE +0.9 pp [+0.5, +1.4] vs PASS); walk-forward on Superbet's
+# lines 10-12..10-15 with the line evidence the legs would print -3.2 pp
+# [-13.8, +6.5] under their confidence, ROI -8.6% [-21.2, +2.9] (77 legs / 42
+# matches; docs/sofa/evidence/player_sample_gates_2026-10-16.md,
+# player_line_evidence_2026-10-16.md). With the switch a football player row
+# reads no shape gate, only a sample of >= PLAYER_MIN_SAMPLE values; the
+# sample's age, the curve, the line evidence, the floor and x still apply,
+# and the leg carries PLAYER_SAMPLE_MARKER. Operator 2026-10-16 ("włączymy od
+# jutra"): from the next day.
+PLAYER_SAMPLE_GATES_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 0, 0, tzinfo=UTC)
+PLAYER_MIN_SAMPLE = 5  # config.min_sample, the replay's player sample floor
+PLAYER_SAMPLE_MARKER = "player_sample_rule"
+
+
+def player_sample_gates_off(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football player row skip the sample-shape gates
+    (PLAYER_SAMPLE_GATES_FROM_UTC)? Judged on the day built and the build clock."""
+    if PLAYER_SAMPLE_GATES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= PLAYER_SAMPLE_GATES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= PLAYER_SAMPLE_GATES_FROM_UTC)
+
+
 # Night plan 2026-10-12 C1: OFFER reads the MAPPABLE Superbet families of
 # bet.sofa.market_coverage - a statistic sofa already samples, a name nobody
 # mapped (903 occurrences on 2026-10-12): "<club> strzeli gola" and its halves

@@ -86,12 +86,15 @@ from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
 from bet.sofa.epochs import (  # noqa: E402
+    PLAYER_MIN_SAMPLE,
+    PLAYER_SAMPLE_MARKER,
     STATS_ONLY,
     derived_curves,
     line_evidence,
     line_evidence_v2,
     national_sample_by_count,
     one_sided_singles,
+    player_sample_gates_off,
     pool_neighbour_cap,
     settleability_gate,
     sheet_epoch,
@@ -369,6 +372,7 @@ def main() -> int:
                     one_sided.add(key)
 
     one_sided_ok = one_sided_singles(args.date, now)
+    player_gates_off = player_sample_gates_off(args.date, now)
 
     def prints_as_single(leg: dict[str, Any]) -> bool:
         """A fairly priced ladder, or (epochs.ONE_SIDED_SINGLES) an admitted
@@ -813,15 +817,21 @@ def main() -> int:
         # its curve was fitted on every rated match, under none of the
         # sample's shape gates (bet.sofa.tennis_winner).
         rating_only = row["market"] in RATING_ONLY_MARKETS
-        if not rating_only and line_is_beyond_sample(
+        # epochs.PLAYER_SAMPLE_GATES: a footballer's sample (his starts in
+        # his team's last 10 matches) reads no shape gate, only the replay's
+        # sample floor - the curve was fitted under neither
+        player_rule = player_gates_off and is_player_metric(row["market"])
+        shape_gated = not rating_only and not player_rule
+        if shape_gated and line_is_beyond_sample(
                 row["line"], row["direction"], values):
             refused["LINE_BEYOND_SAMPLE"] += 1
             continue
-        if not rating_only and mode_loses(row["line"], row["direction"],
-                                          mode_values(row, values)):
+        if shape_gated and mode_loses(row["line"], row["direction"],
+                                      mode_values(row, values)):
             refused["MODE_LOSES"] += 1
             continue
-        if not rating_only and len(values) < MIN_BUILDER_SAMPLE:
+        if not rating_only and len(values) < (
+                PLAYER_MIN_SAMPLE if player_rule else MIN_BUILDER_SAMPLE):
             refused["THIN_SAMPLE_FOR_BUILDER"] += 1
             continue
         national_age: list[str] = []
@@ -932,6 +942,7 @@ def main() -> int:
                 # Written only when true: the ladder has no UNDER side, so
                 # `overround` is None by construction (epochs.ONE_SIDED_SINGLES).
                 **({"one_sided_market": True} if key in one_sided else {}),
+                **({PLAYER_SAMPLE_MARKER: "NO_SHAPE_GATES"} if player_rule else {}),
                 # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
                 # sheet stamps it in `notes`, which a leg does not carry, so
                 # until 2026-09-25 both confidence artifacts and their .md
@@ -1106,6 +1117,10 @@ def main() -> int:
         # D2: no sample to intersect, and a match winner is no independent
         # leg beside its own games - a rating-only leg prints as a single.
         if leg["market"] in RATING_ONLY_MARKETS:
+            continue
+        # epochs.PLAYER_SAMPLE_GATES: admitted as a single on the singles'
+        # measurement; a builder still needs the sample the gates ask for
+        if leg.get(PLAYER_SAMPLE_MARKER):
             continue
         by_fixture[leg["sofascore_event_id"]].append(leg)
     for eid, group in by_fixture.items():
