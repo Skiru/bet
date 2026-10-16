@@ -45,11 +45,12 @@ def _item(market: str, selection: str, price: float) -> dict[str, Any]:
 
 
 def test_switch_rides_on_the_set_markets(monkeypatch: pytest.MonkeyPatch) -> None:
-    at = datetime(2026, 10, 17, 0, 0, tzinfo=UTC)
+    at = datetime(2026, 10, 16, 7, 46, tzinfo=UTC)  # 10-16 mixed (operator)
     assert epochs.TENNIS_SET_COMPLEMENTS_FROM_UTC == at
+    assert epochs.tennis_set_complements("2026-10-16", at)
     assert epochs.tennis_set_complements("2026-10-17", at)
-    assert not epochs.tennis_set_complements("2026-10-16", at + timedelta(hours=1))
-    assert not epochs.tennis_set_complements("2026-10-17", at - timedelta(seconds=1))
+    assert not epochs.tennis_set_complements("2026-10-15", at + timedelta(hours=1))
+    assert not epochs.tennis_set_complements("2026-10-16", at - timedelta(seconds=1))
     monkeypatch.setattr(epochs, "TENNIS_SET_MARKETS_FROM_UTC", None)
     assert not epochs.tennis_set_complements("2026-10-17", at)
     monkeypatch.undo()

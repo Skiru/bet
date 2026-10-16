@@ -2043,10 +2043,12 @@ def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
 # at or after the moment. Off (None): OFFER, SHEET, CONFIDENCE byte-identical.
 # Evidence: docs/sofa/evidence/football_score_markets_2026-10-16.md.
 FOOTBALL_SCORE_MARKETS = "score_markets_v1"
-# Next day's 00:00Z (CLAUDE.md "Changing the pipeline" 3) - 10-16 is built
-# under the old rules and is not mixed.
+# Moved by the operator into the built day 2026-10-16 ("Włącz od teraz",
+# 07:46Z; CLAUDE.md "Changing the pipeline" 3): 10-16 is mixed - its legs
+# printed before stay locked, a rebuild from 07:46Z re-reads OFFER and
+# re-runs SHEET for the new rows (bet.sofa.rebuild_plan).
 FOOTBALL_SCORE_MARKETS_FROM_UTC: datetime | None = datetime(
-    2026, 10, 17, 0, 0, tzinfo=UTC)
+    2026, 10, 16, 7, 46, tzinfo=UTC)
 
 
 def football_score_markets(date: str, build_at: datetime | None = None) -> bool:
@@ -2068,8 +2070,9 @@ def football_score_markets(date: str, build_at: datetime | None = None) -> bool:
 # history curve; SETTLE grades it from the listing's set scores. Off (None):
 # byte-identical. Evidence: docs/sofa/evidence/football_score_markets_2026-10-16.md.
 TENNIS_SET_COMPLEMENTS = "set_complements_v1"
+# with FOOTBALL_SCORE_MARKETS: 2026-10-16 07:46Z, 10-16 mixed
 TENNIS_SET_COMPLEMENTS_FROM_UTC: datetime | None = datetime(
-    2026, 10, 17, 0, 0, tzinfo=UTC)
+    2026, 10, 16, 7, 46, tzinfo=UTC)
 
 
 def tennis_set_complements(date: str, build_at: datetime | None = None) -> bool:

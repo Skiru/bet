@@ -574,7 +574,7 @@ krzywej nie ma: `NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w
 kubełku. Raport: `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`;
 dowody: `docs/sofa/evidence/new_market_curves_2026-10-15.md`.
 
-### 7.9 Krzywe rynków „lub” / handicap / DC & gole i `set_score_not` (zainstalowane 2026-10-16, czytane od 2026-10-17)
+### 7.9 Krzywe rynków „lub” / handicap / DC & gole i `set_score_not` (zainstalowane 2026-10-16, czytane od 2026-10-16 07:46Z)
 
 Fit `scripts/sofa/fit_score_market_curves.py` na wierszach, które już
 zapisały fity 1X2/DNB (księga z siłą pucharów,

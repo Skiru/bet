@@ -401,7 +401,11 @@ meczów w kubełku. Pomiar: `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-1
 
 **Piłkarskie rynki „lub”, handicap i DC & gole za przełącznikiem
 `FOOTBALL_SCORE_MARKETS_FROM_UTC`** (`bet.sofa.football_score_markets`;
-**włączony od 2026-10-17 00:00Z**). OFFER czyta: „Mecz lub liczba goli (L)”
+**włączony od 2026-10-16 07:46Z** – operator przesunął go z 10-17 00:00Z do
+zbudowanego dnia, 10-16 jest mieszany, grupa ledgera „10-16 mieszany”;
+przebudowa od 07:46Z sama czyta OFFER ponownie, gdy `04_offer.json` nie ma
+takiego rungu, i powtarza SHEET, gdy `05_sheet.json` nie ma takiego wiersza,
+`rebuild_plan`). OFFER czyta: „Mecz lub liczba goli (L)”
 i „<drużyna> / Remis lub powyżej / poniżej X goli w meczu” jako
 `result_or_over` / `result_or_under` (podmiot 1 / X / 2, linia L), „Obie
 drużyny strzelą gola lub powyżej L gola” jako `btts_or_over`, „… lub obie
@@ -423,7 +427,7 @@ Pomiar i E2E: `docs/sofa/evidence/football_score_markets_2026-10-16.md`.
 
 **Tenisowe dopełnienie wyniku setów za przełącznikiem
 `TENNIS_SET_COMPLEMENTS_FROM_UTC`** (jedzie na `TENNIS_SET_MARKETS`;
-**włączony od 2026-10-17 00:00Z**): `set_score_not`, podmiot „<gracz> 0:2”,
+**włączony od 2026-10-16 07:46Z**, jak wyżej): `set_score_not`, podmiot „<gracz> 0:2”,
 OVER = gracz wygra co najmniej seta – „<gracz> wygra seta” Tak, „Handicap
 setowy” „<gracz> (1.5)”, „<gracz> liczba setów” powyżej 0,5 oraz „<rywal>
 wygra bez straty seta” Nie (jeden rung, jedna noga); p = 1 − udział 0:2

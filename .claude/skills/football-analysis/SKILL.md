@@ -219,7 +219,7 @@ positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
     `removed_by_reads`, graded apart in audit_settlement 7i) — and the veto
     entry if any.
 
-## Score markets (`result_or_*`, `btts_or_over`, `result_handicap`, `dc_and_*`) — from 2026-10-17
+## Score markets (`result_or_*`, `btts_or_over`, `result_handicap`, `dc_and_*`) — from 2026-10-16 07:46Z
 
 Events on the 90-minute score, priced from the pure rating's goals centres
 (the double chance's NB grid, `bet.sofa.football_score_markets`); no sample,

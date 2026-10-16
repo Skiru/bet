@@ -1,7 +1,7 @@
 # Plan: nowe rynki z istniejącego modelu (2026-10-16) — lista kontrolna
 
 Worktree `../bet-wt-newmarkets`, gałąź `wt/new-markets-2026-10-16`. Żywa sesja sofa-day działa na `main` — **nie ruszamy** `runs/sofa/2026-10-16/`, `data/sofa.db` (tylko odczyt), `config/` w main.
-Przełączniki: `FOOTBALL_SCORE_MARKETS_FROM_UTC`, `TENNIS_SET_COMPLEMENTS_FROM_UTC` = 2026-10-17 00:00Z (następny dzień, nie mieszamy 10-16).
+Przełączniki: `FOOTBALL_SCORE_MARKETS_FROM_UTC`, `TENNIS_SET_COMPLEMENTS_FROM_UTC` = 2026-10-17 00:00Z (następny dzień, nie mieszamy 10-16). **Zmiana 2026-10-16: operator „Włącz od teraz” → 2026-10-16 07:46Z, 10-16 mieszany (grupa „10-16 mieszany”), `rebuild_plan` sam powtarza OFFER / SHEET.**
 
 Legenda: [x] zrobione i sprawdzone, [~] w toku, [ ] do zrobienia, ✗ odrzucone (z powodem).
 
@@ -61,7 +61,18 @@ Weryfikacja:
 - [x] porównanie: +484/+536/+1068 nóg, 0 utraconych/zmienionych; rozliczone 1018 nóg +1,2 pp [−1,8, +4,2]
 Dokumenty:
 - [x] CLAUDE.md sekcja, PIPELINE.md, CONFIG.md 7.9, evidence, raport, skille analityków, audit_ledger „od 10-17”
-- [ ] merge do main — DECYZJA OPERATORA (żywa sesja sofa-day)
+- [x] merge do main — operator 2026-10-16 07:46Z: „Wrzucaj do maina! Włącz od teraz”
+
+### E. Włączenie w zbudowany dzień 10-16 (07:46Z)
+
+- [x] przełączniki 2026-10-16 07:46Z (testy przełącznika i day_flags)
+- [x] `rebuild_plan`: OFFER, gdy oferta bez rungu nowych rynków; SHEET, gdy arkusz bez wiersza (wzór D2) + testy (stan, observe na plikach, zegar przed 07:46Z)
+- [x] ledger „10-16 mieszany” (zamiast „od 10-16”), test, legenda
+- [x] dokumenty: CLAUDE.md, PIPELINE.md, CONFIG.md 7.9, skille, verifier
+- [ ] E2E poligon na aktualnym 10-16 (off/on, ten sam zegar 08:10Z)
+- [ ] bramki, commit, fast-forward main
+- [ ] po merge: prawdziwy `rebuild_day.py` z `main` na kopii 10-16 (zegar żywy, sieć), md5 prawdziwego dnia bez zmian
+- [ ] restart pętli `capture_closing` 10-16 na nowym kodzie
 
 ## C. Odkrycia w trakcie (nie gubić)
 

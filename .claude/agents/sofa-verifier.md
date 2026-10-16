@@ -138,7 +138,7 @@ note, never use it as a reason.
 
 **Rating-only legs have no sample to rebuild** (`tennis_winner.RATING_ONLY_MARKETS`:
 football `double_chance`, `result_1x2`, `draw_no_bet`, `first_goal`,
-`red_cards_total`, `penalties_total`, and from 2026-10-17 the score markets
+`red_cards_total`, `penalties_total`, and from 2026-10-16 07:46Z the score markets
 `result_or_over` / `result_or_under` / `btts_or_over` / `result_or_btts` /
 `result_or_clean_sheet` / `result_handicap` / `dc_and_over` / `dc_and_under`;
 tennis `match_won_for`, `set1_won_for` / `set2_won_for`, `set_score`,

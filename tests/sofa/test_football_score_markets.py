@@ -58,11 +58,13 @@ def _item(market: str, selection: str, price: float) -> dict[str, Any]:
 
 
 def test_switch_reads_the_day_and_the_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    at = datetime(2026, 10, 17, 0, 0, tzinfo=UTC)
+    # moved by the operator into the built day 10-16 (07:46Z): 10-16 mixed
+    at = datetime(2026, 10, 16, 7, 46, tzinfo=UTC)
     assert epochs.FOOTBALL_SCORE_MARKETS_FROM_UTC == at
-    assert epochs.football_score_markets("2026-10-17", at)
-    assert not epochs.football_score_markets("2026-10-16", at + timedelta(hours=1))
-    assert not epochs.football_score_markets("2026-10-17", at - timedelta(seconds=1))
+    assert epochs.football_score_markets("2026-10-16", at)
+    assert epochs.football_score_markets("2026-10-17", at + timedelta(hours=1))
+    assert not epochs.football_score_markets("2026-10-15", at + timedelta(hours=1))
+    assert not epochs.football_score_markets("2026-10-16", at - timedelta(seconds=1))
     monkeypatch.setattr(epochs, "FOOTBALL_SCORE_MARKETS_FROM_UTC", None)
     assert not epochs.football_score_markets("2027-01-01", at + timedelta(days=99))
 
@@ -508,7 +510,7 @@ def test_day_flags_cover_every_offerfetcher_switch(
     flags = offer_mod.day_flags("2026-10-17")
     assert set(flags) == params - {"record_unmapped"}
     assert flags["football_score_markets"] and flags["tennis_set_complements"]
-    assert not offer_mod.day_flags("2026-10-16")["football_score_markets"]
+    assert not offer_mod.day_flags("2026-10-15")["football_score_markets"]
     repo = Path(__file__).resolve().parents[2]
     for reader in ("scripts/sofa/run_offer.py", "scripts/sofa/capture_closing.py",
                    ".claude/agents/sofa-verifier.md",
@@ -657,3 +659,93 @@ def test_the_coupon_names_the_leg_in_superbets_words(
     leg = {"market": market, "subject": subject, "line": line,
            "match": "Hoffenheim - Besiktas"}
     assert fsm.display_market(leg) == want
+
+
+# --- the rebuild of the mixed day 10-16 ------------------------------------------
+
+
+def _rebuild_state(**kw: Any) -> Any:
+    from bet.sofa import rebuild_plan as rp
+
+    now = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
+    base: dict[str, Any] = dict(
+        offer_fixtures=2, open_fixtures=2,
+        oldest_open_rung=now - timedelta(minutes=5),
+        newest_rung=now - timedelta(minutes=5),
+        offer_has_football=True, offer_has_tennis=True,
+        offer_has_score=False, sheet_has_score=False,
+        offer_has_set_not=False, sheet_has_set_not=False)
+    base.update(kw)
+    return rp.DayState("2026-10-16", now, timedelta(minutes=45), **base)
+
+
+def test_rebuild_of_the_built_day_rereads_offer_and_sheet_once_on(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The switch moved into 10-16 (07:46Z) after OFFER / SHEET read the day:
+    the plain rebuild re-reads OFFER (a fresh price would not trigger it) and
+    re-runs SHEET, before CONFIDENCE - no step by hand."""
+    from bet.sofa import rebuild_plan as rp
+
+    on = rp.build_plan(_rebuild_state()).names()
+    assert "OFFER" in on and "SHEET" in on
+    assert on.index("OFFER") < on.index("SHEET") < on.index("CONFIDENCE")
+    # a tennis-only gap alone re-reads too
+    tennis = rp.build_plan(_rebuild_state(
+        offer_has_score=True, sheet_has_score=True)).names()
+    assert "OFFER" in tennis and "SHEET" in tennis
+    # the offer already carries the rungs, the sheet not: SHEET only
+    sheet_only = rp.build_plan(_rebuild_state(
+        offer_has_score=True, offer_has_set_not=True)).names()
+    assert "OFFER" not in sheet_only and "SHEET" in sheet_only
+    # both carry them: nothing re-runs
+    done = rp.build_plan(_rebuild_state(
+        offer_has_score=True, sheet_has_score=True,
+        offer_has_set_not=True, sheet_has_set_not=True)).names()
+    assert not {"OFFER", "SHEET"} & set(done)
+    # switches off: nothing re-runs either
+    monkeypatch.setattr(epochs, "FOOTBALL_SCORE_MARKETS_FROM_UTC", None)
+    monkeypatch.setattr(epochs, "TENNIS_SET_COMPLEMENTS_FROM_UTC", None)
+    off = rp.build_plan(_rebuild_state()).names()
+    assert not {"OFFER", "SHEET"} & set(off)
+
+
+def test_rebuild_before_the_switch_clock_reads_nothing_new() -> None:
+    from bet.sofa import rebuild_plan as rp
+
+    early = _rebuild_state()
+    seven = datetime(2026, 10, 16, 7, 0, tzinfo=UTC)
+    early = rp.DayState(**{**early.__dict__, "now": seven,
+                           "oldest_open_rung": seven - timedelta(minutes=5)})
+    assert not {"OFFER", "SHEET"} & set(rp.build_plan(early).names())
+
+
+def test_rebuild_observes_the_rungs_and_rows_on_disk(tmp_path: Any) -> None:
+    import json
+
+    from bet.sofa import rebuild_plan as rp
+
+    day = tmp_path / "2026-10-16"
+    day.mkdir()
+    fx = [{"sofascore_event_id": 1, "sport": "football",
+           "kickoff_utc": "2026-10-16T18:00:00Z"},
+          {"sofascore_event_id": 2, "sport": "tennis",
+           "kickoff_utc": "2026-10-16T18:00:00Z"}]
+    rung = {"fetched_at_utc": "2026-10-16T08:55:00Z", "market": "goals_total"}
+    offers = [{"sofascore_event_id": 1, "rungs": [rung]},
+              {"sofascore_event_id": 2, "rungs": [{**rung, "market": "games_total"}]}]
+    (day / "02_fixtures.json").write_text(json.dumps(fx))
+    (day / "04_offer.json").write_text(json.dumps(offers))
+    (day / "05_sheet.json").write_text(json.dumps([{"market": "goals_total"}]))
+    now = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
+    st = rp.observe(str(tmp_path), "2026-10-16", now, timedelta(minutes=45))
+    assert st.offer_has_football and st.offer_has_tennis
+    assert not (st.offer_has_score or st.sheet_has_score
+                or st.offer_has_set_not or st.sheet_has_set_not)
+    offers[0]["rungs"].append({**rung, "market": "result_or_over"})
+    offers[1]["rungs"].append({**rung, "market": "set_score_not"})
+    (day / "04_offer.json").write_text(json.dumps(offers))
+    (day / "05_sheet.json").write_text(json.dumps(
+        [{"market": "result_handicap"}, {"market": "set_score_not"}]))
+    st = rp.observe(str(tmp_path), "2026-10-16", now, timedelta(minutes=45))
+    assert st.offer_has_score and st.sheet_has_score
+    assert st.offer_has_set_not and st.sheet_has_set_not

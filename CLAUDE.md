@@ -639,12 +639,13 @@ measurement of Superbet's price and feed nothing else.
   10-14 at 11:30Z: 10-14 is mixed, ledger group "10-14 mieszany", the days
   after it "od 10-15", which also starts the new-market curves installed
   2026-10-15 00:17Z and the 1X2 / DNB and CS2 series-rounds switches; from
-  10-16 "od 10-16": the cup-strength football refit installed 2026-10-15
-  23:02Z and refit 2026-10-16b with SAMPLE_CUP_STRENGTH from 04:10Z, both
-  before 10-16's build (not mixed), FOOTBALL_CUP_STRENGTH and
-  BASKETBALL_DC_PAIR from 00:00Z; from 10-17 "od 10-17": the football
-  score markets and the tennis set complements with their curves; before
-  them ledger group "od 10-14"
+  10-16 the cup-strength football refit installed 2026-10-15 23:02Z and
+  refit 2026-10-16b with SAMPLE_CUP_STRENGTH from 04:10Z, both before
+  10-16's build, FOOTBALL_CUP_STRENGTH and BASKETBALL_DC_PAIR from 00:00Z,
+  and the football score markets / tennis set complements moved by the
+  operator into the built day at 07:46Z - 10-16 is mixed, ledger group
+  "10-16 mieszany"; from 10-17 "od 10-17"; before them ledger group
+  "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
   PLAYER_TEAM_FROM_SIDE, MARKET_POSITIONED_LINES with the A7 basketball
@@ -879,10 +880,13 @@ double-chance side (`contracts.READ_SIDES` has 1X / X2 / 12 from
 `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
 `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
 
-**Switched on 2026-10-17 00:00Z: football score markets and tennis
-exact-score complements** (operator 2026-10-16, "wdroż oba"; curves
-installed before 10-17's build, so not a mixed day; ledger group "od
-10-17"): `FOOTBALL_SCORE_MARKETS_FROM_UTC` (`bet.sofa.football_score_markets`:
+**Switched on 2026-10-16 07:46Z: football score markets and tennis
+exact-score complements** (operator 2026-10-16, "wdroż oba", then "Włącz od
+teraz" - moved from 10-17 00:00Z into the built day: 10-16 is mixed, ledger
+group "10-16 mieszany", its legs printed before stay locked; the days after
+"od 10-17"; a rebuild from 07:46Z re-reads OFFER when 04_offer.json holds no
+such rung and re-runs SHEET when 05_sheet.json holds no such row,
+`rebuild_plan` - no step by hand): `FOOTBALL_SCORE_MARKETS_FROM_UTC` (`bet.sofa.football_score_markets`:
 OFFER reads "Mecz lub liczba goli (L)" / "<team> / Remis lub powyżej /
 poniżej X goli w meczu" as `result_or_over` / `result_or_under` (subject 1 /
 X / 2), "Obie drużyny strzelą gola lub powyżej L gola" as `btts_or_over`,
@@ -1002,7 +1006,7 @@ BTTS has no skill vs the league base rate, parity and exact score never reach
 work, each through a curve and its own Superbet lines). Modelled since: the
 double chance, 1X2 (no curve passed), DNB, first goal, reds / penalties,
 tennis match / set winner and exact sets score (10-14 / 10-15), the football
-score markets and `set_score_not` (10-17). Still not: BTTS alone, half-time /
+score markets and `set_score_not` (10-16 07:46Z). Still not: BTTS alone, half-time /
 full-time and the half-result markets, Superbet's `;` combinations, tennis
 game order / points in a game / games parity (measured: never 0.70), CS2
 round parity (OFFER's `unmapped_markets`, `market_coverage.md` labels each);

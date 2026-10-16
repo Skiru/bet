@@ -192,7 +192,7 @@ of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
     entry for every leg of your read set (WATCH and NO_BET remove it into
     `removed_by_reads`, graded apart in audit_settlement 7i) + the veto entry.
 
-## `set_score_not` — "he wins at least a set" (from 2026-10-17)
+## `set_score_not` — "he wins at least a set" (from 2026-10-16 07:46Z)
 
 `set_score_not`, subject "<player> 0:2", OVER = that player does NOT lose
 0:2 - Superbet's "<player> wygra seta" Tak, "Handicap setowy" "<player>

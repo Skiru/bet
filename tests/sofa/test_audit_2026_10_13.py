@@ -245,13 +245,14 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
         {"date": "2026-10-14", "epoch": "stats_only"}) == "10-14 mieszany"
     assert audit_ledger.epoch_group(
         {"date": "2026-10-15", "epoch": "stats_only"}) == "od 10-15"
-    # the cup-strength refit, installed before 10-16's build: its own epoch
+    # the cup-strength refit (before 10-16's build) and the score markets
+    # moved into the built day 10-16 at 07:46Z: mixed, then od 10-17
     assert audit_ledger.epoch_group(
-        {"date": "2026-10-16", "epoch": "stats_only"}) == "od 10-16"
-    # the football score markets / tennis set complements from 10-17
+        {"date": "2026-10-16", "epoch": "stats_only"}) == "10-16 mieszany"
     assert audit_ledger.epoch_group(
         {"date": "2026-10-17", "epoch": "stats_only"}) == "od 10-17"
-    assert audit_ledger.EPOCH_GROUPS[-3:] == ("od 10-15", "od 10-16", "od 10-17")
+    assert audit_ledger.EPOCH_GROUPS[-3:] == (
+        "od 10-15", "10-16 mieszany", "od 10-17")
 
 
 def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:
