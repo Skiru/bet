@@ -642,7 +642,9 @@ measurement of Superbet's price and feed nothing else.
   10-16 "od 10-16": the cup-strength football refit installed 2026-10-15
   23:02Z and refit 2026-10-16b with SAMPLE_CUP_STRENGTH from 04:10Z, both
   before 10-16's build (not mixed), FOOTBALL_CUP_STRENGTH and
-  BASKETBALL_DC_PAIR from 00:00Z; before them ledger group "od 10-14"
+  BASKETBALL_DC_PAIR from 00:00Z; from 10-17 "od 10-17": the football
+  score markets and the tennis set complements with their curves; before
+  them ledger group "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
   PLAYER_TEAM_FROM_SIDE, MARKET_POSITIONED_LINES with the A7 basketball
@@ -877,6 +879,48 @@ double-chance side (`contracts.READ_SIDES` has 1X / X2 / 12 from
 `docs/sofa/evidence/new_market_curves_2026-10-15.md`,
 `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`.
 
+**Switched on 2026-10-17 00:00Z: football score markets and tennis
+exact-score complements** (operator 2026-10-16, "wdroż oba"; curves
+installed before 10-17's build, so not a mixed day; ledger group "od
+10-17"): `FOOTBALL_SCORE_MARKETS_FROM_UTC` (`bet.sofa.football_score_markets`:
+OFFER reads "Mecz lub liczba goli (L)" / "<team> / Remis lub powyżej /
+poniżej X goli w meczu" as `result_or_over` / `result_or_under` (subject 1 /
+X / 2), "Obie drużyny strzelą gola lub powyżej L gola" as `btts_or_over`,
+"... lub obie drużyny strzelą gola" / "... lub którakolwiek drużyna zachowa
+czyste konto" as `result_or_btts` / `result_or_clean_sheet`, "Handicap"
++1.5 / +2.5 / +3.5 as `result_handicap` (+0.5 is the double chance, not
+read; never a `handicap_` prefix - `is_derived` would kill it), "Podwójna
+szansa & liczba goli" 12 & powyżej / 1X & poniżej as `dc_and_over` /
+`dc_and_under`; two markets quoting one bet are merged at the lower price,
+no collision recorded; SHEET prices the OVER from the double chance's NB
+grid on the pure rating centres (`score_market_rule`, `result_phase`);
+SETTLE grades the event on the 90-minute score **at 0.5, never at the
+goals line**) and `TENNIS_SET_COMPLEMENTS_FROM_UTC` (rides on
+TENNIS_SET_MARKETS: `set_score_not` "<player> 0:2" OVER = he wins a set -
+"wygra seta" Tak, "Handicap setowy" (1.5), "liczba setów" powyżej 0.5, the
+other's "wygra bez straty seta" Nie, one canonical rung; 1 - the 0:2 share
+of the rating's neighbours; `set_complement_rule`). **Curves per slice**:
+a score market's curve key is `<market>@<subject>@<line>|OVER`
+(`confidence.curve_market`, also in `fit_line_evidence.py`; a slice without
+a curve never reads a pool) - one curve per market hid -3..-9 pp slices
+(NB tail at high "or over" lines, the draw's "or" markets) in a -0.5 pp
+pooled gap; an early-phase men's leg reads `season_early:` (`leg_class`),
+women `women:`. Fitted by `scripts/sofa/fit_score_market_curves.py` on the
+rows the installed 1X2/DNB (cup book) and tennis set fits already wrote - no
+replay - one-sided gate plus no slice overstating; installed by
+`install_new_market_curves.py --dir data/refit_new_markets_2026-10-17`
+(133 football slice curves: men 50, season_early 40, women 43; set_score_not
+men + `tennis_women:`; `new_market_curves_fitted_from`, so refits carry
+them). E2E in a scratch replay (10-14 / 10-15 / 10-16, off vs on on the same
+input): SHEET off = on minus the new rows byte for byte, 0 legs lost or
+changed, +484 / +536 / +1,068 legs; settled 10-14..15: 1,018 legs / 233
+matches realised +1.2 pp [-1.8, +4.2] over confidence, ROI -2.4% [-6.1,
++1.2] (at the price, no measured edge); set_score_not 27 legs -9.8 pp
+[-27, +7] (open, `T-SCORE-MARKETS-superbet`). Several rungs of one match are
+one script but not grouped as a ladder (two-dimensional, like DC / 1X2).
+`docs/sofa/evidence/football_score_markets_2026-10-16.md`,
+`docs/sofa/history/RAPORT_NOWE_RYNKI_2026-10-16.md`.
+
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
@@ -1074,6 +1118,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_entity_queue.py --date <d>
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> [--db-path <copy>] {backup [--db <path>]|rebuild-cache-rows [--dry-run|--confirm] [--without-db-backup] [--derived ...] [--no-tennis-rating]|fit|compare [--days <d> <d2>] [--with-sheet]|install --confirm|restore --confirm --backup <dir>}
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only   # only the by_class curves
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_score_market_curves.py --out-dir data/refit_new_markets_<d> --football-rows <1x2/dnb fit rows.csv.gz> --tennis-rows <tennis_sets rows.csv>   # score-market slice curves + set_score_not, staged; install with install_new_market_curves.py --dir
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads

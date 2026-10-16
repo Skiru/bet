@@ -149,6 +149,26 @@ def result_1x2_dnb_value(
     return 1.0 if home > away else 0.0
 
 
+def score_market_value(
+    market: str, subject: str, line: float, event: dict[str, Any],
+) -> float | GapReason:
+    """1.0 when a football score-market rung's OVER won on the 90-minute score
+    (epochs.FOOTBALL_SCORE_MARKETS, bet.sofa.football_score_markets), else
+    0.0 - like the double chance. The value is an indicator: SETTLE grades it
+    at 0.5 (football_score_markets.value_line), never at the rung's goals
+    line."""
+    from bet.sofa.football_score_markets import outcome, valid_rung
+
+    if not valid_rung(market, subject, line):
+        return GapReason.STAT_KEY_ABSENT
+    if goal_score_inconsistent(event):
+        return GapReason.INTERNAL_INCONSISTENT
+    score = regulation_score(event)
+    if score is None:
+        return GapReason.STAT_KEY_ABSENT
+    return float(outcome(market, subject, line, *score))
+
+
 FOOTBALL_METRICS = {
     "goals_total": {"sofascore": "goals_from_listing", "is_total": True},
     "goals_for": {"sofascore": "goals_from_listing", "is_total": False},

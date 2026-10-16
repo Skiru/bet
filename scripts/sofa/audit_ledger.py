@@ -146,7 +146,8 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # group, added to neither neighbour. One table row per (variant, group),
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
-                "10-13 mieszany", "10-14 mieszany", "od 10-15", "od 10-16")
+                "10-13 mieszany", "10-14 mieszany", "od 10-15", "od 10-16",
+                "od 10-17")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -163,10 +164,17 @@ IDENTITY_EPOCH_FROM_DATE = "2026-10-15"
 # after 2026-10-15 23:00Z and before 10-16's build - not a mixed day, but a
 # refit install starts an epoch; BASKETBALL_DC_PAIR (2026-10-16 00:00Z) too.
 CUP_STRENGTH_EPOCH_FROM_DATE = "2026-10-16"
+# The football score markets and the tennis exact-score complements
+# (epochs.FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS 2026-10-17 00:00Z)
+# with their history curves installed before 10-17's build: new legs on the
+# coupon, so a new epoch (not mixed).
+SCORE_MARKETS_EPOCH_FROM_DATE = "2026-10-17"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= SCORE_MARKETS_EPOCH_FROM_DATE:
+            return "od 10-17"
         if str(row.get("date", "")) >= CUP_STRENGTH_EPOCH_FROM_DATE:
             return "od 10-16"
         if str(row.get("date", "")) >= IDENTITY_EPOCH_FROM_DATE:

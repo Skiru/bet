@@ -2027,3 +2027,57 @@ def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= SAMPLE_CUP_STRENGTH_FROM_UTC.strftime("%Y-%m-%d")
             and at >= SAMPLE_CUP_STRENGTH_FROM_UTC)
+
+
+# Football "or" result markets, the underdog's European handicap and the
+# double chance & goals pairs that clear their gate
+# (bet.sofa.football_score_markets): OFFER reads "Mecz lub liczba goli",
+# "<team> / Remis lub powyżej / poniżej X goli w meczu", "Obie drużyny
+# strzelą gola lub powyżej L gola", "... lub obie drużyny strzelą gola",
+# "... lub którakolwiek drużyna zachowa czyste konto", "Handicap" (+1.5 /
+# +2.5 / +3.5) and "Podwójna szansa & liczba goli" 12 & powyżej / 1X &
+# poniżej; SHEET prices the OVER of each from the double chance's NB goals
+# on the pure rating centres (rows marked `score_market_rule`); CONFIDENCE
+# reads each key's own history curve (rating-only); SETTLE grades the
+# event on the 90-minute score at 0.5. Adds rows, so a day >= the date built
+# at or after the moment. Off (None): OFFER, SHEET, CONFIDENCE byte-identical.
+# Evidence: docs/sofa/evidence/football_score_markets_2026-10-16.md.
+FOOTBALL_SCORE_MARKETS = "score_markets_v1"
+# Next day's 00:00Z (CLAUDE.md "Changing the pipeline" 3) - 10-16 is built
+# under the old rules and is not mixed.
+FOOTBALL_SCORE_MARKETS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 0, 0, tzinfo=UTC)
+
+
+def football_score_markets(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the football score markets
+    (FOOTBALL_SCORE_MARKETS_FROM_UTC)?"""
+    if FOOTBALL_SCORE_MARKETS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_SCORE_MARKETS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_SCORE_MARKETS_FROM_UTC)
+
+
+# The complement of a tennis exact sets score (tennis_sets.SET_SCORE_NOT):
+# OFFER reads "<X> wygra seta", "<X> wygra bez straty seta", "<X> liczba
+# setów" 0.5 and "Handicap setowy" ±1.5 as one two-sided rung "<X> 0:2" /
+# "<X> 2:0" (OVER = not that score); SHEET prices the OVER as 1 - the score's
+# share of the rating's neighbours (rides on TENNIS_SET_MARKETS; best of
+# three only; rows marked `set_complement_rule`); CONFIDENCE reads its own
+# history curve; SETTLE grades it from the listing's set scores. Off (None):
+# byte-identical. Evidence: docs/sofa/evidence/football_score_markets_2026-10-16.md.
+TENNIS_SET_COMPLEMENTS = "set_complements_v1"
+TENNIS_SET_COMPLEMENTS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 0, 0, tzinfo=UTC)
+
+
+def tennis_set_complements(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the tennis exact-score complements
+    (TENNIS_SET_COMPLEMENTS_FROM_UTC; rides on TENNIS_SET_MARKETS)?"""
+    if TENNIS_SET_COMPLEMENTS_FROM_UTC is None or not tennis_set_markets(
+            date, build_at):
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TENNIS_SET_COMPLEMENTS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TENNIS_SET_COMPLEMENTS_FROM_UTC)

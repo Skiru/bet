@@ -398,6 +398,37 @@ zainstalowane krzywe od 2026-10-15 00:17Z; każdy klucz 1X2 bramki nie
 przeszedł – krzywej nie ma, `NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15
 meczów w kubełku. Pomiar: `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md`.
 
+**Piłkarskie rynki „lub”, handicap i DC & gole za przełącznikiem
+`FOOTBALL_SCORE_MARKETS_FROM_UTC`** (`bet.sofa.football_score_markets`;
+**włączony od 2026-10-17 00:00Z**). OFFER czyta: „Mecz lub liczba goli (L)”
+i „<drużyna> / Remis lub powyżej / poniżej X goli w meczu” jako
+`result_or_over` / `result_or_under` (podmiot 1 / X / 2, linia L), „Obie
+drużyny strzelą gola lub powyżej L gola” jako `btts_or_over`, „… lub obie
+drużyny strzelą gola” i „… lub którakolwiek drużyna zachowa czyste konto”
+jako `result_or_btts` / `result_or_clean_sheet`, „Handicap” +1.5 / +2.5 /
++3.5 jako `result_handicap` (+0.5 to podwójna szansa – nieczytane) i
+„Podwójna szansa & liczba goli” 12 & powyżej / 1X & poniżej jako
+`dc_and_over` / `dc_and_under`. Ten sam zakład z dwóch rynków Superbetu –
+niższa cena, bez kolizji. SHEET wycenia OVER z siatki NB podwójnej szansy
+na czystych centrach ratingu (znacznik `score_market_rule`, faza sezonu
+`result_phase`); SETTLE rozlicza zdarzenie na wyniku po 90 minutach przy
+0,5 (nie przy linii goli). Krzywa jest **per wycinek** –
+`<rynek>@<podmiot>@<linia>|OVER` (`confidence.curve_market`): jedna krzywa
+na rynek ukrywała wycinki zawyżające o 3–9 pp; mecz męski we wczesnej fazie
+sezonu czyta `season_early:`, kobiecy `women:`; wycinek bez krzywej nie
+czyta żadnej puli. Kilka linii jednego meczu to jeden scenariusz, ale PDF
+nie grupuje ich jako „ta sama zmienna” (zdarzenia dwuwymiarowe, jak DC).
+Pomiar i E2E: `docs/sofa/evidence/football_score_markets_2026-10-16.md`.
+
+**Tenisowe dopełnienie wyniku setów za przełącznikiem
+`TENNIS_SET_COMPLEMENTS_FROM_UTC`** (jedzie na `TENNIS_SET_MARKETS`;
+**włączony od 2026-10-17 00:00Z**): `set_score_not`, podmiot „<gracz> 0:2”,
+OVER = gracz wygra co najmniej seta – „<gracz> wygra seta” Tak, „Handicap
+setowy” „<gracz> (1.5)”, „<gracz> liczba setów” powyżej 0,5 oraz „<rywal>
+wygra bez straty seta” Nie (jeden rung, jedna noga); p = 1 − udział 0:2
+wśród sąsiadów ratingu (tylko mecze do 3 setów), znacznik
+`set_complement_rule`, krzywa własna (+ `tennis_women:`).
+
 **Strzały zawodnika według miejsca i części ciała za przełącznikiem
 `SHOT_DETAIL_MARKETS_FROM_UTC`** (`bet.sofa.epochs`, znacznik
 `shot_detail_v1`; **włączony od 2026-10-14 14:20Z**, operator „WŁĄCZ OD

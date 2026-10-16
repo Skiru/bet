@@ -406,6 +406,12 @@ class SheetRow(BaseModel):
     # set_score row (bet.sofa.tennis_sets); absent when off.
     incident_rule: str | None = None
     set_market_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: the
+    # rule's name on a football score-market row (bet.sofa.
+    # football_score_markets) and on a set_score_not row (bet.sofa.
+    # tennis_sets); absent when off.
+    score_market_rule: str | None = None
+    set_complement_rule: str | None = None
     # bet.sofa.sheet_config.fingerprint(): the SHEET-read config files
     # (constants, baselines, reliability, rating, dispersion, ...) the row was
     # priced on. rebuild_plan names a sheet built on other constants (a refit

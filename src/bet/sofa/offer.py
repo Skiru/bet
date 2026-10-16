@@ -9,6 +9,7 @@ from bet.sofa.football_1x2_dnb import RESULT_1X2
 from bet.sofa.football_1x2_dnb import classify as classify_1x2_dnb
 from bet.sofa.football_incidents import classify_incident
 from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
+from bet.sofa.football_score_markets import classify as classify_score_market
 from bet.sofa.market_mapper import (
     classify_derived_market,
     classify_mappable_family,
@@ -23,7 +24,7 @@ from bet.sofa.superbet import (
     split_match_name,
     superbet_kickoff,
 )
-from bet.sofa.tennis_sets import classify_set_market
+from bet.sofa.tennis_sets import classify_set_complement, classify_set_market
 from bet.sofa.tennis_winner import classify_winner
 from bet.sofa.timeutil import now
 
@@ -224,8 +225,17 @@ class OfferFetcher:
         football_incidents: bool = False,
         tennis_sets: bool = False,
         football_1x2_dnb: bool = False,
+        football_score_markets: bool = False,
+        tennis_set_complements: bool = False,
     ) -> None:
         self.client = client
+        # epochs.football_score_markets(date) / tennis_set_complements(date):
+        # the football "or" / handicap / DC & goals markets
+        # (bet.sofa.football_score_markets) and the tennis exact-score
+        # complements (tennis_sets.classify_set_complement). Off is the old
+        # rule.
+        self.football_score_markets = football_score_markets
+        self.tennis_set_complements = tennis_set_complements
         # epochs.football_result_1x2_dnb(date): read football 1X2 and draw no
         # bet (bet.sofa.football_1x2_dnb). Off is the old rule.
         self.football_1x2_dnb = football_1x2_dnb
@@ -335,6 +345,12 @@ class OfferFetcher:
             # rung, so one quantity is never two rungs and a ladder's two
             # sides are never mixed with another market's.
             answer_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
+            # FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: one rung side is
+            # often quoted by two Superbet markets of the same event ("Mecz
+            # lub liczba goli" and "<team> wygra lub powyżej X goli", "wygra
+            # seta" and "Handicap setowy"): the lower price is kept, as for a
+            # collision, but it is the same bet - not recorded as one.
+            score_odds: dict[tuple[str, str, float], dict[str, Any]] = {}
             unmapped = set()
 
             failed = 0
@@ -374,10 +390,15 @@ class OfferFetcher:
                 set_markets = self.tennis_sets and fixture.sport == "tennis"
                 result_1x2_dnb = (self.football_1x2_dnb
                                   and fixture.sport == "football")
+                score_markets = (self.football_score_markets
+                                 and fixture.sport == "football")
+                set_complements = (self.tennis_set_complements
+                                   and fixture.sport == "tennis")
                 names = (
                     listing_sides(payload)
                     if (self.ampersand_subjects or self.mappable_families or winner
-                        or incidents or set_markets or result_1x2_dnb)
+                        or incidents or set_markets or result_1x2_dnb
+                        or score_markets or set_complements)
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
@@ -395,7 +416,20 @@ class OfferFetcher:
                         names[0] if len(names) == 2 else None,
                         names[1] if len(names) == 2 else None)
                         if result_1x2_dnb else [])
-                    if extra and unmapped_label is not None:
+                    # FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: names
+                    # nothing above reads (only when nothing classified it).
+                    scored: list[tuple[str, str, float, str]] = []
+                    if classified_odd is None and not extra:
+                        if score_markets:
+                            scored = classify_score_market(
+                                item.get("marketName"), item.get("name"),
+                                names[0] if len(names) == 2 else None,
+                                names[1] if len(names) == 2 else None)
+                        elif set_complements:
+                            complement = classify_set_complement(
+                                item.get("marketName"), item.get("name"), names)
+                            scored = [complement] if complement else []
+                    if (extra or scored) and unmapped_label is not None:
                         unmapped_label = None
                     if unmapped_label is not None:
                         unmapped.add(unmapped_label)
@@ -403,7 +437,7 @@ class OfferFetcher:
                             self.unmapped_odds.append(unmapped_prices.record(
                                 fixture.sofascore_event_id, str(su_id), item,
                                 fetched_at))
-                    if classified_odd is None and not extra:
+                    if classified_odd is None and not extra and not scored:
                         continue
 
                     price = item.get("price")
@@ -421,10 +455,24 @@ class OfferFetcher:
                         self._add_price(item, combined_odds, answer_odds, market,
                                         subject, line, direction, float(price),
                                         fetched_at)
+                    for market, subject, line, direction in scored:
+                        side = score_odds.setdefault(
+                            (market, subject, line),
+                            {"over_odds": None, "under_odds": None,
+                             "fetched_at_utc": fetched_at, "collisions": []})
+                        field = "over_odds" if direction == "OVER" else "under_odds"
+                        held = side[field]
+                        side[field] = (float(price) if held is None
+                                       else min(held, float(price)))
 
 
             for key, entry in answer_odds.items():
                 if key not in combined_odds:
+                    combined_odds[key] = entry
+            # Only the OVER of a score / complement rung is priced: an UNDER
+            # alone (a "Nie" with no "Tak") is no offer.
+            for key, entry in score_odds.items():
+                if key not in combined_odds and entry["over_odds"] is not None:
                     combined_odds[key] = entry
             # FOOTBALL_RESULT_MARKETS: a "Mecz" price is only the UNDER of a
             # double chance Superbet quotes - alone it is no DC offer.

@@ -192,6 +192,19 @@ of `11_coupon.json`, every printed builder leg, `read_requests.json` - see
     entry for every leg of your read set (WATCH and NO_BET remove it into
     `removed_by_reads`, graded apart in audit_settlement 7i) + the veto entry.
 
+## `set_score_not` — "he wins at least a set" (from 2026-10-17)
+
+`set_score_not`, subject "<player> 0:2", OVER = that player does NOT lose
+0:2 - Superbet's "<player> wygra seta" Tak, "Handicap setowy" "<player>
+(1.5)", "<player> liczba setów" powyżej 0.5, and "<other> wygra bez straty
+seta" Nie (one rung, one leg). Priced as 1 - the 0:2 share of the rating's
+neighbours (best of three only, no sample), read through its own curve
+(`tennis_women:` apart). The risk is a one-sided match: a big rating gap, a
+retirement-prone or out-of-form underdog, a surface that kills his serve. A
+retirement is a refund. On Superbet's lines of 10-14..10-15 these legs
+realised below their confidence (n ~120, interval through zero) - read
+them, do not wave them through.
+
 ## Kill cases this repo has already paid for
 
 - **One side scoped to zero.** A `double_faults_total` with n=9, all of it one

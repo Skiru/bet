@@ -65,6 +65,7 @@ from bet.sofa.db import RetryingConnection
 from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
+from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
@@ -86,6 +87,7 @@ from scripts.sofa.run_settle import (
     _settle_incident,
     _settle_player,
     _settle_result_1x2_dnb,
+    _settle_score_market,
     _settle_set_market,
     _subject_is_home,
     load_player_sample_names,
@@ -181,6 +183,9 @@ def grade_live(
     if row["market"] in RESULT_1X2_DNB_MARKETS:
         # 1X2 / DNB: graded like run_settle (a drawn DNB: DNB_DRAW_REFUND)
         return _settle_result_1x2_dnb(row, event)
+    if row["market"] in SCORE_MARKETS:
+        # the 90-minute score, an indicator at 0.5 - graded like run_settle
+        return _settle_score_market(row, event)
     if row["market"] in INCIDENT_MARKETS:
         # the match's regular-time incidents - graded like run_settle
         return _settle_incident(row, event, incidents)

@@ -219,6 +219,32 @@ positions of `11_coupon.json`, every printed builder leg, `read_requests.json`
     `removed_by_reads`, graded apart in audit_settlement 7i) — and the veto
     entry if any.
 
+## Score markets (`result_or_*`, `btts_or_over`, `result_handicap`, `dc_and_*`) — from 2026-10-17
+
+Events on the 90-minute score, priced from the pure rating's goals centres
+(the double chance's NB grid, `bet.sofa.football_score_markets`); no sample,
+so there is no próbka k/n and no `MODEL_ABOVE_OWN_SAMPLE`. Always OVER = the
+Superbet "Tak" / the selection as written. Subject "1" home, "X" draw, "2"
+away; the line is the goals line (0.5 for the yes/no markets).
+
+| market (subject, line) | Superbet | wins when |
+|---|---|---|
+| `result_or_over` (S, L) | "Mecz lub liczba goli (L)" "<S> lub powyżej L"; "<S> wygra lub powyżej X goli w meczu" L - Tak | S, or more than L goals |
+| `result_or_under` (S, L) | "... lub poniżej L" | S, or fewer than L goals |
+| `btts_or_over` (-, L) | "Obie drużyny strzelą gola lub powyżej L gola" tak | both score, or more than L goals |
+| `result_or_btts` (S, 0.5) | "<S> wygra lub obie drużyny strzelą gola" Tak | S, or both score |
+| `result_or_clean_sheet` (S, 0.5) | "... lub którakolwiek drużyna zachowa czyste konto" Tak | S, or either side scores none |
+| `result_handicap` (side, L) | "Handicap" "<team> (L)" (+1.5 / +2.5 / +3.5) | that side's goals + L beat the other's |
+| `dc_and_over` ("12", L) / `dc_and_under` ("1X", L) | "Podwójna szansa & liczba goli (L)" | no draw and over L / home not losing and under L |
+
+Read them like the double chance: the game script decides them (a 0-0 / 1-0
+grind kills `result_or_over X`, a rout kills `result_handicap` of the
+underdog), the rating's goals centres are in the row note. Several rungs of
+one match are NOT grouped as a ladder on the PDF (two-dimensional events,
+like DC / 1X2) - one script kills them together; say so. Their curves are
+per slice (market, subject, line); an early-phase men's match reads its own
+`season_early` curves.
+
 ## Player props (`player_*_for`) — the bet, and how to read one
 
 "Zawodnik - liczba strzałów / celnych strzałów / popełnionych fauli /

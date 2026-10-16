@@ -39,6 +39,9 @@ from bet.sofa import timeutil
 from bet.sofa.config import config_path
 from bet.sofa.engine import NORMAL_NON_COUNT_METRICS, uses_empirical_frequency
 from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N
+from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
+from bet.sofa.football_score_markets import curve_market as score_curve_market
+from bet.sofa.football_score_markets import is_curve_slice
 from bet.sofa.players import is_player_metric
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
@@ -185,7 +188,10 @@ for _family, _prefixes in {
     ),
     # An assist is a goal seen from one pass earlier: it cannot happen without
     # the goal, so it is not independent of the scoring family.
-    "goals": ("goals_", "player_assists_"),
+    # The football score markets (epochs.FOOTBALL_SCORE_MARKETS) are events
+    # on the match's goals: one quantity with goals_total / goals_for.
+    "goals": ("goals_", "player_assists_", "result_or_", "result_handicap",
+              "btts_or_", "dc_and_"),
     "offsides": ("offsides_", "player_offsides_"),
     "throw_ins": ("throw_ins_",),
     # An interception is a defensive action of the same kind as a tackle
@@ -304,6 +310,19 @@ TENNIS_SET_GAMES = frozenset(
 # above nor inside its own measured range (Calibration.realised): the pool is
 # full-match markets, a set is a different quantity.
 TENNIS_PER_SET = TENNIS_PER_SET_SERVE | TENNIS_SET_GAMES
+
+
+def curve_market(row: Mapping[str, Any]) -> str:
+    """The market a row's history curve is looked up under: its own, except a
+    football score market (epochs.FOOTBALL_SCORE_MARKETS), whose curves are
+    per slice - "<market>@<subject>@<line>"
+    (football_score_markets.curve_market). The line evidence key stays the
+    row's market."""
+    market = str(row.get("market") or "")
+    if market in SCORE_MARKETS:
+        return score_curve_market(market, str(row.get("subject") or ""),
+                                  float(row["line"]))
+    return market
 
 
 def quantity_family(market: str) -> str:
@@ -1415,7 +1434,7 @@ class Calibration:
             return None
         # See OWN_CURVE_ONLY: a rating-only market (D2, the tennis match
         # winner) is no count either - no pool describes it.
-        if market in OWN_CURVE_ONLY:
+        if market in OWN_CURVE_ONLY or is_curve_slice(market):
             return None
         # See AWAITING_OWN_CURVE: no pool may stand in for a market that has
         # no measured curve of its own yet.

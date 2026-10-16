@@ -205,6 +205,19 @@
       "evaluation": "Pooled realised - curve on the >= 0.70 sides with a bootstrap over series; the staged curves install only on the operator's go.",
       "stop_criterion": "PASSED (the anti-signal confirmed: do not install the history curves as staged) when the upper 95% bound of realised - curve is below -0.10 at n >= 100; FAILED (the curve holds on Superbet's lines) when the lower bound is above -0.03 at n >= 100; STOPPED_FUTILE if n < 100 by 2027-01-14.",
       "evidence": [{"source": "docs/sofa/evidence/cs2_series_rounds_2026-10-15.md", "line": 101, "quote": "23 strony / 19 serii"}]
+    },
+    {
+      "id": "T-SCORE-MARKETS-superbet",
+      "registered_on": "2026-10-16",
+      "status": "REGISTERED",
+      "hypothesis": "The printed legs of the football score markets (result_or_over / result_or_under / btts_or_over / result_or_btts / result_or_clean_sheet / result_handicap / dc_and_over / dc_and_under, epochs.FOOTBALL_SCORE_MARKETS) and of the tennis set_score_not (epochs.TENNIS_SET_COMPLEMENTS) realise within 3 pp of their printed confidence on Superbet's own lines - the history slice curves hold where the coupon prints them. Before the switch, on 2026-10-14..15 with one pooled curve per market, the would-print legs realised -3.2 pp [-6.4, -0.2] below it (1,917 legs / 305 matches).",
+      "rule": "Every settled (WIN / LOSS; a refund out) printed leg of those markets from 11_coupon.json, realised minus confidence pooled and per market family, with a 95% bootstrap over matches; ROI at the printed price beside it (reported, not gated).",
+      "population": "Printed singles of the nine markets from 2026-10-17 (the switch), football and tennis apart, men / women / season_early classes reported apart.",
+      "data_window": {"from": "2026-10-17", "to": "2026-12-15"},
+      "required_n": {"legs": 600, "matches": 200, "basis": "the 2026-10-16 offer gave ~900-1,800 would-print legs on ~140-300 matches a day; legs of one match are not independent, so the match count decides."},
+      "evaluation": "Pooled realised - confidence with a match bootstrap; per family where n >= 100.",
+      "stop_criterion": "FAILED (the curves overstate on Superbet's lines: a line-evidence / curve question) when the upper 95% bound is below -0.03 at >= 200 matches; PASSED when the interval lies within [-0.03, +0.03] at >= 200 matches; STOPPED_FUTILE if fewer than 200 matches by 2026-12-15.",
+      "evidence": [{"source": "docs/sofa/evidence/football_score_markets_2026-10-16.md", "line": 1, "quote": "Nowe rynki z istniejącego modelu"}]
     }
   ]
 }

@@ -66,7 +66,9 @@ from typing import Any
 _REPO = Path(__file__).resolve().parents[2]
 
 GROUPS = ("shot_detail", "double_chance", "football_incidents", "tennis_sets",
-          "sport_derived", "football_result_1x2_dnb", "cs2_series_rounds")
+          "sport_derived", "football_result_1x2_dnb", "cs2_series_rounds",
+          # scripts/sofa/fit_score_market_curves.py (2026-10-16)
+          "football_score_markets", "tennis_set_complements")
 FOOTBALL_TARGET = "sofa_confidence_calibration.json"
 SPORT_TARGET = "sofa_sport_confidence_calibration.json"
 DEFAULT_TARGET = {g: FOOTBALL_TARGET for g in GROUPS} | {

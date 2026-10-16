@@ -57,6 +57,7 @@ from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     Calibration,
     calibration_path_for,
+    curve_market,
     direction_key,
     is_derived,
     match_class,
@@ -112,7 +113,7 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
             p = float(r["p_central"])
             hit = None if is_derived(r["market"]) and not derived_curves \
                 else cal.realised(
-                r["market"], p, sport, r["direction"], klass)
+                curve_market(r), p, sport, r["direction"], klass)
             yield {"sport": sport,
                    "key": le.evidence_key(direction_key(r["market"], r["direction"]),
                                           klass),

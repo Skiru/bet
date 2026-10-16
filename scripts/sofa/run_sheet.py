@@ -106,6 +106,11 @@ from bet.sofa.football_result import (
 )
 from bet.sofa.football_result import UNFITTED_CONSTANTS as RESULT_UNFITTED
 from bet.sofa.football_result import load_config as load_result_config
+from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
+from bet.sofa.football_score_markets import note as score_market_note
+from bet.sofa.football_score_markets import row_p as score_market_row_p
+from bet.sofa.football_score_markets import score_grid
+from bet.sofa.football_score_markets import valid_rung as score_market_rung
 from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.market_mapper import (
@@ -164,6 +169,8 @@ from bet.sofa.tennis_sets import (
     SET1_WON_FOR,
     SET_MARKETS,
     SET_SCORE,
+    SET_SCORE_NOT,
+    complement_note,
     flip,
     score_probs,
     set_note,
@@ -1428,6 +1435,57 @@ def result_1x2_dnb_rows(
     return rows, skipped
 
 
+def score_market_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    football: FootballForecast | None,
+    result_config: ResultConfig,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+    phase: str | None = None,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.FOOTBALL_SCORE_MARKETS: the OVER row of one football
+    score-market rung ("or" result markets, the +L handicap, the DC & goals
+    pairs - bet.sofa.football_score_markets), priced from the double
+    chance's NB goals on the PURE rating centres - no sample, no price. The
+    rung's UNDER is a price for its margin only. UNLINKED keeps
+    CROSS_LEAGUE_UNLINKED (CONFIDENCE refuses it); no goals centre for
+    either side - no row. The row carries the fixture's as-of season phase
+    (`result_phase`), which picks its curve class in CONFIDENCE."""
+    subject = rung.subject or ""
+    if not score_market_rung(rung.market, subject, rung.line):
+        return [], [(rung, GapReason.NO_MATCHING_EVENT,
+                     f"{rung.market} {subject!r} @ {rung.line} unknown")]
+    home = football.centre("goals_for", "side_a") if football else None
+    away = football.centre("goals_for", "side_b") if football else None
+    if football is None or home is None or away is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "no football rating goals centre for one of the sides "
+                     "(thin team, friendly, no league rate)")]
+    lh, la = home[0], away[0]
+    try:
+        grid = score_grid(lh, la, result_config.nb_r)
+    except ValueError as exc:
+        return [], [(rung, GapReason.NOT_RATED, str(exc))]
+    p = score_market_row_p(rung.market, subject, rung.line, grid)
+    if outside_model_resolution(p):
+        return [], [(rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                     f"p={p:.4g} for OVER is outside [{P_FLOOR}, {P_CEILING}]")]
+    notes = [score_market_note(rung.market, subject, rung.line, p, lh, la,
+                               result_config.nb_r)]
+    if football.fixture_link() == UNLINKED:
+        notes.append(
+            f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+            "and their leagues' strengths are unmeasured - the rating "
+            "describes other leagues")
+    notes.append("UNFITTED_CONSTANTS: "
+                 f"{', '.join(RESULT_UNFITTED + RATING_UNFITTED)}")
+    row = _model_only_row(fixture, rung, "OVER", p, notes, market_ps,
+                          stats_only, "football_rating",
+                          {"score_market_rule": epochs.FOOTBALL_SCORE_MARKETS})
+    return [row.model_copy(update={"result_phase": phase})], []
+
+
 def _model_only_row(
     fixture: Fixture,
     rung: PricedRung,
@@ -1578,7 +1636,10 @@ def set_market_rows(
     the as-of rating's neighbours (bet.sofa.tennis_sets) - no sample, no
     price. Best of three only: no forecast, no row."""
     marker = {"set_market_rule": epochs.TENNIS_SET_MARKETS}
-    if rung.market == SET_SCORE:
+    if rung.market == SET_SCORE_NOT:
+        # epochs.TENNIS_SET_COMPLEMENTS: NOT the exact score (OVER only)
+        marker = {**marker, "set_complement_rule": epochs.TENNIS_SET_COMPLEMENTS}
+    if rung.market in (SET_SCORE, SET_SCORE_NOT):
         parsed = split_score_subject(rung.subject)
         name = parsed[0] if parsed is not None else ""
     else:
@@ -1593,18 +1654,20 @@ def set_market_rows(
                      "no rating forecast (best of five, or a player under "
                      "MIN_RATED rated matches)")]
     pool = len(rating.neighbours_home)
-    if rung.market == SET_SCORE:
+    if rung.market in (SET_SCORE, SET_SCORE_NOT):
         assert parsed is not None
         probs = score_probs(rating.neighbours_home)
         if probs is None:
             return [], [(rung, GapReason.NOT_RATED, "no neighbours")]
         score = parsed[1] if side == "side_a" else flip(parsed[1])
-        p = probs[score]
+        p = probs[score] if rung.market == SET_SCORE else 1.0 - probs[score]
         if outside_model_resolution(p):
             return [], [(rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
                          f"p={p:.4g} for OVER is outside [{P_FLOOR}, {P_CEILING}]")]
         notes = [set_note(rung.market, rung.subject, p, side, pool,
-                          rating.table_scope)]
+                          rating.table_scope)
+                 if rung.market == SET_SCORE else
+                 complement_note(rung.subject, p, side, pool, rating.table_scope)]
         return [_model_only_row(fixture, rung, "OVER", p, notes, market_ps,
                                 stats_only, "tennis_rating", marker)], []
     set_index = 1 if rung.market == SET1_WON_FOR else 2
@@ -1816,6 +1879,7 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     for key in AUDIT_MARKER_FIELDS + ("result_rule", "shot_detail_rule",
                                       "incident_rule", "set_market_rule",
                                       "result_1x2_dnb_rule", "result_phase",
+                                      "score_market_rule", "set_complement_rule",
                                       "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
@@ -1858,6 +1922,7 @@ def process_fixture(
     shot_detail_fit: Mapping[str, Any] | None = None,
     result_1x2_dnb: ResultConfig | None = None,
     result_phase: str | None = None,
+    score_markets: ResultConfig | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -1956,6 +2021,15 @@ def process_fixture(
                     market_ps, stats_only)
                 rows.extend(r_rows)
                 skipped.extend(r_skipped)
+            # epochs.FOOTBALL_SCORE_MARKETS (None while off - OFFER maps no
+            # such rung)
+            if (score_markets is not None and fixture.sport == "football"
+                    and rung.market in SCORE_MARKETS):
+                sm_rows, sm_skipped = score_market_rows(
+                    fixture, rung, football, score_markets, market_ps,
+                    stats_only, result_phase)
+                rows.extend(sm_rows)
+                skipped.extend(sm_skipped)
             # epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS (None /
             # False while off - OFFER maps no such rung)
             if (incident_pricing is not None and fixture.sport == "football"
@@ -2888,8 +2962,10 @@ def _main() -> int:
         football_history = load_football_history(
             config.db_path, Path(config.db_path).parent / "cache")
         # also the as-of phase of a 1X2 / DNB row (epochs.FOOTBALL_RESULT_1X2_DNB)
-        if season_phase_on or (stats_only_epoch(args.date)
-                               and epochs.football_result_1x2_dnb(args.date)):
+        # and of a score-market row (epochs.FOOTBALL_SCORE_MARKETS)
+        if season_phase_on or (stats_only_epoch(args.date) and (
+                epochs.football_result_1x2_dnb(args.date)
+                or epochs.football_score_markets(args.date))):
             season_index = index_from_history(
                 football_history, int(cut.timestamp()))
         football_book = replay_football(
@@ -2963,6 +3039,12 @@ def _main() -> int:
         load_result_config()
         if stats_only and epochs.football_result_1x2_dnb(args.date) else None)
     shot_detail_fit = load_shot_detail() if shot_detail_on else None
+    # epochs.FOOTBALL_SCORE_MARKETS: the football "or" / handicap / DC & goals
+    # markets (off: None, no such rung reaches SHEET; a missing / malformed
+    # config raises, rc 2)
+    score_markets_config = (
+        load_result_config()
+        if stats_only and epochs.football_score_markets(args.date) else None)
     # epochs.FOOTBALL_INCIDENT_MARKETS (off: None, no such rung reaches
     # SHEET): the as-of red-card / penalty rates from the cached incident
     # lists of the football history (read-only) and the double chance's NB r
@@ -3073,8 +3155,10 @@ def _main() -> int:
                         int(fixture.kickoff_utc.timestamp()),
                         fixture.home_entity_id, fixture.away_entity_id)
                     if (season_index is not None and fixture.sport == "football"
-                        and result_1x2_dnb_config is not None)
+                        and (result_1x2_dnb_config is not None
+                             or score_markets_config is not None))
                     else None),
+                score_markets=score_markets_config,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:

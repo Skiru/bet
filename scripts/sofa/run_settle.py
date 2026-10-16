@@ -52,6 +52,8 @@ from bet.sofa.football_1x2_dnb import DNB_DRAW_REFUND
 from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS, incident_value
 from bet.sofa.football_result import DOUBLE_CHANCE
+from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
+from bet.sofa.football_score_markets import value_line as score_value_line
 from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_keys
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
@@ -59,6 +61,7 @@ from bet.sofa.metrics import (
     extract_flat_statistics,
     extract_metric,
     result_1x2_dnb_value,
+    score_market_value,
 )
 from bet.sofa.names import normalize_name
 from bet.sofa.players import (
@@ -97,7 +100,13 @@ from bet.sofa.settle import (
 from bet.sofa.settle import settle as settle_value
 from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.stage import current_stage, set_stage
-from bet.sofa.tennis_sets import SET_MARKETS, SET_SCORE, set_value, split_score_subject
+from bet.sofa.tennis_sets import (
+    SET_MARKETS,
+    SET_SCORE,
+    SET_SCORE_NOT,
+    set_value,
+    split_score_subject,
+)
 from bet.sofa.timeutil import now
 
 # /statistics is only fetched for a terminal event, so the cache entry is
@@ -337,6 +346,21 @@ def _settle_result_1x2_dnb(
     return float(value), settle_value(float(value), row["line"], row["direction"])
 
 
+def _settle_score_market(
+    row: dict[str, Any], event: dict[str, Any]
+) -> tuple[float, str] | str:
+    """(actual, outcome) of a football score-market row, or why not
+    (epochs.FOOTBALL_SCORE_MARKETS): the event on the 90-minute score
+    (metrics.score_market_value), an indicator graded at 0.5 - never at the
+    rung's goals line, which a 1 / 0 value would always be under."""
+    value = score_market_value(row["market"], row["subject"] or "",
+                               float(row["line"]), event)
+    if isinstance(value, GapReason):
+        return f"{row['market']}:{value.value}"
+    return float(value), settle_value(float(value), score_value_line(row),
+                                      row["direction"])
+
+
 def _settle_incident(
     row: dict[str, Any], event: dict[str, Any], incidents: dict[str, Any] | None
 ) -> tuple[float, str] | str:
@@ -358,7 +382,7 @@ def _settle_set_market(
     listing's set scores (bet.sofa.tennis_sets.set_value)."""
     subject = row["subject"] or ""
     score: str | None = None
-    if row["market"] == SET_SCORE:
+    if row["market"] in (SET_SCORE, SET_SCORE_NOT):
         parsed = split_score_subject(subject)
         if parsed is None:
             return f"{row['market']}:UNKNOWN_SUBJECT"
@@ -1419,6 +1443,16 @@ def main() -> int:
                     if outcome == "PUSH":
                         skips.add(event_id, "PUSH")
                         continue
+                    emit(row, event_id, competition_id, float(value), outcome)
+                    continue
+
+                if row["market"] in SCORE_MARKETS:
+                    # epochs.FOOTBALL_SCORE_MARKETS: the 90-minute score
+                    graded = _settle_score_market(row, event)
+                    if isinstance(graded, str):
+                        skips.add(event_id, graded)
+                        continue
+                    value, outcome = graded
                     emit(row, event_id, competition_id, float(value), outcome)
                     continue
 

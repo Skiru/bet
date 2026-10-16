@@ -34,6 +34,9 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 "incident_rule", "set_market_rule",
                 # football 1X2 / draw no bet (FOOTBALL_RESULT_1X2_DNB)
                 "result_1x2_dnb_rule", "result_phase",
+                # football score markets / tennis set complements
+                # (FOOTBALL_SCORE_MARKETS, TENNIS_SET_COMPLEMENTS)
+                "score_market_rule", "set_complement_rule",
                 # league strength learnt in cups (FOOTBALL_CUP_STRENGTH)
                 "cup_strength_rule", "sample_cup_rule")
 

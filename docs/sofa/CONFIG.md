@@ -573,3 +573,21 @@ kartki i karne OVER, połowy i kwarty koszykówki, `sets_count` siatkówki)
 krzywej nie ma: `NO_LINE_EVIDENCE` do 50 rozliczonych linii / 15 meczów w
 kubełku. Raport: `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md`;
 dowody: `docs/sofa/evidence/new_market_curves_2026-10-15.md`.
+
+### 7.9 Krzywe rynków „lub” / handicap / DC & gole i `set_score_not` (zainstalowane 2026-10-16, czytane od 2026-10-17)
+
+Fit `scripts/sofa/fit_score_market_curves.py` na wierszach, które już
+zapisały fity 1X2/DNB (księga z siłą pucharów,
+`data/refit_new_markets_2026-10-16_cup/football_result_1x2_dnb/rows.csv.gz`)
+i setów tenisa (`data/refit_new_markets_2026-10-15/tennis_sets/rows.csv`) –
+bez replayu. Bramka jednostronna (`new_market_gate`) + żaden wycinek z
+n >= 300 nie zawyża o więcej niż 2 pp. Wynik w
+`data/refit_new_markets_2026-10-17/`; instalacja `install_new_market_curves.py
+--dir data/refit_new_markets_2026-10-17 --confirm` (grupy
+`football_score_markets`, `tennis_set_complements`; kopia
+`config/backup_2026-10-17_score_markets/`; `tests/sofa` przeszły).
+
+| plik | co dopisano |
+|---|---|
+| `config/sofa_confidence_calibration.json` | 133 krzywe wycinków piłki `<rynek>@<podmiot>@<linia>|OVER` (bez klasy 50, `season_early:` 40, `women:` 43) oraz `set_score_not|OVER` i `tennis_women:set_score_not|OVER`; każdy klucz w `new_market_curves_fitted_from` – refit przenosi je jak inne nowe rynki |
+

@@ -57,6 +57,7 @@ from bet.sofa.confidence import (  # noqa: E402
     combined_probability,
     coupon_artifact,
     coupon_sort_key,
+    curve_market,
     direction_key,
     disagrees_with_price,
     empirical_joint,
@@ -98,6 +99,9 @@ from bet.sofa.epochs import (  # noqa: E402
 from bet.sofa.epochs import stats_only as stats_only_epoch  # noqa: E402
 from bet.sofa.football_1x2_dnb import (  # noqa: E402
     leg_class as result_1x2_dnb_leg_class,
+)
+from bet.sofa.football_score_markets import (  # noqa: E402
+    leg_class as score_market_leg_class,
 )
 from bet.sofa.line_evidence import (  # noqa: E402
     NO_LINE_EVIDENCE,
@@ -704,10 +708,15 @@ def main() -> int:
         # epochs.FOOTBALL_RESULT_1X2_DNB: an early-phase men's 1X2 / DNB row
         # reads the season_early class (unchanged for every other row)
         klass = result_1x2_dnb_leg_class(row, klass)
+        # epochs.FOOTBALL_SCORE_MARKETS: likewise an early-phase men's
+        # score-market row
+        klass = score_market_leg_class(row, klass)
         hit = None if (evidence is not None and is_derived(row["market"])
                        and not derived_curves(args.date, now)) \
             else cal.realised(
-                row["market"], row["p_central"], row.get("sport"),
+                # epochs.FOOTBALL_SCORE_MARKETS: a score market's curve is per
+                # slice (confidence.curve_market); every other row its market
+                curve_market(row), row["p_central"], row.get("sport"),
                 row["direction"], klass,
             )
         line_offset = 0.0
@@ -725,7 +734,7 @@ def main() -> int:
             line_offset = read.offset
             band_cap = read.band_cap
         if hit is None and klass is not None and cal.realised(
-            row["market"], row["p_central"], row.get("sport"), row["direction"]
+            curve_market(row), row["p_central"], row.get("sport"), row["direction"]
         ) is not None:
             # Refused only because of its class: the unclassed curves would
             # have served it (Calibration.realised). A class leg nothing would
