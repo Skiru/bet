@@ -1,14 +1,16 @@
-"""A football player row reads no sample-shape gate
+"""A football player row on a lineup market reads no sample-shape gate
 (epochs.PLAYER_SAMPLE_GATES_FROM_UTC, from 2026-10-17 00:00Z, operator 2026-10-16).
 
 A footballer's sample is his starts in his team's last 10 matches, 5-10
 values, so THIN_SAMPLE_FOR_BUILDER (< 10) admitted only a player who started
 all ten, and LINE_BEYOND_SAMPLE refused OVER 0.5 for a player who had a shot
-in every start. The player curves are fitted on a replay with 5 starts and no
-shape gate; measured, the refused groups realise on the curve
+in every start. The lineup-market player curves are fitted on a replay with 5
+starts and no shape gate; measured, the refused groups realise on the curve
 (docs/sofa/evidence/player_sample_gates_2026-10-16.md,
-player_line_evidence_2026-10-16.md). With the switch a player row needs only
-PLAYER_MIN_SAMPLE values and carries the marker; a team row is unchanged.
+player_line_evidence_2026-10-16.md). With the switch such a row needs only
+PLAYER_MIN_SAMPLE values; a leg a gate would have refused carries that gate
+as its marker and never joins a builder. A leg every gate passes, a team row
+and a shot-detail row (its own estimator, unmeasured) are unchanged.
 """
 
 from __future__ import annotations
@@ -23,17 +25,31 @@ from typing import Any
 import pytest
 
 from bet.sofa import epochs
-from bet.sofa.confidence import Calibration
+from bet.sofa.confidence import (
+    Calibration,
+    player_shape_gate_scope,
+    shape_gate_refusal,
+)
+from bet.sofa.config import SofaConfig
 from bet.sofa.line_evidence import LineEvidence, evidence_key
 from tests.sofa.confidence_day import DAY, NOW, _fixture, _offer, _samples, _sheet_row
 
 PLAYER = "Doe, John"
-MARKET = "player_shots_for"
+SHOTS = "player_shots_for"
+RIGHT_FOOT = "player_right_foot_shots_for"  # shot detail: outside the switch
 P, ODDS = 0.88, 1.25
 ON = datetime(2025, 12, 1, tzinfo=UTC)  # before DAY: the switch is on for it
+TEAM = 50
+
+ALWAYS_OVER = [1, 2, 3, 1, 2, 4]        # LINE_BEYOND_SAMPLE
+MODE_ZERO = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 3, 2]  # mode 0 loses OVER 0.5
+SIX_WITH_BLANK = [0, 2, 3, 1, 2, 4]     # THIN_SAMPLE_FOR_BUILDER (6 < 10)
+TEN_WITH_BLANK = [0, 2, 3, 1, 2, 4, 1, 2, 3, 1]  # passes every gate
+FIVE_WITH_BLANK = [0, 2, 3, 1, 2]       # exactly PLAYER_MIN_SAMPLE
+FOUR = [1, 2, 3, 1]                      # below PLAYER_MIN_SAMPLE
 
 
-def _player_obs(values: list[float]) -> list[dict[str, Any]]:
+def _player_obs(values: list[int]) -> list[dict[str, Any]]:
     return [{"sofascore_event_id": 9000 + i,
              "match_date_utc": (NOW - timedelta(days=4 + 4 * i))
              .isoformat().replace("+00:00", "Z"),
@@ -42,47 +58,48 @@ def _player_obs(values: list[float]) -> list[dict[str, Any]]:
             for i, v in enumerate(values)]
 
 
-def _player_row(eid: int) -> dict[str, Any]:
-    row = _sheet_row(eid, P, ODDS, None)  # type: ignore[arg-type]
-    row.update({"market": MARKET, "subject": PLAYER, "line": 0.5,
+def _player_row(eid: int, market: str) -> dict[str, Any]:
+    row = _sheet_row(eid, P, ODDS, 0.0)
+    row.update({"market": market, "subject": PLAYER, "line": 0.5,
                 "sample_size": 6, "sample_mean": 2.0, "sample_sd": 1.0,
                 "centre": 2.0, "market_p": None})
     return row
 
 
-def _player_offer(eid: int) -> dict[str, Any]:
+def _player_offer(eid: int, market: str) -> dict[str, Any]:
     offer = _offer(eid, ODDS, 0.0)
-    offer["rungs"][0].update({"market": MARKET, "subject": PLAYER, "line": 0.5,
+    offer["rungs"][0].update({"market": market, "subject": PLAYER, "line": 0.5,
                               "under_odds": None})
     return offer
 
 
-def _day(tmp_path: Path, starts: dict[int, list[float]]) -> Path:
-    """Fixtures 1..: a player row whose sample is `starts[eid]`; fixture 50 a
-    team row (goals_total 1.5 OVER) whose every sampled value is over the
-    line - LINE_BEYOND_SAMPLE with or without the switch."""
+def _day(tmp_path: Path, players: dict[int, tuple[str, list[int]]],
+         team_leg_beside: int | None = None) -> Path:
+    """One fixture per player row (market, sample of starts); fixture TEAM a
+    goals_total 1.5 OVER row whose every sampled value is over the line
+    (LINE_BEYOND_SAMPLE with or without the switch); `team_leg_beside` adds an
+    ordinary goals_total leg to that player's fixture (a builder candidate)."""
     run = tmp_path / DAY
     run.mkdir()
     fixtures, samples, offers, sheet = [], [], [], []
-    for eid, values in starts.items():
+    for eid, (market, values) in players.items():
         fixtures.append(_fixture(eid))
         s = _samples(eid)
-        s["players"] = {f"{MARKET}|{PLAYER}": {"observations": _player_obs(values)}}
+        s["players"] = {f"{market}|{PLAYER}": {"observations": _player_obs(values)}}
         samples.append(s)
-        offers.append(_player_offer(eid))
-        sheet.append(_player_row(eid))
-        if eid == 3:  # a team leg beside the player's: a builder candidate
-            s["metrics"] = _samples(eid)["metrics"]
+        offers.append(_player_offer(eid, market))
+        sheet.append(_player_row(eid, market))
+        if eid == team_leg_beside:
             offers[-1]["rungs"] += _offer(eid, 1.40, 2.75)["rungs"]
             sheet.append(_sheet_row(eid, 0.72, 1.40, 0.69))
-    team = _samples(50)
+    team = _samples(TEAM)
     for side in ("side_a", "side_b"):
         for o in team["metrics"]["goals_total"][side]:
             o["value"] = 3.0
-    fixtures.append(_fixture(50))
+    fixtures.append(_fixture(TEAM))
     samples.append(team)
-    offers.append(_offer(50, 1.40, 2.75))
-    sheet.append(_sheet_row(50, 0.72, 1.40, 0.69))
+    offers.append(_offer(TEAM, 1.40, 2.75))
+    sheet.append(_sheet_row(TEAM, 0.72, 1.40, 0.69))
     (run / "02_fixtures.json").write_text(json.dumps(fixtures))
     (run / "03_samples.json").write_text(json.dumps(samples))
     (run / "04_offer.json").write_text(json.dumps(offers))
@@ -96,8 +113,13 @@ def _confidence(runs: Path, monkeypatch: pytest.MonkeyPatch,
     import scripts.sofa.run_confidence as rc
 
     monkeypatch.setattr(epochs, "PLAYER_SAMPLE_GATES_FROM_UTC", switch)
-    # the test day is older than ONE_SIDED_SINGLES: a player leg prints only by it
-    monkeypatch.setattr(epochs, "ONE_SIDED_SINGLES_FROM_UTC", ON)
+    # the test day is older than these: a player leg prints only by
+    # ONE_SIDED_SINGLES, and reads the line evidence the precondition reads
+    for switch_name in ("ONE_SIDED_SINGLES_FROM_UTC", "LINE_EVIDENCE_FROM_UTC",
+                        "LINE_EVIDENCE_V2_FROM_UTC", "BUCKET_DESIGN_EFFECT_FROM_UTC"):
+        monkeypatch.setattr(epochs, switch_name, ON)
+    for date_name in ("LINE_EVIDENCE_DATE", "LINE_EVIDENCE_V2_DATE"):
+        monkeypatch.setattr(epochs, date_name, ON.strftime("%Y-%m-%d"))
     monkeypatch.setattr(sys, "argv", ["run_confidence.py", "--date", DAY,
                                       "--runs-dir", str(runs)])
     assert rc.main() == 0
@@ -105,59 +127,98 @@ def _confidence(runs: Path, monkeypatch: pytest.MonkeyPatch,
 
 
 @pytest.fixture(autouse=True)
-def _player_leg_would_print() -> None:
-    """The installed curve and line evidence print the player row at all."""
+def _player_legs_would_print() -> None:
+    """The installed curves and line evidence print both player markets at
+    (P, ODDS) at all - else every assertion below would be vacuous."""
     cal = dataclasses.replace(Calibration.load(), gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
-    hit = cal.realised(MARKET, P, "football", "OVER", None)
-    got = LineEvidence.load(v2=True, bucket_deff=True).read(
-        "football", evidence_key(f"{MARKET}|OVER"), P, hit, ODDS)
-    assert got is not None and got.value >= 0.70 and got.value * ODDS >= 0.90, (
-        f"precondition: {MARKET} OVER at p {P} / {ODDS} no longer prints ({got})")
+    evidence = LineEvidence.load(v2=True, bucket_deff=True)
+    for market in (SHOTS, RIGHT_FOOT):
+        hit = cal.realised(market, P, "football", "OVER", None)
+        got = evidence.read("football", evidence_key(f"{market}|OVER"), P, hit, ODDS)
+        assert got is not None and got.value >= 0.70 and got.value * ODDS >= 0.90, (
+            f"precondition: {market} OVER at p {P} / {ODDS} no longer prints ({got})")
 
 
-def _ids(legs: list[dict[str, Any]]) -> set[int]:
-    return {int(leg["sofascore_event_id"]) for leg in legs}
+def _by_id(legs: list[dict[str, Any]], market: str) -> dict[int, dict[str, Any]]:
+    return {int(x["sofascore_event_id"]): x for x in legs if x["market"] == market}
+
+
+def _in_builders(doc: dict[str, Any], market: str) -> set[int]:
+    return {int(b["sofascore_event_id"]) for b in doc["builders"]
+            for leg in b["legs"] if leg["market"] == market}
+
+
+# --- the rule ----------------------------------------------------------------
 
 
 def test_the_switch_starts_the_next_day_and_never_mid_day() -> None:
     start = datetime(2026, 10, 17, 0, 0, tzinfo=UTC)
     assert epochs.PLAYER_SAMPLE_GATES_FROM_UTC == start
     assert epochs.player_sample_gates_off("2026-10-17", start)
-    assert not epochs.player_sample_gates_off("2026-10-16", start)
+    # a day built before it stays off on a later clock (a rebuild of 10-16)
+    assert not epochs.player_sample_gates_off(
+        "2026-10-16", datetime(2026, 10, 17, 9, 0, tzinfo=UTC))
     assert not epochs.player_sample_gates_off(
         "2026-10-17", datetime(2026, 10, 16, 23, 59, tzinfo=UTC))
-    assert epochs.PLAYER_MIN_SAMPLE == 5
 
 
-def test_off_a_short_or_always_over_sample_is_refused(
+def test_the_floor_is_the_replays_sample_floor() -> None:
+    assert epochs.PLAYER_MIN_SAMPLE == SofaConfig.from_env().min_sample == 5
+
+
+def test_the_scope_is_the_lineup_markets_of_football() -> None:
+    assert player_shape_gate_scope("football", SHOTS)
+    assert player_shape_gate_scope("football", "player_tackles_for")
+    assert not player_shape_gate_scope("football", RIGHT_FOOT)
+    assert not player_shape_gate_scope("football", "player_sot_headed_for")
+    assert not player_shape_gate_scope("football", "goals_total")
+    assert not player_shape_gate_scope("tennis", SHOTS)
+
+
+def test_the_gate_order_is_confidences() -> None:
+    assert shape_gate_refusal(0.5, "OVER", [1.0, 2.0]) == "LINE_BEYOND_SAMPLE"
+    assert shape_gate_refusal(0.5, "OVER", [0.0, 0.0, 1.0]) == "MODE_LOSES"
+    assert shape_gate_refusal(0.5, "OVER", [0.0, 1.0, 1.0]) == "THIN_SAMPLE_FOR_BUILDER"
+    assert shape_gate_refusal(0.5, "OVER", [float(v) for v in TEN_WITH_BLANK]) is None
+    # MODE_LOSES reads the sample it is given (a corrected one rounded)
+    assert shape_gate_refusal(0.5, "OVER", [0.4] * 10 + [2.0],
+                              [0.0] * 10 + [2.0]) == "MODE_LOSES"
+
+
+# --- end to end through CONFIDENCE --------------------------------------------
+
+PLAYERS = {1: (SHOTS, ALWAYS_OVER), 2: (SHOTS, SIX_WITH_BLANK),
+           3: (SHOTS, TEN_WITH_BLANK), 4: (SHOTS, FOUR), 5: (SHOTS, FIVE_WITH_BLANK),
+           6: (SHOTS, MODE_ZERO),
+           7: (RIGHT_FOOT, TEN_WITH_BLANK), 8: (RIGHT_FOOT, ALWAYS_OVER)}
+
+
+def test_off_the_gates_refuse_as_before(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # 1: six starts, a shot in each (LINE_BEYOND_SAMPLE); 2: six starts with
-    # a blank (THIN_SAMPLE_FOR_BUILDER); 3: ten starts with a blank - passes.
-    runs = _day(tmp_path, {1: [1, 2, 3, 1, 2, 4], 2: [0, 2, 3, 1, 2, 4],
-                           3: [0, 2, 3, 1, 2, 4, 1, 2, 3, 1]})
-    doc = _confidence(runs, monkeypatch, None)
-    player = [x for x in doc["legs"] if x["market"] == MARKET]
-    assert _ids(player) == {3}
-    assert epochs.PLAYER_SAMPLE_MARKER not in player[0]
-    # ten starts pass the gates as before, and the leg may join a builder
-    assert any(leg["market"] == MARKET for b in doc["builders"] for leg in b["legs"])
+    doc = _confidence(_day(tmp_path, PLAYERS, team_leg_beside=3), monkeypatch, None)
+    assert set(_by_id(doc["legs"], SHOTS)) == {3}
+    assert set(_by_id(doc["legs"], RIGHT_FOOT)) == {7}
+    assert TEAM not in {int(x["sofascore_event_id"]) for x in doc["legs"]}
+    assert not any(epochs.PLAYER_SAMPLE_MARKER in x for x in doc["legs"])
+    assert _in_builders(doc, SHOTS) == {3}
 
 
-def test_on_the_player_legs_print_and_say_why_the_team_gate_stays(
+def test_on_the_lifted_legs_print_with_their_gate_and_nothing_else_moves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runs = _day(tmp_path, {1: [1, 2, 3, 1, 2, 4], 2: [0, 2, 3, 1, 2, 4],
-                           3: [0, 2, 3, 1, 2, 4, 1, 2, 3, 1], 4: [1, 2, 3, 1]})
-    doc = _confidence(runs, monkeypatch, ON)
-    # 4 has four starts, below PLAYER_MIN_SAMPLE; 50 is a team row.
-    player = [x for x in doc["legs"] if x["market"] == MARKET]
-    assert _ids(player) == {1, 2, 3}
-    assert {1, 2, 3} <= _ids(doc["singles"])  # one-sided singles, own curve
-    for leg in player:
-        assert leg[epochs.PLAYER_SAMPLE_MARKER] == "NO_SHAPE_GATES"
-        assert leg["one_sided_market"] is True
-    # admitted as a single only: no builder holds a leg the gates would refuse
-    assert not any(leg["market"] == MARKET
-                   for b in doc["builders"] for leg in b["legs"])
+    doc = _confidence(_day(tmp_path, PLAYERS, team_leg_beside=3), monkeypatch, ON)
+    shots = _by_id(doc["legs"], SHOTS)
+    # 4 has four starts (< PLAYER_MIN_SAMPLE); 5 has exactly five
+    assert set(shots) == {1, 2, 3, 5, 6}
+    assert {k: v.get(epochs.PLAYER_SAMPLE_MARKER) for k, v in shots.items()} == {
+        1: "LINE_BEYOND_SAMPLE", 2: "THIN_SAMPLE_FOR_BUILDER", 3: None,
+        5: "THIN_SAMPLE_FOR_BUILDER", 6: "MODE_LOSES"}
+    assert set(shots) <= {int(x["sofascore_event_id"]) for x in doc["singles"]}
+    assert all(leg["one_sided_market"] is True for leg in shots.values())
+    # the shot-detail market and the team row keep their gates
+    assert set(_by_id(doc["legs"], RIGHT_FOOT)) == {7}
+    assert TEAM not in {int(x["sofascore_event_id"]) for x in doc["legs"]}
+    # a leg every gate passed is a builder leg as before; a lifted one never is
+    assert _in_builders(doc, SHOTS) == {3}

@@ -258,7 +258,12 @@ differ from Superbet's ("Wålemark", "Khlan" for Chłań). A player leg printed
 as a single has no overround by construction (`one_sided_market`): that is
 not a C2 defect from `ONE_SIDED_SINGLES_FROM_UTC` on, provided its
 `calibrated_on` is `market:` with `calibration_n` >= 300
-(`confidence.one_sided_single`). A wrong person is a NO_BET defect.
+(`confidence.one_sided_single`). From `PLAYER_SAMPLE_GATES_FROM_UTC`
+(2026-10-17) a lineup-market player leg (not shot detail) needs only 5 starts
+and is not refused by LINE_BEYOND_SAMPLE / MODE_LOSES; a leg those gates
+would have refused carries `player_sample_rule` (the lifted gate) and is in
+no builder - a short or always-over sample on such a leg is the rule, not a
+defect. A wrong person is a NO_BET defect.
 
 ### 2c. Re-ask Superbet for every leg's live price
 

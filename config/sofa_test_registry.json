@@ -223,14 +223,14 @@
       "id": "T-PLAYER-SAMPLE-GATES",
       "registered_on": "2026-10-16",
       "status": "PROPOSED",
-      "hypothesis": "Football player legs printed because epochs.PLAYER_SAMPLE_GATES_FROM_UTC lifted the sample-shape gates (player_sample_rule NO_SHAPE_GATES) realise no more than 3 pp below their printed confidence on Superbet's lines.",
-      "rule": "Over the official coupon's football singles (11_coupon.json legs) with player_sample_rule == NO_SHAPE_GATES, graded WIN / LOSS in 07_settled.json (a PLAYER_NOT_STARTED / DID_NOT_PLAY refund not counted): realised minus mean printed confidence with a 95% bootstrap over matches; beside it the other printed player legs (gates passed) and ROI at the printed price (reported, not gated).",
-      "population": "Legs of the official coupon (epoch stats_only) of days from 2026-10-17, locked legs included, a leg removed by a read excluded.",
+      "hypothesis": "Football player legs printed only because epochs.PLAYER_SAMPLE_GATES_FROM_UTC lifted a sample-shape gate (the leg carries player_sample_rule = the lifted gate) realise no more than 3 pp below their printed confidence on Superbet's lines.",
+      "rule": "Over the official coupon's football singles (11_coupon.json legs) carrying player_sample_rule, graded WIN / LOSS in 07_settled.json (a PLAYER_NOT_STARTED / DID_NOT_PLAY refund not counted): realised minus mean printed confidence with a 95% bootstrap over matches, pooled and per lifted gate; beside it the printed player legs of the same markets WITHOUT the field (every gate passed) and ROI at the printed price (reported, not gated).",
+      "population": "Legs of the official coupon (epoch stats_only) of days from 2026-10-17, locked legs included, a leg removed by a read excluded; lineup markets only (confidence.player_shape_gate_scope).",
       "data_window": {"from": "2026-10-17", "to": "2027-01-16"},
-      "required_n": {"legs": 400, "matches": 200, "basis": "the walk-forward 10-12..10-15 read 77 legs / 42 matches at -3.2 pp [-13.8, +6.5] (half-width ~10 pp); a half-width of ~4.5 pp needs about five times that."},
+      "required_n": {"legs": 400, "matches": 200, "basis": "the walk-forward 10-12..10-15 read 60 legs / 40 matches at -6.0 pp [-18.4, +5.1] (half-width ~12 pp); a half-width of ~4.5 pp needs about seven times that."},
       "evaluation": "Realised minus confidence with a match bootstrap (as scripts/sofa/measure_player_line_evidence.py).",
       "stop_criterion": "PASSED when the lower 95% bound is above -0.03 at the required n; FAILED (the operator switches the rule off) when the upper bound is below 0 at the required n; STOPPED_FUTILE if fewer than 200 matches by 2027-01-16.",
-      "evidence": [{"source": "docs/sofa/evidence/player_line_evidence_2026-10-16.md", "line": 13, "quote": "| V0 drukuje | 77 | 42 | 0.785 | 0.829 | 0.753 | -3.2 pp [-13.8, +6.5]"}]
+      "evidence": [{"source": "docs/sofa/evidence/player_line_evidence_2026-10-16.md", "line": 15, "quote": "| V0 drukuje | 60 | 40 | 0.793 | 0.835 | 0.733 | -6.0 pp [-18.4, +5.1]"}]
     }
   ]
 }

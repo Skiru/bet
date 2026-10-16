@@ -54,6 +54,8 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.db import get_connection  # noqa: E402
+from bet.sofa.epochs import PLAYER_MIN_SAMPLE, PLAYER_SAMPLE_MARKER  # noqa: E402
+from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
 from bet.sofa.settle import line_value  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
 
@@ -105,9 +107,12 @@ def main() -> int:
         eid: int, market: str, subject: str
     ) -> tuple[list[Any], int | None]:
         mv = (samples.get(eid, {}).get("metrics") or {}).get(market)
-        if not mv:
+        if is_player_metric(market):
+            # a player row's sample is his own (03_samples `players`)
+            obs = player_observations(samples.get(eid, {}), market, subject)
+        elif not mv:
             return [], None
-        if subject:
+        elif subject:
             fm = fx_models.get(eid)
             side = determine_side(subject, fm) if fm else None
             obs = list(mv.get(side) or []) if side else []
@@ -347,12 +352,17 @@ def main() -> int:
             gates.append("NEGATIVE_LEG_EV")
         if conf_leg["offered_odds"] < MIN_ODDS_FOR_CEILING:
             gates.append("ODDS_TOO_LOW")
-        if line_is_beyond_sample(conf_leg["line"], conf_leg["direction"], vals):
-            gates.append("LINE_BEYOND_SAMPLE")
-        if mode_loses(conf_leg["line"], conf_leg["direction"], vals):
-            gates.append("MODE_LOSES")
-        if len(vals) < MIN_BUILDER_SAMPLE:
-            gates.append("THIN_SAMPLE_FOR_BUILDER")
+        if conf_leg.get(PLAYER_SAMPLE_MARKER):
+            # epochs.PLAYER_SAMPLE_GATES lifted the shape gates for this leg
+            if len(vals) < PLAYER_MIN_SAMPLE:
+                gates.append("THIN_SAMPLE_FOR_BUILDER")
+        else:
+            if line_is_beyond_sample(conf_leg["line"], conf_leg["direction"], vals):
+                gates.append("LINE_BEYOND_SAMPLE")
+            if mode_loses(conf_leg["line"], conf_leg["direction"], vals):
+                gates.append("MODE_LOSES")
+            if len(vals) < MIN_BUILDER_SAMPLE:
+                gates.append("THIN_SAMPLE_FOR_BUILDER")
         if age is not None and age > MAX_BUILDER_SAMPLE_AGE_DAYS:
             gates.append("SAMPLE_CROSSES_SEASON")
         population.append({"odds": conf_leg["offered_odds"], "outcome": g["outcome"],

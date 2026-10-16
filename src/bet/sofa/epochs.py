@@ -772,19 +772,22 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
 # (PLAYER_STARTS_ONLY), 5-10 values, so the 10-value gate admitted only a
 # player who started all ten (2026-10-15: 54 of the 57 player legs that
 # cleared the curve, the line evidence and x were refused by these gates; 5
-# printed). The player curves are fitted on the replay with a sample of
-# PLAYER_MIN_SAMPLE starts and no shape gate. Measured 2026-10-16: on the
-# history (959,656 player rows at confidence >= 0.70) the refused groups
-# realise on their curve and no worse than the passing ones (OVER
-# THIN_SAMPLE +0.9 pp [+0.5, +1.4] vs PASS); walk-forward on Superbet's
-# lines 10-12..10-15 with the line evidence the legs would print -3.2 pp
-# [-13.8, +6.5] under their confidence, ROI -8.6% [-21.2, +2.9] (77 legs / 42
-# matches; docs/sofa/evidence/player_sample_gates_2026-10-16.md,
-# player_line_evidence_2026-10-16.md). With the switch a football player row
-# reads no shape gate, only a sample of >= PLAYER_MIN_SAMPLE values; the
-# sample's age, the curve, the line evidence, the floor and x still apply,
-# and the leg carries PLAYER_SAMPLE_MARKER. Operator 2026-10-16 ("włączymy od
-# jutra"): from the next day.
+# printed). The lineup-market player curves are fitted on the replay with a
+# sample of PLAYER_MIN_SAMPLE starts and no shape gate. Measured 2026-10-16
+# (docs/sofa/evidence/player_sample_gates_2026-10-16.md,
+# player_line_evidence_2026-10-16.md): on the history (OVER rows at
+# confidence >= 0.70) the refused groups realise on their curve (-0.5 ..
+# +1.5 pp) but ~1 pp below the passing ones (5 starts -1.9 pp [-2.9, -0.8]
+# vs OVER PASS); on Superbet's lines 10-12..10-15, with the line evidence,
+# the gate-free legs read -6.0 pp [-18.4, +5.1] under their confidence, ROI
+# -12.0% [-26.8, +1.1] (60 legs / 40 matches, the curve in sample). With the
+# switch a football row on a lineup market (confidence.player_shape_gate_scope:
+# not the /shotmap shot-detail markets, whose curves come from their own
+# estimator and were not measured) needs only PLAYER_MIN_SAMPLE values; a leg
+# a shape gate would have refused carries that gate under
+# PLAYER_SAMPLE_MARKER and never joins a builder (the measurement was of
+# singles); the sample's age, the curve, the line evidence, the floor and x
+# still apply. Operator 2026-10-16 ("włączymy od jutra"): from the next day.
 PLAYER_SAMPLE_GATES_FROM_UTC: datetime | None = datetime(
     2026, 10, 17, 0, 0, tzinfo=UTC)
 PLAYER_MIN_SAMPLE = 5  # config.min_sample, the replay's player sample floor

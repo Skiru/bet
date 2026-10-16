@@ -1207,22 +1207,26 @@ zawodnika to jego starty w 10 ostatnich meczach drużyny (5-10 wartości), więc
 `THIN_SAMPLE_FOR_BUILDER` (< 10) przepuszczał tylko zawodnika z 10/10
 startów, a `LINE_BEYOND_SAMPLE` odrzucał OVER 0,5 zawodnikowi, który w każdym
 starcie miał ≥ 1 (10-15: z 57 nóg zawodników po krzywej, line evidence i x
-bramki te odcięły 54, wydrukowało się 5). Krzywe zawodników są dopasowane na
-replayu z próbką od 5 startów i bez bramek kształtu. Od przełącznika wiersz
-`player_*` w piłce nie czyta `LINE_BEYOND_SAMPLE` ani `MODE_LOSES`, a
-`THIN_SAMPLE_FOR_BUILDER` żąda `PLAYER_MIN_SAMPLE` (5) wartości; wiek
-próbki, krzywa, line evidence, próg 0,70 i x ≥ 0,90 bez zmian. Noga ma
-`player_sample_rule: "NO_SHAPE_GATES"` i **nie wchodzi do Bet Buildera**
-(pomiar dotyczył singli). Pomiar: na historii (959 656 wierszy z pewnością
-≥ 0,70) grupy odcinane realizują się na krzywej i nie gorzej niż
-przepuszczane (OVER THIN +0,9 pp [+0,5; +1,4] względem PASS); walk-forward
-na liniach Superbetu 10-12..10-15 z line evidence: 77 nóg / 42 mecze,
-−3,2 pp [−13,8; +6,5] pod pewnością, ROI −8,6% [−21,2; +2,9] — przy cenie,
-bez zmierzonej przewagi. Offset zawodników liczony tylko na liniach x ≥ 0,90
-zmierzony i odrzucony (zdjęte nogi nie gorsze w granicach przedziału).
-E2E na 10-15 (zegar 12:59Z): +47 singli zawodników, 0 nóg straconych ani
-zmienionych, buildery bez zmian. Dowody:
-`docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
+bramki te odcięły 54, wydrukowało się 5). Krzywe rynków z `/lineups` są
+dopasowane na replayu z próbką od 5 startów i bez bramek kształtu. Od
+przełącznika wiersz zawodnika na rynku z `/lineups` (strzały, celne, faule,
+odbiory, asysty, spalone - `confidence.player_shape_gate_scope`; **nie**
+strzały wg nogi / głowy / spoza pola z `/shotmap`, liczone osobnym
+estymatorem i niezmierzone) potrzebuje tylko `PLAYER_MIN_SAMPLE` (5)
+wartości; wiek próbki, krzywa, line evidence, próg 0,70 i x ≥ 0,90 bez
+zmian. Noga, którą bramka by odcięła, ma `player_sample_rule` = nazwa tej
+bramki i **nie wchodzi do Bet Buildera** (pomiar dotyczył singli). Pomiar:
+na historii (OVER, pewność ≥ 0,70) grupy odcinane realizują się na swojej
+krzywej (−0,5..+1,5 pp), ale ~1 pp słabiej niż przepuszczane (5 startów
+−1,9 pp [−2,9; −0,8] względem PASS) - bramki lekko wybierają, nie chronią
+wydrukowanej pewności; na liniach Superbetu 10-12..10-15 z line evidence:
+60 nóg / 40 meczów, −6,0 pp [−18,4; +5,1] pod pewnością, ROI −12,0%
+[−26,8; +1,1] (krzywa in-sample) - przy cenie, bez zmierzonej przewagi.
+Offset zawodników liczony tylko na liniach x ≥ 0,90 zmierzony i odrzucony.
+E2E na 10-15 (czysta kopia, zegar 12:59Z): +40 singli zawodników (22 z
+`LINE_BEYOND_SAMPLE`, 18 z `THIN_SAMPLE_FOR_BUILDER`), 0 nóg straconych ani
+zmienionych, buildery identyczne.
+Dowody: `docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
 `docs/sofa/evidence/player_line_evidence_2026-10-16.md`; test na nowych
 danych `T-PLAYER-SAMPLE-GATES`.
 
@@ -1464,7 +1468,7 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `NEGATIVE_LEG_EV` | noga nie przebija własnej ceny (`profile.clears_price`); od 2026-10-05: pewność × kurs < 0,90, w epoce `stats_only` na świeżym kursie |
 | `LINE_BEYOND_SAMPLE` | linia leży poza wszystkim, co próbka widziała |
 | `MODE_LOSES` | wartość modalna próbki przegrywa zakład |
-| `THIN_SAMPLE_FOR_BUILDER` | mniej niż `MIN_BUILDER_SAMPLE = 10` obserwacji |
+| `THIN_SAMPLE_FOR_BUILDER` | mniej niż `MIN_BUILDER_SAMPLE = 10` obserwacji; wiersz zawodnika z rynku `/lineups` od 2026-10-17 (`PLAYER_SAMPLE_GATES_FROM_UTC`): mniej niż `PLAYER_MIN_SAMPLE = 5`, bez `LINE_BEYOND_SAMPLE` / `MODE_LOSES` (noga ma `player_sample_rule`) |
 | `SAMPLE_CROSSES_SEASON` | najstarsza obserwacja starsza niż `MAX_BUILDER_SAMPLE_AGE_DAYS = 180` |
 | `STALE_SAMPLE` | najświeższa starsza niż `MAX_SAMPLE_AGE_DAYS = 60` — **ta sama stała co w COUPON**, celowo w jednym miejscu |
 

@@ -201,7 +201,11 @@ lowered it `line_offset` (the key's measured offset, <= 0) and / or
 `price_band_cap` (the band cell's realised rate), and `calibrated_on` then
 reads `<curve><offset>sb`, `...|cap:<cell>` or, for a key with no curve,
 `sb:<sport>:<key>`; a leg of a day under the line-evidence epoch also lists
-the line-evidence constants in `unfitted_constants`. The artifact also carries
+the line-evidence constants in `unfitted_constants`. A one-sided ladder's leg
+has `one_sided_market: true`; a football player leg admitted only because
+`PLAYER_SAMPLE_GATES_FROM_UTC` (2026-10-17) lifted a shape gate carries
+`player_sample_rule` = that gate (`LINE_BEYOND_SAMPLE`, `MODE_LOSES` or
+`THIN_SAMPLE_FOR_BUILDER`) and is never a builder leg. The artifact also carries
 `pool_neighbour_cap` (K13b on / off for the build).
 
 A **builder**: `legs[]`, `n_legs`, `combined_probability` (the **lower** of

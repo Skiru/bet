@@ -61,8 +61,8 @@ if str(ROOT) not in sys.path:
 from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     Calibration,
-    line_is_beyond_sample,
-    mode_loses,
+    player_shape_gate_scope,
+    shape_gate_refusal,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
@@ -88,16 +88,11 @@ class Row:
 
 
 def gate_of(line: float, direction: str, values: Sequence[float]) -> str:
-    """The first of CONFIDENCE's shape gates that refuses (run_confidence
-    order: LINE_BEYOND_SAMPLE, MODE_LOSES, THIN_SAMPLE_FOR_BUILDER)."""
-    vals = list(values)
-    if line_is_beyond_sample(line, direction, vals):
-        return "LINE_BEYOND_SAMPLE"
-    if mode_loses(line, direction, vals):
-        return "MODE_LOSES"
-    if len(vals) < MIN_BUILDER_SAMPLE:
-        return "THIN_SAMPLE"
-    return PASS
+    """The first of CONFIDENCE's shape gates that refuses
+    (confidence.shape_gate_refusal), PASS when none does. A player row's
+    values are raw (opponent_correction excludes players), so MODE_LOSES
+    reads them as they are."""
+    return shape_gate_refusal(line, direction, list(values)) or PASS
 
 
 class _CapturingStatistics:
@@ -172,7 +167,7 @@ def day_rows(runs_dir: Path, day: str, cal: Calibration) -> list[Row]:
     }
     out: list[Row] = []
     for r in sheet:
-        if r.get("sport") != "football" or not is_player_metric(str(r["market"])):
+        if not player_shape_gate_scope(r.get("sport"), str(r["market"])):
             continue
         odds = r.get("offered_odds")
         if not odds:
@@ -255,9 +250,13 @@ def boot_diff(group: Sequence[Row], base: Sequence[Row],
 
 
 def table(
-    rows: Sequence[Row], key: Callable[[Row], str], priced: bool
+    rows: Sequence[Row], key: Callable[[Row], str], priced: bool,
+    base_of: Callable[[Row], Any] = lambda r: (r.market, r.direction),
 ) -> list[dict[str, Any]]:
-    base = [r for r in rows if r.gate == PASS]
+    """One entry per `key` group; "vs PASS" against the PASS rows of the same
+    `base_of` (market and direction by default - a group is compared with the
+    rows the gates pass in its own population, never with another
+    direction's)."""
     out = []
     groups: dict[str, list[Row]] = collections.defaultdict(list)
     for r in rows:
@@ -271,6 +270,8 @@ def table(
             "realised": round(sum(r.won for r in g) / len(g), 4),
             "gap": [round(x, 4) for x in gap],
         }
+        scopes = {base_of(r) for r in g}
+        base = [r for r in rows if r.gate == PASS and base_of(r) in scopes]
         if base and not all(r.gate == PASS for r in g):
             entry["vs_pass"] = [round(x, 4) for x in boot_diff(g, base)]
         if priced:
@@ -304,18 +305,25 @@ def render(title: str, entries: list[dict[str, Any]], priced: bool) -> list[str]
 def sections(
     rows: Sequence[Row], label: str, priced: bool
 ) -> tuple[dict[str, Any], list[str]]:
-    by_gate = table(rows, lambda r: f"{r.direction} {r.gate}", priced)
-    by_n = table(rows, lambda r: f"n={r.n:02d}", priced)
-    beyond_full = table(
-        [r for r in rows if r.n >= MIN_BUILDER_SAMPLE],
-        lambda r: r.gate, priced)
+    """Grouped by gate, by sample size and by market; every "vs PASS" reads
+    the PASS rows of the group's own direction (and market where the group is
+    one market's). Superbet quotes a footballer's markets OVER only."""
+    by_direction: Callable[[Row], Any] = lambda r: r.direction  # noqa: E731
+    by_gate = table(rows, lambda r: f"{r.direction} {r.gate}", priced, by_direction)
+    over = [r for r in rows if r.direction == "OVER"]
+    by_n = table(over, lambda r: f"OVER n={r.n:02d}", priced, by_direction)
+    full = table([r for r in rows if r.n >= MIN_BUILDER_SAMPLE],
+                 lambda r: f"{r.direction} {r.gate}", priced, by_direction)
     by_market = table(rows, lambda r: f"{r.market} {r.direction} / {r.gate}", priced)
     md = [f"## {label}", ""]
-    md += render("wg bramki (kolejność run_confidence)", by_gate, priced)
-    md += render("wg liczby startów w próbce", by_n, priced)
-    md += render("tylko próbki 10/10 - LINE_BEYOND / MODE vs PASS", beyond_full, priced)
-    md += render("wg rynku i bramki", by_market, priced)
-    return ({"by_gate": by_gate, "by_n": by_n, "full_sample": beyond_full,
+    md += render("wg bramki (kolejność run_confidence; vs PASS tego kierunku)",
+                 by_gate, priced)
+    md += render("OVER wg liczby startów w próbce (vs OVER PASS)", by_n, priced)
+    md += render("tylko próbki 10/10 - LINE_BEYOND / MODE vs PASS tego kierunku",
+                 full, priced)
+    md += render("wg rynku i bramki (vs PASS tego rynku i kierunku)",
+                 by_market, priced)
+    return ({"by_gate": by_gate, "by_n_over": by_n, "full_sample": full,
              "by_market": by_market}, md)
 
 

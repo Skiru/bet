@@ -232,9 +232,10 @@ def test_confidence_calls_the_gates_through_gate_values() -> None:
     src = (Path(__file__).resolve().parents[2] / "scripts" / "sofa"
            / "run_confidence.py").read_text(encoding="utf-8")
     at = src.index("values = gate_values(row, values)")
-    assert at < src.index("line_is_beyond_sample(\n")
+    gates = src.index("gate = shape_gate_refusal(")
+    assert at < gates
     assert at < src.index("own_gap = model_above_own_sample(")
-    assert "mode_values(row, values)" in src[src.index("mode_loses(row["):][:200]
+    assert "mode_values(row, values)" in src[gates:][:200]
 
 
 # --- switch ----------------------------------------------------------------

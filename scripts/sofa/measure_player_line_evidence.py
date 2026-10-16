@@ -31,6 +31,14 @@ switch). Reported per variant and scenario: legs that print, confidence,
 realised, realised minus confidence and ROI (match bootstrap, days pooled),
 and the legs V1 drops from V0's print with how they did.
 
+Only the rows in epochs.PLAYER_SAMPLE_GATES' scope are read
+(confidence.player_shape_gate_scope: the lineup markets, no shot detail).
+Walk-forward for the line evidence only: the curve is the one installed, and
+a refit's replay holds the test days' matches - the numbers are in sample
+for the curve. Not applied (an approximation of what prints): the match
+classes (a women's row reads the men's curve), the fresh price (the sheet's),
+SAMPLE_CROSSES_SEASON, STALE_SAMPLE and NOT_SETTLEABLE.
+
 Nothing is written but --md-out / --json-out. Exit 0, 2 on a crash.
 """
 
@@ -57,6 +65,7 @@ from bet.sofa.confidence import (  # noqa: E402
     Calibration,
     curve_market,
     direction_key,
+    player_shape_gate_scope,
 )
 from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N  # noqa: E402
 from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
@@ -136,7 +145,7 @@ def day_legs(runs: Path, day: str, cal: Calibration,
         if r.get("sport") == "football" and is_player_metric(str(r["market"]))}
     legs = []
     for r in sheet:
-        if r.get("sport") != "football" or not is_player_metric(str(r["market"])) \
+        if not player_shape_gate_scope(r.get("sport"), str(r["market"])) \
                 or not r.get("offered_odds"):
             continue
         o = outcome.get((r["sofascore_event_id"], r["market"],

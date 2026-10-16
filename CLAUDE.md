@@ -299,17 +299,21 @@ every sport alike, and nothing that could win is cut by name.
     values), so THIN_SAMPLE_FOR_BUILDER (< 10) admitted only a player with
     10/10 starts and LINE_BEYOND_SAMPLE refused OVER 0.5 for one who never
     blanked (10-15: 54 of 57 otherwise printable player legs refused). From
-    the switch a `player_*` row reads neither LINE_BEYOND_SAMPLE nor
-    MODE_LOSES and needs `PLAYER_MIN_SAMPLE` (5) values - the replay's floor
-    the player curves were fitted on; age, curve, line evidence, floor and
-    x unchanged; the leg carries `player_sample_rule: "NO_SHAPE_GATES"` and
-    never joins a builder. Measured: history 959,656 rows, refused groups no
-    worse than passing ones (OVER THIN +0.9 pp [+0.5, +1.4] vs PASS);
-    walk-forward on Superbet's lines 10-12..10-15 with line evidence 77
-    legs / 42 matches -3.2 pp [-13.8, +6.5], ROI -8.6% [-21.2, +2.9] (at the
-    price, no edge); a player offset measured only on x >= 0.90 lines was
-    measured and declined. E2E 10-15: +47 player singles, 0 legs lost or
-    changed, builders unchanged
+    the switch a row on a lineup market (`confidence.player_shape_gate_scope`:
+    shots, shots on target, fouls, tackles, assists, offsides - not the
+    /shotmap shot-detail markets, their own estimator, unmeasured) needs only
+    `PLAYER_MIN_SAMPLE` (5) values - the replay's floor its curve was fitted
+    on; age, curve, line evidence, floor and x unchanged; a leg a shape gate
+    would have refused carries `player_sample_rule` = that gate and never
+    joins a builder. Measured: history OVER, the refused groups realise on
+    their curve (-0.5..+1.5 pp) but ~1 pp below the passing ones (5 starts
+    -1.9 pp [-2.9, -0.8] vs PASS) - the gates select slightly, they do not
+    protect the printed number; Superbet's lines 10-12..10-15 with line
+    evidence 60 legs / 40 matches -6.0 pp [-18.4, +5.1], ROI -12.0% [-26.8,
+    +1.1] (curve in sample; at the price, no edge); a player offset on
+    x >= 0.90 lines only was measured and declined. E2E 10-15 (clean copy,
+    clock 12:59Z): +40 player singles (22 LINE_BEYOND, 18 THIN), 0 legs
+    lost or changed, builders identical
     (`docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
     `player_line_evidence_2026-10-16.md`; check on new data
     `T-PLAYER-SAMPLE-GATES`).
@@ -1052,7 +1056,7 @@ their measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
   `docs/sofa/evidence/player_line_evidence_2026-10-16.md`) a footballer's
   line-evidence offset measured only on lines with curve x odds >= 0.90:
   the legs it dropped were not measurably worse (-7.1 pp [-23.9, +8.5] vs
-  +0.5), it acted on player_shots_for alone and raised tackles (its lines
+  -4.1 kept), it acted on player_shots_for alone and raised tackles (its lines
   fell back to the football pool) - the shape of the 10-12 per-bin offset;
 - (2026-10-16, history holdout + Superbet's lines,
   `docs/sofa/evidence/football_score_markets_2026-10-16.md`) the football

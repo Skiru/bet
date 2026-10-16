@@ -43,6 +43,7 @@ from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.football_score_markets import curve_market as score_curve_market
 from bet.sofa.football_score_markets import is_curve_slice
 from bet.sofa.players import is_player_metric
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 # Markets read from their own curve or not at all, like the derived joints:
@@ -1021,6 +1022,34 @@ def mode_loses(line: float, direction: str, sample_values: list[float]) -> bool:
         return False
     mode = statistics.mode(sample_values)
     return mode <= line if direction == "OVER" else mode >= line
+
+
+def shape_gate_refusal(
+    line: float, direction: str, values: list[float],
+    mode_sample: list[float] | None = None,
+    min_values: int = MIN_BUILDER_SAMPLE,
+) -> str | None:
+    """The first sample-shape gate that refuses a leg, in CONFIDENCE's order
+    (LINE_BEYOND_SAMPLE, MODE_LOSES, THIN_SAMPLE_FOR_BUILDER), or None.
+    `mode_sample` is what MODE_LOSES reads (opponent_correction.mode_values;
+    default the values themselves)."""
+    if line_is_beyond_sample(line, direction, values):
+        return "LINE_BEYOND_SAMPLE"
+    if mode_loses(line, direction, values if mode_sample is None else mode_sample):
+        return "MODE_LOSES"
+    if len(values) < min_values:
+        return "THIN_SAMPLE_FOR_BUILDER"
+    return None
+
+
+def player_shape_gate_scope(sport: object, market: str) -> bool:
+    """Is this row in epochs.PLAYER_SAMPLE_GATES' scope: a footballer's
+    lineup-statistics market (his starts in the team's last 10 matches, the
+    sample the player curves were replayed and measured on)? The shot-detail
+    markets (/shotmap, bet.sofa.shot_detail's own estimator) are not: their
+    curves were never measured against the gates."""
+    return (sport == "football" and is_player_metric(market)
+            and market not in SHOT_DETAIL_METRICS)
 
 
 def builder_legs_are_coherent(legs: list[dict[str, Any]]) -> bool:

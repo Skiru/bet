@@ -148,7 +148,10 @@ pipeline had and this one does not.
 - **A duplicate of a gate the code already applies.** `STALE_PRICE`,
   `STALE_SAMPLE`, `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`,
   `LINE_BEYOND_SAMPLE`, `THIN_SAMPLE_FOR_BUILDER` are enforced in code. Vetoing
-  for one of those adds nothing and hides your real reasons in noise.
+  for one of those adds nothing and hides your real reasons in noise. Not for
+  a leg carrying `player_sample_rule` (a footballer's lineup market from
+  2026-10-17, epochs.PLAYER_SAMPLE_GATES): the code lifted that gate, so its
+  sample's shape is yours to judge.
 
 ## Validating before you hand it over
 

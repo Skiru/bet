@@ -46,7 +46,6 @@ from bet.sofa.confidence import (  # noqa: E402
     MAX_BUILDER_LEGS,
     MAX_BUILDER_SAMPLE_AGE_DAYS,
     MIN_BUILDER_LEGS,
-    MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     STAKEABLE_RULE_X,
     Calibration,
@@ -68,14 +67,14 @@ from bet.sofa.confidence import (  # noqa: E402
     is_derived,
     is_stakeable,
     joint_probability,
-    line_is_beyond_sample,
     match_class,
-    mode_loses,
     model_above_own_sample,
     one_sided_single,
     overround,
     own_hit_rate,
+    player_shape_gate_scope,
     reads_catch_all_bucket,
+    shape_gate_refusal,
     too_close_to_kickoff,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
@@ -817,23 +816,24 @@ def main() -> int:
         # its curve was fitted on every rated match, under none of the
         # sample's shape gates (bet.sofa.tennis_winner).
         rating_only = row["market"] in RATING_ONLY_MARKETS
-        # epochs.PLAYER_SAMPLE_GATES: a footballer's sample (his starts in
-        # his team's last 10 matches) reads no shape gate, only the replay's
-        # sample floor - the curve was fitted under neither
-        player_rule = player_gates_off and is_player_metric(row["market"])
-        shape_gated = not rating_only and not player_rule
-        if shape_gated and line_is_beyond_sample(
-                row["line"], row["direction"], values):
-            refused["LINE_BEYOND_SAMPLE"] += 1
-            continue
-        if shape_gated and mode_loses(row["line"], row["direction"],
-                                      mode_values(row, values)):
-            refused["MODE_LOSES"] += 1
-            continue
-        if not rating_only and len(values) < (
-                PLAYER_MIN_SAMPLE if player_rule else MIN_BUILDER_SAMPLE):
-            refused["THIN_SAMPLE_FOR_BUILDER"] += 1
-            continue
+        # epochs.PLAYER_SAMPLE_GATES: a footballer's lineup-market sample
+        # (his starts in his team's last 10 matches) needs only the replay's
+        # sample floor - the curve was fitted under no shape gate; a leg the
+        # gates would have refused carries the lifted gate as its marker and
+        # stays out of a builder
+        lifted: str | None = None
+        if not rating_only:
+            gate = shape_gate_refusal(row["line"], row["direction"], values,
+                                      mode_values(row, values))
+            if gate is not None and player_gates_off and player_shape_gate_scope(
+                    row.get("sport"), row["market"]):
+                if len(values) < PLAYER_MIN_SAMPLE:
+                    refused["THIN_SAMPLE_FOR_BUILDER"] += 1
+                    continue
+                lifted = gate
+            elif gate is not None:
+                refused[gate] += 1
+                continue
         national_age: list[str] = []
         if oldest_days is not None and oldest_days > MAX_BUILDER_SAMPLE_AGE_DAYS:
             # epochs.NATIONAL_SAMPLE_AGE_FROM_UTC: two national teams play
@@ -942,7 +942,7 @@ def main() -> int:
                 # Written only when true: the ladder has no UNDER side, so
                 # `overround` is None by construction (epochs.ONE_SIDED_SINGLES).
                 **({"one_sided_market": True} if key in one_sided else {}),
-                **({PLAYER_SAMPLE_MARKER: "NO_SHAPE_GATES"} if player_rule else {}),
+                **({PLAYER_SAMPLE_MARKER: lifted} if lifted else {}),
                 # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
                 # sheet stamps it in `notes`, which a leg does not carry, so
                 # until 2026-09-25 both confidence artifacts and their .md
