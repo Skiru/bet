@@ -309,6 +309,9 @@ def coupon_structure(
     nothing; the coupon form removes only from its epoch (`form_active`)."""
     index = lr.ladder_index(singles)
     for leg in singles:
+        # a locked leg carries the ladder_no of its print: a number not
+        # re-earned here names another match's ladder on the page
+        leg.pop("ladder_no", None)
         if id(leg) in index:
             leg["ladder_no"] = index[id(leg)]
     ladders = lr.ladders(singles)

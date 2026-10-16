@@ -572,3 +572,16 @@ def test_the_logit_fit_recovers_a_slope_and_cv_runs_by_day() -> None:
     df = pd.DataFrame({"day": np.repeat(["a", "b", "c", "d"], 1000), "y": y, "lp": x})
     ll, au, n = mpc.cv_by_day(df, ["lp"])
     assert n == 4000 and au > 0.75 and ll < 0.6
+
+
+def test_a_score_market_peer_is_named_in_superbets_words() -> None:
+    """2026-10-16: the note named a result_or_under peer by its code name."""
+    legs = [
+        leg(1, 0.80, "goals_2h_total", 3.5, "UNDER", 1.12, match="Cottbus - Nürnberg"),
+        leg(1, 0.87, "result_or_under", 5.5, "OVER", 1.11, subject="1",
+            match="Cottbus - Nürnberg"),
+    ]
+    peer_choice.annotate(legs)
+    assert peer_choice.label(legs[0]) == (
+        "słabsza o 0.070 niż ★ Mecz lub liczba goli: Cottbus lub poniżej 5.5 "
+        "(Tak) (kurs 1.11)")

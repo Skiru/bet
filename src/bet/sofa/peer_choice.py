@@ -120,8 +120,13 @@ def label(leg: Mapping[str, Any]) -> str:
         return (f"★ najpewniejsza z {k + 1} nóg tego meczu w pasie kursu "
                 f"{peer['band'][0]:.2f}–{peer['band'][1]:.2f}")
     best = peer["best"]
-    sub = f" {best['subject']}" if best.get("subject") else ""
     pos = f" #{best['position']}" if best.get("position") else ""
+    # a score-market / set_score_not peer in Superbet's words, as its own row
+    # prints it (the peer is of the same match, so the leg's names serve)
+    from bet.sofa.football_score_markets import display_market
+    shown = display_market({**best, "match": leg.get("match")})
+    if shown is None:
+        sub = f" {best['subject']}" if best.get("subject") else ""
+        shown = f"{best['market']}{sub} {best['line']} {best['direction']}"
     return (f"słabsza o {abs(float(peer['d_confidence'])):.3f} niż ★{pos} "
-            f"{best['market']}{sub} {best['line']} {best['direction']} "
-            f"(kurs {best['odds']})")
+            f"{shown} (kurs {best['odds']})")

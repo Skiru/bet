@@ -314,3 +314,15 @@ def test_a_locked_leg_whose_ladder_is_gone_prints_as_a_single() -> None:
     doc = {"ladders": [{"ladder_no": 7, "n_rungs": 2, "rungs": []}]}
     of, docs = ladders_of(doc, [kept, orphan, plain])
     assert of == {id(kept): 7} and set(docs) == {7}
+
+
+def test_a_leg_left_alone_on_its_variable_loses_a_stale_ladder_no() -> None:
+    """2026-10-16: a locked tennis leg kept the ladder_no 16 of its print
+    after its rung partner left; 16 now numbered another match's ladder and
+    the PDF printed that header above it."""
+    from scripts.sofa.build_coupon import coupon_structure
+    lone = _single(4, 0.80, "games_set2_total", 6.5, "OVER", ladder_no=16)
+    legs = [*_ladder_day(), lone]
+    coupon_structure(legs, [], cf.CouponForm(), False, [])
+    assert "ladder_no" not in lone
+    assert {leg.get("ladder_no") for leg in legs[:3]} == {1}
