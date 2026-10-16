@@ -275,8 +275,14 @@ says `PLAYER_NOT_STARTED`, the sample is his starts from
 `PLAYER_STARTS_ONLY`), the history replay `--player-starts-only`. A name
 `match_player` cannot place is matched by whole tokens from
 `PLAYER_NAME_TOKENS_FROM_UTC` (2026-10-12; `match_rule: "tokens"`, note
-`PLAYER_NAME_TOKENS`). Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`,
-`docs/sofa/evidence/player_starts_2026-10-11.md`.
+`PLAYER_NAME_TOKENS`). From `PLAYER_SAMPLE_GATES_FROM_UTC` (2026-10-17 00:00Z)
+a row on the six `confidence.PLAYER_SHAPE_GATE_MARKETS` (shots, shots on
+target, fouls, tackles, assists, offsides) needs only 5 starts and skips
+LINE_BEYOND_SAMPLE / MODE_LOSES; a leg a gate would have refused carries
+`player_sample_rule` (the first such gate) and is never a builder leg.
+Evidence: `docs/sofa/evidence/player_name_tokens_2026-10-11.md`,
+`docs/sofa/evidence/player_starts_2026-10-11.md`,
+`docs/sofa/evidence/player_sample_gates_2026-10-16.md`.
 
 ### Measured sports
 

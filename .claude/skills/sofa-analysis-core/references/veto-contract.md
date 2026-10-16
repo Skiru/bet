@@ -149,7 +149,8 @@ pipeline had and this one does not.
   `STALE_SAMPLE`, `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`,
   `LINE_BEYOND_SAMPLE`, `THIN_SAMPLE_FOR_BUILDER` are enforced in code. Vetoing
   for one of those adds nothing and hides your real reasons in noise. Not for
-  a leg carrying `player_sample_rule` (a footballer's lineup market from
+  a leg carrying `player_sample_rule` (a footballer's leg on the six
+  `PLAYER_SHAPE_GATE_MARKETS` from
   2026-10-17, epochs.PLAYER_SAMPLE_GATES): the code lifted that gate, so its
   sample's shape is yours to judge.
 

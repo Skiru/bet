@@ -142,7 +142,7 @@ Do not re-derive these, and do not veto for them — the gate already fired:
 | a second row of the same mechanism family on one fixture | COUPON `FAMILY_SLOT_TAKEN` |
 | modal outcome loses | CONFIDENCE `MODE_LOSES` |
 | football model more than 0.15 above its own sample's hit rate | CONFIDENCE `MODEL_ABOVE_OWN_SAMPLE` (automatic WATCH, into `removed_by_reads`) |
-| fewer than 10 observations (a football player lineup-market row from 2026-10-17: fewer than 5, and no LINE_BEYOND_SAMPLE / MODE_LOSES - such a leg carries `player_sample_rule`) | `THIN_SAMPLE_FOR_BUILDER` |
+| fewer than 10 observations (a football player row on the six `PLAYER_SHAPE_GATE_MARKETS` from 2026-10-17: fewer than 5, and no LINE_BEYOND_SAMPLE / MODE_LOSES - such a leg carries `player_sample_rule`) | `THIN_SAMPLE_FOR_BUILDER` |
 | oldest observation past 180 days (national-team fixtures judged by count, `NATIONAL_SAMPLE_AGE`) | `SAMPLE_CROSSES_SEASON` |
 | model more than 0.10 above the devigged price | `DISAGREES_WITH_PRICE` - old-epoch builds only; off on a stats-only day, as `UNREACHABLE_BAR` |
 | no curve at p and no settled Superbet lines of the key (a derived joint, a player line, a thin bucket) | `NO_LINE_EVIDENCE` (football / tennis CONFIDENCE and SPORT_CONFIDENCE; `DERIVED_NOT_CALIBRATABLE` only before 2026-10-07 10:55Z) |

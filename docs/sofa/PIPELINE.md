@@ -1207,23 +1207,26 @@ zawodnika to jego starty w 10 ostatnich meczach drużyny (5-10 wartości), więc
 `THIN_SAMPLE_FOR_BUILDER` (< 10) przepuszczał tylko zawodnika z 10/10
 startów, a `LINE_BEYOND_SAMPLE` odrzucał OVER 0,5 zawodnikowi, który w każdym
 starcie miał ≥ 1 (10-15: z 57 nóg zawodników po krzywej, line evidence i x
-bramki te odcięły 54, wydrukowało się 5). Krzywe rynków z `/lineups` są
+przy cenie arkusza bramki te odcięły 54 - 45 na sześciu rynkach poniżej;
+wydrukowało się 5, w tym 2, które przeszły x dopiero po świeżej cenie). Krzywe rynków z `/lineups` są
 dopasowane na replayu z próbką od 5 startów i bez bramek kształtu. Od
 przełącznika wiersz zawodnika na rynku z `/lineups` (strzały, celne, faule,
-odbiory, asysty, spalone - `confidence.player_shape_gate_scope`; **nie**
+odbiory, asysty, spalone - `confidence.PLAYER_SHAPE_GATE_MARKETS`; **nie**
 strzały wg nogi / głowy / spoza pola z `/shotmap`, liczone osobnym
-estymatorem i niezmierzone) potrzebuje tylko `PLAYER_MIN_SAMPLE` (5)
+estymatorem, ani przechwyty - bez krzywej; niezmierzone) potrzebuje tylko `PLAYER_MIN_SAMPLE` (5)
 wartości; wiek próbki, krzywa, line evidence, próg 0,70 i x ≥ 0,90 bez
-zmian. Noga, którą bramka by odcięła, ma `player_sample_rule` = nazwa tej
-bramki i **nie wchodzi do Bet Buildera** (pomiar dotyczył singli). Pomiar:
+zmian. Noga, którą bramka by odcięła, ma `player_sample_rule` = nazwa pierwszej
+takiej bramki w kolejności CONFIDENCE i **nie wchodzi do Bet Buildera** (pomiar dotyczył singli). Pomiar:
 na historii (OVER, pewność ≥ 0,70) grupy odcinane realizują się na swojej
-krzywej (−0,5..+1,5 pp), ale ~1 pp słabiej niż przepuszczane (5 startów
-−1,9 pp [−2,9; −0,8] względem PASS) - bramki lekko wybierają, nie chronią
+krzywej (+0,5..+1,5 pp), razem ~0,4 pp słabiej niż przepuszczane
+(`LINE_BEYOND_SAMPLE` −0,9 [−1,8; +0,1], 5 startów −1,9 pp [−2,9; −0,8]
+względem PASS) - bramki lekko wybierają, nie chronią
 wydrukowanej pewności; na liniach Superbetu 10-12..10-15 z line evidence:
 55 nóg / 37 meczów, −5,9 pp [−15,9; +4,5] pod pewnością, ROI −11,7%
 [−23,8; +1,2] (krzywa in-sample) - przy cenie, bez zmierzonej przewagi.
 Offset zawodników liczony tylko na liniach x ≥ 0,90 zmierzony i odrzucony.
-E2E na 10-15 (czysta kopia, zegar 12:59Z): +40 singli zawodników (22 z
+E2E na 10-15 (czysta kopia, zegar 12:59Z - mecze już rozpoczęte odpadają;
+raport `docs/sofa/history/RAPORT_BRAMKI_ZAWODNIKOW_2026-10-16.md`): +40 singli zawodników (22 z
 `LINE_BEYOND_SAMPLE`, 18 z `THIN_SAMPLE_FOR_BUILDER`), 0 nóg straconych ani
 zmienionych, buildery identyczne.
 Dowody: `docs/sofa/evidence/player_sample_gates_2026-10-16.md`,

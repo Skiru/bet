@@ -381,8 +381,9 @@ milczenie.
   `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
   `THIN_SAMPLE_FOR_BUILDER`, a w piłce
   `MODEL_ABOVE_OWN_SAMPLE`) — to dopisuje szum, w którym giną prawdziwe powody
-  (wyjątek: noga z `player_sample_rule` — od 2026-10-17 kod zdjął z rynku
-  zawodnika z `/lineups` bramkę kształtu próbki, więc tę próbkę ocenia analityk);
+  (wyjątek: noga z `player_sample_rule` — od 2026-10-17 kod zdjął z nogi
+  zawodnika na sześciu rynkach `PLAYER_SHAPE_GATE_MARKETS` bramkę kształtu
+  próbki, więc tę próbkę ocenia analityk);
 - podawać `FUZZY` jako potwierdzoną tożsamość;
 - brać ceny z otwartego webu ani z innego bukmachera czy agregatora — jedyna
   cena w `sofa` to Superbet (`04_offer.json`, a w arkuszu `market_p`);

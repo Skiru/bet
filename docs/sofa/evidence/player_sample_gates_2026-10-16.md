@@ -1,6 +1,6 @@
 # Bramki próbki zawodników (THIN_SAMPLE / LINE_BEYOND_SAMPLE / MODE_LOSES) - pomiar 2026-10-16
 
-**Pytanie.** Na 10-15 z 19 018 wierszy zawodników (piłka) wydrukowało się 5. Z 57, które przeszły krzywą, line evidence i x >= 0.90, 54 odcięły bramki kształtu próbki CONFIDENCE (`MIN_BUILDER_SAMPLE` 10, `line_is_beyond_sample`, `mode_loses`). Próbka zawodnika to od 10-12 jego starty w 10 ostatnich meczach drużyny (5-10 wartości), więc `THIN_SAMPLE_FOR_BUILDER` przepuszcza tylko zawodnika z 10/10 startów. Krzywe zawodników z `/lineups` są fitowane na replayu z próbką od 5 startów i bez bramek kształtu (`calibrate_from_cache.player_rows_for_event`, `min_sample` 5). Czy wydrukowana pewność odcinanych nóg jest przeszacowana?
+**Pytanie.** Na 10-15 z 19 018 wierszy zawodników (piłka) wydrukowało się 5. Z 57, które przy cenie arkusza przeszły krzywą, line evidence i x >= 0.90, 54 odcięły bramki (45 na sześciu rynkach z `/lineups`; z 5 wydrukowanych 2 przeszły x dopiero po świeżej cenie) kształtu próbki CONFIDENCE (`MIN_BUILDER_SAMPLE` 10, `line_is_beyond_sample`, `mode_loses`). Próbka zawodnika to od 10-12 jego starty w 10 ostatnich meczach drużyny (5-10 wartości), więc `THIN_SAMPLE_FOR_BUILDER` przepuszcza tylko zawodnika z 10/10 startów. Krzywe zawodników z `/lineups` są fitowane na replayu z próbką od 5 startów i bez bramek kształtu (`calibrate_from_cache.player_rows_for_event`, `min_sample` 5). Czy wydrukowana pewność odcinanych nóg jest przeszacowana?
 
 **Metoda.** `scripts/sofa/measure_player_sample_gates.py` (tylko odczyt):
 1. historia - replay wierszy zawodników (starty) z `data/refit_2026-10-16b/sofa_replay.db` tym samym kodem, z zapamiętaną próbką każdego wiersza; pewność = zainstalowana krzywa (przed line evidence); wiersze z pewnością >= 0.70 pogrupowane wg bramki, która by je odcięła (`confidence.shape_gate_refusal`), i wg liczby startów; „vs PASS" = względem wierszy przepuszczanych **tego samego kierunku** (i rynku w tabeli rynków); bootstrap po meczach. Krzywa była fitowana na tych wierszach (łączna luka ~0 z konstrukcji). Replay ma tylko rynki z `/lineups` (strzały, celne, faule, odbiory, asysty, spalone) - rynki strzałów wg nogi / głowy / spoza pola (`/shotmap`, osobny estymator `shot_detail`) nie są tu mierzone i nie są objęte przełącznikiem;
@@ -8,7 +8,7 @@
 
 ## Wynik
 
-**Historia (OVER, strona, którą Superbet wystawia: 102 735 wierszy; UNDER 856 921 - w tabeli pełnej).** Grupy odcinane realizują się na swojej krzywej, ale ~1 pp słabiej niż przepuszczane:
+**Historia (OVER, strona, którą Superbet wystawia: 102 735 wierszy; UNDER 856 921 - w tabeli pełnej).** Grupy odcinane realizują się na swojej krzywej (+0.5..+1.5 pp); razem ~0.4 pp słabiej niż przepuszczane (+1.0 vs +1.4), najwięcej `LINE_BEYOND_SAMPLE` (-0.9) i próbka 5 startów (-1.9):
 
 | OVER | n | mecze | zreal. - pewn. | vs OVER PASS |
 |---|---|---|---|---|
@@ -22,12 +22,12 @@
 
 Per rynek OVER (vs PASS tego rynku): strzały THIN -0.9 [-2.3, +0.7], LINE_BEYOND -1.2 [-2.8, +0.3]; faule i odbiory w granicach ±1 pp.
 
-**Linie Superbetu (121 linii rynków `/lineups` z kursem >= 1.0867, 4 dni, pewność przed line evidence):** OVER odcinane przez THIN / LINE_BEYOND realizowały -13.0 / -13.6 pp pod krzywą (61 / 46 linii; strzały -16.6 / -19.4), PASS ma 10 linii - porównania nie da się zrobić. Z line evidence (offset + limit pasma) cała populacja bez bramek: -5.9 pp [-15.9, +4.5] (`player_line_evidence_2026-10-16.md`).
+**Linie Superbetu (121 linii rynków `/lineups` z kursem >= 1.0867, 4 dni, pewność przed line evidence):** OVER odcinane przez THIN / LINE_BEYOND realizowały -13.0 / -13.6 pp pod krzywą (61 / 46 linii; strzały -16.6 / -19.4), PASS ma 10 linii - porównania nie da się zrobić. Z line evidence (offset + limit pasma) nogi, które by się wydrukowały bez bramek (55 nóg / 37 meczów): -5.9 pp [-15.9, +4.5] (`player_line_evidence_2026-10-16.md`).
 
 ## Wniosek
 
-- Bramki nie są ochroną przed przeszacowaniem: odcinane nogi zawodników realizują się na krzywej, z której bierze się ich wydrukowana pewność (w historii -0.5..+1.5 pp).
-- Bramki lekko **wybierają** lepsze nogi: przepuszczane realizują ~1 pp powyżej odcinanych, najwyraźniej przy próbce 5 startów (-1.9 pp [-2.9, -0.8]). Zdjęcie bramek dodaje więc nogi średnio nieco słabsze od dzisiejszych, ale skalibrowane na swojej krzywej.
+- Bramki nie są ochroną przed przeszacowaniem: odcinane nogi zawodników realizują się na krzywej, z której bierze się ich wydrukowana pewność (w historii +0.5..+1.5 pp; próbka 5 startów -0.5 [-1.1, +0.2]).
+- Bramki lekko **wybierają** lepsze nogi: przepuszczane realizują średnio ~0.4 pp powyżej odcinanych, `LINE_BEYOND_SAMPLE` -0.9 [-1.8, +0.1], najwyraźniej próbka 5 startów (-1.9 pp [-2.9, -0.8]). Zdjęcie bramek dodaje więc nogi średnio nieco słabsze od dzisiejszych, ale skalibrowane na swojej krzywej.
 - Na liniach Superbetu (4 dni) nogi odcinane były wyraźnie słabsze od krzywej przed line evidence; line evidence koryguje większość tej różnicy, przedział obejmuje zero. Decyzja operatora (2026-10-16): włączone od 2026-10-17, z testem na nowych danych `T-PLAYER-SAMPLE-GATES`.
 
 Zastrzeżenia: krzywa in-sample na historii; historia bez cen (nie da się zastosować x >= 0.90); linie Superbetu z 4 dni, krzywe z 10-16.

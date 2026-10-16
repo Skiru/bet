@@ -81,6 +81,25 @@ def pct(a: int, b: int) -> str:
     return f"{100.0 * a / b:.1f}%" if b else "—"
 
 
+def shape_gates_failed(
+    leg: dict[str, Any], line: float, direction: str, vals: list[Any]
+) -> list[str]:
+    """Every sample-shape gate today's CONFIDENCE would fail this leg on. A
+    leg carrying epochs.PLAYER_SAMPLE_MARKER had them lifted (a footballer's
+    lineup market from PLAYER_SAMPLE_GATES_FROM_UTC): only its floor of
+    PLAYER_MIN_SAMPLE values applies."""
+    if leg.get(PLAYER_SAMPLE_MARKER):
+        return ["THIN_SAMPLE_FOR_BUILDER"] if len(vals) < PLAYER_MIN_SAMPLE else []
+    failed = []
+    if line_is_beyond_sample(line, direction, vals):
+        failed.append("LINE_BEYOND_SAMPLE")
+    if mode_loses(line, direction, vals):
+        failed.append("MODE_LOSES")
+    if len(vals) < MIN_BUILDER_SAMPLE:
+        failed.append("THIN_SAMPLE_FOR_BUILDER")
+    return failed
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
@@ -175,12 +194,8 @@ def main() -> int:
                 gates.append("NEGATIVE_LEG_EV")
             if slip_leg["odds"] < MIN_ODDS_FOR_CEILING:
                 gates.append("ODDS_TOO_LOW")
-            if line_is_beyond_sample(slip_leg["line"], slip_leg["direction"], vals):
-                gates.append("LINE_BEYOND_SAMPLE")
-            if mode_loses(slip_leg["line"], slip_leg["direction"], vals):
-                gates.append("MODE_LOSES")
-            if len(vals) < MIN_BUILDER_SAMPLE:
-                gates.append("THIN_SAMPLE_FOR_BUILDER")
+            gates += shape_gates_failed(
+                {**meta, **slip_leg}, slip_leg["line"], slip_leg["direction"], vals)
             if age is not None and age > MAX_BUILDER_SAMPLE_AGE_DAYS:
                 gates.append("SAMPLE_CROSSES_SEASON")
             positions.append({
@@ -352,17 +367,8 @@ def main() -> int:
             gates.append("NEGATIVE_LEG_EV")
         if conf_leg["offered_odds"] < MIN_ODDS_FOR_CEILING:
             gates.append("ODDS_TOO_LOW")
-        if conf_leg.get(PLAYER_SAMPLE_MARKER):
-            # epochs.PLAYER_SAMPLE_GATES lifted the shape gates for this leg
-            if len(vals) < PLAYER_MIN_SAMPLE:
-                gates.append("THIN_SAMPLE_FOR_BUILDER")
-        else:
-            if line_is_beyond_sample(conf_leg["line"], conf_leg["direction"], vals):
-                gates.append("LINE_BEYOND_SAMPLE")
-            if mode_loses(conf_leg["line"], conf_leg["direction"], vals):
-                gates.append("MODE_LOSES")
-            if len(vals) < MIN_BUILDER_SAMPLE:
-                gates.append("THIN_SAMPLE_FOR_BUILDER")
+        gates += shape_gates_failed(
+            conf_leg, conf_leg["line"], conf_leg["direction"], vals)
         if age is not None and age > MAX_BUILDER_SAMPLE_AGE_DAYS:
             gates.append("SAMPLE_CROSSES_SEASON")
         population.append({"odds": conf_leg["offered_odds"], "outcome": g["outcome"],

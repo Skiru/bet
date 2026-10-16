@@ -312,7 +312,7 @@ and say it was not applied.
   `NEGATIVE_LEG_EV` (x < 0.90), `ODDS_TOO_LOW` (< 1.0867), `STALE_PRICE`,
   `STALE_SAMPLE` (newest match > 60 d), `SAMPLE_CROSSES_SEASON` (oldest > 180 d,
   national teams excepted), `THIN_SAMPLE_FOR_BUILDER` (< 10 observations; a football player
-  lineup-market row from 2026-10-17 < 5, and no LINE_BEYOND_SAMPLE /
+  row on the six `PLAYER_SHAPE_GATE_MARKETS` from 2026-10-17 < 5, and no LINE_BEYOND_SAMPLE /
   MODE_LOSES - such a leg carries `player_sample_rule` and its sample's
   shape is yours to judge),
   `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `MODEL_ABOVE_OWN_SAMPLE`,

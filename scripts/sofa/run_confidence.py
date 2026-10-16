@@ -828,6 +828,8 @@ def main() -> int:
             if gate is not None and player_gates_off and player_shape_gate_scope(
                     row.get("sport"), row["market"]):
                 if len(values) < PLAYER_MIN_SAMPLE:
+                    # under the rule only its own floor refuses (SHEET
+                    # already holds min_sample, so practically unreachable)
                     refused["THIN_SAMPLE_FOR_BUILDER"] += 1
                     continue
                 lifted = gate

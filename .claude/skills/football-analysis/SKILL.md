@@ -86,11 +86,11 @@ Two consequences, both load-bearing:
   <= 180 d (`SAMPLE_CROSSES_SEASON`, national teams judged by count),
   line-inside-sample, mode-must-not-lose, and the automatic
   `MODEL_ABOVE_OWN_SAMPLE` WATCH (`model_p` - own hit rate > 0.15, football
-  only, props excluded, needs >= 5 observations). Except: a football player leg on a lineup market (shots, shots on target, fouls,
+  only, props excluded, needs >= 5 observations). Except: a football player leg on the six lineup markets (shots, shots on target, fouls,
   tackles, assists, offsides) from 2026-10-17 (`PLAYER_SAMPLE_GATES_FROM_UTC`)
   needs only 5 starts and is not refused by line-inside-sample /
   mode-must-not-lose; a leg those gates would have refused carries
-  `player_sample_rule` (the lifted gate) - judge such a sample's shape yourself. Builders add one leg per
+  `player_sample_rule` (the first lifted gate) - judge such a sample's shape yourself. Builders add one leg per
   quantity family, tempo coherence and an internal 12% correlation haircut
   that is never printed.
 - **Refusals by name** that remain: `CROSS_LEAGUE_UNLINKED`, `NO_CLASS_CURVE`
@@ -290,6 +290,10 @@ odbiorów / asyst / spalonych", subject = the player as Superbet writes him.
   `ONE_SIDED_SINGLES_FROM_UTC` (2026-10-12 00:00Z; the ladder has no UNDER, so no margin; the
   leg carries `one_sided_market`, the PDF shows "1-str." in the margin
   column); its confidence is the market's own history curve (n >= 300).
+  From `PLAYER_SAMPLE_GATES_FROM_UTC` (2026-10-17) the six lineup markets
+  print on 5-9 starts and on an always-over sample too; such a leg carries
+  `player_sample_rule` (the gate the code lifted) and is never in a builder -
+  its sample's shape (5 starts, never blanked, a modal zero) is yours to read.
 
 ## Kill cases this repo has already paid for
 

@@ -423,9 +423,9 @@ at p and too few lines / games of the key's own - not measured yet),
 `None`), `CATCH_ALL_BUCKET`, `BELOW_CONFIDENCE_FLOOR`, `DISAGREES_WITH_PRICE`
 (old epoch), `NEGATIVE_LEG_EV` (x = confidence x odds below the profile's 0.90),
 `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `THIN_SAMPLE_FOR_BUILDER` (a football
-player lineup-market row from `PLAYER_SAMPLE_GATES_FROM_UTC` 2026-10-17: only
+player row on the six `confidence.PLAYER_SHAPE_GATE_MARKETS` from `PLAYER_SAMPLE_GATES_FROM_UTC` 2026-10-17: only
 < 5 values refuses; a leg those gates would have refused carries
-`player_sample_rule` = the lifted gate and never joins a builder),
+`player_sample_rule` = the first lifted gate and never joins a builder),
 `SAMPLE_CROSSES_SEASON` (oldest observation over 180 days), `STALE_SAMPLE`
 (newest over `MAX_SAMPLE_AGE_DAYS = 60` - the same constant COUPON uses),
 `BUILDER_LEGS_INCOHERENT`, `READ_NO_BET`, `WATCHED`, `MODEL_ABOVE_OWN_SAMPLE`

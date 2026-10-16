@@ -298,22 +298,27 @@ every sport alike, and nothing that could win is cut by name.
     a footballer's sample is his starts in his team's last 10 matches (5-10
     values), so THIN_SAMPLE_FOR_BUILDER (< 10) admitted only a player with
     10/10 starts and LINE_BEYOND_SAMPLE refused OVER 0.5 for one who never
-    blanked (10-15: 54 of 57 otherwise printable player legs refused). From
-    the switch a row on a lineup market (`confidence.player_shape_gate_scope`:
-    shots, shots on target, fouls, tackles, assists, offsides - not the
-    /shotmap shot-detail markets, their own estimator, unmeasured) needs only
+    blanked (10-15: of 57 player legs clearing curve, line evidence and x at
+    the sheet's price 54 were refused - 45 on the six markets below; 5
+    printed, 2 of them clearing x only at a fresh price). From the switch a
+    row on one of `confidence.PLAYER_SHAPE_GATE_MARKETS` (shots, shots on
+    target, fouls, tackles, assists, offsides - not the /shotmap shot-detail
+    markets, their own estimator, nor interceptions, no curve; unmeasured)
+    needs only
     `PLAYER_MIN_SAMPLE` (5) values - the replay's floor its curve was fitted
     on; age, curve, line evidence, floor and x unchanged; a leg a shape gate
-    would have refused carries `player_sample_rule` = that gate and never
-    joins a builder. Measured: history OVER, the refused groups realise on
-    their curve (-0.5..+1.5 pp) but ~1 pp below the passing ones (5 starts
-    -1.9 pp [-2.9, -0.8] vs PASS) - the gates select slightly, they do not
-    protect the printed number; Superbet's lines 10-12..10-15 with line
+    would have refused carries `player_sample_rule` = the first such gate in
+    CONFIDENCE's order and never joins a builder. Measured: history OVER, the
+    refused groups realise on their curve (+0.5..+1.5 pp; all together ~0.4
+    pp below the passing ones, LINE_BEYOND -0.9 [-1.8, +0.1], 5 starts -1.9
+    [-2.9, -0.8] vs PASS) - the gates select slightly, they do not protect
+    the printed number; Superbet's lines 10-12..10-15 with line
     evidence 55 legs / 37 matches -5.9 pp [-15.9, +4.5], ROI -11.7% [-23.8,
     +1.2] (curve in sample; at the price, no edge); a player offset on
     x >= 0.90 lines only was measured and declined. E2E 10-15 (clean copy,
-    clock 12:59Z): +40 player singles (22 LINE_BEYOND, 18 THIN), 0 legs
-    lost or changed, builders identical
+    clock 12:59Z, so started matches out): +40 player singles (22
+    LINE_BEYOND, 18 THIN), 0 legs lost or changed, builders identical;
+    report `docs/sofa/history/RAPORT_BRAMKI_ZAWODNIKOW_2026-10-16.md`
     (`docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
     `player_line_evidence_2026-10-16.md`; check on new data
     `T-PLAYER-SAMPLE-GATES`).
@@ -1017,7 +1022,9 @@ rows in the goals fit, variant C, the as-of 851 prior); every refit passes
 2026-10-16). Football
 props measured separately (2026-10-15, 10-12..10-14): the curve is
 calibrated (-2.1 pp [-6.9, +2.7], 319 lines / 51 games), ROI -16.5% at
-Superbet's short prices, ~nothing prints (`football_props_2026-10-15.md`).
+Superbet's short prices, ~nothing printed (`football_props_2026-10-15.md`);
+from PLAYER_SAMPLE_GATES (2026-10-17) ~14 player singles a day are expected
+(`player_line_evidence_2026-10-16.md`).
 Current backups: `config/backup_2026-10-05`,
 `config/backup_2026-10-06_sport_calibration/`, `config/backup_2026-10-08`,
 `config/backup_2026-10-09`, `config/backup_2026-10-14` (before the 10-13

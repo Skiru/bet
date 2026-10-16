@@ -770,21 +770,24 @@ def one_sided_singles(date: str, build_at: datetime | None = None) -> bool:
 # THIN_SAMPLE_FOR_BUILDER's 10 values) were written for team samples. A
 # footballer's sample is his starts in his team's last 10 matches
 # (PLAYER_STARTS_ONLY), 5-10 values, so the 10-value gate admitted only a
-# player who started all ten (2026-10-15: 54 of the 57 player legs that
-# cleared the curve, the line evidence and x were refused by these gates; 5
-# printed). The lineup-market player curves are fitted on the replay with a
+# player who started all ten (2026-10-15: of the 57 player legs that cleared
+# the curve, the line evidence and x at the sheet's price these gates
+# refused 54; 5 printed, 2 clearing x only at a fresh price). The
+# lineup-market player curves are fitted on the replay with a
 # sample of PLAYER_MIN_SAMPLE starts and no shape gate. Measured 2026-10-16
 # (docs/sofa/evidence/player_sample_gates_2026-10-16.md,
 # player_line_evidence_2026-10-16.md): on the history (OVER rows at
-# confidence >= 0.70) the refused groups realise on their curve (-0.5 ..
-# +1.5 pp) but ~1 pp below the passing ones (5 starts -1.9 pp [-2.9, -0.8]
-# vs OVER PASS); on Superbet's lines 10-12..10-15, with the line evidence,
+# confidence >= 0.70) the refused groups realise on their curve (+0.5 ..
+# +1.5 pp), together ~0.4 pp below the passing ones (LINE_BEYOND -0.9 pp
+# [-1.8, +0.1], 5 starts -1.9 pp [-2.9, -0.8] vs OVER PASS); on Superbet's
+# lines 10-12..10-15, with the line evidence,
 # the gate-free legs read -5.9 pp [-15.9, +4.5] under their confidence, ROI
 # -11.7% [-23.8, +1.2] (55 legs / 37 matches, the curve in sample). With the
-# switch a football row on a lineup market (confidence.player_shape_gate_scope:
-# not the /shotmap shot-detail markets, whose curves come from their own
-# estimator and were not measured) needs only PLAYER_MIN_SAMPLE values; a leg
-# a shape gate would have refused carries that gate under
+# switch a football row on one of confidence.PLAYER_SHAPE_GATE_MARKETS (not
+# the /shotmap shot-detail markets, whose curves come from their own
+# estimator, nor interceptions - neither measured) needs only
+# PLAYER_MIN_SAMPLE values; a leg a shape gate would have refused carries the
+# first such gate (confidence.shape_gate_refusal's order) under
 # PLAYER_SAMPLE_MARKER and never joins a builder (the measurement was of
 # singles); the sample's age, the curve, the line evidence, the floor and x
 # still apply. Operator 2026-10-16 ("włączymy od jutra"): from the next day.

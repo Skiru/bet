@@ -204,7 +204,7 @@ reads `<curve><offset>sb`, `...|cap:<cell>` or, for a key with no curve,
 the line-evidence constants in `unfitted_constants`. A one-sided ladder's leg
 has `one_sided_market: true`; a football player leg admitted only because
 `PLAYER_SAMPLE_GATES_FROM_UTC` (2026-10-17) lifted a shape gate carries
-`player_sample_rule` = that gate (`LINE_BEYOND_SAMPLE`, `MODE_LOSES` or
+`player_sample_rule` = the first such gate in CONFIDENCE's order (`LINE_BEYOND_SAMPLE`, `MODE_LOSES` or
 `THIN_SAMPLE_FOR_BUILDER`) and is never a builder leg. The artifact also carries
 `pool_neighbour_cap` (K13b on / off for the build).
 

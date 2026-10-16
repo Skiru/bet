@@ -308,3 +308,15 @@ def test_live_a_lifted_leg_keeps_its_marker_when_a_read_removes_it(
     assert _in_builders(doc, SHOTS) <= {3}
     assert not any(leg.get(epochs.PLAYER_SAMPLE_MARKER)
                    for b in doc["builders"] for leg in b["legs"])
+
+
+def test_the_deep_audit_does_not_count_a_lifted_gate_as_failed() -> None:
+    from scripts.sofa.audit_day_deep import shape_gates_failed
+
+    always_over = [float(v) for v in ALWAYS_OVER]
+    assert shape_gates_failed({}, 0.5, "OVER", always_over) == [
+        "LINE_BEYOND_SAMPLE", "THIN_SAMPLE_FOR_BUILDER"]
+    marked = {epochs.PLAYER_SAMPLE_MARKER: "LINE_BEYOND_SAMPLE"}
+    assert shape_gates_failed(marked, 0.5, "OVER", always_over) == []
+    assert shape_gates_failed(marked, 0.5, "OVER", [1.0, 2.0]) == [
+        "THIN_SAMPLE_FOR_BUILDER"]
