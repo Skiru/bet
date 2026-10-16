@@ -69,10 +69,10 @@ Dokumenty:
 - [x] `rebuild_plan`: OFFER, gdy oferta bez rungu nowych rynków; SHEET, gdy arkusz bez wiersza (wzór D2) + testy (stan, observe na plikach, zegar przed 07:46Z)
 - [x] ledger „10-16 mieszany” (zamiast „od 10-16”), test, legenda
 - [x] dokumenty: CLAUDE.md, PIPELINE.md, CONFIG.md 7.9, skille, verifier
-- [ ] E2E poligon na aktualnym 10-16 (off/on, ten sam zegar 08:10Z)
-- [ ] bramki, commit, fast-forward main
-- [ ] po merge: prawdziwy `rebuild_day.py` z `main` na kopii 10-16 (zegar żywy, sieć), md5 prawdziwego dnia bez zmian
-- [ ] restart pętli `capture_closing` 10-16 na nowym kodzie
+- [x] E2E poligon na aktualnym 10-16 (off/on, ten sam zegar 08:10Z)
+- [x] bramki, commit, fast-forward main
+- [x] po merge: prawdziwy `rebuild_day.py` z `main` na kopii 10-16 (zegar żywy, sieć), md5 prawdziwego dnia bez zmian
+- [x] restart pętli `capture_closing` 10-16 na nowym kodzie
 
 ## C. Odkrycia w trakcie (nie gubić)
 

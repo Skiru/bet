@@ -58,9 +58,40 @@ sesji sofa-day. Lista kontrolna: `PLAN_NOWE_RYNKI_2026-10-16.md`.
 5. sprzeczności w dokumentach (Not modelled yet, match_won_for „wklejany”,
    tabela przełączników skilla) usunięte.
 
+## Włączenie w zbudowany dzień 10-16 (07:46Z)
+
+Operator 2026-10-16 07:46Z: „Wrzucaj do maina! Włącz od teraz”. Przełączniki
+`FOOTBALL_SCORE_MARKETS_FROM_UTC` i `TENNIS_SET_COMPLEMENTS_FROM_UTC`
+przesunięte z 2026-10-17 00:00Z na **2026-10-16 07:46Z** – 10-16 jest dniem
+mieszanym (grupa ledgera „10-16 mieszany”, dni po nim „od 10-17”), nogi
+wydrukowane wcześniej zostają zablokowane. `rebuild_plan` (wzór D2): przy
+włączonym przełączniku OFFER, gdy `04_offer.json` nie ma rungu nowych
+rynków, i SHEET, gdy `05_sheet.json` nie ma takiego wiersza – zwykły
+`rebuild_day.py` przelicza dzień sam (testy w `test_football_score_markets.py`).
+Commity d643290e (+ merge fast-forward `main`).
+
+Weryfikacja:
+- poligon na aktualnym 10-16 (zegar 08:10Z, oferta z zapisanych kursów):
+  SHEET off = on bez nowych bajt w bajt (37 720), 0 nóg utraconych /
+  zmienionych, +1 068 nóg / 239 meczów (24 nowe mecze), 158 zablokowanych
+  bez zmian; C3: 13 meczów / 142 nogi bez odczytu (65 nowych rynków) –
+  odczyty analityków potrzebne;
+- prawdziwy `rebuild_day.py` z `main` (zegar żywy 07:57Z, sieć, kopia dnia
+  w scratch): plan OFFER → SHEET („05_sheet.json has no football
+  score-market … row”) → … → PDF, wszystkie kroki OK; 9 359 nowych rungów,
+  9 037 nowych wierszy, **1 100 nowych nóg na kuponie**, wszystkie z
+  etykietą Superbetu; 75 / 75 zablokowanych nóg prawdziwego kuponu
+  obecnych; druga przebudowa: OFFER świeży, „SHEET kept” (bez pętli);
+  sporty jak w prawdziwym (siatkówka w poligonie 0 – brak rozliczeń
+  poprzednich dni w scratch `runs`, `sport_day.settled_tournaments`);
+- prawdziwy katalog 10-16 nietknięty (md5; zmiany: pętla zamknięć i
+  SPORT_IDENTITY pętli `shadow_daily` 08:02Z);
+- pętla `capture_closing` 10-16 zrestartowana na nowym kodzie (07:57Z) –
+  stara liczyła flagi oferty raz, przy starcie;
+- `tests/sofa` 4977 (worktree) / 4983 (`main`) passed, ruff, mypy, rejestr.
+
 ## Nie zrobione / otwarte
 
-- merge do `main` – decyzja operatora (żywa sesja sofa-day na `main`);
 - grupowanie linii jednego meczu jako „ta sama zmienna” (dwuwymiarowe);
 - `fit_line_evidence` bez `leg_class` (jak 1X2 / DNB);
 - tenis `set_score_not` na liniach Superbetu – obserwować.
