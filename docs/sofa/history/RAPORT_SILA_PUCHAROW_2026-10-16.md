@@ -175,3 +175,45 @@ nigdy sumowana z „od 10-15”.
   pod nową regułą: wtorek 10-20 (LM).
 - Czy poprawka bije cenę Superbetu na nogach pucharowych - niezmierzone
   (historia nie ma cen); liczy się seria dni w grupie „od 10-16”.
+
+## 9. Noc 10-15/16: prace dodatkowe i refit 2026-10-16b
+
+Zgoda operatora ~21:15Z: „instaluj zawsze, nie czekaj na decyzje, sam
+decyduj” - przy zachowaniu pomiaru, testów, raportu i zasady „nigdy do dnia
+już zbudowanego”.
+
+| punkt | wynik | commit |
+|---|---|---|
+| 1. korekta pucharowa dla pozostałych metryk | faule, kartki, spalone, połowy rożnych / strzałów: żadna lepsza (faule, kartki, celne 1. poł. gorsze) - config bez zmian | `03e0be3f` |
+| 2. B15 przez siłę pucharową | strzały lepsze z przedziałem poza zerem (-0,00006; z pucharem -0,00044), suma zero - wpięte za przełącznikiem, włączone z refitem 2026-10-16b | `bfaf200b` |
+| 3. krzywe DC / DNB / pierwszego gola na księdze pucharowej | bramki bez zmian, krzywe ruszają się <= 0,004; weszły z instalacją 23:02Z | `a89039b6` |
+| 4. statystyki pucharów 2024/25 | `backfill_event_stats.py --competitions`: 1 748 z 2 421 meczów; ponowny pomiar potwierdza config (strzały na obu cięciach poza zerem) | `8f8c2c1c`, `27e852b0` |
+| 5. remis po 2 gemach (tenis) | 211 meczów 10-14/15, ROI -1,9% [-13,3; +9,1]; prognozy >= 0,80 brak | `7231c0ee` |
+| 6. rynki zawodników piłki osobno | krzywa skalibrowana (-2,1 pp), ROI -16,5% przy krótkich cenach - nic nie drukuje się słusznie | `94cf7aed` |
+| 7. best-of-five w próbkach tenisa replayu | 13% wierszy (57% ATP) skażonych, środek +1,97 gema; poprawka replayu `--tennis-sample-scope` (format + nawierzchnia jak SAMPLES) | `c16e9009` |
+| błąd po drodze | `fit_constants` dzielił przez zero na wierszach rynków ratingowych bez próbki - poprawione z testem | `3f77701e` |
+
+**Refit 2026-10-16b.** Kopia bazy po backfillu (22:10Z), replay z flagami
+refitu 2026-10-16 + `--sample-cup-strength --tennis-sample-scope` (22:18Z ->
+02:50Z, 120,3 mln wierszy - mniej, bo filtr formatu / nawierzchni częściej
+zostawia zawodnika bez próbki, jak żywy SHEET), fit 02:50Z -> 03:57Z
+(`fit_constants` PARTIAL jak zawsze, K 15; `fit_confidence` OK, 117,6 mln).
+Przeniesione 1:1: `match_won_for` i 21 kluczy nowych rynków (już w wersji
+pucharowej). Krzywe gemów tenisa ruszają się o <= 0,015; **13 kluczy klasy
+`tennis_team_cup` bez krzywej** (za mało wierszy po filtrze) -
+NO_CLASS_CURVE do pomiaru.
+
+E2E na 10-15 wobec stanu po instalacji 23:02Z (ta sama, nowa historia): 1 314
+wspólnych nóg, średnio +0,0001, max 0,050; +22 (11 tenis `games_won_for`,
+strzały) / -6 (strzały, rożne - mecze pucharowe). Rozdzielenie efektów SHEET-u
+na 10-15: B15-pucharowy rusza tylko strzały w 35 meczach pucharowych
+(śr. |dp| 0,007, max 0,046); backfill statystyk pucharów (dane, nie kod)
+rusza rożne / strzały w 147 meczach.
+
+Instalacja: `SAMPLE_CUP_STRENGTH_FROM_UTC` = 2026-10-16 04:10Z (strażnik
+testu poprawiony na stan po włączeniu), manifest z `post_fit_edits`,
+`backup` -> `config/backup_2026-10-16b`, **`install --confirm` 04:02:27Z**,
+testy instalatora 4 844 passed; zainstalowane pliki = config z E2E (md5).
+10-16 nie było jeszcze budowane (w katalogu dnia tylko pliki pętli) - dzień
+nie jest mieszany. Pętle 10-16: CS2 i kursy zamknięcia wystartowały same z
+łańcucha o 23:30Z (poprawka zadania 2 na żywo), shadow o 04:30Z.

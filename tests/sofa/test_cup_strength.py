@@ -337,12 +337,16 @@ def test_correct_total_hands_today_competition_to_each_pool() -> None:
     assert seen == [CUP, CUP]
 
 
-def test_the_sample_cup_switch_is_off_and_never_re_runs_a_sheet() -> None:
-    assert epochs.SAMPLE_CUP_STRENGTH_FROM_UTC is None
-    at = datetime(2026, 10, 16, 6, tzinfo=UTC)
-    assert not epochs.sample_cup_strength("2026-10-16", at)
+def test_the_sample_cup_switch_is_on_from_the_refit_before_10_16s_build() -> None:
+    # on with refit 2026-10-16b, installed before 10-16's build
+    on_at = datetime(2026, 10, 16, 4, 10, tzinfo=UTC)
+    assert epochs.SAMPLE_CUP_STRENGTH_FROM_UTC == on_at
+    assert epochs.sample_cup_strength("2026-10-16", on_at)
+    assert not epochs.sample_cup_strength("2026-10-16", on_at - timedelta(minutes=1))
+    assert not epochs.sample_cup_strength("2026-10-15", on_at)
+    # 10-15 is never re-priced under it
     assert "SHEET" not in rp.build_plan(rp.DayState(
-        "2026-10-16", at, LIMIT, sheet_sample_cup=False)).names()
+        "2026-10-15", on_at, LIMIT, sheet_sample_cup=False)).names()
     assert epochs.SAMPLE_CUP_STRENGTH_MARKER[0] in run_sheet.AUDIT_MARKER_FIELDS
 
 

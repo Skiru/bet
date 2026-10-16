@@ -640,7 +640,8 @@ measurement of Superbet's price and feed nothing else.
   after it "od 10-15", which also starts the new-market curves installed
   2026-10-15 00:17Z and the 1X2 / DNB and CS2 series-rounds switches; from
   10-16 "od 10-16": the cup-strength football refit installed 2026-10-15
-  23:02Z before 10-16's build (not mixed) with FOOTBALL_CUP_STRENGTH and
+  23:02Z and refit 2026-10-16b with SAMPLE_CUP_STRENGTH from 04:10Z, both
+  before 10-16's build (not mixed), FOOTBALL_CUP_STRENGTH and
   BASKETBALL_DC_PAIR from 00:00Z; before them ledger group "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
@@ -739,20 +740,34 @@ moved matches goals -0.00003 [-0.00006, -0.000003], nothing worse
 re-runs SHEET on a sheet without it. The file is an operator list with
 chosen steps, outside `config_sha`. Replay `--cup-strength`. The football /
 tennis curves were refitted on that replay (`data/refit_2026-10-16/
-sofa_replay.db`, 125.4M rows; `fit_constants` K fits skip the rating-only
-markets' sample-less rows since 3f77701e) and the double chance / DNB /
-first goal curves refitted on the same book (gate verdicts unchanged); E2E
+sofa_replay.db`, 125.4M rows, installed 2026-10-15 23:02Z; `fit_constants` K
+fits skip the rating-only markets' sample-less rows since 3f77701e) and the
+double chance / DNB / first goal curves refitted on the same book (gate
+verdicts unchanged), then refitted again before 10-16's build (refit
+2026-10-16b, installed 2026-10-16 04:02Z, below); E2E
 on 10-15: 1,238 common legs, the new curves move none by > 0.006, the cups
 move 60 legs (59 cup), +65 / -37 legs, all but a few cup legs - Lech -
 Leverkusen, Celje - Omonia, CSKA - Monaco, Egnatia - Midtjylland move the
-way the analysts' vetoes said. B15's sample correction does not read the cup
-correction (`SAMPLE_CUP_STRENGTH_FROM_UTC` None, below).
-**Measured, not switched on - B15 through the cup strength**
-(`SAMPLE_CUP_STRENGTH_FROM_UTC` None; `SampleCorrector(cup_aware=True)`,
-marker `sample_cup_rule`, replay `--sample-cup-strength`): shots_for
-calibrated log-loss -0.00006 [-0.00012, -0.000003], -0.00044 on rows with a
-cup, shots_total zero - better but small, goes on with the football refit
-whose replay carries it.
+way the analysts' vetoes said.
+**Refit 2026-10-16b (installed 2026-10-16 04:02Z, before 10-16's build - not
+mixed; operator's standing go of 2026-10-15 evening, "instaluj zawsze, sam
+decyduj"):** the football / tennis curves on `data/refit_2026-10-16b/
+sofa_replay.db` (120.3M rows; the DB copied after 1,748 cup matches got their
+statistics, `backfill_event_stats.py --competitions`) with two more replay
+rules: `--tennis-sample-scope` (a tennis side's sample scoped as SAMPLES
+scopes it - the fixture's format and a comparable surface; before, 13% of
+best-of-three rows, 57% ATP, held a Grand Slam five-setter, centre +1.97
+games, log-loss +0.0445; `tennis_replay_sample_scope_2026-10-16.md`) and
+`SAMPLE_CUP_STRENGTH_FROM_UTC` 2026-10-16 04:10Z (B15's gaps read the cup
+correction with the past match's and the fixture's competition,
+`SampleCorrector(cup_aware=True)`, marker `sample_cup_rule`, replay
+`--sample-cup-strength`; shots_for calibrated log-loss -0.00006 [-0.00012,
+-0.000003], -0.00044 on rows with a cup, shots_total zero; only shots move,
+35 cup fixtures on 10-15). E2E on 10-15 vs refit 2026-10-16: +22 / -6 legs
+(11 tennis games_won_for), common legs +0.0001 mean, max 0.050. 13
+`tennis_team_cup` class keys (aces, double faults, games_total, set 3,
+sets_total) have no curve any more - fewer replayed rows after the scoping:
+NO_CLASS_CURVE until measured. Backup `config/backup_2026-10-16b`.
 **Measured and not switched on, identity plan** (2026-10-14,
 `docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`): hockey / basketball players found only
 under another team (K7: 25 of 30 / 20 of 48 NOT_IN_HISTORY names - pricing
@@ -897,11 +912,9 @@ old-estimator rows, while the new estimator's rows are calibrated there
 the repriced families) once a walk-forward has the days.
 **Before the next refit:** measure the tennis games population of replay
 matches without `/statistics`; a refit carrying the men's friendlies (851
-rows in the goals fit, variant C, the as-of 851 prior); replay with
-`--tennis-sample-scope` (the replay took a tennis side's last ten matches of
-any format and surface, where SAMPLES scopes both: 13% of best-of-three rows,
-57% ATP, held a Grand Slam five-setter, centre +1.97 games, log-loss +0.0445;
-`docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md`). Football
+rows in the goals fit, variant C, the as-of 851 prior); every refit passes
+`--cup-strength --sample-cup-strength --tennis-sample-scope` (on since
+2026-10-16). Football
 props measured separately (2026-10-15, 10-12..10-14): the curve is
 calibrated (-2.1 pp [-6.9, +2.7], 319 lines / 51 games), ROI -16.5% at
 Superbet's short prices, ~nothing prints (`football_props_2026-10-15.md`).
@@ -912,12 +925,13 @@ refit), `config/backup_2026-10-15` (before the 10-14 refit, with the removed
 `.next.json`), `config/backup_2026-10-15_new_markets/` (before the
 new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
 basketball A7 keys from the full cache), `config/backup_2026-10-16` (before
-the cup-strength refit), `data/backup_2026-10-05/sofa.db`;
-`data/refit_2026-10-16/sofa_replay.db` is the DB the installed football /
+the cup-strength refit), `config/backup_2026-10-16b` (before refit
+2026-10-16b), `data/backup_2026-10-05/sofa.db`;
+`data/refit_2026-10-16b/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
-`data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-14/sofa_replay.db`
-(57 GB) and `data/refit_2026-10-13/sofa_replay.db` no longer are - the
-operator may delete them.
+`data/refit_2026-10-08/sofa_replay.db`; `data/refit_2026-10-16/`,
+`data/refit_2026-10-14/` (57 GB each) and `data/refit_2026-10-13/` no longer
+are - the operator may delete them.
 
 **Measured for the next refit (2026-10-12 night, out of sample on the history,
 `docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis set-1 winner and set

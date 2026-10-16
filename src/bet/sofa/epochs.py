@@ -2008,10 +2008,14 @@ def football_cup_strength(date: str, build_at: datetime | None = None) -> bool:
 # shots_for; docs/sofa/evidence/cross_league_cups_2026-10-15.md): shots_for
 # calibrated log-loss K - C -0.00006 [-0.00012, -0.000003] on 26,384 rows,
 # -0.00044 [-0.00088, -0.000004] on rows with a cup, shots_total zero. Better
-# but small; it changes p, so it goes on with the next football refit whose
-# replay carries it (calibrate_from_cache --sample-cup-strength). None: off.
+# but small; it changes p, so it goes on with the football refit whose replay
+# carries it (calibrate_from_cache --sample-cup-strength).
 SAMPLE_CUP_STRENGTH = "sample_cup_v1"
-SAMPLE_CUP_STRENGTH_FROM_UTC: datetime | None = None
+# On from 2026-10-16 04:10Z with the football refit whose replay carries it
+# (data/refit_2026-10-16b, installed before 10-16's build - not a mixed day;
+# the operator's standing go of 2026-10-15 evening).
+SAMPLE_CUP_STRENGTH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 16, 4, 10, tzinfo=UTC)
 SAMPLE_CUP_STRENGTH_MARKER = ("sample_cup_rule", SAMPLE_CUP_STRENGTH, "football")
 
 
