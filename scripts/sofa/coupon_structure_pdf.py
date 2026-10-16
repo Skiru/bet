@@ -27,6 +27,7 @@ from reportlab.platypus import Paragraph, Spacer, Table, TableStyle  # noqa: E40
 from bet.sofa import builder_screen as bs  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
+from bet.sofa.superbet_names import FIELD_MARKET, FIELD_SELECTION  # noqa: E402
 
 HEADER_BAND = colors.HexColor("#eef3fa")
 RULE = colors.HexColor("#d8d8d8")
@@ -68,6 +69,12 @@ def _rungs_word(n: int) -> str:
 def _rung_text(r: Mapping[str, Any], short: bool = False) -> str:
     line = "" if r.get("line") is None else f"{cs.display_line(r)} "
     where = "w grze" if r.get("position") is None else f"#{r['position']}"
+    # the rung in Superbet's words (bet.sofa.superbet_names) when it has them
+    if r.get(FIELD_SELECTION):
+        pick = escape(str(r[FIELD_SELECTION]))
+        if short:
+            return f"{pick} ({where})"
+        return f"{escape(str(r.get(FIELD_MARKET)))}: {pick} ({where})"
     if short:
         return f"{line}{r.get('direction')} ({where})"
     subj = f" {r['subject']}" if r.get("subject") and str(
@@ -84,7 +91,8 @@ def ladder_header(lad: Mapping[str, Any]) -> str:
     short = len({(r.get("market"), r.get("subject")) for r in rungs}) == 1
     text = (
         f"<b>{LADDER_PHRASE} Z{lad['ladder_no']}</b> — "
-        f"{escape(str(lad.get('match') or ''))}: {escape(str(lad.get('label')))}"
+        f"{escape(str(lad.get('match') or ''))}: "
+        f"{escape(str(lad.get(FIELD_MARKET) or lad.get('label')))}"
         f" — {n} {_rungs_word(n)}: "
         + "; ".join(_rung_text(r, short) for r in rungs)
         + f". Jedna decyzja o jednej wielkości, nie {n} "
@@ -92,7 +100,7 @@ def ladder_header(lad: Mapping[str, Any]) -> str:
            else "niezależnych zakładów")
     )
     if lad.get("over_under_pair"):
-        text += " • OVER i UNDER tej samej wielkości"
+        text += " • powyżej i poniżej tej samej wielkości"
     if lad.get("exclusive_pairs"):
         text += (f" • {lad['exclusive_pairs']} par(y) wykluczających się "
                  "(obie nie mogą wejść)")

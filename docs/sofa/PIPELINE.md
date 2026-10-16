@@ -1887,6 +1887,24 @@ nogi. Buildery: wyłącznie pozycje przechodzące `is_stakeable`, każda z
 własnym śladem dowodowym. **`picks: 0` to odpowiedź legalna i częsta** — i zwykle jest
 skutkiem narzutu korelacyjnego, nie braku danych.
 
+**Nazwy jak na ekranie Superbetu** (od 2026-10-16, `bet.sofa.superbet_names`,
+tylko wyświetlanie, żadna noga się nie zmienia): każda noga `11_coupon.json`
+ma `superbet_market` i `superbet_selection`, czyli nazwę rynku i wybór
+dokładnie tak, jak pisze je Superbet. Przykład: „3. tercja - Seattle Kraken -
+liczba goli” / „poniżej 1.5”. Handicap ma postać „Seattle Kraken (1.5)”, z
+liczbą tej strony, bez plusa, jak na ekranie. Nazwy rynków przeczytano
+2026-10-16 z żywej oferty Superbetu (po jednym meczu z każdego sportu).
+Drużyna albo zawodnik w piłce i tenisie ma pisownię z tablicy (`01_board.json`,
+`board_sides`). Rynek, którego tabela nie zna, zostaje przy starej etykiecie;
+nic nie jest zgadywane. W PDF kolumna „rynek” pokazuje nazwę z wyborem
+pogrubionym, kolumna „linia” pisze „pow.” / „pon.”, a notki „słabsza o … niż
+★” i nagłówki „ta sama zmienna” nazywają nogi tak samo. W HTML kolumna
+„rynek” to ta sama nazwa (szukajka ją czyta). Nazwy nadaje COUPON_ASSEMBLY;
+PDF i HTML nadają je przy renderze artefaktowi zbudowanemu wcześniej. Powód:
+2026-10-15 kupon z czatu opisał nogę jako „Seattle +1.5 w 3. tercji”
+(handicap tercji), a postawiony został sąsiedni rynek, „3. tercja - Seattle
+Kraken - liczba goli: Poniżej 1.5” @1.21.
+
 Oznaczenia na stronie (od 2026-10-01; pokazane, nie egzekwowane):
 
 - **„ta sama zmienna Z<n>”** (dzień `stats_only`, od 2026-10-05, F4.2):

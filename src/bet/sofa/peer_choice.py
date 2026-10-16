@@ -124,7 +124,10 @@ def label(leg: Mapping[str, Any]) -> str:
     # a score-market / set_score_not peer in Superbet's words, as its own row
     # prints it (the peer is of the same match, so the leg's names serve)
     from bet.sofa.football_score_markets import display_market
-    shown = display_market({**best, "match": leg.get("match")})
+    from bet.sofa.superbet_names import label as superbet_label
+    # Superbet's own words first (bet.sofa.superbet_names stamps the peer)
+    shown = superbet_label(best) or display_market(
+        {**best, "match": leg.get("match")})
     if shown is None:
         sub = f" {best['subject']}" if best.get("subject") else ""
         shown = f"{best['market']}{sub} {best['line']} {best['direction']}"

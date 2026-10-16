@@ -77,6 +77,9 @@ from bet.sofa.football_score_markets import (  # noqa: E402
     display_market as score_display_market,
 )
 from bet.sofa.locked_print import first_prints, print_history  # noqa: E402
+from bet.sofa.superbet_names import annotate as name_on_superbet  # noqa: E402
+from bet.sofa.superbet_names import board_sides  # noqa: E402
+from bet.sofa.superbet_names import label as superbet_label  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 
 SPORTS_ARTIFACT = "08_confidence_sports.json"
@@ -414,8 +417,11 @@ def render_md(doc: dict[str, Any], date: str) -> str:
         odds = s.get("offered_odds")
         x = round(float(s["confidence"]) * float(odds), 3) if odds else None
         subj = f" {s['subject']}" if s.get("subject") else ""
+        shown = superbet_label(s)
+        market = (f"{shown} ({s.get('market')}{subj})" if shown
+                  else f"{s.get('market')}{subj}")
         lines.append(
-            f"| {pos} | {s.get('match', '')} | {s.get('market')}{subj} | "
+            f"| {pos} | {s.get('match', '')} | {market} | "
             f"{s.get('line')} {s.get('direction')} | {s['confidence']:.3f} | "
             f"{'—' if model is None else f'{model:.3f}'} | {odds} | {x} | "
             f"{str(s.get('kickoff_utc') or '')[11:16]}Z | {_note(s)} |")
@@ -504,6 +510,9 @@ def main() -> int:
                    read_value_order=read_by_value(args.date, at),
                    stakes_by_event=stakes_by_event,
                    price_gap_active=price_gap_flag(args.date, at))
+    # every leg named as Superbet's screen names it (superbet_market /
+    # superbet_selection) - what the operator looks for before he clicks
+    name_on_superbet(doc, board_sides(run))
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),

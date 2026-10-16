@@ -534,6 +534,11 @@ browser, not Sofascore. A 403 stops FIXTURE_CHECK and SPORT_IDENTITY at once
   Superbetu"; a screen price the operator recorded in `09_screen_prices.json`
   is shown back as his note. `odds_after_haircut` is internal (stakeable test).
 - No stake sizing, no automated placement.
+- **Name a leg in Superbet's words** whenever you show it to the operator:
+  `superbet_market: superbet_selection` from `11_coupon.json`
+  (`bet.sofa.superbet_names`), e.g. "1. tercja - handicap: Seattle Kraken
+  (1.5)" - never a paraphrase ("Seattle +1.5 w 3. tercji" was misclicked as
+  "3. tercja - Seattle Kraken - liczba goli: Poniżej 1.5" on 2026-10-15).
 - Never read, echo or log `.env` values.
 - **Sofascore and Superbet only.** No other data provider enters the pipeline,
   its analysts' reads or this skill's arithmetic (bzzoiro included; the

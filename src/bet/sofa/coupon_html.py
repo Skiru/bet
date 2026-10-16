@@ -13,6 +13,7 @@ the artifact); `render_html` only wraps it.
 
 from __future__ import annotations
 
+import copy
 import datetime
 import json
 import os
@@ -26,6 +27,9 @@ from bet.sofa import coupon_sports as cs
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
+from bet.sofa.superbet_names import annotate as name_on_superbet
+from bet.sofa.superbet_names import board_sides
+from bet.sofa.superbet_names import label as superbet_label
 
 LOCAL_TZ = ZoneInfo("Europe/Warsaw")
 # A fixture-check start that differs from the leg's clock by at least this is
@@ -61,6 +65,11 @@ def minutes_of_day(ko: datetime.datetime | None, day: str) -> int:
 
 
 def market_label(leg: Mapping[str, Any]) -> str:
+    """Superbet's market name and selection when the leg carries them
+    (bet.sofa.superbet_names), else the older label."""
+    shown = superbet_label(leg)
+    if shown:
+        return shown
     if leg.get("display_market"):
         return str(leg["display_market"])
     subject = f" ({leg['subject']})" if leg.get("subject") else ""
@@ -224,9 +233,12 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str) -> Path:
     status_path = run / "fixture_status.json"
     status = (json.loads(status_path.read_text(encoding="utf-8"))
               if status_path.exists() else None)
+    # named in Superbet's words on a copy: the caller's artifact is not edited
+    named: dict[str, Any] = copy.deepcopy(dict(doc))
+    name_on_superbet(named, board_sides(run))
     out = run / f"KUPON_{day}.html"
     tmp = tmp_path(out)
-    tmp.write_text(render_html(day, build_view(doc, day, status)),
+    tmp.write_text(render_html(day, build_view(named, day, status)),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

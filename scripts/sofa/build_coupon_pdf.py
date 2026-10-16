@@ -66,6 +66,12 @@ from bet.sofa.coupon_html import write_html  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
+from bet.sofa.superbet_names import (  # noqa: E402
+    FIELD_MARKET,
+    FIELD_SELECTION,
+    board_sides,  # noqa: E402
+)
+from bet.sofa.superbet_names import annotate as name_on_superbet  # noqa: E402
 from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
     builder_screen_note,
     exposure_flowables,
@@ -322,6 +328,29 @@ def single_sample(leg: dict[str, Any]) -> str:
     return f"n={leg.get('sample_size', '—')}"
 
 
+def market_cell(leg: dict[str, Any], marker: str, fallback: str) -> str:
+    """The "rynek" cell: Superbet's market name and, in bold, the selection
+    to click (bet.sofa.superbet_names) - "3. tercja - Seattle Kraken - liczba
+    goli: <b>poniżej 1.5</b>"; a leg it cannot name keeps its old label."""
+    market, pick = leg.get(FIELD_MARKET), leg.get(FIELD_SELECTION)
+    if market:
+        return (escape(str(market))
+                + (f": <b>{escape(str(pick))}</b>" if pick else "") + marker)
+    if leg.get("display_market"):
+        return escape(str(leg["display_market"])) + marker
+    return fallback
+
+
+# The "linia" column's direction in the screen's words (the market cell
+# names the side; T1 / T2 stay as the handicap's side code).
+DIRECTION_SHORT = {"OVER": "pow.", "UNDER": "pon.", "YES": "tak", "NO": "nie"}
+
+
+def line_cell(leg: dict[str, Any]) -> str:
+    direction = str(leg.get("direction") or "")
+    return f"{cs.display_line(leg)} {DIRECTION_SHORT.get(direction, direction)}"
+
+
 def leg_x(leg: dict[str, Any]) -> float:
     if leg.get("x") is not None:
         return float(leg["x"])
@@ -354,6 +383,9 @@ def main() -> int:
     # The coupon artifact (K3): 11_coupon.json on a stats-only day.
     artifact = coupon_artifact(run).name
     doc_json = json.loads((run / artifact).read_text(encoding="utf-8"))
+    # the legs named in Superbet's words (an artifact assembled before the
+    # names existed gets them here; display only, no leg changes)
+    name_on_superbet(doc_json, board_sides(run))
     so = artifact_epoch(doc_json) == STATS_ONLY
     if so and artifact != "11_coupon.json":
         print("REFUSED: a stats-only 08_confidence.json is not the coupon - "
@@ -1007,16 +1039,15 @@ def render_stats_only(
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
                           f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>", small),
-                Paragraph(escape(str(leg["display_market"])) + ladder_marker(lno)
-                          if leg.get("display_market")
-                          else f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{cs.display_line(leg)} {leg.get('direction')}", small),
+                Paragraph(market_cell(leg, ladder_marker(lno),
+                                      f"{leg.get('market')}{escape(subj)}"), small),
+                Paragraph(line_cell(leg), small),
                 Paragraph(f"{leg['confidence']:.3f}", small),
                 Paragraph(f"{leg.get('offered_odds')}", small),
                 Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),
             ])
         story.append(table_with_headers(
-            _table(rows, [56*mm, 40*mm, 22*mm, 18*mm, 16*mm, 18*mm]), header_rows))
+            _table(rows, [50*mm, 52*mm, 16*mm, 18*mm, 16*mm, 18*mm]), header_rows))
         story.append(Spacer(1, 6))
 
     story.append(Paragraph("Pozycje", h2))
@@ -1073,11 +1104,9 @@ def render_stats_only(
             rows.append([
                 Paragraph(str(leg.get("position")), small),
                 Paragraph(match_cell, small),
-                Paragraph(
-                    escape(str(leg["display_market"])) + ladder_marker(lno)
-                    if leg.get("display_market")
-                    else f"{leg.get('market')}{escape(subj)}", small),
-                Paragraph(f"{cs.display_line(leg)} {leg.get('direction')}", small),
+                Paragraph(market_cell(leg, ladder_marker(lno),
+                                      f"{leg.get('market')}{escape(subj)}"), small),
+                Paragraph(line_cell(leg), small),
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),
@@ -1087,7 +1116,7 @@ def render_stats_only(
                 Paragraph(single_sample(leg), small),
             ])
         story.append(table_with_headers(_table(rows, [
-            10*mm, 40*mm, 30*mm, 17*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
+            10*mm, 36*mm, 44*mm, 13*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
                 pos_headers))
     # F4.3: how much of the coupon stands on one match.
     story.extend(exposure_flowables(doc, body, small, h2))
@@ -1113,8 +1142,9 @@ def render_stats_only(
             model = leg.get("forecast_p")
             rows.append([
                 Paragraph(str(j), small),
-                Paragraph(f"<b>{x['market']}{escape(sub)}</b> {x['line']} "
-                          f"{x['direction']}", small),
+                Paragraph(market_cell(
+                    x, "", f"<b>{x['market']}{escape(sub)}</b> {x['line']} "
+                    f"{x['direction']}"), small),
                 Paragraph(f"{float(leg['confidence']):.3f}", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"{x['odds']}", small),

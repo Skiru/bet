@@ -380,6 +380,20 @@ every sport alike, and nothing that could win is cut by name.
   stays (locked); a leg removed before its start stays removed.
   `ladder_form` / `max_positions_per_match` are OFF unless
   `config/sofa_coupon_form.json` sets them (operator's call).
+- **Superbet's words** (`bet.sofa.superbet_names`, display only, no leg
+  changes): every leg of `11_coupon.json` carries `superbet_market` /
+  `superbet_selection` as the screen writes them ("3. tercja - Seattle
+  Kraken - liczba goli" / "poniżej 1.5"; a handicap as "Seattle Kraken
+  (1.5)", the side's own number), names read from Superbet's live offer
+  2026-10-16, a football / tennis side in the board's spelling
+  (`board_sides`); a market it does not know keeps its old label, nothing
+  guessed. The PDF's "rynek" column prints it with the selection in bold
+  (the "linia" column says pow. / pon.), the peer notes and the "ta sama
+  zmienna" headers name legs the same way, and the HTML's market column is
+  it. COUPON_ASSEMBLY stamps it; the PDF / HTML stamp an older artifact at
+  render. Why: 2026-10-15 a chat slip wrote "Seattle +1.5 w 3. tercji"
+  (a period handicap) and the bet placed was the market beside it, Seattle's
+  period goals under 1.5 @1.21.
 - **Reads:** analysts read the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"; from `READ_BY_VALUE_FROM_UTC` 2026-10-14 00:00Z the 30 matches are those of the best value - the best unlocked leg's confidence x odds, a football / tennis confidence capped at 1/odds + `price_gap.GAP`, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13), every printed
   builder leg and whatever is in `read_requests.json`
   (`confidence.legs_requiring_read`, `READ_REQUIRED_SINGLES`; audit C3 checks
@@ -1230,6 +1244,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   The product of confidences is never the headline. (2026-10-12: three
   slips, two of them -EV by our own numbers, the caveat dropped from the
   table the operator staked from.)
+- **A leg proposed in chat is named in Superbet's words** - its
+  `superbet_market: superbet_selection` from `11_coupon.json`
+  (`bet.sofa.superbet_names.names` for a leg of another artifact), never a
+  paraphrase like "Seattle +1.5 w 3. tercji": the operator finds it on the
+  screen by that name, and "+1.5" beside "Poniżej 1.5" is a misclick
+  (2026-10-15, Tampa - Seattle).
 - **Never read, echo or log `.env` values.**
 - **Curves are fitted on the history of events and statistics** (operator,
   2026-10-07: "nasze źródło to historia statystyk"), replayed as of each match
