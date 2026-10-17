@@ -99,6 +99,8 @@ team cup nie ma kubłów >= 0.70.
 | asy, p z korektą | zainstalowane | 5 | 3 | 0.786 | 0.800 | +1.4 pp [-79.0, +22.2] | 0.809 | -1.0% |
 | asy, p z korektą | nowe | 20 | 13 | 0.756 | 0.450 | -30.6 pp [-52.2, -4.6] | 0.697 | -33.6% |
 
+Powtórzone po reficie drugiej sesji (krzywe zainstalowane 2026-10-17 19:13Z): te same liczby z dokładnością do 0,002 (`market_line_after_refit_1913Z.md`).
+
 (Wcześniejszy przebieg scratch, liczący asy w secie z surowym p razem z PB /
 `serve_points`: 33 nogi / 17 meczów, -21.7 pp [-47.6, +0.1].)
 
