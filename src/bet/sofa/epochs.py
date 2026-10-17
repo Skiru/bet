@@ -2094,7 +2094,8 @@ def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
 # early vs 0.056-0.064 later), a phase the file lacks - and a match with no
 # phase, unless the file names `none` - reading the market's single set.
 FOOTBALL_GOALS_STRETCH = "goals_stretch_v2"
-FOOTBALL_GOALS_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_GOALS_STRETCH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 13, 37, tzinfo=UTC)
 FOOTBALL_GOALS_STRETCH_MARKER = (
     "goals_stretch_rule", FOOTBALL_GOALS_STRETCH, "football")
 
@@ -2129,7 +2130,8 @@ def football_goals_stretch(date: str, build_at: datetime | None = None) -> bool:
 # priced under it carry `count_stretch_rule` (every football row), so a
 # rebuild re-runs SHEET on a sheet without it. None: OFF, byte for byte.
 FOOTBALL_COUNT_STRETCH = "count_stretch_v1"
-FOOTBALL_COUNT_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_COUNT_STRETCH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 13, 37, tzinfo=UTC)
 FOOTBALL_COUNT_STRETCH_MARKER = (
     "count_stretch_rule", FOOTBALL_COUNT_STRETCH, "football")
 
@@ -2158,7 +2160,8 @@ def football_count_stretch(date: str, build_at: datetime | None = None) -> bool:
 # carry `player_stretch_rule` (every football row), so a rebuild re-runs
 # SHEET on a sheet without it. None: OFF, byte for byte.
 FOOTBALL_PLAYER_STRETCH = "player_stretch_v1"
-FOOTBALL_PLAYER_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_STRETCH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 17, 13, 37, tzinfo=UTC)
 FOOTBALL_PLAYER_STRETCH_MARKER = (
     "player_stretch_rule", FOOTBALL_PLAYER_STRETCH, "football")
 

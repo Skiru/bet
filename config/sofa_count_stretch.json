@@ -1,0 +1,130 @@
+{
+  "_doc": "Count stretch (epochs.FOOTBALL_COUNT_STRETCH): a football count centre outside GAME_STATE x exp(beta x s [+ beta2 x s^2]) (a side, s its expected goal difference) or exp(g1 |s| + g2 s^2) (a total, s the home side's). INERT while epochs.FOOTBALL_COUNT_STRETCH_FROM_UTC is None. Written by scripts/sofa/fit_count_stretch.py.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-10-17T12:27:40+00:00",
+    "train_from": "2026-01-01",
+    "before": "2026-10-18",
+    "db_path": "data/refit_2026-10-17/sofa_replay.db",
+    "method": "Poisson pseudo-likelihood, log link, offset log centre",
+    "centre": "one-step-ahead count centre: last 10 values, B15 opponent correction, market K shrink to the league rate, rating blend where rated",
+    "centre_rules": {
+      "rated_scope": [
+        "cards_points_for",
+        "corners_1h_for",
+        "corners_2h_for",
+        "offsides_total"
+      ],
+      "rating_weight": "data/refit_2026-10-17/config_in/sofa_rating_weight.json"
+    },
+    "cup_strength": "config/sofa_cup_strength.json",
+    "terms": {
+      "corners_1h_for": 1,
+      "corners_2h_for": 1,
+      "shots_1h_for": 1,
+      "shots_2h_for": 1,
+      "shots_on_target_for": 1,
+      "shots_on_target_1h_for": 1,
+      "shots_on_target_2h_for": 1,
+      "offsides_for": 1,
+      "saves_for": 1,
+      "saves_1h_for": 1,
+      "throw_ins_for": 2,
+      "goal_kicks_for": 1,
+      "shots_on_target_total": 1,
+      "saves_total": 1,
+      "saves_1h_total": 1,
+      "throw_ins_total": 2
+    },
+    "evidence": "docs/sofa/evidence/count_stretch_2026-10-17.md"
+  },
+  "unfitted_constants": [
+    "MAX_SUPREMACY"
+  ],
+  "markets": {
+    "corners_1h_for": {
+      "beta": 0.141607,
+      "n_rows": 33078,
+      "n_matches": 16539
+    },
+    "corners_2h_for": {
+      "beta": 0.122051,
+      "n_rows": 33078,
+      "n_matches": 16539
+    },
+    "shots_1h_for": {
+      "beta": 0.044394,
+      "n_rows": 33068,
+      "n_matches": 16534
+    },
+    "shots_2h_for": {
+      "beta": 0.161733,
+      "n_rows": 33068,
+      "n_matches": 16534
+    },
+    "shots_on_target_for": {
+      "beta": 0.05332,
+      "n_rows": 75370,
+      "n_matches": 37685
+    },
+    "shots_on_target_1h_for": {
+      "beta": 0.081304,
+      "n_rows": 32184,
+      "n_matches": 16092
+    },
+    "shots_on_target_2h_for": {
+      "beta": 0.188189,
+      "n_rows": 32184,
+      "n_matches": 16092
+    },
+    "offsides_for": {
+      "beta": 0.025883,
+      "n_rows": 78210,
+      "n_matches": 39105
+    },
+    "saves_for": {
+      "beta": -0.170211,
+      "n_rows": 65602,
+      "n_matches": 32801
+    },
+    "saves_1h_for": {
+      "beta": -0.187893,
+      "n_rows": 31748,
+      "n_matches": 15874
+    },
+    "throw_ins_for": {
+      "beta": 0.045583,
+      "beta2": -0.017067,
+      "n_rows": 68556,
+      "n_matches": 34278
+    },
+    "goal_kicks_for": {
+      "beta": -0.136438,
+      "n_rows": 67924,
+      "n_matches": 33962
+    },
+    "shots_on_target_total": {
+      "g1": 0.020184,
+      "g2": 0.0,
+      "n_rows": 37685,
+      "n_matches": 37685
+    },
+    "saves_total": {
+      "g1": 0.021124,
+      "g2": 0.0,
+      "n_rows": 32801,
+      "n_matches": 32801
+    },
+    "saves_1h_total": {
+      "g1": 0.025423,
+      "g2": 0.0,
+      "n_rows": 15874,
+      "n_matches": 15874
+    },
+    "throw_ins_total": {
+      "g1": 0.006187,
+      "g2": -0.018551,
+      "n_rows": 34278,
+      "n_matches": 34278
+    }
+  }
+}

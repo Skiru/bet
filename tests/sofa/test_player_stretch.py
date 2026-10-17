@@ -58,7 +58,12 @@ SHOTS = [3.0, 2.0, 4.0, 1.0, 3.0, 2.0, 5.0, 2.0, 3.0, 2.0]
 
 def test_the_switch_is_off_and_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.FOOTBALL_PLAYER_STRETCH_FROM_UTC is None
+    assert epochs.FOOTBALL_PLAYER_STRETCH_FROM_UTC == (
+        datetime(2026, 10, 17, 13, 37, tzinfo=UTC))
+    for _off in ("FOOTBALL_GOALS_STRETCH_FROM_UTC",
+                 "FOOTBALL_COUNT_STRETCH_FROM_UTC",
+                 "FOOTBALL_PLAYER_STRETCH_FROM_UTC"):
+        monkeypatch.setattr(epochs, _off, None)
     assert not epochs.football_player_stretch(
         "2027-01-01", datetime(2027, 1, 1, tzinfo=UTC))
     monkeypatch.setattr(epochs, "FOOTBALL_PLAYER_STRETCH_FROM_UTC",
@@ -205,6 +210,10 @@ def test_sheet_stamps_the_marker_on_football_rows_only_while_on(
 def test_rebuild_plan_re_runs_sheet_on_a_missing_marker(
         monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(epochs, "TENNIS_MATCH_WINNER_FROM_UTC", None)
+    for _off in ("FOOTBALL_GOALS_STRETCH_FROM_UTC",
+                 "FOOTBALL_COUNT_STRETCH_FROM_UTC",
+                 "FOOTBALL_PLAYER_STRETCH_FROM_UTC"):
+        monkeypatch.setattr(epochs, _off, None)
     stale = rp.DayState(DAY, AFTER, LIMIT, sheet_player_stretch=False)
     assert "SHEET" not in rp.build_plan(stale).names()
     monkeypatch.setattr(epochs, "FOOTBALL_PLAYER_STRETCH_FROM_UTC",

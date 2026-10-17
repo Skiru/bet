@@ -1,0 +1,110 @@
+{
+ "_doc": "Goals stretch (epochs.FOOTBALL_GOALS_STRETCH): a football goals centre x exp(beta x s) (goals_for / goals_1h_for / goals_2h_for, s the side's expected goal difference) or exp(g1 |s| + g2 s^2) (the totals, s the home side's); by_phase: the set of a season phase (a phase absent reads the market's single set). INERT while epochs.FOOTBALL_GOALS_STRETCH_FROM_UTC is None. Written by scripts/sofa/fit_goals_stretch.py.",
+ "fitted_from": {
+  "fitted_at_utc": "2026-10-17T12:25:45+00:00",
+  "train_from": "2024-10-01",
+  "before": "2026-10-18",
+  "db_path": "data/refit_2026-10-17/sofa_replay.db",
+  "method": "Poisson pseudo-likelihood, log link, offset log centre",
+  "centre_rules": {
+   "rated_scope": [
+    "cards_points_for",
+    "corners_1h_for",
+    "corners_2h_for",
+    "offsides_total"
+   ],
+   "rating_weight": "data/refit_2026-10-17/config_in/sofa_rating_weight.json"
+  },
+  "season_phase": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/config_in/sofa_season_phase.json",
+  "cup_strength": "config/sofa_cup_strength.json",
+  "per_phase": {
+   "goals_for": [
+    "early",
+    "mid",
+    "late",
+    "final"
+   ],
+   "goals_1h_for": [
+    "early"
+   ],
+   "goals_2h_for": [
+    "early"
+   ]
+  },
+  "min_phase_rows": 500,
+  "evidence": "docs/sofa/evidence/goals_stretch_2026-10-17.md"
+ },
+ "unfitted_constants": [
+  "MAX_SUPREMACY"
+ ],
+ "markets": {
+  "goals_for": {
+   "beta": 0.061865,
+   "n_rows": 1195560,
+   "n_matches": 597780,
+   "by_phase": {
+    "early": {
+     "beta": 0.017996,
+     "n_rows": 86834
+    },
+    "mid": {
+     "beta": 0.048326,
+     "n_rows": 397764
+    },
+    "late": {
+     "beta": 0.052331,
+     "n_rows": 65888
+    },
+    "final": {
+     "beta": 0.061198,
+     "n_rows": 39738
+    }
+   }
+  },
+  "goals_total": {
+   "g1": -0.015354,
+   "g2": 0.023029,
+   "n_rows": 597780,
+   "n_matches": 597780
+  },
+  "goals_1h_total": {
+   "g1": -0.015816,
+   "g2": 0.036812,
+   "n_rows": 408372,
+   "n_matches": 408372
+  },
+  "goals_2h_total": {
+   "g1": -0.010689,
+   "g2": 0.028997,
+   "n_rows": 407054,
+   "n_matches": 407054
+  }
+ },
+ "held_back": {
+  "markets": {
+   "goals_1h_for": {
+    "beta": 0.166807,
+    "n_rows": 816778,
+    "n_matches": 408389,
+    "by_phase": {
+     "early": {
+      "beta": 0.138811,
+      "n_rows": 62830
+     }
+    }
+   },
+   "goals_2h_for": {
+    "beta": 0.127639,
+    "n_rows": 814142,
+    "n_matches": 407071,
+    "by_phase": {
+     "early": {
+      "beta": 0.097738,
+      "n_rows": 62904
+     }
+    }
+   }
+  },
+  "reason": "2026-10-17 13:3xZ: with the curves fitted on unstretched p the favourite's OVER legs of the half-team markets overstate (goals_1h_for s>1 -5.7 pp, goals_2h_for -3.0 pp at confidence >= 0.70; scratchpad goals_ft/now_oldcurve.out). Restored with the refitted curves (fitted on the stretched replay)."
+ }
+}

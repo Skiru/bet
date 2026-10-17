@@ -1,0 +1,44 @@
+{
+  "_doc": "Player shots stretch (epochs.FOOTBALL_PLAYER_STRETCH): a footballer's shots centre x exp(beta x s), s his side's expected goal difference. INERT while epochs.FOOTBALL_PLAYER_STRETCH_FROM_UTC is None. Written by scripts/sofa/fit_player_stretch.py.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-10-17T12:30:55+00:00",
+    "train_from": null,
+    "before": "2026-10-18",
+    "db_path": "data/refit_2026-10-17/sofa_replay.db",
+    "method": "Poisson pseudo-likelihood, log link, offset log centre",
+    "samples": "calibrate_from_cache.build_player_rows, starts only",
+    "book_rules": {
+      "football_rating": true,
+      "rated_scope": false,
+      "venue_prior": false,
+      "game_state": null,
+      "goals_stretch": null,
+      "count_stretch": null,
+      "player_stretch": null,
+      "rating_weights": null,
+      "season_phase": null,
+      "opponent_correction": false,
+      "shared_league_link": true,
+      "unit_strength_from_parent": false,
+      "strict_league_rate": false,
+      "cup_strength": "config/sofa_cup_strength.json",
+      "sample_cup_strength": false
+    },
+    "evidence": "docs/sofa/evidence/player_stretch_2026-10-17.md"
+  },
+  "unfitted_constants": [
+    "MAX_SUPREMACY"
+  ],
+  "markets": {
+    "player_shots_for": {
+      "beta": 0.114138,
+      "n_rows": 117059,
+      "n_matches": 10434
+    },
+    "player_shots_on_target_for": {
+      "beta": 0.095373,
+      "n_rows": 93099,
+      "n_matches": 10357
+    }
+  }
+}

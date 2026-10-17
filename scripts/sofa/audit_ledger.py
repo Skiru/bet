@@ -147,7 +147,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
-                "od 10-17")
+                "10-17 mieszany", "od 10-18")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -175,10 +175,22 @@ CUP_STRENGTH_EPOCH_FROM_DATE = "2026-10-16"
 # shape gates); moving either switch must move this boundary.
 SCORE_MARKETS_1016_MIXED_DATE = "2026-10-16"
 SCORE_MARKETS_EPOCH_FROM_DATE = "2026-10-17"
+# The football supremacy stretches (epochs.FOOTBALL_GOALS_STRETCH /
+# FOOTBALL_COUNT_STRETCH / FOOTBALL_PLAYER_STRETCH) and the football
+# refit carrying them, moved by the operator into the built day
+# 2026-10-17 at 13:37Z ("teraz rób wszystko i włączaj"): 10-17 is
+# mixed - its own group, summed with neither "od 10-17" (which therefore
+# holds no day) nor "od 10-18".
+STRETCH_1017_MIXED_DATE = "2026-10-17"
+STRETCH_EPOCH_FROM_DATE = "2026-10-18"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= STRETCH_EPOCH_FROM_DATE:
+            return "od 10-18"
+        if str(row.get("date", "")) == STRETCH_1017_MIXED_DATE:
+            return "10-17 mieszany"
         if str(row.get("date", "")) >= SCORE_MARKETS_EPOCH_FROM_DATE:
             return "od 10-17"
         if str(row.get("date", "")) == SCORE_MARKETS_1016_MIXED_DATE:
@@ -230,7 +242,8 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
         )
     out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
             "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / "
-            "10-14 mieszany / od 10-15 / 10-16 mieszany / od 10-17): the "
+            "10-14 mieszany / od 10-15 / 10-16 mieszany / 10-17 mieszany / "
+            "od 10-18): the "
             "coupon before and after "
             "each cutover "
             "is not one experiment, so the groups are never added."]

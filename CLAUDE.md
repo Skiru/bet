@@ -997,7 +997,23 @@ verifier's and the scout's re-asks), so no reader misses a switch.
 `docs/sofa/evidence/football_score_markets_2026-10-16.md`,
 `docs/sofa/history/RAPORT_NOWE_RYNKI_2026-10-16.md`.
 
-**Supremacy stretches (measured 2026-10-17, off, each its own switch, file,
+**Switched on 2026-10-17 13:37Z (operator, "włączaj już teraz") - 10-17 is
+mixed, ledger group "10-17 mieszany", the days after "od 10-18"; legs printed
+before stay locked:** the three supremacy stretches below, BEFORE their
+refitted curves (the replay carrying them runs from 12:31Z). Measured for that
+combination first (stretched p through the curve fitted on unstretched p,
+test 2026): goals_for / goals totals / all 16 count markets / both player
+markets better, every CI below zero except shots_on_target_total pre-2026
+(neutral); goals_1h_for and goals_2h_for better in log-loss but their
+favourite OVER legs at >= 0.70 overstate with the old curve (-5.7 / -3.0 pp)
+- held back in `config/sofa_goals_stretch.json` (`held_back`) until the
+refitted curves are installed. To watch on live legs: goal_kicks_for UNDER
+s -1..-0.5, throw_ins_total UNDER |s| >= 1.5 (thin cells),
+shots_on_target_for / shots_1h_for ~0.5 pp lower at >= 0.70. The
+MODEL_ABOVE_OWN_SAMPLE gate removes more legs (E2E 10-17: +27): the stretch
+moves the model away from the opponent-blind sample by design.
+
+**Supremacy stretches (measured 2026-10-17, each its own switch, file,
 fit script, replay flag and every-football-row marker; arithmetic shared in
 `bet.sofa.supremacy_stretch`; s = the rating's expected goal difference,
 clamped at `MAX_SUPREMACY`, a total the home side's):**
