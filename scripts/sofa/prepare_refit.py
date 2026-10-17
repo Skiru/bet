@@ -108,7 +108,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "football_rating", "rated_scope", "venue_prior", "game_state",
     "rating_weight", "season_phase", "opponent_correction",
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
-    "tennis_sample_scope",
+    "tennis_sample_scope", "goals_stretch",
 )
 
 
@@ -571,10 +571,12 @@ def rebuild_cache_rows(
     cup_strength: bool = False,
     sample_cup_strength: bool = False,
     tennis_sample_scope: bool = False,
+    goals_stretch: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
-        ("--game-state", game_state), ("--rating-weight", rating_weight),
+        ("--game-state", game_state), ("--goals-stretch", goals_stretch),
+        ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
         ("--cup-strength", cup_strength)) if on]
@@ -596,6 +598,8 @@ def rebuild_cache_rows(
              "fit_rating_weight.py"),
             (season_phase, "--season-phase", "sofa_season_phase.json",
              "fit_season_phase.py"),
+            (goals_stretch, "--goals-stretch", "sofa_goals_stretch.json",
+             "fit_goals_stretch.py"),
             (cup_strength, "--cup-strength", "sofa_cup_strength.json",
              "the operator's cup list")):
         if on and not (paths.config_dir / name).exists():
@@ -765,6 +769,8 @@ def rebuild_cache_rows(
         "sample_cup_strength": sample_cup_strength,
         # SAMPLES' tennis format / surface scoping (2026-10-16)
         "tennis_sample_scope": tennis_sample_scope,
+        # epochs.FOOTBALL_GOALS_STRETCH (bet.sofa.goals_stretch)
+        "goals_stretch": goals_stretch,
     }
     for name, on in new_flags.items():
         if on:
@@ -2195,6 +2201,12 @@ def build_parser() -> argparse.ArgumentParser:
         "refit's config dir)",
     )
     r.add_argument(
+        "--goals-stretch", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_GOALS_STRETCH "
+        "(calibrate_from_cache --goals-stretch; needs sofa_goals_stretch.json "
+        "in the refit's config dir)",
+    )
+    r.add_argument(
         "--rating-weight", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
         "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
@@ -2363,6 +2375,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     cup_strength=args.cup_strength,
                     sample_cup_strength=args.sample_cup_strength,
                     tennis_sample_scope=args.tennis_sample_scope,
+                    goals_stretch=args.goals_stretch,
                 )["exit"]
             )
         if args.command == "fit":

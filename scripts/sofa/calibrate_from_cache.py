@@ -53,7 +53,8 @@ Audit 2026-10-13 A6 / B1 / B2 / B5, all opt-in (off = the rows as before,
 byte for byte): `--football-rating` prices every football marginal row with
 SHEET's live centre - the rating book replayed to each match's UTC day start,
 blended at W_FOOTBALL_RATING - through one hook, `live_centre`, which also
-applies `--rated-scope`, `--venue-prior` and `--game-state` as SHEET does;
+applies `--rated-scope`, `--venue-prior`, `--game-state` and
+`--goals-stretch` (epochs.FOOTBALL_GOALS_STRETCH) as SHEET does;
 `--tennis-set-ratings` adds the per-set games and sets_total rows, priced
 off the tennis rating's neighbours (tennis_rating.SET_RATING_PRICED_MARKETS).
 
@@ -119,6 +120,8 @@ from bet.sofa.football_rating import (
 from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.game_state import GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
+from bet.sofa.goals_stretch import GoalsStretchTable, stretch_supremacy
+from bet.sofa.goals_stretch import load_table as load_goals_stretch_table
 from bet.sofa.joint import build_joint
 from bet.sofa.listing_index import entity_indexed_events, listed_events_by_id
 from bet.sofa.metrics import (
@@ -936,6 +939,9 @@ class CentreRules:
     rated_scope: bool = False
     venue_prior: bool = False
     game_state: GameStateTable | None = None
+    # epochs.FOOTBALL_GOALS_STRETCH (--goals-stretch): a goals centre x the
+    # supremacy stretch (bet.sofa.goals_stretch)
+    goals_stretch: GoalsStretchTable | None = None
     # audit 2026-10-13 B14 (epochs.FOOTBALL_RATING_WEIGHT): W per market
     rating_weights: RatingWeightTable | None = None
     # audit 2026-10-13 C1 (epochs.SEASON_PHASE): the goals centre x the phase
@@ -962,6 +968,8 @@ class CentreRules:
             "venue_prior": self.venue_prior,
             "game_state": (None if self.game_state is None
                            else self.game_state.path or "in-memory"),
+            "goals_stretch": (None if self.goals_stretch is None
+                              else self.goals_stretch.path or "in-memory"),
             "rating_weights": (None if self.rating_weights is None
                                else self.rating_weights.path or "in-memory"),
             "season_phase": (None if self.season_phase is None
@@ -1079,6 +1087,8 @@ def live_centre(
       2. --venue-prior: a sample-only side centre of VENUE_PRIOR_MARKETS x
          the league venue multiplier over ``venues`` (the sample's);
       3. --game-state: x exp(beta x the side's expected goal difference);
+      3b. --goals-stretch: a goals centre x exp(beta x s) (a side) or
+         exp(g1 |s| + g2 s^2) (a total, s the home side's);
       4. --season-phase: x exp(c[market][phase]), the phase as of the
          match's kickoff (``phase``).
 
@@ -1108,6 +1118,11 @@ def live_centre(
         g_mult = rules.game_state.multiplier(market, sup)
         if g_mult is not None and sup is not None:
             centre *= g_mult
+    if rules.goals_stretch is not None:
+        st_sup = stretch_supremacy(forecast, market, side)
+        st_mult = rules.goals_stretch.multiplier(market, st_sup)
+        if st_mult is not None and st_sup is not None:
+            centre *= st_mult
     if rules.season_phase is not None:
         centre, _ = apply_season_phase(centre, market, phase, rules.season_phase)
     return centre
@@ -2478,6 +2493,15 @@ def main() -> int:
         "were fitted on the same history: in-sample for them",
     )
     parser.add_argument(
+        "--goals-stretch", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: a goals centre x the supremacy stretch, "
+        "exp(beta x s) on goals_for / goals_1h_for / goals_2h_for and "
+        "exp(g1 |s| + g2 s^2) on the totals, s the expected goal difference "
+        "(epochs.FOOTBALL_GOALS_STRETCH_FROM_UTC; CONFIG defaults to "
+        "config/sofa_goals_stretch.json). Fitted on the same history: "
+        "in-sample for it",
+    )
+    parser.add_argument(
         "--rating-weight", nargs="?", const="", default=None, metavar="CONFIG",
         help="with --football-rating: the rating blended at the market's "
         "fitted W (epochs.FOOTBALL_RATING_WEIGHT_FROM_UTC, audit B14; CONFIG "
@@ -2554,6 +2578,7 @@ def main() -> int:
     needs_rating = [name for name, on in (
         ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
         ("--game-state", args.game_state is not None),
+        ("--goals-stretch", args.goals_stretch is not None),
         ("--rating-weight", args.rating_weight is not None),
         ("--season-phase", args.season_phase is not None),
         ("--opponent-correction", args.opponent_correction),
@@ -2593,6 +2618,10 @@ def main() -> int:
                 load_game_state_table(
                     Path(args.game_state) if args.game_state else None)
                 if args.game_state is not None else None),
+            goals_stretch=(
+                load_goals_stretch_table(
+                    Path(args.goals_stretch) if args.goals_stretch else None)
+                if args.goals_stretch is not None else None),
             rating_weights=(
                 load_rating_weight_table(
                     Path(args.rating_weight) if args.rating_weight else None)

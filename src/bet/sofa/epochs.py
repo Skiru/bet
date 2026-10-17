@@ -2070,6 +2070,40 @@ def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
             and at >= SAMPLE_CUP_STRENGTH_FROM_UTC)
 
 
+
+# The goals stretch (bet.sofa.goals_stretch): SHEET's football goals centre
+# (rating blended with the shrunk sample) pulls a mismatch toward the middle
+# - the favourite's goals too low, the outsider's too high, a lopsided
+# match's total too low. From this moment the centre of a market of
+# goals_stretch.GOALS_STRETCH_MARKETS with coefficients in
+# config/sofa_goals_stretch.json is multiplied by exp(beta x s) (a side's
+# goals, s its expected goal difference from the rating's goals book,
+# FootballForecast.supremacy) or exp(g1 x |s| + g2 x s^2) (a total, s the
+# home side's), on the same blended centre GAME_STATE multiplies, in SHEET
+# and in the cache replay (calibrate_from_cache --goals-stretch). Measured
+# 2026-10-17 on the history replay, walk-forward NB log-loss better on all
+# six markets with the interval below zero (goals_1h_for -0.0074 [-0.0078,
+# -0.0070]); docs/sofa/evidence/goals_stretch_2026-10-17.md. It changes p,
+# so what prints: the football curves are to be refitted on a replay
+# carrying it. Rows priced under it carry `goals_stretch_rule` (every
+# football row, like the other football markers), so a rebuild re-runs SHEET
+# on a sheet of the other rule. None: the centre as it was, byte for byte -
+# OFF, the operator decides the moment.
+FOOTBALL_GOALS_STRETCH = "goals_stretch_v1"
+FOOTBALL_GOALS_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_GOALS_STRETCH_MARKER = (
+    "goals_stretch_rule", FOOTBALL_GOALS_STRETCH, "football")
+
+
+def football_goals_stretch(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football goals centre carry the supremacy stretch
+    (FOOTBALL_GOALS_STRETCH_FROM_UTC)?"""
+    if FOOTBALL_GOALS_STRETCH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_GOALS_STRETCH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_GOALS_STRETCH_FROM_UTC)
+
 # Football "or" result markets, the underdog's European handicap and the
 # double chance & goals pairs that clear their gate
 # (bet.sofa.football_score_markets): OFFER reads "Mecz lub liczba goli",

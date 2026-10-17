@@ -388,6 +388,10 @@ class SheetRow(BaseModel):
     # bet.sofa.epochs.SAMPLE_CUP_STRENGTH: the rule's name on a football row
     # whose sample correction read the cup league strength; absent when off.
     sample_cup_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_GOALS_STRETCH: the rule's name on a football
+    # row priced while the goals centres carry the supremacy stretch
+    # (bet.sofa.goals_stretch); absent when off.
+    goals_stretch_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None

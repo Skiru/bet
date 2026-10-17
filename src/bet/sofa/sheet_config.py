@@ -38,8 +38,10 @@ SHEET_CONFIG_FILES: tuple[str, ...] = (
 # Fitted files SHEET reads that enter the fingerprint only once installed, so
 # the fingerprint of every sheet priced before one existed is unchanged:
 # config/sofa_shot_detail.json (epochs.SHOT_DETAIL_MARKETS, the operator's
-# install of scripts/sofa/fit_shot_detail.py).
-SHEET_OPTIONAL_FILES: tuple[str, ...] = ("sofa_shot_detail.json",)
+# install of scripts/sofa/fit_shot_detail.py), config/sofa_goals_stretch.json
+# (epochs.FOOTBALL_GOALS_STRETCH, scripts/sofa/fit_goals_stretch.py).
+SHEET_OPTIONAL_FILES: tuple[str, ...] = (
+    "sofa_shot_detail.json", "sofa_goals_stretch.json")
 DIGEST_CHARS = 16
 
 
