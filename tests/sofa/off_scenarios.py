@@ -40,7 +40,10 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # league strength learnt in cups (FOOTBALL_CUP_STRENGTH)
                 "cup_strength_rule", "sample_cup_rule",
                 # football goals stretch (FOOTBALL_GOALS_STRETCH)
-                "goals_stretch_rule")
+                "goals_stretch_rule",
+                # football count / player shots stretch
+                # (FOOTBALL_COUNT_STRETCH, FOOTBALL_PLAYER_STRETCH)
+                "count_stretch_rule", "player_stretch_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

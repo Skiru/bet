@@ -997,6 +997,35 @@ verifier's and the scout's re-asks), so no reader misses a switch.
 `docs/sofa/evidence/football_score_markets_2026-10-16.md`,
 `docs/sofa/history/RAPORT_NOWE_RYNKI_2026-10-16.md`.
 
+**Supremacy stretches (measured 2026-10-17, off, each its own switch, file,
+fit script, replay flag and every-football-row marker; arithmetic shared in
+`bet.sofa.supremacy_stretch`; s = the rating's expected goal difference,
+clamped at `MAX_SUPREMACY`, a total the home side's):**
+`FOOTBALL_GOALS_STRETCH_FROM_UTC` (`goals_stretch_v2`: goals centre x
+exp(beta s) / exp(g1 |s| + g2 s^2), a market may carry one set per season
+phase - goals_for early / mid / late / final 0.018 .. 0.064, halves early
+only; a phase the file lacks, and a match with no phase, read the single
+set; `config/sofa_goals_stretch.json`, `fit_goals_stretch.py --per-phase
+goals_for:early,mid,late,final goals_1h_for:early goals_2h_for:early`
+(offset with the installed season phase, cup-strength book), `--goals-stretch`;
+`docs/sofa/evidence/goals_stretch_2026-10-17.md`),
+`FOOTBALL_COUNT_STRETCH_FROM_UTC` (`count_stretch_v1`: the 16 count markets
+of `count_stretch.COUNT_STRETCH_MARKETS` outside GAME_STATE - half corners,
+shots by half, shots on target, offsides, saves, throw-ins, goal kicks, the
+shots-on-target / saves / throw-ins totals - after GAME_STATE and the venue
+prior; walk-forward NB and both after-curve out-of-sample checks below zero
+on all 16, the raw NB of a fixed fit not significant for shots_1h_for
+(pre-2026 fit) and offsides_for (2026-H1 fit), offsides_1h_for left out;
+`config/sofa_count_stretch.json`, `fit_count_stretch.py` (from 2026-01-01,
+cup-strength book),
+`--count-stretch`; `count_stretch_2026-10-17.md`) and
+`FOOTBALL_PLAYER_STRETCH_FROM_UTC` (`player_stretch_v1`: player_shots_for /
+player_shots_on_target_for centre x exp(beta s) of his own side, 0.126 /
+0.117; `config/sofa_player_stretch.json`, `fit_player_stretch.py` (cup-strength
+book, epochs as of `--before`),
+`--player-stretch`; `player_stretch_2026-10-17.md`). Each changes p: the
+curves are refitted on a replay carrying it before its switch is set.
+
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),

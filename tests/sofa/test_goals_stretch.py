@@ -375,3 +375,185 @@ def test_the_fit_reads_a_totals_supremacy_off_the_home_goals_row() -> None:
               if r.event_id in events]
     assert sorted(sup) == pytest.approx(sorted(home[r.event_id] for r in totals))
     assert len(gst.fit_terms("goals_total", centres, sup, y)) == 2
+
+
+# --- goals_stretch_v2: per season phase ------------------------------------
+
+PHASED = gst.parse_table({"markets": {
+    "goals_for": {"beta": 0.062, "by_phase": {
+        "early": {"beta": 0.018}, "mid": {"beta": 0.056},
+        "late": {"beta": 0.064}, "final": {"beta": 0.063},
+        "none": {"beta": 0.082}}},
+    "goals_1h_for": {"beta": 0.167, "by_phase": {"early": {"beta": 0.145}}},
+    "goals_2h_for": {"by_phase": {"early": {"beta": 0.100}}},
+    "goals_total": {"g1": -0.0145, "g2": 0.024},
+}})
+
+
+def test_the_rule_is_v2() -> None:
+    assert epochs.FOOTBALL_GOALS_STRETCH == "goals_stretch_v2"
+    assert epochs.FOOTBALL_GOALS_STRETCH_MARKER[1] == "goals_stretch_v2"
+
+
+def test_a_phase_reads_its_own_coefficients() -> None:
+    assert PHASED.multiplier("goals_for", 1.0, "early") == pytest.approx(
+        math.exp(0.018))
+    assert PHASED.multiplier("goals_for", 1.0, "late") == pytest.approx(
+        math.exp(0.064))
+    # no phase is the table's "none"
+    assert PHASED.multiplier("goals_for", 1.0, None) == pytest.approx(
+        math.exp(0.082))
+    assert PHASED.multiplier("goals_for", -2.0, "mid") == pytest.approx(
+        math.exp(-2 * 0.056))
+    assert "phase early" in PHASED.describe("goals_for", "early")
+
+
+def test_a_phase_the_table_lacks_falls_back_to_the_single_set_else_identity(
+) -> None:
+    assert PHASED.multiplier("goals_1h_for", 1.0, "early") == pytest.approx(
+        math.exp(0.145))
+    for phase in ("mid", "late", "final", None):
+        assert PHASED.multiplier("goals_1h_for", 1.0, phase) == pytest.approx(
+            math.exp(0.167))
+    assert "phase" not in PHASED.describe("goals_1h_for", "mid")
+    # a market with only per-phase sets: identity outside them
+    assert PHASED.multiplier("goals_2h_for", 1.0, "early") == pytest.approx(
+        math.exp(0.100))
+    assert PHASED.multiplier("goals_2h_for", 1.0, "mid") is None
+    # a single-only market ignores the phase
+    assert PHASED.multiplier("goals_total", 1.5, "early") == pytest.approx(
+        TABLE.multiplier("goals_total", 1.5))
+    assert PHASED.multiplier("goals_for", None, "early") is None
+
+
+def test_the_per_phase_config_is_validated() -> None:
+    assert PHASED.by_phase["goals_1h_for"] == {"early": (0.145,)}
+    assert "goals_2h_for" not in PHASED.coefficients
+    for bad in (
+        {"markets": {"goals_for": {"by_phase": {"spring": {"beta": 0.1}}}}},
+        {"markets": {"goals_for": {"by_phase": {}}}},
+        {"markets": {"goals_for": {"by_phase": {"early": 0.1}}}},
+        {"markets": {"goals_for": {"by_phase": {"early": {"beta": 3.0}}}}},
+        {"markets": {"goals_total": {"by_phase": {"early": {"beta": 0.1}}}}},
+        {"markets": {"goals_for": {"beta": 0.1, "beta2": 0.01}}},  # no s^2 here
+        {"markets": {"goals_for": {"n_rows": 5}}},  # no coefficients at all
+    ):
+        with pytest.raises(ValueError):
+            gst.parse_table(bad)
+
+
+def test_sheet_reads_the_fixture_s_season_phase() -> None:
+    fc = fr.FootballForecast(_book(), 1, 1, 2)
+    s = fc.supremacy("side_a")
+    assert s is not None
+    base = _over(_rows("goals_for", "Criciúma", 1.5, fc))
+    for phase, beta in (("early", 0.018), ("final", 0.063), (None, 0.082)):
+        moved = _over(_rows("goals_for", "Criciúma", 1.5, fc,
+                            goals_stretch=PHASED, season_phase_label=phase))
+        assert moved["centre"] == pytest.approx(
+            float(base["centre"]) * math.exp(beta * s), abs=1e-3)  # type: ignore[arg-type]
+
+
+def test_the_replay_reads_the_phase_and_computes_it_for_a_phased_table() -> None:
+    history, played = _football()
+    target = played[-3]
+    rules = CentreRules(football_rating=True, goals_stretch=PHASED)
+    replay = FootballRatingReplay(history, rules)
+    # phases are read for a per-phase table even with --season-phase off
+    assert replay.phases and target.event_id in replay.phases
+    assert not FootballRatingReplay(
+        history, CentreRules(football_rating=True, goals_stretch=TABLE)).phases
+    fc = replay.forecast(target)
+    assert fc is not None
+    sup = fc.supremacy("side_a")
+    assert sup is not None
+    early = live_centre(target, "goals_for", "side_a", 1.2, fc, (), rules,
+                        phase="early")
+    late = live_centre(target, "goals_for", "side_a", 1.2, fc, (), rules,
+                       phase="late")
+    assert early / late == pytest.approx(math.exp((0.018 - 0.064) * sup))
+
+
+def test_the_fit_parses_per_phase_and_recovers_phase_coefficients() -> None:
+    from scripts.sofa import fit_goals_stretch as fit
+
+    assert fit.parse_per_phase(["goals_for", "goals_1h_for:early"],
+                               ["goals_for", "goals_1h_for"]) == {
+        "goals_for": ("early", "mid", "late", "final", "none"),
+        "goals_1h_for": ("early",)}
+    with pytest.raises(ValueError):
+        fit.parse_per_phase(["goals_for:spring"], ["goals_for"])
+    with pytest.raises(ValueError):
+        fit.parse_per_phase(["goals_2h_for"], ["goals_for"])
+    n = 1200
+    s = [(i % 41 - 20) / 8 for i in range(n)]
+    c = [1.0 + (i % 7) / 3 for i in range(n)]
+    phases: list[str | None] = ["early" if i % 3 == 0 else None for i in range(n)]
+    true = {"early": 0.02, "none": 0.09}
+    y = [ci * math.exp(true["early" if p == "early" else "none"] * si)
+         for ci, si, p in zip(c, s, phases, strict=True)]
+    cells = fit.fit_by_phase("goals_for", c, s, y, phases,
+                             ("early", "mid", "none"), min_rows=100)
+    assert set(cells) == {"early", "none"}  # mid has no rows
+    assert cells["early"]["beta"] == pytest.approx(0.02, abs=1e-5)
+    assert cells["none"]["beta"] == pytest.approx(0.09, abs=1e-5)
+    assert cells["early"]["n_rows"] == 400
+    # the written cells read back
+    table = gst.parse_table({"markets": {"goals_for": {
+        "beta": 0.05, "by_phase": cells}}})
+    assert table.multiplier("goals_for", 1.0, "early") == pytest.approx(
+        math.exp(0.02), abs=1e-5)
+
+
+def test_the_recommended_per_phase_command_leaves_no_phase_to_the_single_set(
+) -> None:
+    from scripts.sofa import fit_goals_stretch as fit
+
+    per_phase = fit.parse_per_phase(
+        ["goals_for:early,mid,late,final", "goals_1h_for:early",
+         "goals_2h_for:early"], list(gst.GOALS_STRETCH_MARKETS))
+    assert per_phase == {"goals_for": ("early", "mid", "late", "final"),
+                         "goals_1h_for": ("early",), "goals_2h_for": ("early",)}
+    table = gst.parse_table({"markets": {"goals_for": {
+        "beta": 0.071,
+        "by_phase": {p: {"beta": 0.05} for p in per_phase["goals_for"]}}}})
+    assert table.multiplier("goals_for", 1.0, None) == pytest.approx(math.exp(0.071))
+    assert table.multiplier("goals_for", 1.0, "late") == pytest.approx(math.exp(0.05))
+
+
+def test_the_fit_offset_carries_the_installed_phase_and_the_cup_book_by_default(
+        tmp_path: Path) -> None:
+    from scripts.sofa import fit_goals_stretch as fit
+
+    phase_table, cup = fit.offset_tables(None, False, None, False)
+    assert phase_table is not None and phase_table.coefficients
+    assert cup is not None and cup.competitions
+    assert fit.offset_tables(None, True, None, True) == (None, None)
+    with pytest.raises(ValueError):
+        fit.offset_tables(str(tmp_path / "x.json"), True, None, False)
+    with pytest.raises(ValueError):
+        fit.offset_tables(None, False, str(tmp_path / "x.json"), True)
+
+
+def test_the_goals_fit_walk_reads_the_cup_book(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from bet.sofa import centre_replay as cr
+    from bet.sofa.cup_strength import load as load_cup
+    from scripts.sofa import fit_goals_stretch as fit
+    from scripts.sofa.measure_game_state import CentreRules as FitRules
+
+    seen: list[object] = []
+    real = cr.apply_cup_strength
+
+    def spy(book: fr.RatingBook, cup: object) -> fr.RatingBook:
+        seen.append(cup)
+        return real(book, cup)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(cr, "apply_cup_strength", spy)
+    history, _ = _football(days=20)
+    start = datetime.fromtimestamp(history[0].ts, UTC).date().isoformat()
+    end = datetime.fromtimestamp(history[-1].ts, UTC).date().isoformat()
+    cup = load_cup()
+    fit.collect(history, start, end, ("goals_for",), FitRules(), cup_strength=cup)
+    fit.collect(history, start, end, ("goals_for",), FitRules())
+    assert seen == [cup, None]

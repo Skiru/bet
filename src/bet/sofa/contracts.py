@@ -392,6 +392,14 @@ class SheetRow(BaseModel):
     # row priced while the goals centres carry the supremacy stretch
     # (bet.sofa.goals_stretch); absent when off.
     goals_stretch_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_COUNT_STRETCH: the rule's name on a football
+    # row priced while the count centres outside GAME_STATE carry the
+    # supremacy stretch (bet.sofa.count_stretch); absent when off.
+    count_stretch_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_PLAYER_STRETCH: the rule's name on a football
+    # row priced while a footballer's shots centres carry the supremacy
+    # stretch (bet.sofa.player_stretch); absent when off.
+    player_stretch_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None

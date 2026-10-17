@@ -2088,8 +2088,12 @@ def sample_cup_strength(date: str, build_at: datetime | None = None) -> bool:
 # carrying it. Rows priced under it carry `goals_stretch_rule` (every
 # football row, like the other football markers), so a rebuild re-runs SHEET
 # on a sheet of the other rule. None: the centre as it was, byte for byte -
-# OFF, the operator decides the moment.
-FOOTBALL_GOALS_STRETCH = "goals_stretch_v1"
+# OFF, the operator decides the moment. goals_stretch_v2 (2026-10-17, before
+# the switch was ever set): a market may carry one coefficient set per
+# season phase (the phase SEASON_PHASE reads; goals_for's slope is 0.018
+# early vs 0.056-0.064 later), a phase the file lacks - and a match with no
+# phase, unless the file names `none` - reading the market's single set.
+FOOTBALL_GOALS_STRETCH = "goals_stretch_v2"
 FOOTBALL_GOALS_STRETCH_FROM_UTC: datetime | None = None
 FOOTBALL_GOALS_STRETCH_MARKER = (
     "goals_stretch_rule", FOOTBALL_GOALS_STRETCH, "football")
@@ -2103,6 +2107,71 @@ def football_goals_stretch(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_GOALS_STRETCH_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_GOALS_STRETCH_FROM_UTC)
+
+
+# The count stretch (bet.sofa.count_stretch): the same mismatch compression
+# in the football count centres GAME_STATE does not touch. From this moment
+# the centre of a market of count_stretch.COUNT_STRETCH_MARKETS with
+# coefficients in config/sofa_count_stretch.json (half corners, shots by
+# half, shots on target, offsides, saves, throw-ins, goal kicks; the shots
+# on target / saves / throw-ins totals) is multiplied by exp(beta x s [+
+# beta2 x s^2]) (a side, s its expected goal difference) or exp(g1 |s| + g2
+# s^2) (a total, s the home side's), after GAME_STATE and the venue prior,
+# in SHEET and in the cache replay (calibrate_from_cache --count-stretch).
+# Measured 2026-10-17 on the history replay of SHEET's count centre:
+# walk-forward NB log-loss below zero on all 16; after the bucket curve both
+# out-of-sample checks (pre-2026 fit -> 2026, 2026-H1 fit -> 2026-07..)
+# below zero on all 16; the raw NB of a fixed fit not significant for
+# shots_1h_for (pre-2026 fit) and offsides_for (2026-H1 fit);
+# offsides_1h_for left out (after-curve 2026-H1 check not below zero);
+# docs/sofa/evidence/count_stretch_2026-10-17.md. It changes p:
+# the football curves are to be refitted on a replay carrying it. Rows
+# priced under it carry `count_stretch_rule` (every football row), so a
+# rebuild re-runs SHEET on a sheet without it. None: OFF, byte for byte.
+FOOTBALL_COUNT_STRETCH = "count_stretch_v1"
+FOOTBALL_COUNT_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_COUNT_STRETCH_MARKER = (
+    "count_stretch_rule", FOOTBALL_COUNT_STRETCH, "football")
+
+
+def football_count_stretch(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football count centre carry the supremacy stretch
+    (FOOTBALL_COUNT_STRETCH_FROM_UTC)?"""
+    if FOOTBALL_COUNT_STRETCH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_COUNT_STRETCH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_COUNT_STRETCH_FROM_UTC)
+
+
+# The player shots stretch (bet.sofa.player_stretch): a footballer's centre
+# is the mean of his starts against every kind of opponent. From this moment
+# the centre of player_shots_for / player_shots_on_target_for with a beta in
+# config/sofa_player_stretch.json is multiplied by exp(beta x s), s his own
+# side's expected goal difference (FootballForecast.supremacy of the side
+# his sample was matched in), in SHEET and in the cache replay of the player
+# rows (calibrate_from_cache --player-stretch). Measured 2026-10-17 on the
+# starts-only player rows (fit before 2026, tested on 2026): beta 0.126 /
+# 0.117, log-loss better on the ladder lines;
+# docs/sofa/evidence/player_stretch_2026-10-17.md. It changes p: the player
+# curves are to be refitted on a replay carrying it. Rows priced under it
+# carry `player_stretch_rule` (every football row), so a rebuild re-runs
+# SHEET on a sheet without it. None: OFF, byte for byte.
+FOOTBALL_PLAYER_STRETCH = "player_stretch_v1"
+FOOTBALL_PLAYER_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_STRETCH_MARKER = (
+    "player_stretch_rule", FOOTBALL_PLAYER_STRETCH, "football")
+
+
+def football_player_stretch(date: str, build_at: datetime | None = None) -> bool:
+    """Does a footballer's shots centre carry the supremacy stretch
+    (FOOTBALL_PLAYER_STRETCH_FROM_UTC)?"""
+    if FOOTBALL_PLAYER_STRETCH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_PLAYER_STRETCH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_PLAYER_STRETCH_FROM_UTC)
+
 
 # Football "or" result markets, the underdog's European handicap and the
 # double chance & goals pairs that clear their gate

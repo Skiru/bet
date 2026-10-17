@@ -33,6 +33,9 @@ from bet.sofa.contracts import (
 )
 from bet.sofa.count_dispersion import Dispersion, DispersionTable
 from bet.sofa.count_dispersion import load_table as load_dispersion_table
+from bet.sofa.count_stretch import COUNT_STRETCH_UNFITTED, CountStretchTable
+from bet.sofa.count_stretch import is_total as count_stretch_is_total
+from bet.sofa.count_stretch import load_table as load_count_stretch_table
 from bet.sofa.coupon import effective_kickoff
 from bet.sofa.cup_strength import load as load_cup_strength
 from bet.sofa.derived import load_side_correlations, price_derived_rungs
@@ -134,6 +137,8 @@ from bet.sofa.names import normalize_name
 from bet.sofa.opponent_correction import NOTE as OPPONENT_NOTE
 from bet.sofa.opponent_correction import SampleCorrector, correct_total
 from bet.sofa.per_market_k import k_for_market
+from bet.sofa.player_stretch import PLAYER_STRETCH_UNFITTED, PlayerStretchTable
+from bet.sofa.player_stretch import load_table as load_player_stretch_table
 from bet.sofa.players import is_player_metric, player_sample_key
 from bet.sofa.rating_weight import RatingWeightTable
 from bet.sofa.rating_weight import blend as rating_blend
@@ -157,6 +162,7 @@ from bet.sofa.shot_detail import forecast as shot_detail_forecast
 from bet.sofa.shot_detail import load_fit as load_shot_detail_fit
 from bet.sofa.shot_detail import shrunk_mean as shot_detail_shrunk_mean
 from bet.sofa.stage import set_stage
+from bet.sofa.supremacy_stretch import stretch_supremacy as side_or_home_supremacy
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
@@ -1831,7 +1837,8 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_VENUE_PRIOR_MARKER, epochs.SEASON_PHASE_MARKER,
     epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
     epochs.FOOTBALL_CUP_STRENGTH_MARKER, epochs.SAMPLE_CUP_STRENGTH_MARKER,
-    epochs.FOOTBALL_GOALS_STRETCH_MARKER,
+    epochs.FOOTBALL_GOALS_STRETCH_MARKER, epochs.FOOTBALL_COUNT_STRETCH_MARKER,
+    epochs.FOOTBALL_PLAYER_STRETCH_MARKER,
 ))
 
 
@@ -1914,6 +1921,8 @@ def process_fixture(
     per_market_k_on: bool = False,
     game_state: GameStateTable | None = None,
     goals_stretch: GoalsStretchTable | None = None,
+    count_stretch: CountStretchTable | None = None,
+    player_stretch: PlayerStretchTable | None = None,
     venue_prior_on: bool = False,
     set_rating_prices: bool = False,
     sample_corrector: SampleCorrector | None = None,
@@ -2097,6 +2106,8 @@ def process_fixture(
         raw_values: list[float] | None = None
         corrector = (sample_corrector if fixture.sport == "football"
                      else None)
+        # the side a footballer's sample was matched in (a player market)
+        player_side: str | None = None
 
         # F54. A player market's subject is a person, and its sample is that
         # person's own appearances — SAMPLES already did the name match
@@ -2117,6 +2128,7 @@ def process_fixture(
                 )
                 continue
             obs = player_sample.observations
+            player_side = player_sample.side
             # A starter's ninety minutes and a substitute's twelve are not
             # two observations of the same quantity, and nothing else in the
             # row can say so. Reported, never blocking: Superbet pays a
@@ -2342,12 +2354,32 @@ def process_fixture(
                         f"{g_mult:.3f} (expected goal difference {g_sup:+.2f}, "
                         f"beta {game_state.betas[rung.market]:+.4f}; "
                         "epochs.GAME_STATE)")
+            # epochs.FOOTBALL_COUNT_STRETCH: a count centre outside
+            # GAME_STATE x the supremacy stretch (side: exp(beta x s [+ beta2
+            # x s^2]); total: exp(g1 |s| + g2 s^2), s the home side's), after
+            # GAME_STATE and the venue prior, blended or sample-only.
+            if count_stretch is not None and football is not None:
+                cs_total = count_stretch_is_total(rung.market)
+                cs_sup = side_or_home_supremacy(football, side_key, cs_total)
+                cs_mult = count_stretch.multiplier(rung.market, cs_sup)
+                if cs_mult is not None and cs_sup is not None:
+                    cs_before = centre
+                    centre *= cs_mult
+                    row_unfitted.extend(COUNT_STRETCH_UNFITTED)
+                    extra_notes.append(
+                        f"COUNT_STRETCH: centre {centre:.2f} = {cs_before:.2f} x "
+                        f"{cs_mult:.3f} (expected goal difference {cs_sup:+.2f}"
+                        f"{' (home)' if cs_total else ''}, "
+                        f"{count_stretch.describe(rung.market)}; "
+                        "epochs.FOOTBALL_COUNT_STRETCH)")
             # epochs.FOOTBALL_GOALS_STRETCH: a goals centre x the supremacy
             # stretch (side: exp(beta x s); total: exp(g1 |s| + g2 s^2), s
-            # the home side's), on the same blended centre.
+            # the home side's), on the same blended centre; a market with
+            # per-phase coefficients reads the fixture's season phase.
             if goals_stretch is not None and football is not None:
                 st_sup = stretch_supremacy(football, rung.market, side_key)
-                st_mult = goals_stretch.multiplier(rung.market, st_sup)
+                st_mult = goals_stretch.multiplier(
+                    rung.market, st_sup, season_phase_label)
                 if st_mult is not None and st_sup is not None:
                     st_before = centre
                     centre *= st_mult
@@ -2356,8 +2388,23 @@ def process_fixture(
                         f"GOALS_STRETCH: centre {centre:.2f} = {st_before:.2f} x "
                         f"{st_mult:.3f} (expected goal difference {st_sup:+.2f}"
                         f"{' (home)' if side_key is None else ''}, "
-                        f"{goals_stretch.describe(rung.market)}; "
+                        f"{goals_stretch.describe(rung.market, season_phase_label)}; "
                         "epochs.FOOTBALL_GOALS_STRETCH)")
+            # epochs.FOOTBALL_PLAYER_STRETCH: a footballer's shots centre x
+            # exp(beta x s), s his own side's expected goal difference.
+            if (player_stretch is not None and football is not None
+                    and player_side is not None):
+                ps_sup = football.supremacy(player_side)
+                ps_mult = player_stretch.multiplier(rung.market, ps_sup)
+                if ps_mult is not None and ps_sup is not None:
+                    ps_before = centre
+                    centre *= ps_mult
+                    row_unfitted.extend(PLAYER_STRETCH_UNFITTED)
+                    extra_notes.append(
+                        f"PLAYER_STRETCH: centre {centre:.2f} = {ps_before:.2f} x "
+                        f"{ps_mult:.3f} (his side's expected goal difference "
+                        f"{ps_sup:+.2f}, {player_stretch.describe(rung.market)}; "
+                        "epochs.FOOTBALL_PLAYER_STRETCH)")
             # epochs.SEASON_PHASE (audit 2026-10-13 C1): the goals centre x
             # exp(c[market][phase]), the phase as of the day's cut.
             if season_phase is not None and football is not None:
@@ -2987,9 +3034,12 @@ def _main() -> int:
             config.db_path, Path(config.db_path).parent / "cache")
         # also the as-of phase of a 1X2 / DNB row (epochs.FOOTBALL_RESULT_1X2_DNB)
         # and of a score-market row (epochs.FOOTBALL_SCORE_MARKETS)
+        # and of a goals-stretch row (epochs.FOOTBALL_GOALS_STRETCH: a
+        # market's coefficients may be per phase)
         if season_phase_on or (stats_only_epoch(args.date) and (
                 epochs.football_result_1x2_dnb(args.date)
-                or epochs.football_score_markets(args.date))):
+                or epochs.football_score_markets(args.date)
+                or epochs.football_goals_stretch(args.date))):
             season_index = index_from_history(
                 football_history, int(cut.timestamp()))
         football_book = replay_football(
@@ -3038,6 +3088,14 @@ def _main() -> int:
     goals_stretch_table = (
         load_goals_stretch_table()
         if stats_only and epochs.football_goals_stretch(args.date) else None)
+    # epochs.FOOTBALL_COUNT_STRETCH / FOOTBALL_PLAYER_STRETCH (off: None, the
+    # centre byte for byte; a missing / malformed config raises, rc 2)
+    count_stretch_table = (
+        load_count_stretch_table()
+        if stats_only and epochs.football_count_stretch(args.date) else None)
+    player_stretch_table = (
+        load_player_stretch_table()
+        if stats_only and epochs.football_player_stretch(args.date) else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
     # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5): the
@@ -3158,6 +3216,8 @@ def _main() -> int:
                 per_market_k_on=per_market_k_on,
                 game_state=game_state_table,
                 goals_stretch=goals_stretch_table,
+                count_stretch=count_stretch_table,
+                player_stretch=player_stretch_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
                 sample_corrector=sample_corrector,
@@ -3247,6 +3307,10 @@ def _main() -> int:
             (epochs.SAMPLE_CUP_STRENGTH_MARKER, sample_cup_on),
             (epochs.FOOTBALL_GOALS_STRETCH_MARKER,
              goals_stretch_table is not None),
+            (epochs.FOOTBALL_COUNT_STRETCH_MARKER,
+             count_stretch_table is not None),
+            (epochs.FOOTBALL_PLAYER_STRETCH_MARKER,
+             player_stretch_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
@@ -3312,6 +3376,12 @@ def _main() -> int:
             "goals_stretch_rule": (
                 epochs.FOOTBALL_GOALS_STRETCH if goals_stretch_table is not None
                 else "old"),
+            "count_stretch_rule": (
+                epochs.FOOTBALL_COUNT_STRETCH if count_stretch_table is not None
+                else "old"),
+            "player_stretch_rule": (
+                epochs.FOOTBALL_PLAYER_STRETCH
+                if player_stretch_table is not None else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

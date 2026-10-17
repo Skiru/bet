@@ -108,7 +108,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "football_rating", "rated_scope", "venue_prior", "game_state",
     "rating_weight", "season_phase", "opponent_correction",
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
-    "tennis_sample_scope", "goals_stretch",
+    "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
 )
 
 
@@ -572,10 +572,13 @@ def rebuild_cache_rows(
     sample_cup_strength: bool = False,
     tennis_sample_scope: bool = False,
     goals_stretch: bool = False,
+    count_stretch: bool = False,
+    player_stretch: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
         ("--game-state", game_state), ("--goals-stretch", goals_stretch),
+        ("--count-stretch", count_stretch), ("--player-stretch", player_stretch),
         ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
@@ -600,6 +603,10 @@ def rebuild_cache_rows(
              "fit_season_phase.py"),
             (goals_stretch, "--goals-stretch", "sofa_goals_stretch.json",
              "fit_goals_stretch.py"),
+            (count_stretch, "--count-stretch", "sofa_count_stretch.json",
+             "fit_count_stretch.py"),
+            (player_stretch, "--player-stretch", "sofa_player_stretch.json",
+             "fit_player_stretch.py"),
             (cup_strength, "--cup-strength", "sofa_cup_strength.json",
              "the operator's cup list")):
         if on and not (paths.config_dir / name).exists():
@@ -771,6 +778,10 @@ def rebuild_cache_rows(
         "tennis_sample_scope": tennis_sample_scope,
         # epochs.FOOTBALL_GOALS_STRETCH (bet.sofa.goals_stretch)
         "goals_stretch": goals_stretch,
+        # epochs.FOOTBALL_COUNT_STRETCH (bet.sofa.count_stretch)
+        "count_stretch": count_stretch,
+        # epochs.FOOTBALL_PLAYER_STRETCH (bet.sofa.player_stretch)
+        "player_stretch": player_stretch,
     }
     for name, on in new_flags.items():
         if on:
@@ -2207,6 +2218,18 @@ def build_parser() -> argparse.ArgumentParser:
         "in the refit's config dir)",
     )
     r.add_argument(
+        "--count-stretch", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_COUNT_STRETCH "
+        "(calibrate_from_cache --count-stretch; needs sofa_count_stretch.json "
+        "in the refit's config dir)",
+    )
+    r.add_argument(
+        "--player-stretch", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_PLAYER_STRETCH "
+        "(calibrate_from_cache --player-stretch; needs "
+        "sofa_player_stretch.json in the refit's config dir)",
+    )
+    r.add_argument(
         "--rating-weight", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
         "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
@@ -2376,6 +2399,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sample_cup_strength=args.sample_cup_strength,
                     tennis_sample_scope=args.tennis_sample_scope,
                     goals_stretch=args.goals_stretch,
+                    count_stretch=args.count_stretch,
+                    player_stretch=args.player_stretch,
                 )["exit"]
             )
         if args.command == "fit":

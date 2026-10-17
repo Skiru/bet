@@ -93,3 +93,27 @@ stronę) zostaje po rozciągnięciu (+0,15) - niewyjaśniona, osobny pomiar.
   drukowalna zostaje (-16..-18 pp) - nie wdrażane, wymaga refitu A7.
 - **Siatkówka:** punkty +0,80 [+0,19, +1,43] (znane B9, odrzucone).
 - **CS2:** skalibrowane albo za mało danych.
+
+## Faza sezonu (`goals_stretch_v2`, 2026-10-17)
+
+Nachylenie goals_for zależy od fazy (fit przed 2026; skrypt
+`goals_ft/phase_stretch.py`, wyniki `phase_stretch.out`, `phase_params.json`):
+early 0,018, mid 0,056, late 0,064, final 0,063, bez fazy 0,082 (jeden zestaw
+0,071). Własny zestaw meczów bez fazy był gorszy od pojedynczego (surowy NB
+per faza minus pojedynczy +0,00018 [+0,00011, +0,00025]) - mecz bez fazy
+czyta zestaw pojedynczy. Połowy: różni się tylko early (goals_1h_for 0,145 vs 0,167,
+goals_2h_for 0,100 vs 0,128). Sumy na fazę nie lepsze od jednego zestawu
+(late / final gorsze: goals_2h_total per faza - jeden zestaw +0,00070
+[+0,00027, +0,00111] late, +0,00157 final) - zostają pojedyncze.
+
+Plik może więc dać rynkowi zestaw na fazę (`by_phase`; etykiety
+`season_phase`, mecz bez fazy = `none`); faza, której plik nie ma, czyta
+pojedynczy zestaw rynku, a bez niego centrum zostaje bez zmian. SHEET czyta
+fazę z tego samego indeksu co SEASON_PHASE (budowany także przy samym
+włączonym rozciągnięciu), replay z `phases_by_event`. Fit:
+`fit_goals_stretch.py --per-phase goals_for:early,mid,late,final
+goals_1h_for:early goals_2h_for:early` (zawsze także zestaw pojedynczy; faza
+poniżej `--min-phase-rows`, domyślnie 500 wierszy, nie dostaje zestawu).
+Domyślnie offset niesie zainstalowany mnożnik fazy sezonu (jak pomiar v2;
+`--no-season-phase` wyłącza), a księga ratingu siłę lig z pucharów
+(`--no-cup-strength` wyłącza).

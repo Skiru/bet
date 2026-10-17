@@ -39,9 +39,13 @@ SHEET_CONFIG_FILES: tuple[str, ...] = (
 # the fingerprint of every sheet priced before one existed is unchanged:
 # config/sofa_shot_detail.json (epochs.SHOT_DETAIL_MARKETS, the operator's
 # install of scripts/sofa/fit_shot_detail.py), config/sofa_goals_stretch.json
-# (epochs.FOOTBALL_GOALS_STRETCH, scripts/sofa/fit_goals_stretch.py).
+# (epochs.FOOTBALL_GOALS_STRETCH, scripts/sofa/fit_goals_stretch.py),
+# config/sofa_count_stretch.json (epochs.FOOTBALL_COUNT_STRETCH,
+# scripts/sofa/fit_count_stretch.py), config/sofa_player_stretch.json
+# (epochs.FOOTBALL_PLAYER_STRETCH, scripts/sofa/fit_player_stretch.py).
 SHEET_OPTIONAL_FILES: tuple[str, ...] = (
-    "sofa_shot_detail.json", "sofa_goals_stretch.json")
+    "sofa_shot_detail.json", "sofa_goals_stretch.json",
+    "sofa_count_stretch.json", "sofa_player_stretch.json")
 DIGEST_CHARS = 16
 
 

@@ -53,8 +53,12 @@ Audit 2026-10-13 A6 / B1 / B2 / B5, all opt-in (off = the rows as before,
 byte for byte): `--football-rating` prices every football marginal row with
 SHEET's live centre - the rating book replayed to each match's UTC day start,
 blended at W_FOOTBALL_RATING - through one hook, `live_centre`, which also
-applies `--rated-scope`, `--venue-prior`, `--game-state` and
-`--goals-stretch` (epochs.FOOTBALL_GOALS_STRETCH) as SHEET does;
+applies `--rated-scope`, `--venue-prior`, `--game-state`,
+`--count-stretch` (epochs.FOOTBALL_COUNT_STRETCH) and `--goals-stretch`
+(epochs.FOOTBALL_GOALS_STRETCH) as SHEET does; `--player-stretch`
+(epochs.FOOTBALL_PLAYER_STRETCH) multiplies a footballer's shots centre by
+his side's supremacy term, read off a rating book replayed for the player
+targets;
 `--tennis-set-ratings` adds the per-set games and sets_total rows, priced
 off the tennis rating's neighbours (tennis_rating.SET_RATING_PRICED_MARKETS).
 
@@ -91,6 +95,9 @@ from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import GapReason
 from bet.sofa.count_dispersion import DispersionTable
 from bet.sofa.count_dispersion import load_table as load_dispersion_table
+from bet.sofa.count_stretch import CountStretchTable
+from bet.sofa.count_stretch import is_total as count_stretch_is_total
+from bet.sofa.count_stretch import load_table as load_count_stretch_table
 from bet.sofa.cup_strength import CupStrength
 from bet.sofa.cup_strength import apply as apply_cup_strength
 from bet.sofa.cup_strength import load as load_cup_strength
@@ -137,6 +144,8 @@ from bet.sofa.metrics import (
 )
 from bet.sofa.opponent_correction import SampleCorrector, corrected_metric
 from bet.sofa.per_market_k import k_for_market
+from bet.sofa.player_stretch import PlayerStretchTable
+from bet.sofa.player_stretch import load_table as load_player_stretch_table
 from bet.sofa.players import (
     PLAYER_METRICS,
     extract_player_metric,
@@ -160,6 +169,7 @@ from bet.sofa.season_phase import SeasonPhaseTable, phases_by_event
 from bet.sofa.season_phase import apply as apply_season_phase
 from bet.sofa.season_phase import load_table as load_season_phase_table
 from bet.sofa.settle import is_completed_event, settle, surfaces_comparable
+from bet.sofa.supremacy_stretch import stretch_supremacy as side_or_home_supremacy
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
     SET_RATING_PRICED_MARKETS,
@@ -942,6 +952,13 @@ class CentreRules:
     # epochs.FOOTBALL_GOALS_STRETCH (--goals-stretch): a goals centre x the
     # supremacy stretch (bet.sofa.goals_stretch)
     goals_stretch: GoalsStretchTable | None = None
+    # epochs.FOOTBALL_COUNT_STRETCH (--count-stretch): a count centre outside
+    # GAME_STATE x the supremacy stretch (bet.sofa.count_stretch)
+    count_stretch: CountStretchTable | None = None
+    # epochs.FOOTBALL_PLAYER_STRETCH (--player-stretch): a footballer's shots
+    # centre x his side's supremacy term (bet.sofa.player_stretch; the
+    # player replay, build_player_rows)
+    player_stretch: PlayerStretchTable | None = None
     # audit 2026-10-13 B14 (epochs.FOOTBALL_RATING_WEIGHT): W per market
     rating_weights: RatingWeightTable | None = None
     # audit 2026-10-13 C1 (epochs.SEASON_PHASE): the goals centre x the phase
@@ -970,6 +987,10 @@ class CentreRules:
                            else self.game_state.path or "in-memory"),
             "goals_stretch": (None if self.goals_stretch is None
                               else self.goals_stretch.path or "in-memory"),
+            "count_stretch": (None if self.count_stretch is None
+                              else self.count_stretch.path or "in-memory"),
+            "player_stretch": (None if self.player_stretch is None
+                               else self.player_stretch.path or "in-memory"),
             "rating_weights": (None if self.rating_weights is None
                                else self.rating_weights.path or "in-memory"),
             "season_phase": (None if self.season_phase is None
@@ -1026,10 +1047,13 @@ class FootballRatingReplay:
         self.book.unit_strength_from_parent = rules.unit_strength_from_parent
         apply_cup_strength(self.book, rules.cup_strength)
         self.forecasts = 0
-        # --season-phase: each event's phase as of its kickoff, asked before
+        # --season-phase, or a --goals-stretch table with per-phase
+        # coefficients: each event's phase as of its kickoff, asked before
         # the event is added (season_phase.phases_by_event)
         self.phases: dict[int, str | None] = (
-            phases_by_event(self._history) if rules.season_phase is not None
+            phases_by_event(self._history)
+            if rules.season_phase is not None or (
+                rules.goals_stretch is not None and rules.goals_stretch.by_phase)
             else {})
 
     @classmethod
@@ -1058,10 +1082,17 @@ class FootballRatingReplay:
         later day (the book is shared and moves on)."""
         if match.sport != "football" or match.competition_id is None:
             return None
-        self.advance(day_start(match.timestamp))
+        return self.forecast_fixture(match.competition_id, match.home_id,
+                                     match.away_id, match.timestamp)
+
+    def forecast_fixture(self, competition_id: int, home_id: int,
+                         away_id: int, kickoff_ts: int) -> FootballForecast:
+        """SHEET's FootballForecast for a football fixture kicking off at
+        ``kickoff_ts`` (the book advanced to that UTC day's start)."""
+        self.advance(day_start(kickoff_ts))
         self.forecasts += 1
         return FootballForecast(
-            self.book, match.competition_id, match.home_id, match.away_id,
+            self.book, competition_id, home_id, away_id,
             strict_league_rate=self.rules.strict_league_rate,
             rated_scope=(RATED_SCOPE_MARKETS if self.rules.rated_scope
                          else frozenset()),
@@ -1087,8 +1118,12 @@ def live_centre(
       2. --venue-prior: a sample-only side centre of VENUE_PRIOR_MARKETS x
          the league venue multiplier over ``venues`` (the sample's);
       3. --game-state: x exp(beta x the side's expected goal difference);
+      3a. --count-stretch: a count centre outside GAME_STATE x exp(beta x
+         s [+ beta2 x s^2]) (a side) or exp(g1 |s| + g2 s^2) (a total, s
+         the home side's);
       3b. --goals-stretch: a goals centre x exp(beta x s) (a side) or
-         exp(g1 |s| + g2 s^2) (a total, s the home side's);
+         exp(g1 |s| + g2 s^2) (a total, s the home side's), per season
+         phase where the table has the phase (``phase``);
       4. --season-phase: x exp(c[market][phase]), the phase as of the
          match's kickoff (``phase``).
 
@@ -1118,9 +1153,15 @@ def live_centre(
         g_mult = rules.game_state.multiplier(market, sup)
         if g_mult is not None and sup is not None:
             centre *= g_mult
+    if rules.count_stretch is not None:
+        cs_sup = side_or_home_supremacy(
+            forecast, side, count_stretch_is_total(market))
+        cs_mult = rules.count_stretch.multiplier(market, cs_sup)
+        if cs_mult is not None and cs_sup is not None:
+            centre *= cs_mult
     if rules.goals_stretch is not None:
         st_sup = stretch_supremacy(forecast, market, side)
-        st_mult = rules.goals_stretch.multiplier(market, st_sup)
+        st_mult = rules.goals_stretch.multiplier(market, st_sup, phase)
         if st_mult is not None and st_sup is not None:
             centre *= st_mult
     if rules.season_phase is not None:
@@ -1386,7 +1427,8 @@ def _match_rows(
         football.forecast(match)
         if football is not None and match.sport == "football" else None
     )
-    # --season-phase: the match's phase as of its kickoff
+    # --season-phase / a per-phase --goals-stretch: the match's phase as of
+    # its kickoff
     match_phase = (football.phases.get(match.event_id)
                    if football_fc is not None and football is not None else None)
     # --opponent-correction (B15): the sample rescaled through the book SHEET
@@ -1820,6 +1862,11 @@ def is_same_match(past: dict[str, Any], target: dict[str, Any]) -> bool:
     return ids_a == ids_b or (names_a == names_b and "" not in names_a)
 
 
+# (event, is_home, player, metric, sample mean, n, actual)
+PlayerSampleHook = Callable[
+    [dict[str, Any], bool, str, str, float, int, float], None]
+
+
 def player_rows_for_event(
     event: dict[str, Any],
     target: dict[bool, Squad | None],
@@ -1830,6 +1877,9 @@ def player_rows_for_event(
     *,
     starters_only: bool = False,
     starts_only: bool = False,
+    player_stretch: PlayerStretchTable | None = None,
+    side_supremacy: Mapping[bool, float | None] | None = None,
+    on_sample: PlayerSampleHook | None = None,
 ) -> list[SettledRow]:
     """Every settled player rung of one finished match.
 
@@ -1840,6 +1890,14 @@ def player_rows_for_event(
     `starters_only`: only a player who started this match is an outcome
     (Superbet voids the market of one who did not). `starts_only`: his
     sample is his starts (samples.build_player_samples `starts_only`).
+
+    `player_stretch` (--player-stretch, epochs.FOOTBALL_PLAYER_STRETCH): the
+    centre of a market it covers is his sample mean x exp(beta x s), s his
+    side's expected goal difference (`side_supremacy[is_home]`, None: the
+    mean unchanged), as run_sheet prices it; the spread follows the centre.
+    `on_sample`: called once per priced sample (event, is_home, player,
+    metric, sample mean, n, actual) - a fit's collector
+    (scripts/sofa/fit_player_stretch.py), never a row.
     """
     tally: collections.Counter[str] = (
         counts if counts is not None else collections.Counter()
@@ -1909,15 +1967,24 @@ def player_rows_for_event(
                 mean = statistics.mean(sample)
                 variance = statistics.variance(sample) if n > 1 else 0.0
                 sample_sd = statistics.stdev(sample) if n > 1 else 0.0
+                centre = mean
+                if player_stretch is not None and side_supremacy is not None:
+                    p_mult = player_stretch.multiplier(
+                        metric, side_supremacy.get(is_home))
+                    if p_mult is not None:
+                        centre = mean * p_mult
+                        tally[f"player_stretch:{metric}"] += 1
                 spread = sheet_predictive_sd(
-                    metric, "football", mean, variance, n, mean
+                    metric, "football", mean, variance, n, centre
                 )
                 tally["samples"] += 1
+                if on_sample is not None:
+                    on_sample(event, is_home, name, metric, mean, n, actual)
                 for line in lines:
                     for direction in ("OVER", "UNDER"):
                         boundary = winning_boundary(line, direction)
                         p_raw = sheet_count_p_raw(
-                            metric, mean, spread, boundary, direction
+                            metric, centre, spread, boundary, direction
                         )
                         if outside_model_resolution(p_raw):
                             tally["outside_model_resolution"] += 1
@@ -2036,6 +2103,30 @@ def player_targets(
     return kept
 
 
+def target_supremacy(
+    targets: Sequence[dict[str, Any]], football: FootballRatingReplay,
+) -> dict[int, dict[bool, float | None]]:
+    """event id -> {is_home: that side's expected goal difference} from the
+    rating book as of each target's UTC day start (SHEET's cut), the
+    targets read in kickoff order (the book only moves forward). A target
+    without a kickoff, a competition or a team id has no entry (its rows
+    then keep the sample mean)."""
+    out: dict[int, dict[bool, float | None]] = {}
+    timed = [e for e in targets if isinstance(e.get("startTimestamp"), int)]
+    for event in sorted(timed, key=lambda e: (int(e["startTimestamp"]),
+                                              int(e["id"]))):
+        competition = _competition_id(event)
+        home = int(((event.get("homeTeam") or {}).get("id")) or 0)
+        away = int(((event.get("awayTeam") or {}).get("id")) or 0)
+        if competition is None or not home or not away:
+            continue
+        fc = football.forecast_fixture(competition, home, away,
+                                       int(event["startTimestamp"]))
+        out[int(event["id"])] = {True: fc.supremacy("side_a"),
+                                 False: fc.supremacy("side_b")}
+    return out
+
+
 def build_player_rows(
     db_path: Path,
     ladder: dict[str, list[float]],
@@ -2043,10 +2134,17 @@ def build_player_rows(
     sample_n: int,
     min_sample: int,
     starts_only: bool = False,
+    player_stretch: PlayerStretchTable | None = None,
+    football: FootballRatingReplay | None = None,
+    on_sample: PlayerSampleHook | None = None,
 ) -> tuple[list[SettledRow], collections.Counter[str]]:
     """The player rows of every finished football match with a squad list
     (`starts_only`: starters' outcomes from their starts - the bet Superbet
-    settles)."""
+    settles). `player_stretch` with `football` (a fresh rating replay - the
+    targets are read in kickoff order for it): the shots centres carry each
+    side's supremacy term (player_rows_for_event)."""
+    if player_stretch is not None and football is None:
+        raise ValueError("player_stretch needs the football rating replay")
     counts: collections.Counter[str] = collections.Counter()
     if not any(ladder.values()):
         counts["no_printed_player_ladder"] += 1
@@ -2055,6 +2153,9 @@ def build_player_rows(
     rows: list[SettledRow] = []
     try:
         targets = player_targets(conn, counts)
+        supremacy: dict[int, dict[bool, float | None]] = (
+            target_supremacy(targets, football)
+            if player_stretch is not None and football is not None else {})
         squads: collections.OrderedDict[int, dict[bool, Squad | None]] = (
             collections.OrderedDict()
         )
@@ -2110,6 +2211,10 @@ def build_player_rows(
             produced = player_rows_for_event(
                 event, squads_of(int(event["id"])), history, ladder, min_sample,
                 counts, starters_only=starts_only, starts_only=starts_only,
+                player_stretch=player_stretch,
+                side_supremacy=(supremacy.get(int(event["id"]))
+                                if player_stretch is not None else None),
+                on_sample=on_sample,
             )
             counts["targets"] += 1
             if produced:
@@ -2316,8 +2421,11 @@ def replay_players(
     config: SofaConfig,
     rows: list[SettledRow],
     starts_only: bool = False,
+    football: FootballRatingReplay | None = None,
 ) -> dict[str, Any]:
-    """Append the player rows to `rows`; the summary's player metrics."""
+    """Append the player rows to `rows`; the summary's player metrics.
+    `football` (a fresh rating replay) with CENTRE_RULES.player_stretch:
+    the shots centres carry the supremacy term."""
     carried = sorted(k for k in baselines if is_player_metric(k))
     if carried:
         # SHEET would shrink a player toward these and the replay does not:
@@ -2326,9 +2434,12 @@ def replay_players(
         return {"player_replay": f"SKIPPED: baselines carry {carried}"}
     started = datetime.now(UTC)
     ladder = printed_player_ladder(runs_dir)
+    stretch = CENTRE_RULES.player_stretch
     produced, counts = build_player_rows(
         db_path, ladder, sample_n=config.sample_n, min_sample=config.min_sample,
         starts_only=starts_only,
+        player_stretch=stretch if football is not None else None,
+        football=football if stretch is not None else None,
     )
     rows.extend(produced)
     by_market = collections.Counter(r.market for r in produced)
@@ -2498,7 +2609,25 @@ def main() -> int:
         "exp(beta x s) on goals_for / goals_1h_for / goals_2h_for and "
         "exp(g1 |s| + g2 s^2) on the totals, s the expected goal difference "
         "(epochs.FOOTBALL_GOALS_STRETCH_FROM_UTC; CONFIG defaults to "
-        "config/sofa_goals_stretch.json). Fitted on the same history: "
+        "config/sofa_goals_stretch.json; a market's coefficients may be per "
+        "season phase). Fitted on the same history: in-sample for it",
+    )
+    parser.add_argument(
+        "--count-stretch", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: a count centre outside GAME_STATE "
+        "(count_stretch.COUNT_STRETCH_MARKETS) x the supremacy stretch, "
+        "exp(beta x s [+ beta2 x s^2]) on a side, exp(g1 |s| + g2 s^2) on a "
+        "total (epochs.FOOTBALL_COUNT_STRETCH_FROM_UTC; CONFIG defaults to "
+        "config/sofa_count_stretch.json). Fitted on the same history: "
+        "in-sample for it",
+    )
+    parser.add_argument(
+        "--player-stretch", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: a footballer's shots centre "
+        "(player_stretch.PLAYER_STRETCH_MARKETS) x exp(beta x s), s his side's "
+        "expected goal difference from a rating book replayed for the player "
+        "targets (epochs.FOOTBALL_PLAYER_STRETCH_FROM_UTC; CONFIG defaults to "
+        "config/sofa_player_stretch.json). Fitted on the same history: "
         "in-sample for it",
     )
     parser.add_argument(
@@ -2579,6 +2708,8 @@ def main() -> int:
         ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
         ("--game-state", args.game_state is not None),
         ("--goals-stretch", args.goals_stretch is not None),
+        ("--count-stretch", args.count_stretch is not None),
+        ("--player-stretch", args.player_stretch is not None),
         ("--rating-weight", args.rating_weight is not None),
         ("--season-phase", args.season_phase is not None),
         ("--opponent-correction", args.opponent_correction),
@@ -2622,6 +2753,14 @@ def main() -> int:
                 load_goals_stretch_table(
                     Path(args.goals_stretch) if args.goals_stretch else None)
                 if args.goals_stretch is not None else None),
+            count_stretch=(
+                load_count_stretch_table(
+                    Path(args.count_stretch) if args.count_stretch else None)
+                if args.count_stretch is not None else None),
+            player_stretch=(
+                load_player_stretch_table(
+                    Path(args.player_stretch) if args.player_stretch else None)
+                if args.player_stretch is not None else None),
             rating_weights=(
                 load_rating_weight_table(
                     Path(args.rating_weight) if args.rating_weight else None)
@@ -2679,6 +2818,18 @@ def main() -> int:
             played = without_halves(played)
     load_seconds = round((datetime.now(UTC) - t_load).total_seconds(), 1)
 
+    # --player-stretch: the player targets read their own rating replay (the
+    # team replay's book must start fresh), from the one history load
+    player_stretch_on = (CENTRE_RULES.player_stretch is not None
+                         and args.players != "skip")
+    football_history: list[FootballResult] | None = None
+    football_seconds: float | None = None
+    if CENTRE_RULES.football_rating and (played or player_stretch_on):
+        t_hist = datetime.now(UTC)
+        football_history = load_football_history(db_path, db_path.parent / "cache")
+        football_seconds = round(
+            (datetime.now(UTC) - t_hist).total_seconds(), 1)
+
     player_rows: list[SettledRow] = []
     player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
     if args.players != "skip":
@@ -2689,15 +2840,16 @@ def main() -> int:
             config,
             player_rows,
             starts_only=args.player_starts_only,
+            football=(FootballRatingReplay(football_history, CENTRE_RULES)
+                      if player_stretch_on and football_history is not None
+                      else None),
         )
 
     football: FootballRatingReplay | None = None
-    football_seconds: float | None = None
-    if CENTRE_RULES.football_rating and played:
-        t_hist = datetime.now(UTC)
-        football = FootballRatingReplay.from_db(db_path, CENTRE_RULES)
-        football_seconds = round(
-            (datetime.now(UTC) - t_hist).total_seconds(), 1)
+    if CENTRE_RULES.football_rating and played and football_history is not None:
+        football = FootballRatingReplay(football_history, CENTRE_RULES)
+    # each replay holds its own sorted copy: the loaded list is not read again
+    football_history = None
 
     emit_from, emit_to = day_ts(args.emit_from), day_ts(args.emit_to)
     window = emit_from is not None or emit_to is not None

@@ -38,6 +38,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from bet.sofa import football_rating as fr
+from bet.sofa.cup_strength import CupStrength
+from bet.sofa.cup_strength import apply as apply_cup_strength
 
 SAMPLE_N = 10
 MIN_VALUES = 5
@@ -75,8 +77,12 @@ def walk(
     sample_n: int = SAMPLE_N,
     min_values: int = MIN_VALUES,
     shared_league_link: bool = True,
+    cup_strength: CupStrength | None = None,
 ) -> Iterator[CentreRow]:
-    """Yield one CentreRow per (match, market, side) in [start_ts, end_ts)."""
+    """Yield one CentreRow per (match, market, side) in [start_ts, end_ts).
+    ``cup_strength``: the book learns the league strength in international
+    club cups (epochs.FOOTBALL_CUP_STRENGTH, live SHEET's book); None: the
+    book as before."""
     wanted = sorted(set(markets))
     by_metric: dict[str, list[str]] = defaultdict(list)
     for m in wanted:
@@ -85,7 +91,8 @@ def walk(
             raise ValueError(f"{m}: not a rated base metric's market")
         by_metric[metric].append(m)
     k_by_market = k_by_market or {}
-    book = fr.RatingBook(shared_league_link=shared_league_link)
+    book = apply_cup_strength(
+        fr.RatingBook(shared_league_link=shared_league_link), cup_strength)
     last: dict[tuple[int, str], deque[_Obs]] = defaultdict(
         lambda: deque(maxlen=sample_n))
     scope = frozenset(fr.UNRATED_MARKETS)
