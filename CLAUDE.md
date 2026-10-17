@@ -702,8 +702,10 @@ measurement of Superbet's price and feed nothing else.
   10-16's build, FOOTBALL_CUP_STRENGTH and BASKETBALL_DC_PAIR from 00:00Z,
   and the football score markets / tennis set complements moved by the
   operator into the built day at 07:46Z - 10-16 is mixed, ledger group
-  "10-16 mieszany"; from 10-17 "od 10-17" (also PLAYER_SAMPLE_GATES from
-  2026-10-17 00:00Z); before them ledger group
+  "10-16 mieszany"; 10-17 itself is mixed too - the supremacy stretches from
+  13:37Z and refit 2026-10-17 from 19:13Z moved into the built day by the
+  operator: ledger group "10-17 mieszany" (PLAYER_SAMPLE_GATES from 00:00Z),
+  the days after "od 10-18" ("od 10-17" holds no day); before them ledger group
   "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
@@ -1006,8 +1008,21 @@ test 2026): goals_for / goals totals / all 16 count markets / both player
 markets better, every CI below zero except shots_on_target_total pre-2026
 (neutral); goals_1h_for and goals_2h_for better in log-loss but their
 favourite OVER legs at >= 0.70 overstate with the old curve (-5.7 / -3.0 pp)
-- held back in `config/sofa_goals_stretch.json` (`held_back`) until the
-refitted curves are installed. To watch on live legs: goal_kicks_for UNDER
+- held back until the refitted curves were installed. **Refit 2026-10-17
+installed 19:13Z** (same go, into the mixed day; backup
+`config/backup_2026-10-18`, tests/sofa 5102 passed): football / tennis
+curves, engine constants, league baselines and reliability fitted on
+`data/refit_2026-10-17/sofa_replay.db` (1,282,317 matches, 121.9M rows; the
+10-16b flags plus `--goals-stretch --count-stretch --player-stretch`; keep
+this DB - `fitted_from.db_path`); goals_1h_for / goals_2h_for restored to
+`config/sofa_goals_stretch.json` at the install, SHEET re-run by hand,
+line evidence refitted on the new curves. E2E at the build clocks: 10-16
++83 / -44 legs, settled -89.94 -> -90.95 u. (dropped 41 graded -0.51,
+added 81 -1.52 - no lost leg of the day turned); 10-17 +71 / -28, common
+legs |move| 0.002 mean, 0.060 max. `fit_confidence` keeps the footballer
+shot-detail rows out of the replay fit (`shot_detail.METRICS`; the first
+fit had replaced the left / right foot curves). Report
+`docs/sofa/history/RAPORT_DZIEN_2026-10-17.md`. To watch on live legs: goal_kicks_for UNDER
 s -1..-0.5, throw_ins_total UNDER |s| >= 1.5 (thin cells),
 shots_on_target_for / shots_1h_for ~0.5 pp lower at >= 0.70. The
 MODEL_ABOVE_OWN_SAMPLE gate removes more legs (E2E 10-17: +27): the stretch
@@ -1093,9 +1108,11 @@ refit), `config/backup_2026-10-15` (before the 10-14 refit, with the removed
 new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
 basketball A7 keys from the full cache), `config/backup_2026-10-16` (before
 the cup-strength refit), `config/backup_2026-10-16b` (before refit
-2026-10-16b), `data/backup_2026-10-05/sofa.db`;
-`data/refit_2026-10-16b/sofa_replay.db` is the DB the installed football /
+2026-10-16b), `config/backup_2026-10-18` (before refit 2026-10-17),
+`data/backup_2026-10-05/sofa.db`;
+`data/refit_2026-10-17/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
+`data/refit_2026-10-16b/sofa_replay.db` (the previous install's) and
 `data/refit_2026-10-08/sofa_replay.db`; the replay DBs of
 `data/refit_2026-10-16/` and `data/refit_2026-10-14/` were deleted 2026-10-16
 (their logs / manifests kept).
