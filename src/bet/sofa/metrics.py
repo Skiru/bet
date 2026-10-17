@@ -820,6 +820,101 @@ def _is_staff_card(incident: dict[str, Any]) -> bool:
     return bool(incident.get("manager")) and not incident.get("player")
 
 
+def _incident_clock(incident: dict[str, Any]) -> tuple[int, int] | None:
+    """(minute, added minute) of an incident, None when it carries no match
+    time (Sofascore writes -5 for a card shown outside play)."""
+    minute = incident.get("time")
+    if not isinstance(minute, (int, float)) or minute < 0:
+        return None
+    added = incident.get("addedTime")
+    return int(minute), int(added) if isinstance(added, (int, float)) else 0
+
+
+def drop_bench_cards(
+    incidents: dict[str, Any] | None, lineups: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """The incident list without the cards shown to a player on the bench.
+
+    Superbet's football rules (Oficjalny Komunikat nr 06/2022, sections 1, 2
+    and 4): "Kartki pokazane sztabowi szkoleniowemu oraz zawodnikom na ławce
+    rezerwowych nie będą brane pod uwagę." Staff cards are dropped by
+    calculate_cards_points; a bench player's card carries ``player`` and
+    needs the lineups to be told apart. SETTLE only - samples, ratings and
+    the replays keep every player card (changing them changes what prints).
+
+    A card is dropped only when the lineups prove the player was off the
+    pitch at that moment: a substitute who never came on, a substitute
+    brought on after the card, or a player taken off before it (a card in
+    the substitution's own minute is kept - the order is unknown). A player
+    the lineups do not list, or no lineups at all, keeps the card.
+    Measured 2026-10-17: Leganés - Córdoba (Álex Millán) and Rapid Wien -
+    Hartberg (Luka Marić) of 2026-10-16, both unused substitutes booked at
+    time -5, were counted and flipped 6 card-points rows.
+    """
+    if not incidents or not lineups:
+        return incidents
+    listed = incidents.get("incidents", [])
+    if not any(
+        inc.get("incidentType") == "card" and inc.get("player") for inc in listed
+    ):
+        return incidents
+
+    substitute: dict[int, bool] = {}
+    minutes: dict[int, float] = {}
+    for side in ("home", "away"):
+        for p in (lineups.get(side) or {}).get("players", []) or []:
+            pid = (p.get("player") or {}).get("id")
+            if pid is not None:
+                substitute[int(pid)] = bool(p.get("substitute"))
+                played = (p.get("statistics") or {}).get("minutesPlayed")
+                if isinstance(played, (int, float)):
+                    minutes[int(pid)] = float(played)
+    # "Never came on" needs a feed that lists substitutions: a lower-league
+    # feed without them would make every used substitute look unused.
+    lists_substitutions = any(
+        inc.get("incidentType") == INCIDENT_FEED_DETAIL for inc in listed
+    )
+
+    came_on: dict[int, tuple[int, int] | None] = {}
+    went_off: dict[int, tuple[int, int] | None] = {}
+    for inc in listed:
+        if inc.get("incidentType") != "substitution":
+            continue
+        clock = _incident_clock(inc)
+        p_in = (inc.get("playerIn") or {}).get("id")
+        p_out = (inc.get("playerOut") or {}).get("id")
+        if p_in is not None:
+            came_on[int(p_in)] = clock
+        if p_out is not None:
+            went_off[int(p_out)] = clock
+
+    def on_bench(inc: dict[str, Any]) -> bool:
+        pid = (inc.get("player") or {}).get("id")
+        if pid is None or int(pid) not in substitute:
+            return False
+        pid = int(pid)
+        clock = _incident_clock(inc)
+        if substitute[pid]:
+            if pid not in came_on:
+                # never came on: the feed lists substitutions and the
+                # lineups give him no minutes
+                return lists_substitutions and minutes.get(pid, 0.0) <= 0
+            on = came_on[pid]
+            if clock is not None and on is not None and clock < on:
+                return True  # booked before he came on
+        off = went_off.get(pid)
+        return clock is not None and off is not None and clock > off
+
+    kept = [
+        inc for inc in listed
+        if not (inc.get("incidentType") == "card" and inc.get("player")
+                and on_bench(inc))
+    ]
+    if len(kept) == len(listed):
+        return incidents
+    return {**incidents, "incidents": kept}
+
+
 # An incident list that is no card record (2026-10-04,
 # data/night_2026-10-03/guards2/). Sofascore's lower-league incident feeds
 # carry goals and dismissals only: no substitution, and a yellow card only
@@ -1114,6 +1209,34 @@ def check_identities(
     return None
 
 
+def half_time_disagrees(
+    listing_event: dict[str, Any], incidents: dict[str, Any] | None
+) -> bool:
+    """The event's first-half score contradicts the incidents' half-time
+    marker (``period`` "HT" with both scores).
+
+    SETTLE only: a half's goals are read off ``period1`` / ``period2``, and
+    a payload Sofascore rewrote after the match can disagree with its own
+    incidents. 2026-10-17: IFK Stocksund - Enköpings SK (15458641) of
+    2026-10-16 was settled from period1 0-2 (goals 35', 45'+1, HT 0-2); the
+    /event re-fetched three hours later read period1 0-0, period2 1-3, and a
+    regrade would have flipped 10 correct half rows. A contradiction is no
+    reading - refused, never guessed (a graded row is then left as it is).
+    """
+    if not incidents:
+        return False
+    h1 = (listing_event.get("homeScore") or {}).get("period1")
+    a1 = (listing_event.get("awayScore") or {}).get("period1")
+    if h1 is None or a1 is None:
+        return False
+    for inc in incidents.get("incidents", []) or []:
+        if inc.get("incidentType") == "period" and inc.get("text") == "HT":
+            hh, ah = inc.get("homeScore"), inc.get("awayScore")
+            if isinstance(hh, (int, float)) and isinstance(ah, (int, float)):
+                return (int(hh), int(ah)) != (int(h1), int(a1))
+    return False
+
+
 def extract_metric(
     metric_name: str,
     sport: str,
@@ -1169,6 +1292,11 @@ def extract_metric(
             return GapReason.STAT_KEY_ABSENT
         h, a = score
         return h + a if is_total else h if is_home else a
+
+    if sofascore_key in ("goals_1h_from_listing", "goals_2h_from_listing") and (
+        settling and half_time_disagrees(listing_event, incidents)
+    ):
+        return GapReason.INTERNAL_INCONSISTENT
 
     if sofascore_key == "goals_1h_from_listing":
         h = listing_event.get("homeScore", {}).get("period1")

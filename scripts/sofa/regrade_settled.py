@@ -72,6 +72,7 @@ from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
     TENNIS_METRICS,
+    drop_bench_cards,
     extract_flat_statistics,
     extract_metric,
 )
@@ -166,10 +167,15 @@ def grade_live(
     fixture: dict[str, Any] | None,
     statistics_json: str | None,
     incidents_json: str | None,
+    lineups_json: str | None = None,
 ) -> tuple[float, str] | str:
     """(actual, outcome) the way run_settle grades this row, or why not."""
     statistics = json.loads(statistics_json) if statistics_json else None
     incidents = json.loads(incidents_json) if incidents_json else None
+    if "cards" in row["market"]:
+        # run_settle reads card rows without the bench players' cards
+        incidents = drop_bench_cards(
+            incidents, json.loads(lineups_json) if lineups_json else None)
     flat = extract_flat_statistics(statistics) if statistics else {}
     if isinstance(flat, GapReason):
         flat = {}
@@ -322,6 +328,50 @@ def cards_staff_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         FROM sofa_settled_row
         WHERE outcome IN ('WIN', 'LOSS') AND market LIKE '%cards_points%'
         """
+    ).fetchall()
+    conn.row_factory = None
+    return [
+        dict(r)
+        for r in rows
+        if r["sofascore_event_id"] in wanted and not is_player_metric(r["market"])
+    ]
+
+
+def bench_card_events(conn: sqlite3.Connection) -> set[int]:
+    """Events whose cached incidents carry a card shown to a player the
+    cached lineups put on the bench at that moment - not counted by Superbet
+    (komunikat 06/2022), dropped by SETTLE since 2026-10-17
+    (metrics.drop_bench_cards)."""
+    out: set[int] = set()
+    for eid, ij, lj in conn.execute(
+        "SELECT sofascore_event_id, incidents_json, lineups_json"
+        " FROM sofa_event_stats WHERE lineups_json IS NOT NULL"
+        " AND incidents_json LIKE '%\"card\"%'"
+    ):
+        incidents = json.loads(ij) if ij else None
+        lineups = json.loads(lj) if lj else None
+        if incidents and lineups and (
+            drop_bench_cards(incidents, lineups) is not incidents
+        ):
+            out.add(int(eid))
+    return out
+
+
+def cards_bench_candidates(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Live card rows (cards_points*, red cards, derived card joints) on
+    events with a bench player's card (--cards-bench, 2026-10-17). The
+    grading code changed, not the data."""
+    wanted = bench_card_events(conn)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT id, run_date, sofascore_event_id, sport, market, subject,
+               line, direction, actual_value, outcome, settled_at
+        FROM sofa_settled_row
+        WHERE outcome IN ('WIN', 'LOSS') AND market LIKE '%cards%'
+          AND run_date != ?
+        """,
+        (CALIBRATION,),
     ).fetchall()
     conn.row_factory = None
     return [
@@ -711,8 +761,11 @@ def regrade(
     *,
     match_tiebreak: bool = False,
     cards_staff: bool = False,
+    cards_bench: bool = False,
 ) -> tuple[list[dict[str, Any]], Counter[str]]:
-    if cards_staff:
+    if cards_bench:
+        rows = cards_bench_candidates(conn)
+    elif cards_staff:
         rows = cards_staff_candidates(conn)
     elif match_tiebreak:
         rows = tiebreak_candidates(conn)
@@ -720,10 +773,10 @@ def regrade(
         rows = candidates(conn)
     events = {r["sofascore_event_id"] for r in rows}
     cached = {
-        int(eid): (sj, ij)
-        for eid, sj, ij in conn.execute(
-            "SELECT sofascore_event_id, statistics_json, incidents_json"
-            " FROM sofa_event_stats"
+        int(eid): (sj, ij, lj)
+        for eid, sj, ij, lj in conn.execute(
+            "SELECT sofascore_event_id, statistics_json, incidents_json,"
+            " lineups_json FROM sofa_event_stats"
         )
         if eid in events
     }
@@ -737,7 +790,7 @@ def regrade(
         eid = row["sofascore_event_id"]
         # A tiebreak candidate may have no /statistics at all - its games
         # came from the listing, which is exactly the path that was wrong.
-        sj, ij = cached.get(eid, (None, None))
+        sj, ij, lj = cached.get(eid, (None, None, None))
         if row["run_date"] == CALIBRATION:
             event = listings.get(eid)
             if event is None:
@@ -757,7 +810,7 @@ def regrade(
                     if path.exists()
                     else {}
                 )
-            graded = grade_live(row, event, fixtures[day].get(eid), sj, ij)
+            graded = grade_live(row, event, fixtures[day].get(eid), sj, ij, lj)
         if isinstance(graded, str):
             tally[f"left:{graded.split(':')[-1]}"] += 1
             continue
@@ -867,6 +920,13 @@ def main() -> int:
         "with a card shown to staff, which Superbet does not count (2026-10-02)",
     )
     kind.add_argument(
+        "--cards-bench",
+        action="store_true",
+        help="re-grade live card rows on events with a card shown to a player "
+        "on the bench per the cached lineups, which Superbet does not count "
+        "(2026-10-17)",
+    )
+    kind.add_argument(
         "--players",
         action="store_true",
         help="re-grade live player-prop rows from the cached /lineups, matched "
@@ -910,6 +970,7 @@ def main() -> int:
                 runs_dir,
                 match_tiebreak=args.match_tiebreak,
                 cards_staff=args.cards_staff,
+                cards_bench=args.cards_bench,
             )
     except (sqlite3.Error, ValueError) as exc:
         print(f"FAILED: {exc}", file=sys.stderr)

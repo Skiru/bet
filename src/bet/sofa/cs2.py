@@ -781,6 +781,10 @@ def pick_event(
 # --- the result ----------------------------------------------------------------
 
 
+# A nickname prefix shorter than this matches too much ("s1" / "s1mple").
+NICK_PREFIX_MIN = 5
+
+
 @dataclass(frozen=True)
 class MapResult:
     t1_rounds: int
@@ -793,7 +797,18 @@ class MapResult:
     def player(self, name: str) -> dict[str, int] | None:
         """One player's row by name, or None - also when the nickname is on
         both rosters, since the line does not say which of them it means."""
-        rows = [s for (_, n), s in self.players.items() if n == esports_name(name)]
+        wanted = esports_name(name)
+        rows = [s for (_, n), s in self.players.items() if n == wanted]
+        if not rows and len(wanted) >= NICK_PREFIX_MIN:
+            # Superbet sometimes extends a nickname ("MartinezSa" for
+            # Sofascore's "martinez", fnatic - Heroic 2026-10-16, 16 lines
+            # ungradeable): one roster nickname of >= NICK_PREFIX_MIN
+            # letters that starts the line's name, or that it starts.
+            rows = [
+                s for (_, n), s in self.players.items()
+                if len(n) >= NICK_PREFIX_MIN
+                and (wanted.startswith(n) or n.startswith(wanted))
+            ]
         return rows[0] if len(rows) == 1 else None
 
     def team_total(self, side: str, stat: str) -> int | None:

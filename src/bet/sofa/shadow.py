@@ -1065,6 +1065,15 @@ def build_result(
     if not isinstance(h_cur, int) or not isinstance(a_cur, int):
         return None
     code = detail.get("winnerCode")
+    if allow_final_only and code is None and h_cur != a_cur:
+        # No winnerCode beside a decided score (2026-10-17: Shumen - Botev
+        # 16923354 of 2026-10-16, Ended 87-84, periods adding up, 16 lines
+        # DATA_MISMATCH): the score names the winner, and every check below
+        # still has to agree with it. A level score without a code stays
+        # refused - a draw cannot be told from a missing code. SHADOW_SETTLE
+        # only (allow_final_only), like the final-only grade: the history
+        # readers keep refusing such a game (a fit row would change prints).
+        code = 1 if h_cur > a_cur else 2
     if code not in (1, 2, 3):
         return None
     home_won: bool | None = None if code == 3 else code == 1
@@ -1314,15 +1323,48 @@ def build_player_box(
     return PlayerBox(players, True)
 
 
+_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv"})
+
+
+def _strip_suffix(name: str) -> str:
+    """The name without generational suffix tokens ("Jr.", "Sr", "III")."""
+    tokens = name.replace(",", " ").replace(".", " ").split()
+    return " ".join(t for t in tokens if t.lower() not in _NAME_SUFFIXES)
+
+
 def player_value(
     line: ShadowLine, box: PlayerBox, sport: ShadowSport
 ) -> float | Literal["DNP", "UNMATCHED", "NO_STAT"]:
     """The player's quantity, or why there is none. A player who did not
     take the ice / court is DNP - Superbet voids his line, it does not settle
-    it at zero."""
-    from bet.sofa.players import match_player
+    it at zero.
 
-    matched = match_player(line.subject, box.players)
+    A name match_player finds in no box is looked for by football SETTLE's
+    whole-name token rule, then its surname + first-name prefix rule (each:
+    one candidate or none). 2026-10-17: on 2026-10-16 "Montero" / "Jean
+    Claudio Montero" and "Diouf" / "Mouhamet Rassoul Diouf" left 18
+    basketball lines UNMATCHED with the player in the box."""
+    from bet.sofa.players import (
+        match_player,
+        match_player_by_surname,
+        match_player_by_tokens,
+    )
+
+    matched = (
+        match_player(line.subject, box.players)
+        or match_player_by_tokens(line.subject, box.players)
+        or match_player_by_surname(line.subject, box.players)
+    )
+    if matched is None:
+        # "Alston Jr., Derrick" / "Derrick Samuel Alston Jr": the suffix is
+        # punctuated differently on each side and breaks the token rule.
+        # Tried without generational suffixes, here only (football's shared
+        # rule feeds SAMPLES).
+        original = {_strip_suffix(k): k for k in box.players}
+        if len(original) == len(box.players):
+            bare = {b: box.players[k] for b, k in original.items()}
+            found = match_player_by_tokens(_strip_suffix(line.subject), bare)
+            matched = original[found] if found is not None else None
     if matched is None:
         return "UNMATCHED"
     return player_stat_value(

@@ -58,6 +58,7 @@ from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_k
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
     double_chance_value,
+    drop_bench_cards,
     extract_flat_statistics,
     extract_metric,
     result_1x2_dnb_value,
@@ -1328,6 +1329,25 @@ def main() -> int:
                 continue
             assert fetched.payload is not None
             event, statistics, incidents = fetched.payload
+            # Superbet does not count a card shown to a player on the bench
+            # (komunikat 06/2022): a card row reads the incidents without
+            # them, which needs the lineups (metrics.drop_bench_cards). If
+            # they cannot be asked, the card rows wait (PROVIDER_ERROR)
+            # rather than count a bench card.
+            cards_failed = False
+            if incidents and any("cards" in r["market"] for r in event_rows):
+                try:
+                    incidents = drop_bench_cards(
+                        incidents, fetch_lineups(client, cache, event))
+                except CircuitOpenError:
+                    breaker_open = True
+                    cards_failed = True
+                except ProviderError as exc:
+                    print(
+                        f"PROVIDER_ERROR event={event_id} lineups (cards): {exc}",
+                        file=sys.stderr,
+                    )
+                    cards_failed = True
             flat = extract_flat_statistics(statistics) if statistics else {}
             if isinstance(flat, GapReason):
                 flat = {}
@@ -1380,6 +1400,9 @@ def main() -> int:
 
             value: float | GapReason
             for row in event_rows:
+                if cards_failed and "cards" in row["market"]:
+                    skips.add(event_id, "PROVIDER_ERROR")
+                    continue
                 if is_player_metric(row["market"]):
                     if lineups_failed:
                         skips.add(event_id, "PROVIDER_ERROR")
