@@ -88,6 +88,30 @@ both numbers, and the independent evidence on the leg is the sample's k/n.**
 still decides every sample-priced row, and any rated family on a fixture the
 rating does not read.
 
+**Serve markets (measured 2026-10-17,
+`docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md`).**
+- Aces / double faults (match, player and total) are priced from the server's
+  own scoped sample shrunk toward the tier prior - **the returner never
+  enters the number**. A returner correction (`epochs.TENNIS_ACES_OPPONENT`,
+  `bet.sofa.tennis_aces_opponent`) is coded and measured: better on the
+  history replay, but no gain on Superbet's settled lines with the real SHEET
+  (64 matches, log-loss +0.006 [-0.025, +0.035]), so it is OFF. On those lines
+  the history curve at >= 0.70 claimed 0.769 and realised 0.543 (-22.6 pp
+  [-33.4, -14.3], 140 lines / 43 matches, 10-06..10-16): the line evidence
+  holds most of them back and what prints is short prices. Read such a leg
+  against the returner (first-serve return points won, how many aces his
+  opponents serve) - that is exactly what the number lacks.
+- Per-set aces / double faults and aces + double faults (`serve_points*`,
+  match and per set) have no history curve: NO_LINE_EVIDENCE, they never
+  print. Curves replayed for them pass the history gate but overstated by
+  -21.7 pp [-47.6, +0.1] on Superbet's lines (33 would-print legs / 17
+  matches) and were not installed.
+- Per-player set games OVER (`games_won_set1_for` / `games_won_set2_for`):
+  printed legs 10-09..10-16 realised -7.1 / -6.6 pp below confidence (~100
+  legs each, intervals touch zero) - a pre-registered check on new data
+  (`T-TENNIS-SET-GAMES-OVER`); weigh the scoreline arithmetic of an OVER rung
+  with that in mind.
+
 A SHEET built before that moment priced these families the old way (the
 sample; before 2026-10-05 the rating blended with the price,
 `TENNIS_RATING`, or the empirical frequency pulled onto the price,

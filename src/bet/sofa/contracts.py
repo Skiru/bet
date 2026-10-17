@@ -381,6 +381,10 @@ class SheetRow(BaseModel):
     season_phase_rule: str | None = None
     rating_weight_rule: str | None = None
     tennis_set_rule: str | None = None
+    # bet.sofa.epochs.TENNIS_ACES_OPPONENT: the rule's name on every tennis
+    # row of a sheet whose aces centres read the returner's factor
+    # (bet.sofa.tennis_aces_opponent); absent when off.
+    tennis_aces_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_CUP_STRENGTH: the rule's name on a football
     # row priced by a rating book carrying the league strength learnt in
     # international club cups (bet.sofa.cup_strength); absent when off.

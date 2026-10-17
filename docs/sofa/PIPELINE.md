@@ -980,6 +980,18 @@ NB centrum przy wyniku, nie linie Superbetu):
   (`BEST_OF_FIVE_NOT_MODELLED`, `run_sheet.format_bound_refusal`): krzywa
   jest z best-of-three, a nieznany format sąsiedzi ratingu czytaliby jak
   best-of-three.
+- `epochs.TENNIS_ACES_OPPONENT_FROM_UTC` (**wyłączony**, `None`; 2026-10-17):
+  centrum asów (mecz, zawodnik, sety) x współczynnik returnującego - asy,
+  które serwowali jego rywale (`Observation.against` z jego próbki
+  `aces_for`), ściągnięte z K do priora tieru, przez prior
+  (`bet.sofa.tennis_aces_opponent`); suma: (c_A f(B) + c_B f(A)) / (c_A + c_B);
+  podwójne błędy bez korekty. Wiersz: notatka `TENNIS_ACES_OPPONENT`, znacznik
+  `tennis_aces_rule`. Zmierzony i niewłączony: na liniach Superbetu z
+  prawdziwym SHEET zero (+0,0060 [-0,0251; +0,0348], 64 mecze), w historii
+  łączne gorzej. Krzywe rynków serwisowych (asy z korektą, sety, asy + PB)
+  dopasowane, niezainstalowane - na liniach Superbetu zawyżają o 20-30 pp
+  (`docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md`, sprawdzian
+  `T-TENNIS-SERVE-MARKET-LINE`).
 - Bety B1 dopasowano ponownie na żywym centrum (z B2 i wagą B14),
   zainstalowane 2026-10-13 20:57Z (df5323ea): `corners_for` 0,129 -> 0,0986,
   `shots_for` 0,0974 -> 0,0506, `cards_points_for` -0,0845 -> -0,0664,

@@ -231,6 +231,58 @@
       "evaluation": "Realised minus confidence with a match bootstrap (as scripts/sofa/measure_player_line_evidence.py).",
       "stop_criterion": "PASSED when the lower 95% bound is above -0.03 at the required n; FAILED (the operator switches the rule off) when the upper bound is below -0.03 at the required n; STOPPED_FUTILE if fewer than 200 matches by 2027-01-16.",
       "evidence": [{"source": "docs/sofa/evidence/player_line_evidence_2026-10-16.md", "line": 15, "quote": "| V0 drukuje | 55 | 37 | 0.787 | 0.826 | 0.727 | -5.9 pp [-15.9, +4.5]"}]
+    },
+    {
+      "id": "T-TENNIS-SET-GAMES-OVER",
+      "registered_on": "2026-10-17",
+      "status": "PROPOSED",
+      "hypothesis": "Printed tennis per-player set-games OVER legs (games_won_set1_for / games_won_set2_for, priced off the rating's neighbours since 2026-10-13 18:10Z, TENNIS_SET_RATING_PRICES) realise no more than 3 pp below their printed confidence on Superbet's lines.",
+      "rule": "Over the official coupon's singles (11_coupon.json) and the legs a read removed (removed_by_reads, reported apart), market games_won_set1_for or games_won_set2_for, direction OVER, graded WIN / LOSS: realised minus mean printed confidence with a 95% bootstrap over matches, per market and pooled; ROI at the printed price reported, not gated.",
+      "population": "Days from 2026-10-18, epoch stats_only, locked legs included.",
+      "data_window": {
+        "from": "2026-10-18",
+        "to": "2027-01-17"
+      },
+      "required_n": {
+        "legs": 400,
+        "matches": 250,
+        "basis": "10-09..10-16: 102 / 103 legs, 79 / 78 matches at -7.1 pp [-17.3, +2.4] / -6.6 pp [-16.8, +3.5] (half-width ~10 pp); ~4 pp needs about four times that."
+      },
+      "evaluation": "Realised minus confidence with a match bootstrap (docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md, the printed-legs table).",
+      "stop_criterion": "PASSED when the lower 95% bound is above -0.03 at the required n; FAILED (a curve refit on market-positioned lines is due, operator decides) when the upper bound is below -0.03; STOPPED_FUTILE if fewer than 250 matches by 2027-01-17.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md",
+          "line": 134,
+          "quote": "| games_won_set1_for | OVER | 102 | 79 | 0.747 | 0.676 | -7.1 [-17.3, +2.4] | -11.4% |"
+        }
+      ]
+    },
+    {
+      "id": "T-TENNIS-SERVE-MARKET-LINE",
+      "registered_on": "2026-10-17",
+      "status": "PROPOSED",
+      "hypothesis": "The tennis serve curves staged by scripts/sofa/fit_tennis_serve_curves.py (the aces family under TENNIS_ACES_OPPONENT, per-set aces / double faults, aces + double faults) read through the line evidence at Superbet's settled lines no more than 3 pp below what they would print - the condition for installing them.",
+      "rule": "For every settled tennis line of those markets (sofa_settled_row, run_date >= 2026-10-18), the confidence CONFIDENCE would print with the staged curves (Calibration.realised then LineEvidence.read, the day's class) - p_central re-priced under TENNIS_ACES_OPPONENT for the aces markets (process_fixture on the day's samples) - kept where >= 0.70 and x >= 0.90: realised minus confidence with a 95% bootstrap over matches; beside it the installed curves on the same lines.",
+      "population": "Tennis fixtures Superbet quotes serve markets on (ATP / WTA main tour, 10-30 a day), days from 2026-10-18.",
+      "data_window": {
+        "from": "2026-10-18",
+        "to": "2027-01-17"
+      },
+      "required_n": {
+        "legs": 150,
+        "matches": 80,
+        "basis": "10-06..10-16: 12 would-print legs / 4 matches at -20.7 pp [-50.8, +5.8] (per-set double faults / serve points) and 20 / 13 at -30.6 pp [-52.2, -4.6] (aces with the correction)."
+      },
+      "evaluation": "scripts/sofa/measure_tennis_serve_market_line.py --from 2026-10-18 --to <d> --staged data/refit_tennis_serve_2026-10-17 (curves re-staged on the history before the evaluation day if refitted).",
+      "stop_criterion": "PASSED (the curves and the switch may go in, operator's go) when the lower 95% bound is above -0.03 at the required n; FAILED when the upper bound is below -0.03 (a market-positioned refit first); STOPPED_FUTILE if fewer than 80 matches by 2027-01-17.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md",
+          "line": 100,
+          "quote": "| asy, p z korektą | nowe | 20 | 13 | 0.756 | 0.450 | -30.6 pp [-52.2, -4.6] | 0.697 | -33.6% |"
+        }
+      ]
     }
   ]
 }

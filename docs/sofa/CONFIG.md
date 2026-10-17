@@ -599,3 +599,31 @@ klucze nowych rynków sportu (`fit_meta.carry_sport_new_market_curves`); klucz,
 który refit dopasował sam, nigdy nie jest nadpisywany. Wcześniej każdy refit
 musiał je przenosić ręcznie (`data/refit_2026-10-16/carry_over.py`).
 
+### 7.10 Krzywe rynków serwisowych tenisa (dopasowane 2026-10-17, **niezainstalowane**)
+
+`scripts/sofa/fit_tennis_serve_curves.py --before 2026-10-17 --out-dir
+data/refit_tennis_serve_2026-10-17` - replay samego tenisa z bazy na żywo
+tylko do odczytu (bez kopii 45 GB: wiersze nie są zapisywane do bazy), z
+zakresem próbki SAMPLES, korektą asów (`--tennis-aces-opponent`) i rynkami
+serwisowymi, których replay wcześniej nie czytał (`--tennis-serve-markets`:
+asy / PB w secie, asy + PB w meczu i w secie). Krzywe jak `fit_confidence`
+(z klasami), jednostronna bramka holdout nowych rynków (fit przed 09-01,
+ocena 09-01..10-16): przechodzą wszystkie klucze mężczyzn poza
+`serve_points_total|OVER`. Na liniach Superbetu
+(`scripts/sofa/measure_tennis_serve_market_line.py`) drukowałyby jednak nogi
+o 20-30 pp poniżej pewności - **nie instalować** przed zaliczeniem
+`T-TENNIS-SERVE-MARKET-LINE`.
+
+Instalacja (gdy sprawdzian przejdzie i operator da zgodę):
+`install_new_market_curves.py --dir data/refit_tennis_serve_2026-10-17
+--confirm` - grupa `tennis_serve` **zastępuje** wszystkie krzywe swoich
+rynków (`replace_markets`: by_market, by_market_direction,
+thin_by_market_direction, także w klasach) zamiast odmawiać; rynek, którego
+kierunek oblał bramkę, zostaje przy starych krzywych w całości (wyjątek:
+kierunek, który nigdy nie dochodzi do 0,70, na rynku odmawianym bez krzywej -
+`AWAITING_OWN_CURVE` / `TENNIS_PER_SET`). Każdy zapisany klucz niesie
+`requires_replay_flags`; `prepare_refit.py install` odmówi refitu, którego
+replay tych flag nie miał (`dropped_replay_rules`) - inaczej refit
+nadpisałby krzywe krzywymi starego centrum. Odwrotnie: dopóki krzywe nie są
+zainstalowane, **żaden refit nie dostaje** `--tennis-serve-markets` /
+`--tennis-aces-opponent` (`fit_confidence` zbudowałby te krzywe sam).

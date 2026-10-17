@@ -1467,6 +1467,32 @@ TENNIS_SET_RATING_PRICES_MARKER = (
     "tennis_set_rule", TENNIS_SET_RATING_PRICES, "tennis")
 
 
+# A tennis player's aces centre x today's returner's factor - the aces his
+# own opponents served against him, shrunk with K toward the tier prior, over
+# that prior (bet.sofa.tennis_aces_opponent): aces_for and the per-set
+# aces_set1/2_for x f(other side); the aces totals x (c_A f(B) + c_B f(A)) /
+# (c_A + c_B). Double faults are not corrected (measured worse). Changes
+# p_central, so it goes live only with the correction in the cache replay
+# (calibrate_from_cache --tennis-aces-opponent) and the aces curves refitted
+# on it. Rows carry TENNIS_ACES_OPPONENT_MARKER (every tennis row of a sheet
+# priced under it). None: the server's sample alone, byte for byte.
+# Measured: docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md.
+TENNIS_ACES_OPPONENT = "tennis_aces_opponent_v1"
+TENNIS_ACES_OPPONENT_FROM_UTC: datetime | None = None
+TENNIS_ACES_OPPONENT_MARKER = ("tennis_aces_rule", TENNIS_ACES_OPPONENT, "tennis")
+
+
+def tennis_aces_opponent(date: str, build_at: datetime | None = None) -> bool:
+    """Is a tennis aces centre corrected for today's returner
+    (TENNIS_ACES_OPPONENT_FROM_UTC)? The day being built and the build
+    clock, like every other switch."""
+    if TENNIS_ACES_OPPONENT_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= TENNIS_ACES_OPPONENT_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= TENNIS_ACES_OPPONENT_FROM_UTC)
+
+
 def sheet_has_marker(rows: Sequence[Mapping[str, Any]],
                      marker: tuple[str, str, str]) -> bool:
     """Was every row of a 05_sheet.json the marker's rule applies to (its

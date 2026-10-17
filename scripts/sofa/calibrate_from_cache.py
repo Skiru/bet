@@ -84,6 +84,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from bet.sofa import epochs
+from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.atomic import write_atomic
 from bet.sofa.comparability import (
     SAME_COMPETITION_METRICS,
@@ -170,6 +171,8 @@ from bet.sofa.season_phase import apply as apply_season_phase
 from bet.sofa.season_phase import load_table as load_season_phase_table
 from bet.sofa.settle import is_completed_event, settle, surfaces_comparable
 from bet.sofa.supremacy_stretch import stretch_supremacy as side_or_home_supremacy
+from bet.sofa.tennis_aces_opponent import ACES_MARKETS
+from bet.sofa.tennis_prior import load_tier_baselines, tier_prior
 from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
     SET_RATING_PRICED_MARKETS,
@@ -307,6 +310,42 @@ def set_values(event: dict[str, Any]) -> dict[str, tuple[float, float]]:
         and float(won_home) + float(won_away) == played
     ):
         out["sets"] = (float(won_home), float(won_away))
+    return out
+
+
+# The tennis serve bases read with --tennis-serve-markets: the per-set aces and
+# double faults and the aces + double faults quantity (serve_points), match and
+# per set - metrics.TENNIS_METRICS' serve markets other than the full-match
+# aces / double faults (STAT_KEYS). Until 2026-10-17 the replay never read them,
+# so their curves came from live SETTLE alone (a bucket below 0.60, nothing a
+# coupon could print) and CONFIDENCE refused them for good.
+SERVE_BASES: tuple[str, ...] = (
+    "aces_set1", "aces_set2", "double_faults_set1", "double_faults_set2",
+    "serve_points", "serve_points_set1", "serve_points_set2",
+)
+
+
+def serve_values(
+    event: dict[str, Any], statistics_json: str | None
+) -> dict[str, tuple[float, float]]:
+    """(home, away) per SERVE_BASES base of one finished tennis match, read by
+    metrics.extract_metric exactly as SAMPLES reads a sample and SETTLE grades
+    a row (a set nobody reported, a missing half of aces + double faults: no
+    value, never zero). Any format: a set-1 / set-2 serve count is the same
+    quantity in a best-of-five, and SAMPLES scopes the format itself."""
+    out: dict[str, tuple[float, float]] = {}
+    if not statistics_json:
+        return out
+    try:
+        flat = extract_flat_statistics(json.loads(statistics_json))
+    except ValueError:
+        return out
+    for base in SERVE_BASES:
+        metric = market_name(base, "for")
+        home = extract_metric(metric, "tennis", flat, None, event, True)
+        away = extract_metric(metric, "tennis", flat, None, event, False)
+        if isinstance(home, float) and isinstance(away, float):
+            out[base] = (home, away)
     return out
 
 
@@ -511,6 +550,8 @@ def load_cache(
     tennis_sets: bool = False,
     since_ts: int | None = None,
     until_ts: int | None = None,
+    tennis_serve: bool = False,
+    sports: tuple[str, ...] = (),
 ) -> list[Played]:
     """Every finished cached match, one listing per match.
 
@@ -523,6 +564,13 @@ def load_cache(
     reads them, so a match without /statistics enters the replay for those
     bases alone (its other bases' histories are untouched: they are keyed by
     base).
+
+    `tennis_serve` (--tennis-serve-markets): every tennis match with
+    /statistics also carries its SERVE_BASES (serve_values).
+
+    `sports` (a measurement): only these of REPLAYED_SPORTS are held; empty
+    = all of them. A side's history is keyed by team, so a tennis-only load
+    is the same tennis replay.
 
     `since_ts` / `until_ts` (a smoke run's --history-from / --to): only the
     matches kicking off inside them are held - a light replay whose samples
@@ -541,7 +589,9 @@ def load_cache(
         # and the replay thrashed a 48 GB machine for hours.
         def finished_copy(event: dict[str, Any]) -> dict[str, Any] | None:
             status = (event.get("status") or {}).get("type")
-            if status != "finished" or _event_sport(event) not in REPLAYED_SPORTS:
+            sport = _event_sport(event)
+            if status != "finished" or sport not in REPLAYED_SPORTS or (
+                    sports and sport not in sports):
                 return None
             if since_ts is not None or until_ts is not None:
                 start = event.get("startTimestamp")
@@ -609,6 +659,8 @@ def load_cache(
         values = match_values(event, sport, statistics_json, incidents_json)
         if tennis_sets and sport == "tennis":
             values = {**values, **set_values(event)}
+        if tennis_serve and sport == "tennis":
+            values = {**values, **serve_values(event, statistics_json)}
 
         if values:
             played.append(
@@ -1445,6 +1497,17 @@ def _match_rows(
         market: str, subject: str, actual: float, sample: list[float],
         rating_p: RatingP | None, side: str | None, recent: Sequence[Past],
     ) -> list[SettledRow]:
+        # --tennis-aces-opponent: the aces centre x today's returner's factor
+        # (bet.sofa.tennis_aces_opponent), as run_sheet applies it
+        aces_mult = (
+            tennis_aces_multiplier(match, market, side, history,
+                                   sample_competition, engine_constants)
+            if TENNIS_ACES_OPPONENT and match.sport == "tennis"
+            and market in ACES_MARKETS else None)
+        if aces_mult is not None:
+            return _settle_centred(match, market, subject, actual, sample,
+                                   baselines, engine_constants, rating_p,
+                                   lambda c: c * aces_mult)
         # Without a football forecast: _settle_sample, the call before A6
         # argument for argument (a measurement swaps a collector in for it).
         if football_fc is None:
@@ -1574,6 +1637,58 @@ def _match_rows(
                 [p.own for p in away_recent],
                 (joint_centres[0], joint_centres[1]),
                 correlations.get(base) or 0.0)
+
+
+# epochs.TENNIS_ACES_OPPONENT in the replay (--tennis-aces-opponent): the
+# tier baselines its factor's prior is read from (None = off).
+TENNIS_ACES_TIERS: dict[str, Any] | None = None
+TENNIS_ACES_OPPONENT = False
+
+
+def tennis_aces_multiplier(
+    match: Played,
+    market: str,
+    side: str | None,
+    history: Mapping[tuple[int, str], list[Past]],
+    sample_competition: int | None,
+    engine_constants: dict[str, Any],
+) -> float | None:
+    """run_sheet's TENNIS_ACES_OPPONENT multiplier for one aces row of a
+    replayed tennis match: f(the returner) for a side row, the total's
+    weighted pair for a total. The returner's conceded aces are his scoped
+    `aces` history's total minus own (SAMPLES' `against`), the prior the
+    fixture's full-match aces tier prior, K the tennis K_CENTRE. None (no
+    correction) where run_sheet has none: no tier prior (best-of-five,
+    unknown tier / surface) or a returner with too few values."""
+    tennis = match.tennis
+    if tennis is None or tennis.best_of_five or TENNIS_ACES_TIERS is None:
+        return None
+    tier = tier_prior(TENNIS_ACES_TIERS, aces_opp.PRIOR_MARKET,
+                      tennis.category_name, tennis.ground_type)
+    if tier is None:
+        return None
+    prior = tier[0]
+    k = k_centre_for("tennis", engine_constants)
+
+    def recent(team: int) -> list[Past]:
+        return recent_for(history[(team, "aces")], "aces_for",
+                          sample_competition, tennis)
+
+    def factor(team: int) -> float | None:
+        return aces_opp.returner_factor(
+            [p.total - p.own for p in recent(team)], prior, k)
+
+    if market in aces_opp.ACES_SIDE_MARKETS:
+        if side not in ("side_a", "side_b"):
+            return None
+        return factor(match.away_id if side == "side_a" else match.home_id)
+    f_home, f_away = factor(match.home_id), factor(match.away_id)
+    if f_home is None or f_away is None:
+        return None
+    return aces_opp.total_multiplier(
+        aces_opp.shrunk([p.own for p in recent(match.home_id)], prior, k),
+        aces_opp.shrunk([p.own for p in recent(match.away_id)], prior, k),
+        f_home, f_away)
 
 
 def shrunk_centre(
@@ -2674,6 +2789,20 @@ def main() -> int:
         "and the fixture's competition (epochs.SAMPLE_CUP_STRENGTH_FROM_UTC)",
     )
     parser.add_argument(
+        "--tennis-aces-opponent", action="store_true",
+        help="epochs.TENNIS_ACES_OPPONENT: an aces row's centre x today's "
+        "returner's factor (bet.sofa.tennis_aces_opponent; the tier "
+        "baselines' full-match aces prior), as SHEET prices it. Default "
+        "off: the server's sample alone",
+    )
+    parser.add_argument(
+        "--tennis-serve-markets", action="store_true",
+        help="replay the tennis per-set aces / double faults and the aces + "
+        "double faults markets (serve_points, match and per set) from "
+        "/statistics (SERVE_BASES); default off: no such rows, their curves "
+        "only from live SETTLE",
+    )
+    parser.add_argument(
         "--tennis-set-ratings", action="store_true",
         help="audit 2026-10-13 B5: replay the tennis per-set games "
         "(games_set1/2_total, games_won_set1/2/3_for) and sets_total from "
@@ -2735,10 +2864,17 @@ def main() -> int:
 
     global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
     global CENTRE_RULES, TENNIS_SET_RATINGS, TENNIS_SAMPLE_SCOPE
+    global TENNIS_ACES_OPPONENT, TENNIS_ACES_TIERS
     CARDS_CORRELATION = bool(args.cards_correlation)
     PER_MARKET_K = bool(args.per_market_k)
     TENNIS_SET_RATINGS = bool(args.tennis_set_ratings)
     TENNIS_SAMPLE_SCOPE = bool(args.tennis_sample_scope)
+    TENNIS_ACES_OPPONENT = bool(args.tennis_aces_opponent)
+    if TENNIS_ACES_OPPONENT:
+        TENNIS_ACES_TIERS = load_tier_baselines()
+        if not TENNIS_ACES_TIERS:
+            raise SystemExit("--tennis-aces-opponent: no tennis tier "
+                             "baselines (config/sofa_tennis_tier_baselines.json)")
     if args.football_rating:
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         CENTRE_RULES = CentreRules(
@@ -2807,6 +2943,8 @@ def main() -> int:
     t_load = datetime.now(UTC)
     if args.players != "only":
         load_kw: dict[str, Any] = {}
+        if args.tennis_serve_markets:
+            load_kw["tennis_serve"] = True
         if TENNIS_SET_RATINGS:
             load_kw["tennis_sets"] = True
         if args.history_from is not None:
@@ -2950,6 +3088,8 @@ def main() -> int:
                 **CENTRE_RULES.describe(),
                 "tennis_set_ratings": TENNIS_SET_RATINGS,
                 "tennis_sample_scope": TENNIS_SAMPLE_SCOPE,
+                "tennis_aces_opponent": TENNIS_ACES_OPPONENT,
+                "tennis_serve_markets": bool(args.tennis_serve_markets),
                 "tennis_rating": args.tennis_rating,
                 "tennis_scoped_table": args.tennis_scoped_table,
                 "count_dispersion": args.count_dispersion is not None,

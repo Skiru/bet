@@ -17,6 +17,7 @@ from pydantic import RootModel
 from rapidfuzz import fuzz
 
 from bet.sofa import epochs, sheet_config
+from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
@@ -1070,6 +1071,60 @@ def sample_centre(
     return centre, notes, unfitted_add, rated
 
 
+def tennis_aces_correction(
+    fixture: Fixture,
+    samples: FixtureSamples,
+    market: str,
+    side: str | None,
+    tennis_tiers: dict[str, Any] | None,
+    k: float,
+) -> tuple[float | None, str]:
+    """epochs.TENNIS_ACES_OPPONENT: the multiplier of one aces row's centre
+    and the row's note (bet.sofa.tennis_aces_opponent). The returner's
+    conceded aces are his full-match `aces_for` sample's `against` (SAMPLES
+    scopes it like his own), the prior the fixture's full-match aces tier
+    prior - the one sample_centre shrinks aces_for toward, best of three only
+    - and K the tennis K_CENTRE. (None, why) where no correction applies."""
+    tier = (
+        tier_prior(tennis_tiers, aces_opp.PRIOR_MARKET, fixture.category_name,
+                   fixture.ground_type)
+        if tennis_tiers and fixture.default_period_count in (None, 3) else None
+    )
+    if tier is None:
+        return None, (f"{aces_opp.NOTE}: no correction (no full-match aces "
+                      "tier prior for this fixture)")
+    prior = tier[0]
+    full = samples.metrics.get(aces_opp.PRIOR_MARKET)
+    if full is None:
+        return None, f"{aces_opp.NOTE}: no correction (no aces_for sample)"
+
+    def conceded(obs: list[Observation]) -> list[float]:
+        return [float(o.against) for o in obs if o.against is not None]
+
+    def own(obs: list[Observation]) -> list[float]:
+        return [o.value for o in obs]
+
+    f_a = aces_opp.returner_factor(conceded(full.side_a), prior, k)
+    f_b = aces_opp.returner_factor(conceded(full.side_b), prior, k)
+    if market in aces_opp.ACES_SIDE_MARKETS:
+        if side not in ("side_a", "side_b"):
+            return None, f"{aces_opp.NOTE}: no correction (side unknown)"
+        factor = f_b if side == "side_a" else f_a
+        if factor is None:
+            return None, (f"{aces_opp.NOTE}: no correction (the returner has "
+                          f"< {aces_opp.MIN_RETURNER_VALUES} conceded values)")
+        return factor, (f"returner factor {factor:.3f} over prior "
+                        f"{prior:.2f}, K {k:g}")
+    if f_a is None or f_b is None or not full.side_a or not full.side_b:
+        return None, (f"{aces_opp.NOTE}: no correction (a returner has < "
+                      f"{aces_opp.MIN_RETURNER_VALUES} conceded values)")
+    c_a = aces_opp.shrunk(own(full.side_a), prior, k)
+    c_b = aces_opp.shrunk(own(full.side_b), prior, k)
+    mult = aces_opp.total_multiplier(c_a, c_b, f_a, f_b)
+    return mult, (f"sides {c_a:.2f} x f {f_b:.3f} + {c_b:.2f} x f {f_a:.3f} "
+                  f"over {c_a + c_b:.2f}, K {k:g}")
+
+
 def sheet_derived_margins(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -1867,7 +1922,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_RATING_WEIGHT_MARKER, epochs.TENNIS_SET_RATING_PRICES_MARKER,
     epochs.FOOTBALL_CUP_STRENGTH_MARKER, epochs.SAMPLE_CUP_STRENGTH_MARKER,
     epochs.FOOTBALL_GOALS_STRETCH_MARKER, epochs.FOOTBALL_COUNT_STRETCH_MARKER,
-    epochs.FOOTBALL_PLAYER_STRETCH_MARKER,
+    epochs.FOOTBALL_PLAYER_STRETCH_MARKER, epochs.TENNIS_ACES_OPPONENT_MARKER,
 ))
 
 
@@ -1969,6 +2024,7 @@ def process_fixture(
     result_1x2_dnb: ResultConfig | None = None,
     result_phase: str | None = None,
     score_markets: ResultConfig | None = None,
+    aces_opponent_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2446,6 +2502,20 @@ def process_fixture(
                         f"SEASON_PHASE: centre {centre:.2f} = {p_before:.2f} x "
                         f"{p_mult:.3f} (phase {season_phase_label}; "
                         "epochs.SEASON_PHASE)")
+            # epochs.TENNIS_ACES_OPPONENT: an aces centre x today's
+            # returner's factor (bet.sofa.tennis_aces_opponent)
+            if (aces_opponent_on and fixture.sport == "tennis"
+                    and rung.market in aces_opp.ACES_MARKETS):
+                a_mult, a_detail = tennis_aces_correction(
+                    fixture, samples, rung.market, side_key, tennis_tiers,
+                    k_centre)
+                if a_mult is None:
+                    extra_notes.append(a_detail)
+                else:
+                    a_before = centre
+                    centre *= a_mult
+                    extra_notes.append(
+                        aces_opp.describe(a_mult, a_before, centre, a_detail))
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -3091,6 +3161,8 @@ def _main() -> int:
     # epochs.TENNIS_SET_RATING_PRICES (audit 2026-10-13 B5, off): rides on
     # the rating prices
     set_rating_prices = rating_prices and epochs.tennis_set_rating_prices(args.date)
+    # epochs.TENNIS_ACES_OPPONENT: aces centres x the returner's factor
+    aces_opponent_on = stats_only and epochs.tennis_aces_opponent(args.date)
     marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
     # epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3): a joint's side with
     # no quoted ladder priced by the SHEET formula (off: byte-identical)
@@ -3249,6 +3321,7 @@ def _main() -> int:
                 player_stretch=player_stretch_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
+                aces_opponent_on=aces_opponent_on,
                 sample_corrector=sample_corrector,
                 tennis_winner_on=tennis_winner_on,
                 result_config=result_config,
@@ -3331,6 +3404,7 @@ def _main() -> int:
             (epochs.FOOTBALL_RATING_WEIGHT_MARKER,
              rating_weight_table is not None),
             (epochs.TENNIS_SET_RATING_PRICES_MARKER, set_rating_prices),
+            (epochs.TENNIS_ACES_OPPONENT_MARKER, aces_opponent_on),
             (epochs.FOOTBALL_CUP_STRENGTH_MARKER,
              cup_strength_on and football_book is not None),
             (epochs.SAMPLE_CUP_STRENGTH_MARKER, sample_cup_on),
@@ -3386,6 +3460,8 @@ def _main() -> int:
                 epochs.TENNIS_SCOPED_TABLE if tennis_scoped else "old"),
             "tennis_set_rule": (
                 epochs.TENNIS_SET_RATING_PRICES if set_rating_prices else "old"),
+            "tennis_aces_rule": (
+                epochs.TENNIS_ACES_OPPONENT if aces_opponent_on else "old"),
             "game_state_rule": (
                 epochs.GAME_STATE if game_state_table is not None else "old"),
             "rated_scope_rule": (

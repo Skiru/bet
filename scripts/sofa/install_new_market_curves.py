@@ -36,6 +36,17 @@ curves.json - which keys install:
   here. A group re-gated under a new rule is re-read as is (the fit
   scripts' --regate).
 
+A group whose curves.json names `replace_markets` (tennis_serve: the aces
+family under epochs.TENNIS_ACES_OPPONENT and the serve markets the replay
+never read) REPLACES those markets' curves instead: every curve of theirs in
+the target - by_market, by_market_direction, thin_by_market_direction, top
+level and every class - is removed first, then the group's passing direction
+keys go in, plus its `by_market` curve of a market whose direction keys in
+that section all passed, and its `thin_by_market_direction` buckets (they
+only cap). Only the direction keys are recorded in
+`new_market_curves_fitted_from` (with the group's `requires_replay_flags`,
+which prepare_refit.install reads).
+
 Refusals (exit 2, nothing written): a key already present in the target (its
 direction curve or, football / tennis, its market curve - a refit replaces
 curves, this does not), a malformed curve, an existing backup directory.
@@ -63,12 +74,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from bet.sofa.confidence import AWAITING_OWN_CURVE, TENNIS_PER_SET
+
 _REPO = Path(__file__).resolve().parents[2]
 
 GROUPS = ("shot_detail", "double_chance", "football_incidents", "tennis_sets",
           "sport_derived", "football_result_1x2_dnb", "cs2_series_rounds",
           # scripts/sofa/fit_score_market_curves.py (2026-10-16)
-          "football_score_markets", "tennis_set_complements")
+          "football_score_markets", "tennis_set_complements",
+          # scripts/sofa/fit_tennis_serve_curves.py (2026-10-17): REPLACES
+          # its markets' curves (`replace_markets`), see below
+          "tennis_serve")
 FOOTBALL_TARGET = "sofa_confidence_calibration.json"
 SPORT_TARGET = "sofa_sport_confidence_calibration.json"
 DEFAULT_TARGET = {g: FOOTBALL_TARGET for g in GROUPS} | {
@@ -89,6 +105,12 @@ class Plan:
         default_factory=dict)
     skipped: list[str] = field(default_factory=list)
     fitted_from: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # target file name -> markets whose curves a group replaces
+    replace: dict[str, set[str]] = field(default_factory=dict)
+
+
+# the kind of an add that is not a direction key (never recorded)
+EXTRA = "~"
 
 
 def _target_name(group: str, doc: Mapping[str, Any]) -> str:
@@ -143,6 +165,32 @@ def plan_group(group: str, doc: Mapping[str, Any], plan: Plan) -> None:
                     continue
                 adds.append((group, gk, ("by_class", klass, "by_market_direction",
                                          key), _check_curve(f"{group}:{gk}", curve)))
+        markets = doc.get("replace_markets")
+        if markets:
+            # a market is replaced only when every top-level direction key of
+            # it passed: otherwise its old curves stay whole and none of the
+            # group's go in (a full-match market without a direction curve
+            # would read the tennis pool)
+            directions = doc.get("by_market_direction") or {}
+            whole = set()
+            for m in (str(x) for x in markets):
+                keys = [k for k in directions if k.split("|")[0] == m]
+                if keys and any(_passes(gate, k) for k in keys) and all(
+                        _passes(gate, k) or _never_prints(gate, k, m)
+                        for k in keys):
+                    whole.add(m)
+                else:
+                    plan.skipped.append(
+                        f"{group}: {m} not replaced (a direction key failed "
+                        "or none was fitted) - its installed curves stay")
+            mine = [a for a in adds if a[0] == group]
+            adds[:] = [a for a in adds if a[0] != group]
+            if whole:
+                plan.replace.setdefault(target, set()).update(whole)
+                extras: list[tuple[str, str, tuple[str, ...], dict[str, Any]]] = []
+                _plan_replace_extras(group, doc, gate, extras)
+                adds.extend(a for a in (*mine, *extras)
+                            if _market_of(a[2]) in whole)
     else:
         for sport, section in sorted((doc.get("sports") or {}).items()):
             for key, curve in sorted((section.get("curves") or {}).items()):
@@ -152,6 +200,72 @@ def plan_group(group: str, doc: Mapping[str, Any], plan: Plan) -> None:
                     continue
                 adds.append((group, gk, ("sports", sport, "curves", key),
                              _check_curve(f"{group}:{gk}", curve)))
+
+
+def _never_prints(gate: Mapping[str, Any], key: str, market: str) -> bool:
+    """A failed key that would print nothing (no holdout forecast at the
+    floor, or a final curve below it) of a market CONFIDENCE refuses outright
+    without a curve of its own (confidence.AWAITING_OWN_CURVE /
+    TENNIS_PER_SET: no pool stands in) - it does not keep the market's other
+    directions out. Never for a market a pool could read."""
+    g = gate.get(key)
+    why = str(g.get("why") or "") if isinstance(g, dict) else ""
+    return (market in AWAITING_OWN_CURVE or market in TENNIS_PER_SET) and (
+        why.startswith("no holdout forecast") or why.startswith("final curve"))
+
+
+def _plan_replace_extras(
+    group: str, doc: Mapping[str, Any], gate: Mapping[str, Any],
+    adds: list[tuple[str, str, tuple[str, ...], dict[str, Any]]],
+) -> None:
+    """A replacing group's by_market curves (only where every direction key
+    of the market in that section passed) and thin buckets (always)."""
+    sections: list[tuple[tuple[str, ...], str, Mapping[str, Any]]] = [((), "", doc)]
+    for klass, sec in sorted((doc.get("by_class") or {}).items()):
+        sections.append((("by_class", klass), f"{klass}:", sec))
+    for prefix, label, sec in sections:
+        directions = sec.get("by_market_direction") or {}
+        for market, curve in sorted((sec.get("by_market") or {}).items()):
+            keys = [k for k in directions if k.split("|")[0] == market]
+            if keys and all(_passes(gate, f"{label}{k}") for k in keys):
+                adds.append((group, f"{EXTRA}{label}market:{market}",
+                             (*prefix, "by_market", market),
+                             _check_curve(f"{group}:{label}{market}", curve)))
+        for key, curve in sorted((sec.get("thin_by_market_direction")
+                                  or {}).items()):
+            adds.append((group, f"{EXTRA}{label}thin:{key}",
+                         (*prefix, "thin_by_market_direction", key),
+                         _check_curve(f"{group}:{label}thin:{key}", curve)))
+
+
+def _market_of(path: tuple[str, ...]) -> str:
+    return path[-1].split("|")[0]
+
+
+def purge_markets(doc: dict[str, Any], markets: set[str]) -> list[str]:
+    """Remove, in place, every curve of `markets` (by_market,
+    by_market_direction, thin_by_market_direction; top level and classes) and
+    their `new_market_curves_fitted_from` records; returns what went."""
+    gone: list[str] = []
+    sections: list[tuple[str, dict[str, Any]]] = [("", doc)]
+    for klass, sec in (doc.get("by_class") or {}).items():
+        if isinstance(sec, dict):
+            sections.append((f"{klass}:", sec))
+    for label, sec in sections:
+        for field_name in ("by_market", "by_market_direction",
+                           "thin_by_market_direction"):
+            curves = sec.get(field_name)
+            if not isinstance(curves, dict):
+                continue
+            for key in [k for k in curves if k.split("|")[0] in markets]:
+                del curves[key]
+                gone.append(f"{label}{field_name}:{key}")
+    record = doc.get(FITTED_FROM_KEY)
+    if isinstance(record, dict):
+        for key in [k for k in record
+                    if str(k).rpartition(":")[2].split("|")[0] in markets]:
+            del record[key]
+    return gone
 
 
 def _get(doc: Mapping[str, Any], path: tuple[str, ...]) -> Any:
@@ -164,15 +278,19 @@ def _get(doc: Mapping[str, Any], path: tuple[str, ...]) -> Any:
 
 
 def conflicts(target_doc: Mapping[str, Any], target: str,
-              adds: list[tuple[str, str, tuple[str, ...], dict[str, Any]]]
+              adds: list[tuple[str, str, tuple[str, ...], dict[str, Any]]],
+              replace: set[str] | None = None,
               ) -> list[str]:
-    """Keys the target already holds a curve for."""
+    """Keys the target already holds a curve for (a replaced market's curves
+    are removed first, so they are none)."""
     out = []
     seen: set[tuple[str, ...]] = set()
     for group, gk, path, _curve in adds:
         if path in seen:
             out.append(f"{group}: {gk} given twice")
         seen.add(path)
+        if replace and _market_of(path) in replace:
+            continue
         if _get(target_doc, path) is not None:
             out.append(f"{target}: {gk} already has a curve")
         if target == FOOTBALL_TARGET:
@@ -190,8 +308,11 @@ def conflicts(target_doc: Mapping[str, Any], target: str,
 
 def merged(target_doc: dict[str, Any], target: str,
            adds: list[tuple[str, str, tuple[str, ...], dict[str, Any]]],
-           fitted_from: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+           fitted_from: Mapping[str, Mapping[str, Any]],
+           replace: set[str] | None = None) -> dict[str, Any]:
     doc: dict[str, Any] = json.loads(json.dumps(target_doc))
+    if replace:
+        purge_markets(doc, replace)
     record = doc.setdefault(FITTED_FROM_KEY, {})
     for group, gk, path, curve in adds:
         cur = doc
@@ -201,6 +322,8 @@ def merged(target_doc: dict[str, Any], target: str,
         if target == SPORT_TARGET:
             src = doc["sports"][path[1]].setdefault("curve_source", {})
             src[path[-1]] = "history"
+        if gk.startswith(EXTRA):
+            continue
         record[gk] = {"group": group, **fitted_from.get(group, {})}
     return doc
 
@@ -232,13 +355,18 @@ def install(args: argparse.Namespace) -> int:
                     problems.append(f"{path} missing")
                 continue
             doc = json.loads(path.read_text(encoding="utf-8"))
-            problems += [f"{path.name}: {c}" for c in conflicts(doc, target, adds)]
-            files[path] = (target, merged(doc, target, adds, plan.fitted_from))
+            replace = plan.replace.get(target)
+            problems += [f"{path.name}: {c}"
+                         for c in conflicts(doc, target, adds, replace)]
+            files[path] = (target, merged(doc, target, adds, plan.fitted_from,
+                                          replace))
     for target, adds in sorted(plan.adds.items()):
         for group, gk, _p, curve in adds:
             print(f"ADD {target} {gk} ({group}): {len(curve)} buckets")
     for s in plan.skipped:
         print(f"SKIP {s}")
+    for target, markets in sorted(plan.replace.items()):
+        print(f"REPLACE {target}: every curve of {sorted(markets)}")
     if problems:
         for p in problems:
             print(f"REFUSED {p}", file=sys.stderr)

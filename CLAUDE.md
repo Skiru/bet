@@ -1057,6 +1057,44 @@ book, epochs as of `--before`),
 `--player-stretch`; `player_stretch_2026-10-17.md`). Each changes p: the
 curves are refitted on a replay carrying it before its switch is set.
 
+**Measured and not switched on, tennis serve markets** (2026-10-17,
+`docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md`, report
+`docs/sofa/history/RAPORT_TENIS_SERWIS_2026-10-17.md`): aces / double faults
+are priced from the server's own scoped sample shrunk to the tier prior; the
+returner never enters. `TENNIS_ACES_OPPONENT_FROM_UTC` (`None`;
+`bet.sofa.tennis_aces_opponent`: aces centre x the returner's conceded aces
+shrunk to the tier prior over it, totals by the weighted pair; double faults
+measured worse and never corrected; SHEET marker `tennis_aces_rule`, replay
+`--tennis-aces-opponent`): history replay test 2026 aces_for +0.0003
+[-0.0006, +0.0011] on all lines, aces_total +0.0124 worse, per-set aces
+-0.003; on Superbet's settled lines with the real SHEET (64 matches, 1,364
+lines, 10-06..10-16) +0.0060 [-0.0251, +0.0348] - nothing. The serve markets
+the replay never read (per-set aces / double faults, aces + double faults
+match and per set; replay `--tennis-serve-markets`) got history curves
+(`scripts/sofa/fit_tennis_serve_curves.py`, staged in
+`data/refit_tennis_serve_2026-10-17/`, install group `tennis_serve` REPLACES
+its markets' curves) that pass the one-sided holdout gate on the history but
+at Superbet's lines would print legs far below their confidence (per-set
+double faults / serve points 12 legs / 4 matches -20.7 pp [-50.8, +5.8];
+aces with the correction 20 / 13 -30.6 pp [-52.2, -4.6];
+`scripts/sofa/measure_tennis_serve_market_line.py`) - not installed; check on
+new data `T-TENNIS-SERVE-MARKET-LINE`. The mechanism: the replay's curve is
+fitted on the whole synthetic ladder (`lines_for`), Superbet quotes one line
+near the median, where a model p >= 0.70 is a disagreement with the market;
+on the history alone a curve fitted on all lines read on market-like lines
+claims 0.761 and realises 0.668 (aces_for). Installed tennis serve curves
+today: aces / double faults match only (history curve at >= 0.70 on
+Superbet's lines -22.6 pp [-33.4, -14.3], 140 lines / 43 matches; the line
+evidence holds back all but short prices: 14 printed legs settled 0.714 vs
+0.759). **Never pass `--tennis-serve-markets` or `--tennis-aces-opponent` to
+a refit** before `T-TENNIS-SERVE-MARKET-LINE` passes: `fit_confidence` would
+write those curves itself. `prepare_refit.py install` refuses a refit whose
+replay lacks a flag an installed separately fitted curve requires
+(`requires_replay_flags`, `dropped_replay_rules`). Tennis printed legs
+10-09..10-16 as a whole: -1.0 pp [-3.5, +1.5] (1,473 legs, ROI -5.5%);
+per-player set games OVER -7.1 / -6.6 pp, intervals touching zero:
+`T-TENNIS-SET-GAMES-OVER`.
+
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops
 printing), `MODEL_FIXES_FROM_UTC` (tennis NB dispersion; with the next refit),
@@ -1275,6 +1313,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_entity_queue.py --date <d>
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> [--db-path <copy>] {backup [--db <path>]|rebuild-cache-rows [--dry-run|--confirm] [--without-db-backup] [--derived ...] [--no-tennis-rating]|fit|compare [--days <d> <d2>] [--with-sheet]|install --confirm|restore --confirm --backup <dir>}
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only   # only the by_class curves
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_tennis_serve_curves.py --before <d> --out-dir data/refit_tennis_serve_<d> [--played-cache f.pkl]   # tennis serve curves (aces under the correction, per-set serve, serve points) on a tennis-only replay, read-only on the DB; staged for install_new_market_curves.py (group tennis_serve REPLACES its markets); NOT installed - see "Measured and not switched on, tennis serve markets"
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_score_market_curves.py --out-dir data/refit_new_markets_<d> --football-rows <1x2/dnb fit rows.csv.gz> --tennis-rows <tennis_sets rows.csv>   # score-market slice curves + set_score_not, staged; install with install_new_market_curves.py --dir
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]
@@ -1325,6 +1364,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_team_identity.py [--from 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>] [--to <d>] [--md-out f] [--json-out f]   # identity plan K2: DAY_ANCHOR precision with the opponent hidden, picks on NOT_IDENTIFIED vs the settle, start gaps
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tournament_day.py --from <d> --to <d> [--precision-days 60] [--offline]   # identity plan K3: ASKS THE BRIDGE once per (tournament, day) not cached; tournament-day match precision with ids hidden and recovery; stops at a refusal
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_incidents.py --sport {hockey|basketball} [--json-out f] [--md-out f]   # "1. gol" / race to X from the score model, walk-forward on cached incidents
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_aces_opponent.py --cut 2026-01-01 [--played-cache f.pkl] [--md-out f]   # TENNIS_ACES_OPPONENT on the tennis cache replay (both arms, curve on train, log-loss on test, all and market-like lines); ~25 min, tennis only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE: staged vs installed serve curves through the line evidence on Superbet's settled lines; aces re-priced by SHEET with / without the correction
 ```
 
 **Gates before a commit**

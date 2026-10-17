@@ -24,12 +24,16 @@ TIER_PRIOR_METRICS use it.
 
 from __future__ import annotations
 
+import json
+import os
 import statistics
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 from bet.sofa.comparability import is_friendly_event
+from bet.sofa.config import config_path
 from bet.sofa.contracts import GapReason
 from bet.sofa.metrics import (
     TENNIS_METRICS,
@@ -158,6 +162,21 @@ def fit_tier_baselines(
         if entry:
             out[metric] = entry
     return out
+
+
+def load_tier_baselines(path: Path | None = None) -> dict[str, Any]:
+    """The `metrics` of config/sofa_tennis_tier_baselines.json (or `path`;
+    SOFA_TENNIS_TIER_BASELINES points a scratch run at a candidate, as
+    run_sheet.load_tennis_tier_baselines reads it); {} when absent."""
+    where = path or Path(os.environ.get(
+        "SOFA_TENNIS_TIER_BASELINES",
+        str(config_path("sofa_tennis_tier_baselines.json"))))
+    try:
+        loaded = json.loads(where.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    metrics = loaded.get("metrics") if isinstance(loaded, dict) else None
+    return metrics if isinstance(metrics, dict) else {}
 
 
 def tier_prior(

@@ -109,6 +109,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "rating_weight", "season_phase", "opponent_correction",
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
     "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
+    "tennis_aces_opponent", "tennis_serve_markets",
 )
 
 
@@ -574,6 +575,8 @@ def rebuild_cache_rows(
     goals_stretch: bool = False,
     count_stretch: bool = False,
     player_stretch: bool = False,
+    tennis_aces_opponent: bool = False,
+    tennis_serve_markets: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -782,6 +785,10 @@ def rebuild_cache_rows(
         "count_stretch": count_stretch,
         # epochs.FOOTBALL_PLAYER_STRETCH (bet.sofa.player_stretch)
         "player_stretch": player_stretch,
+        # epochs.TENNIS_ACES_OPPONENT (bet.sofa.tennis_aces_opponent) and the
+        # tennis serve markets replayed (2026-10-17)
+        "tennis_aces_opponent": tennis_aces_opponent,
+        "tennis_serve_markets": tennis_serve_markets,
     }
     for name, on in new_flags.items():
         if on:
@@ -1923,6 +1930,29 @@ def _check_staged_by_market(src: Path) -> None:
             "given, nothing to install")
 
 
+def dropped_replay_rules(
+    live: Mapping[str, Any], staged: Mapping[str, Any]
+) -> list[str]:
+    """Replay flags a separately installed curve of the live calibration
+    needs (its `new_market_curves_fitted_from` entry's
+    `requires_replay_flags`, scripts/sofa/fit_tennis_serve_curves.py) that
+    the staged fit's replay (`fitted_from.replay_rules.flags`) did not set -
+    `key: flag` each. The staged fit writes those keys itself from a replay
+    without the rule, and carry_separately_fitted_curves never overwrites a
+    key the fit produced, so installing it would silently put the old centre's
+    curve back."""
+    flags = (((staged.get("fitted_from") or {}).get("replay_rules") or {})
+             .get("flags") or {})
+    out: list[str] = []
+    for key, entry in (live.get("new_market_curves_fitted_from") or {}).items():
+        if not isinstance(entry, Mapping):
+            continue
+        for flag in entry.get("requires_replay_flags") or ():
+            if not flags.get(flag):
+                out.append(f"{key}: {flag}")
+    return sorted(out)
+
+
 def install(
     paths: Paths,
     *,
@@ -1966,6 +1996,15 @@ def install(
                 f"config/{name} changed since backup {bdir} - back up again "
                 "before installing over it"
             )
+
+    dropped = dropped_replay_rules(
+        load_json(paths.config_dir / CONFIDENCE_FILE),
+        load_json(paths.scratch_config / CONFIDENCE_FILE))
+    if dropped:
+        raise RefitError(
+            "the installed curves were fitted on replay rules this refit's "
+            f"replay lacks: {dropped} - their keys would describe a centre "
+            "SHEET does not price; rebuild-cache-rows with those flags")
 
     written: dict[str, str] = {}
     for name in FIT_OUTPUTS:
@@ -2273,6 +2312,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="a tennis side's sample scoped as SAMPLES scopes it - format and "
         "surface (calibrate_from_cache --tennis-sample-scope)",
     )
+    r.add_argument(
+        "--tennis-aces-opponent", action="store_true",
+        help="epochs.TENNIS_ACES_OPPONENT: tennis aces centres x the "
+        "returner's factor (calibrate_from_cache --tennis-aces-opponent)",
+    )
+    r.add_argument(
+        "--tennis-serve-markets", action="store_true",
+        help="replay the tennis per-set aces / double faults and aces + "
+        "double faults (calibrate_from_cache --tennis-serve-markets)",
+    )
 
     f = sub.add_parser("fit", help="fit_constants + fit_confidence into scratch")
     f.add_argument("--force", action="store_true")
@@ -2401,6 +2450,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     goals_stretch=args.goals_stretch,
                     count_stretch=args.count_stretch,
                     player_stretch=args.player_stretch,
+                    tennis_aces_opponent=args.tennis_aces_opponent,
+                    tennis_serve_markets=args.tennis_serve_markets,
                 )["exit"]
             )
         if args.command == "fit":
