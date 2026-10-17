@@ -774,6 +774,16 @@ def _tennis_name_fallback(subject_norm: str, fixture: Fixture) -> str | None:
     return None
 
 
+def _core_name(name: str) -> str:
+    """A normalised club name without its generic words and short affixes
+    ("ca", "fc", "club", "atletico", ...); the name itself when nothing else
+    is left."""
+    from bet.sofa.resolve import _GENERIC_NAME_TOKENS
+
+    core = [w for w in name.split() if len(w) > 3 and w not in _GENERIC_NAME_TOKENS]
+    return " ".join(core) if core else name
+
+
 def determine_side(subject: str, fixture: Fixture) -> str | None:
     """Which side a per-participant market belongs to, or None if unclear.
 
@@ -793,8 +803,27 @@ def determine_side(subject: str, fixture: Fixture) -> str | None:
         return None
 
     subject_norm = normalize_name(subject)
-    home_score = fuzz.token_sort_ratio(subject_norm, normalize_name(fixture.home_name))
-    away_score = fuzz.token_sort_ratio(subject_norm, normalize_name(fixture.away_name))
+    home_norm = normalize_name(fixture.home_name)
+    away_norm = normalize_name(fixture.away_name)
+    # The club's own name first: a generic word or a short affix shared with
+    # the OTHER side can outscore it. 2026-10-17: "ca platense" scored 73.7
+    # against "CA Lanús" and 60.6 against "Club Atlético Platense", so every
+    # Platense row was priced on Lanús (verifier). On the core tokens it is
+    # 100 / 0. Measured over 5,985 football subject-fixture pairs of
+    # 10-12..10-17: 2 change, both to the right side (this one, and "annecy"
+    # against "Annecy FC", unmatched before); when the core decides nothing
+    # the full names decide as before.
+    # Clubs only: a tennis player's short surname ("Li", "Wu") is the name.
+    if fixture.sport != "tennis":
+        core_home = fuzz.token_sort_ratio(
+            _core_name(subject_norm), _core_name(home_norm))
+        core_away = fuzz.token_sort_ratio(
+            _core_name(subject_norm), _core_name(away_norm))
+        if (max(core_home, core_away) >= SIDE_MATCH_THRESHOLD
+                and abs(core_home - core_away) >= SIDE_MATCH_MARGIN):
+            return "side_a" if core_home > core_away else "side_b"
+    home_score = fuzz.token_sort_ratio(subject_norm, home_norm)
+    away_score = fuzz.token_sort_ratio(subject_norm, away_norm)
 
     best = max(home_score, away_score)
     if best < SIDE_MATCH_THRESHOLD:

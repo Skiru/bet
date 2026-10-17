@@ -166,3 +166,21 @@ def test_cs2_extended_nickname() -> None:
     assert mp.player("martinez") == {"kills": 17}
     assert mp.player("rezzz") is None  # "rez" is shorter than the prefix floor
     assert mp.player("susp") == {"kills": 12}
+
+
+def _fixture(home: str, away: str, sport: str = "football") -> Any:
+    from bet.sofa.contracts import Fixture
+    return Fixture.model_construct(sport=sport, home_name=home, away_name=away)
+
+
+def test_side_of_a_club_reads_its_own_name_before_shared_affixes() -> None:
+    # 6. "ca platense" was priced on CA Lanús ("ca" outscored the name)
+    from scripts.sofa.run_sheet import determine_side
+
+    assert determine_side("ca platense",
+                          _fixture("Club Atlético Platense", "CA Lanús")) == "side_a"
+    assert determine_side("annecy", _fixture("Annecy FC", "Nancy")) == "side_a"
+    assert determine_side("ca lanus",
+                          _fixture("Club Atlético Platense", "CA Lanús")) == "side_b"
+    # nothing distinctive either way: still no guess
+    assert determine_side("fc", _fixture("FC Basel", "FC Zürich")) is None
