@@ -1,11 +1,11 @@
 {
   "_doc": "Fitted by scripts/sofa/fit_constants.py from sofa_settled_row. A null value means NOT FITTED — the engine falls back to its documented starting behaviour, which is identity, not a default borrowed from another provider (PLAN §6.0).",
   "fitted_from": {
-    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-16b/sofa_replay.db",
-    "settled_rows": 117656428,
-    "distinct_competitions": 10522,
-    "fitted_at_utc": "2026-10-16T02:52:22+00:00",
-    "max_settled_run_date": "2026-10-14",
+    "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+    "settled_rows": 119137664,
+    "distinct_competitions": 10544,
+    "fitted_at_utc": "2026-10-17T17:28:34+00:00",
+    "max_settled_run_date": "2026-10-16",
     "friendly_competitions_excluded": 79
   },
   "K_CENTRE": {
@@ -15,14 +15,14 @@
       "tennis": 8.0
     },
     "curve": {
-      "0.0": 0.181991,
-      "2.0": 0.180029,
-      "5.0": 0.178909,
-      "8.0": 0.17862,
-      "10.0": 0.178616,
-      "15.0": 0.178857,
-      "25.0": 0.179545,
-      "1000.0": 0.183347
+      "0.0": 0.181704,
+      "2.0": 0.179751,
+      "5.0": 0.178636,
+      "8.0": 0.178345,
+      "10.0": 0.178341,
+      "15.0": 0.178578,
+      "25.0": 0.179258,
+      "1000.0": 0.183028
     },
     "status": "FITTED",
     "criterion": "largest non-sentinel K within 0.0005 of the minimum Brier score; NOT_FITTED when that band covers the whole grid",
@@ -39,14 +39,14 @@
   "K_PRICE": {
     "value": null,
     "curve": {
-      "0.0": 0.20419,
-      "2.0": 0.201366,
-      "5.0": 0.199058,
-      "8.0": 0.197793,
-      "10.0": 0.197241,
-      "15.0": 0.196386,
-      "25.0": 0.195639,
-      "1000.0": 0.195061
+      "0.0": 0.203865,
+      "2.0": 0.201089,
+      "5.0": 0.198828,
+      "8.0": 0.19759,
+      "10.0": 0.197051,
+      "15.0": 0.196218,
+      "25.0": 0.19549,
+      "1000.0": 0.194931
     },
     "status": "NOT_FITTED",
     "criterion": "as K_CENTRE (Brier), on rows carrying a devigged market price"
@@ -54,87 +54,87 @@
   "MAX_LADDER_SIGMA": {
     "value": null,
     "status": "NO_DIVERGENCE",
-    "rows_available": 454833,
+    "rows_available": 497674,
     "bands": [
       {
         "lo": 0.0,
-        "hi": 0.0302,
-        "n": 45494,
-        "declared": 0.4994,
-        "realised": 0.4989,
+        "hi": 0.0307,
+        "n": 49842,
+        "declared": 0.4993,
+        "realised": 0.4988,
         "gap": 0.0005
       },
       {
-        "lo": 0.0302,
-        "hi": 0.0604,
-        "n": 45692,
+        "lo": 0.0307,
+        "hi": 0.0613,
+        "n": 49880,
         "declared": 0.4992,
-        "realised": 0.4991,
-        "gap": 0.0001
-      },
-      {
-        "lo": 0.0604,
-        "hi": 0.0923,
-        "n": 45672,
-        "declared": 0.4993,
-        "realised": 0.499,
+        "realised": 0.4988,
         "gap": 0.0003
       },
       {
-        "lo": 0.0923,
-        "hi": 0.1261,
-        "n": 45603,
+        "lo": 0.0613,
+        "hi": 0.0939,
+        "n": 50130,
+        "declared": 0.4993,
+        "realised": 0.4991,
+        "gap": 0.0002
+      },
+      {
+        "lo": 0.0939,
+        "hi": 0.1283,
+        "n": 49926,
         "declared": 0.4993,
         "realised": 0.4998,
-        "gap": -0.0004
+        "gap": -0.0005
       },
       {
-        "lo": 0.1261,
-        "hi": 0.1663,
-        "n": 45646,
+        "lo": 0.1283,
+        "hi": 0.1689,
+        "n": 49830,
         "declared": 0.4992,
-        "realised": 0.4993,
-        "gap": -0.0001
+        "realised": 0.4989,
+        "gap": 0.0003
       },
       {
-        "lo": 0.1663,
-        "hi": 0.2136,
-        "n": 45523,
-        "declared": 0.4992,
+        "lo": 0.1689,
+        "hi": 0.2175,
+        "n": 49861,
+        "declared": 0.4991,
         "realised": 0.4985,
         "gap": 0.0006
       },
       {
-        "lo": 0.2136,
-        "hi": 0.2803,
-        "n": 45625,
-        "declared": 0.499,
+        "lo": 0.2175,
+        "hi": 0.2853,
+        "n": 49848,
+        "declared": 0.4989,
         "realised": 0.4997,
         "gap": -0.0008
       },
       {
-        "lo": 0.2803,
-        "hi": 0.3799,
-        "n": 45502,
+        "lo": 0.2853,
+        "hi": 0.3877,
+        "n": 49809,
+        "declared": 0.4989,
+        "realised": 0.4999,
+        "gap": -0.001
+      },
+      {
+        "lo": 0.3877,
+        "hi": 0.579,
+        "n": 49802,
         "declared": 0.4989,
         "realised": 0.5005,
         "gap": -0.0016
       },
       {
-        "lo": 0.3799,
-        "hi": 0.5708,
-        "n": 45541,
+        "lo": 0.579,
+        "hi": 7.3843,
+        "n": 49794,
         "declared": 0.4991,
-        "realised": 0.5006,
-        "gap": -0.0015
-      },
-      {
-        "lo": 0.5708,
-        "hi": 4.5397,
-        "n": 45486,
-        "declared": 0.4988,
-        "realised": 0.5008,
-        "gap": -0.002
+        "realised": 0.5007,
+        "gap": -0.0017
       }
     ]
   }

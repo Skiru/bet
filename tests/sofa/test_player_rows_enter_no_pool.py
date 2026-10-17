@@ -66,3 +66,40 @@ def test_confidence_pools_hold_team_rows_only(tmp_path: Path) -> None:
     assert sum(b["n"] for b in doc["pooled"].values()) == 1200
     assert sum(b["n"] for b in doc["pooled_by_sport"]["football"].values()) == 1200
     assert "player_fouls_for" in doc["by_market"]
+
+
+def test_shot_detail_rows_are_never_fitted_from_the_replay(tmp_path: Path) -> None:
+    """The footballer shot-detail markets are priced by shot_detail.forecast
+    and curved separately; replayed rows of them (a plain sample's p) must not
+    make a key, or the carry of the installed curve skips it (refit
+    2026-10-17 lost the left / right foot curves that way)."""
+    db = tmp_path / "sofa.db"
+    con = sqlite3.connect(db)
+    con.execute("""create table sofa_settled_row (market text, line real,
+        direction text, sample_size int, sample_mean real, sample_sd real,
+        actual_value real, p_central real, sport text, sofascore_event_id int)""")
+    con.execute("create table sofa_entity_events (kind text, events_json text)")
+    rows = [("goals_total", 4.5, "UNDER", 10, 2.0, 1.2, 2.0, 0.9, "football", i)
+            for i in range(600)]
+    rows += [("player_left_foot_shots_for", 0.5, "OVER", 10, 0.3, 0.5,
+              0.0, 0.3, "football", 5000 + i) for i in range(800)]
+    con.executemany("insert into sofa_settled_row values (?,?,?,?,?,?,?,?,?,?)", rows)
+    con.commit()
+    con.close()
+    out = tmp_path / "cal.json"
+    installed = {"0.800-0.825": {"n": 900, "realised": 0.83, "realised_lo95": 0.81}}
+    out.write_text(json.dumps({
+        "by_market_direction": {"player_left_foot_shots_for|OVER": installed},
+        "new_market_curves_fitted_from": {
+            "player_left_foot_shots_for|OVER": {"group": "shot_detail"}}}))
+    proc = subprocess.run(
+        [sys.executable, "scripts/sofa/fit_confidence.py", "--db-path", str(db),
+         "--out", str(out)],
+        cwd=REPO, capture_output=True, text=True,
+        env={"PYTHONPATH": "src:.", "PATH": "/usr/bin:/bin"},
+    )
+    assert proc.returncode == 0, proc.stderr
+    doc = json.loads(out.read_text())
+    assert "player_left_foot_shots_for" not in doc["by_market"]
+    assert doc["by_market_direction"]["player_left_foot_shots_for|OVER"] == installed
+    assert "goals_total|UNDER" in doc["by_market_direction"]

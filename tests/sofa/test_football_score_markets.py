@@ -623,6 +623,22 @@ def test_confidence_reads_the_installed_slice_curves(
     monkeypatch.setenv("SOFA_NOW", z(t0))
     monkeypatch.setattr(_sys, "argv", [
         "run_confidence.py", "--date", day, "--runs-dir", str(tmp_path)])
+    # The live evidence file is refitted every morning: once the score
+    # markets' own lines settle (from 10-17) their keys exist and the refused
+    # slice reads them. This test pins the state it describes - no own lines
+    # yet - by dropping the score markets' keys from the loaded evidence.
+    real_load = run_confidence.LineEvidence.load
+
+    def load_without_score_keys(*a: Any, **k: Any) -> Any:
+        ev = real_load(*a, **k)
+        for sport_keys in (ev.doc.get("keys") or {}).values():
+            for key in [x for x in sport_keys
+                        if x.split(":")[-1].split("|")[0] in fsm.MARKETS]:
+                del sport_keys[key]
+        return ev
+
+    monkeypatch.setattr(run_confidence.LineEvidence, "load",
+                        staticmethod(load_without_score_keys))
     assert run_confidence.main() == 0
     summary = _json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     doc = _json.loads((run / "08_confidence.json").read_text())

@@ -50,6 +50,7 @@ from bet.sofa.fit_meta import (  # noqa: E402
 from bet.sofa.listing_index import listed_events_by_id  # noqa: E402
 from bet.sofa.market_mapper import is_derived  # noqa: E402
 from bet.sofa.resolve import sofascore_gender  # noqa: E402
+from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS  # noqa: E402
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS  # noqa: E402
 
 # Buckets are narrow at the top because that is where the operator lives and
@@ -204,6 +205,15 @@ def main() -> int:
     scored = 0
     for (market, line, direction, n, mean, sd, actual, stored_p, sport,
          event_id, outcome, run_date) in rows:
+        if market in SHOT_DETAIL_METRICS:
+            # SHEET prices the footballer shot-detail markets with their own
+            # estimator (shot_detail.forecast), curved by fit_shot_detail and
+            # the new-market gate (new_market_curves_fitted_from); the replay
+            # prices them from a plain sample, so its rows describe another p.
+            # Fitted here they replaced the installed left / right foot curves
+            # with a 0-0.60 bucket (refit 2026-10-17: 793 / 1,053 rows) - the
+            # carry fills only a key the fit lacks.
+            continue
         if is_derived(market) and run_date == "cache-calibration":
             # A replayed joint (calibrate_from_cache: the tennis rating's
             # handicap_games / most_games, `--derived` football joints). Its
