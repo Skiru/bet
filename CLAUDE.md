@@ -607,7 +607,10 @@ measurement of Superbet's price and feed nothing else.
   SHADOW's `player_model.jsonl` (reads SPORT_IDENTITY's pinned teams before
   names, `teams_source`); no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from
-  SHADOW_SETTLE's own player row. A past game's squad (the player's sample
+  SHADOW_SETTLE's own player row (a name `match_player` misses is looked for
+  by football's token and surname rules, then by tokens without Jr / Sr / II
+  suffixes - `shadow.player_value`, 2026-10-17; a nickname is never
+  guessed). A past game's squad (the player's sample
   and the position pool) is, from `PLAYER_TEAM_FROM_SIDE_FROM_UTC`
   (2026-10-14 00:00Z; the game's day - SHADOW's day key, the kickoff's UTC
   date - and the computing clock), the lineup side the team held in that
@@ -632,7 +635,11 @@ measurement of Superbet's price and feed nothing else.
   `normaltime` (or no sign of overtime) tells it, never a period / half /
   quarter. Until 2026-10-12 such a game stayed DATA_MISMATCH for good
   (10-22 basketball games a day from 10-07). History readers keep the
-  default and never see it.
+  default and never see it. With the same flag a decided score with no
+  `winnerCode` names its winner (2026-10-17, Shumen - Botev 87-84, every
+  other check still applies). A CS2 player line whose nickname Superbet
+  extends ("MartinezSa") reads the one roster nickname of >= 5 letters that
+  prefixes it (`cs2.MapResult.player`).
 
 - **CS2 count exposure** (`CS2_COUNT_EXPOSURE_FROM_UTC` 2026-10-13 18:10Z, audit B12, standing go; moved by the operator from 10-14 00:00Z to the refit's rebuild of 10-13): kills / deaths / assists / team kills are priced from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`; log-loss new - old -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero); headshots measured worse (+0.188) and stay on the sample (outside `EXPOSURE_FAMILIES`). The line evidence of these families was fitted on the old p; no check on Superbet lines of 10-05..10-12 was made. Evidence: `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`.
 
@@ -655,7 +662,15 @@ measurement of Superbet's price and feed nothing else.
   graded on its whole-match statistics (`metrics.played_extra_time`,
   `extract_metric(..., settling=True)`); after extra time the non-goal
   counts stay `EVENT_NOT_FINISHED`; goals are always `normaltime`. Samples
-  and ratings still skip both (changing that changes what prints). Player props grade only from the player's own squad
+  and ratings still skip both (changing that changes what prints). A card
+  shown to a player on the bench is not counted (Superbet komunikat 06/2022,
+  like a staff card): SETTLE and regrade read card rows without the cards of
+  a player the lineups put off the pitch at that moment
+  (`metrics.drop_bench_cards`; unused substitute only when the incident feed
+  lists substitutions; samples keep every card; `regrade_settled.py
+  --cards-bench`, from 2026-10-17). A half's goals whose `period1`
+  contradicts the incidents' HT marker are refused when settling
+  (`metrics.half_time_disagrees`; a graded row stays as it is). Player props grade only from the player's own squad
   (PLAYER_AMBIGUOUS); a sample matched by tokens grades its own
   `matched_name` there (a candidate in the other squad is PLAYER_AMBIGUOUS).
   A player who did not play, did not start or was not in the matchday squad
