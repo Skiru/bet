@@ -26,6 +26,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from bet.sofa import confidence as cf
+from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
 from bet.sofa import family_record as fr
 from bet.sofa.atomic import tmp_path
@@ -127,15 +128,30 @@ def _clock(
     return {"note": note, "checked": f"{checked:%H:%M}" if checked else ""}
 
 
+_RES_RANK = {cr.WON: 0, cr.LOST: 1, cr.REFUND: 2, cr.UNKNOWN: 3}
+
+
+def _result(leg: Mapping[str, Any], entry: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A row's settled result as the PDF writes it (bet.sofa.coupon_results)."""
+    if not entry:
+        return None
+    return {"status": entry["status"], "word": cr.outcome_text(entry),
+            "claim": cr.claim_text(leg), "actual": cr.actual_text(leg, entry),
+            "score": entry.get("score") or ""}
+
+
 def build_view(
     doc: Mapping[str, Any],
     day: str,
     fixture_status: Mapping[str, Any] | None = None,
     families: Mapping[str, Any] | None = None,
+    results: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Rows of the page: the singles the PDF prints and its builders.
     `families` is the day's bet.sofa.family_record (None: the page has no
-    family filter)."""
+    family filter). `results` is the day's 13_results.json (bet.sofa.coupon_results; None
+    before the day is settled): each row then carries its result and the
+    page ends with the PDF's percent summary."""
     status = (fixture_status or {}).get("events") or {}
     record = (families or {}).get("families") or {}
     min_legs = int((families or {}).get("min_legs") or fr.MIN_LEGS)
@@ -153,6 +169,7 @@ def build_view(
         peer = leg.get("peer") or {}
         fam = record.get(fr.family_key(leg))
         fam_plus = fr.on_plus(fam, min_legs)
+        res = _result(leg, cr.of_leg(results, leg))
         rows.append({
             "id": i,
             "event": str(leg.get("group_key") or leg.get("sofascore_event_id")),
@@ -197,11 +214,19 @@ def build_view(
             # before were on the plus (a selection aid, never a gate)
             "fam_plus": fam_plus,
             "fam_note": fr.label(fam) if fam and fam_plus else "",
+            "res": res,
+            "res_rank": None if res is None else _RES_RANK[res["status"]],
         })
     builders: list[dict[str, Any]] = []
-    for b in cf.printed_builders(dict(doc)):
+    printed_builders = cf.printed_builders(dict(doc))
+    for b in printed_builders:
         ko = to_local(b.get("kickoff_utc"))
+        b_res = cr.of_builder(results, b)
+        b_legs = {x["key"]: x for x in b_res.get("legs") or []}
         builders.append({
+            "res": None if results is None else {
+                "status": b_res["status"], "word": cr.outcome_text(b_res),
+                "score": b_res.get("score") or ""},
             "no": str(b.get("builder_no") or ""),
             "match": str(b.get("match") or ""),
             "competition": str(b.get("competition") or ""),
@@ -217,6 +242,11 @@ def build_view(
                 "confidence_txt": "—" if x.get("confidence") is None
                 else f"{float(x['confidence']):.3f}",
                 "odds_txt": "—" if x.get("odds") is None else str(x["odds"]),
+                "res": None if results is None else _result(x, {
+                    **(b_legs.get(cr.key_of(x, b.get("sofascore_event_id")))
+                       or {"outcome": "PENDING", "status": cr.UNKNOWN,
+                           "actual": None}),
+                    "score": b_res.get("score")}),
             } for x in b.get("legs") or []],
         })
     checked = (fixture_status or {}).get("checked_at_utc")
@@ -234,6 +264,14 @@ def build_view(
                 "min_legs": min_legs,
                 "on_plus": sum(fr.on_plus(v, min_legs) for v in record.values()),
                 "measured": fr.MEASURED,
+            },
+            "results": None if results is None else {
+                "computed_utc": str(results.get("computed_at_utc") or "")[:16],
+                # the same strings as the PDF's closing table
+                "summary": cr.summary_lines(cr.summarize(
+                    (leg, cr.of_leg(results, leg)) for leg in singles)),
+                "builders": cr.builders_summary(
+                    cr.of_builder(results, b) for b in printed_builders),
             },
         },
     }
@@ -259,7 +297,8 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str) -> Path:
     name_on_superbet(named, board_sides(run))
     out = run / f"KUPON_{day}.html"
     tmp = tmp_path(out)
-    tmp.write_text(render_html(day, build_view(named, day, status, families)),
+    tmp.write_text(render_html(day, build_view(named, day, status, families,
+                                               cr.load(run))),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

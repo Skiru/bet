@@ -115,7 +115,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <
 # dziennik:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # dziennik: runs/sofa/ledger/results.jsonl; zastępuje wiersze obu dat; potem PDF / HTML tych dni w kolorach wyniku (13_results.json; --no-mark: nie)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # odczyt dziennika: tabela na grupę i epokę, nigdy łącznie; ROI z przedziałem 95% po meczach („-” poniżej 20 meczów)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # CLV kuponu — pierwsza liczba o wczoraj
 ```

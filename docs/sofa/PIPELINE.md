@@ -2143,6 +2143,7 @@ runs/sofa/<data>/
   11_coupon.json/.md                      COUPON_ASSEMBLY: jedyny artefakt kuponu (pozycje, bloki, zablokowane, removed_by_reads)
   KUPON_<data>.pdf                        ★ produkt — to jest kupon
   12_printed.json                         manifest tego, co PDF wydrukował; z niego blokuje następna przebudowa
+  13_results.json                         po rozliczeniu: wynik każdej drukowanej pozycji (oceny dziennika), z niego PDF / HTML w kolorach wyniku
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   reads.json           LegRead[]          werdykty o nogach (KEEP / WATCH / NO_BET)
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
@@ -2544,7 +2545,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <D-1>
 
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze tych dat
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>           # dziennik runs/sofa/ledger/results.jsonl; zastępuje wiersze tych dat; oznacza wyniki na KUPON pdf / html (--no-mark: nie)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/mark_coupon_results.py --from <d> --to <d>          # 13_results.json + PDF / HTML w kolorach wyniku (samo, bez dziennika)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d>                 # odczyt dziennika: tabela na grupę i epokę, nigdy łącznie
 ```
 
@@ -2646,6 +2648,35 @@ reszta kuponu -4,5%; lepsza od reszty w 6 z 6 dni, ale łącznie +4,0 pp
 [-0,3; +8,1], 81% nóg z 10-17 - przewaga niepotwierdzona, zysk nieudowodniony (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`,
 `scripts/sofa/measure_selection_walk_forward.py`, sprawdzian
 `T-FAMILY-SELECTION`). Kupon (PDF) bez zmian. Test: `tests/sofa/test_family_record.py`.
+
+## Wyniki na kuponie po rozliczeniu (od 2026-10-18)
+
+Gdy dzień jest rozliczony, `record_results.py` (dla każdej zapisanej daty)
+wywołuje `mark_coupon_results.py`: zapisuje `13_results.json`
+(`bet.sofa.coupon_results`) i przerysowuje `KUPON_<d>.pdf` oraz `.html`
+(`build_coupon_pdf.py --with-results`). Każdy wiersz kuponu ma kolor wyniku:
+**zielony** weszło, **czerwony** nie weszło, **żółty** nie wiadomo (czeka na
+rozliczenie, nie rozliczono, dwa rozliczenia się różnią) albo zwrot (0 j.).
+Obok nogi: **typ** (wybór w słowach Superbetu i pewność) i **było** - co
+faktycznie policzył rynek (rożne 11, gemy 23; przy rynkach tak/nie - podwójna
+szansa, 1X2, „lub" - wynik meczu; handicap sportu mierzonego: różnica 1. drużyna
+minus 2.), a pod meczem jego wynik. Buildery i ich nogi tak samo. Na końcu
+PDF i strony: podsumowanie w procentach na sport i dla całego kuponu (weszło,
+nie weszło, nie wiadomo / zwrot, trafność rozstrzygniętych przy ich średniej
+pewności - ile kupon przewidywał, a ile weszło - i jednostki / ROI po 1 j. po
+wydrukowanym kursie); HTML ma też filtr „wynik" i podsumowanie bieżącego
+filtra.
+
+Oceny są dokładnie te z dziennika (`record_results.graded_confidence`, klucze,
+zwroty i reguła builderów jak w 7c; sporty mierzone przez
+`coupon_sports.grade`), nigdy drugie rozliczenie; noga, której wyniki nie
+zawierają, jest żółta, nigdy zielona. Wynik meczu piłki / tenisa pochodzi z
+zapisanego zdarzenia Sofascore (`sofa_event_detail`), sportów mierzonych - z
+`settled.json`. Render z wynikami to widok zakończonego dnia, nie wydruk: nie
+dopisuje `printed/<ts>.json` i pomija strażników świeżości (krzywe
+zainstalowane po buildzie); uruchamia się tylko, gdy oceny się zmieniły
+(`--force`: zawsze). Niczego nie zmienia w pewności ani bramkach. Test:
+`tests/sofa/test_coupon_results.py`.
 
 ## Pomiar: rozliczone linie wg rynku i kierunku (od 2026-10-13)
 

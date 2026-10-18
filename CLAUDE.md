@@ -39,6 +39,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `KUPON_<d>.pdf`, `printed/<ts>.json`, `12_printed.json` | the product and its append-only print record (a rebuild locks from the first print) |
 | `KUPON_<d>.html` | the same legs as a filterable page (time window in Europe/Warsaw, confidence, minimum x, sport, competition, market, odds, sortable; a start the FIXTURE_CHECK read differently is flagged; "rodzina na plusie" filter / tag and a button setting x >= 1 and a family on the plus, from `family_record.json`). A **view**, not a coupon - `bet.sofa.coupon_html`, written by `build_coupon_pdf.py` after every PDF render, so a rebuilt PDF always brings its HTML (HTML failure: PDF kept, exit 1); alone: `build_coupon_html.py --date <d>` |
 | `family_record.json` | every family's (sport, market, direction) record on the official coupon's printed legs of the 14 days before (from 10-09), graded as the ledger grades; "on the plus" = >= 50 legs and units > 0 (`bet.sofa.family_record`, `build_family_record.py`, recomputed before each HTML when the ledger moved; a failure only hides the filter). The view's selection aid, never a gate: walk-forward 10-12..10-17 (windows of 3-8 days) x >= 1 and a family on the plus -0.6% [-4.8, +3.9] on 1,254 legs vs -4.5% for the rest, better on 6 of 6 days but pooled +4.0 pp [-0.3, +8.1] with 81% of its legs on 10-17 - advantage not yet shown, no proven profit (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`, `T-FAMILY-SELECTION`) |
+| `13_results.json` | the settled result of every printed position (`bet.sofa.coupon_results`, the ledger's own grades - `record_results.graded_confidence`): outcome, won / lost / refund / unknown, the value the market counted, the match score. Written by `mark_coupon_results.py` (which `record_results.py` calls for every date it records); the day's PDF and HTML are then re-rendered from it (below, "Settlement") |
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts, vetoes, the operator's extra positions |
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; the pinned Sofascore ids of sport games |
 | `unmapped_prices/<ts>.jsonl.gz` | every OFFER run's prices of the markets it does not read (`bet.sofa.unmapped_prices`, from 2026-10-14) - a record for a later model's line evidence, read by nothing |
@@ -686,6 +687,22 @@ measurement of Superbet's price and feed nothing else.
   in their own 7c table, never
   in `sofa_settled_row` or `fit_confidence`. Statistic gaps close days later:
   `resettle_sweep.py` every morning.
+- **Results on the coupon** (operator, 2026-10-18): once a day is graded,
+  `record_results.py` marks it (`mark_coupon_results.py`, `--no-mark` skips):
+  `13_results.json`, then `build_coupon_pdf.py --with-results` re-renders
+  KUPON_<d>.pdf and .html - every row green (won), red (lost) or yellow (not
+  known, or a refund at 0 u.), the leg's claim (Superbet's selection, its
+  confidence) beside what the market counted ("było: 11"; a yes / no market:
+  the match score; a measured sport's handicap: team1 minus team2), the match
+  score under the match, builders and their legs alike, and a closing percent
+  summary per sport and in all (won / lost / other, hit rate of the decided
+  legs against their mean confidence, flat units / ROI at the printed price;
+  the HTML adds a result filter and the summary of the current filter). The
+  grades are the ledger's, never a second grader; a printed leg the results
+  do not hold is yellow, never green. A results render is a view of a
+  finished day, not a print: no `printed/<ts>.json`, no freshness guards; it
+  runs only when the grades changed. Display only - nothing it shows enters a
+  confidence or a gate.
 - **Ledger** (`record_results.py` -> `runs/sofa/ledger/results.jsonl`, read
   with `audit_ledger.py`): the coupon's result, the legs removed by reads and
   each sport kept side by side, never pooled. It reads `sofa_settled_row`, so
@@ -1297,7 +1314,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py [--days 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows] [--skip-history]   # EVERY morning (bridge up first: step 0 refreshes the sports' history) after D-1 is settled and recorded, before D's build: four sport row fits (--dry-run inside, no curve touched, ~15-20 min) + fit_line_evidence; rows in data/line_evidence/rows_before_<D>; exit 1 = a sport's row fit failed, its earlier rows reused
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; bridge (none: exit 1, nothing done)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # after D-1's settle; exit 1 on a finding
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>   # also marks each day's KUPON pdf / html with its results (--no-mark: not)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/mark_coupon_results.py --from <d> --to <d> [--force] [--no-render]   # 13_results.json + KUPON pdf / html coloured by result; offline
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant official]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --moved-void --dry-run   # then --apply; --players regrades props from the own squad
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]

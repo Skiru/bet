@@ -205,9 +205,12 @@ CS2_BOX_FAMILIES: frozenset[str] = frozenset(
      "player_headshots"})
 
 
-def _graded_side(leg: dict[str, Any], ev: dict[str, Any], period_key: str) -> str:
+def _graded_side(
+    leg: dict[str, Any], ev: dict[str, Any], period_key: str
+) -> tuple[str, float | None]:
     """The measurement's own outcome of the leg's side (a player line, a CS2
-    team's kills: graded from the box score at settle), else UNGRADEABLE."""
+    team's kills: graded from the box score at settle) and the value it was
+    graded on, else UNGRADEABLE."""
     for g in ev.get("graded") or []:
         if (str(g.get("family")) == str(leg.get("family"))
                 and int(g.get("market_id") or 0) == int(leg.get("market_id") or 0)
@@ -216,29 +219,38 @@ def _graded_side(leg: dict[str, Any], ev: dict[str, Any], period_key: str) -> st
                 and g.get("line") == leg.get("line")
                 and str(g.get("side")) == str(leg["side"])
                 and g.get("outcome") in ("WIN", "LOSS", "VOID")):
-            return str(g["outcome"])
-    return "UNGRADEABLE"
+            actual = g.get("actual")
+            return str(g["outcome"]), None if actual is None else float(actual)
+    return "UNGRADEABLE", None
 
 
 def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
     """One leg against a SETTLED event's stored result."""
+    return _grade_leg_valued(sport, leg, ev)[0]
+
+
+def _grade_leg_valued(
+    sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]
+) -> tuple[str, float | None]:
+    """_grade_leg and the quantity the line was graded on (None when the
+    result could not answer it) - what the coupon's results page shows."""
     if sport == "cs2" and str(leg.get("family")) in CS2_BOX_FAMILIES:
         return _graded_side(leg, ev, "map_nr")
     if sport == "cs2":
         maps = [cs2.MapResult(int(a), int(b), {}) for a, b in ev.get("maps") or []]
         if not maps:
-            return "UNGRADEABLE"
+            return "UNGRADEABLE", None
         if int(leg.get("map_nr") or 0) and cs2.map_not_played(
             int(leg["map_nr"]), maps
         ):
             # The series ended before this map (a 2-0 has no map 3): a
             # refund, as Superbet settles it (C4) - also on a series graded
             # from its score alone, whose map count is the series score's.
-            return "VOID"
+            return "VOID", None
         # Settled from the series score alone (cs2.series_only_maps): its
         # placeholder rounds answer the series families and nothing else.
         if ev.get("series_only") and leg["family"] not in cs2.SERIES_FAMILIES:
-            return "UNGRADEABLE"
+            return "UNGRADEABLE", None
         line = cs2.Cs2Line(
             leg["superbet_event_id"],
             leg["family"],
@@ -249,7 +261,9 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
             float(leg["odds"]),
         )
         actual = cs2.actual_value(line, maps, leg["team1"], leg["team2"])
-        return "UNGRADEABLE" if actual is None else cs2.grade(line, actual)
+        if actual is None:
+            return "UNGRADEABLE", None
+        return cs2.grade(line, actual), float(actual)
     spec_sport = shadow.SPORTS[sport]
     if shadow.is_player_line(sport, int(leg.get("market_id") or 0)):
         # A player leg (epochs.line_evidence): SHADOW_SETTLE graded the same
@@ -259,11 +273,11 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
         return _graded_side(leg, ev, "period")
     spec = shadow.spec_of(sport, int(leg.get("market_id") or 0))
     if spec is None:
-        return "UNGRADEABLE"
+        return "UNGRADEABLE", None
     if ev.get("orientation_unclear") and (
         spec.kind not in shadow.ORIENTATION_FREE or spec.team is not None
     ):
-        return "UNGRADEABLE"
+        return "UNGRADEABLE", None
     result = shadow.GameResult(
         tuple(ev["t1_periods"]),
         tuple(ev["t2_periods"]),
@@ -290,11 +304,11 @@ def _grade_leg(sport: SportKey, leg: dict[str, Any], ev: dict[str, Any]) -> str:
     if shadow.set_not_played(sline, result, spec_sport):
         # The match ended before this set (a 3-0 has no set 4): a refund, as
         # Superbet settles it (Regulamin 5.E.1.h-i; audit 2026-10-13 C21).
-        return "VOID"
+        return "VOID", None
     actual = shadow.actual_value(sline, result, spec_sport)
     if actual is None:
-        return "UNGRADEABLE"
-    return shadow.grade(sline, actual, spec.kind == "three_way")
+        return "UNGRADEABLE", None
+    return shadow.grade(sline, actual, spec.kind == "three_way"), float(actual)
 
 
 def _priced_in_play(leg: dict[str, Any], ev: dict[str, Any]) -> bool:
@@ -339,6 +353,7 @@ def grade_legs(
                 "moved_to": target,
             }
             hops += 1
+        actual: float | None = None
         if ev is None:
             outcome = "PENDING"
         elif ev.get("state") == "SETTLED" and _priced_in_play(leg, ev):
@@ -347,7 +362,7 @@ def grade_legs(
             # NO_PRE_START_PRICE)
             outcome = "IN_PLAY_PRICE"
         elif ev.get("state") == "SETTLED":
-            outcome = _grade_leg(sport, leg, ev)
+            outcome, actual = _grade_leg_valued(sport, leg, ev)
             if outcome == "UNGRADEABLE" and sport == "cs2" and ev.get("pending_sides"):
                 # CS2_SETTLE graded part of the series and asks again for the
                 # rest (series_only round scores, late player rows): not yet
@@ -371,5 +386,33 @@ def grade_legs(
             and at - _utc(leg["kickoff_utc"]) > GIVE_UP_AFTER
         ):
             outcome = "NOT_GRADED:GAVE_UP"
-        out.append({**leg, "outcome": outcome})
+        # the graded quantity and the game's score ride along for the
+        # coupon's results page (bet.sofa.coupon_results); display only
+        out.append({**leg, "outcome": outcome,
+                    "actual_value": actual if outcome in ("WIN", "LOSS") else None,
+                    "score": event_score(sport, ev) if ev is not None else None})
     return out
+
+
+def event_score(sport: SportKey, ev: dict[str, Any]) -> str | None:
+    """A settled game's score as "team1:team2" (CS2: maps won, each map's
+    rounds after it), None when the record holds none."""
+    if ev.get("state") != "SETTLED":
+        return None
+    if sport == "cs2":
+        maps = [(int(a), int(b)) for a, b in ev.get("maps") or []]
+        if not maps:
+            return None
+        won = sum(a > b for a, b in maps), sum(b > a for a, b in maps)
+        rounds = ", ".join(f"{a}:{b}" for a, b in maps)
+        return f"{won[0]}:{won[1]} ({rounds})"
+    if ev.get("t1_full") is None or ev.get("t2_full") is None:
+        return None
+    text = f"{int(ev['t1_full'])}:{int(ev['t2_full'])}"
+    periods = list(zip(ev.get("t1_periods") or [], ev.get("t2_periods") or [],
+                       strict=False))
+    if periods:
+        text += " (" + ", ".join(f"{int(a)}:{int(b)}" for a, b in periods) + ")"
+    if ev.get("overtime"):
+        text += " d."
+    return text

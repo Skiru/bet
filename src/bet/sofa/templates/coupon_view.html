@@ -21,6 +21,9 @@ tr.lk td{color:var(--mut)}.tag{font-size:10.5px;padding:1px 5px;border-radius:3p
 .warn{color:var(--warn);border-color:var(--warn)}.bad{color:var(--bad);border-color:var(--bad)}.acc{color:var(--acc);border-color:var(--acc)}
 h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:5px}
 .bl ul{margin:4px 0 0 16px;padding:0}
+tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
+.rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}.res{font-size:11.5px;white-space:nowrap}
+#summary{margin:0 16px 24px}#summary table{width:auto}#summary td,#summary th{position:static;cursor:default}#summary tr:last-child td{font-weight:700}
 </style></head><body>
 <header><h1>Kupon __DATE__ - widok z filtrami</h1>
 <div class="note">To jest widok nóg kuponu z <code>11_coupon.json</code>, nie osobny kupon: kuponem jest <b>KUPON___DATE__.pdf</b>.
@@ -39,6 +42,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label>rynek<select id="fam"><option value="">wszystkie</option></select></label>
 <label>kierunek<select id="dir"><option value="">oba</option><option>OVER</option><option>UNDER</option></select></label>
 <label>szukaj<input type="search" id="q" placeholder="mecz, zawodnik, rynek"></label>
+<label id="reswrap">wynik<select id="res"><option value="">wszystkie</option><option value="won">weszło</option><option value="lost">nie weszło</option><option value="unknown">nie wiadomo / zwrot</option></select></label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko czytane przez analityków</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
@@ -49,6 +53,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <div id="count"></div>
 <table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
 <h2 id="bh">Bet Buildery</h2><div id="builders"></div>
+<h2 id="sh">Podsumowanie wyników</h2><div id="summary"></div>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 "use strict";
@@ -56,6 +61,10 @@ const V=JSON.parse(document.getElementById("data").textContent),R=V.rows,B=V.bui
 const $=id=>document.getElementById(id);
 const COLS=[["ko_local","godzina"],["match","mecz"],["market","rynek"],["line","linia"],["direction","kier."],
  ["confidence","pewność","n"],["odds","kurs","n"],["x","x","n"],["margin","marża","n"],["sample","próbka"],["position","#","n"]];
+// the settled result of each row (bet.sofa.coupon_results), once the day is settled
+const RES=V.meta.results;if(RES)COLS.push(["res_rank","wynik"]);
+const RC={won:"rw",lost:"rl",refund:"ru",unknown:"ru"};
+function resCell(x){if(!x)return "";return '<span class="res">typ: '+esc(x.claim)+'<br>było: <b>'+esc(x.actual)+'</b></span><br><span class="'+RC[x.status]+'">'+esc(x.word)+'</span>'}
 let sortKey="confidence",sortDir=-1;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const uniq=k=>[...new Set(R.map(r=>r[k]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
@@ -66,6 +75,7 @@ $("meta").textContent="Zbudowany "+V.meta.built_local+" • godziny startu spraw
 const F=V.meta.families;
 if(F){$("famnote").textContent="Rodzina = sport, rynek i kierunek. „Na plusie”: jej drukowane nogi z dni "+(F.span||"(brak dni)")+" dały zysk przy co najmniej "+F.min_legs+" nogach ("+F.on_plus+" rodzin). x = pewność × kurs. "+F.measured+" Przycisk „x ≥ 1 i rodzina na plusie” ustawia oba filtry, reszty nie rusza.";}
 else{$("famwrap").style.display="none";$("best").style.display="none";$("famnote").textContent="Brak rekordu rodzin (family_record.json) - filtr rodzin wyłączony.";}
+if(RES){const a=RES.summary[RES.summary.length-1];$("meta").textContent+=" • WYNIKI ("+RES.computed_utc+"Z): weszło "+a.won+", nie weszło "+a.lost+", nie wiadomo / zwrot "+a.other+" z "+a.legs+"; trafność "+a.hit+" przy śr. pewności "+a.conf+" - podsumowanie na końcu strony."}
 const hm=v=>{if(!v)return null;const[a,b]=v.split(":");return +a*60+ +b};
 function pass(r){
   const t0=hm($("t0").value),t1=hm($("t1").value);
@@ -83,6 +93,7 @@ function pass(r){
   if($("dir").value&&r.direction!==$("dir").value)return false;
   if($("nolock").checked&&r.locked)return false;
   if($("readonly").checked&&!r.read)return false;
+  const rs=$("res").value;if(rs&&(!r.res||(rs==="unknown"?!(r.res.status==="unknown"||r.res.status==="refund"):r.res.status!==rs)))return false;
   const q=$("q").value.trim().toLowerCase();
   if(q&&!(r.match+" "+r.competition+" "+r.market+" "+r.family).toLowerCase().includes(q))return false;
   return true}
@@ -101,11 +112,12 @@ function tags(r){let t="";
 function matchHead(g){const r=g[0];let n="";
   if(r.clock_note)n=' <span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
   return '<tr class="m"><td>'+esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!=="__DATE__"?" ("+esc(r.ko_local.slice(5,10))+")":"")+
-   '</td><td colspan="10">'+esc(r.match)+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
+   '</td><td colspan="'+(COLS.length-1)+'">'+esc(r.match)+(r.res&&r.res.score?' <span class="tag">wynik '+esc(r.res.score)+'</span>':'')+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
    ' <span class="tag">'+g.length+' nóg, śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></td></tr>'}
-function line(r){return '<tr data-id="'+r.id+'"'+(r.locked?' class="lk"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+
+function line(r){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+
  '</td><td>'+esc(r.line)+'</td><td>'+esc(r.direction)+'</td><td class="n"><b>'+r.confidence_txt+'</b></td><td class="n">'+r.odds_txt+
- '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td></tr>'}
+ '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td>'+resCell(r.res)+'</td>':'')+'</tr>'}
 function render(){
   const rows=R.filter(pass),g=$("group").checked;let h="";
   if(g){
@@ -120,15 +132,30 @@ function render(){
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+groups.length+" meczów (kolejność meczów: wg "+sortLabel()+")";
   }else{rows.sort(cmp);rows.forEach(r=>h+=line(r));
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów";}
-  $("body").innerHTML=h||'<tr><td colspan="11">Nic nie spełnia filtrów.</td></tr>';
+  $("body").innerHTML=h||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
+  renderSummary(rows);
   const bs=B.filter(b=>{const t0=hm($("t0").value),t1=hm($("t1").value);
     if(t0!=null&&b.ko_min<t0)return false;if(t1!=null&&b.ko_min>t1)return false;
     if($("nolock").checked&&b.locked)return false;
     const q=$("q").value.trim().toLowerCase();return !q||(b.match+" "+b.competition).toLowerCase().includes(q)});
   $("bh").style.display=B.length?"":"none";
   $("builders").innerHTML=bs.map(b=>'<div class="bl"><b>'+esc(b.no)+' '+esc(b.match)+'</b> <span class="tag">'+esc(b.ko_local.slice(11))+'</span> '+(b.locked?'<span class="tag">zablokowany</span>':'')+
+   (b.res?(b.res.score?'<span class="tag">wynik '+esc(b.res.score)+'</span> ':'')+'<span class="'+RC[b.res.status]+'">Builder: '+esc(b.res.word)+'</span>':'')+
    '<span class="note"> '+esc(b.competition)+' • p łączne '+b.combined_txt+' • kurs buildera: sprawdź na ekranie Superbetu</span><ul>'+
-   b.legs.map(l=>'<li>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+   b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
+     (l.res?' • było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+const pc=(a,n)=>n?(100*a/n).toFixed(1)+"%":"—";
+function renderSummary(rows){
+  if(!RES){$("sh").style.display="none";$("reswrap").style.display="none";return}
+  const S=RES.summary,B2=RES.builders;
+  let h='<div class="note">Rozliczenie '+esc(RES.computed_utc)+'Z, to samo co w rejestrze wyników (audit_settlement 7c). Kolor wiersza: <span class="rw">zielony</span> weszło, <span class="rl">czerwony</span> nie weszło, <span class="ru">żółty</span> nie wiadomo (czeka na rozliczenie, nie rozliczono) albo zwrot (0 j.). <b>typ</b> - linia i strona nogi, <b>było</b> - co faktycznie policzył rynek (przy rynkach tak/nie wynik meczu). Trafność liczona na rozstrzygniętych nogach; średnia pewność to, ile kupon przewidywał. Jednostki płaskie po 1 j. po wydrukowanym kursie.</div>';
+  h+='<table><tr><th>sport</th><th class="n">nóg</th><th class="n">weszło</th><th class="n">nie weszło</th><th class="n">nie wiadomo / zwrot</th><th class="n">trafność</th><th class="n">śr. pewność</th><th class="n">jedn.</th><th class="n">ROI</th></tr>'+
+   S.map(l=>'<tr><td>'+esc(l.name)+'</td><td class="n">'+l.legs+'</td><td class="n">'+l.won+'</td><td class="n">'+l.lost+'</td><td class="n">'+l.other+'</td><td class="n">'+l.hit+'</td><td class="n">'+l.conf+'</td><td class="n">'+l.units+'</td><td class="n">'+l.roi+'</td></tr>').join("")+'</table>';
+  if(B.length)h+='<div class="note" style="margin-top:6px"><b>Bet Buildery ('+B.length+'):</b> weszło '+B2.won+', nie weszło '+B2.lost+', nie wiadomo / zwrot '+(B2.unknown+B2.refund)+' (kurs buildera to ekran Superbetu - sofa go nie wycenia).</div>';
+  const w=rows.filter(r=>r.res&&r.res.status==="won").length,l=rows.filter(r=>r.res&&r.res.status==="lost").length,d=w+l;
+  const c=rows.filter(r=>r.res&&(r.res.status==="won"||r.res.status==="lost"));
+  h+='<div class="note" style="margin-top:6px"><b>W bieżącym filtrze ('+rows.length+' nóg):</b> weszło '+w+' ('+pc(w,rows.length)+'), nie weszło '+l+' ('+pc(l,rows.length)+'), nie wiadomo / zwrot '+(rows.length-d)+' • trafność rozstrzygniętych '+pc(w,d)+' przy średniej pewności '+(c.length?(100*c.reduce((s,r)=>s+r.confidence,0)/c.length).toFixed(1)+"%":"—")+'</div>';
+  $("summary").innerHTML=h}
 const sortLabel=()=>(COLS.find(c=>c[0]===sortKey)||[0,sortKey])[1]+(sortDir<0?" malejąco":" rosnąco");
 $("head").innerHTML=COLS.map(c=>'<th class="'+(c[2]||"")+'" data-k="'+c[0]+'">'+c[1]+'</th>').join("");
 $("head").onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;

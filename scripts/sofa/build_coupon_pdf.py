@@ -41,6 +41,7 @@ from reportlab.platypus import (  # noqa: E402
     TableStyle,
 )
 
+from bet.sofa import coupon_results as cr  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import price_gap, timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
@@ -370,6 +371,11 @@ def main() -> int:
         "--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa")
     )
     ap.add_argument("--out", default=None)
+    # A settled day's results on its own coupon (bet.sofa.coupon_results,
+    # scripts/sofa/mark_coupon_results.py): a view of a finished day, not a
+    # print - no print record, and the freshness guards (a coupon priced on
+    # curves installed since) do not apply to a day that is over.
+    ap.add_argument("--with-results", action="store_true")
     args = ap.parse_args()
     profile = COUPON_PROFILE
 
@@ -403,8 +409,14 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    stale = confidence_older_than_sheet(run, CONFIDENCE_ARTIFACT) or (
-        coupon_older_than_sources(run) if so else None)
+    results = cr.load(run) if so else None
+    if args.with_results and results is None:
+        print(f"REFUSED: no {cr.RESULTS_FILE} - run mark_coupon_results.py",
+              file=sys.stderr)
+        return 2
+    stale = None if args.with_results else (
+        confidence_older_than_sheet(run, CONFIDENCE_ARTIFACT) or (
+            coupon_older_than_sources(run) if so else None))
     if stale:
         print(stale, file=sys.stderr)
         return 2
@@ -558,11 +570,13 @@ def main() -> int:
             f"{', '.join(unfitted)}</b></font> "
             "— te stałe nie są dopasowane do rozliczeń. Liczby w tym kuponie na nich "
             "stoją; traktuj je jako niezmierzone.", subtitle))
+    if results is not None:
+        story.append(Paragraph(results_headline(singles, picks, results), body))
     story.append(Spacer(1, 7))
 
     if so:
         render_stats_only(story, doc_json, singles, picks, legs_idx, now,
-                          body, small, h2, pick, max_overround)
+                          body, small, h2, pick, max_overround, results)
         pdf.build(story)
         os.replace(tmp_out, out_path)
         # The record of what this PDF printed (locked_print.record_print):
@@ -571,7 +585,7 @@ def main() -> int:
         # over every printed leg whose match has started, as first printed,
         # whatever build or render came in between. Only for the day's own
         # coupon, never for a --out render elsewhere.
-        if args.out is None:
+        if args.out is None and not args.with_results:
             record_print(run, {**doc_json, "pdf": out_path.name,
                                "pdf_rendered_at_utc": now.isoformat().replace(
                                    "+00:00", "Z")})
@@ -962,8 +976,11 @@ def render_stats_only(
     h2: ParagraphStyle,
     pick: ParagraphStyle,
     max_overround: float,
+    results: dict[str, Any] | None = None,
 ) -> None:
-    """The one coupon of a stats-only day (plan 2026-10-05, K3/K10/K11)."""
+    """The one coupon of a stats-only day (plan 2026-10-05, K3/K10/K11).
+    With `results` (bet.sofa.coupon_results) every row carries its result
+    and colour, and the page ends with the percent summary."""
     story.append(Paragraph("Jak czytać ten kupon", h2))
     story.append(Paragraph(
         "<b>pewność</b> pochodzi wyłącznie ze statystyk: to dolna granica "
@@ -1033,9 +1050,11 @@ def render_stats_only(
     if locked:
         story.append(Paragraph("W grze — wydrukowane przed startem meczu", h2))
         rows: list[list[Any]] = [[Paragraph(h, small) for h in (
-            "mecz", "rynek", "linia", "pewność", "kurs", "wydruk")]]
+            "mecz", "rynek", "linia", "pewność", "kurs", "wydruk")
+            + (("wynik",) if results is not None else ())]]
         header_rows: list[int] = []
         headed: set[int] = set()
+        locked_paint: list[tuple[int, str]] = []
         for leg in locked:
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
@@ -1043,20 +1062,27 @@ def render_stats_only(
                 headed.add(lno)
                 header_rows.append(len(rows))
                 rows.append([Paragraph(ladder_header(ladder_docs[lno]), small)]
-                            + [""] * 5)
+                            + [""] * (5 if results is None else 6))
             subj += ladder_marker(lno)
+            entry = cr.of_leg(results, leg)
+            if results is not None:
+                locked_paint.append((len(rows), entry["status"]))
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
-                          f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>", small),
+                          f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>"
+                          + score_note(entry), small),
                 Paragraph(market_cell(leg, ladder_marker(lno),
                                       f"{leg.get('market')}{escape(subj)}"), small),
                 Paragraph(line_cell(leg), small),
                 Paragraph(f"{leg['confidence']:.3f}", small),
                 Paragraph(f"{leg.get('offered_odds')}", small),
                 Paragraph(str(leg.get("printed_at_utc") or "")[11:16] + "Z", small),
-            ])
-        story.append(table_with_headers(
-            _table(rows, [50*mm, 52*mm, 16*mm, 18*mm, 16*mm, 18*mm]), header_rows))
+            ] + ([Paragraph(result_cell(leg, entry), small)]
+                 if results is not None else []))
+        widths = ([50*mm, 52*mm, 16*mm, 18*mm, 16*mm, 18*mm] if results is None
+                  else [40*mm, 42*mm, 14*mm, 16*mm, 12*mm, 14*mm, 36*mm])
+        story.append(paint_results(table_with_headers(
+            _table(rows, widths), header_rows), locked_paint))
         story.append(Spacer(1, 6))
 
     story.append(Paragraph("Pozycje", h2))
@@ -1065,7 +1091,8 @@ def render_stats_only(
     else:
         rows = [[Paragraph(h, small) for h in (
             "#", "mecz", "rynek", "linia", "pewność", "model", "kurs", "x",
-            "marża", "próbka")]]
+            "marża", "próbka") + (("wynik",) if results is not None else ())]]
+        pos_paint: list[tuple[int, str]] = []
         seen_block: set[int] = set()
         # Rungs of one ladder are one claim bought several times (the
         # verifier, 10-05: 53 such ladders, unmarked): each ladder gets a
@@ -1094,7 +1121,10 @@ def render_stats_only(
                         f"<br/><font size=6.5 color='#b25b00'>mecz zaległy za "
                         f"{mk['sofascore_event_id']} (przełożony "
                         f"{str(mk.get('postponed_utc') or '?')[:10]})</font>")
-            if started_at_render(leg, now):
+            entry = cr.of_leg(results, leg)
+            if first:
+                match_cell += score_note(entry)
+            if results is None and started_at_render(leg, now):
                 match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                                "renderem PDF</b></font>")
             match_cell += (watch_label(leg) + context_label(leg)
@@ -1106,7 +1136,7 @@ def render_stats_only(
                 pos_headed.add(lno)
                 pos_headers.append(len(rows))
                 rows.append([Paragraph(ladder_header(ladder_docs[lno]), small)]
-                            + [""] * 9)
+                            + [""] * (9 if results is None else 10))
             subj += ladder_marker(lno)
             model = leg.get("forecast_p")
             margin = leg.get("overround")
@@ -1123,10 +1153,16 @@ def render_stats_only(
                 Paragraph(("1-str." if leg.get("one_sided_market") else "—")
                           if margin is None else f"{float(margin):.1%}", small),
                 Paragraph(single_sample(leg), small),
-            ])
-        story.append(table_with_headers(_table(rows, [
-            10*mm, 36*mm, 44*mm, 13*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm, 14*mm]),
-                pos_headers))
+            ] + ([Paragraph(result_cell(leg, entry), small)]
+                 if results is not None else []))
+            if results is not None:
+                pos_paint.append((len(rows) - 1, entry["status"]))
+        widths = ([10*mm, 36*mm, 44*mm, 13*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm,
+                   14*mm] if results is None else
+                  [10*mm, 29*mm, 33*mm, 10*mm, 13*mm, 11*mm, 10*mm, 9*mm, 11*mm,
+                   12*mm, 34*mm])
+        story.append(paint_results(table_with_headers(_table(rows, widths),
+                                                      pos_headers), pos_paint))
     # F4.3: how much of the coupon stands on one match.
     story.extend(exposure_flowables(doc, body, small, h2))
     # F4.4: the builders refused for want of a screen price, to price by hand.
@@ -1137,12 +1173,21 @@ def render_stats_only(
         block: list[Any] = []
         no = b.get("builder_no") or "B"
         block.append(Paragraph(f"Bet Builder {no}. {escape(str(b['match']))}", pick))
+        b_entry = cr.of_builder(results, b)
         block.append(Paragraph(
             f"{escape(str(b.get('competition') or '—'))} • start "
-            f"{str(b['kickoff_utc'])[11:16]}Z" + locked_label(b), small))
+            f"{str(b['kickoff_utc'])[11:16]}Z" + locked_label(b)
+            + score_note(b_entry), small))
+        if results is not None:
+            block.append(Paragraph(
+                f"<font color='{STATUS_INK[b_entry['status']]}'><b>Builder: "
+                f"{escape(cr.outcome_text(b_entry))}</b></font>", body))
         block.append(Spacer(1, 3))
         rows = [[Paragraph(h, small) for h in (
-            "#", "zakład", "pewność", "model", "kurs", "kalibracja")]]
+            "#", "zakład", "pewność", "model", "kurs", "kalibracja")
+            + (("wynik",) if results is not None else ())]]
+        b_paint: list[tuple[int, str]] = []
+        b_legs = {x["key"]: x for x in b_entry.get("legs") or []}
         for j, x in enumerate(b["legs"], 1):
             key = (b["sofascore_event_id"], x["market"], x["subject"],
                    x["line"], x["direction"])
@@ -1159,8 +1204,18 @@ def render_stats_only(
                 Paragraph(f"{x['odds']}", small),
                 Paragraph(f"{str(leg.get('calibrated_on', '')).replace('market:', '')}"
                           f"<br/>n={leg.get('calibration_n', '—')}", small),
-            ])
-        block.append(_table(rows, [7*mm, 70*mm, 18*mm, 16*mm, 16*mm, 48*mm]))
+            ] + ([Paragraph(result_cell(x, {
+                **(b_legs.get(cr.key_of(x, b["sofascore_event_id"]))
+                   or {"outcome": "PENDING", "status": cr.UNKNOWN, "actual": None}),
+                "score": b_entry.get("score")}), small)]
+                if results is not None else []))
+            if results is not None:
+                leg_st = (b_legs.get(cr.key_of(x, b["sofascore_event_id"]))
+                          or {}).get("status", cr.UNKNOWN)
+                b_paint.append((len(rows) - 1, leg_st))
+        widths = ([7*mm, 70*mm, 18*mm, 16*mm, 16*mm, 48*mm] if results is None
+                  else [7*mm, 58*mm, 15*mm, 13*mm, 13*mm, 38*mm, 34*mm])
+        block.append(paint_results(_table(rows, widths), b_paint))
         block.append(Spacer(1, 4))
         # The operator, 2026-10-05: "nie wyceniaj mi ich, sam będę widział" -
         # no builder price of ours on the page (fair / after-haircut / x / EV);
@@ -1178,6 +1233,107 @@ def render_stats_only(
             "najwyższe p ma 2-nogowy. Łączne p mnoży nogi (zakłada "
             "niezależność); Superbet nie wycenia buildera iloczynem nóg.", small))
         story.append(KeepTogether(block))
+    if results is not None:
+        story.append(PageBreak())
+        story.extend(results_summary_flowables(singles, picks, results, body,
+                                                small, h2))
+
+
+# The colour of a row by its result (the operator: green won, yellow not
+# known, red lost; a refund is yellow and says so) and of its word.
+STATUS_INK = {cr.WON: "#1b7f4b", cr.LOST: "#b23b3b", cr.REFUND: "#8a6d00",
+              cr.UNKNOWN: "#8a6d00"}
+
+
+def score_note(entry: dict[str, Any]) -> str:
+    """The match's final score under the match name, once settled."""
+    if not entry or not entry.get("score"):
+        return ""
+    return (f"<br/><font size=6.5 color='#1a1a1a'>wynik: "
+            f"<b>{escape(str(entry['score']))}</b></font>")
+
+
+def result_cell(leg: dict[str, Any], entry: dict[str, Any]) -> str:
+    """What the leg said, what the market counted, and the verdict."""
+    if not entry:
+        return ""
+    conf = leg.get("confidence")
+    said = escape(cr.claim_text(leg)) + (
+        "" if conf is None else f" ({float(conf):.0%})")
+    return (f"<font size=6.5>typ: {said}</font><br/>"
+            f"<font size=6.5>było: <b>{escape(cr.actual_text(leg, entry))}</b>"
+            f"</font><br/><font color='{STATUS_INK[entry['status']]}'><b>"
+            f"{escape(cr.outcome_text(entry))}</b></font>")
+
+
+def paint_results(table: Table, paint: list[tuple[int, str]]) -> Table:
+    """Each result row's background in its colour."""
+    if paint:
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, r), (-1, r), colors.HexColor(cr.COLOURS[st]))
+            for r, st in paint]))
+    return table
+
+
+def _summary_pairs(
+    singles: list[dict[str, Any]], results: dict[str, Any]
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    return [(leg, cr.of_leg(results, leg)) for leg in singles]
+
+
+def results_headline(singles: list[dict[str, Any]], picks: list[dict[str, Any]],
+                     results: dict[str, Any]) -> str:
+    """One line under the title: the coupon's result in percent."""
+    s = cr.summarize(_summary_pairs(singles, results))["all"]
+    return (f"<b>Wyniki (rozliczenie {escape(str(results.get('computed_at_utc'))[:16])}"
+            f"Z):</b> <font color='#1b7f4b'><b>weszło {s[cr.WON]} "
+            f"({cr.pct(s['share'][cr.WON])})</b></font>, "
+            f"<font color='#b23b3b'><b>nie weszło {s[cr.LOST]} "
+            f"({cr.pct(s['share'][cr.LOST])})</b></font>, nie wiadomo / zwrot "
+            f"{s[cr.UNKNOWN] + s[cr.REFUND]} z {s['legs']} pojedynczych; "
+            f"trafność rozstrzygniętych {cr.pct(s['hit_rate'])} przy średniej "
+            f"pewności {cr.pct(s['mean_confidence'])}. Podsumowanie na końcu.")
+
+
+def results_summary_flowables(
+    singles: list[dict[str, Any]], picks: list[dict[str, Any]],
+    results: dict[str, Any], body: ParagraphStyle, small: ParagraphStyle,
+    h2: ParagraphStyle,
+) -> list[Any]:
+    """The closing page: the percent summary per sport and in all, and the
+    builders' count."""
+    out: list[Any] = [Paragraph("Podsumowanie wyników", h2)]
+    out.append(Paragraph(
+        "Każdy wiersz kuponu ma kolor wyniku: <font color='#1b7f4b'><b>zielony"
+        "</b></font> weszło, <font color='#b23b3b'><b>czerwony</b></font> nie "
+        "weszło, <font color='#8a6d00'><b>żółty</b></font> nie wiadomo (czeka "
+        "na rozliczenie, nie rozliczono) albo zwrot (0 j.). <b>typ</b> to linia "
+        "i strona nogi z jej pewnością, <b>było</b> - co faktycznie policzył "
+        "rynek (przy rynkach tak/nie wynik meczu). Rozliczenie to samo co "
+        "w rejestrze wyników (audit_settlement 7c): trafność liczona tylko na "
+        "rozstrzygniętych nogach, jednostki płaskie po 1 j. po wydrukowanym "
+        "kursie. Średnia pewność rozstrzygniętych nóg to, ile kupon "
+        "przewidywał; trafność - ile faktycznie weszło.", small))
+    rows: list[list[Any]] = [[Paragraph(h, small) for h in (
+        "sport", "nóg", "weszło", "nie weszło", "nie wiadomo / zwrot",
+        "trafność", "śr. pewność", "jedn.", "ROI")]]
+    lines = cr.summary_lines(cr.summarize(_summary_pairs(singles, results)))
+    for i, line in enumerate(lines):
+        bold = i == len(lines) - 1
+        rows.append([Paragraph(f"<b>{v}</b>" if bold else v, small) for v in (
+            escape(line["name"]), line["legs"], line["won"], line["lost"],
+            line["other"], line["hit"], line["conf"], line["units"],
+            line["roi"])])
+    out.append(_table(rows, [26*mm, 12*mm, 24*mm, 24*mm, 26*mm, 17*mm, 18*mm,
+                             16*mm, 17*mm]))
+    if picks:
+        b = cr.builders_summary(cr.of_builder(results, p) for p in picks)
+        out.append(Spacer(1, 5))
+        out.append(Paragraph(
+            f"<b>Bet Buildery ({len(picks)}):</b> weszło {b[cr.WON]}, nie weszło "
+            f"{b[cr.LOST]}, nie wiadomo / zwrot {b[cr.UNKNOWN] + b[cr.REFUND]} "
+            "(kurs buildera to ekran Superbetu - sofa go nie wycenia).", body))
+    return out
 
 
 if __name__ == "__main__":

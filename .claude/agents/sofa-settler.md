@@ -122,6 +122,12 @@ steps, and tomorrow's `--from <D-8>` window closes them too. **1** = a
 unreadable file (named in the table). **2** = a crash, or for
 `record_results.py` a missing database (nothing is written then).
 
+`record_results.py` then marks each recorded day's KUPON pdf / html with its
+results (`mark_coupon_results.py`: `13_results.json`, rows green / red /
+yellow, the value each market counted, a percent summary at the end; only
+when the grades changed). A `results on KUPON_<d>: RENDER_FAILED` line is a
+defect to name, not a ledger failure.
+
 `record_results.py` writes one row per (date, variant) into
 `runs/sofa/ledger/results.jsonl`; re-running a date replaces its rows:
 

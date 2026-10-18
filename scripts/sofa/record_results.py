@@ -430,6 +430,10 @@ def _main() -> int:
     parser.add_argument("--date")
     parser.add_argument("--from", dest="start")
     parser.add_argument("--to", dest="end")
+    parser.add_argument(
+        "--no-mark", action="store_true",
+        help="do not mark the days' KUPON pdf / html with their results "
+             "(mark_coupon_results.py)")
     args = parser.parse_args()
     if args.date:
         dates = [args.date]
@@ -479,9 +483,29 @@ def _main() -> int:
             "of them is wrong, and neither result is counted"
         )
     print(f"\nledger: {ledger_path(runs_dir)}")
+    if not args.no_mark:
+        mark_days(runs_dir, dates, config.db_path)
     # 1 only for a defect (two graders disagreeing); a pending leg is the
     # normal state of yesterday's night games and is shown, not failed
     return 1 if mismatches else 0
+
+
+def mark_days(runs_dir: str, dates: list[str], db_path: str) -> None:
+    """Each recorded day's KUPON pdf / html marked with its results (the
+    grades just recorded; scripts/sofa/mark_coupon_results.py). A day whose
+    results did not change is not re-rendered; a failure is reported and
+    leaves the ledger as recorded."""
+    from scripts.sofa.mark_coupon_results import mark
+
+    for date in dates:
+        try:
+            verdict, _ = mark(runs_dir, date, db_path)
+        except Exception as exc:  # noqa: BLE001 - the ledger is already written
+            verdict = f"FAILED: {type(exc).__name__}: {exc}"
+        if verdict != "NO_COUPON":
+            print(f"results on KUPON_{date}: {verdict}",
+                  file=sys.stderr if verdict.startswith(("FAILED", "RENDER"))
+                  else sys.stdout)
 
 
 def main() -> int:
