@@ -64,6 +64,7 @@ from scripts.sofa.run_sheet import (
     sheet_row_json,
 )
 from tests.sofa.calibration_without import calibration_without
+from tests.sofa.evidence_without import evidence_without
 from tests.sofa.offer_mappable_scenarios import (
     FROZEN,
     GOLDEN_DIR,
@@ -493,6 +494,8 @@ def test_confidence_refuses_the_leg_no_line_evidence(
     # a calibration without the double chance curve (installed 2026-10-15):
     # a key with no curve and no settled lines stops at the line evidence
     cal = calibration_without(tmp_path, [DOUBLE_CHANCE])
+    # ... and no settled lines of its own (the morning refresh gives it some)
+    evidence_without(tmp_path, monkeypatch, [DOUBLE_CHANCE])
     monkeypatch.setattr(sys, "argv", [
         "run_confidence.py", "--date", day, "--runs-dir", str(tmp_path),
         "--calibration", str(cal)])

@@ -383,9 +383,8 @@ def test_derived_keys_without_a_curve_are_no_line_evidence() -> None:
                         sport, spec.family, side)
                     continue
                 for conf, _, _, why in reads:
-                    if evidence.read(sport, scf.curve_key(spec.family, side),
-                                     0.8, None, 1.3) is not None:
-                        break  # its own settled lines arrived (morning refresh)
+                    if conf is not None and conf.calibrated_on.startswith("sb:"):
+                        continue  # its own settled lines arrived (morning refresh)
                     assert conf is None and why == "NO_LINE_EVIDENCE", (
                         sport, spec.family, side)
 

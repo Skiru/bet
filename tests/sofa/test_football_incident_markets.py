@@ -57,6 +57,7 @@ from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 from scripts.sofa.run_settle import _settle_incident
 from scripts.sofa.run_sheet import incident_rows, process_fixture, sheet_row_json
 from tests.sofa.calibration_without import calibration_without
+from tests.sofa.evidence_without import evidence_without
 from tests.sofa.offer_mappable_scenarios import (
     FROZEN,
     GOLDEN_DIR,
@@ -782,6 +783,8 @@ def test_confidence_refuses_the_leg_no_line_evidence(
     monkeypatch.setenv("SOFA_NOW", z(t0))
     # without the penalties curve (installed 2026-10-15): no curve, no lines
     cal = calibration_without(tmp_path, [PENALTIES])
+    # ... and no settled lines of its own (the morning refresh gives it some)
+    evidence_without(tmp_path, monkeypatch, [PENALTIES])
     monkeypatch.setattr(
         sys,
         "argv",

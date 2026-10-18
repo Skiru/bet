@@ -33,6 +33,7 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.line_evidence import LineEvidence, evidence_key
 from tests.sofa.confidence_day import DAY, NOW, _fixture, _offer, _samples, _sheet_row
+from tests.sofa.evidence_without import evidence_without
 
 PLAYER = "Doe, John"
 SHOTS = "player_shots_for"
@@ -127,9 +128,13 @@ def _confidence(runs: Path, monkeypatch: pytest.MonkeyPatch,
 
 
 @pytest.fixture
-def player_legs_would_print() -> None:
+def player_legs_would_print(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The installed curves and line evidence print both player markets at
-    (P, ODDS) at all - else every assertion below would be vacuous."""
+    (P, ODDS) at all - else every assertion below would be vacuous. The
+    gates are under test, not the evidence: the two markets' own keys and
+    price bands are left out (2026-10-18: the morning refresh capped the
+    right foot's 1.00-1.30 band at 0.615), so they read the pooled offset."""
+    evidence_without(tmp_path / "evidence", monkeypatch, (SHOTS, RIGHT_FOOT))
     cal = dataclasses.replace(Calibration.load(), gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
     evidence = LineEvidence.load(v2=True, bucket_deff=True)
