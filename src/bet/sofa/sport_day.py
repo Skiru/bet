@@ -400,7 +400,8 @@ def event_score(sport: SportKey, ev: dict[str, Any]) -> str | None:
     if ev.get("state") != "SETTLED":
         return None
     if sport == "cs2":
-        maps = [(int(a), int(b)) for a, b in ev.get("maps") or []]
+        maps = [(int(a), int(b)) for a, b in ev.get("maps") or []
+                if a is not None and b is not None]
         if not maps:
             return None
         won = sum(a > b for a, b in maps), sum(b > a for a, b in maps)
@@ -416,7 +417,11 @@ def event_score(sport: SportKey, ev: dict[str, Any]) -> str | None:
     periods = list(zip(ev.get("t1_periods") or [], ev.get("t2_periods") or [],
                        strict=False))
     if periods:
-        text += " (" + ", ".join(f"{int(a)}:{int(b)}" for a, b in periods) + ")"
+        # a period recorded as None shows "?", never raises: the score is
+        # display only and must not take the settle down with it
+        text += " (" + ", ".join(
+            f"{'?' if a is None else int(a)}:{'?' if b is None else int(b)}"
+            for a, b in periods) + ")"
     if ev.get("overtime"):
         text += " d."
     return text

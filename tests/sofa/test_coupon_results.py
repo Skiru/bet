@@ -528,3 +528,14 @@ def test_the_summary_lists_the_sports_in_a_fixed_order() -> None:
                       for sp in ("cs2", "basketball", "football", "tennis")])
     assert [x["name"] for x in cr.summary_lines(s)] == [
         "piłka nożna", "tenis", "koszykówka", "CS2", "cały kupon"]
+
+
+def test_event_score_never_raises_on_a_missing_period() -> None:
+    assert sd.event_score("hockey", {"state": "SETTLED", "t1_full": 3, "t2_full": 1,
+                                     "t1_periods": [1, None, 2],
+                                     "t2_periods": [0, 1, None]}) \
+        == "3:1 (1:0, ?:1, 2:?)"
+    assert sd.event_score("cs2", {"state": "SETTLED",
+                                  "maps": [[13, 5], [None, 3]]}) == "1:0 (13:5)"
+    assert sd.event_score("hockey", {"state": "SETTLED", "t1_full": None,
+                                     "t2_full": 1}) is None
