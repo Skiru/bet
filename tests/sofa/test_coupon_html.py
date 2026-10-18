@@ -98,7 +98,7 @@ def test_write_html_lands_beside_the_pdf(tmp_path: Path) -> None:
 
 def test_pdf_render_and_rebuild_plan_carry_the_html() -> None:
     pdf = (ROOT / "scripts/sofa/build_coupon_pdf.py").read_text()
-    assert "write_html(run, doc_json, args.date)" in pdf
+    assert "write_html(run, doc_json, args.date" in pdf
     plan = (ROOT / "src/bet/sofa/rebuild_plan.py").read_text()
     assert "KUPON_<d>.html" in plan
 

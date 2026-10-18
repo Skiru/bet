@@ -284,7 +284,8 @@ def render_html(date: str, view: Mapping[str, Any]) -> str:
     return _TEMPLATE.replace("__DATE__", date).replace("__DATA__", data)
 
 
-def write_html(run: Path, doc: Mapping[str, Any], day: str) -> Path:
+def write_html(run: Path, doc: Mapping[str, Any], day: str,
+               results: Mapping[str, Any] | None = None) -> Path:
     """KUPON_<day>.html beside the PDF, from the same artifact and the day's
     fixture_status.json and family_record.json (read if present). Rendered
     aside and moved into place, like the PDF."""
@@ -297,8 +298,10 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str) -> Path:
     name_on_superbet(named, board_sides(run))
     out = run / f"KUPON_{day}.html"
     tmp = tmp_path(out)
+    # `results` only from a results render (build_coupon_pdf.py
+    # --with-results): a normal page never carries them
     tmp.write_text(render_html(day, build_view(named, day, status, families,
-                                               cr.load(run))),
+                                               results)),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

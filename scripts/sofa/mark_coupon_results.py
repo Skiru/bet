@@ -14,11 +14,16 @@ beside what the market actually counted, and a percent summary at the end.
 The re-render is a view of a finished day, not a print: it records no
 printed/<ts>.json and skips the freshness guards that refuse a coupon priced
 on older curves (build_coupon_pdf.py --with-results). It runs only when the
-results changed or the PDF is older than them (--force: always).
+results changed or a file is not what the last results render left
+(13_results_rendered.json; --force: always).
 record_results.py calls it for every date it records.
 
-Offline (the database and the day's artifacts). Exit 0 marked (pending legs
-shown yellow), 1 a day not marked (no coupon, a render failed), 2 a crash.
+Only days from coupon_results.RESULTS_FROM_DATE that are over (before today,
+UTC) are marked; the PDF / HTML as printed are kept beside the marked ones
+(KUPON_<d>.przed_wynikami.pdf / .html) and the marked ones keep the printed
+files' time (a view is not a print). Offline (the database and the day's
+artifacts). Exit 0 marked or not markable (pending legs shown yellow), 1 a
+render failed, 2 a crash.
 """
 
 from __future__ import annotations
@@ -85,23 +90,42 @@ def render(runs_dir: str, date: str) -> tuple[bool, str]:
 
 def mark(runs_dir: str, date: str, db_path: str, force: bool = False,
          do_render: bool = True) -> tuple[str, dict[str, Any] | None]:
-    """(verdict, summary): MARKED / UNCHANGED / NO_COUPON / RENDER_FAILED: ..."""
+    """(verdict, summary): MARKED / UNCHANGED / WRITTEN (no render) /
+    NOT_MARKED: <why> (before RESULTS_FROM_DATE, a day not over, no coupon,
+    no PDF ever printed) / RENDER_FAILED: <stderr>."""
     run = Path(runs_dir) / date
+    why = cr.markable(date, now())
+    if why:
+        return f"NOT_MARKED: {why}", None
+    pdf, html = run / f"KUPON_{date}.pdf", run / f"KUPON_{date}.html"
+    if not pdf.exists():
+        # never draw a coupon for a day that printed none
+        return "NOT_MARKED: NO_PDF", None
     doc = results_doc(runs_dir, date, db_path)
     if doc is None:
-        return "NO_COUPON", None
+        return "NOT_MARKED: NO_COUPON", None
     old = cr.load(run)
     out = run / cr.RESULTS_FILE
-    pdf = run / f"KUPON_{date}.pdf"
     changed = not _same(old, doc)
     if changed:
         write_atomic(out, json.dumps(doc, ensure_ascii=False, indent=1) + "\n")
     summary = cr.builders_summary(doc["builders"].values())
-    stale_pdf = not pdf.exists() or pdf.stat().st_mtime < out.stat().st_mtime
-    if not do_render or not (changed or stale_pdf or force):
+    stamp_path = run / cr.RENDERED_FILE
+    stamp = (json.loads(stamp_path.read_text(encoding="utf-8"))
+             if stamp_path.exists() else {})
+    now_stamp = {"results": cr.sha256_of(out), "pdf": cr.sha256_of(pdf),
+                 "html": cr.sha256_of(html)}
+    # drawn again when the grades changed or a file is not what the last
+    # results render left (a rebuild drew it plain, an HTML failed)
+    if not do_render or not (changed or force or stamp != now_stamp):
         return ("WRITTEN" if changed else "UNCHANGED"), summary
     ok, msg = render(runs_dir, date)
-    return ("MARKED" if ok else f"RENDER_FAILED: {msg}"), summary
+    if not ok:
+        return f"RENDER_FAILED: {msg}", summary
+    write_atomic(stamp_path, json.dumps(
+        {"results": cr.sha256_of(out), "pdf": cr.sha256_of(pdf),
+         "html": cr.sha256_of(html)}, indent=1) + "\n")
+    return "MARKED", summary
 
 
 def main() -> int:
@@ -130,7 +154,7 @@ def main() -> int:
             counts = cr.builders_summary((results or {}).get("legs", {}).values())
             print(json.dumps({"stage": "MARK_RESULTS", "date": date,
                               "verdict": verdict, "legs": counts}))
-            failed += verdict.startswith("RENDER_FAILED") or verdict == "NO_COUPON"
+            failed += verdict.startswith("RENDER_FAILED")
     except Exception as exc:  # noqa: BLE001 - a crash is FAILED, never pending
         print(f"FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2

@@ -699,10 +699,18 @@ measurement of Superbet's price and feed nothing else.
   legs against their mean confidence, flat units / ROI at the printed price;
   the HTML adds a result filter and the summary of the current filter). The
   grades are the ledger's, never a second grader; a printed leg the results
-  do not hold is yellow, never green. A results render is a view of a
-  finished day, not a print: no `printed/<ts>.json`, no freshness guards; it
-  runs only when the grades changed. Display only - nothing it shows enters a
-  confidence or a gate.
+  do not hold is yellow, never green. Only days from
+  `coupon_results.RESULTS_FROM_DATE` (2026-10-13; 10-08 and older are never
+  redrawn) that are over (before today, UTC) are marked; the files as printed
+  are kept as `KUPON_<d>.przed_wynikami.pdf` / `.html`. A results render is a
+  view of a finished day, not a print: no `printed/<ts>.json`, no freshness
+  guards, and the marked files keep the printed files' mtime (CONFIDENCE and
+  audit C1 read the PDF's mtime as "printed"). Only `--with-results` reads
+  `13_results.json` - a normal render or rebuild never shows results; the next
+  mark draws them again (`13_results_rendered.json` holds the hashes of the
+  last results render). Football scores are Superbet's 90 minutes (extra time
+  and penalties said apart, only when the payload has them). Display only -
+  nothing it shows enters a confidence or a gate.
 - **Ledger** (`record_results.py` -> `runs/sofa/ledger/results.jsonl`, read
   with `audit_ledger.py`): the coupon's result, the legs removed by reads and
   each sport kept side by side, never pooled. It reads `sofa_settled_row`, so

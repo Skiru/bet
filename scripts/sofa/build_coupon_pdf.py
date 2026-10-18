@@ -409,11 +409,18 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    results = cr.load(run) if so else None
-    if args.with_results and results is None:
-        print(f"REFUSED: no {cr.RESULTS_FILE} - run mark_coupon_results.py",
-              file=sys.stderr)
-        return 2
+    # Only a results render reads the results: a normal render (a print, a
+    # rebuild) never carries them, whatever is on disk.
+    results = cr.load(run) if so and args.with_results else None
+    if args.with_results:
+        why = cr.markable(args.date, now)
+        if why:
+            print(f"REFUSED: --with-results on {args.date}: {why}", file=sys.stderr)
+            return 2
+        if results is None:
+            print(f"REFUSED: no {cr.RESULTS_FILE} - run mark_coupon_results.py",
+                  file=sys.stderr)
+            return 2
     stale = None if args.with_results else (
         confidence_older_than_sheet(run, CONFIDENCE_ARTIFACT) or (
             coupon_older_than_sources(run) if so else None))
@@ -578,7 +585,17 @@ def main() -> int:
         render_stats_only(story, doc_json, singles, picks, legs_idx, now,
                           body, small, h2, pick, max_overround, results)
         pdf.build(story)
+        # A results render keeps the printed PDF beside it and the PDF's
+        # time: run_confidence and audit_variants read the PDF's mtime as
+        # "the last build was printed", and a view of a finished day is no
+        # print.
+        keep_time = (out_path.stat().st_mtime
+                     if args.with_results and out_path.exists() else None)
+        if args.with_results and args.out is None:
+            cr.keep_original(out_path)
         os.replace(tmp_out, out_path)
+        if keep_time is not None:
+            os.utime(out_path, (keep_time, keep_time))
         # The record of what this PDF printed (locked_print.record_print):
         # printed/<render time>.json, append-only (F0.1), and
         # PRINTED_MANIFEST as the latest render. The next rebuild carries
@@ -603,7 +620,14 @@ def main() -> int:
                 print(f"family_record.json NOT refreshed: {fam_error}",
                       file=sys.stderr)
             try:
-                html_path = write_html(run, doc_json, args.date)
+                html_out = run / f"KUPON_{args.date}.html"
+                html_time = (html_out.stat().st_mtime
+                             if args.with_results and html_out.exists() else None)
+                if args.with_results:
+                    cr.keep_original(html_out)
+                html_path = write_html(run, doc_json, args.date, results)
+                if html_time is not None:
+                    os.utime(html_path, (html_time, html_time))
             except Exception as exc:  # noqa: BLE001 - the PDF is already written
                 html_error = f"{type(exc).__name__}: {exc}"
                 print(f"KUPON_{args.date}.html NOT written: {html_error}",
@@ -1214,7 +1238,7 @@ def render_stats_only(
                           or {}).get("status", cr.UNKNOWN)
                 b_paint.append((len(rows) - 1, leg_st))
         widths = ([7*mm, 70*mm, 18*mm, 16*mm, 16*mm, 48*mm] if results is None
-                  else [7*mm, 58*mm, 15*mm, 13*mm, 13*mm, 38*mm, 34*mm])
+                  else [7*mm, 46*mm, 14*mm, 12*mm, 11*mm, 54*mm, 36*mm])
         block.append(paint_results(_table(rows, widths), b_paint))
         block.append(Spacer(1, 4))
         # The operator, 2026-10-05: "nie wyceniaj mi ich, sam będę widział" -

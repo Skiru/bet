@@ -196,7 +196,7 @@ def test_the_page_renders_scripts_call_ensure_before_the_html() -> None:
     root = Path(__file__).parents[2]
     pdf = (root / "scripts/sofa/build_coupon_pdf.py").read_text()
     assert pdf.index("ensure_family_record(args.runs_dir, args.date)") < pdf.index(
-        "write_html(run, doc_json, args.date)")
+        "write_html(run, doc_json, args.date")
     # inside the day's own render only: a --out render elsewhere writes nothing
     assert _calls_only_under_out_none(pdf, "ensure_family_record")
     html = (root / "scripts/sofa/build_coupon_html.py").read_text()

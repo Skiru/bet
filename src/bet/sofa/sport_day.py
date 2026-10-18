@@ -404,6 +404,10 @@ def event_score(sport: SportKey, ev: dict[str, Any]) -> str | None:
         if not maps:
             return None
         won = sum(a > b for a, b in maps), sum(b > a for a, b in maps)
+        if ev.get("series_only"):
+            # graded from the series score alone: its maps are placeholders
+            # (cs2.series_only_maps), no rounds to show
+            return f"{won[0]}:{won[1]}"
         rounds = ", ".join(f"{a}:{b}" for a, b in maps)
         return f"{won[0]}:{won[1]} ({rounds})"
     if ev.get("t1_full") is None or ev.get("t2_full") is None:

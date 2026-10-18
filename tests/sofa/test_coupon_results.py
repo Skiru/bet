@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -314,7 +315,28 @@ def test_the_pdf_with_results_marks_rows_and_records_no_print(
     pdf = _pdf_module()
     monkeypatch.setattr(sys, "argv", ["build_coupon_pdf.py", "--date", "2026-10-16",
                                       "--runs-dir", str(tmp_path), "--with-results"])
+    # as printed: the plain render first (it writes the print record)
+    monkeypatch.setattr(sys, "argv", ["build_coupon_pdf.py", "--date", "2026-10-16",
+                                      "--runs-dir", str(tmp_path)])
     assert pdf.main() == 0
+    plain = " ".join(" ".join(p.extract_text() for p in pypdf.PdfReader(
+        run / "KUPON_2026-10-16.pdf").pages).split())
+    # results on disk never reach a normal render
+    assert "Podsumowanie wyników" not in plain and "weszło" not in plain
+    assert '"computed_utc"' not in (run / "KUPON_2026-10-16.html").read_text()
+    printed = sorted((run / "printed").iterdir())
+    os.utime(run / "KUPON_2026-10-16.pdf", (1_000_000, 1_000_000))
+    os.utime(run / "KUPON_2026-10-16.html", (1_000_000, 1_000_000))
+    original = (run / "KUPON_2026-10-16.pdf").read_bytes()
+    monkeypatch.setattr(sys, "argv", ["build_coupon_pdf.py", "--date", "2026-10-16",
+                                      "--runs-dir", str(tmp_path), "--with-results"])
+    assert pdf.main() == 0
+    # the print kept beside it, the files' time kept, no new print record
+    assert (run / "KUPON_2026-10-16.przed_wynikami.pdf").read_bytes() == original
+    assert (run / "KUPON_2026-10-16.przed_wynikami.html").exists()
+    assert (run / "KUPON_2026-10-16.pdf").stat().st_mtime == 1_000_000
+    assert (run / "KUPON_2026-10-16.html").stat().st_mtime == 1_000_000
+    assert sorted((run / "printed").iterdir()) == printed
     text = "\n".join(p.extract_text() for p in
                      pypdf.PdfReader(run / "KUPON_2026-10-16.pdf").pages)
     flat = " ".join(text.split())
@@ -322,11 +344,22 @@ def test_the_pdf_with_results_marks_rows_and_records_no_print(
     assert "weszło 3 (42.9%)" in flat
     assert "nie weszło" in flat and "było: 11" in flat
     assert "Builder: nie weszło" in flat
-    # a view of a finished day, not a print: no print record
-    assert not (run / "printed").exists()
     # the HTML beside it carries the same results
     page = (run / "KUPON_2026-10-16.html").read_text(encoding="utf-8")
     assert '"cały kupon"' in page
+
+
+def test_with_results_refuses_a_day_not_over(tmp_path: Path, monkeypatch: Any) -> None:
+    from bet.sofa import timeutil
+
+    run = _day(tmp_path)
+    pdf = _pdf_module()
+    monkeypatch.setattr(timeutil, "now", lambda: __import__("datetime").datetime(
+        2026, 10, 16, 12, 0, tzinfo=__import__("datetime").UTC))
+    monkeypatch.setattr(sys, "argv", ["build_coupon_pdf.py", "--date", "2026-10-16",
+                                      "--runs-dir", str(tmp_path), "--with-results"])
+    assert pdf.main() == 2
+    assert not (run / "KUPON_2026-10-16.pdf").exists()
 
 
 def test_with_results_refuses_a_day_not_marked(
@@ -359,6 +392,7 @@ def test_mark_writes_the_results_and_renders_only_on_a_change(
     from scripts.sofa import mark_coupon_results as mcr
 
     run = _day(tmp_path, results=False)
+    (run / "KUPON_2026-10-16.pdf").write_text("printed")
     monkeypatch.setattr(mcr, "graded_confidence", lambda *a: _graded())
     monkeypatch.setattr(cr, "match_scores", lambda *a: {3: "2:0"})
     calls: list[str] = []
@@ -376,7 +410,42 @@ def test_mark_writes_the_results_and_renders_only_on_a_change(
     # the same grades again: nothing re-rendered
     verdict, _ = mcr.mark(str(tmp_path), "2026-10-16", str(tmp_path / "db"))
     assert verdict == "UNCHANGED" and calls == ["2026-10-16"]
-    assert mcr.mark(str(tmp_path), "2026-10-17", "db")[0] == "NO_COUPON"
+    assert mcr.mark(str(tmp_path), "2026-10-17", "db")[0] == "NOT_MARKED: NO_PDF"
+    # a file changed since the last results render (a plain rebuild): drawn again
+    (run / "KUPON_2026-10-16.pdf").write_text("plain rebuild")
+    verdict, _ = mcr.mark(str(tmp_path), "2026-10-16", str(tmp_path / "db"))
+    assert verdict == "MARKED" and len(calls) == 2
+    # a failed render is retried on the next run (no stamp written)
+    monkeypatch.setattr(mcr, "render", lambda *a: (False, "boom"))
+    (run / "KUPON_2026-10-16.pdf").write_text("plain again")
+    assert mcr.mark(str(tmp_path), "2026-10-16", "db")[0] == "RENDER_FAILED: boom"
+    monkeypatch.setattr(mcr, "render", fake_render)
+    assert mcr.mark(str(tmp_path), "2026-10-16", "db")[0] == "MARKED"
+
+
+def test_only_finished_days_from_the_first_marked_day() -> None:
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 18, 8, 0, tzinfo=UTC)
+    assert cr.markable("2026-10-17", now) is None
+    assert cr.markable("2026-10-13", now) is None
+    assert cr.markable("2026-10-18", now) == "DAY_NOT_OVER"
+    assert cr.markable("2026-10-19", now) == "DAY_NOT_OVER"
+    # 10-08 is never re-PDF'd; the days before ran under other rules
+    assert cr.markable("2026-10-08", now).startswith("BEFORE_RESULTS_FROM")
+    assert cr.markable("2026-10-12", now).startswith("BEFORE_RESULTS_FROM")
+
+
+def test_mark_never_touches_a_day_it_may_not_mark(tmp_path: Path) -> None:
+    from scripts.sofa import mark_coupon_results as mcr
+
+    run = tmp_path / "2026-10-08"
+    run.mkdir()
+    (run / "KUPON_2026-10-08.pdf").write_text("as printed")
+    verdict, _ = mcr.mark(str(tmp_path), "2026-10-08", "db")
+    assert verdict.startswith("NOT_MARKED: BEFORE_RESULTS_FROM")
+    assert (run / "KUPON_2026-10-08.pdf").read_text() == "as printed"
+    assert sorted(p.name for p in run.iterdir()) == ["KUPON_2026-10-08.pdf"]
 
 
 def test_record_results_marks_every_recorded_day_and_survives_a_failure(
@@ -410,10 +479,52 @@ def test_the_score_shown_is_the_ninety_minutes() -> None:
                            "penalties": 6}}
     assert cr._score_of_detail(event) == (
         "0:0 (do przerwy 0:0) po 90 min; karne 5:6")
-    aet = {"homeScore": {"current": 2, "normaltime": 1, "period1": 0},
-           "awayScore": {"current": 1, "normaltime": 1, "period1": 1}}
+    aet = {"homeScore": {"current": 2, "display": 2, "normaltime": 1, "period1": 0,
+                         "extra1": 1},
+           "awayScore": {"current": 1, "display": 1, "normaltime": 1, "period1": 1}}
     assert cr._score_of_detail(aet) == (
         "1:1 (do przerwy 0:1) po 90 min; po dogrywce 2:1")
     plain = {"homeScore": {"current": 4, "normaltime": 4, "period1": 2},
              "awayScore": {"current": 2, "normaltime": 2, "period1": 2}}
     assert cr._score_of_detail(plain) == "4:2 (do przerwy 2:2)"
+    # `current` holding only the shootout (Club Leon U21 - America U21,
+    # 10-17): the 90 minutes from normaltime, nothing invented
+    leon = {"status": {"code": 120},
+            "homeScore": {"current": 4, "display": 1, "normaltime": 1},
+            "awayScore": {"current": 3, "display": 1, "normaltime": 1}}
+    assert cr._score_of_detail(leon) == "1:1"
+    # a normal end with a placeholder normaltime keeps the match score
+    # (16587598: normaltime 0, display 2)
+    odd = {"status": {"code": 100},
+           "homeScore": {"current": 2, "display": 2, "normaltime": 0},
+           "awayScore": {"current": 0, "display": 0, "normaltime": 0}}
+    assert cr._score_of_detail(odd) == "2:0"
+
+
+def test_no_other_games_score_and_no_placeholder_rounds() -> None:
+    hockey = {**_hockey(), "outcome": "NOT_GRADED:ID_CHANGED", "actual_value": None,
+              "score": "7:1 (3:1, 2:0, 2:0)"}
+    res = cr.compute("2026-10-16", [{"variant": "official", "rows": {},
+                                     "singles": [{"source": hockey, "odds": 1.4,
+                                                  "outcome": hockey["outcome"]}],
+                                     "builders": []}])
+    (entry,) = res["legs"].values()
+    assert entry["status"] == cr.UNKNOWN and entry["score"] is None
+    assert sd.event_score("cs2", {"state": "SETTLED", "series_only": True,
+                                  "maps": [[1, 0], [1, 0]]}) == "2:0"
+
+
+def test_a_period_yes_no_market_shows_its_period() -> None:
+    dc = {**_hockey(), "family": "period_double_chance",
+          "market": "period_double_chance",
+          "line": None, "period": 1, "side": "1X"}
+    entry = {"status": cr.WON, "actual": 1.0, "score": "1:2 (1:0, 0:1, 0:1)"}
+    assert cr.actual_text(dc, entry) == "1. tercja 1:0 (mecz 1:2)"
+
+
+def test_the_summary_lists_the_sports_in_a_fixed_order() -> None:
+    s = cr.summarize([({"sport": sp, "confidence": 0.8, "offered_odds": 1.2},
+                       {"status": cr.WON, "odds": 1.2})
+                      for sp in ("cs2", "basketball", "football", "tennis")])
+    assert [x["name"] for x in cr.summary_lines(s)] == [
+        "piłka nożna", "tenis", "koszykówka", "CS2", "cały kupon"]

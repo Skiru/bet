@@ -4,7 +4,7 @@ After a day is settled, KUPON_<d>.pdf and KUPON_<d>.html mark each row they
 print: green - the leg won, red - it lost, yellow - not known (still pending,
 never graded, a disagreement between graders) or refunded (0 u.). Beside the
 leg's claim (its line, side and confidence) each row shows what the market
-actually counted, and every page ends with a summary in percent.
+actually counted, and the document ends with a summary in percent.
 
 The grades are the ledger's (record_results.graded_confidence - audit_settlement
 7c's keys, refunds and builder rule; the measured sports through
@@ -19,7 +19,10 @@ display only.
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
+import shutil
 import sqlite3
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -33,6 +36,17 @@ from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 RESULTS_FILE = "13_results.json"
 SCHEMA = "CouponResults.v1"
+# What the last results render produced (sha256 of the PDF, the HTML and
+# the results it drew): a render whose files changed since (a rebuild, a
+# failed HTML) is drawn again.
+RENDERED_FILE = "13_results_rendered.json"
+# The first day marked (operator 2026-10-18: "the last 5 days"). An older
+# day's PDF is never redrawn - 10-08 must never be re-PDF'd, and the days
+# before ran under other rules.
+RESULTS_FROM_DATE = "2026-10-13"
+# The PDF / HTML as printed, kept beside the marked ones at the first
+# results render (the product of the day is never lost).
+ORIGINAL_SUFFIX = ".przed_wynikami"
 
 WON, LOST, REFUND, UNKNOWN = "won", "lost", "refund", "unknown"
 # the colours of a row (green / red / yellow, the operator's three) and the
@@ -52,6 +66,34 @@ UNKNOWN_WHY = {
 # the page shows the match score for them, not "1". Red cards and penalties
 # are counts.
 EVENT_MARKETS = RATING_ONLY_MARKETS - {RED_CARDS, PENALTIES}
+
+
+def markable(date: str, now: datetime.datetime) -> str | None:
+    """Why a day may not be marked (None: it may): before RESULTS_FROM_DATE,
+    or not over yet - today or later (UTC), whose coupon is still live."""
+    if date < RESULTS_FROM_DATE:
+        return f"BEFORE_RESULTS_FROM ({RESULTS_FROM_DATE})"
+    if date >= now.astimezone(datetime.UTC).date().isoformat():
+        return "DAY_NOT_OVER"
+    return None
+
+
+def original_path(path: Path) -> Path:
+    """KUPON_<d>.pdf -> KUPON_<d>.przed_wynikami.pdf"""
+    return path.with_name(path.stem + ORIGINAL_SUFFIX + path.suffix)
+
+
+def keep_original(path: Path) -> None:
+    """Copy the file as printed beside it, once (never over an earlier copy)."""
+    keep = original_path(path)
+    if path.exists() and not keep.exists():
+        shutil.copy2(path, keep)
+
+
+def sha256_of(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def status(outcome: str | None) -> str:
@@ -114,7 +156,8 @@ def compute(
                 actual = (None if src.get("actual_value") is None
                           or outcome not in ("WIN", "LOSS")
                           else float(src["actual_value"]))
-                score = src.get("score")
+                # a game graded under another id is another game: no score
+                score = None if outcome.startswith("NOT_GRADED") else src.get("score")
             else:
                 actual = _actual(rows.get(leg_key(src)))
                 score = scores.get(int(src["sofascore_event_id"]))
@@ -181,6 +224,10 @@ def _num(v: float) -> str:
     return str(int(v)) if float(v).is_integer() else f"{v:.2f}".rstrip("0").rstrip(".")
 
 
+# the sports whose score bracket is one pair per period of a period market
+_PART = {"hockey": "tercja", "volleyball": "set"}
+
+
 def actual_text(leg: Mapping[str, Any], entry: Mapping[str, Any]) -> str:
     """What the market actually counted, as the page writes it: the value the
     leg was graded on (corners 11, games 23; a handicap's difference), the
@@ -190,6 +237,15 @@ def actual_text(leg: Mapping[str, Any], entry: Mapping[str, Any]) -> str:
     actual, score = entry.get("actual"), entry.get("score")
     event_market = (str(leg.get("market")) in EVENT_MARKETS if not is_measured(leg)
                     else leg.get("line") is None)
+    part = _PART.get(str(leg.get("sport")))
+    if event_market and part and int(leg.get("period") or 0) and score:
+        # a period's yes / no market: that period's score first (the
+        # bracket holds the periods in order, shadow.event_score)
+        pairs = (score.split("(", 1)[1].split(")")[0].split(", ")
+                 if "(" in score else [])
+        n = int(leg["period"])
+        if 0 < n <= len(pairs):
+            return f"{n}. {part} {pairs[n - 1]} (mecz {score.split(' ')[0]})"
     if event_market:
         return f"wynik {score}" if score else ("tak" if actual == 1 else
                                                "nie" if actual == 0 else "—")
@@ -281,12 +337,16 @@ def pct(v: float | None) -> str:
     return "—" if v is None else f"{100 * v:.1f}%"
 
 
+SPORT_ORDER = ("football", "tennis", "hockey", "basketball", "volleyball", "cs2")
+
+
 def summary_lines(summary: Mapping[str, Any]) -> list[dict[str, str]]:
     """The summary table's rows as text (the PDF and the HTML print the same
     strings): one per sport, then the whole coupon."""
     rows = []
-    for name, b in [*((SPORT_PL.get(k, k), v) for k, v in
-                      (summary.get("sports") or {}).items()),
+    sports = sorted((summary.get("sports") or {}).items(), key=lambda kv: (
+        SPORT_ORDER.index(kv[0]) if kv[0] in SPORT_ORDER else 99, kv[0]))
+    for name, b in [*((SPORT_PL.get(k, k), v) for k, v in sports),
                     ("cały kupon", summary["all"])]:
         roi = b.get("roi")
         other = b[REFUND] + b[UNKNOWN]
@@ -316,27 +376,33 @@ def _score_of_detail(event: Mapping[str, Any]) -> str | None:
                 ("period1", "period2", "period3", "period4", "period5")
                 if home.get(k) is not None and away.get(k) is not None]
         return text + (f" ({', '.join(sets)})" if sets else "")
-    # Superbet settles football on 90 minutes: the score shown is
-    # `normaltime`, extra time and a shootout said apart (10-15, Preston
-    # Lions - Wollongong: 0:0 after 90 min, "5:6" with the penalties)
-    regular = None
-    if home.get("normaltime") is not None and away.get("normaltime") is not None:
-        regular = f"{home['normaltime']}:{away['normaltime']}"
-    if regular is not None:
-        text = regular
-    if home.get("period1") is not None and away.get("period1") is not None:
-        text += f" (do przerwy {home['period1']}:{away['period1']})"
-    extra = []
-    shootout = (home.get("penalties") is not None
-                and away.get("penalties") is not None)
-    pens = ((int(home["penalties"]), int(away["penalties"])) if shootout
-            else (0, 0))
-    # the score before the shootout (`current` holds its goals too)
-    h, a = int(home["current"]) - pens[0], int(away["current"]) - pens[1]
-    if regular is not None and regular != f"{h}:{a}":
-        extra.append(f"po dogrywce {h}:{a}")
-    if shootout:
-        extra.append(f"karne {pens[0]}:{pens[1]}")
+    # Superbet settles football on 90 minutes. `display` is the match score
+    # without a shootout (`current` holds the shootout's goals on some feeds:
+    # Club Leon U21 - America U21 10-17, current 4:3 = the penalties, display
+    # 1:1). Extra time and a shootout are said only when the payload has them
+    # (extra1 / extra2 / overtime, penalties, status 110 / 120); then the
+    # 90 minutes is `normaltime` (10-15, Preston Lions - Wollongong: 0:0
+    # after 90 min, penalties 5:6). A normal end keeps `display` even where a
+    # placeholder `normaltime` disagrees (16587598: normaltime 0, display 2).
+    def pair(k: str) -> str | None:
+        if home.get(k) is None or away.get(k) is None:
+            return None
+        return f"{home[k]}:{away[k]}"
+
+    code = int((event.get("status") or {}).get("code") or 0)
+    shown = pair("display") or text
+    extra_time = code == 110 or any(
+        home.get(k) is not None or away.get(k) is not None
+        for k in ("extra1", "extra2", "overtime"))
+    shootout = pair("penalties")
+    if (extra_time or shootout or code == 120) and pair("normaltime"):
+        text = str(pair("normaltime"))
+    else:
+        text, extra_time, shootout = shown, False, None
+    if pair("period1"):
+        text += f" (do przerwy {pair('period1')})"
+    extra = ([f"po dogrywce {shown}"] if extra_time else []) + (
+        [f"karne {shootout}"] if shootout else [])
     if extra:
         text += " po 90 min; " + ", ".join(extra)
     return text

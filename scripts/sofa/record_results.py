@@ -502,7 +502,7 @@ def mark_days(runs_dir: str, dates: list[str], db_path: str) -> None:
             verdict, _ = mark(runs_dir, date, db_path)
         except Exception as exc:  # noqa: BLE001 - the ledger is already written
             verdict = f"FAILED: {type(exc).__name__}: {exc}"
-        if verdict != "NO_COUPON":
+        if not verdict.startswith("NOT_MARKED"):
             print(f"results on KUPON_{date}: {verdict}",
                   file=sys.stderr if verdict.startswith(("FAILED", "RENDER"))
                   else sys.stdout)

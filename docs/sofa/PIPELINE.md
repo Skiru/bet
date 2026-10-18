@@ -2672,10 +2672,19 @@ zwroty i reguła builderów jak w 7c; sporty mierzone przez
 `coupon_sports.grade`), nigdy drugie rozliczenie; noga, której wyniki nie
 zawierają, jest żółta, nigdy zielona. Wynik meczu piłki / tenisa pochodzi z
 zapisanego zdarzenia Sofascore (`sofa_event_detail`), sportów mierzonych - z
-`settled.json`. Render z wynikami to widok zakończonego dnia, nie wydruk: nie
-dopisuje `printed/<ts>.json` i pomija strażników świeżości (krzywe
-zainstalowane po buildzie); uruchamia się tylko, gdy oceny się zmieniły
-(`--force`: zawsze). Niczego nie zmienia w pewności ani bramkach. Test:
+`settled.json`. Oznaczane są tylko dni od 2026-10-13
+(`coupon_results.RESULTS_FROM_DATE`; 10-08 i starsze nigdy nie są
+przerysowywane), które się skończyły (przed dzisiejszą datą UTC); PDF / HTML
+w wersji wydrukowanej zostają obok jako `KUPON_<d>.przed_wynikami.pdf` /
+`.html`. Render z wynikami to widok zakończonego dnia, nie wydruk: nie
+dopisuje `printed/<ts>.json`, pomija strażników świeżości (krzywe
+zainstalowane po buildzie) i zostawia plikom czas modyfikacji wydruku
+(CONFIDENCE i audyt C1 czytają czas PDF jako „wydrukowano”). Wyniki czyta
+tylko `--with-results`: zwykły render czy przebudowa nigdy ich nie pokazują,
+a następne oznaczenie rysuje je ponownie (`13_results_rendered.json` trzyma
+skróty plików ostatniego renderu z wynikami; `--force`: zawsze). Wynik meczu
+piłki to 90 minut Superbetu, dogrywka i karne osobno - tylko gdy dane je
+mają. Niczego nie zmienia w pewności ani bramkach. Test:
 `tests/sofa/test_coupon_results.py`.
 
 ## Pomiar: rozliczone linie wg rynku i kierunku (od 2026-10-13)
