@@ -1159,8 +1159,8 @@ def render_stats_only(
                 pos_paint.append((len(rows) - 1, entry["status"]))
         widths = ([10*mm, 36*mm, 44*mm, 13*mm, 16*mm, 13*mm, 12*mm, 11*mm, 13*mm,
                    14*mm] if results is None else
-                  [10*mm, 29*mm, 33*mm, 10*mm, 13*mm, 11*mm, 10*mm, 9*mm, 11*mm,
-                   12*mm, 34*mm])
+                  [9*mm, 28*mm, 33*mm, 11*mm, 13*mm, 11*mm, 10*mm, 9*mm, 11*mm,
+                   12*mm, 35*mm])
         story.append(paint_results(table_with_headers(_table(rows, widths),
                                                       pos_headers), pos_paint))
     # F4.3: how much of the coupon stands on one match.
@@ -1267,11 +1267,14 @@ def result_cell(leg: dict[str, Any], entry: dict[str, Any]) -> str:
 
 
 def paint_results(table: Table, paint: list[tuple[int, str]]) -> Table:
-    """Each result row's background in its colour."""
+    """Each result row's background in its colour; the result column takes
+    its width from the cells' side padding, so numbers never wrap."""
     if paint:
         table.setStyle(TableStyle([
-            ("BACKGROUND", (0, r), (-1, r), colors.HexColor(cr.COLOURS[st]))
-            for r, st in paint]))
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            *(("BACKGROUND", (0, r), (-1, r), colors.HexColor(cr.COLOURS[st]))
+              for r, st in paint)]))
     return table
 
 
