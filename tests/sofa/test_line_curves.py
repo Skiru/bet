@@ -96,8 +96,11 @@ def test_the_switch_is_judged_on_the_day_and_the_clock(
     assert epochs.LINE_CURVES_FROM_UTC is None
 
 
-def test_the_shipped_switch_is_the_next_days_midnight() -> None:
-    assert epochs.LINE_CURVES_FROM_UTC == datetime(2026, 10, 19, 0, 0, tzinfo=UTC)
+def test_the_shipped_switch_is_the_operators_time_on_10_18() -> None:
+    # moved by the operator into the built day (10-18 mixed)
+    assert epochs.LINE_CURVES_FROM_UTC == datetime(2026, 10, 18, 12, 48, tzinfo=UTC)
+    assert lc.day_reads_per_line("2026-10-18")  # the day's latest build
+    assert not lc.day_reads_per_line("2026-10-17")
 
 
 def test_the_section_keeps_only_buckets_with_enough_rows() -> None:
@@ -267,6 +270,13 @@ def test_leg_line_and_the_days_rule(monkeypatch: pytest.MonkeyPatch) -> None:
                         datetime(2026, 10, 19, 0, 0, tzinfo=UTC))
     assert lc.day_reads_per_line("2026-10-19")
     assert not lc.day_reads_per_line("2026-10-18")
+    # a switch inside a day: that day's latest build reads per line
+    monkeypatch.setattr(epochs, "LINE_CURVES_FROM_UTC",
+                        datetime(2026, 10, 18, 13, 0, tzinfo=UTC))
+    assert lc.day_reads_per_line("2026-10-18")
+    assert epochs.line_curves("2026-10-18", datetime(2026, 10, 18, 13, 0, tzinfo=UTC))
+    assert not epochs.line_curves("2026-10-18",
+                                  datetime(2026, 10, 18, 12, 59, tzinfo=UTC))
 
 
 def test_the_pdf_names_a_line_curve_without_its_prefix() -> None:

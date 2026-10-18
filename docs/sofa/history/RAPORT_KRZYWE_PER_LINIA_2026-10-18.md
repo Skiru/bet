@@ -20,13 +20,13 @@ nogach 10-09..10-17. Dowody: `docs/sofa/evidence/line_curves_2026-10-18.md`.
 | zmiana | gdzie | stan |
 |---|---|---|
 | krzywa per linia dla 33 kluczy | `bet.sofa.line_curves`, `confidence.Calibration.realised(..., line=)`, sekcja `by_market_direction_line` | zainstalowana 12:04:33Z |
-| przełącznik | `epochs.LINE_CURVES_FROM_UTC` 2026-10-19 00:00Z | następny dzień (stała zgoda operatora) |
+| przełącznik | `epochs.LINE_CURVES_FROM_UTC` 2026-10-18 12:48Z | planowany 10-19 00:00Z, przeniesiony przez operatora na dziś - 10-18 mieszany |
 | lista kluczy | `config/sofa_line_curves.json` | 33 klucze lepsze poza próbą; 6 gorszych i 60 bez różnicy zostaje przy krzywej wspólnej |
 | fit | `fit_confidence.py` (każdy pełny fit + `--line-curves-only`) | refit odtwarza sekcję sam |
 | instalacja | `scripts/sofa/install_line_curves.py` | kopia `config/backup_2026-10-18_line_curves/`, testy, przywrócenie |
 | line evidence | `fit_line_evidence.sheet_rows(per_line=)` | baza wg reguły dnia `--before` |
 | CONFIDENCE | `run_confidence.py` | linia przekazywana tylko pod przełącznikiem, tylko piłka |
-| ledger | `audit_ledger.EPOCH_GROUPS` „od 10-19” | nowa epoka, dzień nie jest mieszany |
+| ledger | `audit_ledger.EPOCH_GROUPS` „10-18 mieszany”, „od 10-19” | 10-18 mieszany, nogi wydrukowane wcześniej zablokowane |
 | pomiar | `scripts/sofa/measure_line_curves.py` | w repo |
 | sprawdzian | `T-LINE-CURVES` (PROPOSED) | od 10-19 |
 
@@ -69,3 +69,35 @@ przeskakuje próg w obie strony (bez zmiany reguły - osobna decyzja).
 
 `tests/sofa`, ruff, mypy --strict, rejestr - wyniki w commicie (sekcja
 „Gates” komunikatu).
+
+## Włączenie na dziś i przebudowa 10-18 (operator: „przebudować już dzisiaj kupon, włączyć to na dzisiaj”)
+
+- Przełącznik przeniesiony z 2026-10-19 00:00Z na **2026-10-18 12:48Z**; 10-18 jest
+  dniem mieszanym (ledger „10-18 mieszany”, „od 10-18” bez dni), nogi wydrukowane
+  wcześniej zablokowane. Line evidence przeliczone dla `--before 2026-10-18` na
+  bazie per linia (`line_curves.day_reads_per_line` = reguła ostatniej budowy dnia):
+  pula piłki -0,68 → -0,45 pp, offsety tenisa i sportów mierzonych bez zmian.
+- Przebudowy `rebuild_day.py`: 12:48Z (przełącznik), potem 5 po scaleniu
+  odczytów (13:05, 13:11, 13:24, 13:33, 13:43Z). Kopia stanu sprzed zmiany w
+  scratchu sesji (`pre_switch/`).
+- Odczyty C3: analitycy piłki (4 instancje), hokeja (2), koszykówki, siatkówki -
+  łącznie 272 nowe odczyty; WATCH: Salgueiros - Estoril (6, + weto CONTEXT),
+  Čáslav (3), Belenenses - Arouca (10, + weto CONTEXT), Niakhaté faule, Belgrano -
+  River bez czerwonej, El Kanemi „lub pow. 1,5”. Nogi meczów rozpoczętych przed
+  odczytem (8 builderów, Kheybar) **nie dostały udawanego KEEP** - zostały w C3
+  jako zablokowane bez odczytu, aż weszły po starcie. Końcowo C1-C3 / U1-U3: 0
+  znalezisk.
+- Weryfikator (3 rundy, ostatnia na kuponie 13:37Z): 0 defektów; pewność
+  odtworzona na 4 022 świeżych nogach piłki / tenisa (0 niezgodności), 957 nóg
+  `line:` zgodnych z `by_market_direction_line`; Superbet na żywo 246 nóg piłki +
+  44 sportów znalezionych, przesunięcia bez spadku x pod 0,90; WATCH na dwóch
+  nogach koszykówki (Portes Soleil - ruch ceny 1,88 → 2,80 po odczycie; Benfica B
+  U23) - obie zablokowane przed scaleniem (start 14:00Z), widoczne w C3 jako
+  „locked, now covered by WATCHED”.
+- E2E: A/B na tych samych wejściach (zegar 12:52:56Z) - włączony = prawdziwy
+  `08_confidence.json` co do nogi, sam przełącznik +54 / -176 nóg, wyłącznie
+  piłka (single zawodników 55 → 45). Kupon końcowy: 8 937 singli (przed 9 104),
+  13 builderów; 3 263 nogi meczów rozpoczętych przed przełącznikiem - 0 zgubionych;
+  świeże źródła `market:` 3 010, `line:` 957; HTML = 8 937 wierszy, filtr rodzin
+  działa; każda noga WATCH zdjęta poza dwiema zablokowanymi. `day_status`: WARN
+  tylko pokrycie CLV (w toku) i 1 mecz UNVERIFIED.

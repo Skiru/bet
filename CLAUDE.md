@@ -97,8 +97,10 @@ every sport alike, and nothing that could win is cut by name.
   refitted every morning by `refresh_line_evidence.py` (it never touches a
   curve); the v2 rules need its `games` field - an older file reads nothing for a key without a curve.
   Evidence: `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
-- **Curves per line** (`LINE_CURVES_FROM_UTC` 2026-10-19 00:00Z, operator's
-  standing go; `bet.sofa.line_curves`): a football curve is fitted per market
+- **Curves per line** (`LINE_CURVES_FROM_UTC` 2026-10-18 12:48Z - planned for
+  10-19 00:00Z, moved by the operator into the built day: 10-18 is mixed,
+  ledger group "10-18 mieszany", its legs printed before stay locked;
+  `bet.sofa.line_curves`): a football curve is fitted per market
   x direction over the replay's whole line ladder, while Superbet quotes a
   few lines near the centre, and the model's p is not calibrated alike across
   lines (replay: goals_for UNDER 1.5 -2.4 pp on 305k rows, the far UNDER lines
@@ -118,8 +120,10 @@ every sport alike, and nothing that could win is cut by name.
   one-sided single reads `market:` or `line:`, `confidence.OWN_CURVE_SOURCES`),
   settled 10-15..10-17
   -599.0 -> -582.9 u. (dropped 167 legs -9.2%). A calibration fix, not an
-  edge. The line evidence's base follows the --before day's rule
-  (`fit_line_evidence.sheet_rows(per_line=)`). Installed 2026-10-18 12:04Z by
+  edge. The line evidence's base follows the --before day's latest build
+  (`line_curves.day_reads_per_line`; refitted for --before 2026-10-18 at the
+  switch: the football pooled printable gap -0.68 -> -0.45 pp, other sports'
+  offsets unchanged). Installed 2026-10-18 12:04Z by
   `install_line_curves.py` (inert before the switch: 320,733 / 320,733 rows
   read alike without a line); backup `config/backup_2026-10-18_line_curves/`.
   Evidence `docs/sofa/evidence/line_curves_2026-10-18.md`, check `T-LINE-CURVES`.
@@ -762,8 +766,9 @@ measurement of Superbet's price and feed nothing else.
   "10-16 mieszany"; 10-17 itself is mixed too - the supremacy stretches from
   13:37Z and refit 2026-10-17 from 19:13Z moved into the built day by the
   operator: ledger group "10-17 mieszany" (PLAYER_SAMPLE_GATES from 00:00Z),
-  the days after "od 10-18" ("od 10-17" holds no day), from 10-19 "od 10-19"
-  (LINE_CURVES, a switch at 00:00Z, not a mixed day); before them ledger group
+  the days after "od 10-18" ("od 10-17" holds no day); 10-18 is mixed too -
+  LINE_CURVES moved into the built day at 12:48Z: ledger group "10-18
+  mieszany" ("od 10-18" holds no day), the days after "od 10-19"; before them ledger group
   "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,

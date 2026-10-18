@@ -119,8 +119,14 @@ mniej strat z mniejszej liczby nóg, nie przewaga nad ceną.
   (kopia `config/backup_2026-10-18_line_curves/`, tests/sofa 5 182 passed).
   Instalacja przed przełącznikiem nic nie zmienia: bez linii odczyt identyczny na
   320 733 / 320 733 wierszach 10-09..10-17.
-- Przełącznik `epochs.LINE_CURVES_FROM_UTC` = 2026-10-19 00:00Z (następny dzień;
-  stała zgoda operatora „instaluj zawsze, sam decyduj”).
+- Przełącznik `epochs.LINE_CURVES_FROM_UTC`: planowany na 2026-10-19 00:00Z,
+  przeniesiony przez operatora na **2026-10-18 12:48Z** („przebudować już
+  dzisiaj kupon, włączyć to na dzisiaj”) - 10-18 jest dniem mieszanym (ledger
+  „10-18 mieszany”), nogi wydrukowane wcześniej zostają zablokowane. Line
+  evidence przeliczone dla `--before 2026-10-18` na bazie per linia
+  (`fitted_from.per_line_base: true`): pula piłki na liniach drukowalnych
+  -0,68 pp [-1,14; -0,18] → -0,45 pp [-0,95; +0,05]; offsety tenisa i sportów
+  mierzonych bez zmian.
 - E2E 10-18 (kopia dnia, kod z przełącznikiem wymuszonym, zegar ostatniego
   CONFIDENCE 07:08:38Z): wyłączony = prawdziwe `08_confidence.json` noga w nogę
   (9 146, 0 różnic); włączony 8 903 nogi: +57 / -300, 1 565 wspólnych zmienia

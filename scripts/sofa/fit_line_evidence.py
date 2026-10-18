@@ -64,8 +64,8 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import cs2_day_dir  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY_DATE, line_curves  # noqa: E402
-from bet.sofa.line_curves import leg_line  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
+from bet.sofa.line_curves import day_reads_per_line, leg_line  # noqa: E402
 from bet.sofa.shadow import SETTLED_FILE, shadow_day_dir  # noqa: E402
 
 SHEET_SPORTS = ("football", "tennis")
@@ -246,8 +246,7 @@ def main() -> int:
     days = stats_only_days(runs_dir, args.before)
     # epochs.LINE_CURVES: the base is the curve the --before day reads, at its
     # own line where that day reads per line
-    per_line = line_curves(args.before, datetime.fromisoformat(
-        args.before).replace(tzinfo=UTC))
+    per_line = day_reads_per_line(args.before)
     fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves, per_line))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]

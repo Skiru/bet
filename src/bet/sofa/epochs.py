@@ -2268,9 +2268,11 @@ def tennis_set_complements(date: str, build_at: datetime | None = None) -> bool:
 # zero with the interval; on the live offered rows of 10-09..10-17 the
 # printable gap -1.09 -> -0.57 pp, ROI unchanged (-4.54% / -4.53%), 1,823
 # legs fewer and 596 more (docs/sofa/evidence/line_curves_2026-10-18.md).
-# Changes what prints: the next day's 00:00Z (operator's standing go,
-# "instaluj zawsze, sam decyduj"). Off (None): byte-identical.
-LINE_CURVES_FROM_UTC: datetime | None = datetime(2026, 10, 19, 0, 0, tzinfo=UTC)
+# Changes what prints: planned for 2026-10-19 00:00Z (operator's standing go),
+# moved by the operator into the built day 2026-10-18 at 12:48Z
+# ("przebudować już dzisiaj kupon, włączyć to na dzisiaj"): 10-18 is mixed,
+# its legs printed before stay locked. Off (None): byte-identical.
+LINE_CURVES_FROM_UTC: datetime | None = datetime(2026, 10, 18, 12, 48, tzinfo=UTC)
 
 
 def line_curves(date: str, build_at: datetime | None = None) -> bool:

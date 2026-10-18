@@ -628,7 +628,7 @@ nadpisałby krzywe krzywymi starego centrum. Odwrotnie: dopóki krzywe nie są
 zainstalowane, **żaden refit nie dostaje** `--tennis-serve-markets` /
 `--tennis-aces-opponent` (`fit_confidence` zbudowałby te krzywe sam).
 
-### 7.11 Krzywe per linia (zainstalowane 2026-10-18 12:04Z, czytane od 2026-10-19 00:00Z)
+### 7.11 Krzywe per linia (zainstalowane 2026-10-18 12:04Z, czytane od 2026-10-18 12:48Z - 10-18 mieszany)
 
 `config/sofa_line_curves.json` - lista 33 kluczy `<rynek>|<KIER>` piłki
 (lista operatora: zmiana zmienia druk), wybrana przez

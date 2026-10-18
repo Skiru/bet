@@ -231,7 +231,7 @@ statistics rank the legs. The only way another key can come out HIGHER is the
 CS2 pooled offset measured without its dominant key (operator's choice).
 Legs carry `line_offset` / `price_band_cap` when lowered, `calibrated_on` names
 the source (`...-0.0570sb`, `|cap:<cell>`, `sb:<sport>:<key>`; from
-2026-10-19 `line:<market>|<DIR>@<line>` - a men's football leg of the 33 keys
+2026-10-18 12:48Z `line:<market>|<DIR>@<line>` - a men's football leg of the 33 keys
 of `config/sofa_line_curves.json` read at its own line, `bet.sofa.line_curves`) and
 `unfitted_constants` includes the line-evidence constants (`line_evidence.UNFITTED_CONSTANTS`).
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +60,9 @@ def leg_line(row: Mapping[str, Any], on: bool) -> float | None:
 
 
 def day_reads_per_line(day: str) -> bool:
-    """Did a build of `day` (any clock from its start) read per line - the
-    rule a measurement re-deriving that day's confidence follows."""
-    return epochs.line_curves(day, datetime.fromisoformat(day).replace(tzinfo=UTC))
+    """Does the day's LATEST build read per line - the rule a measurement
+    re-deriving that day's confidence, and the line evidence fitted for it
+    (--before <day>), follow. A mixed day (the switch inside it) reads per
+    line: its legs printed before are locked, the rest is built under it."""
+    end = datetime.fromisoformat(day).replace(tzinfo=UTC) + timedelta(days=1)
+    return epochs.line_curves(day, end - timedelta(microseconds=1))

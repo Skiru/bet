@@ -165,7 +165,7 @@ Three numbers stand on a leg, and only one of them is the confidence:
   that, the curve lowered by the key's measured Superbet-line offset
   (`line_offset`, a `...sb` suffix on `calibrated_on`) and the price-band cap
   (`price_band_cap`, `|cap:` in `calibrated_on`). The price may only lower it.
-  From 2026-10-19 (`LINE_CURVES_FROM_UTC`) a leg of the 33 keys of
+  From 2026-10-18 12:48Z (`LINE_CURVES_FROM_UTC`) a leg of the 33 keys of
   `config/sofa_line_curves.json` reads its curve at its own line:
   `calibrated_on` = `line:<market>|<DIR>@<line>` - correct, not a defect.
   A key with no curve reads the Wilson bound of its own settled lines, else the

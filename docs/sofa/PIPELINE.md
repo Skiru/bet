@@ -1443,7 +1443,8 @@ bramka. CONFIDENCE odmawia (kod 2) arkusza zbudowanego nie pod tą regułą —
 przebudowa reguły zaczyna się od SHEET. Sortowanie singli:
 `(-confidence, kickoff_utc, sofascore_event_id, market, line)`.
 
-**Krzywe per linia (od 2026-10-19 00:00Z, `epochs.LINE_CURVES_FROM_UTC`,
+**Krzywe per linia (od 2026-10-18 12:48Z - przeniesione przez operatora z
+10-19 00:00Z, 10-18 mieszany; `epochs.LINE_CURVES_FROM_UTC`,
 `bet.sofa.line_curves`).** Krzywa piłki jest fitowana per rynek × kierunek na
 całej siatce linii replayu, a Superbet wystawia kilka linii przy środku; p
 modelu nie jest skalibrowane jednakowo na wszystkich liniach (replay:
