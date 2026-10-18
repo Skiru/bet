@@ -149,9 +149,9 @@ def build_view(
 ) -> dict[str, Any]:
     """Rows of the page: the singles the PDF prints and its builders.
     `families` is the day's bet.sofa.family_record (None: the page has no
-    family filter). `results` is the day's 13_results.json (bet.sofa.coupon_results; None
-    before the day is settled): each row then carries its result and the
-    page ends with the PDF's percent summary."""
+    family filter). `results` is the day's 13_results.json
+    (bet.sofa.coupon_results; None before the day is settled): each row then
+    carries its result and the page ends with the PDF's percent summary."""
     status = (fixture_status or {}).get("events") or {}
     record = (families or {}).get("families") or {}
     min_legs = int((families or {}).get("min_legs") or fr.MIN_LEGS)
