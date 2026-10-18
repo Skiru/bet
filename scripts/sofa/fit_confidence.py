@@ -34,12 +34,14 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import line_curves as lc  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     CLASS_WOMEN,
     direction_key,
     match_class,
 )
+from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.engine import has_calibratable_model  # noqa: E402
 from bet.sofa.fit_meta import (  # noqa: E402
     carry_operator_keys,
@@ -94,6 +96,29 @@ def wilson_lo(k: int, n: int, z: float = 1.959964) -> float:
     return max(0.0, c - m)
 
 
+def line_curve_section(
+    counts: dict[str, dict[str, dict[int, list[int]]]],
+) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    """bet.sofa.line_curves' section: {"<market>|<DIR>": {"<line>": curve}},
+    each line's buckets of >= MIN_MARKET_BUCKET rows, labelled and bounded as
+    every other curve here (a thinner bucket is left out: CONFIDENCE reads
+    the pooled direction curve there)."""
+    out: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for key in sorted(counts):
+        lines: dict[str, dict[str, dict[str, Any]]] = {}
+        for line in sorted(counts[key], key=float):
+            c = {f"{EDGES[b]:.3f}-{EDGES[b + 1]:.3f}": {
+                     "n": n, "realised": round(k / n, 4),
+                     "realised_lo95": round(wilson_lo(k, n), 4)}
+                 for b, (k, n) in sorted(counts[key][line].items())
+                 if n >= MIN_MARKET_BUCKET}
+            if c:
+                lines[line] = c
+        if lines:
+            out[key] = lines
+    return out
+
+
 def event_class(event: dict[str, Any]) -> str | None:
     """The match class of one cached event, as run_confidence reads it."""
     tournament = event.get("tournament") or {}
@@ -146,8 +171,30 @@ def main() -> int:
         "curve byte-for-byte (a class curve can be added between two builds "
         "of one day without moving any leg that is not in the class)",
     )
+    ap.add_argument(
+        "--line-curves-only", action="store_true",
+        help="refit only the per-line curves (by_market_direction_line, "
+        "bet.sofa.line_curves) of --out and keep every other curve "
+        "byte-for-byte",
+    )
     args = ap.parse_args()
+    if args.classes_only and args.line_curves_only:
+        print("REFUSED: --classes-only and --line-curves-only are two fits",
+              file=sys.stderr)
+        return 2
+    if args.line_curves_only and Path(args.out).resolve() in {
+            (_REPO / "config" / "sofa_confidence_calibration.json").resolve(),
+            config_path("sofa_confidence_calibration.json").resolve()}:
+        # the installed file changes only through install_line_curves.py
+        # (backup, tests, restore): fit a staged copy
+        print("REFUSED: --line-curves-only writes a staged copy, never the "
+              "installed calibration (then install_line_curves.py)", file=sys.stderr)
+        return 2
     classes = load_event_classes(args.db_path)
+    # bet.sofa.line_curves: the keys whose curve is also fitted per line
+    line_keys = lc.load_keys()
+    per_line: dict[str, dict[str, dict[int, list[int]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: [0, 0])))
 
     # Read-only: the fit only reads, and may run beside a day that writes.
     con = sqlite3.connect(f"file:{args.db_path}?mode=ro", uri=True)
@@ -287,6 +334,17 @@ def main() -> int:
         if args.classes_only:
             scored += 1
             continue
+        # bet.sofa.line_curves: men's football rows of a listed key, per line
+        # (a class row reads its class's curves, never a line curve)
+        if klass is None and sport == lc.SPORT and line_keys:
+            dkey = direction_key(market, direction)
+            if dkey in line_keys:
+                cell = per_line[dkey][lc.line_label(line)][b]
+                cell[0] += hit
+                cell[1] += 1
+        if args.line_curves_only:
+            scored += 1
+            continue
         per_market[market][b].append(hit)
         per_market_direction[direction_key(market, direction)][b].append(hit)
         if pools_it:
@@ -313,6 +371,22 @@ def main() -> int:
             }
         return out
 
+    line_section = line_curve_section(per_line)
+    line_fitted_from = {"db_path": args.db_path, "keys": sorted(line_keys),
+                        "min_market_bucket": MIN_MARKET_BUCKET, **stamp}
+    if args.line_curves_only:
+        prior_doc: dict[str, Any] = json.loads(
+            Path(args.out).read_text(encoding="utf-8"))
+        prior_doc[lc.SECTION] = line_section
+        prior_doc[lc.FITTED_FROM] = line_fitted_from
+        write_atomic(Path(args.out), json.dumps(prior_doc, indent=1) + "\n")
+        print(json.dumps({
+            "stage": "FIT_CONFIDENCE", "verdict": "OK", "mode": "line-curves-only",
+            "metrics": {"scored_rows": scored, "keys": len(line_section),
+                        "lines": sum(len(v) for v in line_section.values())},
+            "output_path": args.out,
+        }))
+        return 0
     by_direction = {
         m: c
         for m, counts in per_market_direction.items()
@@ -394,6 +468,8 @@ def main() -> int:
             if (c := curve(counts, MIN_MARKET_BUCKET))
         },
         "by_market_direction": by_direction,
+        lc.SECTION: line_section,
+        lc.FITTED_FROM: line_fitted_from,
         "min_thin_bucket": MIN_THIN_BUCKET,
         "thin_by_market_direction": thin_by_direction,
         "by_class": by_class,

@@ -97,6 +97,32 @@ every sport alike, and nothing that could win is cut by name.
   refitted every morning by `refresh_line_evidence.py` (it never touches a
   curve); the v2 rules need its `games` field - an older file reads nothing for a key without a curve.
   Evidence: `docs/sofa/evidence/discrimination_within_price_2026-10-07.md`.
+- **Curves per line** (`LINE_CURVES_FROM_UTC` 2026-10-19 00:00Z, operator's
+  standing go; `bet.sofa.line_curves`): a football curve is fitted per market
+  x direction over the replay's whole line ladder, while Superbet quotes a
+  few lines near the centre, and the model's p is not calibrated alike across
+  lines (replay: goals_for UNDER 1.5 -2.4 pp on 305k rows, the far UNDER lines
+  +1..+3 pp). For the 33 men's football keys of `config/sofa_line_curves.json`
+  (chosen where the per-line curve beat the pooled one out of sample at
+  Superbet's quoted lines with the interval below zero; 6 keys measured worse
+  and stay pooled - the shots totals, goal_kicks_total OVER)
+  `fit_confidence` writes `by_market_direction_line` and CONFIDENCE reads a
+  leg's own line bucket first (`Calibration.realised(..., line=)`; source
+  `line:<market>|<DIR>@<line>`), a line bucket under 400 rows the pooled curve
+  as before; a class leg (women, season_early) is unchanged. Measured
+  (`scripts/sofa/measure_line_curves.py`, train 2025-07..2026-03, test
+  2026-04..10-12): log-loss at p >= 0.70 -6.4e-4 [-7.0, -5.8], mean |line gap|
+  1.21 -> 0.92 pp; live offered rows 10-09..10-17 gap -1.09 -> -0.57 pp, ROI
+  unchanged (-4.54% / -4.53%); E2E 10-18 +57 / -300 legs (player singles
+  52 -> 41: shots OVER 1.5, which the pooled curve overstates -1.5 pp; a
+  one-sided single reads `market:` or `line:`, `confidence.OWN_CURVE_SOURCES`),
+  settled 10-15..10-17
+  -599.0 -> -582.9 u. (dropped 167 legs -9.2%). A calibration fix, not an
+  edge. The line evidence's base follows the --before day's rule
+  (`fit_line_evidence.sheet_rows(per_line=)`). Installed 2026-10-18 12:04Z by
+  `install_line_curves.py` (inert before the switch: 320,733 / 320,733 rows
+  read alike without a line); backup `config/backup_2026-10-18_line_curves/`.
+  Evidence `docs/sofa/evidence/line_curves_2026-10-18.md`, check `T-LINE-CURVES`.
 - **Model packages** (switches in `bet.sofa.epochs`, all from 2026-10-07
   14:05Z, measured out of sample on the history,
   `docs/sofa/history/AUDYT_MODELI_2026-10-07.md`):
@@ -736,7 +762,8 @@ measurement of Superbet's price and feed nothing else.
   "10-16 mieszany"; 10-17 itself is mixed too - the supremacy stretches from
   13:37Z and refit 2026-10-17 from 19:13Z moved into the built day by the
   operator: ledger group "10-17 mieszany" (PLAYER_SAMPLE_GATES from 00:00Z),
-  the days after "od 10-18" ("od 10-17" holds no day); before them ledger group
+  the days after "od 10-18" ("od 10-17" holds no day), from 10-19 "od 10-19"
+  (LINE_CURVES, a switch at 00:00Z, not a mixed day); before them ledger group
   "od 10-14"
   - the switches of 2026-10-14 00:00Z (LEAGUE_RATE_RULE, BUCKET_DESIGN_EFFECT,
   READ_BY_VALUE, TENNIS_MATCH_WINNER, MAPPABLE_FAMILIES, MEN_FRIENDLY_*,
@@ -1178,6 +1205,7 @@ new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
 basketball A7 keys from the full cache), `config/backup_2026-10-16` (before
 the cup-strength refit), `config/backup_2026-10-16b` (before refit
 2026-10-16b), `config/backup_2026-10-18` (before refit 2026-10-17),
+`config/backup_2026-10-18_line_curves/` (before the per-line curves),
 `data/backup_2026-10-05/sofa.db`;
 `data/refit_2026-10-17/sofa_replay.db` is the DB the installed football /
 tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
@@ -1345,6 +1373,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_entity_queue.py --date <d>
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/prepare_refit.py --date <d> [--db-path <copy>] {backup [--db <path>]|rebuild-cache-rows [--dry-run|--confirm] [--without-db-backup] [--derived ...] [--no-tennis-rating]|fit|compare [--days <d> <d2>] [--with-sheet]|install --confirm|restore --confirm --backup <dir>}
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --classes-only   # only the by_class curves
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --db-path <replay copy> --out <staged copy of the installed calibration> --line-curves-only   # only the per-line curves (bet.sofa.line_curves); every other key byte-for-byte
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_line_curves.py --staged <staged file> (--dry-run | --confirm) [--backup-dir config/backup_<d>_line_curves]   # takes only by_market_direction_line; refuses a staged file differing elsewhere; backup, tests/sofa, restore on failure
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_tennis_serve_curves.py --before <d> --out-dir data/refit_tennis_serve_<d> [--played-cache f.pkl]   # tennis serve curves (aces under the correction, per-set serve, serve points) on a tennis-only replay, read-only on the DB; staged for install_new_market_curves.py (group tennis_serve REPLACES its markets); NOT installed - see "Measured and not switched on, tennis serve markets"
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_score_market_curves.py --out-dir data/refit_new_markets_<d> --football-rows <1x2/dnb fit rows.csv.gz> --tennis-rows <tennis_sets rows.csv>   # score-market slice curves + set_score_not, staged; install with install_new_market_curves.py --dir
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]
@@ -1397,6 +1427,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_day_anchor.py [--from <d>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tournament_day.py --from <d> --to <d> [--precision-days 60] [--offline]   # identity plan K3: ASKS THE BRIDGE once per (tournament, day) not cached; tournament-day match precision with ids hidden and recovery; stops at a refusal
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_incidents.py --sport {hockey|basketball} [--json-out f] [--md-out f]   # "1. gol" / race to X from the score model, walk-forward on cached incidents
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_aces_opponent.py --cut 2026-01-01 [--played-cache f.pkl] [--md-out f]   # TENNIS_ACES_OPPONENT on the tennis cache replay (both arms, curve on train, log-loss on test, all and market-like lines); ~25 min, tennis only
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_line_curves.py --db data/refit_2026-10-17/sofa_replay.db [--md-out f] [--json-out f]   # per-line vs pooled curve, football, out of sample on the replay at Superbet's quoted lines (~3 min); chose config/sofa_line_curves.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_selection_walk_forward.py --from <d> --to <d> [--md-out f]   # T-FAMILY-SELECTION: the view's family / x selections walk-forward on the printed legs, plus the calibration gap and ROI by confidence - 1/odds per sport
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE: staged vs installed serve curves through the line evidence on Superbet's settled lines; aces re-priced by SHEET with / without the correction
 ```

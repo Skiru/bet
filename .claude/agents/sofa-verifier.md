@@ -153,6 +153,8 @@ from bet.sofa.football_score_markets import row_p, score_grid
 print(row_p('<market>', '<subject>', <line>, score_grid(<lh>, <la>, 7.586)))"
 ```
 
+From `LINE_CURVES_FROM_UTC` (2026-10-19 00:00Z, `bet.sofa.line_curves`) a men's football leg of the 33 keys of `config/sofa_line_curves.json` reads its direction's curve AT ITS OWN LINE first: `calibrated_on` = `line:<market>|<DIR>@<line>` (then the same `-<offset>sb` / `|cap:<cell>` suffixes), `calibration_n` that line bucket's n; a line bucket under 400 rows reads `market:<market>|<DIR>` as before. Re-derive it from `by_market_direction_line["<market>|<DIR>"]["<line>"]` of `config/sofa_confidence_calibration.json` (`Calibration.realised(..., line=)`), never from the pooled direction curve - a `line:` source is correct, not a defect. A class leg (`women:`, `season_early:`) never reads a line curve.
+
 A score-market leg's `calibrated_on` reads `market:<market>@<subject>@<line>|OVER`
 (its curve is per slice, `confidence.curve_market`), `season_early:` /
 `women:` before it for a class - correct, not a defect; it is graded on the
@@ -257,8 +259,9 @@ rebuild the leg's mean from its `observations`. Sofascore's spelling can
 differ from Superbet's ("Wålemark", "Khlan" for Chłań). A player leg printed
 as a single has no overround by construction (`one_sided_market`): that is
 not a C2 defect from `ONE_SIDED_SINGLES_FROM_UTC` on, provided its
-`calibrated_on` is `market:` with `calibration_n` >= 300
-(`confidence.one_sided_single`). From `PLAYER_SAMPLE_GATES_FROM_UTC`
+`calibrated_on` is `market:` - or, from `LINE_CURVES_FROM_UTC` (2026-10-19),
+`line:` (its market's curve at its own line) - with `calibration_n` >= 300
+(`confidence.one_sided_single`, `OWN_CURVE_SOURCES`). From `PLAYER_SAMPLE_GATES_FROM_UTC`
 (2026-10-17) a player leg on one of the six lineup markets of
 `confidence.PLAYER_SHAPE_GATE_MARKETS` (not shot detail, not interceptions) needs only 5 starts
 and is not refused by LINE_BEYOND_SAMPLE / MODE_LOSES; a leg those gates
@@ -378,7 +381,7 @@ built under from the day and the build clock (`11_coupon.json`
   `admitted` list. A printed leg of such a market is a defect.
 - **From 10:55Z none of them exists** - a leg of a formerly refused market is
   **not a defect**. What is: a printed leg whose `calibrated_on` is not a curve
-  source (`market:` / `pooled:` / `<sport>:<key>`, optionally with a `<offset>sb`
+  source (`market:` / `line:` (from 2026-10-19, below) / `pooled:` / `<sport>:<key>`, optionally with a `<offset>sb`
   suffix and `|cap:<cell>`) or `sb:<sport>:<key>` (the key's own settled Superbet
   lines), a leg of a market with no curve of its own (`AWAITING_OWN_CURVE`,
   `TENNIS_PER_SET`, a derived joint, a football player prop) read from a

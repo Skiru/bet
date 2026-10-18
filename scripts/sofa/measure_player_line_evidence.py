@@ -25,11 +25,11 @@ football / tennis sheet rows, the installed curves) in two variants:
 
 Every priced football player row of D's sheet with a WIN / LOSS is read as
 CONFIDENCE reads it (curve, then LineEvidence.read: offset and price-band
-cap; odds >= 1.0867, floor 0.70, x >= 0.90, one-sided single on a "market:" curve of
-n >= 300), with the sample-shape gates ON (today) and OFF (the player-gate
-switch). Reported per variant and scenario: legs that print, confidence,
-realised, realised minus confidence and ROI (match bootstrap, days pooled),
-and the legs V1 drops from V0's print with how they did.
+cap; odds >= 1.0867, floor 0.70, x >= 0.90, one-sided single on a
+"market:" / "line:" curve of n >= 300), with the sample-shape gates ON
+(today) and OFF (the player-gate switch). Reported per variant and scenario:
+legs that print, confidence, realised, realised minus confidence and ROI
+(match bootstrap, days pooled), and the legs V1 drops from V0's print with how they did.
 
 Only the rows in epochs.PLAYER_SAMPLE_GATES' scope are read
 (confidence.player_shape_gate_scope: the lineup markets, no shot detail).
@@ -63,12 +63,14 @@ for _p in (str(ROOT), str(ROOT / "src")):
 from bet.sofa import line_evidence as le  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MIN_ODDS_FOR_CEILING,
+    OWN_CURVE_SOURCES,
     Calibration,
     curve_market,
     direction_key,
     player_shape_gate_scope,
 )
 from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N  # noqa: E402
+from bet.sofa.line_curves import day_reads_per_line, leg_line  # noqa: E402
 from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
 from scripts.sofa import fit_line_evidence as fle  # noqa: E402
 from scripts.sofa.measure_player_sample_gates import PASS, gate_of  # noqa: E402
@@ -119,18 +121,21 @@ def evidence(rows: Sequence[le.Row]) -> le.LineEvidence:
     return le.LineEvidence(doc, v2=True, bucket_deff=True)
 
 
-def read(cal: Calibration, ev: le.LineEvidence, r: dict[str, Any]) -> float | None:
+def read(cal: Calibration, ev: le.LineEvidence, r: dict[str, Any],
+         per_line: bool = False) -> float | None:
     """The confidence the leg prints at, None when CONFIDENCE refuses it
     (no curve / evidence, floor, x, not an own-curve one-sided single)."""
     p, odds = float(r["p_central"]), float(r["offered_odds"])
-    hit = cal.realised(curve_market(r), p, "football", r["direction"], None)
+    hit = cal.realised(curve_market(r), p, "football", r["direction"], None,
+                       line=leg_line(r, per_line))
     key = le.evidence_key(direction_key(r["market"], r["direction"]))
     got = ev.read("football", key, p, hit, odds)
     if odds < MIN_ODDS_FOR_CEILING:
         return None  # ODDS_TOO_LOW
     if got is None or got.value < FLOOR or got.value * odds < MIN_X:
         return None
-    if not (str(got.source).startswith("market:") and got.n >= ONE_SIDED_MIN_CURVE_N):
+    if not (str(got.source).startswith(OWN_CURVE_SOURCES)
+            and got.n >= ONE_SIDED_MIN_CURVE_N):
         return None
     return float(got.value)
 
@@ -156,7 +161,8 @@ def day_legs(runs: Path, day: str, cal: Calibration,
                          r["direction"]))
         if o not in ("WIN", "LOSS"):
             continue
-        conf = {name: read(cal, ev, r) for name, ev in evs.items()}
+        conf = {name: read(cal, ev, r, day_reads_per_line(day))
+                for name, ev in evs.items()}
         if all(c is None for c in conf.values()):
             continue
         obs = player_observations(samples.get(int(r["sofascore_event_id"]), {}),
@@ -242,7 +248,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
     d0, d1 = date.fromisoformat(args.date_from), date.fromisoformat(args.date_to)
     all_days = fle.stats_only_days(args.runs_dir, (d1 + timedelta(days=1)).isoformat())
-    rows_of = {day: list(fle.sheet_rows(args.runs_dir, [day], cal)) for day in all_days}
+    rows_of = {day: list(fle.sheet_rows(args.runs_dir, [day], cal,
+                                        per_line=day_reads_per_line(day)))
+               for day in all_days}
     legs: list[Leg] = []
     offsets: dict[str, dict[str, Any]] = {}
     for day in all_days:

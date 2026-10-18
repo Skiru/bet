@@ -42,6 +42,8 @@ from bet.sofa.epochs import ONE_SIDED_MIN_CURVE_N
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.football_score_markets import curve_market as score_curve_market
 from bet.sofa.football_score_markets import is_curve_slice
+from bet.sofa.line_curves import SECTION as LINE_SECTION
+from bet.sofa.line_curves import line_label
 from bet.sofa.players import is_player_metric
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
@@ -458,8 +460,9 @@ def one_sided_single(leg: Mapping[str, Any]) -> bool:
 
     Only a leg CONFIDENCE marked `one_sided_market` (Superbet quotes no UNDER
     on its ladder), whose confidence is read off its own market's history
-    curve ("market:", not a thin bucket, a pool or a line-evidence bound)
-    with at least epochs.ONE_SIDED_MIN_CURVE_N rows. Every other gate -
+    curve ("market:", or from epochs.LINE_CURVES that curve at the leg's own
+    line, "line:" - not a thin bucket, a pool or a line-evidence bound) with
+    at least epochs.ONE_SIDED_MIN_CURVE_N rows. Every other gate -
     confidence, confidence x odds, freshness, the start - has already passed
     for the leg to be in `legs` at all.
     """
@@ -467,10 +470,15 @@ def one_sided_single(leg: Mapping[str, Any]) -> bool:
     return (
         leg.get("one_sided_market") is True
         and leg.get("overround") is None
-        and str(leg.get("calibrated_on") or "").startswith("market:")
+        and str(leg.get("calibrated_on") or "").startswith(OWN_CURVE_SOURCES)
         and isinstance(n, int)
         and n >= ONE_SIDED_MIN_CURVE_N
     )
+
+
+# The sources that are a market's own history curve: its market / direction
+# curve, and (epochs.LINE_CURVES) that curve at the leg's line.
+OWN_CURVE_SOURCES = ("market:", "line:")
 
 
 def has_unreachable_bar_note(notes: object) -> bool:
@@ -1188,6 +1196,14 @@ class Calibration:
     thin_by_market_direction: dict[str, dict[str, dict[str, Any]]] = field(
         default_factory=dict
     )
+    # epochs.LINE_CURVES_FROM_UTC: the direction curve split by line
+    # (bet.sofa.line_curves), {"<market>|<DIR>": {"<line>": curve}} for the
+    # keys of config/sofa_line_curves.json. Read only when the caller passes
+    # the leg's line (realised(..., line=)); a file without the section, or a
+    # line without a bucket for p, reads exactly as before.
+    by_market_direction_line: dict[str, dict[str, dict[str, dict[str, Any]]]] = field(
+        default_factory=dict
+    )
     # Per match class (CLASS_WOMEN): the class's own market, direction and
     # sport-pool curves, fitted on the class's rows only. A leg of the class
     # is read from these and nothing else - see realised().
@@ -1355,6 +1371,7 @@ class Calibration:
             pooled_by_sport=doc.get("pooled_by_sport", {}),
             by_market_direction=doc.get("by_market_direction", {}),
             thin_by_market_direction=doc.get("thin_by_market_direction", {}),
+            by_market_direction_line=doc.get(LINE_SECTION, {}),
             by_class=doc.get("by_class", {}),
             admitted_player_markets=frozenset(
                 doc.get("admitted_player_markets") or ()
@@ -1416,6 +1433,7 @@ class Calibration:
         sport: str | None = None,
         direction: str | None = None,
         klass: str | None = None,
+        line: float | None = None,
     ) -> tuple[float, str, int] | None:
         """The measured lower bound for this market at this claimed probability.
 
@@ -1428,7 +1446,20 @@ class Calibration:
         `direction` selects the market's per-direction curve where the file
         has a bucket for `p` (see `_direction_entry`); without one the lookup
         is the pooled market curve, as it was before 2026-09-26.
+
+        `line` (epochs.LINE_CURVES_FROM_UTC, men's football; the caller
+        passes it only under the switch) reads the direction's own curve AT
+        THAT LINE first (`by_market_direction_line`, bet.sofa.line_curves);
+        a line or a bucket the fit did not fill falls through to the lookup
+        above. A class leg never reads it.
         """
+        if line is not None and klass is None and direction:
+            key = direction_key(market, direction)
+            per_line = self.by_market_direction_line.get(key, {})
+            at_line = self._find(per_line.get(line_label(line), {}), p)
+            if at_line is not None:
+                return (at_line["realised_lo95"], f"line:{key}@{line_label(line)}",
+                        at_line["n"])
         if klass is not None:
             # A leg of a match class is read from the class's own curves and
             # never from the pool the class was measured to differ from. A

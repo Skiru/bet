@@ -89,6 +89,7 @@ from bet.sofa.epochs import (  # noqa: E402
     PLAYER_SAMPLE_MARKER,
     STATS_ONLY,
     derived_curves,
+    line_curves,
     line_evidence,
     line_evidence_v2,
     national_sample_by_count,
@@ -105,6 +106,7 @@ from bet.sofa.football_1x2_dnb import (  # noqa: E402
 from bet.sofa.football_score_markets import (  # noqa: E402
     leg_class as score_market_leg_class,
 )
+from bet.sofa.line_curves import leg_line  # noqa: E402
 from bet.sofa.line_evidence import (  # noqa: E402
     NO_LINE_EVIDENCE,
     LineEvidence,
@@ -242,6 +244,8 @@ def main() -> int:
     # One clock for every stage (bet.sofa.timeutil), so a rebuild or a test
     # that fixes the time fixes it here too.
     now = timeutil.now()
+    # epochs.LINE_CURVES: a men's football leg's curve at its own line
+    per_line = line_curves(args.date, now)
     # bet.sofa.epochs (plan 2026-10-05, K0): from the stats-only rebuild of
     # 10-05 on, the coupon's confidence is the statistics' alone.
     so = stats_only_epoch(args.date, now)
@@ -721,6 +725,8 @@ def main() -> int:
                 # slice (confidence.curve_market); every other row its market
                 curve_market(row), row["p_central"], row.get("sport"),
                 row["direction"], klass,
+                # epochs.LINE_CURVES: a men's football leg reads its own line
+                line=leg_line(row, per_line),
             )
         line_offset = 0.0
         band_cap: float | None = None

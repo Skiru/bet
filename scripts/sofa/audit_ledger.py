@@ -147,7 +147,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
-                "10-17 mieszany", "od 10-18")
+                "10-17 mieszany", "od 10-18", "od 10-19")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -183,10 +183,16 @@ SCORE_MARKETS_EPOCH_FROM_DATE = "2026-10-17"
 # holds no day) nor "od 10-18".
 STRETCH_1017_MIXED_DATE = "2026-10-17"
 STRETCH_EPOCH_FROM_DATE = "2026-10-18"
+# The football history curves per line (epochs.LINE_CURVES_FROM_UTC,
+# 2026-10-19 00:00Z; installed 2026-10-18 12:04Z, read only from the switch):
+# not a mixed day - the days from it are their own epoch.
+LINE_CURVES_EPOCH_FROM_DATE = "2026-10-19"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= LINE_CURVES_EPOCH_FROM_DATE:
+            return "od 10-19"
         if str(row.get("date", "")) >= STRETCH_EPOCH_FROM_DATE:
             return "od 10-18"
         if str(row.get("date", "")) == STRETCH_1017_MIXED_DATE:

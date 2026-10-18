@@ -309,6 +309,32 @@
           "quote": "**x >= 1 i rodzina na plusie** | 1 254 | 602 | 0,760 | 0,765 | -6,92 | **-0,6% [-4,8; +3,9]**"
         }
       ]
+    },
+    {
+      "id": "T-LINE-CURVES",
+      "registered_on": "2026-10-18",
+      "status": "PROPOSED",
+      "hypothesis": "From epochs.LINE_CURVES_FROM_UTC a men's football leg of the 33 keys of config/sofa_line_curves.json printed through its line curve (calibrated_on 'line:...') realises within 2 pp of its printed confidence, and closer than the pooled curve would have printed it.",
+      "rule": "Official coupon football singles (11_coupon.json) of days from 2026-10-19 whose calibrated_on starts with 'line:', graded WIN / LOSS (record_results.graded_confidence); realised minus printed confidence, and, for the same legs, realised minus the pooled curve's confidence (Calibration.realised without line, the same line evidence offset).",
+      "population": "Men's football legs of the 33 listed keys on the official coupon from 2026-10-19, locked legs included, legs removed by a read excluded.",
+      "data_window": {
+        "from": "2026-10-19",
+        "to": "2027-01-18"
+      },
+      "required_n": {
+        "legs": 1500,
+        "matches_min": 800,
+        "basis": "E2E 10-18: 1,622 legs a day read a line curve before the coupon gates; a half-width of about 2 pp at p ~0.8 needs ~1,500 legs in ~800 matches."
+      },
+      "evaluation": "Mean realised minus confidence with a 95% interval from resampling (day, match) clusters, for the printed (line) and the pooled confidence on the same legs.",
+      "stop_criterion": "PASSED when the line confidence's gap has its interval within [-2, +2] pp and its absolute gap is below the pooled one's at the required n; FAILED when the line confidence's upper bound is below -2 pp (it overstates) - the switch is then turned off by the operator.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/line_curves_2026-10-18.md",
+          "line": 101,
+          "quote": "| B | **-0,57 pp [-1,27; +0,09]** | 24 698 / 2 869 meczów | -4,53% [-5,46; -3,67] | -1 118,2 |"
+        }
+      ]
     }
   ]
 }

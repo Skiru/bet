@@ -1443,6 +1443,23 @@ bramka. CONFIDENCE odmawia (kod 2) arkusza zbudowanego nie pod tą regułą —
 przebudowa reguły zaczyna się od SHEET. Sortowanie singli:
 `(-confidence, kickoff_utc, sofascore_event_id, market, line)`.
 
+**Krzywe per linia (od 2026-10-19 00:00Z, `epochs.LINE_CURVES_FROM_UTC`,
+`bet.sofa.line_curves`).** Krzywa piłki jest fitowana per rynek × kierunek na
+całej siatce linii replayu, a Superbet wystawia kilka linii przy środku; p
+modelu nie jest skalibrowane jednakowo na wszystkich liniach (replay:
+`goals_for` UNDER 1,5 -2,4 pp na 305 tys. wierszy, dalekie linie UNDER
++1..+3 pp). Dla 33 kluczy piłki mężczyzn z `config/sofa_line_curves.json`
+(wybranych tam, gdzie krzywa per linia wypadła lepiej poza próbą na liniach
+Superbetu, z przedziałem poniżej zera) `fit_confidence` pisze sekcję
+`by_market_direction_line`, a CONFIDENCE czyta najpierw kubełek linii nogi
+(`Calibration.realised(..., line=)`, źródło `line:<rynek>|<KIER>@<linia>`);
+kubełek linii poniżej 400 wierszy czyta krzywą wspólną jak dotąd. Noga klasy
+(kobiety, season_early), tenis i sporty mierzone - bez zmian. Bazą offsetów
+line evidence jest reguła dnia `--before` (`fit_line_evidence`,
+`fitted_from.per_line_base`). Pomiar i E2E:
+`docs/sofa/evidence/line_curves_2026-10-18.md` - kalibracja lepsza, ROI bez
+zmian; sprawdzian `T-LINE-CURVES`.
+
 COUPON pyta „czy to warte ceny". CONFIDENCE pyta **inne pytanie**: „jak często
 to się w ogóle zdarza". Na 6187 wierszach z realną ceną model **przegrywa**
 pierwszy spór z samą ceną (Brier 0,2067 wobec 0,1845), a na 1 868 474

@@ -627,3 +627,21 @@ replay tych flag nie miał (`dropped_replay_rules`) - inaczej refit
 nadpisałby krzywe krzywymi starego centrum. Odwrotnie: dopóki krzywe nie są
 zainstalowane, **żaden refit nie dostaje** `--tennis-serve-markets` /
 `--tennis-aces-opponent` (`fit_confidence` zbudowałby te krzywe sam).
+
+### 7.11 Krzywe per linia (zainstalowane 2026-10-18 12:04Z, czytane od 2026-10-19 00:00Z)
+
+`config/sofa_line_curves.json` - lista 33 kluczy `<rynek>|<KIER>` piłki
+(lista operatora: zmiana zmienia druk), wybrana przez
+`scripts/sofa/measure_line_curves.py --db data/refit_2026-10-17/sofa_replay.db`
+(trening 2025-07..2026-03, test 2026-04..10-12, linie Superbetu 10-09..10-17;
+klucz trafia na listę tylko z log-loss przy p >= 0,70 lepszym niż krzywa
+wspólna i przedziałem poniżej zera). `fit_confidence.py` pisze dla nich
+`by_market_direction_line` przy **każdym** pełnym fitcie (refit odtwarza
+sekcję sam) oraz `line_curves_fitted_from`; sam ten fragment:
+`fit_confidence.py --db-path <kopia replayu> --out <kopia zainstalowanego
+pliku> --line-curves-only` (pozostałe klucze bajt w bajt), potem
+`install_line_curves.py --staged <plik> --confirm` (bierze tylko sekcję,
+odmawia pliku różnego gdzie indziej albo obok `.next.json`, kopia zapasowa,
+`tests/sofa`, przywrócenie po błędzie). Instalacja 2026-10-18: 33 klucze, 371
+linii, 119 mln wierszy, kopia `config/backup_2026-10-18_line_curves/`,
+roboczy plik `data/refit_line_curves_2026-10-18/`.

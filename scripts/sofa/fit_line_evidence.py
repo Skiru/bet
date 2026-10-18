@@ -64,7 +64,8 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import cs2_day_dir  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY_DATE, line_curves  # noqa: E402
+from bet.sofa.line_curves import leg_line  # noqa: E402
 from bet.sofa.shadow import SETTLED_FILE, shadow_day_dir  # noqa: E402
 
 SHEET_SPORTS = ("football", "tennis")
@@ -91,7 +92,11 @@ def _board_sides(run_dir: Path) -> dict[str, tuple[str, str]]:
 
 
 def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
-               derived_curves: bool = False) -> Iterator[le.Row]:
+               derived_curves: bool = False,
+               per_line: bool = False) -> Iterator[le.Row]:
+    """`per_line`: read a men's football line through its own line curve
+    (epochs.LINE_CURVES), as CONFIDENCE will on the --before day - the
+    offsets are applied to that day's base."""
     for day in days:
         run_dir = runs_dir / day
         fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
@@ -113,7 +118,8 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
             p = float(r["p_central"])
             hit = None if is_derived(r["market"]) and not derived_curves \
                 else cal.realised(
-                curve_market(r), p, sport, r["direction"], klass)
+                curve_market(r), p, sport, r["direction"], klass,
+                line=leg_line(r, per_line))
             yield {"sport": sport,
                    "key": le.evidence_key(direction_key(r["market"], r["direction"]),
                                           klass),
@@ -238,7 +244,11 @@ def main() -> int:
                               gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
     days = stats_only_days(runs_dir, args.before)
-    fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves))
+    # epochs.LINE_CURVES: the base is the curve the --before day reads, at its
+    # own line where that day reads per line
+    per_line = line_curves(args.before, datetime.fromisoformat(
+        args.before).replace(tzinfo=UTC))
+    fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves, per_line))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     design_effect = dict(fitted["design_effect"])
@@ -264,6 +274,8 @@ def main() -> int:
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "before": args.before,
             "sheet_days": days,
+            # epochs.LINE_CURVES: football bases read at their own line
+            "per_line_base": per_line,
             "sport_source": sport_source,
             "sport_calibration_fitted_from": None if sport_cal is None
             else sport_cal.fitted_from,

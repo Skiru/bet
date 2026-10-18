@@ -66,6 +66,7 @@ from bet.sofa.confidence import (  # noqa: E402
     shape_gate_refusal,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.line_curves import day_reads_per_line, leg_line  # noqa: E402
 from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
 from scripts.sofa import calibrate_from_cache as cfc  # noqa: E402
 
@@ -179,7 +180,8 @@ def day_rows(runs_dir: Path, day: str, cal: Calibration) -> list[Row]:
         if o not in ("WIN", "LOSS"):
             continue
         hit = cal.realised(
-            r["market"], r["p_central"], "football", r["direction"], None)
+            r["market"], r["p_central"], "football", r["direction"], None,
+            line=leg_line({**r, "sport": "football"}, day_reads_per_line(day)))
         if hit is None or hit[0] < FLOOR or hit[0] * float(odds) < MIN_X:
             continue
         obs = player_observations(

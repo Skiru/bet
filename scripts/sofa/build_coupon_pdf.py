@@ -171,6 +171,14 @@ def unfitted_constants(
     return sorted(found)
 
 
+def source_label(calibrated_on: str) -> str:
+    """The curve column: the source without "market:" (anywhere, as before:
+    "women:market:x" -> "women:x") and, epochs.LINE_CURVES, without a leading
+    "line:" ("goals_for|UNDER@1.5")."""
+    shown = calibrated_on.replace("market:", "")
+    return shown[len("line:"):] if shown.startswith("line:") else shown
+
+
 def watch_label(leg: dict[str, Any]) -> str:
     """A WATCH on a printed leg (a locked leg read after its print), shown on
     the leg so it is never staked unread."""
@@ -866,7 +874,7 @@ def main() -> int:
                 f"{leg['implied_p']:.3f}",
                 f"{leg['shading']:+.3f}",
                 Paragraph(smp.replace("\n", "<br/>"), small),
-                Paragraph(f"{leg['calibrated_on'].replace('market:','')}<br/>"
+                Paragraph(f"{source_label(leg['calibrated_on'])}<br/>"
                           f"n={leg['calibration_n']:,}".replace(",", " "), small),
             ])
         t = Table(rows, colWidths=[7*mm, 52*mm, 16*mm, 13*mm, 15*mm, 18*mm,
@@ -1226,7 +1234,7 @@ def render_stats_only(
                 Paragraph(f"{float(leg['confidence']):.3f}", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"{x['odds']}", small),
-                Paragraph(f"{str(leg.get('calibrated_on', '')).replace('market:', '')}"
+                Paragraph(f"{source_label(str(leg.get('calibrated_on', '')))}"
                           f"<br/>n={leg.get('calibration_n', '—')}", small),
             ] + ([Paragraph(result_cell(x, {
                 **(b_legs.get(cr.key_of(x, b["sofascore_event_id"]))

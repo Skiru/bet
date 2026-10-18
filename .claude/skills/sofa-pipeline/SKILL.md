@@ -230,7 +230,9 @@ The price only chooses the band and only ever lowers; inside a band the
 statistics rank the legs. The only way another key can come out HIGHER is the
 CS2 pooled offset measured without its dominant key (operator's choice).
 Legs carry `line_offset` / `price_band_cap` when lowered, `calibrated_on` names
-the source (`...-0.0570sb`, `|cap:<cell>`, `sb:<sport>:<key>`) and
+the source (`...-0.0570sb`, `|cap:<cell>`, `sb:<sport>:<key>`; from
+2026-10-19 `line:<market>|<DIR>@<line>` - a men's football leg of the 33 keys
+of `config/sofa_line_curves.json` read at its own line, `bet.sofa.line_curves`) and
 `unfitted_constants` includes the line-evidence constants (`line_evidence.UNFITTED_CONSTANTS`).
 
 **Second rules (`LINE_EVIDENCE_V2`, `LineEvidence.v2`)**: a band cell widens
@@ -268,7 +270,7 @@ tournament with a settled event in the last 14 days) / `NO_MODEL_P` /
 
 **Football player props** (`player_*_for`): Superbet quotes them OVER only
 (no overround: a single from `ONE_SIDED_SINGLES_FROM_UTC` 2026-10-12 00:00Z, leg flag
-`one_sided_market`, `confidence.one_sided_single`: `market:` curve n >= 300)
+`one_sided_market`, `confidence.one_sided_single`: `market:` or `line:` curve n >= 300)
 and **voids them unless the player starts** (operator, 2026-10-11): SETTLE
 says `PLAYER_NOT_STARTED`, the sample is his starts from
 `PLAYER_STARTS_ONLY_FROM_UTC` (`appearances: "starts"`, note

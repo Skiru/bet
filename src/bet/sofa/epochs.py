@@ -2257,3 +2257,27 @@ def tennis_set_complements(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= TENNIS_SET_COMPLEMENTS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= TENNIS_SET_COMPLEMENTS_FROM_UTC)
+
+
+# History curves per line (bet.sofa.line_curves): a men's football leg of a
+# key in config/sofa_line_curves.json reads its direction's curve at its own
+# line (Calibration.realised(..., line=)), a line bucket the fit did not fill
+# the pooled direction curve as before. Measured 2026-10-18 on the
+# 2026-10-17 replay, out of sample at Superbet's quoted lines and p >= 0.70:
+# log-loss -6.4e-4 [-7.0, -5.8] over all keys, the 33 listed keys each below
+# zero with the interval; on the live offered rows of 10-09..10-17 the
+# printable gap -1.09 -> -0.57 pp, ROI unchanged (-4.54% / -4.53%), 1,823
+# legs fewer and 596 more (docs/sofa/evidence/line_curves_2026-10-18.md).
+# Changes what prints: the next day's 00:00Z (operator's standing go,
+# "instaluj zawsze, sam decyduj"). Off (None): byte-identical.
+LINE_CURVES_FROM_UTC: datetime | None = datetime(2026, 10, 19, 0, 0, tzinfo=UTC)
+
+
+def line_curves(date: str, build_at: datetime | None = None) -> bool:
+    """Does CONFIDENCE read a men's football leg's curve at its own line
+    (LINE_CURVES_FROM_UTC)? Judged on the day built and the build clock."""
+    if LINE_CURVES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= LINE_CURVES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= LINE_CURVES_FROM_UTC)

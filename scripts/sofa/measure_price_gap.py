@@ -57,6 +57,7 @@ from bet.sofa.confidence import (  # noqa: E402
     match_class,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.line_curves import day_reads_per_line, leg_line  # noqa: E402
 from scripts.sofa import fit_line_evidence as fle  # noqa: E402
 
 SPORTS = ("football", "tennis")
@@ -211,7 +212,10 @@ def walk_forward(runs: Path, legs: list[Leg]) -> list[Leg]:
     out: list[Leg] = []
     for day in sorted({r["d"] for r in legs}):
         cal = _cal(day)
-        train = list(fle.sheet_rows(runs, fle.stats_only_days(runs, day), cal))
+        # epochs.LINE_CURVES: the base the day read (and its evidence's base)
+        per_line = day_reads_per_line(day)
+        train = list(fle.sheet_rows(runs, fle.stats_only_days(runs, day), cal,
+                                    per_line=per_line))
         doc = _evidence_doc(train)
         v0, v1 = le.LineEvidence(doc, v2=True), StrictCap(doc, v2=True)
         acc: dict[tuple[str, int], list[float]] = defaultdict(list)
@@ -242,7 +246,8 @@ def walk_forward(runs: Path, legs: list[Leg]) -> list[Leg]:
                 else fx.get("competition_name"), board, fx.get("competition_id"))
             p = float(r["p"])
             hit = None if is_derived(r["market"]) else cal.realised(
-                r["market"], p, r["sport"], r["direction"], klass)
+                r["market"], p, r["sport"], r["direction"], klass,
+                line=leg_line(r, per_line))
             key = le.evidence_key(direction_key(r["market"], r["direction"]), klass)
             r0 = v0.read(r["sport"], key, p, hit, r["odds"])
             r1 = v1.read(r["sport"], key, p, hit, r["odds"])
