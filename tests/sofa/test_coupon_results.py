@@ -399,3 +399,21 @@ def test_record_results_marks_every_recorded_day_and_survives_a_failure(
     captured = capsys.readouterr()
     assert "KUPON_2026-10-15: MARKED" in captured.out
     assert "FAILED: RuntimeError: boom" in captured.err
+
+
+def test_the_score_shown_is_the_ninety_minutes() -> None:
+    """10-15, Preston Lions - Wollongong Wolves: 0:0 after 90 minutes, lost
+    on penalties; the double chance 12 lost and must not read "5:6"."""
+    event = {"homeScore": {"current": 5, "normaltime": 0, "period1": 0,
+                           "penalties": 5},
+             "awayScore": {"current": 6, "normaltime": 0, "period1": 0,
+                           "penalties": 6}}
+    assert cr._score_of_detail(event) == (
+        "0:0 (do przerwy 0:0) po 90 min; karne 5:6")
+    aet = {"homeScore": {"current": 2, "normaltime": 1, "period1": 0},
+           "awayScore": {"current": 1, "normaltime": 1, "period1": 1}}
+    assert cr._score_of_detail(aet) == (
+        "1:1 (do przerwy 0:1) po 90 min; po dogrywce 2:1")
+    plain = {"homeScore": {"current": 4, "normaltime": 4, "period1": 2},
+             "awayScore": {"current": 2, "normaltime": 2, "period1": 2}}
+    assert cr._score_of_detail(plain) == "4:2 (do przerwy 2:2)"

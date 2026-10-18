@@ -316,8 +316,29 @@ def _score_of_detail(event: Mapping[str, Any]) -> str | None:
                 ("period1", "period2", "period3", "period4", "period5")
                 if home.get(k) is not None and away.get(k) is not None]
         return text + (f" ({', '.join(sets)})" if sets else "")
+    # Superbet settles football on 90 minutes: the score shown is
+    # `normaltime`, extra time and a shootout said apart (10-15, Preston
+    # Lions - Wollongong: 0:0 after 90 min, "5:6" with the penalties)
+    regular = None
+    if home.get("normaltime") is not None and away.get("normaltime") is not None:
+        regular = f"{home['normaltime']}:{away['normaltime']}"
+    if regular is not None:
+        text = regular
     if home.get("period1") is not None and away.get("period1") is not None:
         text += f" (do przerwy {home['period1']}:{away['period1']})"
+    extra = []
+    shootout = (home.get("penalties") is not None
+                and away.get("penalties") is not None)
+    pens = ((int(home["penalties"]), int(away["penalties"])) if shootout
+            else (0, 0))
+    # the score before the shootout (`current` holds its goals too)
+    h, a = int(home["current"]) - pens[0], int(away["current"]) - pens[1]
+    if regular is not None and regular != f"{h}:{a}":
+        extra.append(f"po dogrywce {h}:{a}")
+    if shootout:
+        extra.append(f"karne {pens[0]}:{pens[1]}")
+    if extra:
+        text += " po 90 min; " + ", ".join(extra)
     return text
 
 
