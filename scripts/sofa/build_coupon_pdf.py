@@ -72,6 +72,9 @@ from bet.sofa.superbet_names import (  # noqa: E402
     board_sides,  # noqa: E402
 )
 from bet.sofa.superbet_names import annotate as name_on_superbet  # noqa: E402
+from scripts.sofa.build_family_record import (  # noqa: E402
+    ensure_quietly as ensure_family_record,
+)
 from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
     builder_screen_note,
     exposure_flowables,
@@ -579,6 +582,12 @@ def main() -> int:
         html_path: Path | None = None
         html_error = ""
         if args.out is None:
+            # the families' record the page filters on (bet.sofa.family_record):
+            # recomputed when the ledger moved; a failure only hides the filter
+            fam_error = ensure_family_record(args.runs_dir, args.date)
+            if fam_error:
+                print(f"family_record.json NOT refreshed: {fam_error}",
+                      file=sys.stderr)
             try:
                 html_path = write_html(run, doc_json, args.date)
             except Exception as exc:  # noqa: BLE001 - the PDF is already written

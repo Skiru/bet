@@ -13,6 +13,7 @@ from pathlib import Path
 
 from bet.sofa.confidence import coupon_artifact
 from bet.sofa.coupon_html import write_html
+from scripts.sofa.build_family_record import ensure_quietly as ensure_family_record
 
 
 def main() -> int:
@@ -28,6 +29,9 @@ def main() -> int:
               file=sys.stderr)
         return 2
     doc = json.loads(artifact.read_text(encoding="utf-8"))
+    fam_error = ensure_family_record(args.runs_dir, args.date)
+    if fam_error:
+        print(f"family_record.json NOT refreshed: {fam_error}", file=sys.stderr)
     out = write_html(run, doc, args.date)
     print(json.dumps({"stage": "COUPON_HTML", "verdict": "OK",
                       "output_path": str(out), "legs": len(doc.get("singles") or [])}))

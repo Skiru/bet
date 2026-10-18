@@ -4,8 +4,11 @@ The PDF (`scripts/sofa/build_coupon_pdf.py`) is the coupon and keeps its order
 (confidence, then start). This is the same legs from the same
 `11_coupon.json`, in one self-contained file (data inlined, plain JavaScript,
 no server, no network) with filters - a time window, minimum confidence, sport,
-competition, market, odds - and sortable columns. It adds no number: every
-figure is a field of the artifact, and it prices no builder and sizes no stake.
+competition, market, odds, minimum x - and sortable columns. Every leg's
+figure is a field of the artifact; the one number it adds is the family's
+record on the printed legs of the days before (bet.sofa.family_record,
+`family_record.json`, a filter and a tag on the families on the plus). It
+prices no builder and sizes no stake.
 
 `build_view` is the pure part (tested: the HTML must hold exactly the legs of
 the artifact); `render_html` only wraps it.
@@ -24,6 +27,7 @@ from zoneinfo import ZoneInfo
 
 from bet.sofa import confidence as cf
 from bet.sofa import coupon_sports as cs
+from bet.sofa import family_record as fr
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
@@ -127,9 +131,14 @@ def build_view(
     doc: Mapping[str, Any],
     day: str,
     fixture_status: Mapping[str, Any] | None = None,
+    families: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Rows of the page: the singles the PDF prints and its builders."""
+    """Rows of the page: the singles the PDF prints and its builders.
+    `families` is the day's bet.sofa.family_record (None: the page has no
+    family filter)."""
     status = (fixture_status or {}).get("events") or {}
+    record = (families or {}).get("families") or {}
+    min_legs = int((families or {}).get("min_legs") or fr.MIN_LEGS)
     singles = cf.printed_singles(dict(doc))
     read_ids = {id(s) for s in cf.legs_requiring_read(dict(doc))}
     rows: list[dict[str, Any]] = []
@@ -138,11 +147,12 @@ def build_view(
         odds = leg.get("offered_odds")
         conf = float(leg["confidence"])
         # as the PDF computes it (build_coupon_pdf.leg_x): unrounded
-        x = (float(leg["x"]) if leg.get("x") is not None
-             else None if odds is None else conf * float(odds))
+        x = fr.selection_x(leg)
         margin = leg.get("overround")
         clock = _clock(leg, status)
         peer = leg.get("peer") or {}
+        fam = record.get(fr.family_key(leg))
+        fam_plus = fr.on_plus(fam, min_legs)
         rows.append({
             "id": i,
             "event": str(leg.get("group_key") or leg.get("sofascore_event_id")),
@@ -183,6 +193,10 @@ def build_view(
             "read": id(leg) in read_ids,
             "clock_note": clock["note"],
             "clock_checked": clock["checked"],
+            # bet.sofa.family_record: the family's printed legs of the days
+            # before were on the plus (a selection aid, never a gate)
+            "fam_plus": fam_plus,
+            "fam_note": fr.label(fam) if fam and fam_plus else "",
         })
     builders: list[dict[str, Any]] = []
     for b in cf.printed_builders(dict(doc)):
@@ -215,6 +229,12 @@ def build_view(
             "built_local": f"{built:%H:%M}" if built else "",
             "fixture_check_local": f"{local_checked:%H:%M}" if local_checked else "",
             "positions": doc.get("positions"),
+            "families": None if families is None else {
+                "span": fr.span(families),
+                "min_legs": min_legs,
+                "on_plus": sum(fr.on_plus(v, min_legs) for v in record.values()),
+                "measured": fr.MEASURED,
+            },
         },
     }
 
@@ -228,17 +248,18 @@ def render_html(date: str, view: Mapping[str, Any]) -> str:
 
 def write_html(run: Path, doc: Mapping[str, Any], day: str) -> Path:
     """KUPON_<day>.html beside the PDF, from the same artifact and the day's
-    fixture_status.json (read if present). Rendered aside and moved into
-    place, like the PDF."""
+    fixture_status.json and family_record.json (read if present). Rendered
+    aside and moved into place, like the PDF."""
     status_path = run / "fixture_status.json"
     status = (json.loads(status_path.read_text(encoding="utf-8"))
               if status_path.exists() else None)
+    families = fr.load(run, day)
     # named in Superbet's words on a copy: the caller's artifact is not edited
     named: dict[str, Any] = copy.deepcopy(dict(doc))
     name_on_superbet(named, board_sides(run))
     out = run / f"KUPON_{day}.html"
     tmp = tmp_path(out)
-    tmp.write_text(render_html(day, build_view(named, day, status)),
+    tmp.write_text(render_html(day, build_view(named, day, status, families)),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

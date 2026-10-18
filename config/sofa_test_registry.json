@@ -283,6 +283,32 @@
           "quote": "| asy, p z korektą | nowe | 20 | 13 | 0.756 | 0.450 | -30.6 pp [-52.2, -4.6] | 0.697 | -33.6% |"
         }
       ]
+    },
+    {
+      "id": "T-FAMILY-SELECTION",
+      "registered_on": "2026-10-18",
+      "status": "PROPOSED",
+      "hypothesis": "The HTML view's selection \"x ≥ 1 i rodzina na plusie\" (bet.sofa.family_record: a printed leg with confidence x odds >= 1 whose family - sport, market, direction - was on the plus over the days before, >= 50 legs) loses less than the whole official coupon, and may realise at or above its price.",
+      "rule": "For every day D: the families' record of family_record.window(D) as the view builds it, then the official coupon's printed singles of D graded WIN / LOSS at the printed price (record_results.graded_confidence). Report ROI of the selection, of the whole coupon and of the coupon minus the selection.",
+      "population": "Official coupon legs (11_coupon.json, locked legs included, legs removed by a read excluded) of days from 2026-10-19, every sport pooled as the view pools them and reported per sport.",
+      "data_window": {
+        "from": "2026-10-19",
+        "to": "2027-01-18"
+      },
+      "required_n": {
+        "legs": 5000,
+        "matches_min": 2500,
+        "basis": "10-12..10-17 walk-forward (family windows of 3-8 days, today's settlement): 1,254 legs in 602 matches gave -0.6% [-4.8, +3.9], the rest -4.5%, selection minus rest +4.0 pp [-0.3, +8.1], better on 6 of 6 days but 81% of the legs on 10-17; a half-width of about 2 pp needs about four times the matches, spread over at least 20 days."
+      },
+      "evaluation": "scripts/sofa/measure_selection_walk_forward.py --from 2026-10-19 --to <last settled day>: ROI of the selection and of the rest, selection minus rest paired on the same draws, 95% intervals from resampling (day, match) clusters, the per-day table and the days the selection beat the rest; no single day may hold more than half of the selection's legs at the decision.",
+      "stop_criterion": "PROFIT (PASSED) when the selection's lower 95% ROI bound is above 0 at the required n; LESS LOSS when the selection's ROI minus the rest's is above 0 with its interval while its own interval holds 0; FAILED when that difference has its upper bound below +1 pp at the required n (the filter is then removed from the view).",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/selection_walk_forward_2026-10-18.md",
+          "line": 92,
+          "quote": "**x >= 1 i rodzina na plusie** | 1 254 | 602 | 0,760 | 0,765 | -6,92 | **-0,6% [-4,8; +3,9]**"
+        }
+      ]
     }
   ]
 }

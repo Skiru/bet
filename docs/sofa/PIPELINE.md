@@ -2614,9 +2614,10 @@ Budżet czasu pełnego dnia: **2,5–3 h**, z czego większość to SAMPLES.
 Te same nogi z `11_coupon.json` co w PDF (`confidence.printed_singles` i
 builderów), w jednym pliku bez serwera (`bet.sofa.coupon_html`, szablon
 `src/bet/sofa/templates/coupon_view.html`). **Nie jest kuponem** - kuponem
-jest PDF; HTML nie dodaje żadnej liczby, nie wycenia buildera i nie liczy
-stawki. Filtry: okno godzin (Europe/Warsaw, minuty od lokalnej północy dnia),
-minimalna pewność, kurs od-do, sport, turniej, rynek, kierunek, tekst,
+jest PDF; HTML nie wycenia buildera i nie liczy stawki, a jedyna liczba,
+której nie ma w artefakcie, to rekord rodziny (niżej). Filtry: okno godzin
+(Europe/Warsaw, minuty od lokalnej północy dnia), minimalna pewność,
+minimalne x (pewność × kurs), kurs od-do, sport, turniej, rynek, kierunek, tekst,
 „ukryj zablokowane", „tylko czytane przez analityków"; kolumny sortowalne;
 grupowanie po meczu. Mecz, którego start z `fixture_status.json` różni się od
 zegara nogi, ma znacznik ⚠ z godziną FIXTURE_CHECK i godziną jego
@@ -2627,6 +2628,24 @@ sprawdzenia (10-08: start z rana nie nadążał za przesunięciem meczu).
 zostawia PDF i kończy PARTIAL (exit 1). Sam HTML: `build_coupon_html.py
 --date <d>`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
 filtry w prawdziwej przeglądarce, jeśli jest Chrome).
+
+**Rodzina na plusie i selekcja „x ≥ 1 i rodzina na plusie” (od 2026-10-18).** Rodzina to
+(sport, rynek, kierunek). `bet.sofa.family_record` liczy jej wynik na
+wydrukowanych nogach `official` kuponów z 14 dni przed dniem kuponu (nie
+wcześniej niż 2026-10-09), ocenionych jak w ledgerze (`record_results.
+graded_confidence`, WIN / LOSS przy cenie wydruku). Rodzina jest „na plusie”
+przy >= 50 nogach i zysku w jednostkach. Plik `runs/sofa/<d>/family_record.json`
+pisze `scripts/sofa/build_family_record.py` (sam, albo `build_coupon_pdf.py` /
+`build_coupon_html.py` przed HTML); liczy go od nowa, gdy go brak, gdy jest z
+innego dnia albo gdy ledger zapisano później. Błąd rekordu nie psuje strony:
+filtr rodzin znika. Widok ma filtr „tylko rodziny na plusie”, znacznik przy
+nodze takiej rodziny (innym nic się nie dopisuje) i przycisk „x ≥ 1 i
+rodzina na plusie” (ustawia oba filtry, reszty nie rusza). Pomiar walk-forward
+10-12..10-17 (okna 3-8 dni): selekcja -0,6% [-4,8; +3,9] na 1 254 nogach,
+reszta kuponu -4,5%; lepsza od reszty w 6 z 6 dni, ale łącznie +4,0 pp
+[-0,3; +8,1], 81% nóg z 10-17 - przewaga niepotwierdzona, zysk nieudowodniony (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`,
+`scripts/sofa/measure_selection_walk_forward.py`, sprawdzian
+`T-FAMILY-SELECTION`). Kupon (PDF) bez zmian. Test: `tests/sofa/test_family_record.py`.
 
 ## Pomiar: rozliczone linie wg rynku i kierunku (od 2026-10-13)
 

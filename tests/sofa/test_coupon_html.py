@@ -120,6 +120,10 @@ run("sport",()=>set("sport","football"));
 run("nolock",()=>set("nolock",true));
 run("q",()=>set("q","noon"));
 run("odds",()=>{set("o0","1.3")});
+run("xmin",()=>set("xmin","0.95"));
+const hidden=getComputedStyle(document.getElementById("famwrap")).display==="none"
+ &&getComputedStyle(document.getElementById("best")).display==="none";
+out.famhidden=hidden;
 const pre=document.createElement("pre");pre.id="probe";
 pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
 """
@@ -134,7 +138,7 @@ pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
     assert m, "the page's script did not run"
     assert json.loads(m.group(1)) == {
         "all": 4, "window": 2, "cmin": 2, "sport": 1, "nolock": 3, "q": 2,
-        "odds": 0}
+        "odds": 0, "xmin": 2, "famhidden": True}
 
 
 # --- the filters, against an independent predicate, in a real browser --------
@@ -143,9 +147,19 @@ _SORTS = ("ko_local", "match", "confidence", "odds", "x", "margin", "line",
           "sample", "position")
 
 
-def _expected(doc: dict[str, Any], day: str, f: dict[str, Any]) -> set[int]:
+def _plus_keys(families: dict[str, Any] | None) -> set[str]:
+    """The families on the plus, read off the record by hand."""
+    if not families:
+        return set()
+    return {k for k, v in families["families"].items()
+            if v["legs"] >= families["min_legs"] and v["units"] > 0}
+
+
+def _expected(doc: dict[str, Any], day: str, f: dict[str, Any],
+              families: dict[str, Any] | None = None) -> set[int]:
     """The ids (index in printed singles) a filter set must leave on the page,
     computed from the artifact alone - not through build_view."""
+    plus = _plus_keys(families)
     from datetime import date, datetime, time
     from zoneinfo import ZoneInfo
     tz = ZoneInfo("Europe/Warsaw")
@@ -173,6 +187,9 @@ def _expected(doc: dict[str, Any], day: str, f: dict[str, Any]) -> set[int]:
             and ("comp" not in f or leg["competition"] == f["comp"])
             and ("fam" not in f or (leg.get("family") or leg["market"]) == f["fam"])
             and ("dir" not in f or leg["direction"] == f["dir"])
+            and ("xmin" not in f or (_x(leg) is not None and _x(leg) >= f["xmin"]))
+            and not (f.get("famplus") and f"{leg['sport']}|{leg['market']}|"
+                     f"{leg['direction']}" not in plus)
             and not (f.get("nolock") and leg.get("locked"))
             and not (f.get("readonly") and id(leg) not in read)
             and ("q" not in f or f["q"].lower() in hay)
@@ -180,6 +197,14 @@ def _expected(doc: dict[str, Any], day: str, f: dict[str, Any]) -> set[int]:
         if ok:
             out.add(i)
     return out
+
+
+def _x(leg: dict[str, Any]) -> float | None:
+    """The page's x by hand: the artifact's own x, else confidence x odds."""
+    if leg.get("x") is not None:
+        return float(leg["x"])
+    odds = leg.get("offered_odds")
+    return None if odds is None else leg["confidence"] * odds
 
 
 def _local_minutes(leg: dict[str, Any], day: str) -> int:
@@ -232,8 +257,12 @@ def _random_filters(
         f["q"] = rng.choice(pick["competition"].split())  # a competition word
     if rng.random() < .15:
         f["q"] = rng.choice(["zzzz", "(", "'", "&", "<b>", " "])
+    if rng.random() < .3:
+        x = _x(pick)
+        f["xmin"] = x if rng.random() < .5 else round(rng.uniform(0.6, 1.4), 2)
     f["nolock"] = rng.random() < .3
     f["readonly"] = rng.random() < .2
+    f["famplus"] = rng.random() < .3
     return f
 
 
@@ -244,6 +273,7 @@ def _hm(m: int) -> str:
 def browser_sweep(
     doc: dict[str, Any], day: str, tmp_path: Path, n: int = 150, seed: int = 7,
     status: dict[str, Any] | None = None,
+    families: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply n random filter sets (grouped and flat) in headless Chrome and
     compare the ids left on the page with `_expected`; check every column's
@@ -259,9 +289,9 @@ def browser_sweep(
             if k in f and f[k] >= 1440:
                 del f[k], ex[k]
         cases.append({"f": {**f, **{k: _hm(f[k]) for k in ("t0", "t1") if k in f}},
-                      "exp": sorted(_expected(doc, day, ex)),
+                      "exp": sorted(_expected(doc, day, ex, families)),
                       "group": rng.random() < .5})
-    page = ch.render_html(day, ch.build_view(doc, day, status))
+    page = ch.render_html(day, ch.build_view(doc, day, status, families))
     probe = """
 const cases=__CASES__, sorts=__SORTS__, out={cases:[],sorts:[],errs:[]};
 window.onerror=e=>out.errs.push(String(e));
@@ -269,11 +299,12 @@ const G=id=>document.getElementById(id);
 const set=(id,v)=>{const e=G(id);if(e.type==="checkbox")e.checked=!!v;else e.value=v;
   e.dispatchEvent(new Event("input"))};
 const ids=()=>[...document.querySelectorAll("#body tr[data-id]")].map(t=>+t.dataset.id);
-const IDS=["t0","t1","cmin","o0","o1","sport","comp","fam","dir","q"];
+const IDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","q"];
 for(const c of cases){
   G("reset").click();
   for(const k of IDS)if(k in c.f)set(k,String(c.f[k]));
-  set("nolock",c.f.nolock);set("readonly",c.f.readonly);set("group",c.group);
+  set("nolock",c.f.nolock);set("readonly",c.f.readonly);set("famplus",c.f.famplus);
+  set("group",c.group);
   const got=ids().sort((a,b)=>a-b);
   const empty=!!document.querySelector("#body tr:not([data-id]):not(.m)");
   out.cases.push({got,empty,count:G("count").textContent});
@@ -322,7 +353,7 @@ pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
             failures.append(f"filters {c['f']}: no 'nothing matches' row")
         if len(r["got"]) != len(set(r["got"])):
             failures.append(f"filters {c['f']}: a leg shown twice")
-    view = ch.build_view(doc, day, status)["rows"]
+    view = ch.build_view(doc, day, status, families)["rows"]
     for srt in out["sorts"]:
         key = {"line": "line_num", "sample": "sample_rate"}.get(srt["k"], srt["k"])
         vals = [view[i][key] for i in srt["rows"]]
@@ -379,16 +410,76 @@ def _synthetic(n: int = 90, seed: int = 3) -> dict[str, Any]:
             competition=rng.choice(["ITF A", "Liga B", "NHL"]),
             sample_hit_rate=rng.choice([0.9, 0.8, 0.95]),
             sample_observations=rng.choice([10, 20])))
+        if i % 7 == 0:  # an artifact's own rounded x, off confidence x odds
+            leg = singles[-1]
+            leg["x"] = round(leg["confidence"] * leg["offered_odds"], 4) + (
+                0.0001 if i % 2 else -0.0001)
     return {"created_at_utc": "2026-10-08T08:18:44Z", "positions": n,
             "pdf_max_singles": None, "prints_builders": True,
             "singles": singles, "builders": [], "legs": []}
+
+
+def _families() -> dict[str, Any]:
+    """A record with two families on the plus, one with too few legs and one
+    at a loss (bet.sofa.family_record's shape)."""
+    def e(legs: int, units: float) -> dict[str, Any]:
+        return {"legs": legs, "matches": legs, "won": 0, "units": units,
+                "roi": units / legs, "hit": 0.5, "implied": 0.8}
+    return {"before": "2026-10-08", "days": ["2026-10-07"], "variant": "official",
+            "min_legs": 50, "created_at_utc": "2026-10-08T05:00:00Z",
+            "families": {"football|goals_total|OVER": e(80, 3.0),
+                         "tennis|games_total|UNDER": e(50, 0.5),
+                         "hockey|winner|OVER": e(49, 9.0),
+                         "football|goals_total|UNDER": e(300, -12.0)}}
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_the_measured_selection_button_sets_x_and_the_families(tmp_path: Path) -> None:
+    assert CHROME
+    doc = _synthetic()
+    fam = _families()
+    page = ch.render_html("2026-10-08", ch.build_view(doc, "2026-10-08", None, fam))
+    probe = """
+const sp=document.getElementById("sport");sp.value="football";
+sp.dispatchEvent(new Event("input"));
+document.getElementById("best").click();
+const ids=[...document.querySelectorAll("#body tr[data-id]")].map(t=>+t.dataset.id);
+const out={ids,xmin:document.getElementById("xmin").value,
+ fam:document.getElementById("famplus").checked,
+ note:document.getElementById("famnote").textContent,
+ tags:document.querySelectorAll("#body .tag.acc").length};
+document.getElementById("reset").click();
+out.after=[document.getElementById("xmin").value,document.getElementById("famplus").checked];
+const pre=document.createElement("pre");pre.id="probe";
+pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
+"""
+    html = tmp_path / "best.html"
+    html.write_text(page.replace("</body>", f"<script>{probe}</script></body>"),
+                    encoding="utf-8")
+    dom = subprocess.run(
+        [CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=10000",
+         "--dump-dom", html.as_uri()],
+        capture_output=True, text=True, timeout=60, check=True).stdout
+    m = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
+    assert m, "the page's script did not run"
+    import html as htmllib
+    out = json.loads(htmllib.unescape(m.group(1)))
+    # the button sets x and the families and leaves the other filters alone
+    exp = _expected(doc, "2026-10-08",
+                    {"xmin": 1.0, "famplus": True, "sport": "football"}, fam)
+    assert exp and sorted(out["ids"]) == sorted(exp)
+    assert out["xmin"] == "1.00" and out["fam"] is True
+    assert out["tags"] == len(exp)  # every shown leg is on the plus, tagged
+    assert "zysk nieudowodniony" in out["note"] and "2026-10-07" in out["note"]
+    assert out["after"] == ["", False]
 
 
 @pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
 def test_random_filter_sets_and_every_sort_match_an_independent_predicate(
     tmp_path: Path,
 ) -> None:
-    result = browser_sweep(_synthetic(), "2026-10-08", tmp_path, n=120)
+    result = browser_sweep(_synthetic(), "2026-10-08", tmp_path, n=120,
+                           families=_families())
     assert result["checked"] == 120
     assert not result["failures"], result["failures"][:5]
 
