@@ -539,3 +539,97 @@ def test_event_score_never_raises_on_a_missing_period() -> None:
                                   "maps": [[13, 5], [None, 3]]}) == "1:0 (13:5)"
     assert sd.event_score("hockey", {"state": "SETTLED", "t1_full": None,
                                      "t2_full": 1}) is None
+
+
+# --- second review (2026-10-18) -------------------------------------------------
+
+
+def test_half_time_from_the_incidents_over_a_placeholder_period1() -> None:
+    """15458641, 10-16 (IFK Stocksund - Enköpings SK): the re-fetched payload
+    reads period1 0:0, the incidents HT 0:2 - SETTLE graded the halves on
+    0:2 (metrics.half_time_disagrees), and the page says so."""
+    event = {"status": {"code": 100},
+             "homeScore": {"current": 1, "display": 1, "period1": 0},
+             "awayScore": {"current": 3, "display": 3, "period1": 0}}
+    incidents = {"incidents": [
+        {"incidentType": "period", "text": "FT", "homeScore": 1, "awayScore": 3},
+        {"incidentType": "period", "text": "HT", "homeScore": 0, "awayScore": 2}]}
+    assert cr._score_of_detail(event, incidents) == "1:3 (do przerwy 0:2)"
+    assert cr._score_of_detail(event) == "1:3 (do przerwy 0:0)"
+    # no period1 at all (17332487): the half time from the incidents
+    bare = {"homeScore": {"current": 0, "display": 0},
+            "awayScore": {"current": 2, "display": 2}}
+    hti = {"incidents": [{"incidentType": "period", "text": "HT",
+                          "homeScore": 0, "awayScore": 0}]}
+    assert cr._score_of_detail(bare, hti) == "0:2 (do przerwy 0:0)"
+
+
+def test_a_refunded_builders_legs_are_never_green_or_red() -> None:
+    graded = _graded()
+    graded[0]["builders"][0]["outcome"] = "REFUND"
+    res = cr.compute("2026-10-16", graded)
+    (b,) = res["builders"].values()
+    assert b["status"] == cr.REFUND
+    assert [x["status"] for x in b["legs"]] == [cr.REFUND, cr.REFUND]
+    assert [x["own_status"] for x in b["legs"]] == [cr.WON, cr.LOST]
+    assert cr.outcome_text(b["legs"][0]) == "zwrot buildera (noga: weszło)"
+    # a builder that lost keeps its legs' own colours
+    (lost,) = _results()["builders"].values()
+    assert [x["status"] for x in lost["legs"]] == [cr.WON, cr.LOST]
+    assert "own_status" not in lost["legs"][0]
+
+
+def test_measured_keys_hold_the_market_and_the_map() -> None:
+    base = {"sport": "cs2", "sofascore_event_id": 7, "family": "map_rounds_total",
+            "period": 0, "subject": "", "line": 21.5, "side": "OVER"}
+    map1, map2 = {**base, "map_nr": 1}, {**base, "map_nr": 2}
+    assert cr.key_of(map1) != cr.key_of(map2)
+    hk = {**_hockey()}
+    assert cr.key_of({**hk, "market_id": 623}) != cr.key_of({**hk, "market_id": 624})
+    graded = [{"variant": "official", "rows": {}, "builders": [], "singles": [
+        {"source": {**map1, "outcome": "WIN", "actual_value": 24.0}, "odds": 1.5,
+         "outcome": "WIN"},
+        {"source": {**map2, "outcome": "LOSS", "actual_value": 19.0}, "odds": 1.5,
+         "outcome": "LOSS"}]}]
+    res = cr.compute("2026-10-16", graded)
+    assert cr.of_leg(res, map1)["status"] == cr.WON
+    assert cr.of_leg(res, map2)["status"] == cr.LOST
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_the_results_page_on_a_phone_and_its_other_filters(tmp_path: Path) -> None:
+    assert CHROME
+    view = ch.build_view(_coupon(), "2026-10-16", None, results=_results())
+    page = ch.render_html("2026-10-16", view)
+    probe = """
+const set=(id,v)=>{const e=document.getElementById(id);
+ if(e.type==="checkbox")e.checked=v;else e.value=v;e.dispatchEvent(new Event("input"))};
+const n=()=>document.querySelectorAll("#body tr[data-id]").length;
+const out={};const run=(k,f)=>{document.getElementById("reset").click();f();out[k]=n()};
+out.page_w=document.documentElement.scrollWidth;out.view_w=window.innerWidth;
+run("all",()=>{});
+run("window",()=>{set("t0","19:30");set("t1","21:00")});
+run("odds",()=>set("o0","1.30"));
+run("comp",()=>set("comp","NHL"));
+run("q",()=>set("q","home1"));
+run("res_lost_q",()=>{set("res","lost");set("q","home1")});
+const pre=document.createElement("pre");pre.id="probe";
+pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
+"""
+    html = tmp_path / "probe.html"
+    html.write_text(page.replace("</body>", f"<script>{probe}</script></body>"),
+                    encoding="utf-8")
+    dom = subprocess.run(
+        [CHROME, "--headless=new", "--disable-gpu", "--window-size=390,844",
+         f"--user-data-dir={tmp_path / 'prof'}", "--virtual-time-budget=10000",
+         "--dump-dom", html.as_uri()],
+        capture_output=True, text=True, timeout=60, check=True).stdout
+    m = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
+    assert m, "the page's script did not run"
+    out = json.loads(m.group(1))
+    # no sideways page scroll at phone width: the table scrolls in its box
+    assert out["page_w"] <= out["view_w"]
+    # 17:00 / 20:00 / 21:00 Warsaw starts (15:00Z singles, 18:00Z hockey)
+    assert out["all"] == 7 and out["window"] == 1
+    assert out["odds"] == 2 and out["comp"] == 1
+    assert out["q"] == 2 and out["res_lost_q"] == 1

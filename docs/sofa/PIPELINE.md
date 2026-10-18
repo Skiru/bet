@@ -2684,7 +2684,11 @@ tylko `--with-results`: zwykły render czy przebudowa nigdy ich nie pokazują,
 a następne oznaczenie rysuje je ponownie (`13_results_rendered.json` trzyma
 skróty plików ostatniego renderu z wynikami; `--force`: zawsze). Wynik meczu
 piłki to 90 minut Superbetu, dogrywka i karne osobno - tylko gdy dane je
-mają. Niczego nie zmienia w pewności ani bramkach. Test:
+mają; wynik do przerwy ze znacznika HT w zdarzeniach, gdy `period1` mu
+przeczy (jak SETTLE). Nogi zwróconego buildera są żółte („zwrot buildera”, z
+wynikiem samej nogi). Klucz nogi sportu mierzonego to `sport_key` plus id
+rynku i mapa CS2. Na telefonie tabela HTML przewija się w swoim polu, strona
+nie przewija się w bok. Niczego nie zmienia w pewności ani bramkach. Test:
 `tests/sofa/test_coupon_results.py`.
 
 ## Pomiar: rozliczone linie wg rynku i kierunku (od 2026-10-13)

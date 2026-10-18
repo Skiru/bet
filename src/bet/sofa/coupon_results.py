@@ -113,9 +113,13 @@ def is_measured(leg: Mapping[str, Any]) -> bool:
 
 def key_of(leg: Mapping[str, Any], event_id: Any = None) -> str:
     """One printed leg as a JSON string - the key every grader uses
-    (sport_key for a measured sport's leg, leg_key otherwise)."""
+    (sport_key for a measured sport's leg, leg_key otherwise). A measured
+    sport's key adds the market id and the CS2 map: sport_key leaves them
+    out, so two markets of one family (or one line on map 1 and on map 2)
+    would share a result here."""
     if is_measured(leg):
-        return json.dumps(list(sport_key(leg)))
+        return json.dumps([*sport_key(leg), int(leg.get("market_id") or 0),
+                           int(leg.get("map_nr") or 0)])
     return json.dumps(list(leg_key(leg, event_id)))
 
 
@@ -182,6 +186,12 @@ def compute(
                     "status": status("VOID" if raw == "PUSH" else raw),
                     "actual": _actual(row),
                 })
+            if status(outcome) == REFUND:
+                # a refunded builder pays the stake back whatever its legs
+                # did: its legs are not shown green or red
+                for x in leg_rows:
+                    if x["status"] in (WON, LOST):
+                        x["own_status"], x["status"] = x["status"], REFUND
             builders[builder_key(src)] = {
                 "outcome": outcome, "status": status(outcome),
                 "score": scores.get(int(eid)), "legs": leg_rows,
@@ -275,6 +285,8 @@ def outcome_text(entry: Mapping[str, Any]) -> str:
         return ""
     st = str(entry.get("status"))
     word = WORDS.get(st, WORDS[UNKNOWN])
+    if entry.get("own_status"):
+        return f"zwrot buildera (noga: {WORDS[str(entry['own_status'])]})"
     if st == UNKNOWN:
         raw = str(entry.get("outcome") or "")
         why = UNKNOWN_WHY.get(raw.split(":")[0]) or (
@@ -364,7 +376,19 @@ def summary_lines(summary: Mapping[str, Any]) -> list[dict[str, str]]:
     return rows
 
 
-def _score_of_detail(event: Mapping[str, Any]) -> str | None:
+def half_time_marker(incidents: Mapping[str, Any] | None) -> str | None:
+    """The incidents' half-time score ("HT" period incident) - what SETTLE
+    reads over a period1 that contradicts it (metrics.half_time_disagrees)."""
+    for inc in (incidents or {}).get("incidents") or []:
+        if inc.get("incidentType") == "period" and inc.get("text") == "HT":
+            h, a = inc.get("homeScore"), inc.get("awayScore")
+            if isinstance(h, (int, float)) and isinstance(a, (int, float)):
+                return f"{int(h)}:{int(a)}"
+    return None
+
+
+def _score_of_detail(event: Mapping[str, Any],
+                     incidents: Mapping[str, Any] | None = None) -> str | None:
     home, away = event.get("homeScore") or {}, event.get("awayScore") or {}
     if home.get("current") is None or away.get("current") is None:
         return None
@@ -399,8 +423,12 @@ def _score_of_detail(event: Mapping[str, Any]) -> str | None:
         text = str(pair("normaltime"))
     else:
         text, extra_time, shootout = shown, False, None
-    if pair("period1"):
-        text += f" (do przerwy {pair('period1')})"
+    # the half time from the incidents where they hold it: a payload
+    # rewritten after the match can carry a placeholder period1 0:0
+    # (15458641, 10-16: period1 0:0, incidents HT 0:2)
+    half = half_time_marker(incidents) or pair("period1")
+    if half:
+        text += f" (do przerwy {half})"
     extra = ([f"po dogrywce {shown}"] if extra_time else []) + (
         [f"karne {shootout}"] if shootout else [])
     if extra:
@@ -420,6 +448,11 @@ def match_scores(db_path: str, event_ids: Iterable[int]) -> dict[int, str]:
         for i in range(0, len(ids), 500):
             chunk = ids[i:i + 500]
             q = ",".join("?" * len(chunk))
+            incidents = {
+                int(eid): json.loads(raw) for eid, raw in conn.execute(
+                    "SELECT sofascore_event_id, incidents_json FROM "
+                    f"sofa_event_stats WHERE sofascore_event_id IN ({q}) "
+                    "AND incidents_json IS NOT NULL", chunk)}
             for eid, status_type, payload in conn.execute(
                 "SELECT sofascore_event_id, status_type, detail_json "
                 f"FROM sofa_event_detail WHERE sofascore_event_id IN ({q})", chunk
@@ -427,7 +460,8 @@ def match_scores(db_path: str, event_ids: Iterable[int]) -> dict[int, str]:
                 if status_type != "finished":
                     continue
                 event = (json.loads(payload) or {}).get("event") or {}
-                score = _score_of_detail(event)
+                inc = incidents.get(int(eid))
+                score = _score_of_detail(event, inc if isinstance(inc, dict) else None)
                 if score:
                     out[int(eid)] = score
     finally:

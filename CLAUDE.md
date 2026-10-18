@@ -709,7 +709,12 @@ measurement of Superbet's price and feed nothing else.
   `13_results.json` - a normal render or rebuild never shows results; the next
   mark draws them again (`13_results_rendered.json` holds the hashes of the
   last results render). Football scores are Superbet's 90 minutes (extra time
-  and penalties said apart, only when the payload has them). Display only -
+  and penalties said apart, only when the payload has them; the half time
+  from the incidents' HT marker over a contradicting period1, as SETTLE). A
+  refunded builder's legs are yellow ("zwrot buildera", the leg's own result
+  named). A measured sport's result key is `sport_key` plus market id and CS2
+  map (sport_key alone would let two markets / maps share a result). On a
+  phone the HTML's table scrolls in its own box. Display only -
   nothing it shows enters a confidence or a gate.
 - **Ledger** (`record_results.py` -> `runs/sofa/ledger/results.jsonl`, read
   with `audit_ledger.py`): the coupon's result, the legs removed by reads and

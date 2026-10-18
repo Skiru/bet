@@ -23,7 +23,10 @@ h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;b
 .bl ul{margin:4px 0 0 16px;padding:0}
 tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
 .rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}.res{font-size:11.5px;white-space:nowrap}
-#summary{margin:0 16px 24px}#summary table{width:auto}#summary td,#summary th{position:static;cursor:default}#summary tr:last-child td{font-weight:700}
+#summary{margin:0 16px 24px;overflow-x:auto}
+/* a phone: the wide table scrolls in its own box, the page never sideways
+   (the sticky header holds only where the page itself scrolls) */
+@media (max-width:900px){.tw{overflow-x:auto}.bar{position:static}th{position:static}body{overflow-x:hidden}}#summary table{width:auto}#summary td,#summary th{position:static;cursor:default}#summary tr:last-child td{font-weight:700}
 </style></head><body>
 <header><h1>Kupon __DATE__ - widok z filtrami</h1>
 <div class="note">To jest widok nóg kuponu z <code>11_coupon.json</code>, nie osobny kupon: kuponem jest <b>KUPON___DATE__.pdf</b>.
@@ -51,7 +54,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <button id="reset">wyczyść filtry</button>
 </div>
 <div id="count"></div>
-<table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+<div class="tw"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
 <h2 id="bh">Bet Buildery</h2><div id="builders"></div>
 <h2 id="sh">Podsumowanie wyników</h2><div id="summary"></div>
 <script id="data" type="application/json">__DATA__</script>
