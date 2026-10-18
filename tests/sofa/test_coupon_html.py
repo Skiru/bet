@@ -292,6 +292,12 @@ for(const k of sorts){
     out.sorts.push({k,pass,rows,mono});
   }
 }
+G("reset").click();set("group",true);out.gsorts=[];
+for(const k of ["x","confidence","odds"]){
+  document.querySelector('th[data-k="'+k+'"]').click();
+  out.gsorts.push({k,rows:[...document.querySelectorAll("#body tr[data-id]")]
+    .map(t=>+t.dataset.id)});
+}
 const pre=document.createElement("pre");pre.id="probe";
 pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
 """.replace("__CASES__", json.dumps(cases)).replace(
@@ -333,6 +339,22 @@ pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
             failures.append(f"sort {srt['k']} pass {srt['pass']} not ordered")
         if sorted(srt["rows"]) != list(range(len(view))):
             failures.append(f"sort {srt['k']}: legs lost or doubled")
+    # grouped: a match's legs follow the chosen column, and matches follow
+    # their first leg (each click picks a new column, which opens descending)
+    for srt in out["gsorts"]:
+        desc = True
+        vals = [view[i][srt["k"]] for i in srt["rows"]]
+        evs = [view[i]["event"] for i in srt["rows"]]
+        firsts = [v for j, v in enumerate(vals) if j == 0 or evs[j] != evs[j - 1]]
+        if firsts != sorted(firsts, reverse=desc):
+            failures.append(f"grouped sort {srt['k']}: matches not ordered")
+        for j in range(1, len(vals)):
+            if evs[j] == evs[j - 1] and (vals[j] > vals[j - 1] if desc
+                                         else vals[j] < vals[j - 1]):
+                failures.append(f"grouped sort {srt['k']}: legs not ordered")
+                break
+        if sorted(srt["rows"]) != list(range(len(view))):
+            failures.append(f"grouped sort {srt['k']}: legs lost or doubled")
     return {"checked": len(cases), "failures": failures}
 
 

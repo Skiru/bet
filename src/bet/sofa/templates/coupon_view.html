@@ -101,9 +101,12 @@ function render(){
   if(g){
     const m=new Map();rows.forEach(r=>{if(!m.has(r.event))m.set(r.event,[]);m.get(r.event).push(r)});
     const groups=[...m.values()];
-    const key=g=>{const o=sortKey;return o==="confidence"?Math.max(...g.map(r=>r.confidence)):sv(g[0],o)};
-    groups.sort((a,b)=>{const x=key(a),y=key(b);return x==null?1:y==null?-1:(typeof x==="number"?x-y:String(x).localeCompare(String(y)))*sortDir});
-    groups.forEach(gr=>{gr.sort((a,b)=>b.confidence-a.confidence);h+=matchHead(gr);gr.forEach(r=>h+=line(r))});
+    // a match is ordered by its first leg in the chosen order (its best x,
+    // confidence or odds descending, its earliest line ascending), and its
+    // legs follow that order
+    groups.forEach(gr=>gr.sort(cmp));
+    groups.sort((a,b)=>cmp(a[0],b[0]));
+    groups.forEach(gr=>{h+=matchHead(gr);gr.forEach(r=>h+=line(r))});
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+groups.length+" meczów (kolejność meczów: wg "+sortLabel()+")";
   }else{rows.sort(cmp);rows.forEach(r=>h+=line(r));
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów";}
