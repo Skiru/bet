@@ -60,3 +60,16 @@ Poranne dowody dały własne rozliczone linie kluczom, które cztery testy brał
 ## Słabość dnia
 
 Druga runda analityka piłki nie miała żadnych sprawdzeń w sieci (składy, absencje, stawka). Ponad 8 700 drukowanych pozycji poza zestawem odczytu poszło bez odczytu, zgodnie z regułą operatora. 64% nóg piłkarskich to rynki „lub” i podwójna szansa z jednej siatki NB na mecz. Ich jedyny pomiar na cenach Superbetu: ROI -2.4% [-6.1; +1.2].
+
+## Uzupełnienie (11:15Z): przegląd sieci i błędy procesu
+
+- **Runda 3 analityka piłki**, tylko przegląd sieci na nierozpoczętych meczach z zestawu odczytu:
+  - Wyszukiwarka nie ma aktualnych zapowiedzi na 18.10, wyjątkiem jest Fiorentina - Como (TMW), gdzie nic nie przemawia przeciw nogom.
+  - Bez wyszukiwania (NIE PODANO): Strømsgodset - Haugesund, Dibba - Al Arabi, Slaven - Dinamo, Estudiantes - San Lorenzo.
+  - Jedyne trafienie: Union Rochefortoise - KAA Gent (Puchar Belgii, amatorzy kontra Pro League; w 2024 ta sama para skończyła się 7-0). WATCH na `goals_total` 5.5 UNDER i `corners_for` Gent 9.5 UNDER.
+  - Tych odczytów nie scaliłem. Mecz był już w oknie startu, a nogi wydrukowane o 07:08 zostają zablokowane. Analiza jest w `2026-10-18_analiza_football.md`.
+- **Podejrzenie, nie pomiar:** dwa mecze pucharowe z amatorem (Alcochetense - Marítimo, Rochefortoise - Gent) mają w ratingu zaniżoną różnicę klas, liczoną przez siłę lig. Przed jakąkolwiek zmianą trzeba to zmierzyć na meczach pucharowych z udziałem amatorów.
+- **Błędy procesu (moje):**
+  1. Pierwszy push na `main` zabrał niezacommitowaną zmianę `coupon_view.html` innej sesji.
+  2. Push filtra rodzin zabrał 4 commity bet-18, sprawdzone dopiero po pushu. Wynik sprawdzenia: bramki czyste, ledger 10-10..10-17 identyczny co do wiersza (48/48), zapis druku nietknięty. Od tego momentu push idzie tylko po SHA zweryfikowanego commita.
+  3. Kupon wstępny zbudowany na dowodach z 10-17 wymusił drugą rundę odczytów (101 nóg).
