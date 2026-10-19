@@ -1230,14 +1230,16 @@ new-market curves), `config/backup_2026-10-15_bb_a7_hybrid/` (before the
 basketball A7 keys from the full cache), `config/backup_2026-10-16` (before
 the cup-strength refit), `config/backup_2026-10-16b` (before refit
 2026-10-16b), `config/backup_2026-10-18` (before refit 2026-10-17),
-`config/backup_2026-10-18_line_curves/` (before the per-line curves),
-`data/backup_2026-10-05/sofa.db`;
+`config/backup_2026-10-18_line_curves/` (before the per-line curves);
 `data/refit_2026-10-17/sofa_replay.db` is the DB the installed football /
-tennis curves were fitted from (`fitted_from.db_path`) - keep it, and
-`data/refit_2026-10-16b/sofa_replay.db` (the previous install's) and
-`data/refit_2026-10-08/sofa_replay.db`; the replay DBs of
-`data/refit_2026-10-16/` and `data/refit_2026-10-14/` were deleted 2026-10-16
-(their logs / manifests kept).
+tennis curves were fitted from (`fitted_from.db_path`) - keep it. There is
+no full copy of `data/sofa.db` on disk: the operator deleted
+`data/backup_2026-10-05/sofa.db` and the replay DB of
+`data/refit_2026-10-16b/` on 2026-10-19 (disk cleanup); the replay DBs of
+`data/refit_2026-10-16/` and `data/refit_2026-10-14/` went 2026-10-16 (logs /
+manifests of all kept). The day-by-day rows of the fits (`*_history_fit` /
+`_holdout.jsonl`) are kept only in the newest two
+`data/line_evidence/rows_before_<d>` (older ones keep `*_superbet_settled.jsonl`).
 
 **Measured for the next refit (2026-10-12 night, out of sample on the history,
 `docs/sofa/history/RAPORT_NOC_2026-10-12.md`):** tennis set-1 winner and set

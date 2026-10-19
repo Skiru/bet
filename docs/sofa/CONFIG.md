@@ -494,7 +494,9 @@ wypisuje starszych kopii; wypisywanie i klon APFS są zaplanowane (plan
 2026-10-05, część 7.4). Do tego czasu starsze kopie wskazuje i usuwa
 człowiek, na decyzję operatora (tak było 2026-10-05: usunięte
 `data/backup_2026-10-02/` i `data/backup_2026-10-03/`, została
-`data/backup_2026-10-05/sofa.db`).
+`data/backup_2026-10-05/sofa.db`; 2026-10-19 operator usunął i ją, razem z
+bazą replay `data/refit_2026-10-16b/` - pełnej kopii `data/sofa.db` na dysku
+nie ma, została tylko baza replay `data/refit_2026-10-17/`).
 
 ### 7.6 Pliki i flagi pakietów modelowych (zainstalowane 2026-10-08 23:42Z, czynne od 2026-10-09 00:00Z; `CARDS_CORRELATION` czeka)
 
