@@ -427,7 +427,15 @@ every sport alike, and nothing that could win is cut by name.
   the price alike, -15 / -18 pp on 52 / 50 legs - a curve question, not a
   price one; volleyball / CS2 too few). Evidence:
   `docs/sofa/evidence/price_gap_2026-10-12.md`
-  (`scripts/sofa/measure_price_gap.py`); check on new data: `T-PRICE-GAP-flag`.
+  (`scripts/sofa/measure_price_gap.py`); check on new data `T-PRICE-GAP-flag`
+  PASSED 2026-10-19: 10-13..10-18 football 2,111 flagged legs / 932 matches
+  -10.0 pp [-12.8, -7.4] (hit 0.696 at mean 1/odds 0.734), the rest -0.9 pp;
+  ROI alike (-5.1% / -5.5%). Of four other red flags measured the same week
+  (`scripts/sofa/measure_red_flags.py`,
+  `docs/sofa/evidence/red_flags_2026-10-19.md`) none adds to it: a long
+  price at a confidence just above 0.70 is `price_gap` itself, confidence
+  above the own sample's k/n and builders nothing, a leading favourite's
+  shots / corners OVER too few legs (`T-RED-FLAG-SCRIPT`, from 10-20).
 - **Bet Builders:** one per fixture, by best `combined_probability`; an
   internal haircut x >= 0.90 decides stakeable and is never printed. **sofa
   does not price a builder**: the PDF shows its legs with Superbet's single
@@ -1434,6 +1442,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_incidents.py --spor
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_aces_opponent.py --cut 2026-01-01 [--played-cache f.pkl] [--md-out f]   # TENNIS_ACES_OPPONENT on the tennis cache replay (both arms, curve on train, log-loss on test, all and market-like lines); ~25 min, tennis only
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_line_curves.py --db data/refit_2026-10-17/sofa_replay.db [--md-out f] [--json-out f]   # per-line vs pooled curve, football, out of sample on the replay at Superbet's quoted lines (~3 min); chose config/sofa_line_curves.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_selection_walk_forward.py --from <d> --to <d> [--md-out f]   # T-FAMILY-SELECTION: the view's family / x selections walk-forward on the printed legs, plus the calibration gap and ROI by confidence - 1/odds per sport
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_red_flags.py --from <d> --to <d> [--md-out f]   # red flags on the printed legs (scenario s >= +0.5, confidence above own k/n, builders, long price): flagged gap minus control, 98.75%; offline, ~20 s; T-RED-FLAG-SCRIPT
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE: staged vs installed serve curves through the line evidence on Superbet's settled lines; aces re-priced by SHEET with / without the correction
 ```
 

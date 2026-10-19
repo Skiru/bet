@@ -104,7 +104,7 @@
     {
       "id": "T-PRICE-GAP-flag",
       "registered_on": "2026-10-12",
-      "status": "REGISTERED",
+      "status": "PASSED",
       "hypothesis": "A printed football / tennis leg whose confidence exceeds 1/offered_odds by more than 0.03 (bet.sofa.price_gap's CONFIDENCE_ABOVE_PRICE flag) realises below its printed confidence; the other printed legs do not.",
       "rule": "Over the coupon's football / tennis singles (11_coupon.json legs) graded WIN / LOSS in 07_settled.json, split by confidence - 1/offered_odds > 0.03 (the flag). Report realised minus mean confidence in each group, per sport.",
       "population": "Legs of the official coupon (epoch stats_only) of days from 2026-10-13, locked legs included, a leg removed by a read excluded; each sport apart.",
@@ -113,7 +113,23 @@
       "evaluation": "Realised minus confidence with a 95% interval from resampling matches (scripts/sofa/measure_price_gap.py section 1, --from 2026-10-13).",
       "stop_criterion": "CONFIRMED (PASSED) when the flagged football group's upper 95% bound is below 0 at the required n; FAILED when its lower bound is above -2 pp at the required n (the flag then over-warns and is withdrawn by the operator).",
       "evidence": [
-        {"source": "docs/sofa/evidence/price_gap_2026-10-12.md", "line": 1, "quote": "piłka 458 nóg / 269 meczów, -6,8 pp [-12,0; -2,1]"}
+        {"source": "docs/sofa/evidence/price_gap_2026-10-12.md", "line": 1, "quote": "piłka 458 nóg / 269 meczów, -6,8 pp [-12,0; -2,1]"},
+        {"source": "docs/sofa/evidence/red_flags_2026-10-19.md", "line": 1, "quote": "PASSED 2026-10-19 (measure_price_gap.py --from 2026-10-13 --to 2026-10-18): piłka 2 111 nóg / 932 mecze, -10,0 pp [-12,8; -7,4], ROI -5,1% wobec -5,5% reszty; tenis 68 nóg -0,8 pp [-11,7; +9,7] - za mało, raportowany"}
+      ]
+    },
+    {
+      "id": "T-RED-FLAG-SCRIPT",
+      "registered_on": "2026-10-19",
+      "status": "REGISTERED",
+      "hypothesis": "A printed football OVER leg on a side's shots / shots on target / corners (full match or a half) whose side has an expected goal difference s >= +0.5 (SHEET's GAME_STATE / COUNT_STRETCH note) realises further below its confidence than the same markets' OVER legs with s < +0.5: the favourite that leads stops attacking.",
+      "rule": "scripts/sofa/measure_red_flags.py section F1 (--from 2026-10-20): flagged gap (hit - mean confidence) minus control gap, paired bootstrap over (day, match).",
+      "population": "Official coupon's printed legs graded WIN / LOSS in 13_results.json, days from 2026-10-20; legs without a known s excluded.",
+      "data_window": {"from": "2026-10-20", "to": "2027-01-19"},
+      "required_n": {"legs": 500, "matches_min": 200, "basis": "10-13..10-18: 146 flagged legs / 66 matches, flagged minus control -3.3 pp [-17.9, +10.3] (98.75%); about 500 flagged legs bring a 95% half-width near 6 pp."},
+      "evaluation": "Flagged minus control gap with a 95% interval (this test alone, no Bonferroni).",
+      "stop_criterion": "PASSED when the upper 95% bound is below 0 at the required n (then shown in the HTML as an annotation, never a gate, with the operator's go); STOPPED_FUTILE when the lower bound is above -3 pp at the required n.",
+      "evidence": [
+        {"source": "docs/sofa/evidence/red_flags_2026-10-19.md", "line": 1, "quote": "F1 SCENARIUSZ: -3,3 pp [-17,9; +10,3] (98,75%), 146 nóg / 66 meczów - brak"}
       ]
     },
     {
