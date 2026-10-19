@@ -402,6 +402,22 @@ def _read_key(leg: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def snapshot_family(sport: str, line: Any, date: str, at: datetime,
+                    evidence_on: bool) -> str | None:
+    """The family SPORT_CONFIDENCE read a snapshot line as, with the same
+    switches it passed (run_sport_confidence.build_sport): line evidence,
+    the derived markets and CS2's series rounds. Without `series_rounds` a
+    printed CS2 series-rounds leg (rounds_total / rounds_handicap /
+    team_rounds on map 0, from 2026-10-15) read as 'not in the snapshot'
+    (2026-10-19, Iberian Soul - HyperSpirit)."""
+    from bet.sofa import epochs
+    from scripts.sofa import run_sport_confidence as rsc
+
+    derived = evidence_on and epochs.sport_derived_markets(date, at)
+    series_rounds = sport == "cs2" and epochs.cs2_series_rounds(date, at)
+    return rsc._allowed(sport, line, evidence_on, derived, series_rounds)
+
+
 def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
                      tag: str) -> list[str]:
     """U3 (F7): every fresh measured-sport leg of 11_coupon.json re-derived
@@ -448,10 +464,8 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             and str(ln.subject or "") == str(leg.get("subject") or "")
             and int(ln.map_nr if sport == "cs2" else ln.period) == int(
                 leg.get("period") or 0)
-            and rsc._allowed(sport, ln, evidence is not None,
-                             evidence is not None
-                             and epochs.sport_derived_markets(date, at)
-                             ) == leg["family"]
+            and snapshot_family(sport, ln, date, at,
+                                evidence is not None) == leg["family"]
         ]
         if not match:
             out.append(f"U3 {label}: the line is not in the snapshot")
