@@ -4,8 +4,6 @@ downloaded_files/
 .venv/
 .vscode/mcp.json
 .roo/mcp.json
-.kilocode/mcp.json
-.kilocode/node_modules/
 .env
 /KLUCZE API:
 betting/data/
@@ -28,12 +26,8 @@ settle_log.txt
 /backups/langgraph-migration/
 /src/bet/db/*.bak
 
-# Kilo generated tool-output artifacts (runtime evidence)
-.kilo/artifacts/tool-output/
 
 # Local LLM runtime state (P2 lifecycle)
-.kilo/runtime/
-.kilo/logs/
 var/local-llm/
 
 # Local operator-only tipster review attestation
@@ -47,7 +41,6 @@ models/
 /tmp/rapid-mlx.pid
 /tmp/rapid-mlx.log
 .DS_Store
-.kilo/artifacts/**/backup.patch
 
 # Avoid tracking sqlite files under pipeline runs
 reports/
