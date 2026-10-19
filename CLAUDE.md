@@ -1165,6 +1165,18 @@ replay lacks a flag an installed separately fitted curve requires
 10-09..10-16 as a whole: -1.0 pp [-3.5, +1.5] (1,473 legs, ROI -5.5%);
 per-player set games OVER -7.1 / -6.6 pp, intervals touching zero:
 `T-TENNIS-SET-GAMES-OVER`.
+Exposure / tournament / returner centres (2026-10-19, pre-registered,
+`scripts/sofa/measure_tennis_serve_exposure.py`, main tour only, the tier
+prior as SHEET, curves fitted on market-like lines): the true match length
+is the largest missing factor (oracle aces log-loss -0.014), but the
+rating's expected games recover little of it; on the history only per-set
+aces pass (x tournament factor -0.0011, + returner -0.0038), double faults
+nothing, and at the market line no aces-match arm reaches 0.70. At
+Superbet's lines 10-06..10-18 the per-set aces arm is no better (-0.0006
+[-0.0078, +0.0069]) and its legs overstate (35 / 15 matches, -11.3 pp
+[-26.0, +4.4]) - not implemented in SHEET; check on new data
+`T-TENNIS-ACES-SETS-EXPOSURE`
+(`docs/sofa/evidence/tennis_serve_exposure_2026-10-19.md`).
 
 **Waiting for the operator** (switches off, `None` in `bet.sofa.epochs`):
 `CURVE_STATUS_FROM_UTC` (a curve failing `measure_calibration.py` stops

@@ -351,6 +351,32 @@
           "quote": "| B | **-0,57 pp [-1,27; +0,09]** | 24 698 / 2 869 meczów | -4,53% [-5,46; -3,67] | -1 118,2 |"
         }
       ]
+    },
+    {
+      "id": "T-TENNIS-ACES-SETS-EXPOSURE",
+      "registered_on": "2026-10-19",
+      "status": "PROPOSED",
+      "hypothesis": "The per-set aces centre with exposure and the tournament factor (EXP_T of scripts/sofa/measure_tennis_serve_exposure.py: the length-normalised sample x the rating's expected set games over the sample's mean, x the uniqueTournament's realised-over-centre factor, K 30), read through a curve fitted on market-like replay lines, prints legs at Superbet's settled per-set aces lines no more than 3 pp below their confidence - the condition for implementing it in SHEET.",
+      "rule": "For every settled aces_set1/2_for / _total line (sofa_settled_row, run_date >= 2026-10-20) joined to the replay at that line, the EXP_T arm's market-line-curve confidence (fit on every replay row before the evaluation window), kept where >= 0.70 and x >= 0.90: realised minus confidence with a 95% bootstrap over matches; beside it log-loss EXP_T minus BASE.",
+      "population": "Tennis fixtures Superbet quotes serve markets on (ATP / WTA main tour), best of three, days from 2026-10-20.",
+      "data_window": {
+        "from": "2026-10-20",
+        "to": "2027-01-19"
+      },
+      "required_n": {
+        "legs": 150,
+        "matches": 60,
+        "basis": "10-06..10-18: 35 would-print legs / 15 matches at -11.3 pp [-26.0, +4.4]."
+      },
+      "evaluation": "scripts/sofa/measure_tennis_serve_exposure.py --superbet-from 2026-10-20 --superbet-to <d> (played cache rebuilt so the window's matches are in it).",
+      "stop_criterion": "PASSED (SHEET implementation behind a switch, then the real-SHEET check) when the lower 95% bound of the gap is above -0.03 at the required n and log-loss is not worse; FAILED when the upper bound is below -0.03; STOPPED_FUTILE if fewer than 60 matches by 2027-01-19.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_serve_exposure_2026-10-19.md",
+          "line": 61,
+          "quote": "| asy sety | EXP_T | -0.0006 [-0.0078, +0.0069] | 35 / 15 | 0.742 | 0.629 | -11.3 pp [-26.0, +4.4] | 0.581 | +8.0% |"
+        }
+      ]
     }
   ]
 }
