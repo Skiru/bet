@@ -1,193 +1,143 @@
-# Evidence rules — what the artifacts can and cannot tell you
+# Evidence rules - what the artifacts can and cannot tell you
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** no market is refused by name (`refused_markets`, `admitted_player_markets`, `admitted_tennis_set_markets`, `DERIVED_NOT_CALIBRATABLE`, a sport key outside `admitted` describe the old epoch only): every key is read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "Line evidence and the 2026-10-07 changes".
+Read this when you grade a football / tennis sample, or before you write a
+veto (the "already enforced" table). Which model packages and switches are
+on: `.claude/skills/sofa-pipeline/references/model-state.md`.
 
 ## The sample is in `03_samples.json`, not in the sheet
 
-The sheet carries `sample_size`, `sample_mean`, `sample_sd`. That is a summary,
-and three of the most common faults are invisible in it:
+The sheet row carries `sample_size`, `sample_mean`, `sample_sd` - a summary
+that hides the three commonest faults:
 
-- **every observation on the same side of a line the sample has never
-  approached.** 20/20 that says nothing, because it could not have said
-  anything else. (`line_is_beyond_sample` catches the extreme case for builder
-  legs; it does not gate singles.)
-- **the modal outcome losing the bet.** A mean comfortably above the line whose
-  single most frequent value is below it.
-- **the sample spanning a discontinuity** — a manager change, a transfer
-  window, a surface change, a return from injury.
+- **every observation on one side of a line the sample never approached** -
+  20/20 that could not have said anything else;
+- **the modal outcome losing the bet** - a mean above the line whose most
+  frequent value is below it;
+- **a discontinuity inside the sample** - a manager change, a transfer window,
+  a surface change, a return from injury.
 
-So open the observations. Per metric you get `side_a[]`, `side_b[]`, `h2h[]`,
-each observation carrying `sofascore_event_id`, `match_date_utc`, `opponent`,
-`value`, `competition_id`, `season_id`, `venue`.
+Per metric: `metrics[<metric>].side_a / side_b / h2h`, each observation with
+`sofascore_event_id`, `match_date_utc`, `opponent`, `opponent_id`, `value`,
+`competition_id`, `season_id`, `venue`, `minutes`, and on every `_for` metric
+`against` (the opponent's value of the same metric in that match; null on a
+total or a player metric). Footballer markets live in
+`players["<market>|<player>"]` (`matched_name`, `match_rule`, `side`,
+`appearances`, `squad_matches`, `observations`). Summarise one metric of one
+match without dumping the file:
 
 ```bash
-.venv/bin/python - <<'PY'
-import json, statistics
-d = "runs/sofa/<date>/"
-s = {x["sofascore_event_id"]: x for x in json.load(open(d + "03_samples.json"))}
-m = s[15275920]["metrics"]["corners_total"]
-for side in ("side_a", "side_b", "h2h"):
-    vals = [o["value"] for o in m[side]]
-    if not vals:
-        continue
-    print(side, "n=%d" % len(vals), "mean=%.2f" % statistics.mean(vals),
-          "mode=%s" % statistics.mode(vals), "range=%s-%s" % (min(vals), max(vals)))
-    for o in sorted(m[side], key=lambda o: o["match_date_utc"], reverse=True):
-        print("   ", o["match_date_utc"][:10], o["opponent"], o["venue"], o["value"])
-PY
+jq -c --argjson id <id> '.[]|select(.sofascore_event_id==$id)|.metrics["<metric>"]|to_entries[]|select(.key!="metric")|[.key,(.value|map([.match_date_utc[:10],.opponent,.opponent_id,.competition_id,.venue,.value]))]' runs/sofa/<d>/03_samples.json
 ```
 
-Also read `gaps[]`. Every absence has a named `GapReason`; if you cannot find
-why a metric is missing, you are reading the wrong file, not looking at a
-silent drop.
+The sample's opponents carry only a name, `opponent_id` and `competition_id` -
+no ranking, tier or strength offline. Opponent class beyond the competition is
+`UNVERIFIED` without the web.
 
-## How much of the centre is the sample, and how much is the league
+Read `gaps[]` too: every absence has a named reason (`EVENT_NOT_FINISHED`,
+`SURFACE_UNKNOWN`, `ENTITY_CONFLICT`, ...). A placeholder result (a 0-0 with
+no statistics, incidents or lineups - a forfeit) inside a goals sample is a
+defect to report.
+
+Friendlies and pre-season tournaments are out of every sample and rating
+(`bet.sofa.comparability`; `config/sofa_friendly_competitions.json`
+`excluded`; an 851 men's friendly fixture admits the sides' own 851 matches).
+For a football LEAGUE fixture the goal markets (`goals_total`, `goals_for`,
+`goals_1h_for`, `goals_2h_for`) sample only the side's REGULAR matches of the
+fixture's own competition when it has five or more
+(`comparability.pick_same_competition`), so a cup or friendly observation
+there is a defect; a knockout fixture keeps the newest ten, cups included.
+
+## How much of the centre is the sample
 
 ```
-w_c = n / (n + K_CENTRE)      football K_CENTRE = 15, tennis 5 (config/sofa_engine_constants.json, by_sport)
+w_c = n / (n + K)    K = K_CENTRE in config/sofa_engine_constants.json:
+                     football 15 (per market: by_market.football, the row's k_rule), tennis 8
 ```
 
-At n=10 a football row's centre is **40%** its own sample and 60% the league
-baseline. At n=8 it is 35%. State this number for any row you grade, and
-always for a `*_1h_*` / `*_2h_*` row — the half-match baselines are fitted on a
-smaller, different population than the full-match ones, and a stale baselines
-file has already shipped corners priors 24–32% too high for two days.
+Football then mixes the rating in: `centre = w x rating + (1 - w) x shrunk
+sample`, with `w` per market from `config/sofa_rating_weight.json` (else
+0.5); the row's `FOOTBALL_RATING` note prints the rating's centre, `W=` and
+the sample centre it replaced. Further centre terms (game state, season
+phase, opponent correction, supremacy stretches) each leave a note or a
+`*_rule` marker on the row - read them, do not re-derive them. State `w_c`
+for any row you grade, twice for a `*_1h_*` / `*_2h_*` row (the half
+baselines are fitted on a smaller population).
 
-On a stats-only row (`epoch: "stats_only"`, builds from 2026-10-05 07:15Z)
-`p_central` holds **no price**: no ladder centre, no rating blended with the
-price, no empirical shrink to the rung's price (`scripts/sofa/run_sheet.py`,
-`process_fixture`, `stats_only`). A rated tennis row is priced by the
-sample's estimator (from 2026-10-07 14:05Z `epochs.tennis_rating_prices`:
-`games_won_for` / `handicap_games` / `most_games` by the rating alone,
-`games_total` 0.5·rating + 0.5·NB), and the rating (football and tennis) is
-published beside it as `forecast_p` - the **model**, uncalibrated, never a
-gate. On an older
-row a priced tennis rung was pulled onto the price: `TENNIS_RATING`
-`0.25·rating p + 0.75·market_p` (`blend_with_price`), `P_SHRUNK_TO_PRICE`
-`w·hits/n + (1−w)·market_p`, `w = n/(n+30)` - there a `p_central` near
-`market_p` was the code working; on a stats-only row it would be a
-coincidence worth a look.
+Where the football prior came from is on the row: no note = the fitted
+league entry; `PRIOR_FROM_DAY_SAMPLES`; `PRIOR_FROM_TEAMS_LEAGUES` (a cup tie
+on its sides' leagues); `NO_PRIOR`; `PRIOR_GLOBAL` / `PRIOR_GLOBAL_WOMEN`
+(no fitted baseline: the global pool of every league) - say so, because it
+owns most of a thin row's centre.
 
-**Where the football prior came from** is on the row since 2026-09-23. In
-order: the fitted league entry (no note); `PRIOR_FROM_DAY_SAMPLES` - the
-league's mean over the day's own sampled matches, this fixture's sample
-excluded, n >= 30; `PRIOR_FROM_TEAMS_LEAGUES` - a cup tie priced on the leagues
-its sides actually play in; otherwise the **global** pool, which is every
-league on earth (3.29 goals). A row with no PRIOR note and no fitted league is
-on the global pool - say so, because at n=10 that pool owns 60% of the centre
-and it is the defect that put Gaucho A2 OVER 1.5 legs on the 2026-09-23 PDF.
-Half-match metrics never take a day or teams' prior (Sofascore's period split
-is wrong in some leagues while the full time is right).
+A `_total` row exists only when both sides have `min_sample` own
+observations; one side's history is refused as `THIN_SAMPLE`.
 
-A `_total` row exists only when **both** sides have at least `min_sample` own
-observations; a pool that is one side's history is refused as `THIN_SAMPLE`,
-so a veto for "one player's history wearing a match's name" is no longer needed.
-
-## Context available in `02_fixtures.json`
+## Context in `02_fixtures.json`
 
 | field | what it lets you say | limits |
 |---|---|---|
-| `competition_name`, `category_name`, `season_id` | which competition, which tier | absent before RESOLVE; Superbet sends no name at all |
-| `round_number`, `round_name`, `cup_round_type` | knockout vs league, which round | |
-| `previous_leg_event_id` | **this is a second leg** | present only when Sofascore linked it |
-| `referee` (`RefereeRecord`) | name, games, yellows, reds, second yellows | **filled for ~9% of fixtures** — announced late. Absence is the default, not a gap to chase. |
-| `venue_name` | home/away/neutral questions | |
-| `ground_type` | tennis surface | |
-| `default_period_count` | tennis: the real best-of (3 or 5) | football: the number of halves. It says nothing useful about a football fixture. |
-| `identity` | `CONFIRMED` or `FUZZY` | a `FUZZY` fixture may be the wrong match entirely. Never present one as confirmed. |
-| `kickoff_utc` + `superbet_kickoff_utc` + `kickoff_disagreement_h` | the decision point | see below |
+| `competition_name`, `category_name`, `competition_id`, `season_id` | which competition, which tier | |
+| `round_number`, `round_name`, `cup_round_type` | knockout vs league, which round | often null for tennis |
+| `previous_leg_event_id` | this is a second leg | not the aggregate |
+| `referee` (`RefereeRecord`: `name`, `games`, yellow / red / second-yellow counts) | the official's rate | filled on a small minority of fixtures; absence is the default |
+| `venue_name` | home / away / neutral | few fixtures |
+| `ground_type` | tennis surface | null at the thin end of the calendar |
+| `default_period_count` | tennis best-of (3 or 5) | for football the number of halves - says nothing |
+| `identity` | `CONFIRMED` or `FUZZY` (names differ beyond a folded exact match - compare them) | never call `FUZZY` confirmed |
+| `kickoff_utc`, `superbet_kickoff_utc`, `kickoff_disagreement_h` | the decision point | |
 
-## The two clocks
+## The clocks
 
-`kickoff_utc` is Sofascore's, `superbet_kickoff_utc` is Superbet's. For ITF
-tennis they disagree by up to 11 h, and the error runs the wrong way: **a
-finished match looks upcoming** on Sofascore's clock. SHEET, COUPON and
-CONFIDENCE gate on the earliest clock (Sofascore's - replaced by
-FIXTURE_CHECK's fresh `/event` start in `fixture_status.json` where it ran -,
-Superbet's, and Superbet's own start signal).
+`kickoff_utc` is Sofascore's, `superbet_kickoff_utc` Superbet's; on ITF tennis
+they disagree by up to 11 h and the error makes a finished match look
+upcoming. The code gates on the earliest of RESOLVE's clock, Superbet's start
+signal (`04_offer.json` `superbet_started_utc`, `superbet_kickoff_seen_utc`)
+and FIXTURE_CHECK's fresh start (`fixture_status.json`). Take the earlier for
+your decision point; quote both when they differ by more than an hour.
 
-For your own decision point, take the **earlier**. Quote both when they
-disagree by more than an hour, and say so.
+## What the pipeline does not know, and you might
 
-## What the pipeline does NOT know, and you might
+None of these is in the artifacts; each is a CONTEXT opening:
 
-These are the openings for a `CONTEXT` veto. None of them is anywhere in the
-artifacts:
+- what is at stake beyond the `stakes` flag - a dead rubber, a decided tie,
+  a play-off;
+- a second leg's aggregate score;
+- absences, suspensions, a rested XI;
+- a manager change inside the sample window;
+- weather, pitch, altitude;
+- a tennis player's withdrawal or walkover announced before the start;
+- whether a match is a derby;
+- *why* a make-up fixture was postponed and whether the cause still holds.
 
-- what is at stake — a dead rubber, a decided tie, a promotion play-off
-- a second leg's aggregate score (the link is there, the score is not)
-- announced absences, suspensions, a rested XI in a cup tie
-- a manager change inside the sample window
-- weather, a waterlogged pitch, altitude
-- a tennis player's late withdrawal or a walkover announced before the start
-  (a retirement or walkover that happens is a refund, 0 u., not a loss)
-- whether a derby is a derby
+## Already enforced - never veto or WATCH for these
 
-## What the pipeline knows better than you
-
-Do not re-derive these, and do not veto for them — the gate already fired:
-
-| already enforced | where |
+| gate | refusal |
 |---|---|
-| price older than 45 min | COUPON `STALE_PRICE`, CONFIDENCE `STALE_PRICE` |
-| the match has started (earliest clock) | CONFIDENCE `KICKED_OFF` |
-| printed match postponed / cancelled / abandoned (FIXTURE_CHECK) | CONFIDENCE `FIXTURE_NOT_AS_SCHEDULED` |
-| newest observation older than 60 days | COUPON and CONFIDENCE `STALE_SAMPLE` |
-| kickoff less than 15 min out, on the earlier clock | COUPON `KICKOFF_TOO_SOON` |
-| odds below 1.25 (old singles) / 1.0867 = 1/0.9202 (coupon legs) | `ODDS_TOO_LOW` |
-| x = confidence x odds below 0.90 | CONFIDENCE `NEGATIVE_LEG_EV` (sport legs `BELOW_MIN_X`) |
-| confidence below the 0.70 floor | CONFIDENCE `BELOW_CONFIDENCE_FLOOR` |
-| line outside everything the sample has seen | CONFIDENCE `LINE_BEYOND_SAMPLE` |
-| `p_central` at or above this market's own measured calibration ceiling | COUPON `ABOVE_MEASURED_CEILING`, CONFIDENCE `NOT_CALIBRATED` |
-| a second row of the same mechanism family on one fixture | COUPON `FAMILY_SLOT_TAKEN` |
-| modal outcome loses | CONFIDENCE `MODE_LOSES` |
-| football model more than 0.15 above its own sample's hit rate | CONFIDENCE `MODEL_ABOVE_OWN_SAMPLE` (automatic WATCH, into `removed_by_reads`) |
-| fewer than 10 observations (a football player row on the six `PLAYER_SHAPE_GATE_MARKETS` from 2026-10-17: fewer than 5, and no LINE_BEYOND_SAMPLE / MODE_LOSES - such a leg carries `player_sample_rule`) | `THIN_SAMPLE_FOR_BUILDER` |
-| oldest observation past 180 days (national-team fixtures judged by count, `NATIONAL_SAMPLE_AGE`) | `SAMPLE_CROSSES_SEASON` |
-| model more than 0.10 above the devigged price | `DISAGREES_WITH_PRICE` - old-epoch builds only; off on a stats-only day, as `UNREACHABLE_BAR` |
-| no curve at p and no settled Superbet lines of the key (a derived joint, a player line, a thin bucket) | `NO_LINE_EVIDENCE` (football / tennis CONFIDENCE and SPORT_CONFIDENCE; `DERIVED_NOT_CALIBRATABLE` only before 2026-10-07 10:55Z) |
-| football ratings of two leagues with no shared competition | `CROSS_LEAGUE_UNLINKED` |
-| class markets (women's, team cups) without their class curve | `NO_CLASS_CURVE` |
-| a (competition, family) cell that does not settle | `NOT_SETTLEABLE` |
-| sport leg: unpinned identity, started, price over 3 h old, CS2 team-rounds line outside 9.5-12.5 | `NOT_IDENTIFIED` / `DUPLICATE_*`, `KICKED_OFF`, `STALE_PRICE`, `LINE_OUTSIDE_FIT` |
-| a builder mixing `goals UNDER` with `corners OVER` | `BUILDER_LEGS_INCOHERENT` |
+| price older than 45 min (football / tennis), 3 h (sports) | `STALE_PRICE`, `NO_FETCHED_AT` |
+| started on the earliest clock, or within 15 min of it | `KICKED_OFF` |
+| printed match postponed / cancelled per FIXTURE_CHECK | `FIXTURE_NOT_AS_SCHEDULED` |
+| newest observation older than 60 days / oldest older than 180 (national teams by count) | `STALE_SAMPLE` / `SAMPLE_CROSSES_SEASON` |
+| odds below 1.0867 | `ODDS_TOO_LOW` |
+| x = confidence x odds below 0.90 | `NEGATIVE_LEG_EV` (sports `BELOW_MIN_X`) |
+| confidence below 0.70 | `BELOW_CONFIDENCE_FLOOR` (sports `BELOW_FLOOR`) |
+| ladder margin above 15% | not printed as a single (the leg's `overround`; sports `MARGIN_TOO_HIGH`) |
+| line outside everything the sample has seen; modal outcome loses; fewer than 10 observations | `LINE_BEYOND_SAMPLE`, `MODE_LOSES`, `THIN_SAMPLE_FOR_BUILDER` - except a football player leg on `confidence.PLAYER_SHAPE_GATE_MARKETS`, which needs 5 starts and skips the first two; it carries `player_sample_rule` and its shape is yours to judge |
+| football `model_p` more than 0.15 above the own sample's hit rate (n >= 5, props excluded) | `MODEL_ABOVE_OWN_SAMPLE` (automatic WATCH into `removed_by_reads`) |
+| no curve at p and too few own Superbet lines | `NO_LINE_EVIDENCE` |
+| no usable curve | `NOT_CALIBRATED` |
+| two football leagues the rating cannot link | `CROSS_LEAGUE_UNLINKED` |
+| women's / team-cup class without its class curve | `NO_CLASS_CURVE` |
+| (competition, family) that does not settle | `NOT_SETTLEABLE` |
+| builder legs disagreeing about tempo | `BUILDER_LEGS_INCOHERENT` |
+| sport leg: identity not pinned, no model p, CS2 team-rounds line outside 9.5-12.5 | `NOT_IDENTIFIED` / `DUPLICATE_*`, `NO_MODEL_P`, `LINE_OUTSIDE_FIT` |
 
-Your value is in what these cannot see.
+The day's counts per refusal are in the CONFIDENCE `SOFA_SUMMARY` line of
+the latest `runs/sofa/<d>/rebuild_*.log` (`metrics.refused`) - counts, not
+rows. Your value is in what these cannot see.
 
-## Corroboration and sources
+## One provider, no corroboration
 
-`sofa` has **one** statistics provider. There is no cross-provider agreement
-field, no second opinion inside the artifacts, and no `SINGLE_SOURCE` flag —
-because every row is single-source. Say so once in the header; do not present
-any row as corroborated.
-
-External verification, when you do it:
-
-- **There is no MCP source of record, for either sport.** `sofa` reads
-  Sofascore statistics and Superbet prices and nothing else. **bzzoiro must
-  never be called** — not for football, not for status, not for odds. It is a
-  provider from the retired `simple` pipeline; pulling it back in launders a
-  number `sofa` never sampled into a read that is supposed to rest on those two
-  sources.
-- **Football:** a fixture's status and both clocks are already in
-  `02_fixtures.json` (`identity`, `kickoff_utc`, `superbet_kickoff_utc`,
-  `kickoff_disagreement_h`). On a live day a fixture that has already started
-  is a veto on all lines. Rest, congestion and make-up status are on disk
-  since 2026-10-04 (the `schedule` block in `03_samples.json`). For context
-  the artifacts do not carry — standings, absences, derby status, *why* a
-  make-up was postponed — use the web on the same terms as tennis
-  below, and mark `UNVERIFIED` where it cannot be established.
-- **Tennis:** verification is WebFetch against the tournament's
-  official order of play plus one independent domain, tagged
-  `[WEB: domain, fetched <UTC>]`; one domain alone is "unconfirmed". Game-level
-  ITF statistics are not available free — say **unverified** rather than
-  manufacturing a source.
-- **Never fetch odds off the open web, and never from another book's feed.**
-  The only price that exists for `sofa` is Superbet's, in `04_offer.json`; a
-  price from anywhere else is not the price this coupon is measured against.
-  And Superbet's price is only the betting filter - never a reason in a read.
-  If a live re-quote is needed, it goes through the same `OfferFetcher` the
-  pipeline used — that is `sofa-market-scout`'s job, not yours.
-- If a tool returns `requires re-authorization`, stop retrying and list the
-  checks you therefore did not make. Silence about a skipped check reads as a
-  passed check.
+`sofa` has one statistics provider: no cross-provider agreement exists. Say
+so once in the header; never present a row as corroborated. Never fetch odds
+from the web or another book; a live re-quote of Superbet goes through the
+pipeline's own `OfferFetcher` (`sofa-market-scout`'s job, not yours).

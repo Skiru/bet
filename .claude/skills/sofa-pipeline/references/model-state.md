@@ -1,0 +1,559 @@
+# Model state - switches, fits, measurements (reference)
+
+Read this before proposing or changing a model, a curve, a switch or a refit.
+The archive of record for developers: every switch with its date, measurement
+and evidence path; the installed fits and their source DBs; what was measured
+and declined; what is open. The code is the authority for dates:
+`src/bet/sofa/epochs.py` (every `*_FROM_UTC`; `None` = off). Evidence lives in
+`docs/sofa/evidence/`, reports in `docs/sofa/history/`. Intervals are 95%
+match-bootstrap unless said otherwise; log-loss deltas are new minus old
+(negative = better).
+
+## (a) Switches ON
+
+A day built before a switch's moment, or rebuilt later, keeps the rule it was
+printed by (switches are judged on the day built AND the build clock). Where a
+switch went into an already built day the day is mixed (section f).
+
+### Foundations (10-05 .. 10-08)
+
+| constant | from (UTC) | what | evidence |
+|---|---|---|---|
+| `STATS_ONLY_FROM_UTC` | 10-05 07:15 | confidence from the statistics alone; the price only the betting condition | `docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md` |
+| `SPORTS_ON_COUPON_FROM_UTC` | 10-05 08:30 | hockey / basketball / volleyball / CS2 print on the one coupon (the separate sport coupons retired 2026-10-05) | same |
+| `COUPON_STRUCTURE_FROM_UTC` | 10-06 00:00 | coupon-form dials (ladder `one_rung`, per-match cap - both OFF unless `config/sofa_coupon_form.json` sets them) and the builder screen-price gate (itself off: `BUILDER_SCREEN_PRICE_FROM_UTC` None) | same, F4 |
+| `SETTLEABILITY_FROM_UTC` | 10-06 00:00 | `NOT_SETTLEABLE` for (competition, family) cells of `config/sofa_settleability.json` | F0.6 |
+| `AMPERSAND_SUBJECTS_FROM_UTC` | 10-06 00:00 | a club with "&" in its name is a subject of its own markets when it equals a listing participant (`market_mapper.subject_is_combination`); 37 occurrences 09-18..10-05 | F1.1 |
+| `POOL_NEIGHBOUR_CAP_FROM_UTC` | 10-06 00:00 | K13b: a pooled read capped by the market's nearest own bucket below (goals_1h_total O0.5 printed 0.815 vs own 0.709 / 0.731; 57 rows / 48 matches -12.6 pp [-24.1, -1.2], capped +3.1 [-8.4, +14.4]; a market with no own bucket read off the pool -14.1 pp [-21.0, -7.2], 290 rows, not touched) | `scripts/sofa/measure_pool_holes.py` |
+| `NATIONAL_SAMPLE_AGE_FROM_UTC` | 10-06 00:00 | national-team fixtures judged by sample count, not the 180-day `SAMPLE_CROSSES_SEASON` age | - |
+| `LINK_SHARED_LEAGUE_FROM_UTC` | 10-07 06:45 | a football pair is LINKED only when both sides' leagues are the competition they share (else `CROSS_LEAGUE_UNLINKED`); the hockey / basketball / volleyball score model reads the same book; rows carry `link_rule`; a promoted side is cross-league until its new league is its modal one | - |
+| `LINE_EVIDENCE_FROM_UTC` | 10-07 10:55 | line evidence: offset + price-band cap + Wilson bound for keys without a curve (rules: arithmetic.md, Chain 2) | `docs/sofa/evidence/discrimination_within_price_2026-10-07.md` |
+| `LINE_EVIDENCE_V2_FROM_UTC` | 10-07 13:42 | `LineEvidence.v2` rules (need the evidence file's `games` field; an older file reads nothing for a key without a curve) | - |
+| `TENNIS_RATING_PRICES_FROM_UTC` | 10-07 14:05 | `games_won_for`, `handicap_games`, `most_games` (not its draw) priced by the rating alone, no price; `games_total` = 50/50 mix of NB and rating | `docs/sofa/history/AUDYT_MODELI_2026-10-07.md` |
+| `DERIVED_MARGINAL_CENTRES_FROM_UTC` | 10-07 14:05 | football goals / corners / shots-on-target / cards joints built from the marginal rows' centres | same |
+| `BB_FRESHNESS_FROM_UTC` | 10-07 14:05 | basketball simulation noise x1.085 when the thinner side has <= 2 games in 120 days, x1.026 for 3..9 (live and history replay) | same |
+| `PEER_CHOICE_FROM_UTC` | 10-08 08:10 | peer annotation (★ the surer of two legs of one match within `PEER_BAND` 0.06); annotation only; 10-08 mixed | `docs/sofa/evidence/peer_choice_2026-10-08.md` |
+
+Peer choice measurement: of 57,791 decided pairs (football / tennis, 20 days)
+the more confident leg won 53.4% [52.2, 54.7]; no sample statistic (hit rate,
+size, near misses, margin, venue, last 5), tournament metadata (popularity,
+reserve / women / cup / national) or combination improved the confidence out of
+sample; hockey / basketball / volleyball show no measurable edge
+(`scripts/sofa/measure_peer_choice.py`; check `T-PEER-CHOICE-edge`). Stakes
+flags (`bet.sofa.stakes`, `STAKES_SIX_POINTER`, `STAKES_TOP4`, from the football
+history's league table as of kickoff): six-pointer +0.2 cards, +0.9 fouls,
+-0.15 goals, -1.0 shots per match (0.08-0.16 sd); top-4 +0.2 cards, -0.2
+goals; not corrected for relegation-zone weakness; shown, never gated.
+
+### Refit installed 2026-10-08 23:42Z (commits 5330f357 / fdbe0aae), switches from 10-09 00:00Z
+
+| constant | from | what |
+|---|---|---|
+| `COUNT_DISPERSION_FROM_UTC` | 10-09 00:00 | football count spread from an alpha fitted on the history, NB per competition (`config/sofa_count_dispersion.json`, `fit_count_dispersion.py`); normal with pooled variance for `shots_total`; log-loss better on 52/52 markets out of sample; rows `dispersion_rule`; replay `--count-dispersion` |
+| `TENNIS_SCOPED_TABLE_FROM_UTC` | 10-09 00:00 | rating neighbours from the tier x gender cell, then tier, then pooled when a cell holds < 1200 outcomes, plus tier start `lp_t`; games_total -81e-4 log-loss; `tennis_table_rule`; replay `--tennis-scoped-table`, fit `fit_tennis_rating.py --tier-start` (tier_start offsets look ahead inside the replay - Elo at the cut - like the coefficients) |
+| `PER_MARKET_K_FROM_UTC` | 10-09 00:00 | `K_CENTRE.by_market.football` in `config/sofa_engine_constants.json`: cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15; `k_rule`; `--per-market-k`. Paired with COUNT_DISPERSION: SHEET exits 2 with only one on (`epochs.require_k_with_dispersion`) |
+| `READ_EVENTS_FROM_UTC` | 10-09 00:00 | reads by match: every unlocked leg of the first 30 matches (`read_unit: "event"`; operator "30 wydarzeń, nie 30 rynków") |
+
+A day < 10-09 is the old estimator and is never rebuilt under the new one; a
+rebuild of a day >= 10-09 re-runs SHEET on a sheet without the markers
+(`rebuild_plan.py`). Preview on 10-07 data: printing legs 572 -> 634 (football
+251 -> 269, tennis 321 -> 365; 47 of the 113 new legs tennis `games_won_for`
+UNDER), builders 11 -> 8. Line evidence was fitted on the old curves and
+applied to the new until refitted (first mornings' offsets noisy:
+`games_won_for` UNDER likely over-lowered; `goals_total` / `corners_total`
+possibly double-counted). Evidence:
+`docs/sofa/evidence/{count_families,tennis_calibration,dependence_goals,pooling,k_under_dispersion}_2026-10-08.md`;
+`docs/sofa/history/RAPORT_STAGED_REFIT_2026-10-08.md`,
+`docs/sofa/history/RUNBOOK_INSTALL_2026-10-08.md`. A refit carrying these:
+`prepare_refit.py rebuild-cache-rows --confirm --without-db-backup
+--count-dispersion --per-market-k --cards-correlation --tennis-scoped-table`
+on the copy, with `fit_tennis_rating.py --tier-start`.
+
+### Player switches 10-12 (ledger group "od 10-12")
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `PLAYER_NAME_TOKENS_FROM_UTC` | 10-12 00:00 | a footballer `players.match_player` misses is looked for by whole name tokens (`match_player_by_tokens`: >= 2 shared, one candidate, one side); 346 of 680 `NO_ENTITY_FOUND` players of 10-08..10-10; sample `match_rule: "tokens"`, row `PLAYER_NAME_TOKENS` | `docs/sofa/evidence/player_name_tokens_2026-10-11.md` |
+| `PLAYER_STARTS_ONLY_FROM_UTC` | 10-12 00:00 | player sample = his starts (`appearances: "starts"`, note `PLAYER_STARTS_ONLY`); bucket-calibrated -0.0027 log-loss [-0.0030, -0.0024] vs all appearances; player curves fitted on starters (in the installed calibration since the 10-14 refit, replay `--player-starts-only`) | `docs/sofa/evidence/player_starts_2026-10-11.md` |
+| `ONE_SIDED_SINGLES_FROM_UTC` | 10-12 00:00 | a one-sided (OVER-only) player leg prints as a single when its confidence is its own market's history curve with n >= 300 (`confidence.one_sided_single`); measured before: 49 would-print legs 10-05..10-10, ROI -10.3% [-27, +4] vs -3.0% team legs - open check | same |
+| `PRICE_GAP_FLAG_FROM_UTC` | 10-12 11:51 | `price_gap` annotation (`CONFIDENCE_ABOVE_PRICE`, `GAP` 0.03), football / tennis; 10-12 mixed | `docs/sofa/evidence/price_gap_2026-10-12.md` |
+
+`regrade_settled.py --player-not-started` deleted 5,215 bench rows of
+09-24..10-10 on 2026-10-11 (none printed). Price-gap measurement: printed legs
+10-09..10-11, football 458 legs / 269 matches -6.8 pp [-12.0, -2.1], tennis
+52 / 35 -18.6 pp [-31.0, -5.9], rest +0.3 pp; same sign every day
+10-07..10-11; ROI not measurably worse. Measured sports carry no flag:
+hockey's 32 over-price legs -1.2 pp [-15.1, +11.9]; basketball overstated on
+both sides of the price alike (-15 / -18 pp on 52 / 50 legs - a curve
+question); volleyball / CS2 too few (`scripts/sofa/measure_price_gap.py`).
+`T-PRICE-GAP-flag` PASSED 2026-10-19: 10-13..10-18 football 2,111 flagged legs
+/ 932 matches -10.0 pp [-12.8, -7.4] (hit 0.696 at mean 1/odds 0.734), rest
+-0.9 pp; ROI alike (-5.1% / -5.5%). Four other red flags measured the same
+week add nothing (`scripts/sofa/measure_red_flags.py`,
+`docs/sofa/evidence/red_flags_2026-10-19.md`): a long price at confidence just
+above 0.70 is `price_gap` itself; confidence above own k/n and builders
+nothing; a leading favourite's shots / corners OVER too few legs
+(`T-RED-FLAG-SCRIPT`, from 10-20).
+
+### Audit 2026-10-13: refit 10-13 18:06Z and switches 18:10Z (10-13 mixed)
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `GAME_STATE_FROM_UTC` | 10-13 18:10 | B1: side centre x exp(beta x expected goal difference), `config/sofa_game_state.json`; betas refitted on the live centre, installed 10-13 20:57Z (df5323ea): corners_for 0.129 -> 0.0986, shots_for 0.0974 -> 0.0506, cards_points_for -0.0845 -> -0.0664, fouls_for kept (refit +0.000031 worse); marker `game_state_rule` | `docs/sofa/evidence/game_state_2026-10-13.md` |
+| `FOOTBALL_RATED_SCOPE_FROM_UTC` | 10-13 18:10 | B2: rating also on `football_rating.RATED_SCOPE_MARKETS` = cards_points_for, corners_1h/2h_for, offsides_total; corners totals unrated (corners_total worse +0.0009 [+0.0003, +0.0015]); `rated_scope_rule` | `docs/sofa/evidence/unrated_markets_2026-10-13.md` |
+| `FOOTBALL_VENUE_PRIOR_FROM_UTC` | 10-13 18:10 | B2: league home / away multiplier on a sample-only corners_1h/2h_for centre; `venue_prior_rule` | same |
+| `FOOTBALL_RATING_WEIGHT_FROM_UTC` | 10-13 18:10 | B14: rating weight per market from `config/sofa_rating_weight.json`, else `W_FOOTBALL_RATING`; `rating_weight_rule` | `docs/sofa/evidence/rating_weight_2026-10-13.md` |
+| `SEASON_PHASE_FROM_UTC` | 10-13 18:10 | C1: goals centre x exp(c[market][phase]), `config/sofa_season_phase.json`; `season_phase_rule` | `docs/sofa/evidence/season_phase_2026-10-13.md` |
+| `TENNIS_SET_RATING_PRICES_FROM_UTC` | 10-13 18:10 | B5: per-set games and sets_total from the rating's neighbours; `tennis_set_rule` | `docs/sofa/evidence/tennis_set_markets_2026-10-13.md` |
+| `CS2_TEAM_ROUNDS_RACE_FROM_UTC` | 10-13 18:10 | B10: a team's rounds on a map from the round race (`cs2_engine.team_rounds_from_race`), live, at CS2_SETTLE and in the replay; walk-forward log-loss -0.0213 [-0.0237, -0.0188]; CS2 curve refitted on it staged 10-13, promoted 10-14 (bc69b56e). Moved by the operator from 10-14 00:00Z | - |
+| `CS2_COUNT_EXPOSURE_FROM_UTC` | 10-13 18:10 | B12: kills / deaths / assists / team kills from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`); log-loss -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero; headshots measured worse (+0.188), stay on the sample (outside `EXPOSURE_FAMILIES`); line evidence of these families fitted on the old p, no check on Superbet lines 10-05..10-12 | `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md` |
+
+Refit 10-13: `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`; superseded by the
+10-14 refit.
+
+### Switches of 2026-10-14 00:00Z (before 10-14's build; operator 10-13, all markets on; `docs/sofa/history/PLAN_NOC_2026-10-13.md`)
+
+| constant | what | evidence |
+|---|---|---|
+| `LEAGUE_RATE_RULE_FROM_UTC` | A2 (operator O1, correctness rule): a hockey / basketball / volleyball friendly / pre-season (`comparability.is_friendly_event`) is `FRIENDLY_FIXTURE`; a competition below `MIN_LEAGUE_MATCHES` (30) has no model p (`NO_LEAGUE_RATE`), never the all-league mean (NBA Preseason read 82.8 points a side); no fallback to the home league; line-evidence replay (`settled_shadow_rows`) applies the day's rule; measurement too small (17 would-print lines / 16 games) | `scripts/sofa/measure_league_rate_rule.py` (`T-A2-league-rate-refusals`) |
+| `BUCKET_DESIGN_EFFECT_FROM_UTC` | A4: a key without a curve divides its Wilson bound by its p bucket's own `deff` (1 where every game gives one line; an older file reads the sport's); walk-forward log-loss -0.0351 [-0.0409, -0.0292] | `docs/sofa/evidence/bucket_design_effect_2026-10-13.md` (`T-A4-bucket-deff`) |
+| `READ_BY_VALUE_FROM_UTC` | the 30 read matches are those of best value: best unlocked leg's confidence x odds, football / tennis confidence capped at 1/odds + `price_gap.GAP` (`confidence.read_value`, `read_order: "value"`) | - |
+| `TENNIS_MATCH_WINNER_FROM_UTC` | D2: "Zwycięzca" as one two-sided rung `match_won_for`, priced from the as-of rating alone, own curve only (`bet.sofa.tennis_winner`); skill -0.1263 [-0.1303, -0.1228] log-loss vs class base rate; calibration threshold not met, every miss cautious; >= 0.70 printed 0.802 vs realised 0.828 holdout | `docs/sofa/evidence/tennis_match_winner_2026-10-13.md` |
+| `MAPPABLE_FAMILIES_FROM_UTC` | OFFER reads the MAPPABLE families of `bet.sofa.market_coverage` ("<club> strzeli gola" and halves as goals_*_for 0.5, "Zostanie rozegrany N. set" as sets_total N-0.5, half BTTS, both-over saves, half corner / set games handicaps - `market_mapper.classify_mappable_family`); a yes/no answer never adds a second rung where the ladder quotes one; E2E on 10-13 samples clean on / off, the bridge leg untested (Sofascore 403) | `docs/sofa/evidence/mappable_e2e_2026-10-14.md` |
+| `MEN_FRIENDLY_SAMPLE_WINDOW_FROM_UTC`, `MEN_FRIENDLY_BASELINE_FROM_UTC` | `bet.sofa.men_friendly`: an 851 fixture's pool also admits the sides' 851 matches; goals_total / goals_for read variant C (every pool match since the oldest of the newest ten 851 matches); SHEET goals prior = as-of mean of 851 matches (2.54 over 2,365; goals_for half; >= 30 matches; note `PRIOR_MEN_FRIENDLY`, no row marker - mid-day re-run SHEET by hand); C-D with as-of prior goals_total -0.0071 [-0.0127, -0.0015], goals_for -0.0140 [-0.0196, -0.0086]; women's 852 unchanged. Curves fitted without 851 (`fit_meta.friendly_exclusion_sql`): an 851 fixture reads competitive curves as an approximation | `docs/sofa/evidence/national_friendly_samples_2026-10-13.md` |
+| `PLAYER_TEAM_FROM_SIDE_FROM_UTC` | hockey / basketball player props: a past game's squad is the lineup side the team held in that game (`player_model.appearances_from_lineups(..., side)`, `event_side`), by SHADOW's day key and the computing clock; before it the entry's `teamId` (Carlson model_n 5 of 85, McTavish 6 of 88 on 10-13); SHADOW, SHADOW_SETTLE and `measure_player_props.py` follow the day's rule; `fit_player_model.py --player-team-from-side`; rows `player_team_rule`; off = byte-identical | `docs/sofa/evidence/sport_player_props_2026-10-13.md` |
+| `MARKET_POSITIONED_LINES_FROM_UTC` | A7: basketball curve fitted on lines placed where the Sofascore market stood (`data/a7_odds/basketball.jsonl`), staged `config/sofa_sport_confidence_calibration.next.json` (`effective_from` 10-14, bc69b56e); log-loss -0.0622 [-0.0702, -0.0546] on 41,414 Superbet lines / 651 games 10-05..10-12; at the market's line model p up to 0.70 realises 0.47-0.53, so totals / handicaps / team totals (old curve ~0.77, realised 0.618) stop printing (dry run 0 legs) | `docs/sofa/evidence/market_positioned_lines_2026-10-13.md`, `docs/sofa/evidence/basketball_refit_2026-10-13.md` |
+
+Refit of 2026-10-14 (football / tennis) installed 05:31Z: section (c).
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `SAMPLE_OPPONENT_CORRECTION_FROM_UTC` | 10-14 05:45 | B15 with A5 (`bet.sofa.opponent_correction`): a football side's sample rescaled to a neutral opponent (x / def(opponent)) and to today's league domain before SHEET's centre (goals and players excluded); CONFIDENCE's shape gates / MODEL_ABOVE_OWN_SAMPLE read the corrected values (`corrected_sample`, `opponent_rule`); calibrated log-loss better on 12 of 18 corners / shots / fouls markets with interval below zero, none worse (shots_for -1.96e-3 [-2.38, -1.56], cross-league pairs 3-4x that). SAMPLES writes `opponent_id` only from 10-13 evening, so B15 acts from 10-14's SAMPLES on | `docs/sofa/evidence/sample_opponent_correction_2026-10-13.md` |
+
+### Identity plan K1-K8, 2026-10-14 11:30Z (10-14 mixed)
+
+| constant | what |
+|---|---|
+| `ENTITY_MAP_FROM_UTC` | K1 / K4 (`bet.sofa.entity_map`): SPORT_IDENTITY teaches `sofa_entity` once per event (`sofa_entity_taught`); name-confirmed side (`entity_map.NAME_METHODS`, score > 82) = `verified`, `source = identity_names`, `evidence_event_id`; opponent-rule only = candidate (`sofa_entity_candidate`); a held name offered another id is queued (`sofa_entity_conflict`), never overwritten - `SofaCache.save_entity` (`src/bet/sofa/cache.py`; RESOLVE, SHADOW_SETTLE) follows the same rule; tournaments to `sofa_tournament_map` (football / tennis from RESOLVE, key `id:<superbet tournament id>`; read by nothing yet). Learned rows read by `TeamResolver`, `player_model.resolve_team` (`entity_map_rule`) and `SofaCache.get_entity` from the switch; CS2 reads learned rows only (backfill_cs2's "Ninjas in Pyjamas" = NIP Impact 448738 queued). Manual decisions `config/sofa_entity_aliases.json` applied by every SPORT_IDENTITY run (`entity_map.sync_manual`); queue `report_entity_queue.py` (10-14: 55 candidates; conflicts decided NIP = 366560, Golden Horde = 1272785). Backfill `backfill_entity_map.py` 10-14 09:39Z: 477 new names, 0 contradictions, 2 CS2 conflicts, 71 candidates (backup `data/backup_entity_map_20261014T093901Z/`). Direct gain: 32 not-identified events in 10 days. `docs/sofa/history/RAPORT_K1_MAPA_ENCJI_2026-10-14.md` |
+| `DAY_ANCHOR_FROM_UTC` | K2 (hockey / basketball / volleyball; not CS2, not tennis): with no listed game on both names, the anchor team's only game within the hour (sport, gender, not postponed) is the event (`match_method: "DAY_ANCHOR"`); two such = AMBIGUOUS; the other side's own id missing = RESOLVED_ID_DISAGREES; opponent's name only a candidate. Backtest (`measure_day_anchor.py`): 1,578 / 1,578 right, 79 settle finds agreed, 0 contradicted; live gain NO_MATCH_IN_LISTING events (12 in 10 days; replay 10-13/14: 8); window 1 h. Open: BC Barcelos (K) - Francisco Franco (K) is Sofascore's BC Barcelos - CAB Madeira. `docs/sofa/history/RAPORT_K2_DAY_ANCHOR_2026-10-14.md` |
+| `TOURNAMENT_DAY_FROM_UTC` | K3: an event neither side of which has an id matched by both names inside its tournament's day (`bet.sofa.day_listing`, `unique-tournament/<ut>/scheduled-events/<d>`, cached in `sofa_day_listing`; weaker side >= 60, lead >= 20); 95 tournament-days: 284 / 284 right with ids hidden, 24 of 42 targets, 15 settle-confirmed, 0 contradicted |
+| `NOT_ON_SOFASCORE_FROM_UTC` | K5: a `NO_GAME_WITHIN_1H` from a cached page (6 h TTL) within 3 h of start is asked once fresh; only a fresh page of an id-resolved team with no game within 12 h is `reason: "NOT_ON_SOFASCORE"` (still NOT_IDENTIFIED, still re-asked, `absence_evidence`); a game 1-12 h away keeps NO_GAME_WITHIN_1H with `nearest_game_h`. BRIDGE_ABORTED = refusal periods (10-09 504 tab, 10-13/14 night 403), re-asked every 30 min, no code change (K6). `docs/sofa/history/RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md` |
+| `PLAYER_NAME_SURNAME_FROM_UTC` | K7: whole surname + first-name prefix >= 3 letters (`players.match_player_by_surname`), one candidate on one side; 10-12..10-14: 1,827 / 1,827 picked the same person (a shared initial only: 6 wrong), 22 new players; `match_rule: "surname"`, note `PLAYER_NAME_SURNAME`; SETTLE grades `matched_name` like a token match |
+| `FOOTBALL_DAY_ANCHOR_FROM_UTC` | K8 (operator "Tylko 1. wlacz"): RESOLVE takes a verified side's only football game within 1 h of Superbet's start, in Superbet's order (F25), board's gender, not postponed, the opponent's verified id (if any) in it (`resolve.football_day_anchor_event`); 3,458 / 3,459 bridged fixtures 10-05..10-14 with the opponent hidden, ~11 more fixtures a day; the one miss (Hapoel / Maccabi Petah Tikva U19 10-11) accepted. Tennis never (replaced opponents) |
+
+### New markets 10-14 .. 10-16
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `FOOTBALL_RESULT_MARKETS_FROM_UTC` | 10-14 14:20 (operator "WŁĄCZ OD TERAZ", 10-14 mixed) | D1 double chance: "Podwójna szansa" as `double_chance`, the left-out "Mecz" outcome its UNDER; NB goals on pure rating centres, r 7.586 in `config/sofa_football_result.json` (unfitted), OVER only, `result_rule`; 90-minute score (`bet.sofa.football_result`) | `docs/sofa/evidence/football_result_phase_2026-10-13.md` |
+| `SHOT_DETAIL_MARKETS_FROM_UTC` | 10-14 14:20 | footballer shots outside the box / headed / left / right foot, all and on target: SAMPLES / SETTLE count from `/shotmap` only where it gives the player his lineups `totalShots`; SHEET `shot_detail.forecast` from `config/sofa_shot_detail.json` (absent: `NO_SHOT_DETAIL_FIT`; fit `data/refit_shot_detail_2026-10-14/`); `shot_detail_rule`; left / right foot curves installed 10-15, other six keys failed the gate | `docs/sofa/evidence/shot_detail_2026-10-14.md`, `docs/sofa/history/RAPORT_LUKI_RYNKOW_2026-10-14.md` |
+| `SPORT_DERIVED_MARKETS_FROM_UTC` | 10-14 14:50 (operator "1. 2. tak") | hockey / basketball double chance (regulation) and volleyball team sets / sets count from the score model (`shadow.DERIVED_MARKETS`); log-loss vs base better on every 1X / X2 and volleyball key, none on "12" | `docs/sofa/evidence/sport_derived_2026-10-14.md` |
+| `FOOTBALL_INCIDENT_MARKETS_FROM_UTC` | 10-14 14:50 | `bet.sofa.football_incidents`: "1. gol" one-sided `first_goal` (NB goals, pure rating); `red_cards_total` / `penalties_total` O/U 0.5 / 1.5 from the competition's as-of full-feed rate; graded from regular-time incidents; at p >= 0.70 walk-forward 06-09..10-14 first goal +1.0 pp n 1,376, reds +0.7 n 10,152, penalties +1.0 n 9,518; minute bands never reach 0.70, not read | `docs/sofa/evidence/football_incidents_tennis_sets_2026-10-14.md` |
+| `TENNIS_SET_MARKETS_FROM_UTC` | 10-14 14:50 | `bet.sofa.tennis_sets`: `set1_won_for` / `set2_won_for`, one-sided `set_score`, from the rating's neighbours; set 1 +1.0 pp n 12,174, set 2 +0.4 n 12,502, exact sets +1.5 n 4,107 | same |
+| `FOOTBALL_RESULT_1X2_DNB_FROM_UTC` | 10-15 00:00 | "Mecz" 1 / 2 as `result_1x2`, "Zakład bez remisu" as one `draw_no_bet` rung (OVER home, UNDER away, draw = refund `DNB_DRAW_REFUND`); early-phase men's leg reads class `season_early` (`bet.sofa.football_1x2_dnb`); DNB keys passed the one-sided gate and are installed, every 1X2 key failed (no curve, NO_LINE_EVIDENCE) | `docs/sofa/evidence/football_1x2_dnb_phase_2026-10-15.md` |
+| `CS2_SERIES_ROUNDS_FROM_UTC` | 10-15 00:00 | CS2 rounds_total / rounds_handicap / team_rounds over a series (`cs2_engine.series_rounds_side_p`: maps won from the mixed series distribution, rounds per map from the race); curves installed 10-15 00:17Z despite the warning (three keys pass on the history ladder; at Superbet's lines 21 sides / 19 series realised 0.33 at 0.74); round parity unpriced | `docs/sofa/evidence/cs2_series_rounds_2026-10-15.md` (`T-CS2-SERIES-ROUNDS-superbet`) |
+| `BASKETBALL_DC_PAIR_FROM_UTC` | 10-16 00:00 (correctness fix) | Superbet quotes basketball DC as 1X / X2 only and `shadow.parse_event` took a group only whole (`cs2.DOUBLE_CHANCE_SET`), so it was never read; now a non-whole basketball group is read as two-way pairs against the regulation 1X2 outcome left out (same scope), fair p and margin of that partition, ids `dc_id x 100 - 1/2/3`, complement a price only (`partner_odds`); `dc_pair_rule`; hockey, volleyball, whole groups unchanged | `tests/sofa/test_basketball_dc_pair.py` |
+| `FOOTBALL_CUP_STRENGTH_FROM_UTC` | 10-16 00:00 | `RatingBook.cup_delta` per (domestic competition, metric), learnt from cross-league matches of the nine cups in `config/sofa_cup_strength.json` (UCL / UEL / UECL, AFC Elite / Two, Libertadores, Sudamericana, CAF, CONCACAF), read on top of the domains' sigma (`RatingBook.cup_extra`, `bet.sofa.cup_strength`); steps goals_for 0.05 (1X2 log-loss -0.0285 [-0.0381, -0.0188], 2,194 matches), goals_1h_for 0.05, goals_2h_for 0.02, shots_for 0.02 (1,748 backfilled cup stats, both cuts below zero); corners, SOT, fouls, cards, offsides, halves of corners / shots no step; non-cup 302,635 moved matches goals -0.00003 [-0.00006, -0.000003] (`--spill`); before: 3,740 cross-league cup matches from 2024-07 under-rated the stronger league's side by +5.2 pp P(win) [+3.6, +7.0]; `cup_strength_rule`; the file is an operator list outside `config_sha`; replay `--cup-strength` | `docs/sofa/history/RAPORT_SILA_PUCHAROW_2026-10-16.md` (`measure_cross_league_cups.py --in-book`, TRAIN 2024-07..2025-06, TEST from 2025-07 and from 2026-01) |
+| `SAMPLE_CUP_STRENGTH_FROM_UTC` | 10-16 04:10 | B15's gaps read the cup correction with the past match's and the fixture's competition (`SampleCorrector(cup_aware=True)`, `sample_cup_rule`, replay `--sample-cup-strength`); shots_for -0.00006 [-0.00012, -0.000003], -0.00044 on rows with a cup, shots_total zero; 35 cup fixtures on 10-15 | `docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md` (refit 10-16b) |
+| `FOOTBALL_SCORE_MARKETS_FROM_UTC` | 10-16 07:46 (operator "Włącz od teraz", 10-16 mixed) | `bet.sofa.football_score_markets`: `result_or_over` / `result_or_under` (subject 1 / X / 2), `btts_or_over`, `result_or_btts`, `result_or_clean_sheet`, `result_handicap` (+1.5 / +2.5 / +3.5; +0.5 is the DC; never a `handicap_` prefix - `is_derived` would kill it), `dc_and_over` / `dc_and_under` (12 & over / 1X & under); duplicates merged at the lower price; SHEET prices the OVER from the DC's NB grid (`score_market_rule`, `result_phase`); graded on the 90-minute score at 0.5, never at the goals line; curves per slice `<market>@<subject>@<line>|OVER` (`confidence.curve_market`, also `fit_line_evidence.py`; no pool read); OVER-only rungs print as one-sided singles (slice n >= 300); until own lines settle, line evidence uses football's pooled offset and price band (`cap:*@...`; 1.30-1.60 cell realised ~0.69 at p 0.83, so most legs above 1.30 do not print); PDF / HTML in Superbet's words (`football_score_markets.display_market`) | `docs/sofa/evidence/football_score_markets_2026-10-16.md`, `docs/sofa/history/RAPORT_NOWE_RYNKI_2026-10-16.md` |
+| `TENNIS_SET_COMPLEMENTS_FROM_UTC` | 10-16 07:46 | `set_score_not` "<player> 0:2" OVER = he wins a set (one rung for "wygra seta" Tak, "Handicap setowy" (1.5), "liczba setów" over 0.5, the other's "wygra bez straty seta" Nie); 1 - the 0:2 share of the neighbours; `set_complement_rule` | same |
+
+Score markets E2E (10-14 / 10-15 / 10-16, off vs on): SHEET off = on minus the
+new rows byte for byte, 0 legs lost or changed, +484 / +536 / +1,068 legs;
+settled 10-14..15: 1,018 legs / 233 matches +1.2 pp [-1.8, +4.2] over
+confidence, ROI -2.4% [-6.1, +1.2]; `set_score_not` 27 legs -9.8 pp [-27, +7]
+(`T-SCORE-MARKETS-superbet`). Rungs of one match are not grouped as a ladder.
+A rebuild from 07:46Z re-reads OFFER / re-runs SHEET itself when the rungs /
+rows are missing (`rebuild_plan`). Every OFFER reader builds its fetcher from
+`offer.day_flags(date)`.
+
+### Player sample gates, stretches, per-line curves (10-17 .. 10-18)
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `PLAYER_SAMPLE_GATES_FROM_UTC` | 10-17 00:00 (operator 10-16) | a row on `confidence.PLAYER_SHAPE_GATE_MARKETS` (shots, SOT, fouls, tackles, assists, offsides; not /shotmap shot-detail, not interceptions) needs only `PLAYER_MIN_SAMPLE` (5) values; a leg a shape gate would have refused carries `player_sample_rule` and never joins a builder | `docs/sofa/evidence/player_sample_gates_2026-10-16.md`, `docs/sofa/evidence/player_line_evidence_2026-10-16.md`, `docs/sofa/history/RAPORT_BRAMKI_ZAWODNIKOW_2026-10-16.md` (`T-PLAYER-SAMPLE-GATES`) |
+| `FOOTBALL_GOALS_STRETCH_FROM_UTC` | 10-17 13:37 | `goals_stretch_v2`: goals centre x exp(beta s) / exp(g1 abs(s) + g2 s^2); one set per season phase allowed (goals_for early / mid / late / final 0.018 .. 0.064, halves early only; a missing phase or no phase reads the single set); `config/sofa_goals_stretch.json`, `fit_goals_stretch.py --per-phase goals_for:early,mid,late,final goals_1h_for:early goals_2h_for:early`; replay `--goals-stretch` | `docs/sofa/evidence/goals_stretch_2026-10-17.md` |
+| `FOOTBALL_COUNT_STRETCH_FROM_UTC` | 10-17 13:37 | `count_stretch_v1`: the 16 markets of `count_stretch.COUNT_STRETCH_MARKETS` outside GAME_STATE (half corners, shots by half, SOT, offsides, saves, throw-ins, goal kicks, SOT / saves / throw-ins totals), after GAME_STATE and venue prior; walk-forward NB and both after-curve checks below zero on all 16; raw NB of a fixed fit not significant for shots_1h_for (pre-2026) and offsides_for (2026-H1); offsides_1h_for left out; `config/sofa_count_stretch.json`, `fit_count_stretch.py` (from 2026-01-01); `--count-stretch` | `docs/sofa/evidence/count_stretch_2026-10-17.md` |
+| `FOOTBALL_PLAYER_STRETCH_FROM_UTC` | 10-17 13:37 | `player_stretch_v1`: player_shots_for / player_shots_on_target_for centre x exp(beta s) of his own side, 0.126 / 0.117; `config/sofa_player_stretch.json`, `fit_player_stretch.py`; `--player-stretch` | `docs/sofa/evidence/player_stretch_2026-10-17.md` |
+| `LINE_CURVES_FROM_UTC` | 10-18 12:48 (planned 10-19 00:00Z, moved by the operator; 10-18 mixed) | per-line football curves for the 33 keys of `config/sofa_line_curves.json` (`bet.sofa.line_curves`; source `line:<market>|<DIR>@<line>`; < 400 rows reads pooled) | `docs/sofa/evidence/line_curves_2026-10-18.md` (`T-LINE-CURVES`) |
+
+Supremacy stretches (arithmetic `bet.sofa.supremacy_stretch`; s = the rating's
+expected goal difference clamped at `MAX_SUPREMACY`, a total the home side's;
+each fit on the cup-strength book): switched on (operator "włączaj już teraz")
+BEFORE their refitted curves; measured for that combination first (stretched p
+through the curve fitted on unstretched p, test 2026): goals_for, goals totals,
+all 16 count markets and both player markets better, every CI below zero
+except shots_on_target_total pre-2026 (neutral); goals_1h_for / goals_2h_for
+better in log-loss but their favourite OVER legs at >= 0.70 overstated with the
+old curve (-5.7 / -3.0 pp) - held back until the refit was installed (restored
+to `config/sofa_goals_stretch.json` at the install, SHEET re-run by hand). To
+watch on live legs: goal_kicks_for UNDER s -1..-0.5, throw_ins_total UNDER
+abs(s) >= 1.5 (thin cells), shots_on_target_for / shots_1h_for ~0.5 pp lower at
+>= 0.70. MODEL_ABOVE_OWN_SAMPLE removes more legs (E2E 10-17: +27) - the
+stretch moves the model away from the opponent-blind sample by design.
+Report `docs/sofa/history/RAPORT_DZIEN_2026-10-17.md`.
+
+Player sample gates measurement: a footballer's sample is his starts in the
+team's last 10 matches (5-10 values), so THIN_SAMPLE_FOR_BUILDER (< 10)
+admitted only 10/10 starters and LINE_BEYOND_SAMPLE refused OVER 0.5 for one
+who never blanked (10-15: of 57 player legs clearing curve, line evidence and x
+at the sheet's price, 54 refused - 45 on the six markets; 5 printed, 2 clearing
+x only at a fresh price). History OVER: refused groups realise on their curve
+(+0.5..+1.5 pp; together ~0.4 pp below passing; LINE_BEYOND -0.9 [-1.8,
++0.1], 5 starts -1.9 [-2.9, -0.8] vs PASS). Superbet lines 10-12..10-15 with
+line evidence: 55 legs / 37 matches -5.9 pp [-15.9, +4.5], ROI -11.7% [-23.8,
++1.2] (no edge at the price). E2E 10-15 (clock 12:59Z): +40 player singles (22
+LINE_BEYOND, 18 THIN), 0 legs lost or changed, builders identical. ~14 player
+singles a day expected.
+
+Per-line curves measurement (`scripts/sofa/measure_line_curves.py`, train
+2025-07..2026-03, test 2026-04..10-12): replay goals_for UNDER 1.5 -2.4 pp on
+305k rows, far UNDER lines +1..+3 pp; keys chosen where the per-line curve
+beat the pooled one at Superbet's quoted lines with interval below zero; 6 keys
+measured worse and stay pooled (shots totals, goal_kicks_total OVER);
+log-loss at p >= 0.70 -6.4e-4 [-7.0, -5.8], mean abs line gap 1.21 -> 0.92 pp;
+live offered rows 10-09..10-17 gap -1.09 -> -0.57 pp, ROI unchanged (-4.54% /
+-4.53%); E2E 10-18 +57 / -300 legs (player singles 52 -> 41: shots OVER 1.5,
+which the pooled curve overstated -1.5 pp; a one-sided single reads `market:` or
+`line:`, `confidence.OWN_CURVE_SOURCES`); settled 10-15..10-17 -599.0 ->
+-582.9 u. (dropped 167 legs -9.2%). A calibration fix, not an edge. The line
+evidence's base follows the --before day's latest build
+(`line_curves.day_reads_per_line`), refitted for --before 2026-10-18 at the
+switch: football pooled printable gap -0.68 -> -0.45 pp, other sports
+unchanged. Installed 10-18 12:04Z by `install_line_curves.py` (inert before the
+switch: 320,733 / 320,733 rows read alike without a line); backup
+`config/backup_2026-10-18_line_curves/`. A class leg (women, season_early)
+unchanged.
+
+### Measured sports - other live facts
+
+- Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
+  not a mixed day: printable lines and 10-15 E2E unchanged): the A7 cache
+  (`data/a7_odds/`) covers every target since 10-15 (basketball 26,536 asked:
+  5,910 with line markets, 5,943 not on Sofascore; the 10-14 curve was fitted
+  on the 40% asked by 10-13). The whole section refitted on the full cache was
+  worse (+0.00034 [+0.00001, +0.00068] on 56,740 lines 10-05..10-14, printable
+  gap -12.9 -> -16.4 pp) and not installed; its five A7 keys alone (total,
+  handicap, team total - 50,360 market-line rows, buckets >= 0.70 realise
+  0.56-0.65, never printable) replaced the staged section's
+  (`fitted_from.a7_families_refit`): -0.00123 [-0.00151, -0.00096]. Backup
+  `config/backup_2026-10-15_bb_a7_hybrid/`;
+  `docs/sofa/evidence/basketball_a7_full_2026-10-16.md`.
+- Sport history refresh (`refresh_sport_history.py`, `bet.sofa.sport_history`):
+  until 10-12 a game's result never entered the hockey / basketball /
+  volleyball history (10-07..10-11: 0-30% of settled games; model and line
+  evidence stopped on 10-04). A week's ~500 games moved log-loss by nothing
+  measurable (hockey -0.45e-3 [-1.86, +0.98], basketball +1.11e-3 [-1.63,
+  +3.83]); gain is evidence coverage (volleyball 5,318 -> 8,474 settled lines)
+  (`measure_sport_history_ab.py`).
+- `final_only` grading (2026-10-12): until then a period-less hockey /
+  basketball game stayed DATA_MISMATCH for good (10-22 basketball games a day
+  from 10-07). Missing `winnerCode` named from a decided score from 2026-10-17
+  (Shumen - Botev 87-84).
+- Hockey / basketball player names: football's token and surname rules, then
+  tokens without Jr / Sr / II suffixes (`shadow.player_value`, 2026-10-17).
+
+## (b) Switches OFF (`None`)
+
+### Waiting for the operator
+
+| constant | what | state |
+|---|---|---|
+| `CURVE_STATUS_FROM_UTC` | a curve failing `measure_calibration.py` stops printing | waiting |
+| `MODEL_FIXES_FROM_UTC` | tennis NB dispersion | with the next refit |
+| `BUILDER_SCREEN_PRICE_FROM_UTC` | a builder prints only with a recorded screen price | switched off 2026-10-05: sofa does not price builders |
+| coupon form dials | `ladder_form` / `max_positions_per_match` in `config/sofa_coupon_form.json` | operator's call |
+| `DERIVED_CURVES_FROM_UTC` | football joints read a history curve | the three go on together or not at all |
+| `CARDS_CORRELATION_FROM_UTC` | cards joints with side correlation +0.126 (the 10-14 cards joint curves were fitted with it) | must go on with DERIVED_CURVES |
+| `DERIVED_SHEET_MARGINS_FROM_UTC` | audit B3: a joint's side with no quoted ladder priced by `run_sheet.sample_centre`; an UNLINKED fixture's joints refused; history one step ahead -0.0254 [-0.0264, -0.0245] on 60,000 matches (`docs/sofa/evidence/derived_margins_2026-10-13.md`) | with the two above |
+
+Derived joints: the 10-14 refit replayed them; on Superbet lines 10-09..10-12
+(in sample for the curve) the joint curves beat the line-evidence stand-in at
+p >= 0.60 by -0.0154 [-0.0309, +0.0004] (touches zero); clearly only where both
+sides had a marginal centre (-0.0357 [-0.0585, -0.0135]); on raw samples (B3's
+population) the curve alone overstates by 11 pp at >= 0.70; lines it would
+admit realised below their price (ROI -1.8% [-4.4, +0.7], `both_over_goals`
+-6.2% [-10.6, -2.1]). Re-measure on rows from 10-13 on
+(`docs/sofa/evidence/derived_curves_2026-10-14.md`). None changes the coupon
+while `THIN_SAMPLE_FOR_BUILDER` refuses every derived football row (it reads
+the derived row's own market as its sample; 0 derived legs in
+`08_confidence.json` 10-09..10-13) - the operator's decision first.
+
+### Measured and not switched on
+
+| constant | measurement | evidence |
+|---|---|---|
+| `FOOTBALL_LEAGUE_RATE_RULE_FROM_UTC` | A2's football half: rating at the all-league rate beat the sample alone in thin competitions, squared error -0.58 [-0.62, -0.54] per side in its favour | `docs/sofa/history/RAPORT_IMPLEMENTACJI_AUDYTU_2026-10-13.md` |
+| `UNIT_STRENGTH_FROM_PARENT_FROM_UTC` | A1: regional unit's strength from its competition's; goals log-loss -0.0010 [-0.0029, +0.0008] on 7,724 cross-unit matches | `scripts/sofa/measure_unit_strength.py` |
+| `CS2_MAP_IDENTITY_FROM_UTC` | B11 map order / pool terms; walk-forward 24,995 maps / 11,217 series, +0.00021 [-0.00022, +0.00064] | `docs/sofa/evidence/cs2_map_identity_2026-10-13.md` |
+| `HK_SHOTS_FROM_UTC`, `HK_EMPTY_NET_FROM_UTC` | B8 hockey shots x save%: centre replaced total +0.00126 [+0.00010, +0.00241] worse, blend +0.00025 [-0.00033, +0.00084]; fitted empty net handicap -0.00037 [-0.00074, +0.000006], total +0.00111 worse; shots exist for 6,755 of 29,516 games, none in October 2026 | `docs/sofa/evidence/hockey_goalie_empty_net_2026-10-13.md`, `docs/sofa/history/RAPORT_B8_HOKEJ_2026-10-13.md` |
+| `VB_SET_LENGTH_FROM_UTC`, `VB_SET_HISTORY_FROM_UTC` | B9 / C10 volleyball set length, 5,050 matches walk-forward: points_total +0.0025 [-0.0005, +0.0054], points_handicap -0.0011 [-0.0036, +0.0013], set_extra_points -0.0004 [-0.0014, +0.0007]; C9 not measured (depends on B9) | `docs/sofa/evidence/volleyball_set_length_2026-10-13.md`, `docs/sofa/history/RAPORT_B9_C10_C9_2026-10-13.md` |
+| `BB_OVERTIME_FROM_UTC` | A3 overtime in the basketball replay: regulation 1X2 -0.00354 [-0.00719, -0.00015], totals / winner no better; as a curve variant +0.00113 [-0.00123, +0.00353] | `docs/sofa/evidence/basketball_refit_2026-10-13.md` |
+| `BB_PACE_FROM_UTC`, `BB_PACE_LEVEL_FROM_UTC` | B7 / B7b basketball pace x efficiency (`score_model.PACE_METRICS`; `fit_sport_confidence --bb-pace` / `--bb-pace-level`); live only with a basketball curve refitted on it | `docs/sofa/evidence/basketball_pace_2026-10-13.md`, `docs/sofa/evidence/basketball_pace_level_2026-10-13.md` |
+| `TENNIS_ACES_OPPONENT_FROM_UTC` | aces centre x the returner's conceded aces shrunk to the tier prior (`bet.sofa.tennis_aces_opponent`, marker `tennis_aces_rule`, replay `--tennis-aces-opponent`; double faults worse, never corrected): history test 2026 aces_for +0.0003 [-0.0006, +0.0011], aces_total +0.0124 worse, per-set aces -0.003; Superbet lines with the real SHEET (64 matches, 1,364 lines, 10-06..10-16) +0.0060 [-0.0251, +0.0348] | `docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md`, `docs/sofa/history/RAPORT_TENIS_SERWIS_2026-10-17.md` |
+
+Other measured-and-kept-out curve refits: basketball plain refit with the
+league-rate rule (confidence log-loss -0.00042 [-0.00145, +0.00063], printable
+gap -16 pp unchanged; `docs/sofa/evidence/basketball_refit_2026-10-13.md`);
+2026-10-14 sport refits on Superbet lines 10-05..10-12
+(`docs/sofa/evidence/sport_refit_2026-10-13.md`): CS2 -0.00008 [-0.00030,
++0.00015], hockey +0.00151 [+0.00105, +0.00200] worse, volleyball -0.00032
+[-0.00175, +0.00120]. Hockey A7 (operator 2026-10-15, not on): `parse_lines`
+reads "Match goals" (settles with overtime; only its position read, graded as
+regulation total 623); replay puts hockey's total alone on it, handicap / team
+totals synthetic; a fit reads the hockey cache only with explicit
+`--market-lines` (`sport_confidence.MARKET_LINE_DEFAULT_SPORTS`); log-loss
+-0.0055 [-0.0072, -0.0039] vs a synthetic refit (all on totals), but the model
+never reaches 0.70 at the market's line: the 382 printable total lines of
+10-05..10-14 (calibrated today -0.4 pp [-5.0, +4.0]) would read nothing
+(`docs/sofa/evidence/hockey_a7_2026-10-16.md`); hockey's 16,484 games asked
+(6,950 with the "Match goals" total, no spread). Identity K7 (players found
+only under another team: hockey 25 of 30 / basketball 20 of 48
+NOT_IN_HISTORY names) is a model change, to be measured first
+(`docs/sofa/history/RAPORT_K7_K8_POMIAR_2026-10-14.md`).
+
+### Tennis serve markets (kept off)
+
+Aces / double faults are priced from the server's own scoped sample shrunk to
+the tier prior; the returner never enters. Serve markets the replay never read
+(per-set aces / double faults, aces + double faults match and per set; replay
+`--tennis-serve-markets`) got history curves
+(`scripts/sofa/fit_tennis_serve_curves.py`, staged in
+`data/refit_tennis_serve_2026-10-17/`, install group `tennis_serve` REPLACES
+its markets' curves) that pass the one-sided gate on the history but at
+Superbet's lines print far below confidence: per-set double faults / serve
+points 12 legs / 4 matches -20.7 pp [-50.8, +5.8]; aces with the correction 20
+/ 13 -30.6 pp [-52.2, -4.6] (`scripts/sofa/measure_tennis_serve_market_line.py`)
+- not installed (`T-TENNIS-SERVE-MARKET-LINE`). Mechanism: the replay's curve
+is fitted on the whole synthetic ladder (`lines_for`), Superbet quotes one line
+near the median where p >= 0.70 is a disagreement with the market; on the
+history alone a curve fitted on all lines read on market-like lines claims
+0.761 and realises 0.668 (aces_for). Installed tennis serve curves: aces /
+double faults match only (history curve at >= 0.70 on Superbet's lines -22.6
+pp [-33.4, -14.3], 140 lines / 43 matches; line evidence holds back all but
+short prices: 14 printed legs settled 0.714 vs 0.759). **Never pass
+`--tennis-serve-markets` or `--tennis-aces-opponent` to a refit** before
+`T-TENNIS-SERVE-MARKET-LINE` passes; `prepare_refit.py install` refuses a refit
+whose replay lacks a flag an installed separately fitted curve requires
+(`requires_replay_flags`, `dropped_replay_rules`). Tennis printed legs
+10-09..10-16 as a whole -1.0 pp [-3.5, +1.5] (1,473 legs, ROI -5.5%); per-player
+set games OVER -7.1 / -6.6 pp, intervals touching zero
+(`T-TENNIS-SET-GAMES-OVER`).
+
+Exposure / tournament / returner centres (2026-10-19, pre-registered,
+`scripts/sofa/measure_tennis_serve_exposure.py`, main tour only, tier prior as
+SHEET, curves on market-like lines): true match length is the largest missing
+factor (oracle aces log-loss -0.014) but the rating's expected games recover
+little; on the history only per-set aces pass (x tournament factor -0.0011, +
+returner -0.0038), double faults nothing; at the market line no aces-match arm
+reaches 0.70. At Superbet's lines 10-06..10-18 the per-set aces arm is no
+better (-0.0006 [-0.0078, +0.0069]) and its legs overstate (35 / 15 matches,
+-11.3 pp [-26.0, +4.4]) - not in SHEET (`T-TENNIS-ACES-SETS-EXPOSURE`,
+`docs/sofa/evidence/tennis_serve_exposure_2026-10-19.md`).
+
+## (c) Installed fits, source DBs, backups
+
+| fit | installed | content | source / backup |
+|---|---|---|---|
+| refit 2026-10-08 | 10-08 23:42Z (5330f357 / fdbe0aae) | dispersion, scoped tennis table, per-market K (section a) | `data/refit_2026-10-08/` (logs and `replay/` dirs; no `sofa_replay.db` on disk) |
+| refit 2026-10-13 | 10-13 18:06Z | football / tennis curves etc.; superseded | `config/backup_2026-10-14` (before it) |
+| refit 2026-10-14 | 10-14 05:31Z (`prepare_refit.py install`) | curves, engine constants, league baselines, reliability on 121.9M rows (max settled run date 10-12; 6,688 best-of-five `sets_total` rows deleted from the copy); `K_CENTRE` tennis 8, football 15; replay incl. `--football-rating --rated-scope --venue-prior --game-state --rating-weight --season-phase --tennis-set-ratings --opponent-correction --player-starts-only --derived`; starts-only player curves promoted (`.next.json` removed, copy in backup). Dry run (10-13 artifacts): printed singles 1323 -> 1296; common legs +0.04 pp mean, 0.3 pp abs; basketball totals / handicaps / team totals 0 (A7); hockey, CS2 unchanged; B15 corrected no row | replay DB deleted 10-16 (logs kept); `config/backup_2026-10-15`; `docs/sofa/history/RAPORT_NOC_2026-10-13_14.md` |
+| new-market curves | 10-15 00:17Z (`install_new_market_curves.py --dir data/refit_new_markets_2026-10-15 --confirm`) | 29 curves admitted by the one-sided gate (below) | `config/backup_2026-10-15_new_markets/`; `docs/sofa/evidence/new_market_curves_2026-10-15.md`, `docs/sofa/history/RAPORT_KRZYWE_NOWE_RYNKI_2026-10-15.md` |
+| basketball A7 hybrid | 10-15 11:29:38Z | five A7 keys (section a) | `config/backup_2026-10-15_bb_a7_hybrid/` |
+| cup-strength refit 2026-10-16 | 10-15 23:02Z | football / tennis curves on `data/refit_2026-10-16/sofa_replay.db` (125.4M rows, `--cup-strength`); DC / DNB / first goal refitted on the same book (verdicts unchanged); `fit_constants` K fits skip rating-only markets' sample-less rows (3f77701e); E2E 10-15: 1,238 common legs, none moved > 0.006, cups move 60 legs (59 cup), +65 / -37 (Lech - Leverkusen, Celje - Omonia, CSKA - Monaco, Egnatia - Midtjylland move the way the analysts' vetoes said) | replay DB deleted 10-16; `config/backup_2026-10-16` |
+| refit 2026-10-16b | 10-16 04:02Z (standing go of 10-15 evening) | `data/refit_2026-10-16b/sofa_replay.db` (120.3M rows, after `backfill_event_stats.py --competitions` gave 1,748 cup matches statistics), plus `--tennis-sample-scope` (before: 13% of best-of-three rows, 57% ATP, held a Grand Slam five-setter, centre +1.97 games, log-loss +0.0445) and `--sample-cup-strength`; E2E 10-15 vs 10-16: +22 / -6 legs (11 tennis games_won_for), common +0.0001 mean, max 0.050; 13 `tennis_team_cup` class keys (aces, double faults, games_total, set 3, sets_total) lost their curve - NO_CLASS_CURVE until measured | replay DB deleted 2026-10-19; `config/backup_2026-10-16b`; `docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md` |
+| score-market slice curves | 10-16 (`install_new_market_curves.py --dir data/refit_new_markets_2026-10-17`) | 133 football slice curves (men 50, season_early 40, women 43) + `set_score_not` men and `tennis_women:`; `scripts/sofa/fit_score_market_curves.py` on the 1X2/DNB and tennis set fit rows - no replay; one-sided gate + no slice overstating (one curve per market had hidden -3..-9 pp slices in a -0.5 pp pooled gap) | - |
+| refit 2026-10-17 | 10-17 19:13Z (into the mixed day) | football / tennis curves, engine constants, league baselines, reliability on `data/refit_2026-10-17/sofa_replay.db` (1,282,317 matches, 121.9M rows; 10-16b flags + `--goals-stretch --count-stretch --player-stretch`); tests/sofa 5102 passed; line evidence refitted; `fit_confidence` keeps footballer shot-detail rows out (`shot_detail.METRICS`; the first fit had replaced the left / right foot curves). E2E: 10-16 +83 / -44 legs, settled -89.94 -> -90.95 u. (dropped 41 graded -0.51, added 81 -1.52); 10-17 +71 / -28, common abs move 0.002 mean, 0.060 max | **keep this DB** (`fitted_from.db_path`); `config/backup_2026-10-18` |
+| per-line curves | 10-18 12:04Z (`install_line_curves.py`) | `by_market_direction_line` only | `config/backup_2026-10-18_line_curves/` |
+
+New-market curves of 10-15 (operator go 10-14 "zbudować krzywe dla tych
+wszystkich rynków"; one-sided holdout gate, operator 10-14 18:55Z,
+`scripts/sofa/new_market_gate.py`: fit before 2026-09-01, judged on
+09-01..10-13; a key fails only if its curve overstates - n >= 300 holdout
+forecasts at curve >= 0.70 and realised - curve >= -2 pp; understatement passes;
+every "12" key refused by policy; sports' admission rule unchanged). Football /
+tennis: `player_left_foot_shots_for` / `player_right_foot_shots_for` OVER,
+`double_chance` OVER (+ `women:`), `first_goal` OVER, `penalties_total` /
+`red_cards_total` UNDER, `set1_won_for` / `set2_won_for` OVER and UNDER,
+`set_score` OVER (each + `tennis_women:`), `draw_no_bet` OVER / UNDER (+
+`season_early:` and `women:` OVER). Sports: hockey `double_chance` /
+`period_double_chance` TEAM, basketball `double_chance` TEAM, volleyball
+`team_sets_exact` NO / `team_wins_set` YES, CS2 `rounds_handicap` TEAM,
+`rounds_total` OVER, `team_rounds` OVER. Every other new key (1X2, "12", shots
+outside the box / headed / on target, reds / pens OVER, basketball halves /
+quarters, volleyball sets_count) has no curve. E2E copy of 10-14: +110 legs (DC
+78, reds UNDER 12, pens UNDER 6, hockey DC 9, set winners 4, first goal 1), 0
+lost, no common leg moved; 102 of the 110 at confidence below 1/odds (they pass
+x >= 0.90); whether they beat the price is unmeasured.
+
+Carrying separately fitted curves: `match_won_for` and every new-market key are
+carried by a refit itself since 2026-10-16 (`fit_meta.carry_separately_fitted_curves`
+in `fit_confidence`, `carry_sport_new_market_curves` in `fit_sport_confidence`;
+listed in `new_market_curves_fitted_from`); before, a refit dropped them unless
+carried by hand.
+
+Sport curves: hockey / volleyball / CS2 = the installed sport file's (CS2's
+B10 curve promoted 2026-10-14, bc69b56e); basketball = the staged `.next.json`
+(A7 + hybrid).
+
+Replay contents (`calibrate_from_cache.py`): football rating in the marginal
+rows' centres (`--football-rating` with `--rated-scope --venue-prior
+--game-state --rating-weight --season-phase`), tennis set ratings
+(`--tennis-set-ratings`), B15 (`--opponent-correction`), starts-only players
+(`--player-starts-only`), joints of cards_points / goals / corners /
+shots_on_target (`--derived`; fitted, not read), cup strength, sample cup
+strength, tennis sample scope, the three stretches. Tennis neighbours are
+`tennis_rating.AsOfRating` (best-of-five skipped); set bases replayed for
+best-of-three only (`calibrate_from_cache.set_values`, `metrics.infer_best_of
+== 3`; fix 2026-10-14 after 6,688 Grand Slam `sets_total` 2.5 rows with UNDER
+realised ~0); SHEET refuses `sets_total` not known to be best of three
+(`BEST_OF_FIVE_NOT_MODELLED`, `run_sheet.format_bound_refusal`). Not replayed:
+tennis tier / ladder priors, men's friendlies (851).
+
+Backups: `config/backup_2026-10-05`, `config/backup_2026-10-06_sport_calibration/`,
+`config/backup_2026-10-08`, `config/backup_2026-10-09`, `config/backup_2026-10-14`
+(before the 10-13 refit), `config/backup_2026-10-15` (before the 10-14 refit,
+with the removed `.next.json`), `config/backup_2026-10-15_new_markets/`,
+`config/backup_2026-10-15_bb_a7_hybrid/`, `config/backup_2026-10-16` (before the
+cup-strength refit), `config/backup_2026-10-16b`, `config/backup_2026-10-18`
+(before refit 2026-10-17), `config/backup_2026-10-18_line_curves/`.
+`data/refit_2026-10-17/sofa_replay.db` is the DB the installed football /
+tennis curves were fitted from (`fitted_from.db_path`) - keep it. There is no
+full copy of `data/sofa.db` on disk: the operator deleted
+`data/backup_2026-10-05/sofa.db` and the replay DB of `data/refit_2026-10-16b/`
+on 2026-10-19 (disk cleanup); the replay DBs of `data/refit_2026-10-16/` and
+`data/refit_2026-10-14/` went 2026-10-16 (logs / manifests of all kept). The
+day-by-day rows of the fits (`*_history_fit` / `_holdout.jsonl`) are kept only
+in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
+`*_superbet_settled.jsonl`).
+
+## (d) Measured and declined - do not re-propose without new evidence
+
+- a footballer's line-evidence offset measured only on lines with curve x odds
+  >= 0.90 (2026-10-16, walk-forward 10-12..10-15): dropped legs not measurably
+  worse (-7.3 pp [-22.2, +7.3] vs -4.1 kept), acted on player_shots_for alone
+  and raised tackles - the shape of the 10-12 per-bin offset
+  (`docs/sofa/evidence/player_line_evidence_2026-10-16.md`);
+- football "&" result markets (result & goals, result & BTTS, goals & BTTS, DC
+  & goals other than 12 & over / 1X & under) - overstate or never reach 0.70;
+  the favourite's European handicap (-5.2 pp); goals parity, exact goals, a
+  side's goal intervals (never 0.70); total goals interval (passes, 0 legs clear
+  at Superbet's prices); copies of read markets ("Każdy wygra seta", "Dokładna
+  liczba setów", "liczba setów 1.5": same event, 1-3% better price in ~8% of
+  pairs, no new leg) (`docs/sofa/evidence/football_score_markets_2026-10-16.md`);
+- a second coupon or a variant (operator: one coupon, many sports);
+- a 0.80 confidence floor (operator: "many options");
+- current-season-only samples (worse on every metric); same-competition
+  samples for corners / fouls / shots / cards (no gain) or for knockouts (worse);
+- trimming national-team samples to 180 days (worse log-loss);
+- blending the price into confidence or gating on disagreement with it
+  (disagreement is an anti-signal; every weight moved to the price only copies
+  the price) - the price-band cap is not a blend: it only lowers, only where a
+  band's settled lines measured below the curve (operator 2026-10-07);
+- league selection / gate tuning (anti-selects out of sample);
+- (2026-10-08, out of sample on the history) hierarchical / empirical-Bayes
+  pooling of team and league effects (+3.1e-4 log-loss vs fixed K); a t copula
+  or per-league-class correlation for joints; Dixon-Coles and bivariate Poisson
+  for goals (rho -0.013, kappa ~ 0); zero-inflated NB, empirical and mixture
+  families and per-team dispersion for counts; beta / isotonic / spline
+  calibration instead of buckets (-7e-4, ECE no better); a lower credible bound
+  on p; a surface-hierarchy or serve/return tennis model; exponential-decay
+  memory (half-life 180 d);
+- re-ranking peer legs by own-sample size, hit rate, near misses, venue, recent
+  form, tournament popularity / reserve / women / cup flags (2026-10-08: no
+  out-of-sample gain on 62k legs);
+- (2026-10-12, walk-forward on printed legs 10-09..10-11) a stricter price-band
+  cap (to the cell's realised rate whenever lower): dropped 15% of legs which
+  had not done worse (ROI -0.6% vs -4.4% kept), barely moved the over-price gap;
+  an offset per confidence-minus-price bin: half the correction, dropped legs
+  not worse either - flagged instead (`price_gap`);
+- (2026-10-12 night, `measure_sport_guard.py`, walk-forward on the measured
+  sports' settled lines 10-07..10-11; 1,885 would-print lines / 536 games) a
+  per-key p-bucket cap for hockey / basketball / volleyball / CS2: point cap
+  dropped 135 lines not worse (ROI -4.7% vs -5.4% kept); Wilson cap dropped 8
+  that all won. The sports' overstatement is a curve question (basketball's
+  history curve read 0.762 on lines realising 0.615, -14.6 pp [-19.6, -9.6]
+  before the offset; hockey calibrated);
+- `FOOTBALL_LEAGUE_RATE_RULE`, hockey / volleyball / CS2 / plain-basketball
+  refits, full-cache basketball A7, hockey A7, tennis serve curves and aces
+  correction, the tennis serve exposure arms - section (b);
+- CS2 map total from the round race vs base rate: zero on the history; operator:
+  do nothing (2026-10-19, `scripts/sofa/measure_cs2_map_total_race.py`).
+
+## (e) Open questions, not modelled yet, before the next refit
+
+- **Open checks on new data**: `T-PEER-CHOICE-edge`, `T-FAMILY-SELECTION`,
+  `T-LINE-CURVES`, `T-PLAYER-SAMPLE-GATES`, `T-SCORE-MARKETS-superbet`,
+  `T-CS2-SERIES-ROUNDS-superbet`, `T-TENNIS-SERVE-MARKET-LINE`,
+  `T-TENNIS-SET-GAMES-OVER`, `T-TENNIS-ACES-SETS-EXPOSURE`, `T-RED-FLAG-SCRIPT`,
+  `T-A2-league-rate-refusals`, `T-A4-bucket-deff`, `T-IDENTITY-unexplained`.
+- Family selection (view only): walk-forward 10-12..10-17 (windows 3-8 days)
+  x >= 1 and a family on the plus -0.6% [-4.8, +3.9] on 1,254 legs vs -4.5%
+  rest, better on 6 of 6 days but pooled +4.0 pp [-0.3, +8.1] with 81% of its
+  legs on 10-17 (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`).
+- Volleyball overstates ~16 pp at confidence >= 0.70 with either curve (-15.4 pp
+  [-24.4, -6.8] new); basketball printable gap -16 pp - curve / line-evidence
+  questions.
+- Superbet's game count of a tennis match tiebreak.
+- Line-evidence offsets of repriced families moved <= 1.3 pp a day over
+  10-09..10-12 (stable); tennis `games_won_for` OVER offsets (-8.5 men, -12.1
+  women) were measured on old-estimator rows while the new rows are calibrated
+  (-0.2 pp, n 117) - over-lowered, a candidate once a walk-forward has the days.
+- Best-of-five `games_total` / `games_won_for` replay samples are not
+  format-scoped (measure before a fix).
+- Abandoned match (Regulamin 5.D.5: a market decided at the interruption
+  stands, the rest void) not graded yet.
+- Football props (2026-10-15, 10-12..10-14): curve calibrated (-2.1 pp [-6.9,
+  +2.7], 319 lines / 51 games), ROI -16.5% at Superbet's short prices
+  (`docs/sofa/evidence/football_props_2026-10-15.md`).
+- **Before the next refit**: measure the tennis games population of replay
+  matches without `/statistics`; carry the men's friendlies (851 rows in the
+  goals fit, variant C, the as-of 851 prior); every refit replays every rule
+  the installed curves carry (`fitted_from.replay_rules.flags` of
+  `config/sofa_confidence_calibration.json`: the 10-16b flags `--cup-strength
+  --sample-cup-strength --tennis-sample-scope` plus `--goals-stretch
+  --count-stretch --player-stretch`); never the serve flags (section b).
+- **Measured for the next refit** (2026-10-12 night,
+  `docs/sofa/history/RAPORT_NOC_2026-10-12.md`): football DNB / DC / 1X2 from
+  the pure rating centre with NB r ~7 (skill 11.7 / 6.2 / 6.4%; a history curve
+  over-states the season start by 2.4-4 pp - needs a season-phase term; UNLINKED
+  stays refused); football BTTS has no skill vs the league base rate, parity and
+  exact score never reach 0.70 (`measure_football_result_model.py`,
+  `measure_tennis_outcome_model.py`).
+- **Not modelled yet** (operator 10-07: every market that could win, each
+  through a curve and its own Superbet lines): BTTS alone, half-time /
+  full-time and half-result markets, Superbet's `;` combinations, tennis game
+  order / points in a game / games parity (measured: never 0.70), CS2 round
+  parity (OFFER's `unmapped_markets`, `market_coverage.md` labels each);
+  derived football / tennis joints and women's tennis per-set markets above
+  their measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
+- Unread markets' prices are recorded (`unmapped_prices/`, from 2026-10-14) for
+  a later model's line evidence.
+
+## (f) Ledger epoch groups
+
+Source: `audit_ledger.EPOCH_GROUPS`. The current rules apply from 2026-10-06; a
+refit install or an epoch switch starts a new epoch; a switch moved into a
+built day makes that day mixed - its own group, summed with neither neighbour.
+Groups are never pooled.
+
+| group (code) | days | why |
+|---|---|---|
+| "do 10-04" | < 10-05 | earlier rules; rows of variants retired 2026-10-05 whose code is gone (`wariant`, `multi`, `sport:<sport>`, `rule:<sport>`), kept as recorded, never rebuilt |
+| "10-05 rano" | 10-05 rows not of epoch `stats_only` | the morning build before STATS_ONLY 07:15Z |
+| "stats_only" | 10-05 (rebuild) .. 10-08 | stats-only coupon; current rules apply from 10-06; 10-08 built under the old estimator, never rebuilt, re-PDF'd or re-read after the 10-08 23:42Z install (PEER_CHOICE 08:10Z is annotation only) |
+| "od 10-09" | 10-09 .. 10-11 | refit of 10-08 23:42Z effective 10-09 |
+| "od 10-12" | 10-12 | player switches 00:00Z (ONE_SIDED_SINGLES, PLAYER_STARTS_ONLY, PLAYER_NAME_TOKENS, staged player curves); PRICE_GAP_FLAG 11:51Z annotation only |
+| "10-13 mieszany" | 10-13 | refit 10-13 18:06Z, its switches and CS2 B10 / B12 from 18:10Z into the built day |
+| "10-14 mieszany" | 10-14 | 00:00Z switches, refit 05:31Z and B15 05:45Z before the build; identity switches 11:30Z and new markets 14:20Z / 14:50Z into it |
+| "od 10-15" | 10-15 | new-market curves 00:17Z, 1X2 / DNB and CS2 series rounds 00:00Z |
+| "10-16 mieszany" | 10-16 | cup-strength refit 10-15 23:02Z, FOOTBALL_CUP_STRENGTH and BASKETBALL_DC_PAIR 00:00Z, refit 10-16b 04:02Z, SAMPLE_CUP_STRENGTH 04:10Z before the build; score markets / set complements 07:46Z into it |
+| "10-17 mieszany" | 10-17 | stretches 13:37Z and refit 2026-10-17 19:13Z into it |
+| "od 10-18" | none | holds no day |
+| "10-18 mieszany" | 10-18 | LINE_CURVES 12:48Z into it |
+| "od 10-19" | 10-19 .. | current |
+
+There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
+
+Boundaries are constants in `scripts/sofa/audit_ledger.py` (`*_MIXED_DATE`,
+`*_EPOCH_FROM_DATE`); moving a switch must move its boundary.

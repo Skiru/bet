@@ -250,13 +250,9 @@ def render(rows: list[dict[str, Any]], variant: str | None) -> list[str]:
             f"{estimated_text(grouped[v])} | {roi} | "
             f"{interval_text(grouped[v])} |"
         )
-    out += ["", "Each variant is split by rule epoch (do 10-04 / 10-05 rano / "
-            "stats_only / od 10-09 / od 10-12 / 10-13 mieszany / "
-            "10-14 mieszany / od 10-15 / 10-16 mieszany / 10-17 mieszany / "
-            "od 10-18): the "
-            "coupon before and after "
-            "each cutover "
-            "is not one experiment, so the groups are never added."]
+    out += ["", f"Each variant is split by rule epoch ({' / '.join(EPOCH_GROUPS)}): "
+            "the coupon before and after each cutover is not one experiment, "
+            "so the groups are never added."]
     out += ["", f"A 3% edge needs ~{BETS_FOR_3PCT} settled positions to show at "
             "2 sigma; a ROI over a few dozen is noise until its interval says "
             "otherwise. CLV (audit_clv.py) answers sooner. An estimated builder "

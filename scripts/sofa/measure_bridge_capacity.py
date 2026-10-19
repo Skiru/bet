@@ -54,8 +54,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# Before anything touches the network: this script is all module-level code,
-# so on 2026-09-29 `--help` ran the whole 300-request ramp against Sofascore.
+# This script is all module-level code: importing it ran the ramp (2026-10-19,
+# a reference check sent 5 requests). Only running it as a script may.
+if __name__ != "__main__":
+    raise ImportError("measure_bridge_capacity.py is a script; run it, never import it")
+
+# Before anything touches the network: on 2026-09-29 `--help` ran the whole
+# 300-request ramp against Sofascore.
 argparse.ArgumentParser(
     description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
 ).parse_args()

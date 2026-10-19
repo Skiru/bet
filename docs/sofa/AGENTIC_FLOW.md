@@ -1,561 +1,282 @@
 # `sofa` — orkiestracja agentowa
 
-Jak przeprowadzić dzień **rękami agentów**, a nie jedną sesją robiącą wszystko
-inline. Ten plik opisuje konfigurację w `.claude/`: kto co uruchamia, w jakiej
-kolejności, co wolno każdemu z osobna i gdzie dokładnie przebiega przekazanie.
-
-Mechanika etapów jest w [`PIPELINE.md`](PIPELINE.md). Tutaj są **role**.
+Kto co uruchamia, w jakiej kolejności, co wolno każdemu agentowi i gdzie
+przebiega przekazanie. Mechanika etapów: [`PIPELINE.md`](PIPELINE.md);
+kolejność dnia i „co jeśli”: [`RUNBOOK.md`](RUNBOOK.md). Tutaj są **role**.
+Źródłem prawdy są pliki w `.claude/` — ten dokument je streszcza.
 
 ---
 
 ## 1. Inwentarz — co jest w `.claude/`
 
-### Komendy (`/…`) — punkty wejścia operatora
+### Jeden właściciel każdej procedury
+
+| procedura | właściciel (plik, który ją opisuje) | kto ją uruchamia |
+|---|---|---|
+| cały dzień | `.claude/commands/sofa-day.md` | sesja główna (`/sofa-day`) albo agent `sofa-runner`, który czyta ten sam plik |
+| odczyt analityków | `.claude/commands/sofa-analyze.md` | `/sofa-analyze`; kroki 5–7 dnia powtarzają tylko jego polecenia |
+| przebudowa | `.claude/commands/sofa-rebuild.md` | `/sofa-rebuild`; każdy krok dnia, który przebudowuje |
+| rozliczenie D-1 | `.claude/agents/sofa-settler.md` | `/sofa-settle` i krok 1 dnia uruchamiają agenta |
+| weryfikacja | `.claude/agents/sofa-verifier.md` | `/sofa-verify` i krok 8 dnia uruchamiają agenta, potem scalają i przebudowują |
+
+Procedura jest zapisana raz. Komenda, która uruchamia agenta, mówi tylko,
+**co** ma być zrobione i w jakiej kolejności; polecenia zna właściciel.
+
+### Komendy (`/…`)
 
 | komenda | co robi | sieć |
 |---|---|---|
-| `/sofa-day [data]` | cały dzień: most (ensure_bridge) → SETTLE D-1 + `audit_settle_identity` → dziennik (record_results, audit_ledger, audit_clv) → BOARD…COUPON → CONFIDENCE (piłka, tenis) → świeże migawki SHADOW i CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (`11_coupon.json`) → analitycy na nogach do przeczytania → scalenie wet i odczytów → przebudowa od CONFIDENCE → PDF → audit_coupon + audit_variants → sofa-verifier → odczyty weryfikatora → przebudowa → raport | Sofascore (most) + Superbet |
-| `/sofa-analyze [data]` | analitycy nad gotowym kuponem (`11_coupon.json`), także pozycje „dodatkowo: …” operatora (`read_requests.json`), scalenie wet i odczytów (`reads.json`), przebudowa | tylko Superbet (opcjonalnie) |
-| `/sofa-rebuild [data]` | przebudowa kuponu i PDF z artefaktów z dysku jednym poleceniem `rebuild_day.py` (stare ceny najpierw; FIXTURE_CHECK i SPORT_IDENTITY potrzebują mostu) | Superbet (gdy cena stara), most dla FIXTURE_CHECK / SPORT_IDENTITY |
-| `/sofa-verify [data]` | adwersaryjna weryfikacja zbudowanego dnia | Superbet (ceny na żywo) + web |
-| `/sofa-settle [data]` | rozliczenie dnia zakończonego i decyzja o fitowaniu | Sofascore (most) |
+| `/sofa-day [data]` | most → `sofa-settler` (D-1) → dowody linii → BOARD…COUPON → CONFIDENCE → SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY → analitycy → `merge_reads.py` → `rebuild_day.py` (PDF) → pętla C3 → `sofa-verifier` → przebudowa → `day_status.py` → raport | Sofascore (most) + Superbet |
+| `/sofa-analyze [data] [dodatkowo: …]` | prośby operatora do `read_requests.json`, `read_set.py`, analitycy, `merge_reads.py`, przebudowa, pętla C3 | Superbet (gdy cena stara) |
+| `/sofa-rebuild [data]` | przebudowa z artefaktów jednym poleceniem `rebuild_day.py` | Superbet (stara cena), most dla FIXTURE_CHECK / SPORT_IDENTITY |
+| `/sofa-verify [data]` | `sofa-verifier`, scalenie jego odczytów, przebudowa | Superbet (ceny na żywo) + web |
+| `/sofa-settle [data]` | `sofa-settler` dla dnia zakończonego | Sofascore (most) |
 
-Argument to `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty znaczy dzisiaj.
-**Doba kuponu jest w UTC dla każdego sportu:** kupon dnia D to nogi ze
-startem w [D 00:00Z, D+1 00:00Z) (`run_sport_confidence.py`, `day_window`).
+Argument: `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty = dzisiaj. **Doba
+kuponu jest w UTC dla każdego sportu.**
 
-### Jeden kupon (od 2026-10-05)
+### Agenci
 
-Produktem dnia jest **jeden** plik `runs/sofa/<d>/KUPON_<d>.pdf` dla
-wszystkich sportów. Łańcuch artefaktów:
-
-```
-05_sheet.json ─→ CONFIDENCE (run_confidence.py) ─→ 08_confidence.json          (piłka, tenis)
-SHADOW/CS2 snapshot ─→ SPORT_IDENTITY ─→ sport_fixtures.json
-                    └→ SPORT_CONFIDENCE ─→ 08_confidence_sports.json           (hokej, kosz, siatka, CS2)
-08_confidence.json + 08_confidence_sports.json + vetoes.json + reads.json + read_requests.json
-  ─→ COUPON_ASSEMBLY (build_coupon.py) ─→ 11_coupon.json ─→ PDF (build_coupon_pdf.py) ─→ KUPON_<d>.pdf + 12_printed.json
-```
-
-- `11_coupon.json` jest jedynym artefaktem kuponu; każdy czytelnik idzie
-  przez `confidence.coupon_artifact()` (11, a dla dni bez niego
-  `08_confidence.json`). Kolejność `confidence.coupon_order`: pewność
-  malejąco, potem wcześniejszy start, nogi jednego meczu razem (blok na
-  miejscu najlepszej nogi), pozycje 1..N; nogi zablokowane z wcześniejszego
-  wydruku na górze, bez numeru; buildery B1.. na osobnych stronach PDF.
-- `12_printed.json` zapisuje PDF: to, co naprawdę wydrukowano. Następna
-  przebudowa blokuje z niego nogi, których mecz już się zaczął; noga zdjęta
-  przed startem zostaje zdjęta.
-- Pewność jest wyłącznie ze statystyk (piłka, tenis: krzywe
-  `config/sofa_confidence_calibration.json`; sporty mierzone: krzywe
-  `config/sofa_sport_confidence_calibration.json` nad modelem wyników /
-  silnikiem CS2). Cena to tylko warunek zakładu: x = pewność × kurs ≥ 0,90,
-  marża drabinki/grupy ≤ 15%, `ODDS_TOO_LOW`, mecz niezaczęty, świeża cena.
-  `forecast_p` („model”, nieskalibrowany) stoi obok i niczego nie bramkuje.
-- `06_coupon.json` (selektor VALUE, `p_bar`, `required_odds`) zostaje cenowy i
-  **nie jest kuponem**.
-
-Nogi sportów mierzonych czyta `sofa-analyst-sport`.
-
-### Agenci — wykonawcy z własnym kontekstem
-
-| agent | rola | narzędzia | pisze pliki? |
+| agent | rola | model | pisze |
 |---|---|---|---|
-| `sofa-runner` | właściciel przebiegu: uruchamia etapy, deleguje, scala weta i odczyty, melduje | Bash, Read, Glob, Grep, **Task** | nie (brak Edit/Write; dane pisze przez Bash) |
-| `sofa-analyst-football` | piłkarski odczyt meczu, którego kod nie zrobi + weta + jeden odczyt (KEEP/WATCH/NO_BET) na każdą nogę do przeczytania | Read/Glob/Grep/Bash, Web (bez bzzoiro — sofa czyta tylko Sofascore i Superbet) | nie — zwraca tekst |
-| `sofa-analyst-tennis` | to samo dla tenisa | Read/Glob/Grep/Bash, Web | nie — zwraca tekst |
-| `sofa-analyst-sport` | to samo dla jednego sportu mierzonego (hokej / koszykówka / siatkówka / CS2), jedna instancja na sport; tożsamość meczu z `sport_fixtures.json`, cena z surowej migawki; tylko odczyty (strona i okres w `LegRead`) | Read/Glob/Grep/Bash, Web | nie — zwraca tekst |
-| `sofa-verifier` | rozbiera zbudowany dzień na części, adwersaryjnie; wiersze, których by nie postawił, oddaje jako odczyty JSON | Read/Glob/Grep/Bash, Web | nie — zwraca tekst |
-| `sofa-settler` | pętla rozliczenie → kalibracja, higiena konfiguracji | Bash, Read, Glob, Grep | nie (uruchamia fitter, nie edytuje stałej ręcznie) |
-| `sofa-market-scout` | czy da się to postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | Read, Glob, Grep, Bash, WebFetch | nie |
+| `sofa-runner` | dzień jako podagent: czyta i wykonuje `sofa-day.md`, zwraca raport dnia | sesji | dane tylko przez skrypty |
+| `sofa-analyst-football` / `-tennis` | odczyt nóg ze swojego pliku `read_set`, weta + jeden odczyt na nogę | sesji | **tylko swój raport** |
+| `sofa-analyst-sport` | to samo dla jednego sportu mierzonego (hokej / kosz / siatka / CS2); tylko odczyty (strona, okres) | sesji | tylko swój raport |
+| `sofa-verifier` | adwersaryjna weryfikacja zbudowanego dnia; nogi, których by nie postawił, jako odczyty `author: "verifier"` | sesji | tylko swój raport |
+| `sofa-settler` | rozliczenie D-1, audyty, dziennik, opinia o refitowaniu (domyślnie „nie”) | `sonnet` | nic |
+| `sofa-market-scout` | czy da się postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | `sonnet` | `runs/sofa/<d>/market_coverage.json` / `.md` przez `report_market_coverage.py` (gdy ich brak) |
 
-**Żaden agent `sofa` nie ma `Write` ani `Edit`.** To nie przeoczenie: przebieg,
-który potrzebował edycji pliku, potrzebuje człowieka. Dane (jak `vetoes.json`,
-`reads.json`, `read_requests.json`) powstają przez Bash — to zapisywanie
-danych, nie naprawianie kodu.
+- **Żaden agent nie ma `Write` ani `Edit`.** Przebieg, który potrzebuje
+  edycji pliku, potrzebuje człowieka. Raport analityk i weryfikator zapisują
+  jednym heredokiem przez Bash; dane dnia powstają tylko przez skrypty.
+- **Agenci nie dostają `CLAUDE.md`** (`omitClaudeMd: true` w każdym
+  `sofa-*`). Ich wspólnym kontraktem jest wczytany skill `sofa-pipeline`;
+  `CLAUDE.md` jest dla sesji głównej.
+- **Routing modeli:** `sofa-settler` i `sofa-market-scout` biegną na
+  `sonnet` (uruchamianie skryptów i raport; refit i tak wymaga zgody
+  operatora). Analitycy i weryfikator — na modelu sesji (bez linii `model:`).
+- Definicje agentów i skille wczytują się na starcie sesji: poprawka wchodzi
+  w **następnej** sesji — nie pisz, że „już działa”.
 
-### Umiejętności (skills) — wiedza wstrzykiwana do kontekstu
+### Skille
 
 | skill | do czego | wczytany do |
 |---|---|---|
-| `sofa-pipeline` | etapy, artefakty, arytmetyka, pułapki | każdego agenta `sofa` |
-| `sofa-analysis-core` | kontrakt analityka: kolejność artefaktów, schemat wet i odczytów, punkt decyzyjny, format raportu | trzech analityków |
-| `football-analysis` | metoda piłkarska (runda, stawka, sędzia, scenariusz meczu, rozkład ponad średnią) | `sofa-analyst-football` |
-| `tennis-analysis` | metoda tenisowa (nawierzchnia, format, hold/break, arytmetyka wyniku) | `sofa-analyst-tennis` |
-| `bet-slip-audit` | wycena kuponu/slipa, który operator przysłał z ekranu | na żądanie |
+| `sofa-pipeline` | wspólny kontrakt: kupon, etapy, reguły druku, kanały (weta, odczyty, prośby), twarde zasady | każdego agenta `sofa` |
+| `sofa-analysis-core` | kontrakt analityka: plik `read_set`, kolejność artefaktów, punkt decyzyjny, bloki JSON, raport do pliku | trzech analityków |
+| `football-analysis` / `tennis-analysis` | metoda sportowa | analityk danego sportu |
+| `bet-slip-audit` | wycena slipa z ekranu operatora | na żądanie |
 
-Hierarchia, gdy dwa źródła mówią co innego: **artefakt > skill > plik agenta**.
-Skill wygrywa na metodzie, artefakt na faktach, plik agenta mówi tylko, jak
-przebiega *jego* przebieg.
-
-> **Definicje agentów wczytują się na starcie sesji.** Przepisanego pliku
-> agenta **nie da się przetestować w tej samej sesji, w której go napisano** —
-> trzeba nowej. Nie pisz, że poprawka „już działa"; napisz, że wejdzie
-> w następnej sesji. Dotyczy to też `sofa-analyst-sport` (nowy 2026-10-05).
+Gdy dwa źródła mówią co innego: **kod > artefakt > skill > plik agenta**.
 
 ---
 
 ## 2. Pełny dzień agentowo
 
 ```
-operator: /sofa-day 2026-10-06
+operator: /sofa-day 2026-10-20
    │
-   ├─ 0. most            ensure_bridge.py — podnosi most, potem check_bridge;
-   │                     liczy się WIEK pobrania, martwa karta nadal melduje ok:true
-   │
-   ├─ 1. SETTLE D-1      → sofa-settler (albo inline)
-   │                       run_pipeline --only SETTLE; CS2_SETTLE / SHADOW_SETTLE (pętle dnia)
-   │                       audit_settlement §7c = prawdziwy wynik kuponu (per sport + suma),
-   │                       §7i nogi zdjęte przez odczyt (osobno); zwroty liczone osobno
-   │                       audit_settle_identity.py --from <D-1> --to <D-1>
-   │   1a. dziennik      record_results.py (D-8..D-1) → audit_ledger.py → audit_clv.py
-   │   1b. pętle dnia    cs2_daily.py --chain, shadow_daily.py --chain (zostają u orkiestratora;
-   │                     robią migawki cen i poranne SETTLE pomiaru)
-   │
-   ├─ 2. dzisiaj         run_pipeline.py: BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
-   │                     jeden --run-id na cały dzień
-   │
-   ├─ 3. CONFIDENCE      run_confidence.py --date <d>  → 08_confidence.json (piłka, tenis)
-   │
-   ├─ 4. sporty          run_pipeline --only SHADOW, --only CS2   (świeże migawki Superbetu)
-   │                     → SPORT_IDENTITY (most)   → sport_fixtures.json
-   │                     → SPORT_CONFIDENCE        → 08_confidence_sports.json
-   │
-   ├─ 5. COUPON_ASSEMBLY build_coupon.py --date <d>  → 11_coupon.json
-   │
-   ├─ 6. analitycy       nogi z confidence.legs_requiring_read: pierwsze 30 pozycji
-   │                     niezablokowanych + każda noga wydrukowanego buildera + read_requests.json
-   │                     Task → sofa-analyst-football   ┐
-   │                     Task → sofa-analyst-tennis     │ w JEDNEJ wiadomości,
-   │                     Task → sofa-analyst-sport ×k   ┘ jeden na sport obecny wśród tych nóg
-   │                        ↓ każdy zwraca markdown + tablice JSON: weta (piłka, tenis), odczyty
-   │                     markdown → runs/sofa/<data>/<data>_analiza_<sport>.md
-   │                     walidacja → vetoes.json; dopisanie + walidacja → reads.json
-   │
-   ├─ 7. przebudowa      rebuild_day.py --date <d> (jedno polecenie, F0.2): [OFFER, gdy cena
-   │                     blisko 45 min] → [SHADOW z horyzontem do najdalszego startu / CS2,
-   │                     gdy ceny sportów blisko 3 h] → [SPORT_IDENTITY] → [SHEET, gdy epoka lub brak znaczników pakietów, dzień >= 10-09]
-   │                     → FIXTURE_CHECK (most) → run_confidence.py → SPORT_CONFIDENCE
-   │                     → build_coupon.py → build_coupon_pdf.py (KUPON_<d>.pdf + 12_printed.json)
-   │                     → audit_variants.py + audit_coupon.py
-   │                     → capture_closing.py --loop (CLV) + run_boosts.py
-   │
-   ├─ 8. audyty          audit_coupon.py (05/06, arytmetyka) + audit_variants.py (C1–C3, U1–U3)
-   │
-   ├─ 9. weryfikacja     sofa-verifier (NIE jest opcjonalna) — kończy listą nóg, których
-   │                     NIE postawiłby, prozą i jako tablica odczytów JSON (author "verifier")
-   │                     → dopisanie do reads.json → przebudowa jak w kroku 7
-   │                     → audit_variants (C1, C3, U1–U3 czyste)
-   │
-   └─ 10. raport         jeden kupon, sekcje per sport, top 30 przeczytane, liczba nóg poza
-                         top 30, nogi zdjęte (removed_by_reads) z powodem — wzór w części 8
+   ├─ 0. most          ensure_bridge.py (liczy się wiek pobrania, nie ok:true)
+   ├─ 1. D-1           Task → sofa-settler (sesja główna: w tle, powiadomienie o końcu; podagent:
+   │                   pierwszy plan): SETTLE, CS2_SETTLE / SHADOW_SETTLE tylko gdy pętla D-1 nie żyje,
+   │                   audit_settle_identity, resettle_sweep, record_results, audit_ledger, audit_clv,
+   │                   audit_settlement 7c / 7i; BOARD w sesji głównej obok; RESOLVE po powrocie
+   ├─ 1a. dowody linii najpierw część mostowa (refresh_sport_history.py, backfill_event_stats.py —
+   │                   pisze data/sofa.db, więc przed RESOLVE), potem dopasowania
+   │                   refresh_line_evidence.py --before <D> --skip-history (tylko czytają bazę)
+   │                   w tle obok kroku 2; krok 3 czeka na ich „EXIT”
+   ├─ 1b. pętle        cs2_daily / shadow_daily --chain (warunki startu: sofa-day.md);
+   │                   capture_closing startują pętle same
+   ├─ 2. dzisiaj       run_pipeline.py: BOARD (nadaje run_id, odczyt z linii SOFA_SUMMARY)
+   │                   → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (nohup, log, krótkie grep)
+   ├─ 3. CONFIDENCE    run_confidence.py (tymczasowy)
+   ├─ 4. sporty        SHADOW, CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (11)
+   │                   bez PDF: wydruk tymczasowy zablokowałby nieprzeczytane nogi
+   ├─ 5. analitycy     read_set.py --buffer 25 --split 12 → jedna instancja na plik,
+   │                   wszystkie w JEDNEJ wiadomości, na pierwszym planie
+   ├─ 6. scalenie      merge_reads.py --report <ścieżka ZWRÓCONA przez analityka> [--report …] --author analyst
+   ├─ 7. przebudowa    rebuild_day.py (pierwszy PDF) → audit_variants C3;
+   │                   pętla: read_set.py --unread --split 12 → analitycy (_r<n>) → scalenie
+   │                   → przebudowa; najwyżej 3 rundy
+   ├─ 8. weryfikacja   Task → sofa-verifier → merge_reads.py --author verifier → rebuild_day.py
+   ├─ 9. stan          day_status.py; capture_closing tylko przy WARN; run_boosts.py
+   └─ raport           wzór w części 8
 ```
 
-Polecenia kroków 3–7 (flagi sprawdzone w skryptach):
+Polecenia z flagami są w `sofa-day.md`; najważniejsze:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d>        # albo run_pipeline.py --only SPORT_IDENTITY; most
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d>      # bez mostu
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>              # COUPON_ASSEMBLY, offline
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>         # tylko w przebudowie, po OFFER, przed CONFIDENCE; most
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]   # przebudowa (krok 7): jedyne polecenie, nigdy powyższe skrypty ręcznie
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K] [--out-dir <dir>]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> [--dry-run] [--skip-audits]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>
 ```
 
-Kody wyjścia nowych etapów: SPORT_IDENTITY 1 przy meczu nierozpoznanym albo
-odmowie mostu, 2 bez migawki żadnego sportu; SPORT_CONFIDENCE 1, gdy sport
-jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` (artefakt i tak
-zapisany, kupon piłki i tenisa budowany); FIXTURE_CHECK 1 bez mostu (mecze
-`UNVERIFIED`, nic nie odrzucone), 403 przerywa od razu.
+### Zbiór do przeczytania — `read_set.py`
 
-### Punkt wstawienia, który czyni tę ścieżkę agentową prawdziwą
+Zbiór C3 to `confidence.legs_requiring_read`: niezablokowane nogi 30 meczów
+o najlepszej wartości (`read_unit: "event"`, `read_order: "value"`), każda
+noga wydrukowanego buildera i każda prośba z `read_requests.json`. Reszta
+kuponu drukuje się bez odczytu (decyzja operatora). `read_set.py` zapisuje go
+jako `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json` (zwarte nogi:
+pozycja, `group_key`, mecz, rynek, linia, kierunek, okres, nazwa Superbetu,
+pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
 
-Osąd agenta wchodzi do produktu **dwoma plikami** w `runs/sofa/<data>/`:
-`vetoes.json` (czytają COUPON, CONFIDENCE i — dla nóg sportów —
-COUPON_ASSEMBLY) i `reads.json` (CONFIDENCE i COUPON_ASSEMBLY). Trzeci,
-`read_requests.json`, nie zmienia wydruku — mówi tylko, które nogi poza top
-30 trzeba przeczytać. Nic więcej z pracy analityka ani weryfikatora nie
-dociera do maszyny — reszta jest raportem dla operatora.
+- `--buffer N` — także N kolejnych meczów w tej samej kolejności; przebudowa
+  tasuje trzydziestkę, więc bufor przeczytany teraz oszczędza rundę C3
+  (25 na budowie tymczasowej, 0 na końcowej);
+- `--split K` — części po najwyżej K całych meczów, jedna instancja
+  analityka na część (dwa krótkie konteksty są tańsze niż jeden długi);
+- wypisuje jedną linię na sport / część: `<n> legs, <n> matches (<n>
+  required, <n> buffer)` — liczby required / buffer to **nogi**;
+- `--unread` — tylko nogi bez odczytu analityka (reguła C3); używane w każdej
+  rundzie po przebudowie.
 
-- **`vetoes.json`** — werdykt o **próbce** albo kontekście
-  (`SAMPLE_UNINFORMATIVE`, `CONTEXT`, `PRICE`, `OTHER`): usuwa wiersz
-  **wszędzie**. Kierunek weta to tylko OVER/UNDER, więc weto na nodze sportu
-  mierzonego może nazwać tylko cały mecz albo rodzinę rynku; nogę sportu
-  zdejmuje się odczytem `NO_BET` (ma stronę i okres).
-- **`reads.json`** (od 2026-10-04) — werdykt o **nodze**, `LegRead` w
-  `src/bet/sofa/contracts.py` (strict, `extra="forbid"`): `sofascore_event_id`,
-  `market` (dla sportu: rodzina), `subject`, `line`, `direction` (OVER/UNDER
-  albo strona sportu T1/T2/DRAW/ODD/EVEN/YES/NO albo wynik dokładny „3:1”),
-  `verdict`, `author` (`analyst` / `verifier`), `reason`, opcjonalnie
-  `context` i `period` (okres / kwarta / set / mapa CS2; `null` obejmuje
-  wszystkie). Pole `null` obejmuje każdą wartość.
+### Kontrakt przekazania analityk → maszyna
 
-  | werdykt | skutek na kuponie |
-  |---|---|
-  | `KEEP` | zostaje; zapis, że nogę przeczytano |
-  | `WATCH` | **zdjęta** |
-  | `NO_BET` | **zdjęta** |
+1. Zlecający podaje: `date`, `run_id`, sport, ścieżkę pliku `read_set` i
+   ścieżkę raportu `runs/sofa/<d>/<d>_analiza_<sport>[_<część>][_r<n>].md`
+   (nigdy istniejący plik — następny wolny sufiks). **Żadnej własnej opinii**
+   o meczu: to byłaby prośba o potwierdzenie.
+2. Analityk zapisuje cały raport (po polsku) jednym heredokiem, z blokami
+   ` ```json vetoes ` (tylko piłka i tenis) i ` ```json reads `, i zwraca
+   zlecającemu najwyżej 12 linii: ścieżkę, liczbę nóg, KEEP / WATCH / NO_BET,
+   liczbę wet i to, na co trzeba zareagować. Innych plików nie pisze.
+3. Zlecający uruchamia `merge_reads.py` na ścieżce, którą analityk
+   **zwrócił** (może dodać `_r<n>`; jeden plik `read_set` = jeden raport -
+   na części dzieli zlecający, `read_set.py --split`, analityk nigdy);
+   jedno wywołanie przyjmuje kilka `--report`, nigdy dwa wywołania naraz.
+   Nigdy nie przepisuje tekstu ani tablic analityka. Kod wyjścia: 0 scalone;
+   1 scalone, ale weto nic nie trafiło (`UNMATCHED_VETO` — zgłosić); 2 odmowa,
+   nic nie zapisane — analityk (lub weryfikator) jest uruchamiany ponownie z
+   komunikatem i ścieżką `_r<n>`; nikt nie poprawia jego JSON-a; po 2
+   ponownych uruchomieniach zgłosić porażkę.
+4. Weryfikator tak samo: `runs/sofa/<d>/<d>_weryfikacja[_r<n>].md`,
+   scalenie z `--author verifier`.
 
-  Noga, która przeszła wszystkie bramki, a zdjął ją odczyt (albo
-  automatyczny `MODEL_ABOVE_OWN_SAMPLE`), trafia do `removed_by_reads` w
-  `11_coupon.json` i jest rozliczana osobno: `audit_settlement` sekcja 7i
-  („Nogi zdjęte przez odczyt”), dziennik `removed:reads` — nigdy w wyniku
-  kuponu. Odczyt, który nic nie trafił, drukuje `UNMATCHED_READ`;
-  `run_confidence.py` widzi tylko wiersze piłki i tenisa, więc odczyt nogi
-  sportu zawsze jest tam `UNMATCHED_READ` — sprawdza się go w
-  `11_coupon.json` (`removed_by_reads`, pole `reads` nogi). Odczytu nigdy się
-  nie poprawia ani nie usuwa, tylko dopisuje; WATCH i NO_BET wygrywają z
-  KEEP, kto by ich nie napisał.
+### Kanały do produktu
 
-- **`read_requests.json`** — lista próśb operatora o dodatkowy odczyt; każdy
-  wpis ma `requested_by` i `at_utc` oraz albo `{"position": n}`, albo
-  `{"group_key": "sofa:<id>", "market"?, "line"?, "direction"?}` (pominięte
-  pole obejmuje wszystko). Forma `group_key` jest bezpieczniejsza — pozycje
-  przesuwają się po przebudowie. `/sofa-analyze` „dodatkowo: <pozycje>”
-  dopisuje wpisy z `requested_by: "operator"`. Nieczytelny plik albo wpis
-  bez `requested_by` + `at_utc` zatrzymuje budowę; prośba, która nic nie
-  objęła, drukuje `UNMATCHED_READ_REQUEST`.
+Osąd agenta wchodzi do kuponu **tylko** dwoma plikami w `runs/sofa/<d>/`;
+trzeci jest prośbą, nie werdyktem:
 
-Powód odczytów: 2026-10-04 SC Farense – Chaves, gole UNDER 3,5 @1,29,
-przegrane 4-0. Analityk dał WATCH, weryfikator umieścił nogę na liście „nie
-postawiłbym" — żaden z tych osądów nie miał pola ani skutku, więc noga
-została w PDF. Był to mecz przełożony z 5. kolejki (2026-09-06, ognisko
-wirusowe), czego nic nie oznaczyło.
+| plik | co | kto czyta | skutek |
+|---|---|---|---|
+| `vetoes.json` | weto (`contracts.Veto`) na próbkę lub kontekst: `SAMPLE_UNINFORMATIVE`, `CONTEXT`, `PRICE`, `OTHER` | COUPON, CONFIDENCE, COUPON_ASSEMBLY | wiersz zdjęty wszędzie; kierunek tylko OVER/UNDER, więc nogę sportu mierzonego zdejmuje się odczytem |
+| `reads.json` | odczyt (`contracts.LegRead`): KEEP / WATCH / NO_BET, `author` analyst / verifier, dla sportu strona i okres | CONFIDENCE, COUPON_ASSEMBLY | WATCH i NO_BET zdejmują nogę do `removed_by_reads` (rozliczane osobno, 7i, dziennik `removed:reads`); KEEP zapisuje, że przeczytano |
+| `read_requests.json` | prośba operatora o odczyt (`requested_by`, `at_utc`, `position` albo `group_key` [+ `market`, `line`, `direction`]) | `legs_requiring_read`, COUPON_ASSEMBLY | poszerza zbiór C3; nic nie zdejmuje |
 
-Obok, automatycznie w kodzie (bez odczytu): `MODEL_ABOVE_OWN_SAMPLE` —
-noga piłkarska, której `model_p` przewyższa trafialność jej własnej próbki
-(`sample_hit_rate`, na każdej nodze) o ponad 0,15, wypada z kuponu do
-`removed_by_reads`. Do `context_flags` trafiają też tagi terminarza z
-`bet.sofa.schedule`: `MAKEUP_FIXTURE(...)`, `LONG_LAYOFF(...)` (≥ 21 dni),
-`CONGESTED(...)` (≥ 3 mecze w 7 dni) — pokazywane, nie egzekwowane;
-`03_samples.json` ma per mecz blok `schedule`. Mecz przełożony, odwołany
-albo przerwany po wydruku łapie FIXTURE_CHECK (`fixture_status.json`,
-`FIXTURE_NOT_AS_SCHEDULED`, odmowa w CONFIDENCE).
+- Oba schematy są ścisłe (`extra="forbid"`): jeden zły klucz wywraca cały
+  plik i zatrzymuje przebudowę, a stare 08 / 11 / PDF zostają na dysku,
+  wyglądając na aktualne — dlatego pisze je tylko `merge_reads.py`, który
+  waliduje przed zapisem.
+- Odczyt się tylko dopisuje; WATCH i NO_BET wygrywają z KEEP, kto by ich nie
+  napisał. Wcześniejsze weta przechodzą dalej.
+- `subject: null` obejmuje każdy podmiot meczu, `period: null` każdy okres.
+- Odczyt sportu mierzonego `run_confidence.py` liczy jako `reads_sport`;
+  działa w COUPON_ASSEMBLY (sprawdź `removed_by_reads` w `11_coupon.json`).
+  Każdy `UNMATCHED_READ` / `UNMATCHED_VETO` / `UNMATCHED_READ_REQUEST` to
+  osąd, który nic nie zrobił — zgłosić.
+- Automatycznie, bez odczytu: `MODEL_ABOVE_OWN_SAMPLE` (piłka) też ląduje w
+  `removed_by_reads`; `FIXTURE_NOT_AS_SCHEDULED` z FIXTURE_CHECK odmawia w
+  CONFIDENCE.
 
-Z tego wynikają rzeczy, które trzeba robić dokładnie tak:
+### Pętla C3
 
-1. **Analitycy biegną po COUPON_ASSEMBLY**, na `11_coupon.json`. Zbiór do
-   przeczytania to `confidence.legs_requiring_read` (`READ_REQUIRED_SINGLES`
-   = 30): pierwsze 30 pozycji niezablokowanych (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie), każda noga wydrukowanego
-   buildera i to, o co prosi `read_requests.json`. `audit_variants` C3
-   sprawdza ten sam zbiór: każda taka noga ma odczyt `author: "analyst"`
-   (także noga zostawiona w spokoju dostaje `KEEP`), a żadna wydrukowana nie
-   ma WATCH ani NO_BET. Reszta kuponu drukuje się bez odczytu (decyzja
-   operatora 2026-10-05). Nogi zablokowane czyta się w stanie z chwili
-   wydruku — odmowa, która dziś je obejmuje, to notatka, nie defekt.
-2. **Po zapisaniu wet i odczytów przebudowa idzie od CONFIDENCE** (z
-   FIXTURE_CHECK przed nim) przez `build_coupon.py` do PDF — zawsze jednym
-   poleceniem `rebuild_day.py`, które najpierw odświeża stare ceny. Strażnik
-   `STALE_CONFIDENCE` w `build_coupon_pdf.py` porównuje `08_confidence.json`
-   z `05_sheet.json`, `vetoes.json`, `reads.json` i kalibracją;
-   `STALE_COUPON` porównuje `11_coupon.json` z `08_confidence.json`,
-   `08_confidence_sports.json` i `read_requests.json`. Sam PDF bez
-   `build_coupon.py` odmówi. `06_coupon.json` (COUPON) też czyta weta — to
-   selektor cenowy, nie kupon; `run_pipeline.py --only COUPON` utrzymuje go
-   zgodnym dla `audit_coupon.py` (`rebuild_day.py` robi to, gdy 06 jest
-   starszy niż arkusz / weta / odczyty).
-3. **Weto i odczyt, które nie trafiły, muszą zostać zgłoszone.** Etapy
-   drukują `UNMATCHED_VETO` / `UNMATCHED_READ`; cichy no-op czyta się
-   identycznie jak weto uszanowane.
-4. **Odczyty weryfikatora też przebudowują dzień.** Dopisane do
-   `reads.json` → przebudowa jak w kroku 7 → ponownie `audit_coupon` i
-   `audit_variants`. Jeśli przebudowa wstawiła do top 30 nogę, której nikt
-   nie przeczytał (pozycje się przesunęły), C3 to pokaże: te nogi wracają do
-   analityka danego sportu.
-
-### Scalanie wet — walidacja przed zapisem, zawsze
-
-```python
-from pydantic import RootModel
-from bet.sofa.contracts import SheetRow, Veto
-from bet.sofa.veto import find_unmatched_vetoes
-
-vetoes = RootModel[list[Veto]].model_validate(merged).root      # NAJPIERW
-rows = RootModel[list[SheetRow]].model_validate_json(
-    open(f"runs/sofa/{date}/05_sheet.json").read()).root
-unmatched = find_unmatched_vetoes(rows, vetoes)                 # potem raport
-```
-
-`Veto` ma `extra="forbid"`. Jeden wymyślony klucz (`action`, `player`,
-`event_id`) wywraca **cały plik** i **zatrzymuje przebudowę** (`LegRead`
-w `reads.json` tak samo — walidacja `RootModel[list[LegRead]]`, potem
-`load_reads`): COUPON rzuca
-wyjątek (`run_pipeline.py` melduje FAILED, kod 2), a `run_confidence.py`
-pada na nieprzechwyconym `ValidationError` z kodem 1 — co czyta się jak
-PARTIAL, jeśli nie przeczyta się tracebacku. Żaden z nich nie zapisuje
-artefaktu, więc na dysku zostają poprzednie 06/08/11 i PDF, wyglądające na
-aktualne. Waliduj przed każdą przebudową.
+`audit_variants` C3 (na końcu każdej przebudowy) sprawdza, że każda noga
+zbioru ma odczyt `author: "analyst"` i żadna wydrukowana nie niesie WATCH /
+NO_BET. Przebudowa przesuwa pozycje, więc po każdej: `read_set.py --date <d>
+--unread --split 12` (`--buffer 5`, gdy wczesne mecze wciągają nowe) →
+analitycy tylko na tych plikach → scalenie → przebudowa, aż C3 czyste,
+najwyżej 3 rundy. Pusty zbiór przy czerwonym C3 znaczy, że wydrukowana noga
+niesie WATCH / NO_BET albo brak `reads.json` — wtedy `rebuild_day.py`, nie
+kolejny odczyt.
+WATCH na nodze buildera każe builderowi wziąć następnego kandydata — w tej
+rundzie analityk czyta wszystkich kandydatów buildera tego meczu. Odmowa na
+nodze zablokowanej to notatka, nie defekt. PDF drukuje się mimo znalezisk C3,
+więc nogi, które w międzyczasie wystartowały, zostają zablokowane bez
+odczytu — raport je wymienia.
 
 ---
-
-### Dziennik i rozliczenie D-1 — domyślnie
-
-Każdy `/sofa-day` robi, bez pytania, po SETTLE / CS2_SETTLE / SHADOW_SETTLE:
-`audit_settlement.py` (7c per sport, 7i), `audit_settle_identity.py`
-(przypięte id sportów mierzonych: `ID_USED_TWICE`, `MOVED_GRADED`,
-`NAME_BELOW`, `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`,
-`IDENTITY_PENDING`), `audit_shadow.py`, `audit_cs2.py` i `record_results.py`
-(dziennik `runs/sofa/ledger/results.jsonl`, jeden wiersz na dzień i grupę:
-`official`, `official:pre_stats_only`, `removed:reads`, `measure:<sport>`),
-czytany przez `audit_ledger.py` — grupy epok (do 10-04 /
-10-05 rano / stats_only), nigdy łącznie. Kod 0 także przy pozycjach
-oczekujących (widać je w tabeli); 1 tylko przy `MISMATCH` albo nieczytelnym
-pliku; 2 przy awarii lub braku bazy.
 
 ## 3. Kontrakt analityka
 
-**Wejście:** data, `run_id`, werdykty etapów, lista nóg jego sportu do
-przeczytania (z `confidence.legs_requiring_read` nad `11_coupon.json`, w tym
-pozycje z `read_requests.json`), i to, co się wywaliło. **Nie** opinia zlecającego o konkretnym meczu —
-to byłaby prośba o potwierdzenie, nie o analizę.
+Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
 
-**Wyjście:** markdown po polsku + **dwie** ogrodzone tablice JSON: weta
-(`[]` to normalna, zdrowa odpowiedź), potem odczyty — jeden `LegRead`
-(`author: "analyst"`) na każdą nogę do przeczytania: pierwsze 30 pozycji
-`11_coupon.json`, każdą nogę wydrukowanego buildera i pozycje z
-`read_requests.json` — w jego sporcie. `sofa-analyst-sport` oddaje tylko
-odczyty (weto nie ma strony ani okresu). Na nodze stoją trzy liczby i tylko
-jedna jest pewnością: **pewność** (`confidence`, ze statystyk,
-skalibrowana), **próbka** (k z n, `sample_hit_rate`), **model**
-(`forecast_p`, nieskalibrowany); cena jest tylko filtrem. WATCH to noga, której by nie postawił, choć nie
-umie nazwać jej zepsutą; zepsuta próbka to nadal weto, nie NO_BET.
-
-**Kolejność pracy** (z `sofa-analysis-core`):
-
-1. **Inwentarz.** Mecze swojego sportu, udział READY, nogi jego sportu w
-   `11_coupon.json` **policzone samodzielnie** (pozycje, zablokowane, nogi
-   builderów, `removed_by_reads`), ile z nich jest do przeczytania.
-2. **Punkt decyzyjny — przed jakimkolwiek narzędziem webowym.** Oba zegary,
-   `now`, różnica. Mecz, który się zaczął, wypada **tutaj**, a nie po
-   researchu: tytuły i snippety wyszukiwarki **są treścią**, więc analiza
-   spóźniona jest wystawiona na wynik. Jeśli wynik przecieknie — nazwij to
-   i oznacz twierdzenie `CANNOT VERIFY`.
-3. **Weryfikacja tożsamości.** Ani w piłce, ani w tenisie **nie ma źródła
-   prawdy** poza artefaktami: `sofa` czyta statystyki Sofascore i ceny
-   Superbet, a bzzoiro **nie jest źródłem i nie wolno go wołać** (do
-   2026-09-23 ten punkt kazał piłce pytać bzzoiro o status meczu — instrukcja
-   sprzeczna z kontraktem agenta). Tożsamość i zegary: `02_fixtures.json`
-   (`identity`, oba zegary); resztę web, dwie niezależne domeny, tag
-   `[WEB: domena, fetched <UTC>]` — a „niezweryfikowane" jest często odpowiedzią
-   uczciwą i tak trzeba je podać.
-4. **Protokół per mecz** z odpowiedniego skilla sportowego, w jego kolejności.
-   Cena **ostatnia**.
-5. **Blok wet, potem blok odczytów.**
-
-**Terminarz i skład próbki są od 2026-10-04 w artefaktach.** Blok
-`schedule` w `03_samples.json` i `context_flags` na nogach mówią, czy mecz
-jest przełożony (`MAKEUP_FIXTURE` — wtedy trzeba ustalić, *dlaczego*:
-choroba, pogoda, boisko), ile dni odpoczynku miała każda strona i ile
-meczów w 7 / 14 dniach. Historia nie zawiera już sparingów ani turniejów
-przedsezonowych (`bet.sofa.comparability`), a próbki goli w piłce
-(`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`) biorą tylko
-regularne mecze rozgrywek tego meczu, gdy jest ich co najmniej pięć — mecz
-pucharowy albo sparing w takiej próbce to defekt do zgłoszenia.
-
-**Kupon, nie tylko arkusz.** Odczyt, który ocenia wiersze arkusza i nigdy nie
-otwiera `11_coupon.json`, opisuje dzień, którego nikt nie postawił. Trzeba
-ocenić też **legi i buildery**, a przed stwierdzeniem „tego wiersza nie ma"
-zajrzeć do `06_dropped.json`.
-
-**Priorytety ponad obowiązkowy zbiór** (niedziela to 1000+ meczów piłki i nikt
-ich nie przeczyta; obowiązkowy jest tylko zbiór C3):
-
-1. nogi z `legs_requiring_read` — top 30, nogi wydrukowanych builderów,
-   prośby operatora;
-2. pozostałe nogi `11_coupon.json`, od najwyższej pozycji;
-3. piłka: rynki `*_1h_*` / `*_2h_*` (cienkie bazy; przy n=8 wiersz jest w 76%
-   priorem ligowym). Tenis: mecze z `ground_type` albo
-   `default_period_count` = `null` — zakres próbki wtedy **nie zadziałał**.
-
-**Gdzie skończyłeś — powiedz.** Mecz nieprzeczytany to `NIE PODANO`, nigdy
-milczenie.
-
-**Czego analitykowi nie wolno:**
-
-- wetować za bramkę, którą kod już stosuje (`STALE_PRICE`, `STALE_SAMPLE`,
-  `ODDS_TOO_LOW`, `KICKOFF_TOO_SOON`, `MODE_LOSES`, `LINE_BEYOND_SAMPLE`,
-  `THIN_SAMPLE_FOR_BUILDER`, a w piłce
-  `MODEL_ABOVE_OWN_SAMPLE`) — to dopisuje szum, w którym giną prawdziwe powody
-  (wyjątek: noga z `player_sample_rule` — od 2026-10-17 kod zdjął z nogi
-  zawodnika na sześciu rynkach `PLAYER_SHAPE_GATE_MARKETS` bramkę kształtu
-  próbki, więc tę próbkę ocenia analityk);
-- podawać `FUZZY` jako potwierdzoną tożsamość;
-- brać ceny z otwartego webu ani z innego bukmachera czy agregatora — jedyna
-  cena w `sofa` to Superbet (`04_offer.json`, a w arkuszu `market_p`);
-- podawać własnej ceny łączonej;
-- proponować stawki.
-
-**Szerokość weta trzeba policzyć przed wysłaniem.** Nie ma pola „zawodnik";
-weto z `subject: null` obejmuje **każdy podmiot** na tym meczu — odczyt WATCH
-albo NO_BET tak samo. Jeśli trafia szerzej, niż zamierzałeś — zawęź go, a jeśli
-się nie da, opisz prozą i powiedz, że nie zostało zastosowane.
-
----
+- czyta dokładnie nogi swojego pliku `read_set`, najpierw `required`;
+- na nodze waży **pewność** (`confidence`, skalibrowana ze statystyk),
+  **próbkę** (k/n) i **model** (`forecast_p`, nieskalibrowany); cena to
+  tylko filtr zakładu;
+- punkt decyzyjny przed jakimkolwiek wyszukiwaniem: mecz, który się zaczął,
+  wypada przed researchem; web — dwie niezależne domeny, otagowane;
+  „niezweryfikowane” bywa uczciwą odpowiedzią;
+- źródła: tylko Sofascore i Superbet z artefaktów dnia oraz otwarty web;
+  **bzzoiro ani żaden inny dostawca**;
+- weto i odczyt tylko zdejmują; nie wetuje za bramkę, którą kod już stosuje;
+- nie podaje ceny łączonej ani stawki;
+- noga nieprzeczytana jest nazwana, nigdy przemilczana.
 
 ## 4. Kontrakt weryfikatora
 
-`sofa-verifier` pracuje **iteracyjnie**: znajdź problem, zgłoś, weryfikuj **od
-nowa**, aż pełna runda nie przyniesie nowego znaleziska. Protokół:
-[`VERIFY_PROTOCOL.md`](VERIFY_PROTOCOL.md).
-
-Sedno podziału pracy: `audit_coupon.py` sprawdza wiersz **wobec niego samego**.
-Wiersz, którego wszystkie pola są wzajemnie spójne i wszystkie zbudowane na
-złej próbce, przechodzi ten audyt. Agent robi więc cztery rzeczy, których
-skrypt nie umie: odtwarza wiersz z `03_samples.json`, sprawdza, czy `subject`
-wskazuje stronę, którą twierdzi, dopytuje Superbet o **żywą** cenę tym samym
-`OfferFetcher`, i testuje rozkłady dnia pod kątem antyselekcji.
-
-Weryfikuje `11_coupon.json` i PDF: top 30, nogi builderów i nogi sportów
-mierzonych. `audit_variants.py` robi część mechaniczną: C1 (świeżość
-artefaktu i PDF), C2 (każdy wydrukowany singiel spełnia swoje pokrętła;
-noga zablokowana wobec `printed_under`), C3 (odczyty), U1 (kolejność
-`coupon_order`, pozycje 1..N, zablokowane na górze bez numeru), U2 (każdy
-świeży singiel piłki i tenisa ma epokę `stats_only`), U3 (każda świeża noga
-sportu odtworzona z surowej migawki Superbetu z chwili budowy
-`08_confidence_sports.json`: kurs, czas i wiek ceny, marża grupy ≤ 15%,
-x ≥ 0,90, pewność = kubełek kalibracji `forecast_p`). Nogi zablokowanej nie
-oznacza się `NO_BET` za to, że dziś by nie przeszła — jest zapisem wydruku.
-
-**Produktem jest lista wierszy, których NIE postawiłby, mimo że pipeline je
-wybrał.** Nie lista poleconych. Od 2026-10-04 oddaje ją także jako
-ogrodzoną tablicę `LegRead` (`author: "verifier"`): `NO_BET` za defekt
-(zła strona, nieaktualna albo błędna cena, arytmetyka, która się nie
-odtwarza), `WATCH` za osąd. Sam nie pisze pliku — zlecający dopisuje
-tablicę do `reads.json` i przebudowuje dzień (krok 9 wyżej). Porównanie
-`model_p` z trafialnością własnej próbki dla piłki robi już kod
-(`MODEL_ABOVE_OWN_SAMPLE`); oficjalna noga piłkarska ponad tą luką to
-defekt. `audit_variants` C3 sprawdza, że każda noga z `legs_requiring_read`
-ma odczyt analityka i żadna wydrukowana nie ma WATCH ani NO_BET. Na koniec werdykt i **żadnej rekomendacji
-stawki** — `K_PRICE` i `MAX_LADDER_SIGMA` są `NOT_FITTED` i każdy wiersz o tym
-mówi; decyzja o stawce należy do operatora.
-
----
+Właściciel: `sofa-verifier.md` (protokół: [`VERIFY_PROTOCOL.md`](VERIFY_PROTOCOL.md)).
+Robi to, czego skrypt nie umie: odtwarza nogi z `03_samples.json`, sprawdza
+stronę `subject` i tożsamość meczu sportu, dopytuje Superbet o żywą cenę tym
+samym klientem, testuje rozkłady dnia pod kątem antyselekcji. Produktem jest
+lista nóg, których **nie** postawiłby — w raporcie i jako blok odczytów
+(`NO_BET` za defekt, `WATCH` za osąd). Noga zablokowana to zapis wydruku,
+nie defekt. Żadnej rekomendacji stawki.
 
 ## 5. Kontrakt rozliczającego
 
-`sofa-settler` jest właścicielem jedynej pętli między dniami. Jego dwie
-decyzje: **czy rozliczenie jest wiarygodne** i **czy fitować stałe** — przy
-czym drugą odpowiedzią jest zwykle „nie".
-
-- **Nigdy w środku dnia.** `fit_constants.py` stoi poza `DEFAULT_SEQUENCE`
-  celowo.
-- Fituj, gdy: rozliczona tabela urosła istotnie, kontrola spójności nie
-  przechodzi, albo baza jest demonstracyjnie zła. **Nie dlatego, że dzień
-  poszedł źle.**
-- Po fitowaniu raportuj **zawsze**: `fitted_from` i o ile się ruszyło,
-  `half_match_coherence`, status **każdej** stałej. `null` ze statusem
-  `NOT_FITTED` to **poprawny wynik, nie luka**.
-- Nigdy nie edytuj stałej ręcznie. Fituj albo zgłoś.
-- Co dzień rozlicza D-1: 7c kuponu per sport + suma kuponu (nogi sportów
-  mierzonych po kursie z wydruku i po przypiętym id, inaczej
-  `NOT_GRADED:ID_CHANGED`), zwroty osobno (`MOVED_BEYOND_VOID` — mecz
-  przesunięty o > 48 h, `AWARDED` — walkower; 0 j., nigdy przegrana i nigdy
-  `sofa_settled_row`), 7i `removed_by_reads` osobno; `audit_settle_identity.py`;
-  dziennik `record_results.py` (`runs/sofa/ledger/results.jsonl`, jeden
-  wiersz na dzień i grupę); wyniki nigdy się nie sumują. Noga wydrukowana
-  bez wiersza arkusza rozlicza się do `07_settled_printed.json`, nie do
-  `sofa_settled_row`; nogi sportów nigdy nie trafiają do `sofa_settled_row`
-  ani `fit_confidence`.
-
-Szczegóły higieny plików konfiguracyjnych: [`CONFIG.md`](CONFIG.md).
-
-### Skaner nisz — po rozliczeniu, jako dowód, nie lista zakładów
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from 2026-09-17 --to <D-1>
-```
-
-Pyta, czy w jakiejś komórce **liga × rynek × kierunek [× przedział kursu]**
-(albo kraj/poziom z `02_fixtures.json`) cena Superbeta jest systematycznie zła
-**poza próbą** i **ponad własną marżą** tej komórki. Wzorzec już wyceniony
-(„w tej lidze zawsze 10+ rożnych" przy linii 11,5) nie jest niszą.
-
-- **Walk-forward:** komórki na dzień D wybiera się wyłącznie z dni < D; wagę
-  ściągania (K, K_rynku) też — dopasowaną Brierem na wcześniejszych dniach.
-  Wynik główny to ROI selektora poza próbą przy wydrukowanych kursach, obok
-  bazy (te same rynki i kierunki, bez wyboru ligi).
-- **Dwupoziomowe ściąganie:** bias komórki → bias rynku → zero (cena).
-  Surowa średnia na małym n to dokładnie złudzenie, którego szukamy.
-- **Jeden szczebel na pytanie** (linia najbliżej 0,5, remis → niższa), liczone
-  są **mecze**, przedziały to bootstrap po meczach; `market_p` przeliczane
-  z wydrukowanej pary OVER/UNDER, bo 2,7% par miało je z innego odświeżenia
-  oferty.
-- **Kandydat** = ściągnięty bias pokonuje marżę na całości **i** ROI poza
-  próbą > 0 **i** komórka przechodzi Benjaminiego–Hochberga (FDR 0,10) na
-  wszystkich przeskanowanych komórkach. Reszta obiecujących to **lista
-  obserwacyjna** z liczbą meczów, jakiej brakuje.
-- Wiersze `cache-calibration` nie mają ceny — tylko **opisują** stabilność
-  surowego wzorca ligi, nigdy nie są dowodem złej wyceny.
-
-Pisze `reports/sofa_nisze_<to>.md` (po polsku) i `.json`; `audit_settlement`
-streszcza ostatni werdykt pod nagłówkiem **7h** („Nogi
-zdjęte przez odczyt” to 7i od 2026-10-05, `04094d92`) — osobno od 7c (kupon), nigdy z nim nie łączony. Skaner **niczego nie zasila** (COUPON,
-CONFIDENCE, SHEET, weta), nie zmienia stałych i nie jest w `DEFAULT_SEQUENCE`.
-Pierwszy przebieg (2026-09-17…28): **brak niszy** — 0 z 1506 komórek po BH;
-przewaga +5% ROI wymaga ~7 800 meczów w jednej komórce po korekcie, a największa
-ma 58. Czytaj go jako dowód, nie jako listę typów; decyzja o stawce należy do
-operatora.
-
----
+Właściciel: `sofa-settler.md`. Rozlicza D-1 (piłka, tenis i sporty
+mierzone), czyta 7c (prawdziwy wynik kuponu per sport) i 7i (nogi zdjęte
+odczytem) osobno, zwroty po 0 j., zapisuje dziennik per wariant i epoka —
+nigdy sumowane. Refit tylko na kopii bazy i tylko za zgodą operatora; nigdy
+w środku dnia i nigdy z przebiegu dnia. Higiena konfiguracji:
+[`CONFIG.md`](CONFIG.md).
 
 ## 6. Kontrakt zwiadowcy rynku
 
-`sofa-market-scout` rozdziela dwie osie, których nie wolno łączyć:
-**czy DA SIĘ to postawić** (mecz na tablicy, rynek na tym meczu, kierunek
-wystawiony, obie strony wycenione, więc devig jest w ogóle możliwy) i **czy
-warto tej ceny** (`required_odds`, nadwyżka, i strukturalne zniżki, których
-nadwyżka nie pokazuje).
+`sofa-market-scout` rozdziela dwie osie, których nie wolno łączyć: **czy da
+się to postawić** (mecz na tablicy, rynek, kierunek, obie strony wycenione)
+i **czy warto tej ceny** (`required_odds`, nadwyżka — arytmetyka selektora
+VALUE z `06_coupon.json`, nie pewność kuponu). Czyta też `unmapped_markets`.
 
-Czyta też ślepą plamę, której nie zapisuje żaden inny artefakt —
-`unmapped_markets` (20 851 w ofercie z 2026-09-21; liczba zmienia się
-z każdym odświeżeniem, więc bierz ją z artefaktu) — i mówi, do których z nich
-sięgnęłaby próbka, którą już mamy, a do których nie.
+## 7. Zasady wspólne
 
----
-
-## 7. Zasady wspólne dla każdego agenta w tym repo
-
-- **`06_coupon.json` nie jest kuponem. Kuponem jest PDF.**
+- **Kuponem jest PDF** z `11_coupon.json`; `06_coupon.json` i
+  `08_confidence.json` nie są kuponem.
 - Nigdy nie wymyślaj liczby, meczu, ceny ani dostępności.
-- Nigdy nie podawaj ceny łączonej spoza tego, co policzył `confidence.py`.
-- Żadnego dobierania stawki, żadnego stawiania automatycznego.
+- Żadnej ceny łączonej / buildera, żadnej stawki, żadnego stawiania.
 - Nigdy nie czytaj, nie wypisuj i nie loguj `.env`.
 - Nigdy nie usuwaj `UNFITTED_CONSTANTS` z raportu.
-- **Liczby od podagenta sprawdzaj, gdy da się sprawdzić lokalnie.** Jedno
-  adwersaryjne przejście po pliku jednego agenta znalazło osiemnaście błędów,
-  z czego dwa odwracały wniosek.
-- Pominięta kontrola musi zostać **nazwana**. Milczenie o pominiętej kontroli
-  czyta się jak kontrola zdana. Jeśli przebieg poszedł gładko, napisz, że
-  bezpiecznika **nie przetestowano** — nie że „działa".
+- Liczby od podagenta sprawdzaj lokalnie, gdy się da.
+- Pominiętą kontrolę nazwij; gładki przebieg znaczy „bezpiecznika nie
+  przetestowano”, nie „działa”.
+- Oszczędnie z wyjściem narzędzi: nie `cat` dużego JSON-a ani logu; `jq`,
+  jednolinijkowy Python, `tail`.
 
 ---
 
 ## 8. Wzór raportu końcowego dnia
 
+Pełny wzór (po polsku) jest w `sofa-day.md`, część „Report”. Otwiera go
+kupon:
+
 ```
-KUPON:    runs/sofa/<data>/KUPON_<data>.pdf — <n> pozycji (+ <n> zablokowanych, + <n> builderów B1..) z 11_coupon.json
-SEKCJE:   piłka <n> · tenis <n> · hokej <n> · koszykówka <n> · siatkówka <n> · CS2 <n> (sport NOT_CALIBRATED / NOT_IDENTIFIED: <…>)
-TOP 30:   przeczytane <n>/30 (+ <n> nóg builderów, + <n> z read_requests.json); poza top 30 drukuje się bez odczytu: <n> nóg
-SHEET:    <n> wierszy (<n> piłka / <n> tenis) · epoka stats_only
-RUN:      <run_id> · <werdykt> · <n> na tablicy → <n> dopasowanych (<x>%) → <n> READY
-SPORTY:   SPORT_IDENTITY <n> IDENTIFIED / <n> NOT_IDENTIFIED · SPORT_CONFIDENCE <werdykt> · FIXTURE_CHECK <n> sprawdzonych, <n> UNVERIFIED, <n> FIXTURE_NOT_AS_SCHEDULED
-WETA:     <n> zastosowanych, <n> bez dopasowania
-READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> (nogi sportów: sprawdzone w 11)
-ZDJĘTE:   removed_by_reads <n> — <każda noga: sport, mecz, rynek, linia, kierunek, autor, powód (analyst / verifier / auto)>; rozliczane osobno (7i), nie kupon
-ANALIZY:  runs/sofa/<data>/<data>_analiza_<sport>.md (football, tennis, i każdy sport mierzony z nogą do przeczytania)
-SETTLE:   D-1 7c per sport + suma kuponu <u> j.; zwroty <n> (MOVED_BEYOND_VOID / AWARDED); 7i <u> j.; audit_settle_identity <n> znalezisk
-POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar ceny, osobno
-D-1 DZIENNIK: official <u> j. · removed:reads <u> j. · measure/rule per sport (każdy osobno, nigdy sumowane; grupy epok) · MISMATCH <n> (audit_ledger.py)
-CLV D-1:  kupon <x%> [lo; hi] (audit_clv.py)
-AUDYTY:   audit_coupon <n> · audit_variants C1–C3, U1–U3 <n> znalezisk (C3: <n> nóg bez odczytu analityka - musi być 0)
-WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych (zapisane w reads.json i przebudowane: tak/nie)
-UWAGA:    <największa słabość dnia, jedna>
+KUPON:    runs/sofa/<data>/KUPON_<data>.pdf — <n> pozycji (piłka / tenis / hokej / kosz / siatka / CS2), <n> zablokowanych, <n> Bet Builderów
+SPORTY:   hokej / kosz / siatka / CS2 <status, refused>
+RUN:      <run_id> · werdykt każdego etapu · <n> na tablicy → <n> dopasowanych → <n> READY
+SHEET:    <n> wierszy (piłka / tenis), epoka stats_only
+ODCZYTY:  przeczytane <n>/<n> wymaganych (+ bufor) · rundy C3 · nieprzeczytane
+READS:    analityk / weryfikator · UNMATCHED_READ · weta
+ZDJĘTE:   removed_by_reads — noga, autor, powód
+POMIAR:   D-1 rozliczone CS2 / hokej / kosz / siatka — pomiar
+D-1:      7c per sport · 7i osobno · zwroty · tożsamość · MISMATCH · CLV
+STATUS:   day_status · pętle · UNVERIFIED · mostek NOT_CHECKED
+AUDYT:    audit_coupon · audit_variants (C3 0)
+WERYFIKACJA: arytmetyka · ceny na żywo · odrzucone (w reads.json i przebudowane: tak/nie) · verify_legs --all: nogi, DEFECT, NOTE
+UWAGA:    największa słabość dnia
 ```
 
-Cytuj `run_id` i werdykt **każdego** etapu, nie tylko porażek. Liczby sekcji
-i top 30 policz sam z `11_coupon.json`.
+Cytuj `run_id` i werdykt **każdego** etapu. Liczby sekcji policz sam z
+`11_coupon.json`.

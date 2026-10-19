@@ -30,9 +30,11 @@ names that directory, so the fit can be reproduced).
 
 Usage:
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py \\
-        --before <d> [--dry-run] [--skip-sport-rows]
-Exit 0 written, 1 a sport's row fit failed (evidence still written from the
-others' rows plus the earlier day's rows of that sport), 2 a crash.
+        --before <d> [--dry-run] [--skip-sport-rows] [--skip-history]
+Exit 0 written, 1 a sport's row fit or the history / statistics step failed
+(evidence still written from the others' rows plus the earlier day's rows of
+that sport) - an uncaught exception also exits 1 (Python), 2
+fit_line_evidence.py failed (no evidence written).
 """
 
 from __future__ import annotations

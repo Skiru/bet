@@ -18,8 +18,9 @@ Kolejność `/sofa-day` (od 2026-10-05, jeden kupon ze statystyk):
 6. świeże migawki `run_pipeline.py --only SHADOW` i `--only CS2`, potem
    SPORT_IDENTITY (most) i SPORT_CONFIDENCE (2b);
 7. COUPON_ASSEMBLY (`build_coupon.py` → `11_coupon.json`, 2c);
-8. analitycy na `legs_requiring_read` (top 30 + nogi builderów +
-   `read_requests.json`): `sofa-analyst-football`, `sofa-analyst-tennis`,
+8. analitycy na `legs_requiring_read` (30 meczów o najlepszej wartości +
+   nogi builderów + `read_requests.json`; `read_set.py` -> raporty ->
+   `merge_reads.py`): `sofa-analyst-football`, `sofa-analyst-tennis`,
    `sofa-analyst-sport` per sport mierzony (część 3);
 9. scalenie wet i odczytów, przebudowa jednym poleceniem
    `rebuild_day.py` (stare ceny odświeżone najpierw, potem FIXTURE_CHECK →
@@ -189,20 +190,19 @@ Głębiej i z decyzją o fitowaniu: `/sofa-settle` albo agent `sofa-settler`.
 
 ### 1a. Odśwież dowód z linii (co rano, po kroku 1)
 
-Po rozliczeniu i zapisaniu D-1, **przed** pierwszym buildem dnia:
-`PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>`
-(~15-20 min; **najpierw `ensure_bridge.py`** - krok 0 to
-`refresh_sport_history.py`: mecze hokeja, koszykówki i siatkówki z ostatnich
-14 dni, które powinny się skończyć, trafiają do historii; do 2026-10-12 ich
-wyniki nie trafiały wcale, bo SPORT_IDENTITY pyta przed meczem. Potem cztery
-fity wierszy sportowych z `--dry-run` i `fit_line_evidence.py`; nie dotyka
-krzywych). `day_status.py` pokazuje `sport_history` - WARN poniżej 80%
-przypiętych meczów D-1 w historii: uruchom `refresh_sport_history.py` ręcznie. Exit 0 zapisano; **1** — fit
-jednego sportu nie wyszedł i został jego poprzedni zestaw wierszy (dowód i tak
-zapisany); **2** — crash `fit_line_evidence.py` (plik bez zmian, dzień czyta
-wczorajszy dowód — powiedz to w raporcie). `fitted_from.before` pliku
-`config/sofa_superbet_line_evidence.json` musi być równe `<D>`. To **nie** jest
-refit krzywych.
+Procedura operacyjna: `.claude/commands/sofa-day.md` krok 1a. Po rozliczeniu i
+zapisaniu D-1, **przed RESOLVE**: część mostkowa (`refresh_sport_history.py`
+i `backfill_event_stats.py` dla hokeja, koszykówki i siatkówki - pyta most i
+pisze do `data/sofa.db`, ~10-30 min, `ensure_bridge.py` najpierw), a dopiero
+gdy w logu jest `BRIDGE_PART_DONE` - RESOLVE i obok niego same fity:
+`refresh_line_evidence.py --before <D> --skip-history` (czytają bazę tylko do
+odczytu). CONFIDENCE (krok 3) czeka na linię `EXIT` tego logu. Exit 0 zapisano;
+**1** - fit jednego sportu nie wyszedł (sport czyta poprzednie wiersze) albo
+crash (`Traceback`); **2** - `fit_line_evidence.py` nie wyszedł (dzień czyta
+wczorajszy dowód - powiedz to w raporcie). `fitted_from.before` pliku
+`config/sofa_superbet_line_evidence.json` musi być równe `<D>`. `day_status.py`
+pokazuje `sport_history` - WARN poniżej 80% przypiętych meczów D-1. To **nie**
+jest refit krzywych.
 
 **Rano 2026-10-09 (pierwsze po instalacji refitu z 2026-10-08 23:42Z):** kolejność
 to rozlicz i zapisz D-1 (10-08), `refresh_line_evidence.py --before 2026-10-09`,
@@ -221,7 +221,7 @@ wcześniejszymi w dzienniku.
 BOARD dotyka tylko Superbetu, więc może iść, gdy SETTLE trzyma jeszcze most.
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only BOARD --run-id <id>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <data> --only BOARD > runs/sofa/<data>/pipeline_board.log 2>&1   # BOARD nadaje run_id: odczytaj go z linii SOFA_SUMMARY
 # gdy CAŁY krok 1 (settler) skończy - nie tylko proces --only SETTLE: późniejsze skrypty settlera
 # czytają bazę, a 2026-10-01 RESOLVE padł obok nich na 'database is locked'. FAILED zatrzymuje dalsze
 # etapy (SKIPPED), a przerwany RESOLVE zostawia 02_fixtures.json.INCOMPLETE - wtedy RESOLVE jeszcze raz.
@@ -234,7 +234,7 @@ Budżet: **2,5–3 h**, z czego większość to SAMPLES. Obserwuj przejścia eta
 nie odpytuj w pętli:
 
 ```bash
-tail -f -n 0 <log> | grep -E "^--- |: OK|: PARTIAL|: FAILED|STAGE_EXCEPTION|Traceback"
+grep -E "^--- |: (OK|PARTIAL|FAILED|SKIPPED)|STAGE_EXCEPTION|Traceback" <log> | tail -5   # krótkie wywołania, nigdy tail -f
 ```
 
 Kody wyjścia: **0 OK, 1 PARTIAL, 2 FAILED**.
@@ -299,34 +299,67 @@ starszy niż arkusz, weta, odczyty lub kalibracja.
 
 ## 3. Analitycy, weta i odczyty
 
-Analitycy biegną **po COUPON_ASSEMBLY**, na `11_coupon.json`. Czytają zbiór
-`confidence.legs_requiring_read`: pierwsze 30 pozycji niezablokowanych (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie),
-każdą nogę wydrukowanego buildera i to, o co operator poprosił w
-`runs/sofa/<data>/read_requests.json`.
+Analitycy biegną **po COUPON_ASSEMBLY**, na `11_coupon.json`. Procedurę
+prowadzi `/sofa-analyze` (`.claude/commands/sofa-analyze.md`); dzień robi to
+w krokach 5-7 `/sofa-day`. Zbiór do przeczytania
+(`confidence.legs_requiring_read`): niezablokowane nogi **30 meczów o
+najlepszej wartości** (najlepsza niezablokowana noga meczu: pewność x kurs,
+pewność piłki / tenisa ucięta do 1/kurs + `price_gap.GAP`;
+`read_order: "value"`), każda noga wydrukowanego buildera i wpisy
+`runs/sofa/<data>/read_requests.json`; na budowie wstępnej dochodzi bufor
+następnych meczów w tej samej kolejności.
 
-```
-Task → sofa-analyst-football   "data <data>; run <run_id>; werdykty etapów; nogi piłki do przeczytania"
-Task → sofa-analyst-tennis     "data <data>; run <run_id>; werdykty etapów; nogi tenisa do przeczytania"
-Task → sofa-analyst-sport      "data <data>; sport hockey; nogi do przeczytania"    (jeden na sport z nogą w zbiorze)
-```
+1. Zbiór, plik na sport / część (części po <= 12 całych meczów, jeden
+   analityk na plik):
 
-Wszystkich w **jednej wiadomości**, żeby szli równolegle. Scal ich tablice
-JSON — weta do `runs/sofa/<data>/vetoes.json`, odczyty do `reads.json` —
-**najpierw walidując** (`Veto`, `LegRead`: jeden wymyślony klucz wywraca cały
-plik). Noga sportu mierzonego schodzi odczytem `NO_BET` / `WATCH` (ma stronę
-i okres), nie wetem.
+   ```bash
+   PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <data> --buffer 25 --split 12
+   ```
 
-Zgłoś każde `UNMATCHED_VETO` i `UNMATCHED_READ`: nic nie zrobiło, a cichy
-no-op czyta się identycznie jak weto uszanowane. Odczyt nogi sportu jest w
-`run_confidence.py` zawsze `UNMATCHED_READ` (widzi tylko piłkę i tenis) —
-sprawdź go w `11_coupon.json` (`removed_by_reads`, pole `reads`). **`[]` to
-zdrowa wartość domyślna wet.**
+   `--buffer 25` na budowie wstępnej, `--buffer 0` na końcowej. Wynik:
+   `runs/sofa/<data>/read_set/read_set_<sport>[_<i>].json`.
+2. Analitycy: jedna instancja na plik, wszystkie w jednej wiadomości, na
+   pierwszym planie (`football` -> `sofa-analyst-football`, `tennis` ->
+   `sofa-analyst-tennis`, hokej / kosz / siatka / CS2 ->
+   `sofa-analyst-sport`). Każdy dostaje ścieżkę swojego raportu
+   `runs/sofa/<data>/<data>_analiza_<sport>[_<i>].md` (istnieje -> następny
+   wolny `_r<n>`; nigdy nie nadpisuj), **sam pisze raport** z blokami
+   ```` ```json vetoes ```` (piłka / tenis) i ```` ```json reads ```` i
+   zwraca ścieżkę, którą faktycznie zapisał. Nikt nie przepisuje jego
+   tekstu ani tablic.
+3. Scalenie zwróconych ścieżek (jedno wywołanie może wziąć kilka
+   `--report`, nigdy dwa naraz), potem przebudowa:
+
+   ```bash
+   PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <data> --author analyst --report <zwrócona ścieżka> [--report <...>]
+   PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <data>
+   ```
+
+   `merge_reads.py` waliduje (`Veto`, `LegRead`), przenosi wcześniejsze weta,
+   tylko dopisuje odczyty. Kod 0 scalone, 1 scalone z `UNMATCHED_VETO`, 2
+   odmowa, nic nie zapisano - ponów tę instancję z linią odmowy i nową
+   ścieżką `_r<n>` (nigdy nie poprawiaj JSON-a ręcznie).
+4. Pętla C3: przebudowa przesuwa pozycje, więc po każdej:
+
+   ```bash
+   PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <data> --unread --split 12
+   ```
+
+   i kroki 2-3 tylko na tych plikach, aż C3 będzie czyste (najwyżej 3
+   rundy). `read set: empty` przy czerwonym C3 = wydrukowana noga ma WATCH /
+   NO_BET albo brak `reads.json`: przebuduj, nie czytaj.
+
+Noga sportu mierzonego schodzi odczytem `NO_BET` / `WATCH` (ma stronę i
+okres), nie wetem. `run_confidence.py` liczy go jako `reads_sport`, nigdy
+`UNMATCHED_READ`; działa w COUPON_ASSEMBLY - sprawdź w `11_coupon.json`
+`removed_by_reads`. Zgłoś każde `UNMATCHED_VETO` i `UNMATCHED_READ`: nic nie
+zrobiło. **`[]` to zdrowa wartość domyślna wet.**
 
 Dodatkowe odczyty na życzenie operatora: `/sofa-analyze` „dodatkowo:
-<pozycje>” dopisuje do `read_requests.json` wpisy `{"position": n}` albo
-`{"group_key": "sofa:<id>", ...}` z `requested_by` i `at_utc` (forma
-`group_key` przeżywa przesunięcie pozycji). Prośba, która nic nie objęła,
-drukuje `UNMATCHED_READ_REQUEST`.
+<pozycje>” dopisuje do `read_requests.json` nogę, którą pozycja wskazuje
+teraz (`group_key`, `market`, `line`, `direction`; `{"position": n}` tylko
+gdy tam nic nie ma), z `requested_by` i `at_utc`. Prośba, która nic nie
+objęła, drukuje `UNMATCHED_READ_REQUEST`.
 
 Ten krok wolno pominąć tylko na wyraźną prośbę operatora — i trzeba wtedy
 powiedzieć, że się go pominęło (C3 to pokaże).
@@ -449,9 +482,18 @@ Potem oddaj dzień agentowi `sofa-verifier` (`/sofa-verify`). Protokół:
 [`VERIFY_PROTOCOL.md`](VERIFY_PROTOCOL.md). Audyt sprawdza wiersz wobec niego
 samego; agent robi cztery rzeczy, których audyt nie umie — odtwarza wiersz
 z `03_samples.json`, sprawdza mapowanie `subject` na stronę, dopytuje Superbet
-o żywą cenę i testuje rozkłady pod kątem antyselekcji. Jego odczyty
-(`author: "verifier"`) dopisz do `reads.json` i przebuduj jak w kroku 4, potem
-ponownie `audit_variants`.
+o żywą cenę i testuje rozkłady pod kątem antyselekcji. Sam pisze raport
+`runs/sofa/<data>/<data>_weryfikacja[_r<n>].md` z jednym blokiem
+```` ```json reads ````; scal go zwróconą ścieżką i przebuduj - nigdy nie
+dopisuj odczytów ręcznie:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <data> --report <zwrócona ścieżka> --author verifier
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <data>
+```
+
+Potem ponownie `audit_variants`; C3 z nieprzeczytanymi nogami -> pętla C3
+z kroku 3.
 
 ---
 
@@ -500,7 +542,7 @@ napisałeś**.
 ## 8. Raport dnia
 
 Wzór jest w [`AGENTIC_FLOW.md`](AGENTIC_FLOW.md), część 8: jeden kupon,
-sekcje per sport, top 30 przeczytane, liczba nóg poza top 30, nogi zdjęte
+sekcje per sport, przeczytany zbiór C3 (30 meczów o najlepszej wartości), liczba nóg poza nim, nogi zdjęte
 (`removed_by_reads`) z autorem i powodem, D-1 (7c per sport + suma, zwroty,
 7i, dziennik per epoka, CLV), audyty C1–C3 / U1–U3, weryfikacja.
 

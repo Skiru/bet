@@ -1,349 +1,196 @@
 ---
 name: sofa-analysis-core
-description: The contract every sofa sport analyst works under - which legs of the one coupon (11_coupon.json) to read (the first 30 positions, every printed builder leg, read_requests.json), which artifact to open in which order, which number is evidence (pewność, próbka, model) and which is the price (only the betting filter), what may remove a leg and what may never promote one, the vetoes.json schema, the reads.json per-leg verdicts (KEEP / WATCH / NO_BET, with the measured sports' sides and periods) that remove a watched leg into removed_by_reads (graded apart in audit_settlement 7i), the decision point that keeps a search result from contaminating a read, and the report format. Preloaded into sofa-analyst-football, sofa-analyst-tennis and sofa-analyst-sport; the sport skills sit on top of it. Use when reading a sofa coupon or stats sheet, grading coupon legs or Bet Builder legs, or writing vetoes and reads.
+description: The contract every sofa analyst (football, tennis, measured sports) works under - read exactly the legs of the read_set file the caller names, in a fixed artifact order; evidence vs price; what may remove a leg (never promote); the decision point before any web search; the vetoes / reads blocks and the report-file output contract.
 user-invocable: false
 ---
 
-# The analyst's contract under `sofa`
+# The analyst's contract
 
-The pipeline has already produced the candidate pool, the prices and the
-arithmetic. Your job is the part no code does: decide, for each row that
-matters, **whether the sample it is built on is evidence about this fixture**
-— and say so in a form the machine can act on.
+For each leg you are given, decide whether the evidence behind it describes
+**this** match, in a form the machine applies. `sofa-pipeline` (preloaded)
+holds the coupon identity, the channels, the read-set definition and the hard
+rules - not repeated here. The sport skill
+(`football-analysis` / `tennis-analysis`) is the method and wins on how to
+weigh evidence; the artifacts win on facts. Model facts (which switches and
+curves are on, mixed days): `.claude/skills/sofa-pipeline/references/model-state.md`.
 
-You never run the pipeline, never write files, never touch the DB, never price
-a parlay, never size a stake. Bash is for reading and arithmetic.
+You never run the pipeline, never touch the DB or `config/`, never price a
+parlay, never size a stake. Bash is for reading, arithmetic and the one
+heredoc that writes your report.
 
-`sofa-pipeline` is the pipeline contract and outranks this file on artifacts
-and formulas. The sport skill (`football-analysis` / `tennis-analysis`) is the
-method and outranks both on *how to weigh evidence*. The artifacts outrank
-everything on *facts*. When they disagree, say which you followed.
+## Input - the read set file
 
-## The coupon, and which of its legs you read
+The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
+(written by `scripts/sofa/read_set.py`). It is a JSON array of compact legs:
 
-`sofa` writes two different objects and an analyst who reads only the first
-has audited the wrong file:
+| field | meaning |
+|---|---|
+| `sofascore_event_id`, `group_key` (`sofa:<id>`), `match`, `competition`, `kickoff_utc` | the match |
+| `market`, `subject`, `line`, `direction`, `period` | the leg's key - copy these into your read exactly (a sport leg: `market` = family, `direction` = side, `period` = period / quarter / set / map; a handicap `line` is team 1's, `T1` / `T2` the side) |
+| `superbet_market`, `superbet_selection` | Superbet's words - name the leg with them |
+| `confidence`, `offered_odds`, `price_gap` | pewność, the price, the over-price flag |
+| `position`, `locked` | coupon position (a builder leg has none); `locked` = printed before its start, stays whatever you say |
+| `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way) |
+| `model_p`, `forecast_p`, `calibrated_on`, `sample_size`, `sample_hit_rate`, `sample_oldest_days`, `sample_newest_days`, `context_flags`, `superbet_event_id`, `source_date` | the leg's numbers - use them before any lookup (a field is absent when null) |
 
-1. **`06_coupon.json`** — the old VALUE selector, ranked on relative price
-   advantage (`surplus / required_odds`), every quantity in it priced
-   (`p_bar`, `required_odds`, `surplus`). Measured **−20.4%** on 2026-09-20,
-   structurally anti-selective. It is **not** the coupon and needs no read.
-2. **`11_coupon.json` → `KUPON_<date>.pdf`** — the one coupon (COUPON_ASSEMBLY,
-   `scripts/sofa/build_coupon.py`, from `08_confidence.json` and, since
-   2026-10-05 08:30Z, `08_confidence_sports.json`): football, tennis, hockey,
-   basketball, volleyball and CS2 singles numbered 1..N in
-   `confidence.coupon_order` (confidence, then the earlier start, the legs of
-   one match together) and Bet Builders B1... Every reader opens it through
-   `confidence.coupon_artifact()`, which falls back to `08_confidence.json`
-   on a day built before the stats-only epoch (2026-10-05 07:15Z).
+**Read exactly those legs - every one gets a read.** Never recompute the
+read set or rebuild the pipeline's gates to guess what would print. If
+the file or `11_coupon.json` is missing, stop and say so. A `locked` leg:
+read it only if it is in the file, and say your read cannot remove it.
 
-**Who reads what.** The set `audit_variants` C3 requires an analyst read on
-is `confidence.legs_requiring_read(doc, load_read_requests(run /
-"read_requests.json"))`: the first 30 unlocked positions (from 2026-10-09 00:00Z the unit is the match: every unlocked leg of the first 30 matches of the coupon, `read_unit: "event"` in the artifact; operator, "30 wydarzeń, nie 30 rynków"; from 2026-10-14 00:00Z the matches of the best value - best leg confidence x odds, a football / tennis confidence capped at 1/odds + 0.03, `read_order: "value"`), every leg of a
-printed builder, and every entry of `runs/sofa/<date>/read_requests.json` -
-the operator's extra positions (`/sofa-analyze` "dodatkowo: ..."), keyed by
-`position` or, better, by `group_key` (`"sofa:<id>"`, optionally `market`,
-`line`, `direction`), since positions shift after a rebuild. Each analyst
-reads its own sport's part of that set (`sofa-analyst-football`,
-`sofa-analyst-tennis`, one `sofa-analyst-sport` per measured sport). The
-rest of the coupon prints unread by the operator's rule; a WATCH or NO_BET
-you do write on such a leg still removes it.
+Anything else on the leg (`market_p`, `overround`, `one_sided_market`, ...) is
+on the coupon leg, not in the read-set file. Pull one match's legs:
 
-A leg marked `locked` was printed by an earlier build (carried from
-`12_printed.json`) and its match has started: it stays on the coupon
-whatever a read now says. Read it only if asked, and say your read cannot
-remove it. Bet Builders are assembled from `08_confidence.json` (football,
-tennis) only: a measured-sport leg is never a builder leg.
-
-**The measured sports** (hockey, basketball, volleyball, CS2) have no sheet
-row and no entry in `03_samples.json`: the leg itself is the row (`family`,
-`period`, `subject`, `side`, `confidence`, `sample_k` / `sample_n`,
-`forecast_p`), and the evidence is `sport_fixtures.json` (the pinned
-identity) and the raw Superbet snapshot. Steps 2-5 below are the football /
-tennis method; `sofa-analyst-sport` is the sport one.
-
-## Order of operations — never reverse it
-
-0. **State the expectation, in the units the market settles in**, before any
-   price is mentioned. *Expect 9.8 corners; the sample's ten matches ran 6–15;
-   at n=10 and `K_CENTRE=15` the league prior owns 60% of that centre.* A
-   report that opens with what pays has put the operator's decision before the
-   analysis.
-
-1. **The decision point, before any web tool runs.** Per fixture:
-   scheduled start in UTC (**both clocks** — `kickoff_utc` and
-   `superbet_kickoff_utc`), `now`, the delta. A fixture that has started is
-   dropped **here**, not researched and then discarded. See *The decision
-   point* below.
-
-2. **Data integrity — the core of the job.** Open `03_samples.json` and look at
-   the observations, not the summary: how many, from which matches, what date
-   range, against which opponents, `side_a` vs `side_b` vs `h2h`. Check
-   `gaps[]` for this metric. Ask whether `subject` resolves to the side it
-   thinks it does — after the side-matching work that is the most fragile
-   join in the pipeline.
-   Since 2026-10-04 the history excludes friendlies and pre-season
-   tournaments everywhere (`bet.sofa.comparability`), and a football goal
-   sample (`goals_total`, `goals_for`, `goals_1h_for`, `goals_2h_for`) holds
-   only the side's newest REGULAR (non-knockout) matches of the fixture's
-   own competition when it has five or more (`comparability.
-   pick_same_competition`; else the usual newest ten). A cup or friendly
-   observation in the goal sample of a league fixture whose sides have five
-   such matches is therefore a **defect to report**, not a caveat.
-
-3. **Does the market settle what the sample measures?** Scope (half vs full
-   match), side (own vs pooled), extra time, and the metric's own definition.
-   `cards_points` is not yellow cards. `totalShotsOnGoal` in the raw payload
-   is all shots.
-
-4. **Context that changes the estimand** — stakes, round, second leg
-   (`previous_leg_event_id`), derby, referee (`RefereeRecord`, present on ~9%
-   of fixtures), absences, surface (`ground_type`), format
-   (`default_period_count`), fatigue. See `references/evidence-rules.md`.
-   The fixture's `schedule` block in `03_samples.json` (`makeup_of`,
-   `makeup_postponed_utc`, per side `rest_days`, `matches_7d`, `matches_14d`)
-   and the legs' `context_flags` (`MAKEUP_FIXTURE(...)`, `LONG_LAYOFF(...)`
-   at >= 21 days, `CONGESTED(...)` at >= 3 matches in 7 days) are computed
-   for you. A make-up fixture: find out **why** it was postponed (illness in
-   the squad, weather, a cup clash) - the 2026-10-04 Farense - Chaves was a
-   round-5 make-up after a viral outbreak and nothing flagged it.
-
-5. **Distribution and scenario** — mode, tail, where the line sits inside the
-   sample's own range, what scoreline or game script produces it.
-
-6. **Kill case, then buy case; the price only as the filter it is.** The
-   price is never evidence: it decides only whether the leg may be bet at all
-   (x = confidence x odds >= 0.90, ladder margin <= 15%, not started, a fresh
-   price) and the code has already applied that. A good price cannot rescue
-   a broken sample, and a short price is not a reason to drop a leg. No later
-   step redeems an earlier hard fail.
-
-7. **Verdict** — `KEEP / WATCH / NO_BET` — the read entry for every leg of
-   your read set, and the veto entry if any. The verdict is no longer prose
-   only: see *The two JSON blocks* below.
-
-## Artifacts, in the order you open them
-
-```
-runs/sofa/<date>/11_coupon.json       THE COUPON — positions, blocks, builders, removed_by_reads, read_requests
-runs/sofa/<date>/read_requests.json   the operator's extra reads (may be absent)
-runs/sofa/<date>/02_fixtures.json     names, competition, both clocks, round, referee, surface
-runs/sofa/<date>/fixture_status.json  FIXTURE_CHECK's fresh start and status (may be absent)
-runs/sofa/<date>/03_samples.json      THE EVIDENCE — raw observations with dates and opponents
-runs/sofa/<date>/05_sheet.json        every priced rung; the row behind a football / tennis leg
-runs/sofa/<date>/04_offer.json        the prices, each with its own fetched_at_utc
-runs/sofa/<date>/08_confidence.json   football / tennis legs and refusals (what 11 was assembled from)
-runs/sofa/<date>/08_confidence_sports.json   measured-sport legs and per-sport refusals
-runs/sofa/<date>/sport_fixtures.json  the measured sports' pinned Sofascore identities (IDENTIFIED / NOT_IDENTIFIED / DUPLICATE_*)
-runs/sofa/shadow/<sport>/<d>/snapshots.jsonl, runs/sofa/cs2/<d>/snapshots.jsonl   the raw Superbet snapshots behind a sport leg
-runs/sofa/<date>/06_dropped.json      every VALUE row the old selector did NOT select, with a reason
-runs/sofa/<date>/reads.json           reads already recorded (an earlier pass, the verifier) — may be absent
-runs/sofa/<date>/KUPON_<date>.pdf     what is staked
+```bash
+.venv/bin/python -c "import json,sys; d=json.load(open(sys.argv[1]))
+for s in d['singles']+d['removed_by_reads']:
+  if str(s['sofascore_event_id'])==sys.argv[2]: print(json.dumps({k:v for k,v in s.items() if k not in ('sample_observations','reads')},ensure_ascii=False))
+" runs/sofa/<d>/11_coupon.json <sofascore_event_id>
 ```
 
-Filter by `sport` (a builder leg carries none - take the builder's match
-from `02_fixtures.json`). Count your sport's printed legs and your read set
-yourself; a count handed to you by an orchestrator may predate a rebuild.
+A builder leg sits in `builders[].legs` (market, subject, line, direction,
+confidence, odds only); its match is the builder's.
 
-Resolve every `sofascore_event_id` to names, competition and kickoff before
-showing it to a human. It is an integer, not a hash.
+## Artifacts, in this order (all under `runs/sofa/<d>/`)
 
-`06_dropped.json` exists so nothing vanishes in silence. Before saying a row
-was never generated, look for it there.
+Shapes (list vs object): `sofa-pipeline` `references/artifacts.md`, "Artifact shapes".
+
+| file | what you take from it |
+|---|---|
+| `11_coupon.json` | the leg's full row (above), `removed_by_reads`, `builders`, `peer`, `price_gap` |
+| `02_fixtures.json` | names, competition, round, both clocks, `identity`, referee, `ground_type`, `default_period_count`, `previous_leg_event_id` |
+| `fixture_status.json` | FIXTURE_CHECK's fresh start and status (`events.<id>`) |
+| `03_samples.json` | **the evidence** (football / tennis): per metric `side_a` / `side_b` / `h2h` observations, `players`, `gaps`, `schedule` |
+| `05_sheet.json` | the sheet row behind a football / tennis leg: `p_central`, `centre`, notes, rule markers |
+| `04_offer.json` | the ladder and each rung's `fetched_at_utc` |
+| `sport_fixtures.json`, `runs/sofa/{shadow/<sport>,cs2}/<source_date>/snapshots.jsonl` | measured sports: pinned identity, raw Superbet snapshot |
+| `reads.json`, `vetoes.json` | what earlier passes said - **not evidence**: form your verdict first, then compare; name a disagreement with an earlier KEEP in the reason (WATCH / NO_BET win over KEEP by design) |
+
+Filter big files to the event id (`jq`, a one-liner) - never `cat`. Show
+names, not bare `sofascore_event_id`s.
 
 ## Which number is which
 
-| field | what it is | what it is not |
+| on the leg | what it is | use |
 |---|---|---|
-| `sample_mean`, `sample_sd`, `sample_size` | the raw sample | the centre |
-| `centre` | the mean **after** shrinkage toward the prior, `w_c = n/(n+K_CENTRE)`; a football row with a `FOOTBALL_RATING` note is 0.5·rating + 0.5·that | the sample's claim |
-| notes `CROSS_LEAGUE_UNLINKED` / `PRIOR_GLOBAL_WOMEN` | the sides share no league and no measured league strength (CONFIDENCE refuses it, the price decides) / a women's league shrunk to the women's pool | a reason of its own to veto - the code has already acted |
-| `calibrated_on` `market:<market>@<subject>@<line>|OVER`, prefix `season_early:` | a football score-market leg (`result_or_*`, `btts_or_over`, `result_handicap`, `dc_and_*`, from 2026-10-16 07:46Z): its curve is per slice (market, subject, line); `season_early:` = a men's match in the as-of early phase read its own curves | a defect, or a pooled curve |
-| `sample_size` 0, no próbka, `bar_reason: rating_only` | a rating-only market (double chance, 1X2 / DNB, first goal, reds / pens, the score markets; tennis winner, set winners, `set_score` / `set_score_not`): priced by the rating alone, `p_central` = `forecast_p`, its own curve or nothing - judge it on the match (script, absences, motivation), there is no sample to read | a thin sample, a reason to veto |
-| `calibrated_on` `line:<market>|<DIR>@<line>` | from 2026-10-18 12:48Z (`LINE_CURVES_FROM_UTC`) a men's football leg of the 33 keys of `config/sofa_line_curves.json`: its curve at its own line (`by_market_direction_line`); a line bucket under 400 rows reads `market:` as before | a defect, or the pooled curve |
-| `calibrated_on` prefix `women:` / `tennis_women:` / `tennis_team_cup:` | the leg read only its class's curve; a class leg without one is refused (`NO_CLASS_CURVE`) | the pooled curve |
-| `p_central` (`model_p` on a leg) | the sample's probability. **Stats-only row (`epoch: "stats_only"`): no price in it** - no ladder centre, no rating blended with the price, no shrink to the rung's price. On an older row a tennis priced rung was pulled onto the price (`TENNIS_RATING` 0.25·rating + 0.75·`market_p`; `P_SHRUNK_TO_PRICE` w·hits/n + (1−w)·`market_p`, w = n/(n+30)). Count markets (aces, DF, serve points) and football: count model (football negative binomial). From 2026-10-07 14:05Z (`epochs`): tennis `games_won_for` / `handicap_games` / `most_games` are priced by the rating alone and `games_total` is 0.5·rating + 0.5·NB (`TENNIS_RATING_PRICES`); football goals / corners / shots-on-target / cards joints are built from the marginal rows' centres (`DERIVED_MARGINAL_CENTRES`); a thin basketball side simulates with more noise (`BB_FRESHNESS`). | the sample hit rate |
-| `forecast_p`, `forecast_source` | **model** - the rating's own forecast (`football_rating` / `tennis_rating`; `score_model` / `cs2_engine` on a measured-sport leg), uncalibrated, printed beside the confidence | a gate, the sort order, or a reason in a read |
-| `calibration_correction` | subtracted before the price blend; one-sided, can only lower `p` | evidence |
-| `market_p` | Superbet's price, power-devigged. `null` = one-sided rung, no devig possible. | our number |
-| `p_bar` | `w·p + (1−w)·market_p`, `w = n/(n+10)` - priced, the old VALUE selector's | a forecast, the confidence |
-| `ladder_centre`, `ladder_sigma` | **the bookmaker's** ladder | our distribution |
-| `surplus` | `offered − 1.10/p_bar` — `06_coupon.json`'s sort key, priced and anti-selective | an edge, anything on the coupon |
-| `sample_newest_days` | age of the newest observation | sample span |
-| `confidence` | **pewność** - the **measured lower bound** of the realised rate (`calibrated_on`, `calibration_n`; football / tennis `config/sofa_confidence_calibration.json`, measured sports `config/sofa_sport_confidence_calibration.json`, the staged `.next.json` from its `effective_from`), from the statistics alone on a stats-only day; from 2026-10-07 10:55Z the lowest of that curve lowered by the key's Superbet-line offset and the price-band cap, or - with no curve at that p - the Wilson bound of the key's own settled Superbet lines (`calibrated_on` `sb:<sport>:<key>`), else no leg (`NO_LINE_EVIDENCE`); the coupon's sort key | the model's claim (`model_p`, `forecast_p`), or a price |
-| `line_offset`, `price_band_cap` | present on a leg that line evidence lowered: the key's measured realised-minus-confidence (<= 0), and the realised rate of the key's lines in this price band; the price only ever lowers a confidence | a blend of the price into the confidence, a reason in a read |
-| `sample_hit_rate`, `sample_size` (`sample_k` / `sample_n` on a sport leg) | **próbka** k/n - how often the line held in the leg's own sample | `model_p`; a football leg with `model_p` more than 0.15 above it (n >= 5) is removed in code (`MODEL_ABOVE_OWN_SAMPLE`, an automatic WATCH into `removed_by_reads`) |
-| `offered_odds` (`odds` on a sport leg), x | the price, and x = confidence x odds (a field `x` on a sport leg) - the betting condition (x >= 0.90) | evidence |
-| `family`, `side`, `period`, `subject` (sport leg) | what a read keys on: `market` = `family`, `direction` = `side`, `period` (0 = whole match / half markets), `subject` = `""`, `T1` / `T2`, a CS2 team name or a player | the PDF's label (a handicap's `line` is team 1's; the page prints it signed for the side) |
-| `leg_ev`, `shading` | `confidence·odds − 1`, `confidence − 1/odds` | Superbet's builder price, or an edge |
-| `context_flags` | `MAKEUP_FIXTURE` / `LONG_LAYOFF` / `CONGESTED` from the schedule | a gate - shown, never enforced; a question you answer |
-| `stakes` (football, from 2026-10-08 08:10Z) | `flags` `STAKES_SIX_POINTER` / `STAKES_TOP4` from the league table as of the kickoff, `effect` `za` / `przeciw` the leg | a correction or a gate - measured small (0.08-0.16 sd), shown, never enforced; `przeciw` is a question you answer |
-| `peer` (from 2026-10-08 08:10Z) | `preferred` / `best` / `d_confidence`: the surest leg of the match within 0.06 of this leg's price, by confidence | a probability - the edge measured is 53.4% [52.2, 54.7] of decided pairs (football / tennis), none measurable in hockey / basketball / volleyball |
-| `reads` | the reads covering the leg | your read, unless you wrote it |
-| `removed_by_reads` (11) | legs that passed every gate and a read (or `MODEL_ABOVE_OWN_SAMPLE`) removed, with `refusal` and `reason` (who) | the coupon - graded apart in audit_settlement 7i, ledger `removed:reads` |
+| `confidence` (**pewność**) | the history curve applied to the statistics' probability (`model_p` = the sheet's `p_central`), lowered by line evidence (`line_offset`, `price_band_cap`, `cap:` / `sb` in `calibrated_on`); the curve is already calibrated on replayed history (`calibrated_on`, `calibration_n` count replayed rows) | the claim |
+| `sample_hit_rate` x `sample_size` (`sample_k` / `sample_n` on a sport leg) (**próbka** k/n) | how often the line held in the leg's own raw sample - a weaker number than the confidence it fed | evidence about the sample, read it |
+| `forecast_p` (**model**), `forecast_source` | the rating's uncalibrated number; on several families it **is** `model_p` (sport skill) | shown, never a reason |
+| `offered_odds`, x = confidence x odds | the price and the betting condition (x >= 0.90), already applied | never evidence for or against a leg |
+| `price_gap` | confidence above 1/odds + 0.03: such legs realised about at their price | annotation, quote at the price |
+| `context_flags`, `stakes`, `peer` | schedule flags, table-stakes direction, the surer leg of a match at a similar price | questions you answer, never gates |
 
-**The one arithmetic rule:** `p_central`, `confidence`, `forecast_p`, `x`
-(and the priced `p_bar` / `required_odds`) come from tested code. Read them; never recompute them in prose.
-You *may* and should recompute them **from the row's own fields** to check the
-row is internally honest — that is a different act, and say which you are doing.
+Recompute a number only **from the row's own fields** (say so). Never present `p_bar`, `surplus`,
+`required_odds` or `odds_if_product` as anything on the coupon.
 
-## What may move a row, and in which direction
+## Order of operations - never reverse it
 
-- **Context, web, referee, absences, stakes: may remove a row. May never
-  promote one.** There is no promotion mechanism in `sofa` and you must not
-  invent one. A blog is not a sample; a referee's average is not an observation
-  of this fixture.
-- **A price is a snapshot.** Each football / tennis rung carries its own
-  `fetched_at_utc`; both COUPON and CONFIDENCE refuse anything older than 45
-  minutes, and on a stats-only day a moved price re-prices the leg (x at the
-  fresh odds); a sport leg names its snapshot (`source_date`,
-  `price_fetched_at_utc`; refused beyond `sport_day.MAX_PRICE_AGE`, 3 h).
-  Say which snapshot you quoted; the price never enters your verdict.
-- **Refunds are not losses.** A match moved > 48 h, awarded, a walkover or a
-  retirement (Sofascore code 92 in tennis) settles as a refund, 0 u. (operator,
-  2026-10-07; `settle.REFUND_REASONS`; sports: `AWARDED`). A late withdrawal
-  announced before the start is a read's material; a retirement is not
-  knowable beforehand.
-- **A market we generate no row for is not a bad bet, it is not a bet.**
-  `unmapped_markets` runs to five figures. Writing "weak value" about a market
-  nobody priced reads as a decision when nothing was decided.
-- **Never multiply legs yourself, and never print a combined price.** sofa
-  does not price a Bet Builder: the PDF shows the legs with Superbet's single
-  prices, the builder's `combined_probability` and "kurs buildera: sprawdź na
-  ekranie Superbetu". `odds_if_product`, `odds_after_haircut` and
-  `ev_after_haircut` are internal (the haircut decides *stakeable*) and are
-  never quoted as a price.
+0. **Expectation first, in the market's units**, before any price ("expect
+   9.8 corners; the ten matches ran 6-15").
+1. **Decision point** (below) - drop what has started.
+2. **Data integrity** - the observations, not the summary: n, dates,
+   opponents, side, `gaps[]`; does `subject` resolve to the side it claims?
+3. **Does the market settle what the sample measures** - scope (half / match /
+   regulation), side, extra time, the metric's own definition.
+4. **Context that changes the estimand** - stakes, second leg, derby,
+   referee, absences, surface, format, schedule.
+5. **Distribution and scenario** - mode, tail, the line, the settling script.
+6. **Kill case, then buy case.** No later step redeems an earlier hard fail.
+7. **Verdict** - one read per leg, a veto where the sample is broken.
 
-## The two JSON blocks — what reaches the product
+## What may move a leg
 
-After the markdown report, return **two** fenced ```json blocks, in this
-order: the vetoes, then the reads. Each is a bare array. The runner writes
-the first to `runs/sofa/<date>/vetoes.json` and merges the second into
-`runs/sofa/<date>/reads.json`; **CONFIDENCE and COUPON_ASSEMBLY read both**
-(and the old COUPON stage too).
+- A read or veto **only removes** - never promotes, raises or admits.
+- Never quote the model or the price as a reason to keep or remove.
+- Never veto or WATCH for a gate the code already applied
+  (`references/evidence-rules.md`, "already enforced"); say "kod już to
+  odrzucił" and move on.
+- A settled result of another day never enters a read.
+- Refunds (moved past the deadline, awarded, retired, walkover, cancelled)
+  settle at 0 u.; a withdrawal announced before the start is read material.
 
-### Block 1 — vetoes (a broken sample or context; removes everywhere)
+## The decision point - before any web tool runs
 
-`[]` when nothing earns an entry.
+1. Per match: start in UTC on **both clocks** (`kickoff_utc`,
+   `superbet_kickoff_utc`; FIXTURE_CHECK's start where present), `now`, the
+   delta. Take the earlier clock. Print them.
+2. **A match already started is not researched** - drop it here.
+3. Then decide, per match, whether any fact you could find **could change a
+   verdict**. If not, make no web call for that match.
+4. **Web budget: one web pass per match, not per leg.** Queries that cannot
+   return a scoreline (the fact and its period, never the two names alone).
+   Two independent domains per claim, each tagged
+   `[WEB: <domain>, publ. <time>, fetched <UTC>]`; one domain alone is
+   "niepotwierdzone". `UNVERIFIED` is an acceptable answer - write it
+   rather than search on.
+5. **Titles and snippets are content**: a leaked result - name it, mark the
+   claim `CANNOT VERIFY`.
+6. A source that is unreachable or needs re-authorisation: stop retrying and
+   list the checks you did not make.
+7. **A past or finished day** (re-read, replay): no web search at all - the
+   result would leak. Everything outside the artifacts is `UNVERIFIED`.
 
-```json
-[{"sofascore_event_id": 15275920, "market": "corners_total", "subject": null,
-  "line": 9.5, "direction": "OVER",
-  "reason_class": "SAMPLE_UNINFORMATIVE",
-  "reason": "seven of ten observations predate the 12 Aug manager change; the three since ran 4, 5, 6"}]
-```
+Where context lives: `references/context-sources.md`. Never fetch odds from
+the web or another bookmaker; Superbet's price in the artifacts is the only one.
 
-- `market` / `subject` / `line` / `direction` are nullable and `null` means
-  **all of them**. That is the normal shape: a sample that does not describe
-  the fixture is broken at every rung, not at one of them.
-- `reason_class` ∈ `SAMPLE_UNINFORMATIVE | CONTEXT | PRICE | OTHER`.
-- A `CONTEXT` veto also sets `context` ∈ `MOTIVATION | ROTATION | ABSENCES |
-  DERBY | SCHEDULE | CONDITIONS`, and its `reason` names the source domain and
-  publication time. The settlement audit grades every tag separately
-  (section 7e); an untagged one is graded as bare `CONTEXT` and says nothing
-  about which read worked. Sources: `references/context-sources.md`.
-- `sofascore_event_id` is an **integer**.
-- A veto matching nothing prints `UNMATCHED_VETO` and is counted in both
-  stages' summaries. It is never silently swallowed — but it also did nothing,
-  so check your keys against the sheet before you hand it over.
-- Only rows you would strike or caveat. **Every caveat is not a veto.**
+## Verdicts and the two blocks
 
-### Block 2 — reads (one verdict per leg of your read set)
-
-```json
-[{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
-  "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "analyst",
-  "reason": "Chaves' last four 4/5/4/5 goals; make-up of round 5 (postponed 6 Sep, viral outbreak)",
-  "context": null}]
-```
-
-**One `LegRead` per leg of your read set** (above: your sport's part of the
-first 30 positions, the printed builder legs, `read_requests.json`).
-`author` is always `"analyst"`; the eight required keys present
-(`sofascore_event_id`, `market`, `subject`, `line`, `direction`, `verdict`,
-`author`, a non-empty `reason`; `context` and `period` may be left out; the
-model is strict, `extra="forbid"`); matching is the veto's (`null` covers
-every value - count what a WATCH / NO_BET will hit; `""` is not `null`). A
-measured-sport leg is read with `market` = its `family`, `direction` = its
-`side` (`OVER` / `UNDER` / `T1` / `T2` / `DRAW` / `ODD` / `EVEN` / `YES` /
-`NO` / an exact score `"3:1"`), the leg's own `subject` and `line`, and
-`period` (hockey period, quarter, set, CS2 map; `0` the whole match) - reads,
-not vetoes, because `Veto.direction` is `OVER` / `UNDER` only and a veto has
-no period.
-
-| verdict | the coupon (`11_coupon.json`, `KUPON_<d>.pdf`) |
+| verdict | effect |
 |---|---|
-| `KEEP` | stays; records that the leg was read |
-| `WATCH` | **removed** (`WATCHED`) into `removed_by_reads` |
-| `NO_BET` | **removed** (`READ_NO_BET`) into `removed_by_reads` |
+| `KEEP` | stays; records the read (a leg in the set without a read fails C3) |
+| `WATCH` | removed into `removed_by_reads` - a leg you would not stake but cannot call broken; `BUY ≈ KILL` is a WATCH |
+| `NO_BET` | removed - a defect, or a fact confirmed by two domains |
 
-A removed leg is graded on its own - audit_settlement 7i ("Nogi zdjęte przez
-odczyt"), ledger variant `removed:reads` - and never in the coupon's result,
-so the ledger measures whether reads remove losers. A leg of your read set
-that has no read of yours fails `audit_variants.py` C3, so a leg you leave
-alone still gets its `KEEP`. `WATCH` is not a soft veto and not a hedge:
-write it for a leg you would not stake. A sample that does not describe the
-fixture is still a veto, not a `NO_BET`.
+- **Vetoes** (football / tennis only): a sample that does not describe the
+  match, or a context that breaks every rung - normally keyed with
+  `market` / `subject` / `line` / `direction` null. Do not write the same
+  fault twice as a veto and a NO_BET.
+- **Reads**: one `LegRead` per leg of your file, `author: "analyst"`. A
+  fixture-wide KEEP (`market: null`) is fine when it is your read of the
+  whole match.
+- **Count what a null hits**: `subject: null` covers every subject of the
+  match (no player field). Key a player leg to the player as the leg writes him.
 
-Worked examples, the widening trap and the reads schema:
-`references/veto-contract.md`.
+Schemas, matching rules, every `reason_class` and `context` tag, worked
+examples: `references/veto-contract.md` (read it before writing the first
+entry of the day).
 
-## The decision point — the web index runs ahead of you
+## Output contract
 
-Every web read is made *after* the decision it informs. A search index carries
-content published after a fixture started, and a snippet renders it in your
-context before you choose to open anything.
+1. Write **exactly one** report, in Polish, to the path the caller gave -
+   that path wins, wherever it is (normally
+   `runs/sofa/<d>/<d>_analiza_<sport>[_<part>][_r<n>].md`) - with **one** Bash
+   heredoc (`cat > <path> <<'MD' ... MD`). Splitting is the caller's job (one
+   read-set part = one report); never split yours. If the path holds another
+   report, take the next free `_r<n>` - never overwrite one. Your own report
+   you may rewrite until the caller has merged it. Write no other file in the
+   repo or `runs/`; scratch goes to `${TMPDIR:-/tmp}`.
+2. Report structure:
+   1. **Nagłówek** - read-set file, `11_coupon.json` `epoch`, legs read
+      (required / buffer / asked by the operator), the snapshot time, the one
+      sentence the bettor must read first.
+   2. **Mecze** - one section per match in your sport skill's event-protocol
+      format; every argument FAKT -> RACHUNEK -> IMPLIKACJA -> RYZYKO; every
+      non-artifact statement tagged.
+   3. **Zdjęte** - each WATCH / NO_BET, one line, Superbet's words.
+   4. **Czego zabrakło** and **NIE PODANO** - every check you could not make.
+   5. ` ```json vetoes ` (football / tennis; `[]` is normal), then
+      ` ```json reads ` - bare arrays, labelled exactly so.
+3. Validate (read-only; no pipe that hides the exit code):
+   `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --dry-run > "${TMPDIR:-/tmp}/mr_<sport>.txt" 2>&1; echo exit=$?`
+   then `grep -v CARRIED "${TMPDIR:-/tmp}/mr_<sport>.txt" | tail -15`. Exit 2 = a block does not
+   validate: rewrite your report and re-run; `UNMATCHED_VETO` = your keys hit
+   no sheet row.
+4. Return to the caller at most 12 lines: the path, legs read, KEEP / WATCH /
+   NO_BET counts, the veto count, anything the caller must act on (a match
+   moved, a defect in an artifact, legs you did not reach).
 
-1. Establish the decision point **before any web tool runs**: per fixture, its
-   scheduled start in UTC on both clocks, `now`, the delta. Print them.
-2. **A fixture already started is not a bet and not a research subject.** Drop
-   it first. Searching about a match that has begun is asking the index for the
-   answer; not searching costs nothing, because there was no bet there.
-3. **Titles and snippets are content.** Construct queries that cannot return a
-   scoreline: the historical fact and its period, never the two participants'
-   names alone.
-4. **If a result leaks, say so.** Name the fixture, name what leaked, mark the
-   claim `CANNOT VERIFY` — never `unknown`, never silently omitted. A leak you
-   declare costs one fact. A leak you absorb produces a read that looks better
-   than any honest read of the same evidence and cannot be told apart afterwards.
-
-## Output — Polish, per match, decision first
-
-Return markdown; the caller saves it. Structure:
-
-1. **Nagłówek dnia** — the artifact you read (`11_coupon.json` or the
-   fallback) and its `epoch`, how many fixtures of *your sport* the day
-   carries (a measured sport: how many are `IDENTIFIED` in
-   `sport_fixtures.json`), the Superbet snapshot time, how many of your sport's legs the
-   coupon prints, how many are in your read set (and how many the operator
-   asked for), and the one sentence a bettor must read first.
-2. **Co jest w produkcie** — your sport's legs of the read set, by position:
-   pewność, próbka k/n, model, the price, and your read; then the builders
-   (or the fact that there are none, which is frequent and correct) with
-   legs, `combined_probability` (a probability, never a price), and your read.
-3. **Mecze** — one section per fixture carrying a leg of your read set or a
-   veto, in your sport skill's event-protocol format. Every argument as
-   **FACT → CALCULATION → IMPLICATION → RISK**. Tag every non-artifact
-   statement with its source and fetch time.
-4. **Poza odczytem** — how many of your sport's printed legs sit beyond the
-   read set, and any you read anyway.
-5. **Zdjęte** — every WATCH / NO_BET you wrote, one line each with its reason.
-6. **Czego zabrakło** — the one thing that most weakened the day, and the
-   concrete fix. Then a **NIE PODANO** list: every check you could not make.
-7. The ```json veto block, then the ```json reads block.
-
-Never lead with a 0.5 UNDER tautology. Never use `pewniak`, `banker`,
+Never lead with a 0.5 UNDER tautology. Never write `pewniak`, `banker`,
 `musi wejść`.
 
-## Hard rules
+## Hard rules (analyst-specific)
 
-- Every number traces to an artifact, a query you ran, or arithmetic you
-  showed. No invented fixture, sample, price or availability.
-- Never present a `FUZZY` identity as confirmed, a `THIN_SAMPLE` as actionable,
+- Every number traces to an artifact, a command you ran, or arithmetic you show.
+- Never present a `FUZZY` identity as confirmed, a thin sample as actionable,
   or `NO_LADDER_CHECK` as a passed check.
-- Never print a combined / Bet Builder / parlay price (sofa prices none;
-  `combined_probability` is a probability, not a price).
-- No stake, no EV of your own, no placement. Never read, echo or log `.env`.
-- A settled result is a fact about the day, not about the decision. Never let
-  "it won" into the reasoning for the next one.
-- Never research a fixture that has already started. Declare any leak.
+- `combined_probability` of a builder is a probability, never a price.

@@ -1,677 +1,298 @@
 ---
-description: Run one betting day end to end through the sofa pipeline (Sofascore + Superbet) - settle and record D-1 (every sport, the ledger, the settle identity audit), build the one stats-only coupon of every sport (football, tennis, and since 2026-10-05 08:30Z hockey, basketball, volleyball and CS2) into 11_coupon.json and KUPON_<date>.pdf, with the analysts' reads on the best 30 positions and every printed builder leg, then verify it. This is the only pipeline in the repository.
-argument-hint: dzisiaj | wczoraj | YYYY-MM-DD
+description: "Run one sofa betting day end to end - settle and record D-1 (sofa-settler), refresh the line evidence, build the one coupon of every sport (11_coupon.json -> KUPON_<date>.pdf), have the analysts read it, rebuild, verify (sofa-verifier), report. The only day procedure; sofa-runner follows this file."
+argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD"
 ---
 
-Run one betting day through **`sofa`**, from nothing to the PDF coupon, and
-verify it. Unattended: do not stop to ask permission between stages.
+Run one betting day, from nothing to a verified PDF coupon, unattended. Skip a step only
+when the operator asked for a bare run, and name the skip in the report.
 
-**Everything below is the default** (operator's order, 2026-09-30, reshaped
-by the plan of 2026-10-05, `docs/sofa/history/PLAN_2026-10-05_SETTLE_I_KUPON.md`):
-every run settles and records D-1, builds the one coupon of every sport,
-has its best 30 positions read, and verifies it. A step is skipped only when
-the operator asked for a bare run - and then the report names it as skipped.
+`$ARGUMENTS`: `dzisiaj`/`today`, `wczoraj`/`yesterday` or `YYYY-MM-DD`; empty = today
+(`date -u +%F`). The betting day is UTC. `<D>` (also written `<date>`) = the date, `<D-1>` the day before.
 
-| product | file | what it is |
-|---|---|---|
-| **KUPON** | `runs/sofa/<d>/KUPON_<d>.pdf` | **the coupon** - every sport, one artifact |
-| coupon artifact | `runs/sofa/<d>/11_coupon.json` | what the PDF prints: positions 1..N in `coupon_order`, locked legs first, builders B1.., `removed_by_reads` |
-| print record | `runs/sofa/<d>/12_printed.json` | written by the PDF; the next rebuild locks the started legs from it |
-| ledger | `runs/sofa/ledger/results.jsonl` | every variant's and measurement's settled result, one row per (date, variant): `official`, `official:pre_stats_only`, `removed:reads`, `measure:<sport>`; read with `audit_ledger.py`, per variant and per epoch, never pooled |
+**The coupon** is `runs/sofa/<D>/KUPON_<D>.pdf`, rendered from `11_coupon.json`;
+`12_printed.json` is the print record the next rebuild locks started legs from.
+`06_coupon.json` and `08_confidence.json` are inputs, never the coupon.
 
-`06_coupon.json` (the priced VALUE selector) and `08_confidence.json` (the
-football / tennis selection) are inputs, not the coupon.
+**Stages.** `DEFAULT_SEQUENCE` (`scripts/sofa/run_pipeline.py`): BOARD, RESOLVE,
+OFFER, SAMPLES, OFFER, SHEET, COUPON; then CONFIDENCE, SHADOW / CS2, SPORT_IDENTITY,
+SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, and in a rebuild FIXTURE_CHECK; SETTLE grades D-1.
+Exit codes: 0 OK, 1 PARTIAL (normal on RESOLVE / OFFER / SAMPLES), 2 FAILED.
+Python: `PYTHONPATH=src:. .venv/bin/python`.
 
-**The day's rule** (stats-only epoch, `bet.sofa.epochs.STATS_ONLY_FROM_UTC`
-2026-10-05 07:15Z; the measured sports from `SPORTS_ON_COUPON_FROM_UTC`
-08:30Z): confidence comes from the statistics alone; the price is only the
-condition - confidence x odds >= 0.90, ladder / group margin <= 15%, odds
->= 1/0.9202, not started, a fresh price; floor 0.70; a WATCH or NO_BET read removes the leg.
-Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`) every key of every
-sport is also read through its own settled Superbet lines (offset, price-band
-cap; `config/sofa_superbet_line_evidence.json`), which may only lower a
-confidence, and no market is refused by name: a market with no measurement is
-`NO_LINE_EVIDENCE`. Each leg
-prints three numbers: **pewność** (calibrated confidence), **próbka** (k/n of
-its own sample) and **model** (`forecast_p`, uncalibrated, never a gate).
-Order: confidence, then the earlier start, the legs of one match together.
-
-`$ARGUMENTS` is `dzisiaj`/`today`, `wczoraj`/`yesterday` or `YYYY-MM-DD`;
-empty means today (`date -u +%F`).
-
-Delegate rather than doing it all inline. The agents exist and each carries the
-measured history this command cannot restate:
-
-| agent | when |
-|---|---|
-| `sofa-runner` | the whole run, if you want one owner for it |
-| `sofa-settler` | step 1 — D-1 settlement, the identity audit, the ledger, the decision about re-fitting constants (steps 1a and 1b stay with you) |
-| `sofa-analyst-football` / `sofa-analyst-tennis` | step 5 — the read of their sport's legs in the best 30 positions + builder legs + `read_requests.json`: vetoes and one read (KEEP / WATCH / NO_BET) per leg |
-| `sofa-analyst-sport` | step 5 — one per measured sport with legs to read (hockey, basketball, volleyball, CS2): identity, price, context; one read per leg, with its side and period |
-| `sofa-verifier` | step 8 — adversarial verification; its rows-not-to-stake come back as reads and the day is rebuilt on them. **Not optional.** |
-| `sofa-market-scout` | when a row's availability or price is in question |
-
-## Read this first — there is no DISCOVER stage
-
-`sofa` does not share stage names with the archived `simple` pipeline, and
-reaching for `simple`'s vocabulary is the single most common way to start this
-wrong. The source of truth is `DEFAULT_SEQUENCE` in
-`scripts/sofa/run_pipeline.py` (BOARD, RESOLVE, OFFER, SAMPLES, OFFER, SHEET,
-COUPON); everything after COUPON is run by name, outside the sequence.
-
-| # | sofa stage | what it actually is | artifact |
-|---|---|---|---|
-| E3 | **BOARD** | the day's fixtures, from Superbet's board. This is "discovery". One HTTP request, no Sofascore. | `01_board.json` |
-| E4 | **RESOLVE** | attach a Sofascore event id to each board fixture | `02_fixtures.json` |
-| E5 | **OFFER** (1st) | which markets carry a price at all, so SAMPLES only pays for those | `04_offer.json` |
-| E6 | **SAMPLES** | each side's last N matches per metric | `03_samples.json` |
-| E5 | **OFFER** (2nd) | refresh: the latest price, the betting condition | `04_offer.json` |
-| E8 | **SHEET** | every rung: `p_central` from the statistics (stats-only), `forecast_p`; the priced `p_bar` / verdict beside it | `05_sheet.json` |
-| E9 | **COUPON** | the old priced VALUE singles, with every exclusion recorded - not the coupon | `06_coupon.*`, `06_dropped.json` |
-| — | **CONFIDENCE** | football / tennis singles and Bet Builders by calibrated confidence (`run_confidence.py`) | `08_confidence.*` |
-| — | **SHADOW** / **CS2** | fresh Superbet snapshots of the measured sports (Superbet only) | `runs/sofa/shadow/<sport>/<d>/`, `runs/sofa/cs2/<d>/` |
-| — | **SPORT_IDENTITY** | the Sofascore id of every measured-sport event, pinned before the start (bridge) | `sport_fixtures.json` |
-| — | **SPORT_CONFIDENCE** | the measured sports' legs, confidence from the score model / CS2 engine calibrated without prices | `08_confidence_sports.json` |
-| — | **FIXTURE_CHECK** | in a rebuild: is a printed match still the match RESOLVE froze - status and a fresh start (bridge) | `fixture_status.json` |
-| — | **COUPON_ASSEMBLY** | the one coupon of every sport (`build_coupon.py`) | `11_coupon.json` |
-| — | **PDF** | **the coupon the operator stakes** | `KUPON_<date>.pdf`, `12_printed.json` |
-| E10 | **SETTLE** | grade a finished day (D-1, never today) | `07_settled.json`, `07_settled_printed.json` |
-
-**OFFER runs twice on purpose.** Once before SAMPLES so sampling is not paid
-for markets nobody prices, once after so the condition meets a fresh price.
-
-**The PDF is the coupon.** `06_coupon.json` holds the old priced VALUE
-singles, and that selector's measured record is bad — it returned −20.4% on
-2026-09-20 while the PDF returned +8.2% the same day. Reporting `06_coupon` as
-"the coupon" inverts the day. `p_bar`, `required_odds` and surplus are that
-selector's priced arithmetic; none of them is the confidence.
-
-## Step 0 — the bridge, before anything else
-
-Sofascore answers 403 to every non-browser client. Every Sofascore request
-(RESOLVE, SAMPLES, SETTLE, FIXTURE_CHECK, SPORT_IDENTITY, the re-settle sweep)
-goes through a real browser tab; BOARD, OFFER, SHADOW and CS2 ask Superbet only.
+## 0. Bridge
 
 ```bash
-.venv/bin/python scripts/sofa/ensure_bridge.py      # brings it UP if it is down, then runs check_bridge.py
+.venv/bin/python scripts/sofa/ensure_bridge.py
 ```
 
-**Start the bridge first, every time** (operator's order, 2026-09-30).
-`ensure_bridge.py` does nothing to a bridge that already polls. Otherwise it
-starts `bridge_server.py` detached (log `runs/sofa/bridge_server.log`) and,
-when Chrome is not running, opens the five windows with
-`launch_bridge_browser.py`, then waits for a tab to poll and grades the
-result with `check_bridge.py`. Exit 2 means it could not: most often Chrome
-is already open without the anti-throttling flags - the operator must quit it
-(Cmd+Q) and you re-run the step. Never quit or kill the operator's Chrome
-yourself.
+- Exit 0: up; still read the poll-age line (WARN exits 0). The burst-probe line is INFO;
+  only `WARN ... burst probes FAILED` is a fault.
+- Exit 1: degraded (a dead tab, or a Chrome without the anti-throttling flags at ~1 req/s).
+- Exit 2: it could not - usually Chrome is open without the flags. The operator quits it
+  (Cmd+Q), then you re-run. Never quit or kill the operator's Chrome yourself.
+- A dead tab = nothing that asks Sofascore can run: stop and tell the operator.
+- Leave `SOFA_TARGET_RPS` (20) and `SOFA_MAX_CONCURRENCY` (5 = the window count) at their
+  defaults; never lower `MIN_INTERVAL_MS`.
 
-Exit 1: the bridge is up but degraded - check_bridge FAILed (server, tab or
-Sofascore), or a tab polls from a Chrome started without the anti-throttling
-flags (~1 req/s; the operator must Cmd+Q, then re-run). Exit 0 does not rule
-out a WARN line: `check_bridge.py` exits 0 on WARN (stale poll, `burst probes
-FAILED`, slow round trip), so read the poll-age line whatever the exit code.
+## 1. Settle D-1 - `sofa-settler`
 
-Four checks now, and the fourth is advisory. The first three must be OK;
-`ok: true` alone is not enough — a dead tab still reports ok, so the line that
-matters is the poll age. If the tab is dead, stop and tell the operator:
-nothing that asks Sofascore can run.
+Launch `sofa-settler` with `D-1 <D-1>; scratch <your scratchpad>/settle_<D-1>`. It owns
+every command, in this order (`sofa-settler.md`):
 
-The fourth is **INFO and must not be read as a health grade.** It bursts four
-requests from idle, and that cannot reach the regime a run works in: measured
-2026-09-22, four idle probes read 0.10 req/s on exactly the bridge that then
-sustained 8.64 req/s over 360 requests with zero non-200. A tab that finishes
-a job and found nothing waiting went back into what was then a 20 s `/pull`
-(1 s since 2026-09-23; 50 ms while a job is out since 2026-09-29). Only a
-`WARN ... burst probes FAILED` line is a real fault.
+1. SETTLE `<D-1>`; CS2_SETTLE only when the D-1 `cs2_daily` loop is done or dead and no
+   `cs2_watchdog` covers D-1; SHADOW_SETTLE only when no D-1 `shadow_daily` loop is alive
+   (each loop settles its own day at 05:00Z / 05:15Z);
+2. `audit_settle_identity`, the `resettle_sweep` (D-14..D-2 + D-5);
+3. `audit_shadow` / `audit_cs2`, `record_results` D-8..D-1, `audit_ledger` D-7..D-1 (per
+   variant and epoch, never pooled), `audit_clv` D-2..D-1;
+4. `audit_settlement` (7c = the coupon's real result per sport, 7i = legs a read removed,
+   apart; refunds at 0 u.).
 
-If you need the capacity number, `scripts/sofa/measure_bridge_capacity.py`
-gives it (it sends ~300 requests; run it deliberately, not as a check). Five
-windows opened with `launch_bridge_browser.py` sustain ~14.3 req/s and do not
-have to be visible - the old "three visible windows" rule is retired
-(CLAUDE.md). Measured 2026-09-29 after the /pull fix: 14.63 req/s peak, p50
-300-334 ms, zero non-200.
+Relay its result into the report (D-1, POMIAR lines). A ledger `MISMATCH` is a defect.
 
-**Leave `SOFA_TARGET_RPS` (20) and `SOFA_MAX_CONCURRENCY` (5) at their
-defaults.** The bucket must sit ABOVE the tabs' capacity - starving it is
-worse than opening it - and the worker count equals the window count; below
-it the bridge collapses (CLAUDE.md's table). **Never lower
-`MIN_INTERVAL_MS`**: that is the per-connection pace.
+BOARD asks only Superbet: the main session launches the settler with
+`run_in_background: true` (you are notified on completion) and runs BOARD meanwhile; a
+subagent (`sofa-runner`) launches it in the foreground and runs BOARD after. RESOLVE waits
+for the settler's **return** (its scripts hold the DB - `database is locked`) and step
+1a's bridge part.
 
-Check the tabs before blaming the rate. A tab Chrome has throttled answers the
-same routes in ~2,000 ms instead of ~175 ms and takes ~40 s to claim a job;
-`check_bridge.py` warns above 600 ms. One overnight run paid ~5.3 hours for it.
+## 1a. Line evidence
 
-## Step 0b — use the right interpreter
-
-`.venv` contains **two** interpreters. `.venv/bin/python` is 3.12 and runs the
-pipeline; `.venv/bin/pip` belongs to 3.14. Installing with `.venv/bin/pip`
-reports success and the import still fails.
+`refresh_line_evidence.py`'s step 0 asks the bridge and writes `data/sofa.db`; its fits only
+read the DB (`mode=ro`). So, after the settler returns and before RESOLVE, run step 0's
+commands as one background Bash call (`run_in_background: true`, 10-30 min):
 
 ```bash
-.venv/bin/python -m pip install <pkg>     # correct
-.venv/bin/pip install <pkg>               # lands in 3.14, invisible to the run
+mkdir -p runs/sofa/<D>
+{ PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py --max-minutes 12; echo "history exit $?"
+  for s in hockey basketball volleyball; do PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport $s --days 7 --with-lineups --max-minutes 6; echo "$s exit $?"; done
+  echo BRIDGE_PART_DONE; } > runs/sofa/<D>/line_evidence_bridge.log 2>&1
 ```
 
-
-## Step 1 — settle yesterday
-
-Do this before today's run: it feeds the ledger and the line evidence (the
-curves are fitted on the statistics' history, not on settled days), and it
-competes with today's run for the bridge. Hand it to `sofa-settler` (it settles and records
-D-1; steps 1a and 1b below stay with you: the settler never touches today and never refreshes the evidence),
-or run it directly:
+Name a non-zero `exit` (no bridge, a refusal); the fits run on what is cached. When
+`BRIDGE_PART_DONE` is in the log (never earlier - two writers on the bridge and the DB),
+start step 2's RESOLVE and, beside it, the fits:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SETTLE
-# CS2_SETTLE for D-1 is the D-1 cs2_daily loop's own 05:00Z step (and a cs2_watchdog.py retries it
-# hourly, if one was started for that date - `pgrep -f cs2_watchdog`; nothing starts one by default).
-# Run it by hand only when runs/sofa/cs2/daily_<D-1>.done exists or the pid in daily_<D-1>.pid
-# is not running, and no watchdog covers D-1:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE
-# SHADOW_SETTLE for D-1 is the D-1 loop's own 05:15Z step. Run it by hand only when no
-# D-1 loop is alive - runs/sofa/shadow/daily_<D-1>.pid is gone (the loop deletes it on
-# exit) or its pid is not running. It resumes, so a repeat is harmless; a concurrent one is not:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
-# was every settled match the match it claims to be (offline; exit 1 = a finding, all listed):
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1>
-# Statistic gaps close days later (2026-10-01): Sofascore publishes a lower league's corners/shots/fouls
-# days after the cards (National League, Primera B Nacional: D+5..D+7), and D-5 alone left printed legs
-# ungraded for good (F0.6) - so every morning the sweep re-settles each day D-14..D-2 that still holds a
-# printed leg SETTLE could grade, plus D-5 always (its unpriced rows feed the fits), with
-# --refetch-stat-gaps (inserts only the rows that were missing), then regrade_settled.py --apply once for
-# rows graded off an early snapshot. Bridge required: exit 1 with NO_BRIDGE = nothing re-settled:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
+nohup sh -c 'PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> --skip-history; echo "EXIT $?"' > runs/sofa/<D>/refresh_line_evidence.log 2>&1 &
 ```
 
-SHADOW / SHADOW_SETTLE and CS2 / CS2_SETTLE stay a measurement of
-Superbet's price against Sofascore's score (`src/bet/sofa/shadow.py`,
-`src/bet/sofa/cs2.py`), written into `runs/sofa/shadow/<sport>/<date>/` and
-`runs/sofa/cs2/<date>/`. Since 2026-10-05 08:30Z they are also what the
-coupon's measured-sport legs are priced from and graded by - against the
-Sofascore id SPORT_IDENTITY pinned before the match (a different id is
-`NOT_GRADED:ID_CHANGED`). A PARTIAL or FAILED there never blocks the day.
-Report is `audit_shadow.py --from <d> --to <d>` / `audit_cs2.py`.
+`EXIT 0` written; 1 = a sport's row fit failed (that sport reuses earlier rows - name it;
+a `Traceback` in the log is a crash, also 1) - with `--skip-history` the history /
+statistics part is the bridge call above, with its own `exit` lines; 2 =
+`fit_line_evidence.py` failed, today builds on the previous file (say so).
+`config/sofa_superbet_line_evidence.json` `fitted_from.before` must read `<D>`.
+**Step 3 waits for `EXIT`** - a build on yesterday's evidence reshuffles the 30 best-value
+matches on the rebuild and leaves read legs unread.
 
-`PARTIAL` is the normal verdict (unfinished matches, provider stat gaps).
-Read section **7c** of the audit — that is the PDF coupon's real result: on
-a stats-only day one table per sport and epoch, the measured sports' own
-table graded at the printed price, and the coupon's sum. A match moved more
-than 48 h (`MOVED_BEYOND_VOID`), awarded (`AWARDED`), a tennis retirement
-(`RETIRED`, Sofascore code 92) or a walkover (`WALKOVER`) is a **refund** (0
-units, its own count; `settle.REFUND_REASONS`) - never a loss and never a
-`sofa_settled_row`. A
-printed leg without a sheet row is graded into `07_settled_printed.json`.
-Section **7i** grades the legs a read removed (`removed_by_reads`) - apart,
-never in the coupon's result. Sections 7 and 7b are input material, not bets.
-
-Then record the day - this is the data every later decision about a rule,
-a floor or a sport is taken from, so it runs every day, not when someone
-remembers:
+## 1b. Loops
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --to <D-1>        # the ledger row of every variant and measurement; replaces those dates' rows
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <D-7> --to <D-1>          # one table per variant and epoch group, never pooled; ROI with its by-match 95% interval ("-" under 20 matches)
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <D-2> --to <D-1>             # closing line value per variant - read it first: it answers in tens of legs
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <D> --chain >> runs/sofa/cs2/daily_<D>.log 2>&1 &
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <D> --chain >> runs/sofa/shadow/daily_<D>.log 2>&1 &
 ```
 
-The ledger's variants on a stats-only day: `official` (the coupon, every
-sport), `official:pre_stats_only` (legs locked from the 10-05 morning print -
-a different experiment), `removed:reads` (7i). `audit_ledger.py` keeps the
-epoch groups apart (10-04 / 10-05 rano / stats_only) and never sums them.
+- `cs2_daily`: always safe - a second loop for a date refuses (exit 2).
+- `shadow_daily`: start by hand **only when neither** `runs/sofa/shadow/daily_<D-1>.pid`
+  **nor** `daily_<D>.pid` exists (the D-1 chain starts today's after its 05:15Z settle).
+- `capture_closing`: the daily loops start it (`ensure_loop`); by hand only per step 9.
+- A loop reads its plan at start: after a code change, run the new morning steps by hand
+  for days old loops cover; say so. Never kill a loop.
 
-Exit codes of `record_results.py`: **0** = graded as far as the settles
-allow - pending legs are shown in the table's `pending` column, never as an
-exit code. Pending is the normal shape of D-1: its measured-sport legs after
-00:00Z (NHL/NBA, night CS2) settle into today's snapshot file at the
-05:00Z (`cs2_daily`) / 05:15Z (`shadow_daily`) morning steps, and tomorrow's
-`--from <D-8>` closes them. **1** = a `MISMATCH` (two graders disagree on a
-leg - a defect: name it) or an unreadable file. **2** = a crash or a missing
-database (nothing is written then). Before SHADOW_SETTLE / CS2_SETTLE has
-written `settled.json`, `measure:<sport>` is simply absent from the ledger,
-not pending - check every `measure:*` row is there, not only the exit code.
-Re-run `record_results.py --from <D-8> --to <D-1>` after a late settle or a
-`regrade_settled.py`. A result is a fact about the day, never a reason for
-today's choice.
+## 2. Build today
 
-## Step 1a — refresh the line evidence (every morning, once D-1 is settled and recorded)
-
-Every leg's confidence is read through the settled Superbet lines
-(`config/sofa_superbet_line_evidence.json`, `bet.sofa.line_evidence`). Without
-this step today reads yesterday's evidence: no line of D-1 counts. After the
-whole of step 1 (SETTLE, SHADOW_SETTLE, CS2_SETTLE, `record_results.py`) and
-before any build of today; ~15-20 min, no bridge, runs the four sport row fits
-(`fit_sport_confidence.py --dry-run`, in parallel) and then `fit_line_evidence.py`;
-rows land in `data/line_evidence/rows_before_<D>`:
+BOARD mints the run id (`run_pipeline.py` without `--run-id`); read it back from its
+`SOFA_SUMMARY` line and reuse it for the day:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D>
+mkdir -p runs/sofa/<D>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only BOARD > runs/sofa/<D>/pipeline_board.log 2>&1
+grep -o '"run_id": "[0-9a-f]*"' runs/sofa/<D>/pipeline_board.log | tail -1
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --from-stage RESOLVE --run-id <id> > runs/sofa/<D>/pipeline_resolve.log 2>&1 &
 ```
 
-Exit 0 written; **1** = one sport's rows fit failed and that sport reuses its
-earlier rows (the evidence is still written; name the sport in the report);
-**2** = `fit_line_evidence.py` failed (today builds on the previous evidence
-file, say so). `fitted_from.before` of
-the file must read `<D>`. It never touches a curve; a curve refit stays a
-separate, deliberate, between-days step. Skipping it is a named skip, not a
-failure of the day.
+RESOLVE..COUPON runs 2.5-3 h. Follow it with short Bash calls - never `tail -f`, never a
+foreground call near its 600000 ms limit:
+`grep -E "^--- |: (OK|PARTIAL|FAILED|SKIPPED)|STAGE_EXCEPTION|Traceback" runs/sofa/<D>/pipeline_resolve.log | tail -5`.
+It is over when a `SOFA_SUMMARY: {"stage": "PIPELINE"` line appears.
 
-## Step 1b — start today's measurement loops
+- A FAILED stage SKIPs the rest; a died RESOLVE leaves `02_fixtures.json.INCOMPLETE`
+  (refused downstream as `UPSTREAM_INCOMPLETE`). Re-run `--from-stage <failed>` with the same id.
+- A SHEET quiet for 10 min is parsing the history - do not kill it.
+- False alarms: `coverage_floor` "matching regression" (RESOLVE 72-90% is healthy);
+  board size follows the calendar.
 
-The loops snapshot the measured sports' prices all day (the coupon's
-measured-sport legs are priced from those snapshots) and settle them the
-next morning.
+Once `04_offer.json` exists, label what OFFER could not read (report only; exit 1 =
+UNCLASSIFIED names, report the count):
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <today> --only CS2
-# the whole CS2 day unattended (snapshots to 23:30Z, settle D and D-1 at 05:00Z D+1, grade and
-# record both days); --chain starts D+1's loop at 23:30Z, so D+1's night series are priced. A D-1 loop started with
-# --chain already started today's; a second loop for a date refuses (exit 2), so a repeat is harmless:
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <today> --chain >> runs/sofa/cs2/daily_<today>.log 2>&1 &
-# the shadow day runs itself once started (snapshots to 04:30Z next day, settle 05:15Z).
-# A D-1 loop started with --chain starts today's by itself after its 05:15Z settle and audit (~05:20-05:45Z): start one by
-# hand only when NEITHER runs/sofa/shadow/daily_<D-1>.pid NOR daily_<today>.pid exists
-# (a second loop for a date refuses with exit 2, so a repeat is harmless):
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <today> --chain >> runs/sofa/shadow/daily_<today>.log 2>&1 &
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <D>
 ```
 
-A loop reads its plan once, when it starts: a loop started before a code
-change keeps its old morning steps until it ends (the `--chain` child it
-starts runs the new code). After a change to `cs2_daily.py` / `shadow_daily.py`
-re-run the new morning steps by hand for the days the old loops cover, and
-say so in the report - never kill a loop to pick the change up.
+## 3. CONFIDENCE (provisional)
 
-## Step 2 — today
-
-BOARD touches only Superbet, so it can run while SETTLE is still going.
-RESOLVE cannot: start it when the WHOLE of step 1 has returned, not when
-the `--only SETTLE` process ends - on 2026-10-01 RESOLVE died on
-`database is locked` while the settler's later scripts read the database
-(the DB is in WAL mode since that day and a busy commit is retried, so this
-is a second line of defence, not the only one).
-
-A FAILED stage now stops the stages after it (`SKIPPED`, their artifacts
-untouched) and a RESOLVE that died leaves `02_fixtures.json.INCOMPLETE`,
-which every later stage refuses with `UPSTREAM_INCOMPLETE`. Re-run from the
-failed stage; `--continue-on-failure` exists for a deliberate exception.
+After step 2 and step 1a's `EXIT` line:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only BOARD --run-id <id>
-# once step 1 (the whole settler) is done:
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --from-stage RESOLVE --run-id <id>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <D>
 ```
 
-Budget **2.5–3 h**. SAMPLES is most of it. Monitor stage transitions rather
-than polling:
+Exit 2 = the sheet is not stats-only: re-run SHEET (step 7). Report `refused` counts, every
+`UNMATCHED_VETO` / `UNMATCHED_READ` and a `LINE_EVIDENCE_NOT_FITTED` (evidence file missing).
+
+## 4. Measured sports and the coupon (provisional)
 
 ```bash
-tail -f -n 0 <log> | grep -E "^--- |: OK|: PARTIAL|: FAILED|STAGE_EXCEPTION|Traceback"
-```
-
-`PARTIAL` on RESOLVE / OFFER / SAMPLES is the **normal shape of a healthy run**,
-not a failure. Only `FAILED` stops you.
-
-Once OFFER has written `04_offer.json`, label every Superbet market it could
-not read (a report, never an input; offline, seconds):
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date <date>   # runs/sofa/<date>/market_coverage.{json,md}: MAPPABLE / COMPUTABLE / NOT_COMPUTABLE per name; exit 1 = UNCLASSIFIED names (a rule is missing - listed, report the count)
-```
-
-A MAPPABLE line is a proposal: mapping a market changes the coupon, so it
-lands behind an epoch (the next day's 00:00Z, or the exact time the operator names).
-
-## Step 3 — CONFIDENCE, football and tennis (provisional)
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <date>
-```
-
-It refuses (exit 2) a `05_sheet.json` not built under the stats-only rule -
-then the SHEET is the old rule's and the day is rebuilt from SHEET (step 7
-says when SHEET must be re-run). Report
-from its summary the `refused` counts, among them `WATCHED`, `READ_NO_BET`,
-`MODEL_ABOVE_OWN_SAMPLE` (a football leg whose `model_p` is more than 0.15
-above its own sample's hit rate - automatic, no read needed),
-`FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF`, `STALE_PRICE`, `ODDS_TOO_LOW`,
-`CROSS_LEAGUE_UNLINKED`, `NO_CLASS_CURVE`, `NOT_SETTLEABLE`,
-`SAMPLE_CROSSES_SEASON`, `NO_LINE_EVIDENCE`, and every `UNMATCHED_VETO` /
-`UNMATCHED_READ` line on stderr. `LINE_EVIDENCE_NOT_FITTED` there means the
-evidence file is missing: report it (the curves would run uncorrected).
-
-**Do not render a PDF from a provisional build.** A rebuild locks (keeps as
-printed, `locked: true`, unnumbered, first) the legs of the last PRINTED
-coupon whose match has started - read from `12_printed.json`, which only the
-PDF writes. A provisional PDF would turn every leg in it into a counted bet
-the moment its match starts, read or not. Locked legs, and
-`LOCKED_DESPITE_LATE_REFUSAL` lines on stderr, are the operator's rule
-working, not a defect.
-
-## Step 4 — the measured sports, then the one coupon
-
-Fresh prices first (Superbet only, no bridge) - the sport legs are priced
-from the newest pre-start snapshot and refused as `STALE_PRICE` past
-`sport_day.MAX_PRICE_AGE`; night games live in D+1's file:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SHADOW
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SHADOW
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only CS2
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SPORT_IDENTITY
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SPORT_CONFIDENCE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only COUPON_ASSEMBLY
 ```
 
-Then pin each event's Sofascore id before it starts (bridge: one request
-per match, once a day, after `ensure_bridge.py`; a 403 stops the run, never
-retried; a re-run asks only for events not yet identified):
+- SPORT_IDENTITY (bridge): exit 1 = an event not identified or a refusal (off the coupon);
+  2 = no snapshot of any sport. A 403 stops it - never retry into a refusal.
+- SPORT_CONFIDENCE exit 1 = a sport `NOT_CALIBRATED` or without `sport_fixtures.json`; the
+  rest still builds. Report each sport's `status` and `refused` from `11_coupon.json` `sports`.
+- COUPON_ASSEMBLY exit 2 = `08_confidence.json` not the standard profile, not stats-only or stale.
+- **No PDF here** - a provisional PDF would lock every leg whose match starts, read or not;
+  the first PDF comes from step 7.
+
+## 5. Analysts
+
+`/sofa-analyze`'s pass (it owns the details). Buffer 25 (the rebuild reshuffles the 30
+best-value matches; legs read now save a C3 round), parts of <= 12 matches:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SPORT_IDENTITY
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only SPORT_CONFIDENCE
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <date> --only COUPON_ASSEMBLY
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --buffer 25 --split 12
 ```
 
-- SPORT_IDENTITY writes `runs/sofa/<date>/sport_fixtures.json`. An
-  `IDENTIFIED` record is pinned - SETTLE grades the leg by that id and never
-  searches again. Exit 1 = an event not identified or the bridge refused
-  (those events are `NOT_IDENTIFIED`, off the coupon); exit 2 = no snapshot
-  of any sport.
-- SPORT_CONFIDENCE writes `runs/sofa/<date>/08_confidence_sports.json`
-  (no bridge): confidence = the calibrated bucket of the score model / CS2
-  engine probability (`config/sofa_sport_confidence_calibration.json`, or the
-  `.next.json` staged for the day - `sport_confidence.calibration_path_for` -
-  fitted without prices, on replayed history, outside a day's own run; since 10:55Z on 2026-10-07 every
-  fitted key of hockey, basketball, volleyball and CS2 is read, corrected by
-  its Superbet lines; a family with no curve and no lines is `NO_LINE_EVIDENCE`,
-  a CS2 team-rounds line outside 9.5-12.5 `LINE_OUTSIDE_FIT`), then the
-  coupon's price filters. Basketball second half / Q4 grade on the regulation
-  periods, overtime does not count; full-game basketball markets include
-  overtime. Exit 1 only when a sport has no calibration (`NOT_CALIBRATED`: no
-  file, no section, no curves) or `sport_fixtures.json` / the sport's run is
-  missing (`NOT_IDENTIFIED`) - not a normal state for any sport now; name
-  it. The artifact is still written and the other sports and the football /
-  tennis coupon still build. `11_coupon.json` carries the per-sport `sports`
-  status block; the PDF does not print it, so the report must: the per-sport
-  `status` and `refused` counts.
-- COUPON_ASSEMBLY (`scripts/sofa/build_coupon.py`) writes
-  `runs/sofa/<date>/11_coupon.json` + `11_coupon.md` from
-  `08_confidence.json` and `08_confidence_sports.json`: positions 1..N in
-  `confidence.coupon_order`, locked legs first and unnumbered, builders
-  B1.., `removed_by_reads`, the operator's `read_requests`. It refuses
-  (exit 2) an `08_confidence.json` that is not the standard profile, not
-  stats-only, or older than its sheet / vetoes / reads. Reads only files.
+It prints one line per sport / part: `<sport>: <n> legs, <n> matches (<n> required, <n>
+buffer) -> <file>` - the required / buffer counts are legs. A sport without a file gets no
+analyst. Run id: the one BOARD minted.
 
-This 11 is provisional too: it is what the analysts read.
+Launch one instance per file, **all in one message, in the foreground** - nothing wakes
+you if they run in the background. `football` -> `sofa-analyst-football`, `tennis` ->
+`sofa-analyst-tennis`, `hockey` / `basketball` / `volleyball` / `cs2` -> `sofa-analyst-sport`.
+Give the path `runs/sofa/<D>/<D>_analiza_<sport>[_<i>].md` (next free `_r<n>` if it exists;
+never overwrite). Prompt, nothing else - no opinion of yours about any fixture:
 
-## Step 5 — the analysts, on the legs that need a read
+```
+date <D>; run_id <id>; sport <sport>; read set: runs/sofa/<D>/read_set/read_set_<sport>[_<i>].json;
+write your report to: runs/sofa/<D>/<D>_analiza_<sport>[_<i>][_r<n>].md
+```
 
-`audit_variants` C3 requires an analyst's read on
-`confidence.legs_requiring_read`: the **first 30 unlocked (from 2026-10-14 00:00Z: of the 30 best-value matches, `read_order: "value"`) positions** of
-`11_coupon.json`, **every printed builder leg**, and every entry of
-`runs/sofa/<date>/read_requests.json` (the operator's "dodatkowo", added by
-`/sofa-analyze`). The rest of the coupon prints unread - the operator's
-limit; pass it to the analysts. Count the set per sport:
+Each analyst writes its own report and returns <= 12 lines (the path it **actually wrote** -
+it may re-suffix `_r<n>`; one part = one report -, legs read, KEEP / WATCH / NO_BET,
+vetoes). Do not re-type its text or arrays.
+
+## 6. Merge
+
+Merge every path the analysts **returned** (not the one you gave); one call may take
+several `--report`; never two merge calls at once:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python - <<'PY'
-import json, collections
-from pathlib import Path
-from bet.sofa.confidence import legs_requiring_read, load_read_requests
-run = Path("runs/sofa/<date>")
-doc = json.loads((run / "11_coupon.json").read_text())
-legs = legs_requiring_read(doc, load_read_requests(run / "read_requests.json"))
-# a builder leg carries no `sport`: take it from its fixture
-sport_of = {f["sofascore_event_id"]: f["sport"]
-            for f in json.loads((run / "02_fixtures.json").read_text())}
-print(doc["positions"], "positions;", collections.Counter(
-    x.get("sport") or sport_of.get(x["sofascore_event_id"], "?") for x in legs))
-PY
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --author analyst --report <returned path> [--report <returned path> ...]
 ```
 
-Launch every analyst with legs to read in **one message** so they run
-concurrently, in the foreground (`run_in_background: false`; nothing wakes
-you if they run in the background):
+Exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing - report it); 2 refused,
+nothing written: relaunch that instance with the refusal line and a new `_r<n>` path -
+never fix its JSON yourself; after 2 relaunches report the failure and go on. A report with
+no reads block broke the contract - say so, never invent reads. List every WATCH / NO_BET
+it prints.
 
-```
-Task -> sofa-analyst-football  "date <date>; run <run_id>; stage verdicts; 11_coupon.json: <n> positions, <n> football legs to read (top 30 + builders + read_requests); return vetoes AND reads"
-Task -> sofa-analyst-tennis    "date <date>; run <run_id>; stage verdicts; 11_coupon.json: <n> tennis legs to read; return vetoes AND reads"
-Task -> sofa-analyst-sport     "sport hockey; date <date>; 11_coupon.json: <n> hockey legs to read; return reads"
-Task -> sofa-analyst-sport     "sport cs2; date <date>; ..."   # one per measured sport with legs in the set
-```
-
-Do not give them your own opinion about a fixture. The football and tennis
-analysts return Polish markdown and two fenced JSON arrays (vetoes, then
-reads); `sofa-analyst-sport` returns markdown and one array (reads - a veto
-cannot name a sport side). Save each markdown as
-`runs/sofa/<date>/<date>_analiza_<sport>.md` (`football`, `tennis`,
-`hockey`, `basketball`, `volleyball`, `cs2`), verbatim, as `/sofa-analyze`
-does. An analyst that returned no reads block has not followed its contract
-- say so, never invent its reads.
-
-Skip this step only if the operator asked for a bare run — and then say you
-skipped it.
-
-## Step 6 — merge the vetoes and the reads
-
-`vetoes.json` and `reads.json` are read by COUPON, CONFIDENCE and
-COUPON_ASSEMBLY. Merge the veto arrays into `runs/sofa/<date>/vetoes.json`,
-**validating first** — a malformed entry stops the run: COUPON raises
-(`run_pipeline.py` reports it FAILED, exit 2) and `run_confidence.py` dies on
-an uncaught `ValidationError` with exit 1 - which reads as PARTIAL unless the
-traceback is read. Neither writes its artifact, so the earlier build stays on
-disk looking current. Report any `UNMATCHED_VETO`: it did nothing, and a
-silent no-op reads exactly like a veto that was honoured. An empty
-`vetoes.json` is the healthy default.
-
-Merge the reads arrays into `runs/sofa/<date>/reads.json` (append; an
-earlier read is never edited or dropped - WATCH and NO_BET win over KEEP
-whoever wrote them), validating the merged array as `list[LegRead]`
-(`src/bet/sofa/contracts.py`, strict, `extra="forbid"`) before writing - both
-snippets are in `.claude/agents/sofa-runner.md` step 6 - and then:
+## 7. Rebuild and print
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python -c "from bet.sofa.veto import load_reads; print(len(load_reads('runs/sofa/<date>/reads.json')))"
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D> --dry-run
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 ```
 
-What a read does: `NO_BET` and `WATCH` both remove the leg from the coupon
-(`READ_NO_BET` / `WATCHED`) into `removed_by_reads` - graded on its own in
-audit_settlement 7i and the ledger's `removed:reads`, never in the coupon's
-result; `KEEP` removes nothing and records that the leg was read. A
-measured-sport read (`market` = family, `direction` = side, `period`)
-matches no football / tennis sheet row; `run_confidence.py` counts it as
-`reads_sport` (its game is in `08_confidence_sports.json` /
-`sport_fixtures.json`), never `UNMATCHED_READ`; it takes effect in
-COUPON_ASSEMBLY (check `removed_by_reads` in `11_coupon.json`). An
-`UNMATCHED_READ` is now always a read that covers nothing.
+`/sofa-rebuild` owns the plan. Never run stage scripts by hand for a rebuild (a CONFIDENCE
+on a >45 min offer empties 08 to the locked legs). SHEET re-runs
+itself only on the epoch / link rule / a switch's missing marker; after a SHEET code change
+or a `CONFIG_CHANGED` note the operator approved, run
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SHEET --run-id <id>`
+first and say why. Read the CONFIDENCE `refused` counts; a sport read counts as
+`reads_sport` and takes effect in COUPON_ASSEMBLY (confirm in `11_coupon.json`
+`removed_by_reads`); every `UNMATCHED_READ` did nothing - report it.
 
-## Step 7 — rebuild and the PDF
-
-The rebuild is ONE command (plan production grade F0.2) - never the stage
-scripts by hand: on 2026-10-05 a hand-run CONFIDENCE on a >45-min offer
-emptied `08_confidence.json` to its locked legs, and a SHADOW with its 3 h
-horizon left a 15:30Z hockey game on a stale price. Dry run first, then run:
+**C3 loop.** The rebuild ends with `audit_variants`; C3 lists read-set legs with no
+analyst read (positions moved) or a printed leg carrying WATCH / NO_BET. Then:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date> --dry-run
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread --split 12
 ```
 
-It decides from the files' ages and the clock (`bet.sofa.rebuild_plan`) and
-runs, in order: OFFER (`run_offer.py --min-minutes-to-kickoff 20`) when an
-open fixture's price would be past CONFIDENCE's 45 min by the time it runs;
-SHADOW (`run_shadow.py --horizon-h` to the farthest open start) / CS2 when a
-sport price nears its 3 h limit or SHADOW skipped an event beyond its
-horizon, then `ensure_bridge.py` + SPORT_IDENTITY; SHEET only when
-CONFIDENCE would refuse the sheet's epoch or the sheet was rated under the
-old league-link rule (`link_rule`) or lacks the row marker of a package that is on
-(`dispersion_rule` / `k_rule` / `tennis_table_rule`, day >= 2026-10-09; `cards_rule` stays absent); COUPON (06, audit_coupon's input)
-when older than its inputs; then FIXTURE_CHECK (bridge; no bridge =
-UNVERIFIED, nothing refused), CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY,
-PDF (`11_coupon.json` -> `KUPON_<date>.pdf` + `12_printed.json`),
-`audit_variants.py` and `audit_coupon.py`. A day that is over refreshes no
-price (`DAY_OVER` in its notes). One compact line per step, the full output
-in `runs/sofa/<date>/rebuild_<ts>.log`, a final `SOFA_SUMMARY` (`stage:
-REBUILD`); exit 0 / 1 PARTIAL / 2 FAILED - a FAILED step stops the rest,
-except the bridge steps, the sport snapshots and COUPON (PARTIAL). A SHEET
-forced by anything else is NOT detected - `p_central` lives in `05_sheet.json`
-and a rebuild reads it as it is: after a change of the SHEET estimator (code in
-the SHEET path, or a model switch in `bet.sofa.epochs` - `TENNIS_RATING_PRICES`,
-`DERIVED_MARGINAL_CENTRES`, `BB_FRESHNESS` - that the sheet predates; the packages
-`COUNT_DISPERSION`, `TENNIS_SCOPED_TABLE`, `PER_MARKET_K` (ON from 2026-10-09
-00:00Z) are the exception: `rebuild_day.py` re-runs SHEET itself on a sheet of a
-day >= 10-09 without their row markers; **never rebuild, re-PDF or re-read
-2026-10-08** - it was built under the old rules and
-`build_coupon_pdf` refuses `STALE_CONFIDENCE`; morning order: settle + record D-1,
-`refresh_line_evidence.py --before <D>` (the first mornings after the install are
-noisy, the evidence was fitted on the old curves), then the first build) run
-`run_pipeline.py --date <date> --only SHEET --run-id <id>` first (~30 s on a
-cached history, ~10 min when the day's listings changed; do not kill a quiet
-SHEET) and say why. A day already printed locks its started legs from the first
-print whatever the rebuild changes. In the stats-only epoch a moved price
-re-prices the leg (x at the fresh odds), so an OFFER refresh needs no SHEET
-re-run.
+(add `--buffer 5` while early kickoffs keep pulling new matches in) and repeat steps 5-7 on
+those files only (paths `_r<n>`). `read set: empty` while C3 is still red = a printed leg
+carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read.
+At most 3 rounds, then report the C3 lines left. A WATCH / NO_BET on a builder leg makes
+that fixture's builder take its next candidate: in the re-read prompt add "also read every
+leg of this fixture's builder candidates in 08_confidence.json `builders`". A refusing read
+on a locked leg is a note, not a defect. The PDF prints even with C3 findings: legs that
+started meanwhile are locked unread - name them.
 
-`build_coupon_pdf.py` renders `11_coupon.json` (it refuses a stats-only day
-without one) and writes `12_printed.json`. It exits 2 on `STALE_CONFIDENCE`
-(`08_confidence.json` older than `05_sheet.json`, `vetoes.json`,
-`reads.json` or the calibration file) and on `STALE_COUPON` (`11_coupon.json`
-older than `08_confidence.json`, `08_confidence_sports.json` or
-`read_requests.json`): fix the cause and re-run `rebuild_day.py`, never work
-around it. After any reads merge run the whole rebuild - never only the PDF.
+## 8. Verify - not optional
 
-Builders: one per fixture, by best `combined_probability`; in
-`11_coupon.json` the printed ones carry `builder_no` (B1..), in
-`08_confidence.json` read `stakeable_builders`, not `builders`. An internal
-12% correlation haircut decides stakeable (combined probability x odds after
-it >= 0.90) and is never printed; `picks: 0` is a legitimate answer. sofa does
-not price a builder: the PDF shows its legs with Superbet's single prices, the
-combined p and "kurs buildera: sprawdź na ekranie Superbetu"; a price the
-operator records in `09_screen_prices.json` is shown back as his note. Never
-present `odds_if_product` as a price - Superbet does not price a slip as the
-product of its legs.
-
-Then start the closing-price capture for the printed legs (Superbet only, no
-bridge; it reads the coupon artifact on every pass and exits after the last
-leg starts - start it again after a rebuild that adds legs), and take a
-boosts snapshot - repeat `run_boosts.py` a few times during the day:
+Launch `sofa-verifier` in the foreground with `date <D>; run_id <id>; write your report to:
+runs/sofa/<D>/<D>_weryfikacja[_r<n>].md` (next free). It screens every printed leg
+mechanically (`scripts/sofa/verify_legs.py --all`) besides the read set, and returns that
+screen's line (legs, DEFECT / NOTE). Then, with the path it **returned**:
 
 ```bash
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <date> --loop >> runs/sofa/<date>/capture_closing.log 2>&1 &
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --report <returned path> --author verifier
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 ```
 
-## Step 8 — verify, and do not skip this
+Exit 2 = relaunch the verifier with the refusal line (at most 2 relaunches, then report
+it). No verifier reads = no rebuild; say so. After the rebuild C1 and C3 must be clean (a
+C3 finding goes back through the C3 loop). Any other `audit_variants` / `audit_coupon`
+finding is a defect to fix before reporting; lines under `notes (not defects):` are
+listed, not fixed.
 
-`rebuild_day.py` ran both audits as its last steps (their verdicts are in its
-summary); read their full output in its log, or re-run them:
+## 9. Status, closing prices, boosts
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <date>
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <date>
-# the one status report (read-only, no network): offer age, sport snapshot ages, the
-# capture_closing / shadow_daily / cs2_daily loops, ledger MISMATCH, CLV coverage, coupon
-# staleness, UNVERIFIED fixtures; exit 0 OK / 1 WARN / 2 BROKEN
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D>
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <date> --loop >> runs/sofa/<date>/capture_closing.log 2>&1 &   # only on a day_status loop:capture_closing WARN
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
 ```
 
-`day_status.py` goes into the report as `STATUS:` every run. A `loop:capture_closing`
-WARN means printed legs will close with no closing price - a CLV hole, not a zero
-(09-19..09-30 have no `closing.jsonl` at all): start the loop from step 7 before
-reporting. A BROKEN line (ledger MISMATCH, STALE_COUPON, a PDF older than
-`11_coupon.json`) is fixed before the day is reported. `bridge` is always
-NOT_CHECKED there (no network) - say so, never read it as a pass.
+- `day_status.py` (no network) = STATUS. BROKEN (ledger MISMATCH, STALE_COUPON, a PDF older
+  than 11) is fixed before reporting; its `bridge` is always NOT_CHECKED, never a pass.
+- `capture_closing.py`: a missing close is a CLV hole, not a zero. `run_boosts.py`: a few
+  times a day.
 
-`audit_coupon` covers structure and arithmetic of `05_sheet.json` /
-`06_coupon.json` from each row's own fields. `audit_variants` covers the
-coupon: C1 (the artifact of its profile, fresh, its PDF prints it), C2
-(every printed single obeys the dials it was built with; a locked single
-against the build that printed it), C3 (every leg of
-`legs_requiring_read` has an `author: "analyst"` read, none printed carries
-WATCH / NO_BET), U1 (`11_coupon.json` in `coupon_order`, numbered 1..N,
-locked first), U2 (every fresh football / tennis single carries the
-stats-only epoch), U3 (every fresh measured-sport leg re-derived from the
-raw Superbet snapshot: odds, price age, group margin, x, the calibration
-bucket). Exit 0 no findings, 1 findings, 2 a file could not be read. Any
-finding is a defect to fix before the day is reported; lines under `notes
-(not defects):` (a locked leg read as of its print, the 10-05 morning
-records) are listed in the report, not fixed.
+## Traps that cost money
 
-One C3 finding you close yourself: `printed without an analyst's read` (a
-rebuild put an unread leg into the read set) - send exactly those legs to
-that sport's analyst, merge its reads (step 6), rebuild (step 7) and re-run
-the audit. A rebuild moves positions, so repeat until C3 is clean.
+- Positions move on every rebuild: name a leg by `group_key`, market, line, direction;
+  in chat in Superbet's words (`superbet_market: superbet_selection`).
+- Tennis clock gaps up to 11 h (ITF) are structural; the gate takes the earliest clock.
+- Check a subagent's number locally where you can.
+- No curve or constant is refitted or installed from a day's run (operator's go only;
+  `refresh_line_evidence.py` never touches a curve).
 
-Then hand the day to `sofa-verifier` (protocol `docs/sofa/VERIFY_PROTOCOL.md`),
-in the foreground. It rebuilds staked rows from `03_samples.json`, checks the
-subject maps to its side, re-asks Superbet for live prices, tests the day's
-distributions for anti-selection, and checks the sport legs against their
-snapshots and pinned identities. Locked legs are not defects. It ends with
-its rows-not-to-stake as a fenced JSON array of `LegRead` (`author:
-"verifier"`; WATCH for a judgement, NO_BET for a defect). **Append** it to
-`reads.json` (step 6), rebuild (step 7: `rebuild_day.py`, which re-runs
-`audit_variants.py` and `audit_coupon.py`) - C1 and C3 clean. An empty verifier array needs no rebuild; say so.
-
-## Traps that have actually cost something
-
-- **`06_coupon.json` is not the coupon, and neither is `08_confidence.json`**
-  on a stats-only day. `11_coupon.json` and its PDF are.
-- **Positions move after a rebuild.** A read request or a report that names
-  "position 31" names another leg after the next build; name the match
-  (`group_key`), market, line and direction.
-- **Half-match football rows lean on a global prior.** At `K_CENTRE = 15`
-  a sample of n=8 contributes 35% of its own centre. Before trusting a
-  `*_1h_*` / `*_2h_*` row, compute `n/(n+15)`.
-- **`coverage_floor` is weekday-blind.** Its median is built from recent runs,
-  so a Monday slate (~100 football fixtures against a weekend's ~1000) trips
-  "matching regression" every time. Check the RESOLVE rate instead — 72–90% is
-  normal — before believing it.
-- **Clock disagreement is tennis and structural.** Superbet posts a nominal
-  "not before" time for ITF matches, Sofascore the real one; gaps to 11 h are
-  normal and `CONFIRMED`. The gate takes the **earliest** clock (FIXTURE_CHECK's
-  fresh start replaces RESOLVE's frozen one), which conservatively refuses some
-  un-started matches. That is deliberate.
-- **Subagent numbers need verification.** They have been wrong in ways that
-  inverted an argument. Check any claim you can check locally.
-- **Constants are fitted deliberately, not daily.** `fit_constants.py` (E11),
-  `fit_confidence.py` and `fit_sport_confidence.py` are not in
-  `DEFAULT_SEQUENCE`. An installed refit changes what prints (a new epoch) and is not comparable with yesterday.
-  The one daily exception is the line evidence (step 1a): it never touches a
-  curve. A curve refit (`prepare_refit.py`, `docs/sofa/CONFIG.md` section 7) is
-  the operator's (installed only on his go), and runs on a copy of the database
-  (`--db-path <copy>`, `--without-db-backup`) while the daily loops stay alive;
-  never start one from a day run.
-  But **do** check `config/sofa_league_baselines.json`'s `fitted_from` and
-  `half_match_coherence` — a stale baselines file shipped a corners prior
-  24–32% too high for two days before anyone noticed.
-
-## Report back, short
+## Report (short, Polish, opens with the coupon)
 
 ```
-KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — <n> pozycji (<n> piłka / <n> tenis / <n> hokej / <n> kosz / <n> siatka / <n> CS2), <n> w grze (zablokowane), <n> Bet Builderów
-SPORTY:   hokej <status> / kosz <status> / siatka <status> / CS2 <status> (08_confidence_sports.json; każdy inny niż OK - NOT_CALIBRATED / NOT_IDENTIFIED - z powodem; NO_LINE_EVIDENCE <n>)
-DOWODY LINII: refresh_line_evidence.py exit <0/1/2> · fitted_from.before <D> · sport z poprzednimi wierszami: <który / brak> (albo: pominięty)
+KUPON:    runs/sofa/<D>/KUPON_<D>.pdf — <n> pozycji (piłka / tenis / hokej / kosz / siatka / CS2), <n> zablokowanych, <n> Bet Builderów
+SPORTY:   hokej / kosz / siatka / CS2 <status, refused> (każdy inny niż OK z powodem)
+RUN:      <run_id> · werdykt każdego etapu · <n> na tablicy → <n> dopasowanych → <n> READY
 SHEET:    <n> wierszy (<n> piłka / <n> tenis), epoka stats_only
-RUN:      <run_id> · <verdict każdego etapu> · <n> na tablicy → <n> dopasowanych → <n> READY
-ODCZYTY:  przeczytane <n> z <n> wymaganych (top 30 + <n> nóg builderów + <n> dodatkowych) · poza top 30 drukowanych bez odczytu: <n>
-READS:    analityk <n> (KEEP <n> / WATCH <n> / NO_BET <n>) · weryfikator <n> (WATCH <n> / NO_BET <n>) · UNMATCHED_READ <n> · reads_sport <n>
-ZDJĘTE:   removed_by_reads <n> - <każda zdjęta noga: mecz, rynek, linia, kierunek, autor, powód>; MODEL_ABOVE_OWN_SAMPLE <n>; FIXTURE_NOT_AS_SCHEDULED <n>
-WETA:     <n> zastosowanych, <n> bez dopasowania
-ANALIZY:  runs/sofa/<date>/<date>_analiza_<sport>.md (każdy sport z nogami do odczytu)
-SETTLE:   D-1 <n> wierszy; 7c kupon <u> j. (per sport), zwroty <n> (w tym krecz / walkower <n>); 7i zdjęte przez odczyt <u> j. (osobno); tożsamość: <n> znalezisk (audit_settle_identity)
+DOWODY:   refresh_line_evidence exit <n> · fitted_from.before <D> (albo: pominięty)
+ODCZYTY:  przeczytane <n>/<n> wymaganych (+ bufor <n>) · rundy C3 <n> · nieprzeczytane: <które i dlaczego>
+READS:    analityk KEEP/WATCH/NO_BET <n/n/n> · weryfikator WATCH/NO_BET <n/n> · UNMATCHED_READ <n> · weta <n> (bez dopasowania <n>)
+ZDJĘTE:   removed_by_reads <n> — <mecz, rynek, linia, kierunek, autor, powód>
+RAPORTY:  <ścieżki analiz i weryfikacji>
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar
-D-1 WYNIKI: official <u> j. · official:pre_stats_only <u> j. · removed:reads <u> j. (każdy osobno, nigdy sumowane) · MISMATCH <n> (audit_ledger.py)
-CLV D-1:  kupon <x%> [lo; hi] (audit_clv.py)
-STATUS:   day_status.py <OK/WARN/BROKEN> · oferta <wiek> · sporty <wiek najnowszej migawki> · pętle capture_closing/shadow/cs2 <stan> · MISMATCH <n> · CLV <z ceną>/<po oknie> · UNVERIFIED <n> · mostek NOT_CHECKED
-AUDYT:    audit_coupon <n> · audit_variants <n> znalezisk (C3: <n> nóg bez odczytu analityka - musi być 0; U3: <n>)
-WERYFIKACJA: <n>/<n> arytmetyka, <n>/<n> ceny na żywo, <n> pozycji odrzuconych (zapisane w reads.json i przebudowane: tak/nie)
-UWAGA:    <the day's single biggest weakness>
+D-1:      7c <u> j. per sport · 7i <u> j. osobno · zwroty <n> · tożsamość <n> · MISMATCH <n> · CLV <x%> [lo; hi]
+STATUS:   day_status <OK/WARN/BROKEN> · pętle · UNVERIFIED <n> · mostek NOT_CHECKED
+AUDYT:    audit_coupon <n> · audit_variants <n> (C3 0)
+WERYFIKACJA: <n>/<n> arytmetyka · <n>/<n> ceny na żywo · <n> pozycji odrzuconych (w reads.json i przebudowane: tak/nie) · verify_legs --all: <n> nóg, DEFECT <n>, NOTE <n>
+UWAGA:    <największa słabość dnia>
 ```
 
-## Hard rules
-
-- Never invent a number, a fixture or an odds quote.
-- Never print a combined / Bet Builder / parlay price, and never present `odds_if_product` as one.
-- No stake sizing, no automated placement.
-- Never read, echo or log `.env` values.
-- Never strip `UNFITTED_CONSTANTS` from a report to make it read better.
+Count positions per sport yourself from `11_coupon.json`. Never pool variants or epochs;
+no combined / builder price, no stake; never strip `UNFITTED_CONSTANTS`.

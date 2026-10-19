@@ -1,19 +1,18 @@
 # `sofa` — protokół weryfikacji zbudowanego dnia
 
-Obowiązująca wersja protokołu, którym pracuje agent `sofa-verifier`
-i komenda `/sofa-verify`. Wywodzi się z Części 4 dokumentu
-[`history/PROMPT_FIX_VERIFY_COUPON.md`](history/PROMPT_FIX_VERIFY_COUPON.md)
-(2026-09-18) i **zastępuje go** — tamten był jednorazowym promptem naprawczym
-i zawiera nieaktualne odniesienia.
+> **Kontraktem operacyjnym jest `.claude/agents/sofa-verifier.md`** (agent
+> `sofa-verifier`, komenda `/sofa-verify`). Ten plik to jego polski opis;
+> gdy się rozjadą, obowiązuje plik agenta.
 
 Praca jest **iteracyjna**: znajdź problem, zgłoś, weryfikuj **od nowa**.
 Powtarzaj, aż pełna runda nie wyprodukuje nowego znaleziska.
 
 **Produktem jest lista wierszy, których NIE postawiłbyś, mimo że pipeline je
 wybrał.** To ważniejsze niż lista poleconych i to jest sens tego protokołu.
-Od 2026-10-04 ta lista trafia do produktu: oddajesz ją także jako tablicę
-odczytów JSON, którą zlecający dopisuje do `reads.json` i na niej
-przebudowuje dzień (sekcja 5).
+Ta lista trafia do produktu: weryfikator pisze raport
+`runs/sofa/<data>/<data>_weryfikacja[_r<n>].md` z jednym blokiem
+```` ```json reads ````, zlecający scala go `merge_reads.py --author verifier`
+i przebudowuje dzień (sekcja 5).
 Kończy się werdyktem i **żadną rekomendacją stawki**.
 
 ---
@@ -23,9 +22,13 @@ Kończy się werdyktem i **żadną rekomendacją stawki**.
 **Kuponem jest PDF**, a od 2026-10-05 jego jedynym artefaktem jest
 `runs/sofa/<data>/11_coupon.json` (COUPON_ASSEMBLY: piłka i tenis z
 `08_confidence.json`, hokej / koszykówka / siatkówka / CS2 z
-`08_confidence_sports.json`). Weryfikujesz: **top 30** (pierwsze 30 pozycji (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `read_unit: "event"` w artefakcie)
-niezablokowanych), **każdą nogę wydrukowanego buildera**, pozycje z
-`read_requests.json` i **nogi sportów mierzonych** (z surowej migawki).
+`08_confidence_sports.json`). Weryfikujesz **zbiór odczytu** (`read_set.py --date <data> --out-dir <scratch>`,
+`confidence.legs_requiring_read`): niezablokowane nogi **30 meczów o
+najlepszej wartości**, **każdą nogę wydrukowanego buildera**, pozycje z
+`read_requests.json`, w tym **nogi sportów mierzonych** (z surowej migawki).
+Mechaniczny przesiew robi `scripts/sofa/verify_legs.py`: `--live` na zbiorze
+odczytu (dopytuje Superbet o piłkę / tenis), `--all` na każdej wydrukowanej
+nodze singla i buildera - tak każdy rynek przechodzi kontrole mechaniczne.
 Nogi zablokowane (mecz się zaczął, noga była w poprzednim wydruku,
 `12_printed.json`) są zapisem wydruku: nie oznaczaj ich `NO_BET` za to, że
 dziś by nie przeszły — co najwyżej notatka.
@@ -90,8 +93,8 @@ Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik.
   starszy od artefaktu.
 - **C2** — każdy wydrukowany singiel spełnia swoje pokrętła; noga
   zablokowana sprawdzana wobec `printed_under`.
-- **C3** — każda noga z `confidence.legs_requiring_read` (top 30, nogi
-  wydrukowanych builderów, `read_requests.json`) ma odczyt
+- **C3** — każda noga z `confidence.legs_requiring_read` (30 meczów o
+  najlepszej wartości, nogi wydrukowanych builderów, `read_requests.json`) ma odczyt
   `author: "analyst"`, a żadna wydrukowana nie ma WATCH ani NO_BET.
 - **U1** — świeże single `11_coupon.json` w kolejności `coupon_order`,
   numerowane 1..N, zablokowane na górze bez numeru.
@@ -115,7 +118,7 @@ etykieta (czas podstawowy czy z dogrywką, okres, format).
 
 Audyt sprawdza wiersz **wobec niego samego**. Wiersz, którego wszystkie pola
 są wzajemnie spójne i wszystkie zbudowane na złej próbce, przechodzi go bez
-zająknięcia. Dlatego dla **każdej pozycji top 30, każdej nogi buildera i
+zająknięcia. Dlatego dla **każdej nogi zbioru odczytu, każdej nogi buildera i
 każdej nogi sportu mierzonego**, którą drukuje PDF (dla nogi sportu 2a to
 odtworzenie z migawki i `sport_fixtures.json`, nie z `03_samples.json`):
 
@@ -160,6 +163,12 @@ Wiersz `_for` po złej stronie jest niewidoczny w każdej innej kontroli.
 
 ### 2c. Dopytaj Superbet o żywą cenę
 
+Zwykle robi to `scripts/sofa/verify_legs.py --live` (piłka i tenis). Ręcznie
+tylko dla meczu ze statusem CHANGED / MISSING / CANNOT_VERIFY albo dla nóg
+sportów: `OfferFetcher(client, **day_flags("<data>"))` - bez `day_flags`
+każdy rynek za przełącznikiem wygląda na zdjęty; czytaj `fetcher.errors`
+**i** `fetcher.not_reached` (mecz pominięty przez otwarty bezpiecznik).
+
 Przez `OfferFetcher` — ten sam kod, którego użył OFFER — **i** czytając
 payload z kursami drugi raz ręcznie. Drugie czytanie weryfikuje twój parser
 wobec niego samego. Potwierdź, że rynek, linia, kierunek i cena istnieją tak,
@@ -199,7 +208,7 @@ a każda miara nadwyżki rośnie, gdy `p` jest **zawyżone**. Wiersze najbardzie
 podatne na błąd są więc najczęściej wybierane. To własność mechanizmu, nie
 hipoteza o dniu, i z niej biorą się konkretne kontrole
 (dotyczą `06_coupon.json`). Kupon (`11_coupon.json`) od 2026-10-05 sortuje po
-pewności, nie po cenie — tam test antyselekcji to: czy top 30 skupia się w
+pewności, nie po cenie — tam test antyselekcji to: czy zbiór odczytu (30 meczów o najlepszej wartości) skupia się w
 jednym rynku, jednej lidze, cienkich kubełkach krzywej (`calibration_n`) albo
 w jednym sporcie mierzonym, i ile szczebli jednej drabiny stoi obok siebie.
 Kontrole selektora VALUE:
@@ -256,10 +265,12 @@ produkuj źródła.
    albo wynik „3:1”, `period` = okres / kwarta / set / mapa): `verdict:
    "NO_BET"` za defekt (zła strona, nieaktualna albo błędna cena,
    arytmetyka, która się nie odtwarza, zła tożsamość meczu), `"WATCH"` za
-   osąd; `[]`, gdy lista jest pusta. Weryfikator nie pisze pliku — zlecający
-   dopisuje tablicę do `reads.json`, przebudowuje od CONFIDENCE (FIXTURE_CHECK
-   najpierw) przez `build_coupon.py` do PDF i powtarza `audit_coupon` +
-   `audit_variants`. NO_BET i WATCH zdejmują nogę z kuponu do
+   osąd; `[]`, gdy lista jest pusta. Raport (z tą jedną tablicą w bloku
+   ```` ```json reads ````) weryfikator zapisuje sam pod ścieżką od
+   zlecającego, `runs/sofa/<data>/<data>_weryfikacja[_r<n>].md`. Zlecający
+   scala go `merge_reads.py --date <data> --report <ścieżka> --author
+   verifier` (nigdy ręcznie do `reads.json`), przebudowuje `rebuild_day.py`
+   i powtarza `audit_coupon` + `audit_variants`. NO_BET i WATCH zdejmują nogę z kuponu do
    `removed_by_reads` (rozliczana osobno, `audit_settlement` 7i).
 
 Na koniec werdykt i **żadna rekomendacja stawki**. Kupon bywa technicznie

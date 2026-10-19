@@ -88,3 +88,23 @@ def test_help_never_runs_the_ramp() -> None:
     )
     assert out.returncode == 0
     assert "usage:" in out.stdout and "pool of" not in out.stdout
+
+
+def test_importing_the_ramp_script_never_runs_it() -> None:
+    # 2026-10-19: a reference check imported the module and sent 5 requests.
+    # Checked on the source, never by importing it: a regressed guard would
+    # run the ramp against Sofascore from inside the test.
+    import ast
+    from pathlib import Path
+
+    script = (
+        Path(__file__).parents[2] / "scripts" / "sofa" / "measure_bridge_capacity.py"
+    )
+    tree = ast.parse(script.read_text(encoding="utf-8"))
+    first_code = next(
+        n for n in tree.body
+        if not isinstance(n, (ast.Expr, ast.Import, ast.ImportFrom))
+    )
+    assert isinstance(first_code, ast.If), "the import guard must come first"
+    assert "__name__" in ast.unparse(first_code.test)
+    assert any(isinstance(n, ast.Raise) for n in first_code.body)

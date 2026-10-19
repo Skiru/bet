@@ -1,15 +1,7 @@
 # Tennis methodology — the models behind each claim, and how they map to our data
 
-> **Since 2026-10-07 10:55Z (`epochs.LINE_EVIDENCE_FROM_UTC`)** the refusals BY NAME below (`DERIVED_NOT_CALIBRATABLE`, `OPERATOR_REFUSED` / `refused_markets`, `PLAYER_PROP_NOT_ADMITTED`, `TENNIS_SET_MARKET_NOT_ADMITTED`, a sport key outside `admitted`) describe the old epoch only: every market is now read through its own settled Superbet lines (`bet.sofa.line_evidence`), and one with no measurement is `NO_LINE_EVIDENCE`. See `.claude/skills/sofa-pipeline/SKILL.md`, "The 2026-10-07 rules".
-
-**Mapped to `sofa`.** Where an older version of this file pointed at
-`config/tennis_surface_map.json`, `config/tennis_match_format.json`,
-`SURFACE_MISMATCH`, `p_low` or a tier system, those belong to the retired
-`simple` pipeline. `sofa` scopes the sample on the fixture's own
-`ground_type` and `default_period_count`, orders the coupon by the calibrated
-confidence (`p_bar` is the old VALUE selector's, priced), and
-has no tiers. What it does not hold is named at each step, because that is
-where your contribution is.
+Each section ends with what `sofa` holds for it and what it does not - the
+latter is where your contribution is.
 
 ## 1. Tennis is a hierarchy of nearly-independent points
 
@@ -87,19 +79,15 @@ where your contribution is.
   match-win probability picks the 600 nearest historical best-of-three
   matches; games, sets and tiebreaks are read off them. A row priced through
   it carries a `TENNIS_RATING` note with "<side> wins the match p" - the
-  model's opinion, not the book's. Since 2026-10-07 14:05Z it **is** the
-  price of `games_won_for`, `handicap_games` and `most_games` (not the draw)
-  and half of `games_total`'s (the other half the NB count model); on those
-  `p_central` and `forecast_p` are the same number, and the player's own
-  sample enters only as próbka k/n. The neighbours are not scoped by surface
-  (measured: no help) nor by surface or opposition, but from 2026-10-09 00:00Z by tier x gender
-  (package `TENNIS_SCOPED_TABLE`, ON; measured 2026-10-08: games_total -81e-4
-  log-loss; the ITF bias is reduced), so the surface and the opposition remain the
-  analyst's. sofa does **not** map
-  Superbet's match-winner market (`Zwycięzca` sits in `unmapped_markets` in
-  `04_offer.json`), so the book's favourite-strength input is the fixture's
-  `handicap_games` ladder in `04_offer.json` (and `most_games`, where
-  priced), labelled as the book's opinion; use web rankings/Elo to classify
+  model's opinion, not the book's. It **is** the price of the families in
+  SKILL.md's table (`games_won_for`, per-set games, `sets_total`, the winner
+  and set markets, `handicap_games`, `most_games`) and half of
+  `games_total`'s; on those `p_central` and `forecast_p` are the same number
+  and the player's own sample enters only as próbka k/n. The neighbours are
+  scoped by tier x gender, not by surface or opposition, so the surface and
+  the opposition remain the analyst's. The favourite's strength without a
+  price is the rating's `forecast_p` on the `match_won_for` sheet row (a
+  price is never evidence); use web rankings/Elo to classify
   the **opposition of the sample** (method §67: a 6-1 6-2 against a qualifier
   is not the same evidence as 7-6 6-4 against a top-20 server) and tonight's
   opponent. A `games_won` distribution is conditional on who the player faced;
@@ -114,11 +102,13 @@ surface-matched or not. An old H2H that contradicts current surface form is a
 **conflict → downgrade**, never a tiebreaker toward the H2H side.
 
 **`sofa` does not filter H2H by age.** `STALE_H2H` was the retired pipeline's
-gate and has no equivalent here: `samples.py` builds an `h2h` bucket with no
-age rule, and a `*_total` rung pools `side_a + side_b + h2h`, deduplicated by
-event id, so an eight-year-old meeting counts exactly as much as last month's.
+gate and has no equivalent here: `samples.py` builds the `h2h` bucket from
+the `side_a` / `side_b` observations (so it inherits their scope and newest-ten
+window, with no age rule of its own), and a `*_total` rung pools
+`side_a + side_b + h2h`, deduplicated by event id - an old meeting inside the
+window counts as much as last month's.
 Only the coupon-level age gates apply afterwards (`MAX_SAMPLE_AGE_DAYS = 60` on
-the freshest observation, 180 days on the oldest for a builder leg), and they
+the freshest observation, 180 days on the oldest, `SAMPLE_CROSSES_SEASON`), and they
 judge the *bucket*, not the meeting. A `*_for` rung never sees h2h at all —
 it reads only the side it names. Check the observation dates yourself.
 
@@ -128,7 +118,7 @@ Sets and games played, minutes on court, hours of rest, back-to-back days,
 travel, qualifiers' extra matches — all web-sourced here. Do not assume "three
 sets yesterday = bad": a three-set win over a strong opponent can be better
 evidence of level than two easy wins. A recent retirement or medical time-out
-is a **void risk** for length markets: since 2026-10-07 a retirement (Sofascore
+is a **void risk** for length markets: a retirement (Sofascore
 status "Retired") and a walkover are refunds (0 u., `settle.RETIRED` /
 `settle.WALKOVER`; operator's rule) - say the risk, do not price it - and a
 fitness asymmetry is a kill-case for any OVER built on competitiveness. A
@@ -161,10 +151,10 @@ Per-player form is ten matches; after the surface and format scope it is often
 neighbouring rungs means the sample has no observation between them — the model
 separates the prices, not the evidence.
 
-`K_CENTRE = 5` for tennis, so shrinkage helps little: at n=10 the sample owns
-67% of the centre against football's 40% (of every sample-priced row; the
-rating-priced families do not read it - see §4). A clean sample is respected and a bad
-one is not corrected.
+`K_CENTRE` is 8 for tennis: at n=10 the sample owns 56% of the centre of a
+sample-priced row against football's 40% (the rating-priced families do not
+read it - see §4). A clean sample is respected and a bad one is barely
+corrected.
 
 A wrong human is worse than a small sample. `identity: FUZZY` on a tennis name
 is a real risk — names collide — and it must never be reported as confirmed.
@@ -178,34 +168,14 @@ Decide the rung blind. On the coupon the price is only the betting condition
 (x = confidence x odds >= 0.90, ladder margin <= 15%) - never evidence.
 
 Tennis is calibrated from the history, not from our settled days: the
-2026-10-07 refit (installed that evening) fits `config/sofa_confidence_calibration.json`
-on the history of Sofascore events replayed as of each match with the
-estimator SHEET prices with (the rating as of that day, best-of-five skipped
-via `infer_best_of`). It has a tennis pool (`pooled_by_sport.tennis`),
-per-market curves, and class curves (`tennis_women`, `tennis_team_cup`);
+curves are fitted on Sofascore events replayed as of each match with the
+estimator SHEET prices with (`data-inventory.md`, "The calibration curve");
 `calibration_n` counts replayed rows, not independent matches. Line evidence
-(from 2026-10-07 10:55Z) then lowers the confidence by what the key's
-Superbet lines realised below it (`line_offset`, `price_band_cap`). Facts that
-must travel with every confident tennis row (all dated):
-
-- the **old** `games_won_for` frequency was overconfident at the top - a
-  claimed 0.95 realised 0.728 over 9,286 rows (2026-09-21). The new curve
-  reaches its `0.950-1.010` bucket (replayed realised 0.942), but the
-  2026-10-05/06 Superbet lines (older estimator) realised -0.17 (OVER) /
-  -0.12 (UNDER) below confidence on printable legs
-  (`config/sofa_superbet_line_evidence.json`); no settled line yet belongs to
-  the rating-priced estimator.
-- tennis length markets were measured overconfident by ~25 pp on 2026-09-06
-  under the old estimator.
-- per-set **serve** markets and full-match **serve points** had no curve of
-  their own in September and were refused instead of reading the games pool
-  (149/253 = 0.589 realised against 0.777 claimed; `serve_points_for` 15/31).
-  The guard (`confidence.TENNIS_PER_SET_SERVE`, `TENNIS_SERVE_POINTS`) still
-  stops them borrowing a pool; a market with an own curve in the current file
-  is read from it, and every key goes through line evidence (or is
-  `NO_LINE_EVIDENCE`). Per-set GAMES markets have their own curves.
-- **Match tiebreaks:** the pipeline counts a 10-point match tiebreak as one
-  game; Superbet's rule is unverified (open operator question).
+then lowers the confidence by what the key's Superbet lines realised below it
+(`line_offset`, `price_band_cap`). Per-set serve and serve-points keys never
+borrow a pool (`confidence.TENNIS_PER_SET_SERVE`, `TENNIS_SERVE_POINTS`).
+A 10-point match tiebreak counts as one game in the code; Superbet's rule is
+unverified (open operator question).
 
 Superbet's tennis ladders are wide, so the
 rung the sheet ranked is one of many — read the whole ladder and say why that

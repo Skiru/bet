@@ -1,82 +1,70 @@
-# Where the context lives — sources for a `CONTEXT` veto or a read
+# Where the context lives - sources for a CONTEXT veto or a read
 
-Superbet prices off the same statistics we sample. What neither of us holds is
-the context: what the match is worth, who plays, what the fixture list did to
-the squad. Other people write that up every day; this file says where, so the
-read is found rather than re-derived.
+Superbet prices off the same statistics we sample. Neither of us holds the
+context: what the match is worth, who plays, what the fixture list did to the
+squad. This file says where to look, so a fact is found, not re-derived.
 
-**None of these sources is measured.** Whether a context veto removes losers
-is exactly what `audit_vetoes.py` exists to answer, per `context` tag; a
-`WATCH` / `NO_BET` read carrying the same tag removes the leg into
-`removed_by_reads`, graded apart in audit_settlement 7i. The vetoes' table
-had one `CONTEXT` fixture to go on when this file was written (2026-09-23). A
-source earns trust from that table, not from its reputation.
+**None of these sources is measured.** Whether a context read removes losers
+is what the settlement audit answers per `context` tag (7e for vetoes, 7i for
+removed legs). A source earns trust from that table, not its reputation.
 
-The rules from `SKILL.md` still bind every read below: decision point first,
-never research a fixture that has started, queries that cannot return a
-scoreline, two independent domains, every claim tagged with domain and
-publication time, a leak declared.
+The rules of SKILL.md bind every lookup: decision point first, one web pass
+per match and only when a fact could change a verdict, queries that cannot
+return a scoreline, two independent domains, every claim tagged with domain
+and publication time, a leak declared.
 
 ## Derive it before you search for it
 
-The cheapest context is already in the artifacts and cannot leak a result:
+The cheapest context is on disk and cannot leak a result:
 
 | signal | where | `context` |
 |---|---|---|
-| second leg, first-leg score | `02_fixtures.json` `previous_leg_event_id` | `MOTIVATION` |
+| second leg | `02_fixtures.json` `previous_leg_event_id` (the first leg's score is not there - follow the id) | `MOTIVATION` |
 | knockout vs league, which round | `round_name`, `cup_round_type` | `MOTIVATION` |
-| a cup or European tie a few days either side | the sample's own `match_date_utc` / competitions in `03_samples.json` | `ROTATION`, `SCHEDULE` |
-| yesterday's match, its length | tennis sample, newest observation | `SCHEDULE` |
+| make-up fixture, rest, matches in 7 / 14 days | `03_samples.json` `schedule` (`makeup_of`, `makeup_postponed_utc`, per side `last_match_utc`, `rest_days`, `matches_7d`, `matches_14d`); the legs' `context_flags` | `SCHEDULE`, `ROTATION` |
+| table stakes (football) | the leg's `stakes` (`STAKES_SIX_POINTER` / `STAKES_TOP4`, `effect` `za` / `przeciw`) | `MOTIVATION` |
+| a cup tie a few days either side | the sample's own `match_date_utc` / `competition_id` | `ROTATION`, `SCHEDULE` |
 
-Table position and what is left to play are not in the artifacts; they are one
-standings page away and are a fact, not an opinion.
+Table position and what is left to play are one standings page away: a fact,
+not an opinion.
 
 ## Football
 
-| what | where to look | notes |
+| what | where | notes |
 |---|---|---|
-| predicted XI, rotation, absences | Sports Mole previews; Sportsgambler lineups; Rotowire soccer lineups; Fantasy Football Scout (Premier League) | predicted, not confirmed. Name it "predicted". |
-| confirmed XI | the club's or the league's own channel, ~1 h before kickoff | the only confirmed source |
-| manager's words on rotation | press-conference reports in the local press: Marca / AS (ES), Gazzetta dello Sport (IT), Kicker (DE), L'Équipe (FR), BBC Sport (EN) | the quote, the date, the domain |
-| stakes and narrative | The Analyst (Opta) previews; WhoScored previews (also lists missing players) | |
+| predicted XI, rotation, absences | Sports Mole previews; Sportsgambler lineups; Rotowire soccer lineups; Fantasy Football Scout (Premier League) | predicted, not confirmed - say "przewidywany" |
+| confirmed XI | the club's or league's own channel, ~1 h before kickoff | the only confirmed source |
+| manager's words on rotation | local press: Marca / AS, Gazzetta dello Sport, Kicker, L'Équipe, BBC Sport | the quote, the date, the domain |
+| stakes and narrative | The Analyst (Opta), WhoScored previews (missing players too) | |
 | Polish football | Meczyki.pl, Weszło, Przegląd Sportowy | |
-| derby / grudge | the same previews; a derby is a fact, "revenge" is a journalist's word — say which | |
+| derby | the same previews; a derby is a fact, "revenge" is a journalist's word - say which | |
 
 ## Tennis
 
-| what | where to look | notes |
+| what | where | notes |
 |---|---|---|
-| ranking points to defend, race position | live-tennis.eu | `MOTIVATION`: a player defending a title's points |
-| surface Elo, form | Tennis Abstract | a rating, not an observation of tonight |
-| withdrawals, retirements, schedule | Tennis Explorer; the tournament's official site and social accounts | a retirement in the last month is `SCHEDULE`/`ABSENCES` material |
+| order of play, round, court | the tournament's official site, then a second domain | qualifying is best of three even at a slam |
+| ranking points to defend | live-tennis.eu | `MOTIVATION` |
+| surface Elo, form, hold / break % | Tennis Abstract | a rating, not an observation of tonight |
+| withdrawals, retirements, previous match length | Tennis Explorer; the tournament's site and social accounts | `SCHEDULE` / `ABSENCES` |
 | ITF / UTR | almost nothing is published | say so; do not manufacture a source |
 
 ## Hockey, basketball, volleyball, CS2
 
-The measured sports' legs (`sofa-analyst-sport`) need one question answered:
-is there a fact that makes the leg wrong to take as printed.
-
-| what | where to look | notes |
+| what | where | notes |
 |---|---|---|
-| CS2 roster, stand-ins, best-of, postponement | HLTV, Liquipedia | two domains; a stand-in matters for winner / handicap / map lines |
-| hockey / basketball / volleyball schedule, postponement, format | the league's or federation's own site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
-| overtime / shoot-out scope | Superbet's market text on the leg and its rules, not a preview; the code already grades the scopes in `shadow.MARKETS` (basketball second half / Q4 on regulation, overtime not counted) | `SCHEDULE` is not the tag for it; leave `context` out |
+| CS2 roster, stand-ins, best-of, postponement | HLTV, Liquipedia | a stand-in matters for winner / handicap / map lines |
+| hockey / basketball / volleyball schedule, postponement, format | the league's or federation's site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
+| overtime / shoot-out scope | Superbet's market text on the leg (`superbet_market`) and its rules - not a preview | not a `context` tag; leave `context` out |
 
 ## Tipsters
 
-Tipsters pick 1X2, winners and BTTS; football and tennis on the coupon are
-counting markets. On
-2026-09-01 the retired pipeline's tipster step took 86 picks from zawodtyper
-and typersi and could use **one** of them across 217 fixtures
-(the tipster audit of 2026-09-01, in git history). A tipster's *reasoning*
-("rotating before the derby") is a context lead to verify on a second domain;
-a tipster's *pick* is not evidence of anything. Only sources with a complete,
-timestamped public record (Blogabet, Tipstrr, OLBG, BettingExpert) are worth
-reading at all, and the retired step's certification left OLBG and
-BettingExpert to manual reading on terms-of-use grounds — no scraper.
+A tipster's reasoning ("rotating before the derby") is a lead to verify on a
+second domain; a tipster's pick is evidence of nothing.
 
-## What is never a source
+## Never a source
 
-- bzzoiro, or any provider other than Sofascore and Superbet, as a number.
-- Anything published after the decision point.
-- A pick without its reasoning.
+- bzzoiro or any provider other than Sofascore and Superbet, as a number;
+- another bookmaker's or an aggregator's price;
+- anything published after the decision point;
+- a pick without its reasoning.

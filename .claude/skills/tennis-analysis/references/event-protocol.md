@@ -2,16 +2,9 @@
 
 ## Which matches get the full protocol
 
-1. Every tennis fixture with a leg in your read set - the first 30
-   positions of `11_coupon.json`, every printed builder leg, every
-   `read_requests.json` entry (`08_confidence.json` on a day before the
-   stats-only epoch). **These are the ones actually staked and read.**
-2. Other printed tennis legs, where you reach them.
-3. Every fixture you intend to veto.
-4. Everything else: one line in *Pozostałe mecze*.
-
-Tennis is usually two thirds of the board, so the triage matters more here than
-in football. Order the queue by what is staked and its position, never by price.
+Every match of your read-set file, and any match you intend to veto. Tennis
+is often most of the board: order the queue by the read-set file, never by
+price.
 
 ## The steps
 
@@ -21,13 +14,13 @@ in football. Order the queue by what is staked and its position, never by price.
 | T2 | Both clocks | `kickoff_utc`, `superbet_kickoff_utc`, `kickoff_disagreement_h` | both times and the gap. On ITF a gap of hours is normal and `CONFIRMED`; take the **earlier**. |
 | T3 | Order of play | web, two domains | round, court, and whether the match has started `[WEB: domain, fetched …]`. One domain alone is "unconfirmed". Qualifying is BO3 even at a slam. |
 | T4 | Sample, per side | `03_samples.json` → `side_a` / `side_b` / `h2h` | scoped n per side, date range, opponents. **A side at 0–3 is not a sample. A total with one side at zero is one player's history wearing a match's name.** |
-| T5 | Shrinkage share, and what prices the row | `n/(n+5)`; `model_p` vs `forecast_p` | at n=10 the sample owns 67% of the centre **of a sample-priced row**. `games_won_for` / `handicap_games` / `most_games` and half of `games_total` are priced by the rating (from 2026-10-07 14:05Z): `model_p == forecast_p` on `games_won_for`, none on `handicap_games` / `most_games`; the sample's k/n is then the independent check |
+| T5 | Which estimator priced the row | SKILL.md table; `model_p` vs `forecast_p` | rating-priced (`model_p == forecast_p`, or none on `handicap_games` / `most_games`): the próbka k/n is the independent check. Sample-priced: `n/(n+8)` - at n=10 the sample owns 56% of the centre |
 | T6 | Opponent class | the `opponent` names, looked up | the class of the sample's opposition against tonight's opponent |
 | T7 | Serve / return | `aces_for`, `double_faults_for`, `serve_points_for` + web hold% | high-hold competitive OVER, breaks-and-three-sets OVER, or one-sided UNDER. Aces ≠ tie-breaks. |
 | T8 | Distribution | the observations | min, max, median, **mode**; for `games_won_for` say explicitly where the 12-wall sits relative to the line |
 | T9 | Scoreline arithmetic | by hand | the concrete scorelines that settle each rung: `6-3 6-4` = 19; `7-6 6-7 7-6` = 39; a player's games in `6-2 6-3` = 5; a 10-point match tiebreak counts one game in the code (`6-4 3-6 10-7` = 20; Superbet's count unverified - name it at ITF / UTR / team-cup events). **Which rung does the modal scoreline land on?** |
 | T10 | Schedule and fatigue | web; `schedule` block in `03_samples.json` | previous match score, date, duration; back-to-back days; a qualifier's extra matches; a recent retirement (a retirement or walkover refunds a single leg: void risk) |
-| T11 | Scenario matrix | | favourite pulls away / underdog holds / both first serves work / tie-break or deciding set. Which is modal, which kills the market. **No match-odds price exists in the artifacts.** |
+| T11 | Scenario matrix | the rating's `forecast_p` on the `match_won_for` sheet row (never a price) | favourite pulls away / underdog holds / both first serves work / tie-break or deciding set. Which is modal, which kills the market |
 | T12 | Ladder and tail | `04_offer.json` + the sheet + the coupon legs | every rung with `p_central`, pewność, próbka k/n, model (`forecast_p`) and `offered`. A third set adds 12–15 games — the tail is huge and one-sided. |
 | T13 | Price, only the filter | `offered_odds`, x = confidence x odds, `fetched_at_utc` | a condition the code applied, never a reason; a one-sided rung has `market_p` null - say so. |
 | T14 | Buy / kill | | strongest fact for, strongest against, which wins |
@@ -43,7 +36,7 @@ in football. Order the queue by what is staked and its position, never by price.
 
 **Próbka.** games_total: A n=8 po zakresie (2026-06-02 … 2026-09-14),
 B n=10. Wartości A: 17 19 20 20 21 22 23 26 (mediana 20,5, moda 20).
-Rywale A: <names, class>. **Udział próbki w centrum:** 10/15 = 67%.
+Rywale A: <names, class>. **Estymator:** rating (model = model_p) / próbka (10/18 = 56% centrum).
 
 **Serw i return.** <aces, DF, serve points per side; hold% from the web, tagged>
 
@@ -56,7 +49,7 @@ Modalny wynik <…> ląduje na szczeblu <…>.
 
 **Za / Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
 
-**Werdykt:** KEEP / WATCH / NO BET — <one sentence>
+**Werdykt:** KEEP / WATCH / NO_BET — <one sentence>
 ```
 
 ## Rules for the section
@@ -68,9 +61,6 @@ Modalny wynik <…> ląduje na szczeblu <…>.
   run. That is a fact about the sample, and it is the single most common way a
   tennis row is quietly wrong.
 - On any `games_won_for` row, say where 11.5 sits relative to the wall at 12.
-- On any confident `games_won_for` row, say that the leg is priced by the
-  rating alone (when `model_p == forecast_p`), that no settled Superbet line
-  yet belongs to that estimator, and that the older-estimator lines realised
-  below confidence (`config/sofa_superbet_line_evidence.json`).
+- On every leg, say which estimator priced it (rating or sample).
 - A two-UNDER tennis builder is one bet with two prices. Say so.
 - What you could not verify goes in **NIE PODANO**, never silently omitted.
