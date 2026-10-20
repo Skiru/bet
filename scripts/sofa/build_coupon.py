@@ -70,6 +70,7 @@ from bet.sofa.epochs import (  # noqa: E402
     coupon_form_active,
     peer_choice,
     price_gap_flag,
+    price_gap_sports,
     read_by_event,
     read_by_value,
 )
@@ -117,6 +118,7 @@ def assemble(
     read_value_order: bool = False,
     stakes_by_event: dict[int, list[str]] | None = None,
     price_gap_active: bool = False,
+    price_gap_extra: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
@@ -135,7 +137,9 @@ def assemble(
     only, nothing is added, removed or re-ranked.
     `price_gap_active`: a football / tennis leg whose confidence sits above
     its price says what such legs realised (bet.sofa.price_gap,
-    epochs.PRICE_GAP_FLAG_FROM_UTC) - annotation only as well."""
+    epochs.PRICE_GAP_FLAG_FROM_UTC) - annotation only as well;
+    `price_gap_extra`: the later sports flagged too (CS2,
+    epochs.CS2_PRICE_GAP_FROM_UTC)."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -215,7 +219,7 @@ def assemble(
         peers_marked = pc.annotate(out_singles)
     for leg in out_singles:
         leg.pop("price_gap", None)
-        if price_gap_active and (gap := pg.annotate(leg)) is not None:
+        if price_gap_active and (gap := pg.annotate(leg, price_gap_extra)) is not None:
             leg["price_gap"] = gap
     # epochs.FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: the leg named in
     # Superbet's words ("Mecz lub liczba goli: <team> lub powyżej 2.5 (Tak)"),
@@ -283,6 +287,7 @@ def assemble(
             "active": price_gap_active,
             "active_from_utc": "2026-10-12T11:51:00Z",
             "gap": pg.GAP,
+            "later_sports": sorted(price_gap_extra) if price_gap_active else [],
             "legs": sum(1 for s in out_singles if s.get("price_gap")),
         },
         "builders_refused": bs.refused_builders(builders),
@@ -509,7 +514,8 @@ def main() -> int:
                    peer_active=peer_on, read_events=read_by_event(args.date, at),
                    read_value_order=read_by_value(args.date, at),
                    stakes_by_event=stakes_by_event,
-                   price_gap_active=price_gap_flag(args.date, at))
+                   price_gap_active=price_gap_flag(args.date, at),
+                   price_gap_extra=price_gap_sports(args.date, at))
     # every leg named as Superbet's screen names it (superbet_market /
     # superbet_selection) - what the operator looks for before he clicks
     name_on_superbet(doc, board_sides(run))

@@ -92,7 +92,8 @@ stage stops the stages after it (`SKIPPED`).
   combined p x haircut odds >= 0.90 (internal). sofa never prints a builder
   price: the PDF says "kurs buildera: sprawdź na ekranie Superbetu".
 - **Annotations, never gates:** `price_gap` (`CONFIDENCE_ABOVE_PRICE`:
-  confidence > 1/odds + 0.03 - such legs realised about at their price),
+  confidence > 1/odds + 0.03 - such legs realised about at their price;
+  football, tennis and, from 2026-10-21, CS2),
   `peer` (★ the surer of two same-price legs of a match), stakes flags,
   `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`).
 

@@ -894,14 +894,15 @@ def read_value(leg: Mapping[str, Any]) -> float:
     """A leg's value for the analysts' read order (epochs.READ_BY_VALUE_FROM_UTC):
     confidence x odds, a football / tennis leg's confidence capped at
     1/odds + price_gap.GAP (legs above that realised about at their price;
-    capped, not cut to the price, so the rank does not jump at the flag)."""
+    capped, not cut to the price, so the rank does not jump at the flag). A
+    later sport's leg (CS2) is capped when its build flagged it."""
     from bet.sofa import price_gap  # leaf module; local to keep imports light
 
     conf, odds = leg.get("confidence"), leg.get("offered_odds")
     if conf is None or not odds or float(odds) <= 1.0:
         return 0.0
     p = float(conf)
-    if price_gap.over_price(leg) is not None:
+    if price_gap.over_price(leg) is not None or leg.get("price_gap"):
         p = min(p, 1.0 / float(odds) + price_gap.GAP)
     return p * float(odds)
 

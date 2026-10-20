@@ -26,12 +26,24 @@ and dropped 178 legs that had not done worse either (+2.2% against -4.0%).
 So the leg says it, and nothing moves: no leg is added, removed or re-ranked
 and no confidence changes (epochs.PRICE_GAP_FLAG_FROM_UTC).
 
-Hockey / basketball / volleyball / CS2 legs carry no flag: measured the same
+Hockey / basketball / volleyball legs carry no flag: measured the same
 way on their printed legs of 10-09..10-11 (graded by coupon_sports), hockey's
 over-price legs realised at their confidence (32 legs, -1.2 pp [-15.1, +11.9];
 the other 813 +0.0 pp), and basketball overstated on both sides of the price
 alike (-14.9 pp on 52, -18.2 pp on 50 legs) - the flag would point at half a
-problem that is not about the price; volleyball (6) and CS2 (0) too few.
+problem that is not about the price; volleyball (6) too few.
+
+CS2 carries it from epochs.CS2_PRICE_GAP_FROM_UTC (operator, 2026-10-20, after
+"BBL liczba map: powyżej 0.5" @1.44 lost; that leg itself sat 0.024 above its
+price and is not flagged). Its printed legs were too few (80), so it was
+measured on every settled Superbet CS2 line whose model p the installed curve
+puts on the coupon's floor and x (scripts/sofa/measure_cs2_price_gap.py,
+09-28..10-19, series bootstrap, line evidence not applied): above the price
+238 lines in 77 series realised -18.6 pp [-27.1, -10.1] below their
+confidence, -2.1 pp from Superbet's de-margined price; the other 234 +2.2 pp
+[-7.1, +10.7]. ROI -8.8% [-23.1, +4.9] against -0.6% - again the number, not
+measurably the money. A CS2 leg is flagged only when the build asks for it
+(`extra`), so a day built before the switch keeps its read order.
 """
 
 from __future__ import annotations
@@ -48,13 +60,21 @@ WINDOW = "10-09..10-11"
 MEASURED: dict[str, tuple[float, tuple[float, float], int, int]] = {
     "football": (-6.8, (-12.0, -2.1), 458, 269),
     "tennis": (-18.6, (-31.0, -5.9), 52, 35),
+    "cs2": (-18.6, (-27.1, -10.1), 238, 77),
 }
-SPORT_PL = {"football": "piłka", "tennis": "tenis"}
+# flagged only from their own switch (epochs.price_gap_sports)
+LATER_SPORTS = frozenset({"cs2"})
+WINDOWS = {"cs2": "09-28..10-19"}
+UNITS = {"cs2": ("linii Superbetu", "series")}
+SPORT_PL = {"football": "piłka", "tennis": "tenis", "cs2": "CS2"}
 
 
-def over_price(leg: Mapping[str, Any]) -> float | None:
-    """Confidence minus 1/odds of a measured sport's leg; None otherwise."""
-    if leg.get("sport", "football") not in MEASURED:
+def over_price(leg: Mapping[str, Any],
+               extra: frozenset[str] = frozenset()) -> float | None:
+    """Confidence minus 1/odds of a measured sport's leg; None otherwise. A
+    LATER_SPORTS sport counts only when `extra` names it."""
+    sport = leg.get("sport", "football")
+    if sport not in MEASURED or (sport in LATER_SPORTS and sport not in extra):
         return None
     conf, odds = leg.get("confidence"), leg.get("offered_odds")
     if conf is None or not odds or float(odds) <= 1.0:
@@ -62,9 +82,10 @@ def over_price(leg: Mapping[str, Any]) -> float | None:
     return float(conf) - 1.0 / float(odds)
 
 
-def annotate(leg: Mapping[str, Any]) -> dict[str, Any] | None:
+def annotate(leg: Mapping[str, Any],
+             extra: frozenset[str] = frozenset()) -> dict[str, Any] | None:
     """The leg's `price_gap` entry, or None when it is not above its price."""
-    gap = over_price(leg)
+    gap = over_price(leg, extra)
     if gap is None or round(gap, 9) <= GAP:
         return None
     sport = str(leg.get("sport", "football"))
@@ -74,7 +95,9 @@ def annotate(leg: Mapping[str, Any]) -> dict[str, Any] | None:
         "over_price": round(gap, 4),
         "measured_gap_pp": point,
         "measured_ci_pp": [lo, hi],
-        "measured_on": f"{sport} {legs} legs / {matches} matches, {WINDOW}",
+        "measured_on": (f"{sport} {legs} {'lines' if sport in UNITS else 'legs'} / "
+                        f"{matches} {UNITS.get(sport, ('', 'matches'))[1]}, "
+                        f"{WINDOWS.get(sport, WINDOW)}"),
     }
 
 
@@ -87,5 +110,5 @@ def label(leg: Mapping[str, Any]) -> str:
     _, _, legs, _ = MEASURED.get(sport, (0.0, (0.0, 0.0), 0, 0))
     return (f"pewność {float(pg['over_price']):+.2f} ponad cenę - takie nogi "
             f"trafiały ~{abs(round(float(pg['measured_gap_pp']))):.0f} pp poniżej "
-            f"pewności, około ceny ({SPORT_PL.get(sport, sport)}, {legs} nóg "
-            f"{WINDOW})")
+            f"pewności, około ceny ({SPORT_PL.get(sport, sport)}, {legs} "
+            f"{UNITS.get(sport, ('nóg', ''))[0]} {WINDOWS.get(sport, WINDOW)})")

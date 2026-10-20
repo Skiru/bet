@@ -1894,8 +1894,23 @@ niego 08).
     zdjęta ani przestawiona, żadna pewność się nie rusza.** Hokej, koszykówka,
     siatkówka i CS2 flagi nie dostają: hokej zmierzony tak samo nie ma
     zawyżenia (32 nogi, -1,2 pp [-15,1; +11,9]), koszykówka jest zawyżona po
-    obu stronach ceny (-15 / -18 pp), siatkówka i CS2 mają za mało nóg. Pre-rejestrowany
+    obu stronach ceny (-15 / -18 pp), siatkówka ma za mało nóg. Pre-rejestrowany
     test na nowych danych: `T-PRICE-GAP-flag`.
+  - **CS2 dostaje tę samą flagę od `epochs.CS2_PRICE_GAP_FROM_UTC` =
+    2026-10-21 00:00Z** (decyzja operatora 2026-10-20, po przegranej „BBL
+    liczba map: powyżej 0.5" @1.44 - sama ta noga była 0,024 ponad ceną i flagi
+    by nie dostała). Wydrukowanych nóg CS2 było za mało (80), więc pomiar
+    (`scripts/sofa/measure_cs2_price_gap.py`,
+    `docs/sofa/history/POMIAR_CS2_PRICE_GAP_2026-10-20.md`) idzie po wszystkich
+    rozliczonych liniach Superbetu CS2 09-28..10-19, których `model_p` krzywa
+    CS2 stawia na progu kuponu (pewność >= 0,70, x >= 0,90; bez dowodów z
+    linii): 238 linii / 77 serii ponad ceną trafiało -18,6 pp [-27,1; -10,1]
+    poniżej pewności, -2,1 pp od ceny bez marży; reszta +2,2 pp. ROI -8,8%
+    [-23,1; +4,9] wobec -0,6% - znowu liczba, nie mierzalnie pieniądze. Zdanie
+    na PDF / HTML: „... (CS2, 238 linii Superbetu 09-28..10-19)". Oflagowana
+    noga CS2 ma też pewność uciętą do 1/kurs + `GAP` w kolejności czytania
+    analityków (`confidence.read_value`) - dlatego przełącznik od następnego
+    dnia. W dokumencie `price_gap.later_sports`. Test: `T-CS2-PRICE-GAP-flag`.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

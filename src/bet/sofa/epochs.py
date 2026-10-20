@@ -654,6 +654,25 @@ def price_gap_flag(date: str, build_at: datetime | None = None) -> bool:
     return date >= PRICE_GAP_FLAG_DATE and at >= PRICE_GAP_FLAG_FROM_UTC
 
 
+# CS2 legs carry the same flag (operator, 2026-10-20; price_gap.LATER_SPORTS,
+# measured on settled Superbet CS2 lines by scripts/sofa/measure_cs2_price_gap.py).
+# Annotation only, as above, but a flagged leg's confidence is capped in the
+# analysts' read order (confidence.read_value), which changes which legs a read
+# may remove - so next day 00:00Z.
+CS2_PRICE_GAP_DATE = "2026-10-21"
+CS2_PRICE_GAP_FROM_UTC: datetime | None = datetime(2026, 10, 21, 0, 0, tzinfo=UTC)
+
+
+def price_gap_sports(date: str, build_at: datetime | None = None) -> frozenset[str]:
+    """The price_gap.LATER_SPORTS the build flags (CS2_PRICE_GAP_FROM_UTC)."""
+    if CS2_PRICE_GAP_FROM_UTC is None:
+        return frozenset()
+    at = build_at if build_at is not None else timeutil.now()
+    if date >= CS2_PRICE_GAP_DATE and at >= CS2_PRICE_GAP_FROM_UTC:
+        return frozenset({"cs2"})
+    return frozenset()
+
+
 # The analysts' read set counts EVENTS, not positions (operator, 2026-10-08:
 # "30 analizowanych wydarzeń a nie 30 rynków - 30 wydarzeń może mieć 150
 # rynków"): from the build below, `confidence.legs_requiring_read` takes every

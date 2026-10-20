@@ -304,7 +304,7 @@ prowadzi `/sofa-analyze` (`.claude/commands/sofa-analyze.md`); dzień robi to
 w krokach 5-7 `/sofa-day`. Zbiór do przeczytania
 (`confidence.legs_requiring_read`): niezablokowane nogi **30 meczów o
 najlepszej wartości** (najlepsza niezablokowana noga meczu: pewność x kurs,
-pewność piłki / tenisa ucięta do 1/kurs + `price_gap.GAP`;
+pewność piłki / tenisa i oflagowanej nogi CS2 ucięta do 1/kurs + `price_gap.GAP`;
 `read_order: "value"`), każda noga wydrukowanego buildera i wpisy
 `runs/sofa/<data>/read_requests.json`; na budowie wstępnej dochodzi bufor
 następnych meczów w tej samej kolejności.

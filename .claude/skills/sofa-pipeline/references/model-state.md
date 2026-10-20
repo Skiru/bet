@@ -85,7 +85,8 @@ on the copy, with `fit_tennis_rating.py --tier-start`.
 10-07..10-11; ROI not measurably worse. Measured sports carry no flag:
 hockey's 32 over-price legs -1.2 pp [-15.1, +11.9]; basketball overstated on
 both sides of the price alike (-15 / -18 pp on 52 / 50 legs - a curve
-question); volleyball / CS2 too few (`scripts/sofa/measure_price_gap.py`).
+question); volleyball / CS2 too few (`scripts/sofa/measure_price_gap.py`;
+CS2 measured on settled lines instead and flagged from 10-21, below).
 `T-PRICE-GAP-flag` PASSED 2026-10-19: 10-13..10-18 football 2,111 flagged legs
 / 932 matches -10.0 pp [-12.8, -7.4] (hit 0.696 at mean 1/odds 0.734), rest
 -0.9 pp; ROI alike (-5.1% / -5.5%). Four other red flags measured the same
@@ -224,6 +225,12 @@ unchanged. Installed 10-18 12:04Z by `install_line_curves.py` (inert before the
 switch: 320,733 / 320,733 rows read alike without a line); backup
 `config/backup_2026-10-18_line_curves/`. A class leg (women, season_early)
 unchanged.
+
+### CS2 price_gap flag (2026-10-21 00:00Z; operator's go 2026-10-20)
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `CS2_PRICE_GAP_FROM_UTC` | 10-21 00:00 | `price_gap` (`CONFIDENCE_ABOVE_PRICE`, `GAP` 0.03) on CS2 legs too (`price_gap.LATER_SPORTS`, `epochs.price_gap_sports`); annotation only, but a flagged CS2 leg is capped at 1/odds + `GAP` in `confidence.read_value` (read order). Measured on settled Superbet CS2 lines 09-28..10-19 whose `model_p` the installed curve puts on the coupon's floor and x, line evidence not applied: flagged 238 lines / 77 series -18.6 pp [-27.1, -10.1] vs confidence, -2.1 pp vs de-margined price; rest 234 +2.2 pp; ROI -8.8% [-23.1, +4.9] vs -0.6%. Series families alone (38 flagged) and "model favourite, market underdog" (55) show nothing. `T-CS2-PRICE-GAP-flag` registered | `docs/sofa/history/POMIAR_CS2_PRICE_GAP_2026-10-20.md` |
 
 ### Measured sports - other live facts
 

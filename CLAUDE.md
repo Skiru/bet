@@ -160,7 +160,10 @@ could win is cut by name.
   (`CONFIDENCE_ABOVE_PRICE`) and a sentence on the PDF / HTML. Such legs realise
   about at their price, below their confidence (`T-PRICE-GAP-flag` passed
   10-19: -10.0 pp on 2,111 legs) - the printed number over-promises, the money
-  is alike. The measured sports carry no flag.
+  is alike. CS2 carries it too from `CS2_PRICE_GAP_FROM_UTC` (10-21 00:00Z;
+  settled Superbet lines 09-28..10-19: -18.6 pp [-27.1, -10.1] on 238 lines,
+  `measure_cs2_price_gap.py`, `T-CS2-PRICE-GAP-flag`); hockey / basketball /
+  volleyball carry none.
 - **Bet Builders:** one per fixture, by best `combined_probability`; an internal
   haircut x >= 0.90 decides stakeable and is never printed. **sofa does not
   price a builder**: the PDF shows its legs with Superbet's single prices, the
@@ -177,8 +180,8 @@ could win is cut by name.
   ("3. tercja - Seattle Kraken - liczba goli" / "poniżej 1.5"); a market it does
   not know keeps its old label, nothing guessed. The PDF / HTML name legs this way.
 - **Reads:** analysts read every unlocked leg of the first 30 matches by value
-  (best unlocked leg's confidence x odds, a football / tennis confidence capped
-  at 1/odds + `price_gap.GAP`; `confidence.read_value`), every printed builder
+  (best unlocked leg's confidence x odds, a football / tennis or flagged CS2
+  confidence capped at 1/odds + `price_gap.GAP`; `confidence.read_value`), every printed builder
   leg and `read_requests.json` (`confidence.legs_requiring_read`; audit C3; a
   rebuild moves positions, so re-read with `read_set.py --unread` until C3 is
   clean); the rest prints unread. WATCH or NO_BET in `reads.json` - or the

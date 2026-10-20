@@ -402,6 +402,32 @@
           "note": "contract change and dossier build, 2026-10-20"
         }
       ]
+    },
+    {
+      "id": "T-CS2-PRICE-GAP-flag",
+      "registered_on": "2026-10-20",
+      "status": "REGISTERED",
+      "hypothesis": "A printed CS2 leg whose confidence exceeds 1/offered_odds by more than 0.03 (bet.sofa.price_gap's CONFIDENCE_ABOVE_PRICE flag, epochs.CS2_PRICE_GAP_FROM_UTC) realises below its printed confidence; the other printed CS2 legs do not.",
+      "rule": "Over the coupon's CS2 singles (11_coupon.json legs, sport cs2) graded WIN / LOSS by CS2_SETTLE (runs/sofa/cs2/<d>/settled.json, the ledger's grade), split by the leg's `price_gap` flag. Report realised minus mean confidence in each group and ROI at the printed price.",
+      "population": "CS2 legs of the official coupon of days from 2026-10-21, locked legs included, a leg removed by a read excluded.",
+      "data_window": {
+        "from": "2026-10-21",
+        "to": "2027-01-20"
+      },
+      "required_n": {
+        "legs": 200,
+        "matches_min": 70,
+        "basis": "09-28..10-19 measured on settled Superbet CS2 lines (not printed legs): -18.6 pp [-27.1, -10.1] on 238 lines in 77 series; about the same count of printed flagged legs gives a 95% half-width near 9 pp."
+      },
+      "evaluation": "Realised minus confidence with a 95% interval from resampling series, on printed legs (a reader of 11_coupon.json joined to settled.json; scripts/sofa/measure_cs2_price_gap.py measures the settled lines and is the template).",
+      "stop_criterion": "CONFIRMED (PASSED) when the flagged group's upper 95% bound is below 0 at the required n; FAILED when its lower bound is above -2 pp at the required n (the flag then over-warns and is withdrawn by the operator).",
+      "evidence": [
+        {
+          "source": "docs/sofa/history/POMIAR_CS2_PRICE_GAP_2026-10-20.md",
+          "line": 1,
+          "quote": "238 linii / 77 serii, -18,6 pp [-27,1; -10,1]"
+        }
+      ]
     }
   ]
 }
