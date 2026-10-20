@@ -99,9 +99,12 @@ Kalibracja przy p ≥ 0,70 (test, surowe p): strzały 1,5 - A p 0,792 / traf. 0,
 B 0,772 / 0,798. Krzywa dopasowana na p A zaniża B o 2-6 pp (ostrożnie; refit krzywych na replayu
 z udziałem by to podniósł). Celne: żadna linia nie dochodzi do krzywej ≥ 0,70 w żadnej z gałęzi.
 
-**Faule i odbiory nie są włączone**: na linii 0,5 (najczęstsza linia Superbetu, 2 359 / 985
-rozliczonych 10-12..10-19) bez zysku lub gorzej z przedziałem powyżej zera; m na brzegu siatki
-znaczy "prawie sam prior pozycji". Pliku dla nich nie ma - SHEET ich nie ruszy.
+**Faule włączone do pliku (poprawka 2026-10-21 po ponownym sprawdzeniu sesji głównej)**: na 0,5
+bez zmiany (+0,00021, przedział obejmuje zero), na 1,5 / 2,5 wyraźnie lepiej (−0,0342 [−0,0374;
+−0,0309], −0,0379 [−0,0412; −0,0349]); linie Superbetu (2b) to potwierdzają. m = 80 leży na brzegu
+siatki - "prawie sam prior pozycji x środek fouls_for strony" (priory F 0,092, M 0,089, D 0,081,
+G 0,010, wszyscy 0,085). **Odbiory nie są włączone**: na 0,5 gorzej z przedziałem powyżej zera;
+pliku dla nich nie ma - SHEET ich nie ruszy.
 
 ### 2b. Linie Superbetu 10-12..10-19
 
@@ -123,6 +126,24 @@ Przez zainstalowaną krzywą, strzały, krzywa ≥ 0,70: A n 614, krzywa 0,777, 
 A 176 nóg, traf. 0,665, −32,3 j. (ROI −18%); B 83 nogi, 0,663, −14,8 j. (ROI −18%). **Poprawka
 kalibracji, nie przewaga**: mniej nóg, ten sam zwrot na nogę.
 
+**Faule** (`player_fouls_for`, ten sam skrypt, T = środek wiersza `fouls_for` strony): 6 797 wierszy
+OVER, 6 235 z udziałem, 562 bez wiersza `fouls_for` strony; 1 527 bez pozycji. 6 235 linii / 192
+mecze:
+
+| linia | N | trafienia | p A | p B | 1/kurs | Δ log-loss B − A surowe p [95%] | przez krzywą [95%] |
+|---|---|---|---|---|---|---|---|
+| razem | 6 235 | 0,330 | | | | **−0,02389 [−0,03051; −0,01697]** | +0,00030 [−0,00224; +0,00289] |
+| 0,5 | 2 161 | 0,607 | 0,692 | 0,730 | 0,790 | +0,00058 [−0,00816; +0,01071] | +0,00029 [−0,00431; +0,00518] |
+| 1,5 | 1 999 | 0,279 | 0,365 | 0,375 | 0,459 | −0,03481 [−0,04623; −0,02450] | +0,00227 [−0,00277; +0,00698] |
+| 2,5 | 1 335 | 0,122 | 0,201 | 0,161 | 0,260 | −0,03222 [−0,04169; −0,02255] | −0,00149 [−0,00397; +0,00063] |
+| 3,5 | 585 | 0,031 | 0,132 | 0,073 | 0,157 | −0,05107 [−0,06286; −0,03831] | - |
+
+Surowe p B jest lepsze w puli z przedziałem poniżej zera, 0,5 nie gorsze. Przez zainstalowaną krzywą
+- neutralnie: krzywa faulów już naprawia poziom starego p (pewność A 0,328, B 0,328, trafienia 0,330).
+Krzywa ≥ 0,70: A n 365, krzywa 0,729, traf. 0,726; B n 131, 0,715, 0,733. Z x ≥ 0,90: **A 57 nóg,
+traf. 0,632, −10,7 j.; B 5 nóg, 0,800, +0,3 j.** - B prawie nie drukuje faulów (mało nóg, wynik
+bez znaczenia statystycznego).
+
 ## 3. E2E (kopie dni 10-19 i 10-20, zegar = `created_at_utc` końcowego 08_confidence dnia)
 
 Kopie w scratchu (bez wydruków / kuponu / blokad), DB tylko do odczytu, cache historii piłki skopiowany
@@ -133,25 +154,34 @@ końcowego `08_confidence.json` dnia (10-19 11:12:25Z, 10-20 06:57:47Z).
 | | 10-19 | 10-20 |
 |---|---|---|
 | SHEET HEAD = nowy kod wyłączony (md5 05_sheet.json) | **identyczne** | **identyczne** |
-| wiersze off / on | 34 351 / 34 445 | 50 250 / 50 228 |
-| wiersze zmienione | tylko player_shots_for 1 414, player_shots_on_target_for 734; **0 innych** | 1 792 / 854; **0 innych** |
-| wiersze tylko off / tylko on | 102 / 196 (dalekie linie strzałów / celnych przechodzą przez `OUTSIDE_MODEL_RESOLUTION`) | 182 / 160 (j.w.) |
+| wiersze off / on | 34 351 / 34 489 | 50 250 / 50 234 |
+| wiersze zmienione | tylko player_shots_for 1 414, player_shots_on_target_for 734, player_fouls_for 820; **0 innych** | 1 792 / 854 / 956; **0 innych** |
+| wiersze tylko off / tylko on | 130 / 268 (dalekie linie strzałów / celnych / faulów przechodzą przez `OUTSIDE_MODEL_RESOLUTION`) | 252 / 236 (j.w.) |
 | kolejność wspólnych wierszy | ta sama | ta sama |
 | OVER strzały: udział / stary środek | 589 / 118 | 812 / 84 |
 | OVER celne: udział / stary środek | 275 / 92 | 373 / 54 |
-| marker `player_share_rule` | 24 885 / 24 885 wierszy piłkarskich | 30 281 / 30 281 |
+| OVER faule: udział / stary środek | 419 / 27 | 495 / 21 |
+| marker `player_share_rule` | 24 929 / 24 929 wierszy piłkarskich | 30 287 / 30 287 |
 | śr. Δp strzały OVER 0,5 / 1,5 / 2,5 | +0,055 / +0,020 / −0,005 | +0,007 / −0,018 / −0,034 |
-| singli CONFIDENCE off / on | 1 867 / 1 863 | 2 476 / 2 468 |
-| nogi stracone / nowe / zmiana pewności | 6 / 2 / 0 - wszystkie `player_shots_for` | 8 / 0 / 1 - wszystkie `player_shots_for` |
+| śr. Δp faule OVER 0,5 / 1,5 / 2,5 / 3,5 | +0,041 / +0,033 / −0,015 / −0,052 | +0,022 / −0,006 / −0,055 / −0,070 |
+| singli CONFIDENCE off / on | 1 867 / 1 862 | 2 476 / 2 464 |
+| nogi stracone / nowe / zmiana pewności | 7 / 2 / 0 - 6 `player_shots_for`, 1 `player_fouls_for` | 12 / 0 / 1 - 8 `player_shots_for`, 4 `player_fouls_for` |
 | nogi inne niż zawodnicy stracone / nowe / zmienione | 0 / 0 / 0 | 0 / 0 / 0 |
 | buildery off / on | 34 / 34 | 41 / 41 |
-| rozliczone (10-19) | stracone: W 4 L 2, −1,34 j.; nowe: W 1, +0,26 j. | dzień nierozliczony |
+| rozliczone (10-19) | stracone: W 4 L 3, −2,34 j.; nowe: W 1, +0,26 j. | dzień nierozliczony |
 
-Stracone nogi to głównie OVER 0,5 z pewnością 0,74-0,85 zawodników o krótkiej, wysokiej próbce
-(np. obrońca Florian Lejeune, Lamine Yamal 2,5) - udział ściąga ich ku priorowi pozycji. Nowe: Matheus
-Bidu 0,5 (0,798), Yacine Adli 0,5 (0,742).
+Stracone nogi to głównie OVER 0,5 z pewnością 0,73-0,85 zawodników o krótkiej, wysokiej próbce
+(np. obrońca Florian Lejeune, Lamine Yamal 2,5; faule: Adrian Bajrami, Armando Obispo, Pablo Rosario,
+Evan N'Dicka) - udział ściąga ich ku priorowi pozycji. Nowe: Matheus Bidu 0,5 (0,798), Yacine Adli
+0,5 (0,742). SHEET z kodem HEAD i nowym kodem wyłączonym, puszczone ponownie razem z gałęzią faulów:
+md5 dalej identyczne (`sample_newest_days` zależy od zegara ściennego, więc gałęzie porównuje się
+z tego samego dnia).
 
 ## 4. Ryzyka / otwarte
+
+- Faule: m = 80 na brzegu siatki (większe m może być jeszcze lepsze - nie mierzone); przez
+  zainstalowaną krzywą zmiana jest neutralna (krzywa faulów już poprawia poziom), w praktyce
+  przełącznik prawie wyłącza druk faulów (57 -> 5 nóg 10-12..10-19).
 
 - Krzywe zawodników są dopasowane na p A; B przez nie jest zaniżane o 2-6 pp przy ≥ 0,70 (ostrożnie).
   Refit krzywych na replayu z udziałem wymaga flagi replayu (`calibrate_from_cache` dziś udziału nie

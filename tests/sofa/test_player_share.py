@@ -35,7 +35,8 @@ TABLE = psh.parse_table({"markets": {
     "player_shots_for": {"m": 40.0, "prior_share": {"*": 0.09, "F": 0.16}},
     "player_shots_on_target_for": {
         "m": 40.0, "prior_share": {"*": 0.10},
-        "m_accuracy": 40.0, "prior_accuracy": {"*": 0.38}}}})
+        "m_accuracy": 40.0, "prior_accuracy": {"*": 0.38}},
+    "player_fouls_for": {"m": 80.0, "prior_share": {"*": 0.085}}}})
 STRETCH = pst.parse_table({"markets": {"player_shots_for": {"beta": 0.126}}})
 SHOTS = [3.0, 2.0, 4.0, 1.0, 3.0, 2.0, 5.0, 2.0, 3.0, 2.0]
 SOT = [1.0, 1.0, 2.0, 0.0, 1.0, 0.0, 2.0, 1.0, 1.0, 0.0]
@@ -197,6 +198,39 @@ def test_sot_carries_the_shrunk_accuracy() -> None:
     acc = (sum(SOT) + 40 * 0.38) / (sum(SHOTS) + 40)
     assert _over(on, "player_shots_on_target_for")["centre"] == pytest.approx(
         share * t * acc, abs=1e-3)
+
+
+def test_fouls_are_his_share_of_his_side_s_fouls_for_centre() -> None:
+    fouls = [2.0, 1.0, 0.0, 3.0, 1.0, 2.0, 1.0, 0.0, 2.0, 1.0]
+    team = [11.0, 13.0, 9.0, 14.0, 12.0, 10.0, 12.0, 11.0, 13.0, 10.0]
+    samples = _samples(team=False)
+    players = dict(samples.players)  # type: ignore[attr-defined]
+    players["player_fouls_for|Romarinho"] = players[
+        "player_shots_for|Romarinho"].model_copy(
+        update={"metric": "player_fouls_for", "observations": _obs(fouls)})
+    samples = samples.model_copy(update={  # type: ignore[attr-defined]
+        "players": players,
+        "metrics": {"fouls_for": MetricSample(metric="fouls_for", side_a=_obs(team),
+                                              side_b=_obs(team, 2000), h2h=[])}})
+    offer = FixtureOffer(sofascore_event_id=1, status="PRICED", rungs=[
+        _rung("player_fouls_for", "Romarinho", 0.5, over=1.4),
+        _rung("fouls_for", "Criciúma", 11.5, over=1.9)], unmapped_markets=[])
+
+    def run(table: psh.ShareTable | None) -> list[dict[str, object]]:
+        rows, _ = process_fixture(
+            _fixture(), samples, offer, baselines={}, reliability={},  # type: ignore[arg-type]
+            engine_constants={}, vetoes=[], config=SofaConfig(), stats_only=True,
+            player_share=table)
+        return [sheet_row_json(r) for r in rows]
+
+    off, on = run(None), run(TABLE)
+    t = float(_over(on, "fouls_for")["centre"])  # type: ignore[arg-type]
+    assert _over(on, "fouls_for") == _over(off, "fouls_for")
+    want = (sum(fouls) + 80 * 0.085) / (sum(team) + 80) * t
+    player = _over(on, "player_fouls_for")
+    assert player["centre"] == pytest.approx(want, abs=1e-3)
+    assert player["centre"] != _over(off, "player_fouls_for")["centre"]
+    assert any("fouls_for centre" in str(n) for n in player["notes"])  # type: ignore[attr-defined]
 
 
 def test_no_team_row_or_no_team_sample_keeps_the_old_centre_and_says_so() -> None:

@@ -1283,7 +1283,7 @@ danych `T-PLAYER-SAMPLE-GATES`.
 
 **Udział zawodnika w drużynie (`epochs.FOOTBALL_PLAYER_SHARE_FROM_UTC`,
 WYŁĄCZONE do decyzji sesji głównej; `bet.sofa.player_share`).** Środek
-`player_shots_for` / `player_shots_on_target_for` to dziś średnia jego startów
+`player_shots_for` / `player_shots_on_target_for` / `player_fouls_for` to dziś średnia jego startów
 (5-10 wartości, bez skurczu - `NO_PRIOR`, bo dla rynków zawodnika nie ma
 bazy ligowej) x rozciągnięcie zawodnika. Po włączeniu: środek = jego udział w
 strzałach drużyny w tych samych meczach, skurczony do udziału pozycji
@@ -1306,8 +1306,10 @@ Pomiar (`scripts/sofa/measure_player_share.py`, replay
 każdy przedział poniżej zera; na liniach Superbetu 10-12..10-19 (krzywa
 zainstalowana): strzały −0,0178 [−0,0240; −0,0104], celne −0,0168 [−0,0237;
 −0,0097]. Poprawka kalibracji, nie przewaga: przy x ≥ 0,90 ROI bez zmian.
-Faule / odbiory zmierzone osobno i **nie** włączone (linia 0,5 bez zysku lub
-gorzej). Dowody: `docs/sofa/evidence/football_player_share_2026-10-21.md`.
+Faule (`player_fouls_for`) w pliku z tą samą regułą: T = środek `fouls_for`
+strony, m = 80; historia 0,5 / 1,5 / 2,5 +0,0002 / −0,0342 / −0,0379, linie
+Superbetu −0,0239 [−0,0305; −0,0170] (przez krzywą neutralnie). Odbiory
+**nie** włączone (linia 0,5 gorzej). Dowody: `docs/sofa/evidence/football_player_share_2026-10-21.md`.
 
 **Nazwiska (od 2026-10-12 00:00Z, `epochs.PLAYER_NAME_TOKENS_FROM_UTC`).**
 Superbet pisze wielu zawodników pełnym nazwiskiem rejestrowym („Andrade,

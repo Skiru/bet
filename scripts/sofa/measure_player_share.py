@@ -433,7 +433,8 @@ def main() -> int:
                    help="write the train fit of --config-markets (a staged "
                    "config/sofa_player_share.json)")
     a.add_argument("--config-markets", nargs="+",
-                   default=["player_shots_for", "player_shots_on_target_for"])
+                   default=["player_shots_for", "player_shots_on_target_for",
+                            "player_fouls_for"])
     args = ap.parse_args()
     if args.cmd == "collect":
         from_ts = cfc.day_ts(args.from_day)

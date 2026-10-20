@@ -2311,9 +2311,10 @@ def football_player_stretch(date: str, build_at: datetime | None = None) -> bool
 
 # The footballer share model (bet.sofa.player_share): from this moment the
 # centre of a player market of config/sofa_player_share.json (shots, shots on
-# target) is his shrunk share of his side's volume over his sampled starts x
-# his side's team centre today (the centre SHEET prices the side's shots_for
-# row with: rating, game state, opponent correction), x his shrunk accuracy
+# target, fouls) is his shrunk share of his side's volume over his sampled
+# starts x his side's team centre today (the centre SHEET prices the side's
+# shots_for / fouls_for row with: rating, game state, opponent correction),
+# x his shrunk accuracy
 # for shots on target, in place of the mean of his starts x the player
 # stretch. A player whose side has no team row (Superbet quotes no team
 # shots) keeps the old centre and says so. Measured 2026-10-21 (history
@@ -2330,7 +2331,7 @@ FOOTBALL_PLAYER_SHARE_MARKER = (
 
 
 def football_player_share(date: str, build_at: datetime | None = None) -> bool:
-    """Is a footballer's shots / SOT centre his share of his side's team
+    """Is a footballer's shots / SOT / fouls centre his share of his side's team
     centre (FOOTBALL_PLAYER_SHARE_FROM_UTC)?"""
     if FOOTBALL_PLAYER_SHARE_FROM_UTC is None:
         return False

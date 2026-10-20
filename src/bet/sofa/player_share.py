@@ -13,7 +13,8 @@ the rating blend, game state, the opponent correction), so the player row
 inherits the opponent and the game script. For shots on target the volume
 is his shots and the centre is multiplied by his accuracy shrunk hard to his
 position's (accuracy repeats far less than volume: StatsBomb, striker
-shots/90 R^2 0.435 vs SOT/90 0.234).
+shots/90 R^2 0.435 vs SOT/90 0.234). For fouls the volume is his fouls and
+T his side's fouls_for centre.
 
 Arithmetic only; SHEET reads ``config/sofa_player_share.json`` (the fitted
 m, m_accuracy and the position priors, written by
