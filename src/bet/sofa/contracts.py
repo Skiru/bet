@@ -404,6 +404,14 @@ class SheetRow(BaseModel):
     # row priced while a footballer's shots centres carry the supremacy
     # stretch (bet.sofa.player_stretch); absent when off.
     player_stretch_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_REFEREE: the rule's name on a football row
+    # priced while cards / fouls centres carry the referee term
+    # (bet.sofa.referees); absent when off.
+    referee_rule: str | None = None
+    # ... and on a cards / fouls row under it, what the term read: status
+    # APPLIED (referee_id, n, ratio, multiplier), NO_REFEREE (nobody named
+    # yet - multiplier 1) or NO_REFEREE_RECORD; absent when off.
+    referee_read: dict[str, Any] | None = None
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None

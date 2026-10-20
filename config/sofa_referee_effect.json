@@ -1,0 +1,93 @@
+{
+  "_doc": "Referee term (epochs.FOOTBALL_REFEREE, bet.sofa.referees): a football cards / fouls centre x ratio ** beta, ratio the referee's as-of shrunk ratio (sum r_i + K) / (n + K). INERT while epochs.FOOTBALL_REFEREE_FROM_UTC is None. Written by scripts/sofa/measure_referee_effect.py --write-config.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-10-20T21:49:16+00:00",
+    "db_path": "data/refit_2026-10-17/sofa_replay.db",
+    "labels": 83872,
+    "replay_from": "2024-10-01",
+    "fit_from": "2026-01-01",
+    "test_from": "2026-10-17",
+    "to": "2026-10-16",
+    "centre_rules": {
+      "rated_scope": [
+        "cards_points_for",
+        "corners_1h_for",
+        "corners_2h_for",
+        "offsides_total"
+      ],
+      "rating_weight": "config/sofa_rating_weight.json"
+    },
+    "k_grid": [
+      2.0,
+      5.0,
+      10.0,
+      20.0,
+      40.0,
+      80.0
+    ],
+    "method": "Poisson pseudo-likelihood, log link, offset log centre, covariate log ratio; K on a grid",
+    "centre": "fit_count_stretch.walk one-step-ahead count centre x installed GAME_STATE",
+    "evidence": "docs/sofa/evidence/referee_effect_2026-10-21.md"
+  },
+  "unfitted_constants": [
+    "MIN_LEAGUE_MATCHES"
+  ],
+  "markets": {
+    "cards_points_total": {
+      "family": "cards_points",
+      "beta": 0.594707,
+      "K": 10.0,
+      "n_train_rows": 32094,
+      "n_test_rows": 0
+    },
+    "cards_points_for": {
+      "family": "cards_points",
+      "beta": 0.591914,
+      "K": 10.0,
+      "n_train_rows": 64188,
+      "n_test_rows": 0
+    },
+    "fouls_total": {
+      "family": "fouls",
+      "beta": 0.715647,
+      "K": 10.0,
+      "n_train_rows": 37125,
+      "n_test_rows": 0
+    },
+    "fouls_for": {
+      "family": "fouls",
+      "beta": 0.702837,
+      "K": 10.0,
+      "n_train_rows": 74250,
+      "n_test_rows": 0
+    },
+    "fouls_1h_total": {
+      "family": "fouls",
+      "beta": 0.638808,
+      "K": 10.0,
+      "n_train_rows": 15999,
+      "n_test_rows": 0
+    },
+    "fouls_1h_for": {
+      "family": "fouls",
+      "beta": 0.627262,
+      "K": 10.0,
+      "n_train_rows": 31998,
+      "n_test_rows": 0
+    },
+    "fouls_2h_total": {
+      "family": "fouls",
+      "beta": 0.652639,
+      "K": 5.0,
+      "n_train_rows": 15995,
+      "n_test_rows": 0
+    },
+    "fouls_2h_for": {
+      "family": "fouls",
+      "beta": 0.656407,
+      "K": 5.0,
+      "n_train_rows": 31990,
+      "n_test_rows": 0
+    }
+  }
+}

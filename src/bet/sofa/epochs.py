@@ -2220,6 +2220,36 @@ def football_count_stretch(date: str, build_at: datetime | None = None) -> bool:
             and at >= FOOTBALL_COUNT_STRETCH_FROM_UTC)
 
 
+# The referee term (bet.sofa.referees): from this moment a football cards /
+# fouls centre (the markets of config/sofa_referee_effect.json:
+# cards_points_*, fouls_* and their halves) is multiplied by
+# ratio ** beta, ratio the fixture referee's as-of shrunk ratio of his
+# previous matches in our history (each match's count over its
+# competition's as-of mean, (sum + K) / (n + K)), after GAME_STATE and the
+# count stretch, in SHEET. The referee is the stored label
+# (sofa_event_referee, backfill_referees.py) or the cached /event RESOLVE /
+# FIXTURE_CHECK wrote; none named: multiplier 1, `referee_read.status`
+# NO_REFEREE. Measured 2026-10-21 on the history replay of SHEET's centre
+# (fit < 2026, test 2026): docs/sofa/evidence/referee_effect_2026-10-21.md.
+# It changes p: the football curves are to be refitted on a replay carrying
+# it (not wired into calibrate_from_cache yet - the evidence file says what
+# a refit needs). Rows priced under it carry `referee_rule` (every football
+# row). None: OFF, byte for byte.
+FOOTBALL_REFEREE = "referee_v1"
+FOOTBALL_REFEREE_FROM_UTC: datetime | None = None
+FOOTBALL_REFEREE_MARKER = ("referee_rule", FOOTBALL_REFEREE, "football")
+
+
+def football_referee(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football cards / fouls centre carry the referee term
+    (FOOTBALL_REFEREE_FROM_UTC)?"""
+    if FOOTBALL_REFEREE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_REFEREE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_REFEREE_FROM_UTC)
+
+
 # The player shots stretch (bet.sofa.player_stretch): a footballer's centre
 # is the mean of his starts against every kind of opponent. From this moment
 # the centre of player_shots_for / player_shots_on_target_for with a beta in

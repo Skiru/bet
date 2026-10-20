@@ -17,6 +17,7 @@ from pydantic import RootModel
 from rapidfuzz import fuzz
 
 from bet.sofa import epochs, sheet_config
+from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
@@ -145,6 +146,11 @@ from bet.sofa.rating_weight import RatingWeightTable
 from bet.sofa.rating_weight import blend as rating_blend
 from bet.sofa.rating_weight import load_table as load_rating_weight_table
 from bet.sofa.rating_weight import weight_for as rating_weight_for
+from bet.sofa.referees import (
+    REFEREE_UNFITTED,
+    RefereeEffectTable,
+    RefereeRead,
+)
 from bet.sofa.sample_age import stalest_side_newest_days
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 from bet.sofa.season_phase import (
@@ -1923,6 +1929,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_CUP_STRENGTH_MARKER, epochs.SAMPLE_CUP_STRENGTH_MARKER,
     epochs.FOOTBALL_GOALS_STRETCH_MARKER, epochs.FOOTBALL_COUNT_STRETCH_MARKER,
     epochs.FOOTBALL_PLAYER_STRETCH_MARKER, epochs.TENNIS_ACES_OPPONENT_MARKER,
+    epochs.FOOTBALL_REFEREE_MARKER,
 ))
 
 
@@ -1978,7 +1985,7 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
                                       "incident_rule", "set_market_rule",
                                       "result_1x2_dnb_rule", "result_phase",
                                       "score_market_rule", "set_complement_rule",
-                                      "config_sha"):
+                                      "referee_read", "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
     return out
@@ -2025,6 +2032,8 @@ def process_fixture(
     result_phase: str | None = None,
     score_markets: ResultConfig | None = None,
     aces_opponent_on: bool = False,
+    referee_effect: RefereeEffectTable | None = None,
+    referee_reads: Mapping[str, RefereeRead] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2382,6 +2391,7 @@ def process_fixture(
         # data pins it" (above) - never fitted on probability. A row priced
         # through it says so, like any other constant nobody fitted.
         row_unfitted = list(unfitted)
+        referee_info: dict[str, Any] | None = None
         rated: tuple[float, str] | None = None
         if fixture.sport == "tennis" and ladder_target is not None and not stats_only:
             row_unfitted.append("K_TENNIS_LADDER_CENTRE")
@@ -2457,6 +2467,28 @@ def process_fixture(
                         f"{' (home)' if cs_total else ''}, "
                         f"{count_stretch.describe(rung.market)}; "
                         "epochs.FOOTBALL_COUNT_STRETCH)")
+            # epochs.FOOTBALL_REFEREE: a cards / fouls centre x the fixture
+            # referee's as-of shrunk ratio ** beta (bet.sofa.referees), after
+            # GAME_STATE and the count stretch; no referee named (or none
+            # with a record in the history) leaves the centre as it is and
+            # says so on the row (referee_read.status).
+            if (referee_effect is not None and football is not None
+                    and fixture.sport == "football"):
+                fam = referee_terms.family_of(rung.market)
+                applied = referee_effect.apply(
+                    rung.market,
+                    (referee_reads or {}).get(fam) if fam is not None else None)
+                if applied is not None:
+                    r_mult, referee_info = applied
+                    if referee_info["status"] == "APPLIED":
+                        r_before = centre
+                        centre *= r_mult
+                        row_unfitted.extend(REFEREE_UNFITTED)
+                        extra_notes.append(
+                            f"REFEREE: centre {centre:.2f} = {r_before:.2f} x "
+                            f"{r_mult:.3f} (referee {referee_info['referee_id']}, "
+                            f"{referee_info['n']} matches, ratio "
+                            f"{referee_info['ratio']:.3f}; epochs.FOOTBALL_REFEREE)")
             # epochs.FOOTBALL_GOALS_STRETCH: a goals centre x the supremacy
             # stretch (side: exp(beta x s); total: exp(g1 |s| + g2 s^2), s
             # the home side's), on the same blended centre; a market with
@@ -2962,6 +2994,7 @@ def process_fixture(
                 ),
                 forecast_source=forecast_source,
                 corrected_sample=corrected_sample,
+                referee_read=referee_info,
             )
             rows.append(row)
 
@@ -3123,6 +3156,7 @@ def _main() -> int:
     season_phase_on = (stats_only_epoch(args.date)
                        and epochs.season_phase_enabled(args.date))
     season_index: SeasonPhaseIndex | None = None
+    referee_reads_by_event: dict[int, dict[str, RefereeRead]] = {}
     cup_strength_on = (stats_only_epoch(args.date)
                        and epochs.football_cup_strength(args.date))
     if os.environ.get("SOFA_FOOTBALL_RATING", "1") != "0" and any(
@@ -3141,6 +3175,21 @@ def _main() -> int:
                 or epochs.football_goals_stretch(args.date))):
             season_index = index_from_history(
                 football_history, int(cut.timestamp()))
+        if (stats_only_epoch(args.date)
+                and epochs.football_referee(args.date)):
+            # the fixture's referee (stored label or the cached /event
+            # RESOLVE / FIXTURE_CHECK wrote) and his record strictly before
+            # the day's cut
+            fixture_referees: dict[int, int | None] = {}
+            for fx in fixtures:
+                if fx.sport == "football":
+                    found = referee_terms.referee_for_event(
+                        config.db_path, fx.sofascore_event_id)
+                    fixture_referees[fx.sofascore_event_id] = (
+                        found.referee_id if found is not None else None)
+            referee_reads_by_event = referee_terms.fixture_reads(
+                football_history, referee_terms.load_labels(config.db_path),
+                int(cut.timestamp()), fixture_referees)
         football_book = replay_football(
             football_history,
             int(cut.timestamp()),
@@ -3194,6 +3243,11 @@ def _main() -> int:
     count_stretch_table = (
         load_count_stretch_table()
         if stats_only and epochs.football_count_stretch(args.date) else None)
+    # epochs.FOOTBALL_REFEREE: cards / fouls centres x the referee term (a
+    # missing / malformed config raises, rc 2); the reads need the history.
+    referee_effect_table = (
+        referee_terms.load_effect_table()
+        if stats_only and epochs.football_referee(args.date) else None)
     player_stretch_table = (
         load_player_stretch_table()
         if stats_only and epochs.football_player_stretch(args.date) else None)
@@ -3318,6 +3372,8 @@ def _main() -> int:
                 game_state=game_state_table,
                 goals_stretch=goals_stretch_table,
                 count_stretch=count_stretch_table,
+                referee_effect=referee_effect_table,
+                referee_reads=referee_reads_by_event.get(fixture.sofascore_event_id),
                 player_stretch=player_stretch_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
@@ -3414,6 +3470,7 @@ def _main() -> int:
              count_stretch_table is not None),
             (epochs.FOOTBALL_PLAYER_STRETCH_MARKER,
              player_stretch_table is not None),
+            (epochs.FOOTBALL_REFEREE_MARKER, referee_effect_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
@@ -3487,6 +3544,9 @@ def _main() -> int:
             "player_stretch_rule": (
                 epochs.FOOTBALL_PLAYER_STRETCH
                 if player_stretch_table is not None else "old"),
+            "referee_rule": (
+                epochs.FOOTBALL_REFEREE if referee_effect_table is not None
+                else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),
