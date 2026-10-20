@@ -44,11 +44,15 @@ SHEET_CONFIG_FILES: tuple[str, ...] = (
 # scripts/sofa/fit_count_stretch.py), config/sofa_player_stretch.json
 # (epochs.FOOTBALL_PLAYER_STRETCH, scripts/sofa/fit_player_stretch.py),
 # config/sofa_player_share.json (epochs.FOOTBALL_PLAYER_SHARE,
-# scripts/sofa/measure_player_share.py, staged until the switch).
+# scripts/sofa/measure_player_share.py, staged until the switch),
+# config/sofa_closeness_stretch.json (epochs.FOOTBALL_CLOSENESS_STRETCH,
+# scripts/sofa/fit_closeness_stretch.py), config/sofa_referee_effect.json
+# (epochs.FOOTBALL_REFEREE, scripts/sofa/measure_referee_effect.py).
 SHEET_OPTIONAL_FILES: tuple[str, ...] = (
     "sofa_shot_detail.json", "sofa_goals_stretch.json",
     "sofa_count_stretch.json", "sofa_player_stretch.json",
-    "sofa_player_share.json")
+    "sofa_player_share.json", "sofa_closeness_stretch.json",
+    "sofa_referee_effect.json")
 DIGEST_CHARS = 16
 
 

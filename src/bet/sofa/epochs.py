@@ -2340,6 +2340,39 @@ def football_player_share(date: str, build_at: datetime | None = None) -> bool:
             and at >= FOOTBALL_PLAYER_SHARE_FROM_UTC)
 
 
+# The closeness stretch (bet.sofa.closeness_stretch): GAME_STATE and the
+# count stretch move a count centre with the sign of the expected goal
+# difference; nothing reads how close the match is. From this moment the
+# centre of a market of closeness_stretch.CLOSENESS_MARKETS with
+# coefficients in config/sofa_closeness_stretch.json (cards_points_for /
+# cards_points_total |s| + s^2: bookings peak in a close match; shots_total /
+# shots_1h_total |s|) is multiplied by exp(g1 |s| + g2 s^2), s the home
+# side's expected goal difference, after
+# GAME_STATE, the venue prior and the count stretch, in SHEET and in the
+# cache replay (calibrate_from_cache --closeness-stretch). Measured
+# 2026-10-21 on the history replay of SHEET's live count centre: walk-forward
+# NB log-loss below zero on all four, not worse through the installed curves
+# on two fixed splits (also at >= 0.70);
+# docs/sofa/evidence/football_closeness_stretch_2026-10-21.md. It changes p:
+# a refit should carry --closeness-stretch. Rows priced under it carry
+# `closeness_rule` (every football row), so a rebuild re-runs SHEET on a
+# sheet without it. None: OFF, byte for byte.
+FOOTBALL_CLOSENESS_STRETCH = "closeness_stretch_v1"
+FOOTBALL_CLOSENESS_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_CLOSENESS_STRETCH_MARKER = (
+    "closeness_rule", FOOTBALL_CLOSENESS_STRETCH, "football")
+
+
+def football_closeness_stretch(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football count centre carry the closeness term
+    (FOOTBALL_CLOSENESS_STRETCH_FROM_UTC)?"""
+    if FOOTBALL_CLOSENESS_STRETCH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_CLOSENESS_STRETCH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_CLOSENESS_STRETCH_FROM_UTC)
+
+
 # Football "or" result markets, the underdog's European handicap and the
 # double chance & goals pairs that clear their gate
 # (bet.sofa.football_score_markets): OFFER reads "Mecz lub liczba goli",

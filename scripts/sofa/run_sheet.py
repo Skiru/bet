@@ -22,6 +22,9 @@ from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
+from bet.sofa.closeness_stretch import CLOSENESS_UNFITTED, ClosenessStretchTable
+from bet.sofa.closeness_stretch import load_table as load_closeness_stretch_table
+from bet.sofa.closeness_stretch import supremacy as closeness_supremacy
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
 from bet.sofa.config import SofaConfig, config_dir, config_path
 from bet.sofa.contracts import (
@@ -1960,6 +1963,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_PLAYER_STRETCH_MARKER, epochs.TENNIS_ACES_OPPONENT_MARKER,
     epochs.FOOTBALL_REFEREE_MARKER,
     epochs.FOOTBALL_PLAYER_SHARE_MARKER,
+    epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
 ))
 
 
@@ -2104,6 +2108,7 @@ def process_fixture(
     count_stretch: CountStretchTable | None = None,
     player_stretch: PlayerStretchTable | None = None,
     player_share: psh.ShareTable | None = None,
+    closeness_stretch: ClosenessStretchTable | None = None,
     venue_prior_on: bool = False,
     set_rating_prices: bool = False,
     sample_corrector: SampleCorrector | None = None,
@@ -2588,6 +2593,22 @@ def process_fixture(
                             f"{r_mult:.3f} (referee {referee_info['referee_id']}, "
                             f"{referee_info['n']} matches, ratio "
                             f"{referee_info['ratio']:.3f}; epochs.FOOTBALL_REFEREE)")
+            # epochs.FOOTBALL_CLOSENESS_STRETCH: a count centre x exp(g1 |s|
+            # + g2 s^2), s the home side's (|s|, s^2 even), after GAME_STATE
+            # and the count stretch, blended or sample-only.
+            if closeness_stretch is not None and football is not None:
+                cl_sup = closeness_supremacy(football)
+                cl_mult = closeness_stretch.multiplier(rung.market, cl_sup)
+                if cl_mult is not None and cl_sup is not None:
+                    cl_before = centre
+                    centre *= cl_mult
+                    row_unfitted.extend(CLOSENESS_UNFITTED)
+                    extra_notes.append(
+                        f"CLOSENESS_STRETCH: centre {centre:.2f} = "
+                        f"{cl_before:.2f} x {cl_mult:.3f} (expected goal "
+                        f"difference {cl_sup:+.2f} (home), "
+                        f"{closeness_stretch.describe(rung.market)}; "
+                        "epochs.FOOTBALL_CLOSENESS_STRETCH)")
             # epochs.FOOTBALL_GOALS_STRETCH: a goals centre x the supremacy
             # stretch (side: exp(beta x s); total: exp(g1 |s| + g2 s^2), s
             # the home side's), on the same blended centre; a market with
@@ -3385,6 +3406,12 @@ def _main() -> int:
     player_share_table = (
         psh.load_table()
         if stats_only and epochs.football_player_share(args.date) else None)
+    # epochs.FOOTBALL_CLOSENESS_STRETCH (off: None, the centre byte for byte;
+    # a missing / malformed config raises, rc 2)
+    closeness_stretch_table = (
+        load_closeness_stretch_table()
+        if stats_only and epochs.football_closeness_stretch(args.date)
+        else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
     # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5): the
@@ -3510,6 +3537,7 @@ def _main() -> int:
                 referee_reads=referee_reads_by_event.get(fixture.sofascore_event_id),
                 player_stretch=player_stretch_table,
                 player_share=player_share_table,
+                closeness_stretch=closeness_stretch_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
                 aces_opponent_on=aces_opponent_on,
@@ -3608,6 +3636,8 @@ def _main() -> int:
             (epochs.FOOTBALL_REFEREE_MARKER, referee_effect_table is not None),
             (epochs.FOOTBALL_PLAYER_SHARE_MARKER,
              player_share_table is not None),
+            (epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
+             closeness_stretch_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
@@ -3695,6 +3725,9 @@ def _main() -> int:
             "player_share_rule": (
                 epochs.FOOTBALL_PLAYER_SHARE
                 if player_share_table is not None else "old"),
+            "closeness_rule": (
+                epochs.FOOTBALL_CLOSENESS_STRETCH
+                if closeness_stretch_table is not None else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

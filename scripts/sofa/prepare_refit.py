@@ -109,7 +109,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "rating_weight", "season_phase", "opponent_correction",
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
     "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
-    "tennis_aces_opponent", "tennis_serve_markets",
+    "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
 )
 
 
@@ -577,11 +577,13 @@ def rebuild_cache_rows(
     player_stretch: bool = False,
     tennis_aces_opponent: bool = False,
     tennis_serve_markets: bool = False,
+    closeness_stretch: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
         ("--game-state", game_state), ("--goals-stretch", goals_stretch),
         ("--count-stretch", count_stretch), ("--player-stretch", player_stretch),
+        ("--closeness-stretch", closeness_stretch),
         ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
@@ -610,6 +612,8 @@ def rebuild_cache_rows(
              "fit_count_stretch.py"),
             (player_stretch, "--player-stretch", "sofa_player_stretch.json",
              "fit_player_stretch.py"),
+            (closeness_stretch, "--closeness-stretch",
+             "sofa_closeness_stretch.json", "fit_closeness_stretch.py"),
             (cup_strength, "--cup-strength", "sofa_cup_strength.json",
              "the operator's cup list")):
         if on and not (paths.config_dir / name).exists():
@@ -789,6 +793,8 @@ def rebuild_cache_rows(
         # tennis serve markets replayed (2026-10-17)
         "tennis_aces_opponent": tennis_aces_opponent,
         "tennis_serve_markets": tennis_serve_markets,
+        # epochs.FOOTBALL_CLOSENESS_STRETCH (bet.sofa.closeness_stretch)
+        "closeness_stretch": closeness_stretch,
     }
     for name, on in new_flags.items():
         if on:
@@ -2269,6 +2275,13 @@ def build_parser() -> argparse.ArgumentParser:
         "sofa_player_stretch.json in the refit's config dir)",
     )
     r.add_argument(
+        "--closeness-stretch", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_CLOSENESS_STRETCH "
+        "(calibrate_from_cache --closeness-stretch; needs "
+        "sofa_closeness_stretch.json in the refit's config dir). A refit "
+        "after the switch is on should carry it",
+    )
+    r.add_argument(
         "--rating-weight", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
         "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
@@ -2452,6 +2465,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     player_stretch=args.player_stretch,
                     tennis_aces_opponent=args.tennis_aces_opponent,
                     tennis_serve_markets=args.tennis_serve_markets,
+                    closeness_stretch=args.closeness_stretch,
                 )["exit"]
             )
         if args.command == "fit":

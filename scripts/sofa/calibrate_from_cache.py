@@ -54,8 +54,10 @@ byte for byte): `--football-rating` prices every football marginal row with
 SHEET's live centre - the rating book replayed to each match's UTC day start,
 blended at W_FOOTBALL_RATING - through one hook, `live_centre`, which also
 applies `--rated-scope`, `--venue-prior`, `--game-state`,
-`--count-stretch` (epochs.FOOTBALL_COUNT_STRETCH) and `--goals-stretch`
-(epochs.FOOTBALL_GOALS_STRETCH) as SHEET does; `--player-stretch`
+`--count-stretch` (epochs.FOOTBALL_COUNT_STRETCH), `--closeness-stretch`
+(epochs.FOOTBALL_CLOSENESS_STRETCH; a refit after the switch should carry
+it) and `--goals-stretch` (epochs.FOOTBALL_GOALS_STRETCH) as SHEET does;
+`--player-stretch`
 (epochs.FOOTBALL_PLAYER_STRETCH) multiplies a footballer's shots centre by
 his side's supremacy term, read off a rating book replayed for the player
 targets;
@@ -86,6 +88,9 @@ from typing import Any, NamedTuple
 from bet.sofa import epochs
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.atomic import write_atomic
+from bet.sofa.closeness_stretch import ClosenessStretchTable
+from bet.sofa.closeness_stretch import load_table as load_closeness_stretch_table
+from bet.sofa.closeness_stretch import supremacy as closeness_supremacy
 from bet.sofa.comparability import (
     SAME_COMPETITION_METRICS,
     MatchKind,
@@ -1008,6 +1013,9 @@ class CentreRules:
     # epochs.FOOTBALL_COUNT_STRETCH (--count-stretch): a count centre outside
     # GAME_STATE x the supremacy stretch (bet.sofa.count_stretch)
     count_stretch: CountStretchTable | None = None
+    # epochs.FOOTBALL_CLOSENESS_STRETCH (--closeness-stretch): a count centre
+    # of CLOSENESS_MARKETS x exp(g1 |s| + g2 s^2) (bet.sofa.closeness_stretch)
+    closeness_stretch: ClosenessStretchTable | None = None
     # epochs.FOOTBALL_PLAYER_STRETCH (--player-stretch): a footballer's shots
     # centre x his side's supremacy term (bet.sofa.player_stretch; the
     # player replay, build_player_rows)
@@ -1042,6 +1050,9 @@ class CentreRules:
                               else self.goals_stretch.path or "in-memory"),
             "count_stretch": (None if self.count_stretch is None
                               else self.count_stretch.path or "in-memory"),
+            "closeness_stretch": (
+                None if self.closeness_stretch is None
+                else self.closeness_stretch.path or "in-memory"),
             "player_stretch": (None if self.player_stretch is None
                                else self.player_stretch.path or "in-memory"),
             "rating_weights": (None if self.rating_weights is None
@@ -1174,6 +1185,8 @@ def live_centre(
       3a. --count-stretch: a count centre outside GAME_STATE x exp(beta x
          s [+ beta2 x s^2]) (a side) or exp(g1 |s| + g2 s^2) (a total, s
          the home side's);
+      3a'. --closeness-stretch: a count centre of CLOSENESS_MARKETS x
+         exp(g1 |s| + g2 s^2), s the home side's;
       3b. --goals-stretch: a goals centre x exp(beta x s) (a side) or
          exp(g1 |s| + g2 s^2) (a total, s the home side's), per season
          phase where the table has the phase (``phase``);
@@ -1212,6 +1225,11 @@ def live_centre(
         cs_mult = rules.count_stretch.multiplier(market, cs_sup)
         if cs_mult is not None and cs_sup is not None:
             centre *= cs_mult
+    if rules.closeness_stretch is not None:
+        cl_sup = closeness_supremacy(forecast)
+        cl_mult = rules.closeness_stretch.multiplier(market, cl_sup)
+        if cl_mult is not None and cl_sup is not None:
+            centre *= cl_mult
     if rules.goals_stretch is not None:
         st_sup = stretch_supremacy(forecast, market, side)
         st_mult = rules.goals_stretch.multiplier(market, st_sup, phase)
@@ -2801,6 +2819,16 @@ def main() -> int:
         "in-sample for it",
     )
     parser.add_argument(
+        "--closeness-stretch", nargs="?", const="", default=None,
+        metavar="CONFIG",
+        help="with --football-rating: a count centre of "
+        "closeness_stretch.CLOSENESS_MARKETS x exp(g1 |s| + g2 s^2), s the "
+        "home side's expected goal difference, after GAME_STATE and the count "
+        "stretch (epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC; CONFIG defaults "
+        "to config/sofa_closeness_stretch.json). A refit after the switch is "
+        "on should carry it. Fitted on the same history: in-sample for it",
+    )
+    parser.add_argument(
         "--player-stretch", nargs="?", const="", default=None, metavar="CONFIG",
         help="with --football-rating: a footballer's shots centre "
         "(player_stretch.PLAYER_STRETCH_MARKETS) x exp(beta x s), s his side's "
@@ -2902,6 +2930,7 @@ def main() -> int:
         ("--game-state", args.game_state is not None),
         ("--goals-stretch", args.goals_stretch is not None),
         ("--count-stretch", args.count_stretch is not None),
+        ("--closeness-stretch", args.closeness_stretch is not None),
         ("--player-stretch", args.player_stretch is not None),
         ("--rating-weight", args.rating_weight is not None),
         ("--season-phase", args.season_phase is not None),
@@ -2957,6 +2986,11 @@ def main() -> int:
                 load_count_stretch_table(
                     Path(args.count_stretch) if args.count_stretch else None)
                 if args.count_stretch is not None else None),
+            closeness_stretch=(
+                load_closeness_stretch_table(
+                    Path(args.closeness_stretch)
+                    if args.closeness_stretch else None)
+                if args.closeness_stretch is not None else None),
             player_stretch=(
                 load_player_stretch_table(
                     Path(args.player_stretch) if args.player_stretch else None)

@@ -1,0 +1,61 @@
+{
+  "_doc": "Closeness stretch (epochs.FOOTBALL_CLOSENESS_STRETCH): a football count centre x exp(g1 |s| + g2 s^2), s the home side's expected goal difference, after GAME_STATE / the count stretch. INERT while epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC is None. Written by scripts/sofa/fit_closeness_stretch.py.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-10-20T21:52:02+00:00",
+    "train_from": "2026-01-01",
+    "before": "2026-10-21",
+    "db_path": "/Users/mkoziol/projects/bet/data/sofa.db",
+    "method": "Poisson pseudo-likelihood, log link, offset log of the live centre (walk centre x GAME_STATE x count stretch)",
+    "centre": "one-step-ahead count centre: last 10 values, B15 opponent correction, market K shrink to the league rate, rating blend where rated",
+    "centre_rules": {
+      "rated_scope": [
+        "cards_points_for",
+        "corners_1h_for",
+        "corners_2h_for",
+        "offsides_total"
+      ],
+      "rating_weight": "config/sofa_rating_weight.json"
+    },
+    "offset_terms": {
+      "game_state": "config/sofa_game_state.json",
+      "count_stretch": "config/sofa_count_stretch.json"
+    },
+    "cup_strength": "config/sofa_cup_strength.json",
+    "terms": {
+      "cards_points_for": 2,
+      "cards_points_total": 2,
+      "shots_total": 1,
+      "shots_1h_total": 1
+    },
+    "evidence": "docs/sofa/evidence/football_closeness_stretch_2026-10-21.md"
+  },
+  "unfitted_constants": [
+    "MAX_SUPREMACY"
+  ],
+  "markets": {
+    "cards_points_for": {
+      "g1": 0.017019,
+      "g2": -0.052625,
+      "n_rows": 65212,
+      "n_matches": 32606
+    },
+    "cards_points_total": {
+      "g1": 0.017664,
+      "g2": -0.049219,
+      "n_rows": 32606,
+      "n_matches": 32606
+    },
+    "shots_total": {
+      "g1": 0.014714,
+      "g2": 0.0,
+      "n_rows": 33234,
+      "n_matches": 33234
+    },
+    "shots_1h_total": {
+      "g1": 0.016324,
+      "g2": 0.0,
+      "n_rows": 16720,
+      "n_matches": 16720
+    }
+  }
+}

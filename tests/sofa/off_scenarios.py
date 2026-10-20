@@ -46,6 +46,8 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 "count_stretch_rule", "player_stretch_rule",
                 # footballer share of the team centre (FOOTBALL_PLAYER_SHARE)
                 "player_share_rule",
+                # football closeness term (FOOTBALL_CLOSENESS_STRETCH)
+                "closeness_rule",
                 # tennis aces x the returner (TENNIS_ACES_OPPONENT)
                 "tennis_aces_rule",
                 # football cards / fouls x the referee (FOOTBALL_REFEREE)

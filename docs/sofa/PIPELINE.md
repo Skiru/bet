@@ -1017,6 +1017,22 @@ NB centrum przy wyniku, nie linie Superbetu):
   dopasowane, niezainstalowane - na liniach Superbetu zawyżają o 20-30 pp
   (`docs/sofa/evidence/tennis_aces_opponent_2026-10-17.md`, sprawdzian
   `T-TENNIS-SERVE-MARKET-LINE`).
+- `epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC` (**wyłączony**, `None`;
+  2026-10-21): człon "wyrównania meczu" - centrum `cards_points_for` /
+  `cards_points_total` x exp(g1 |s| + g2 s^2) (kartki najwięcej w meczu
+  wyrównanym, mniej gdy jest rozstrzygnięty), `shots_total` /
+  `shots_1h_total` x exp(g1 |s|) (więcej strzałów w meczu nierównym); s =
+  oczekiwana różnica goli gospodarza (|s| i s^2 są takie same dla obu stron),
+  po GAME_STATE, venue prior i rozciągnięciu liczników (beta GAME_STATE
+  zostaje, g dopasowane na nią). `bet.sofa.closeness_stretch`,
+  `config/sofa_closeness_stretch.json` (`scripts/sofa/fit_closeness_stretch.py`),
+  notatka `CLOSENESS_STRETCH`, znacznik `closeness_rule`, replay
+  `calibrate_from_cache.py --closeness-stretch` (`prepare_refit.py
+  rebuild-cache-rows --closeness-stretch`; refit po włączeniu powinien go
+  nieść). Łączniki kartek (`both_over_` / `handicap_` / `most_cards_points`)
+  czytają centra stron, więc też się ruszają. Faule, sumy rożnych, dyspersja
+  zależna od |s| - zmierzone, nie włączone
+  (`docs/sofa/evidence/football_closeness_stretch_2026-10-21.md`).
 - Bety B1 dopasowano ponownie na żywym centrum (z B2 i wagą B14),
   zainstalowane 2026-10-13 20:57Z (df5323ea): `corners_for` 0,129 -> 0,0986,
   `shots_for` 0,0974 -> 0,0506, `cards_points_for` -0,0845 -> -0,0664,
