@@ -91,7 +91,8 @@ import sys
 import time
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -321,14 +322,95 @@ def card_half_keys() -> tuple[str, ...]:
     return tuple(keys)
 
 
+@dataclass(frozen=True)
+class CardTerms:
+    """epochs.FOOTBALL_CARD_HALVES_TERMS for the replay: (event, side) -> the
+    full-match live card-points centre (fit_count_stretch.walk x GAME_STATE
+    x referee x closeness), event -> the referee multiplier (for a side with
+    no live centre: rating x GAME_STATE x referee x closeness)."""
+
+    live: Mapping[tuple[int, str], float]
+    referee: Mapping[int, float]
+    game_state: Any
+    closeness: Any
+
+
+def card_terms(history: Sequence[fr.FootballResult], start: int, end: int,
+               source_db: str, rules_day: str) -> CardTerms:
+    """The replay's CardTerms from the installed tables, the referee labels
+    of ``source_db`` (read-only) and SHEET's centre rules of ``rules_day``."""
+    from bet.sofa import referees
+    from bet.sofa.closeness_stretch import load_table as load_closeness
+    from bet.sofa.cup_strength import load as load_cup_strength
+    from bet.sofa.game_state import load_table as load_game_state
+    from scripts.sofa.fit_count_stretch import walk
+    from scripts.sofa.measure_game_state import k_table, rules_as_of
+    market = "cards_points_for"
+    gs = load_game_state()
+    cl = load_closeness()
+    eff = referees.load_effect_table()
+    labels = referees.load_labels(source_db)
+    rbook = referees.RefereeBook(referees.FAMILY_METRIC)
+    ref_mult: dict[int, float] = {}
+    pending: list[fr.FootballResult] = []
+    current = -1
+    for res in history:
+        if res.ts >= end:
+            break
+        if res.ts != current:
+            for done in pending:
+                rbook.update(labels.get(done.event_id), done.competition_id,
+                             {fam: float(sum(done.values[m]))
+                              for fam, m in referees.FAMILY_METRIC.items()
+                              if m in done.values})
+            pending = []
+            current = res.ts
+        pending.append(res)
+        if res.ts >= start:
+            fam = referees.family_of(market) or ""
+            read = rbook.read(labels.get(res.event_id), -1, fam)
+            applied = eff.apply(market, read)
+            ref_mult[res.event_id] = applied[0] if applied is not None else 1.0
+    at = datetime.fromisoformat(rules_day).replace(tzinfo=UTC) + timedelta(days=1)
+    rules = rules_as_of(rules_day, at)
+    live: dict[tuple[int, str], float] = {}
+    for row in walk(history, start, end, (market,), k_table((market,)), rules,
+                    cup_strength=load_cup_strength(None)):
+        s_home = row.supremacy if row.side == "side_a" else -row.supremacy
+        mult = ((gs.multiplier(market, row.supremacy) or 1.0)
+                * ref_mult.get(row.event_id, 1.0)
+                * (cl.multiplier(market, s_home) or 1.0))
+        live[(row.event_id, row.side)] = row.centre * mult
+    return CardTerms(live, ref_mult, gs, cl)
+
+
+def _term_centres(terms: CardTerms, fc: fr.FootballForecast, event_id: int,
+                  rated: tuple[float, float]) -> tuple[float, float]:
+    """SHEET's card_half_rows centres under FOOTBALL_CARD_HALVES_TERMS."""
+    market = "cards_points_for"
+    s_home = fc.supremacy("side_a")
+    cl = terms.closeness.multiplier(market, s_home) or 1.0
+    out = []
+    for side, c in zip(("side_a", "side_b"), rated, strict=True):
+        live = terms.live.get((event_id, side))
+        if live is None:
+            gs = terms.game_state.multiplier(market, fc.supremacy(side)) or 1.0
+            live = c * gs * terms.referee.get(event_id, 1.0) * cl
+        out.append(live)
+    return out[0], out[1]
+
+
 def replay_card_halves(history: Sequence[fr.FootballResult],
-                       records: Mapping[int, Any], start: int, end: int
+                       records: Mapping[int, Any], start: int, end: int,
+                       terms: CardTerms | None = None,
                        ) -> list[dict[str, Any]]:
     """One row per (match, selection) SHEET would price for the card halves
     and the side / half events, as of the match's UTC day (the book and the
     rates hold only earlier days' matches). `records` are
     measure_football_card_halves.CardRec (halves = metrics.
-    calculate_cards_points_by_half; events = read_incidents, full feed)."""
+    calculate_cards_points_by_half; events = read_incidents, full feed).
+    ``terms`` (epochs.FOOTBALL_CARD_HALVES_TERMS): the halves on the live
+    full-match centres, the side events with their game state."""
     book = fr.RatingBook(shared_league_link=True)
     book.unit_strength_from_parent = False
     apply_cup_strength(book, dc_fit.CUP)
@@ -385,6 +467,8 @@ def replay_card_halves(history: Sequence[fr.FootballResult],
                     most_m = fch.MOST_1H if half == 1 else fch.MOST_2H
                     hcp_m = fch.HCP_1H if half == 1 else fch.HCP_2H
                     cen = (ca[0], cb[0])
+                    if terms is not None:
+                        cen = _term_centres(terms, fc, res.event_id, cen)
                     for line in fch.CARD_TOTAL_LINES[half]:
                         p = fch.card_half_p(tot_m, None, "", line, cen, share)
                         if p is None:
@@ -427,11 +511,19 @@ def replay_card_halves(history: Sequence[fr.FootballResult],
                        (fch.RED_1H_FOR, side, rec.reds_1h[i]),
                        (fch.PEN_FOR, side, rec.pens[i]),
                        (fch.PEN_1H_FOR, side, rec.pens_1h[i])]
+        sup: dict[str, float | None] = {}
+        if terms is not None:
+            efc = fr.FootballForecast(book, comp, res.home_id, res.away_id,
+                                      rated_scope=fr.RATED_SCOPE_MARKETS)
+            sup = {s: efc.supremacy(s) for s in ("side_a", "side_b")}
         for market, subject, value in events:
             for line in fch.EVENT_LINES.get(market, fch.DEFAULT_EVENT_LINES):
                 p = rates.p_over(market, comp, line)
                 if p is None:
                     continue
+                if terms is not None and subject in sup:
+                    p_term = fch.side_event_p(market, line, p, sup[subject])
+                    p = p if p_term is None else p_term
                 y = int(value > line)
                 add(market, "OVER", subject, line, p, y, res, klass, "")
                 add(market, "UNDER", subject, line, 1 - p, 1 - y, res, klass, "")
@@ -755,7 +847,15 @@ def run_card_halves(args: argparse.Namespace, source: str) -> dict[str, Any]:
     note(f"football history {len(history)} matches")
     final_before = day_ts(args.final_before)
     records = load_card_records(str(db), history)
-    rows = replay_card_halves(history, records, day_ts(args.card_from), final_before)
+    terms = None
+    if args.card_terms:
+        rules_day = iso_day(final_before - DAY)
+        terms = card_terms(history, day_ts(args.card_from), final_before,
+                           source, rules_day)
+        note(f"card terms: {len(terms.live)} live side centres, "
+             f"centre rules of {rules_day}")
+    rows = replay_card_halves(history, records, day_ts(args.card_from),
+                              final_before, terms)
     note(f"card-halves rows {len(rows)}")
     keys = card_half_keys()
     built = build(rows, keys, (CLASS_WOMEN,), day_ts(args.train_before),
@@ -780,6 +880,14 @@ def run_card_halves(args: argparse.Namespace, source: str) -> dict[str, Any]:
                       "rated scope) x CardHalfRates.half_share (SHARE_M "
                       f"{fch.SHARE_M:g}), r {fch.HALF_NB_R}; events "
                       "CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)"),
+        "card_terms": (None if terms is None else
+                       "epochs.FOOTBALL_CARD_HALVES_TERMS: half centres = the "
+                       "full-match live cards_points_for centre "
+                       "(fit_count_stretch.walk x GAME_STATE x referee x "
+                       "closeness; no walk row: rating x the same terms) x "
+                       "the share; penalties_for / penalties_1h_for / "
+                       "red_cards_for 0.5 x the side's game state "
+                       "(football_card_halves.side_event_p)"),
         "excluded_from_curves": "card rows of an UNLINKED fixture "
                                 "(CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
         "unfitted_constants": list(fch.UNFITTED_CONSTANTS),
@@ -888,6 +996,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--tennis-from", default="2026-04-01")
     ap.add_argument("--card-from", default="2025-08-01",
                     help="card_halves: the first day a row is written")
+    ap.add_argument("--card-terms", action="store_true",
+                    help="card_halves: replay epochs.FOOTBALL_CARD_HALVES_TERMS "
+                    "(live full-match centres, side events' game state)")
     ap.add_argument("--regate", action="store_true",
                     help="no copy, no replay: re-gate the saved rows.csv")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,

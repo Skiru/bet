@@ -2551,3 +2551,35 @@ def football_card_halves(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_CARD_HALVES_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_CARD_HALVES_FROM_UTC)
+
+
+# --- Football card halves: the full-match terms and the side events' game
+# state (2026-10-21, audit 2026-10-21) ---------------------------------------
+# With FOOTBALL_CARD_HALVES on: a side's half card-points centre is its
+# full-match LIVE cards_points_for centre (the sheet's: sample / rating blend
+# x GAME_STATE x the referee term x the closeness stretch) x the half share,
+# instead of the raw rating centre x the share (no cards_points_for row for
+# the side: the rating centre x the same three terms); penalties_for /
+# penalties_1h_for / red_cards_for at 0.5 scale the competition's intensity
+# -ln(1 - p) by exp(beta x the side's expected goal difference)
+# (football_card_halves.SIDE_EVENT_SUP_BETA). Measured walk forward, out of
+# sample (fit 2025-08-01..02-28, test 03-01..10-13, match bootstrap): card
+# halves side log-loss -0.0053 [-0.0065, -0.0039] (1H) / -0.0087 [-0.0105,
+# -0.0067] (2H); penalties_for -0.0037 [-0.0043, -0.0031], penalties_1h_for
+# -0.0018 [-0.0022, -0.0013], red_cards_for -0.0007 [-0.0010, -0.0003].
+# Rows marked `incident_rule` = FOOTBALL_CARD_HALVES_TERMS. Changes p (and
+# what prints), so from a day's 00:00Z; off (None): card_halves_v1 as it was.
+# Evidence: docs/sofa/evidence/football_card_halves_terms_2026-10-21.md.
+FOOTBALL_CARD_HALVES_TERMS = "card_halves_terms_v1"
+FOOTBALL_CARD_HALVES_TERMS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, tzinfo=UTC)
+
+
+def football_card_halves_terms(date: str, build_at: datetime | None = None) -> bool:
+    """Do the card halves read the full-match live centre and the side
+    events their game state (FOOTBALL_CARD_HALVES_TERMS_FROM_UTC)?"""
+    if FOOTBALL_CARD_HALVES_TERMS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_CARD_HALVES_TERMS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_CARD_HALVES_TERMS_FROM_UTC)

@@ -575,6 +575,25 @@ historii dopasowane i **przygotowane, nie zainstalowane**
 SAMPLES, SHEET i SETTLE są bajt w bajt jak przed zmianą
 (`tests/sofa/test_football_card_halves.py`).
 
+**Połówki kartek na centrum całego meczu, karne / czerwone strony z
+przewagą drużyny – `FOOTBALL_CARD_HALVES_TERMS_FROM_UTC`** (znacznik
+`card_halves_terms_v1` w `incident_rule`; od 2026-10-21 00:00Z, przed budową
+dnia – dzień niemieszany). Centrum strony w połowie = centrum **na żywo**
+jej wiersza `cards_points_for` całego meczu (próbka / rating × GAME_STATE ×
+sędzia × bliskość – to samo, co SHEET drukuje dla całego meczu) × udział
+połowy; brak takiego wiersza (Superbet nie wystawił linii drużyny) = centrum
+ratingu × te same trzy człony (`card_half_term_mults`). `penalties_for`,
+`penalties_1h_for` i `red_cards_for` na 0,5: intensywność ligi
+−ln(1 − p) × exp(β · oczekiwana różnica bramek strony), β 0,276 / 0,308 /
+−0,172 (`football_card_halves.SIDE_EVENT_SUP_BETA`); `red_cards_1h_for` i
+sumy 1. połowy zostają przy stawce ligi (żaden człon nie był lepszy z
+przedziałem poza zerem). Pomiar (walk forward, dopasowanie 2025-08..02,
+test 03-01..10-13, bootstrap po meczach):
+`docs/sofa/evidence/football_card_halves_terms_2026-10-21.md`,
+`scripts/sofa/measure_football_side_terms.py`. Replay krzywych:
+`fit_incident_set_curves.py --group card_halves --card-terms`. Przy `None`
+połówki jak `card_halves_v1` (`tests/sofa/test_football_card_halves_terms.py`).
+
 **Krzywe nowych rynków (zainstalowane 2026-10-15 00:17Z).** Zgoda operatora
 2026-10-14 („zbudować krzywe dla tych wszystkich rynków”); przed budową
 10-15, więc dzień nie jest mieszany. `scripts/sofa/install_new_market_curves.py

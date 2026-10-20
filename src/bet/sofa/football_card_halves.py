@@ -56,6 +56,7 @@ from typing import Any
 
 from bet.sofa.contracts import GapReason
 from bet.sofa.football_incidents import _fold, read_incidents
+from bet.sofa.game_state import clamp_supremacy
 from bet.sofa.market_mapper import DERIVED_DRAW_SUBJECT
 from bet.sofa.metrics import calculate_cards_points_by_half
 
@@ -518,3 +519,31 @@ def card_halves_note(market: str, subject: str, p: float, detail: str) -> str:
         "history curve where one is installed, else its own Superbet lines "
         "(epochs.FOOTBALL_CARD_HALVES)"
     )
+
+
+# --- epochs.FOOTBALL_CARD_HALVES_TERMS: the side events' game state ---------
+# p = 1 - exp(-lambda_L x exp(beta x s)), lambda_L = -ln(1 - p_L) the
+# competition's as-of intensity of the 0.5 selection, s the side's expected
+# goal difference (FootballForecast.supremacy, clamped at
+# game_state.MAX_SUPREMACY). beta by Poisson pseudo-likelihood on the event
+# counts of 2025-08-01..2026-02-28, offset log lambda_L
+# (scripts/sofa/measure_football_side_terms.py); scored out of sample on
+# 03-01..10-13 (match bootstrap): penalties_for -0.0037 [-0.0043, -0.0031],
+# penalties_1h_for -0.0018 [-0.0022, -0.0013], red_cards_for -0.0007
+# [-0.0010, -0.0003]. red_cards_1h_for and the first-half totals: no term
+# measured better with an interval excluding zero - they keep the flat rate.
+SIDE_EVENT_SUP_BETA: Mapping[str, float] = {
+    PEN_FOR: 0.2760, PEN_1H_FOR: 0.3077, RED_FOR: -0.1717}
+SIDE_EVENT_LINE = 0.5
+
+
+def side_event_p(market: str, line: float, p_flat: float,
+                 supremacy: float | None) -> float | None:
+    """The 0.5 selection's OVER p with the side's game state, or None (not a
+    market / line of the term, or no supremacy): the caller keeps p_flat."""
+    beta = SIDE_EVENT_SUP_BETA.get(market)
+    if (beta is None or line != SIDE_EVENT_LINE or supremacy is None
+            or not 0.0 < p_flat < 1.0):
+        return None
+    lam = -math.log(1.0 - p_flat) * math.exp(beta * clamp_supremacy(supremacy))
+    return 1.0 - math.exp(-lam)

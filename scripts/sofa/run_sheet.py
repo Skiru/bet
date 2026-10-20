@@ -105,6 +105,7 @@ from bet.sofa.football_card_halves import (
     CardHalfRates,
     card_half_p,
     card_halves_note,
+    side_event_p,
 )
 from bet.sofa.football_card_halves import (
     load_rates as load_card_half_rates,
@@ -1760,6 +1761,42 @@ def incident_rows(
     return rows, skipped
 
 
+def card_half_term_mults(
+    football: FootballForecast | None,
+    game_state: GameStateTable | None,
+    referee_effect: RefereeEffectTable | None,
+    referee_reads: Mapping[str, RefereeRead] | None,
+    closeness_stretch: ClosenessStretchTable | None,
+) -> dict[str, tuple[float, str]]:
+    """epochs.FOOTBALL_CARD_HALVES_TERMS: side -> (the multiplier the sheet
+    puts on a full-match cards_points_for centre - GAME_STATE x referee x
+    closeness, each 1.0 when its table is off or it reads nothing - and its
+    note), for a side whose full-match row has no live centre."""
+    market = "cards_points_for"
+    out: dict[str, tuple[float, str]] = {}
+    ref_mult, ref_why = 1.0, "referee off"
+    if referee_effect is not None:
+        applied = referee_effect.apply(
+            market, (referee_reads or {}).get(referee_terms.family_of(market) or ""))
+        if applied is not None:
+            ref_mult = applied[0]
+            ref_why = f"referee {applied[1].get('status')} x{ref_mult:.3f}"
+    cl_mult, cl_why = 1.0, "closeness off"
+    if closeness_stretch is not None and football is not None:
+        m = closeness_stretch.multiplier(market, closeness_supremacy(football))
+        if m is not None:
+            cl_mult, cl_why = m, f"closeness x{m:.3f}"
+    for side in ("side_a", "side_b"):
+        gs_mult, gs_why = 1.0, "game state off"
+        if game_state is not None and football is not None:
+            m = game_state.multiplier(market, football.supremacy(side))
+            if m is not None:
+                gs_mult, gs_why = m, f"game state x{m:.3f}"
+        out[side] = (gs_mult * ref_mult * cl_mult,
+                     f"no full-match row: {gs_why}, {ref_why}, {cl_why}")
+    return out
+
+
 def card_half_rows(
     fixture: Fixture,
     rung: PricedRung,
@@ -1767,6 +1804,8 @@ def card_half_rows(
     rates: CardHalfRates,
     market_ps: dict[tuple[str, str, float, str], float],
     stats_only: bool,
+    live_centres: Mapping[str, float] | None = None,
+    term_mults: Mapping[str, tuple[float, str]] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """epochs.FOOTBALL_CARD_HALVES: the rows of one football card-half,
     side / half red-card or penalty rung (bet.sofa.football_card_halves) -
@@ -1777,8 +1816,17 @@ def card_half_rows(
     UNDER; most / handicap OVER only, one selection each). No centre for a
     side, no row; UNLINKED keeps its row with CROSS_LEAGUE_UNLINKED like
     every rated football row. Events (OVER and UNDER): the competition's
-    as-of full-feed rate shrunk to the gender's, on the measured lines."""
-    marker = {"incident_rule": epochs.FOOTBALL_CARD_HALVES}
+    as-of full-feed rate shrunk to the gender's, on the measured lines.
+
+    epochs.FOOTBALL_CARD_HALVES_TERMS (``term_mults`` not None): a side's
+    centre is its full-match live cards_points_for centre
+    (``live_centres``, the sheet's own row centre), else its rating centre
+    x ``term_mults`` (GAME_STATE x referee x closeness, with their notes);
+    penalties_for / penalties_1h_for / red_cards_for at 0.5 scale the
+    league intensity by the side's game state (side_event_p)."""
+    terms_on = term_mults is not None
+    marker = {"incident_rule": (epochs.FOOTBALL_CARD_HALVES_TERMS if terms_on
+                                else epochs.FOOTBALL_CARD_HALVES)}
     unfitted = "UNFITTED_CONSTANTS: " + ", ".join(CARD_HALF_UNFITTED)
     sided = rung.market not in CARD_HALF_TOTAL_MARKETS
     side = determine_side(rung.subject, fixture) if sided else None
@@ -1794,6 +1842,17 @@ def card_half_rows(
                          f"{rung.market} line {rung.line:g}: not a measured line "
                          "or no gender rate behind it")]
         n_comp = rates.n_comp(rung.market, fixture.competition_id, rung.line)
+        event_detail = (f"the competition's as-of rate ({n_comp} full-feed "
+                        "matches) shrunk toward the gender's")
+        if terms_on and side is not None:
+            ev_sup = football.supremacy(side) if football is not None else None
+            p_term = side_event_p(rung.market, rung.line, p_over, ev_sup)
+            if p_term is not None and ev_sup is not None:
+                event_detail += (
+                    f", {p_over:.4f} -> {p_term:.4f} by the side's expected "
+                    f"goal difference {ev_sup:+.2f} "
+                    "(epochs.FOOTBALL_CARD_HALVES_TERMS)")
+                p_over = p_term
         for direction in _BOTH_DIRECTIONS:
             p = p_over if direction == "OVER" else 1.0 - p_over
             if outside_model_resolution(p):
@@ -1801,10 +1860,8 @@ def card_half_rows(
                                 f"p={p:.4g} for {direction} is outside "
                                 f"[{P_FLOOR}, {P_CEILING}]"))
                 continue
-            notes = [card_halves_note(
-                rung.market, rung.subject, p,
-                f"the competition's as-of rate ({n_comp} full-feed matches) "
-                "shrunk toward the gender's"), unfitted]
+            notes = [card_halves_note(rung.market, rung.subject, p,
+                                      event_detail), unfitted]
             rows.append(_model_only_row(fixture, rung, direction, p, notes,
                                         market_ps, stats_only, "league_rate",
                                         marker))
@@ -1820,16 +1877,37 @@ def card_half_rows(
     if share is None:
         return [], [(rung, GapReason.NOT_RATED,
                      "no as-of card-points half share behind the gender")]
+    centres = (home[0], away[0])
+    detail = (f"NB card points (half {half}, share {share:.3f}) on the rating "
+              f"centres home {home[0]:.3f} / away {away[0]:.3f}")
+    if term_mults is not None:
+        # epochs.FOOTBALL_CARD_HALVES_TERMS: the full-match live centre
+        parts = []
+        live_pair = []
+        for s_key, rated_c, label in (("side_a", home[0], "home"),
+                                      ("side_b", away[0], "away")):
+            live_c = (live_centres or {}).get(s_key)
+            if live_c is not None:
+                live_pair.append(live_c)
+                parts.append(f"{label} {live_c:.3f} (its full-match "
+                             "cards_points_for row's centre)")
+            else:
+                mult, why = term_mults.get(s_key, (1.0, "no term"))
+                live_pair.append(rated_c * mult)
+                parts.append(f"{label} {rated_c * mult:.3f} = rating "
+                             f"{rated_c:.3f} x {mult:.3f} ({why})")
+        centres = (live_pair[0], live_pair[1])
+        detail = (f"NB card points (half {half}, share {share:.3f}) on the "
+                  f"full-match live centres {'; '.join(parts)} "
+                  "(epochs.FOOTBALL_CARD_HALVES_TERMS)")
     p_sel = card_half_p(rung.market, side, rung.subject, rung.line,
-                        (home[0], away[0]), share)
+                        centres, share)
     if p_sel is None:
         return [], [(rung, GapReason.NOT_RATED,
                      f"{rung.market} {rung.subject!r} line {rung.line:g}: "
                      "not a measured line or subject")]
     directions: tuple[Literal["OVER", "UNDER"], ...] = (
         _BOTH_DIRECTIONS if rung.market in CARD_HALF_COUNT_MARKETS else ("OVER",))
-    detail = (f"NB card points (half {half}, share {share:.3f}) on the rating "
-              f"centres home {home[0]:.3f} / away {away[0]:.3f}")
     for direction in directions:
         p = p_sel if direction == "OVER" else 1.0 - p_sel
         if outside_model_resolution(p):
@@ -2234,6 +2312,7 @@ def process_fixture(
     set_markets_on: bool = False,
     sheet_margins_on: bool = False,
     card_half_rates: CardHalfRates | None = None,
+    card_half_terms_on: bool = False,
     season_phase: SeasonPhaseTable | None = None,
     season_phase_label: str | None = None,
     rating_weights: RatingWeightTable | None = None,
@@ -2319,6 +2398,9 @@ def process_fixture(
     # in the offer's order after the loop); off, the loop is as it was.
     share_on = player_share is not None and fixture.sport == "football"
     team_centres: dict[tuple[str, str], float] = {}
+    # epochs.FOOTBALL_CARD_HALVES_TERMS (empty while off)
+    deferred_card_halves: list[PricedRung] = []
+    live_card_centres: dict[str, float] = {}
     loop_rungs = (sorted(offer.rungs, key=lambda r: is_player_metric(r.market))
                   if share_on else offer.rungs)
 
@@ -2373,6 +2455,12 @@ def process_fixture(
             # epochs.FOOTBALL_CARD_HALVES (None while off - OFFER maps no
             # such rung)
             if (card_half_rates is not None and fixture.sport == "football"
+                    and rung.market in CARD_HALF_MARKETS
+                    and card_half_terms_on):
+                # epochs.FOOTBALL_CARD_HALVES_TERMS: priced after the loop,
+                # on the full-match cards_points_for rows' live centres
+                deferred_card_halves.append(rung)
+            elif (card_half_rates is not None and fixture.sport == "football"
                     and rung.market in CARD_HALF_MARKETS):
                 c_rows, c_skipped = card_half_rows(
                     fixture, rung, football, card_half_rates, market_ps,
@@ -2815,6 +2903,13 @@ def process_fixture(
             t_side = determine_side(rung.subject, fixture)
             if t_side in ("side_a", "side_b"):
                 team_centres.setdefault((rung.market, t_side), centre)
+        # epochs.FOOTBALL_CARD_HALVES_TERMS: the side's full-match live
+        # card-points centre, for its card-half rows (priced after the loop)
+        if (card_half_terms_on and fixture.sport == "football" and rung.subject
+                and rung.market == "cards_points_for"):
+            c_side = determine_side(rung.subject, fixture)
+            if c_side in ("side_a", "side_b"):
+                live_card_centres.setdefault(c_side, centre)
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -3265,7 +3360,17 @@ def process_fixture(
             )
             rows.append(row)
 
-    if share_on:
+    if deferred_card_halves and card_half_rates is not None:
+        mults = card_half_term_mults(football, game_state, referee_effect,
+                                     referee_reads, closeness_stretch)
+        for rung in deferred_card_halves:
+            c_rows, c_skipped = card_half_rows(
+                fixture, rung, football, card_half_rates, market_ps,
+                stats_only, live_card_centres, mults)
+            rows.extend(c_rows)
+            skipped.extend(c_skipped)
+
+    if share_on or deferred_card_halves:
         # back in the offer's order (a stable sort: OVER before UNDER)
         order: dict[tuple[str, str, float], int] = {}
         for i, r in enumerate(offer.rungs):
@@ -3600,6 +3705,10 @@ def _main() -> int:
         if (stats_only and football_history is not None
             and epochs.football_card_halves(args.date))
         else None)
+    # epochs.FOOTBALL_CARD_HALVES_TERMS: the halves on the full-match live
+    # centre, the side events with their game state (off: card_halves_v1)
+    card_half_terms_on = (card_half_rates is not None
+                          and epochs.football_card_halves_terms(args.date))
     # epochs.TENNIS_SET_MARKETS: the tennis set winner and exact sets score
     set_markets_on = stats_only and epochs.tennis_set_markets(args.date)
     # Audit 2026-10-13 C1 / B14 (None = byte for byte; a missing / malformed
@@ -3684,6 +3793,7 @@ def _main() -> int:
                 result_config=result_config,
                 incident_pricing=incident_pricing,
                 card_half_rates=card_half_rates,
+                card_half_terms_on=card_half_terms_on,
                 set_markets_on=set_markets_on,
                 season_phase=(season_phase_table if season_index is not None
                               else None),
