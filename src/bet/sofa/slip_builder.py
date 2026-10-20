@@ -62,13 +62,13 @@ TIER_NAMES = {
 
 # Defaults (tolerances, not fitted constants): the measured bands end at
 # 2.00 (above it the coupon holds few legs), a leg starting within
-# START_MARGIN cannot be placed in time, and the search rounds each log price
-# down to STEP.
+# START_MARGIN cannot be placed in time, and the search files log prices in
+# STEP buckets.
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
 START_MARGIN = datetime.timedelta(minutes=10)
-STEP = 0.002
+STEP = 0.0001
 
 # Hit minus 1/odds the tiers realised walk-forward (families chosen on the
 # days before each day; measure_selection_walk_forward.py --from 2026-10-12
@@ -235,7 +235,11 @@ def candidates(
     refused: dict[str, int] = defaultdict(int)
     seen: set[tuple[Any, ...]] = set()
     for s in singles:
+        if s.get("sofascore_event_id") is None:
+            refused["brak id meczu"] += 1
+            continue
         ident = (
+            s.get("sofascore_event_id"),
             s.get("group_key"),
             s.get("market"),
             s.get("subject"),
@@ -283,25 +287,29 @@ def candidates(
     return out, dict(refused)
 
 
-_State = tuple[float, tuple[Leg, ...]]
+# (log chance, exact log price, legs)
+_State = tuple[float, float, tuple[Leg, ...]]
 
 
 def best_slip(
     legs: Sequence[Leg], target: float, max_legs: int = MAX_LEGS
 ) -> Slip | None:
     """The slip of at most `max_legs` legs, one per match, whose price product
-    reaches `target` with the highest measured chance - exact over every leg
-    given (a multiple-choice knapsack). Each leg's log price is rounded down
-    to `STEP`, so a slip found always reaches the target; one that reaches it
-    by less than k x `STEP` in log may be missed. A state (legs, log price
-    reached) keeps only the best log chance, and a state no better than one
-    that already reached more price is dropped (Pareto)."""
-    need = max(1, math.ceil(math.log(target) / STEP - 1e-9))
+    reaches `target` with the highest measured chance, over every leg given (a
+    multiple-choice knapsack). A state carries its exact log price and is
+    filed under that price's `STEP` bucket; a bucket keeps the best log chance
+    (on a tie the higher price), and a state no better than one in a higher
+    bucket is dropped (Pareto - every later leg only adds price and loses
+    chance). Buckets above the target's collapse into one. The only slips it
+    can miss are those beaten inside the target's own bucket (a `STEP`-wide
+    band of log price just at the target)."""
+    log_target = math.log(target)
+    cap = math.floor(log_target / STEP) + 1
     by_match: dict[str, list[Leg]] = defaultdict(list)
     for x in legs:
         by_match[x.match_key].append(x)
     empty: tuple[Leg, ...] = ()
-    dp: list[dict[int, _State]] = [{0: (0.0, empty)}]
+    dp: list[dict[int, _State]] = [{0: (0.0, 0.0, empty)}]
     dp += [{} for _ in range(max_legs)]
     for key in sorted(by_match):
         options = _pareto_legs(by_match[key])
@@ -309,18 +317,22 @@ def best_slip(
             if not dp[k]:
                 continue
             nxt = dp[k + 1]
-            for b, (score, chosen) in dp[k].items():
+            for score, price, chosen in dp[k].values():
                 for x in options:
-                    nb = min(need, b + int(math.log(x.odds) / STEP))
-                    cand = (score + math.log(x.chance), chosen + (x,))
-                    if nb not in nxt or cand[0] > nxt[nb][0]:
-                        nxt[nb] = cand
+                    p = price + math.log(x.odds)
+                    cand = (score + math.log(x.chance), p, chosen + (x,))
+                    b = min(cap, math.floor(p / STEP))
+                    cur = nxt.get(b)
+                    if cur is None or (cand[0], cand[1]) > (cur[0], cur[1]):
+                        nxt[b] = cand
             dp[k + 1] = _pareto_states(nxt)
     best: tuple[float, int, tuple[Leg, ...]] | None = None
     for k in range(1, max_legs + 1):
-        hit = dp[k].get(need)
-        if hit is not None and (best is None or (hit[0], -k) > (best[0], -best[1])):
-            best = (hit[0], k, hit[1])
+        for score, price, chosen in dp[k].values():
+            if price < log_target - 1e-12:
+                continue
+            if best is None or (score, -k) > (best[0], -best[1]):
+                best = (score, k, chosen)
     if best is None:
         return None
     return Slip(sorted(best[2], key=lambda x: str(x.leg.get("kickoff_utc"))))
@@ -338,9 +350,7 @@ def _pareto_legs(options: Sequence[Leg]) -> list[Leg]:
     return out
 
 
-def _pareto_states(
-    states: dict[int, _State],
-) -> dict[int, _State]:
+def _pareto_states(states: dict[int, _State]) -> dict[int, _State]:
     out: dict[int, _State] = {}
     best = -math.inf
     for b in sorted(states, reverse=True):
@@ -443,9 +453,13 @@ def render(
             "z nóg rodzin na plusie.**"
         )
     elif n_ok == 0:
+        reach = (
+            f" (najwyżej ~{result.reachable:.2f} w jednym kuponie)"
+            if result.reachable > 1.0
+            else " (w oknie nie ma ani jednej takiej nogi)"
+        )
         lines.append(
-            f"**Dziś żadnego kuponu na ~{target:g} z nóg rodzin na plusie** "
-            f"(najwyżej ~{result.reachable:.2f} w jednym kuponie)."
+            f"**Dziś żadnego kuponu na ~{target:g} z nóg rodzin na plusie**{reach}."
         )
     else:
         lines.append(

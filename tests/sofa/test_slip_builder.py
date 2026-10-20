@@ -250,7 +250,7 @@ def test_search_is_exact_against_brute_force() -> None:
     import random
 
     rnd = random.Random(5)
-    for _ in range(30):
+    for _ in range(300):
         legs = [
             sb.Leg(
                 _leg(m, 1.0, 0.0),
@@ -272,11 +272,8 @@ def test_search_is_exact_against_brute_force() -> None:
             for combo in itertools.combinations(legs, k):
                 if len({x.match_key for x in combo}) < k:
                     continue
-                # the search's grid: a combo within k x STEP of the target may be missed
-                if (
-                    sum(math.log(x.odds) for x in combo)
-                    < math.log(target) + k * sb.STEP
-                ):
+                # the only miss allowed: a combo inside the target's own STEP band
+                if sum(math.log(x.odds) for x in combo) < math.log(target) + sb.STEP:
                     continue
                 score = sum(math.log(x.chance) for x in combo)
                 best = score if best is None else max(best, score)
@@ -342,3 +339,54 @@ def test_reserve_slips_and_the_slip_read_set(tmp_path: Path) -> None:
     assert rows[0]["superbet_market"] == "Liczba rzutów rożnych"
     text = sb.render(res, day="2026-10-20", target=2.2, record=rec, now=NOW)
     assert "Nieczytane nogi w kuponach: 2" in text and "Zapas do czytania" in text
+
+
+def test_a_slip_exactly_at_the_target_is_found() -> None:
+    legs = [sb.Leg(_leg(i, 2.0, 0.5), 2.0, 0.45, "t", sb.TIER_REST) for i in (1, 2)]
+    got = sb.best_slip(legs, 4.0)
+    assert got is not None and got.price_product == pytest.approx(4.0)
+
+
+def test_window_parsing_midnight_and_the_next_day() -> None:
+    utc = datetime.UTC
+    lo, hi = build_slip.window("2026-10-20", "20", "24") or (NOW, NOW)
+    assert (lo, hi) == (
+        datetime.datetime(2026, 10, 20, 18, 0, tzinfo=utc),
+        datetime.datetime(2026, 10, 20, 22, 0, tzinfo=utc),
+    )
+    lo, hi = build_slip.window("2026-10-20", "22:00", "2:00") or (NOW, NOW)
+    assert hi == datetime.datetime(2026, 10, 21, 0, 0, tzinfo=utc)
+    late = datetime.datetime(2026, 10, 20, 23, 30, tzinfo=utc)  # 01:30 local, 10-21
+    lo, hi = build_slip.window("2026-10-20", "2", "4", late) or (NOW, NOW)
+    assert lo == datetime.datetime(2026, 10, 21, 0, 0, tzinfo=utc)
+    for bad in ("25", "9:61", "x"):
+        with pytest.raises(ValueError):
+            build_slip.window("2026-10-20", bad, "12")
+
+
+def test_script_refuses_bad_arguments_and_a_missing_family_record(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    day = "2026-10-20"
+    base = ["--date", day, "--target", "2", "--runs-dir", str(tmp_path)]
+    for extra in (
+        ["--reserve", "-1"],
+        ["--min-odds", "2", "--max-odds", "1.5"],
+        ["--start-from", "25", "--start-to", "12"],
+    ):
+        with pytest.raises(SystemExit) as exc:
+            build_slip.main(base + extra)
+        assert exc.value.code == 2
+    run = tmp_path / day
+    run.mkdir()
+    (run / "11_coupon.json").write_text(json.dumps({"singles": []}), encoding="utf-8")
+    assert build_slip.main(base) == 2
+    assert "build_family_record.py" in capsys.readouterr().err
+
+
+def test_a_leg_without_a_fixture_id_is_counted_not_fatal() -> None:
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    bare = dict(_leg(1, 1.5, 0.7))
+    del bare["sofascore_event_id"]
+    pool, refused = sb.candidates([bare, _leg(2, 1.5, 0.7)], rec, NOW)
+    assert len(pool) == 1 and refused == {"brak id meczu": 1}

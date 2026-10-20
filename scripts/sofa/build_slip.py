@@ -50,26 +50,45 @@ from scripts.sofa.read_set import FIELDS  # noqa: E402
 LOCAL = ZoneInfo("Europe/Warsaw")
 
 
+def parse_hhmm(raw: str) -> tuple[int, int]:
+    """'11', '11:30', '9:05' or '24' / '24:00' (the next midnight) -> (h, m)."""
+    hh, _, mm = raw.strip().partition(":")
+    h, m = int(hh), int(mm or 0)
+    if not (0 <= h <= 23 and 0 <= m <= 59) and (h, m) != (24, 0):
+        raise ValueError(f"not a time of day: {raw!r}")
+    return h, m
+
+
 def window(
-    day: str, start_from: str | None, start_to: str | None
+    day: str,
+    start_from: str | None,
+    start_to: str | None,
+    now: datetime.datetime | None = None,
 ) -> tuple[datetime.datetime, datetime.datetime] | None:
-    """The kickoff window [from, to) of `day` in local time, as UTC."""
+    """The kickoff window [from, to) in local time (Europe/Warsaw), as UTC.
+    The hours are read on `day`'s local date; an end at or before the start
+    crosses midnight (22-02 ends on the next day); a window whose end is
+    already past `now` is the same hours of the next local day (a request
+    after midnight local, while the coupon of the UTC date still runs)."""
     if start_from is None and start_to is None:
         return None
-    d = datetime.date.fromisoformat(day)
+    base = datetime.date.fromisoformat(day)
 
-    def at(hhmm: str) -> datetime.datetime:
-        t = datetime.time.fromisoformat(hhmm)
-        return datetime.datetime.combine(d, t, LOCAL).astimezone(datetime.UTC)
+    def at(hhmm: str, d: datetime.date) -> datetime.datetime:
+        h, m = parse_hhmm(hhmm)
+        extra = datetime.timedelta(days=1) if h == 24 else datetime.timedelta()
+        local = datetime.datetime.combine(d, datetime.time(h % 24, m), LOCAL)
+        return (local + extra).astimezone(datetime.UTC)
 
-    lo = (
-        at(start_from)
-        if start_from
-        else datetime.datetime.min.replace(tzinfo=datetime.UTC)
-    )
-    hi = (
-        at(start_to) if start_to else datetime.datetime.max.replace(tzinfo=datetime.UTC)
-    )
+    lo_open = datetime.datetime.min.replace(tzinfo=datetime.UTC)
+    hi_open = datetime.datetime.max.replace(tzinfo=datetime.UTC)
+    for d in (base, base + datetime.timedelta(days=1)):
+        lo = at(start_from, d) if start_from else lo_open
+        hi = at(start_to, d) if start_to else hi_open
+        if start_from and start_to and hi <= lo:
+            hi = at(start_to, d + datetime.timedelta(days=1))
+        if now is None or hi > now or not start_to:
+            return lo, hi
     return lo, hi
 
 
@@ -113,8 +132,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--md-out", default=None)
     args = ap.parse_args(argv)
-    if args.target <= 1.0 or args.slips < 1 or args.max_legs < 1:
-        ap.error("--target > 1, --slips >= 1, --max-legs >= 1")
+    if args.target <= 1.0 or args.slips < 1 or args.max_legs < 1 or args.reserve < 0:
+        ap.error("--target > 1, --slips >= 1, --max-legs >= 1, --reserve >= 0")
+    if not 1.0 < args.min_odds <= args.max_odds:
+        ap.error("1 < --min-odds <= --max-odds")
+    now = utc_now()
+    try:
+        span = window(args.date, args.start_from, args.start_to, now)
+    except ValueError as exc:
+        ap.error(f"--start-from / --start-to: {exc}")
 
     run = Path(args.runs_dir) / args.date
     path = coupon_artifact(run)
@@ -125,10 +151,12 @@ def main(argv: list[str] | None = None) -> int:
     record = fr.load(run, args.date)
     if record is None:
         print(
-            f"WARN: no usable {fr.FILE} for {args.date} - no leg has a measured chance",
+            f"FAILED: no usable {fr.FILE} for {args.date} - no leg has a measured "
+            "chance; build it: scripts/sofa/build_family_record.py --date "
+            f"{args.date}",
             file=sys.stderr,
         )
-    now = utc_now()
+        return 2
     result = sb.build(
         coupon.get("singles") or [],
         record,
@@ -139,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_rest=args.allow_rest,
         min_odds=args.min_odds,
         max_odds=args.max_odds,
-        window=window(args.date, args.start_from, args.start_to),
+        window=span,
         reads=load_reads(run / "reads.json"),
         vetoes=load_vetoes(run / "vetoes.json"),
         reserve=args.reserve,

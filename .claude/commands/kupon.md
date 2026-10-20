@@ -13,11 +13,14 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 
 - **Window** (required): `H-H`, `H:MM-H:MM` or `H-H:MM`, local time
   (Europe/Warsaw) -> `--start-from HH:MM --start-to HH:MM` (`11-13` is
-  `11:00`-`13:00`, the end exclusive). Missing: ask for the hours, nothing else.
+  `11:00`-`13:00`, the end exclusive; a bad hour exits 2 - ask again). Missing:
+  ask for the hours, nothing else.
 - **Target**: `~X`, `na X` or a bare decimal (e.g. `4`, `~5.5`) -> `--target X`;
   default **4**.
 - **Slips**: `x2` / `2 kupony` -> `--slips 2`; default 1.
-- **Date**: today in Europe/Warsaw (`TZ=Europe/Warsaw date +%F`). No
+- **Date**: the UTC date (`date -u +%F`) - a day's coupon holds kickoffs up
+  to 23:59Z (01:59 local), and the script moves a window that has already
+  ended to the next local day (`22-2` crosses midnight; `24` is midnight). No
   `runs/sofa/<date>/11_coupon.json` -> say "brak kuponu dnia - najpierw
   /sofa-day" and stop.
 
