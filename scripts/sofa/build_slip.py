@@ -9,10 +9,18 @@ requested slips the day supports. No slip price, no stake.
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
         --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--allow-rest] \\
         [--min-odds 1.10] [--max-odds 2.00] [--start-from 10:00 --start-to 12:00] \\
-        [--md-out f]
+        [--reserve 1] [--read-set-dir runs/sofa/<d>/read_set_slip] [--md-out f]
 
 --start-from / --start-to: kickoff window in the operator's local time
 (Europe/Warsaw), [from, to).
+
+Analysts' reads: a leg a veto or a WATCH / NO_BET read refuses (vetoes.json,
+reads.json, or the reads the coupon carries) never enters a slip, so after
+merge_reads.py a re-run takes the next best leg. --read-set-dir writes the
+unread legs of the slips and of the --reserve slips (the next disjoint ones,
+the buffer a refusal falls back on) as read_set_slip_<sport>.json in
+read_set.py's compact form, for one analyst per sport; stale files of an
+earlier call are removed.
 
 Exit 0: every requested slip is supported; 1: fewer (the answer says so);
 2: no 11_coupon.json.
@@ -36,6 +44,8 @@ from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
+from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
+from scripts.sofa.read_set import FIELDS  # noqa: E402
 
 LOCAL = ZoneInfo("Europe/Warsaw")
 
@@ -63,6 +73,26 @@ def window(
     return lo, hi
 
 
+def write_read_set(out_dir: Path, result: sb.Result) -> dict[str, int]:
+    """read_set_slip_<sport>.json of the unread slip and reserve legs."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for stale in out_dir.glob("read_set_slip_*.json"):
+        stale.unlink()
+    by_sport: dict[str, list[dict[str, object]]] = {}
+    for why, slips in (("slip", result.slips), ("slip_reserve", result.reserve)):
+        for x in sb.unread_legs(slips):
+            leg = x.leg
+            compact = {k: leg[k] for k in FIELDS if leg.get(k) is not None}
+            sport = str(leg.get("sport") or "football")
+            compact.update(sport=sport, in_set=why)
+            by_sport.setdefault(sport, []).append(compact)
+    for sport, legs in by_sport.items():
+        (out_dir / f"read_set_slip_{sport}.json").write_text(
+            json.dumps(legs, indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+    return {sport: len(legs) for sport, legs in by_sport.items()}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--date", required=True)
@@ -78,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--start-from", default=None, help="HH:MM local (Europe/Warsaw)")
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
+    ap.add_argument("--reserve", type=int, default=0)
+    ap.add_argument("--read-set-dir", default=None)
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--md-out", default=None)
     args = ap.parse_args(argv)
@@ -108,11 +140,22 @@ def main(argv: list[str] | None = None) -> int:
         min_odds=args.min_odds,
         max_odds=args.max_odds,
         window=window(args.date, args.start_from, args.start_to),
+        reads=load_reads(run / "reads.json"),
+        vetoes=load_vetoes(run / "vetoes.json"),
+        reserve=args.reserve,
     )
     text = sb.render(result, day=args.date, target=args.target, record=record, now=now)
     if args.md_out:
         Path(args.md_out).write_text(text, encoding="utf-8")
     print(text)
+    if args.read_set_dir:
+        out_dir = Path(args.read_set_dir)
+        written = write_read_set(out_dir, result)
+        for sport, n in sorted(written.items()):
+            path = out_dir / f"read_set_slip_{sport}.json"
+            print(f"do przeczytania: {sport} {sb.legs_pl(n)} -> {path}")
+        if not written:
+            print("do przeczytania: nic - każda noga ma KEEP analityka")
     return 0 if result.supported >= args.slips else 1
 
 

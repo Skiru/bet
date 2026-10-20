@@ -463,33 +463,39 @@ zachowanie.
 
 ### Kupon z czatu na kurs docelowy (poza pipeline'em)
 
-Gdy operator prosi o kupon AKO „na ~5” (albo kilka rozłącznych), skład robi
-skrypt, nie ręka — tylko z nóg `11_coupon.json`, bez sieci, bez stawki i bez
-ceny kuponu:
+Gdy operator prosi o kupon AKO „na ~4” (także w oknie godzin, np. 10:00–12:00,
+albo kilka rozłącznych), skład robi skrypt, nie ręka — tylko z nóg
+`11_coupon.json`, bez sieci, bez stawki i bez ceny kuponu — a każdą nogę
+czyta analityk:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 5 [--slips 2] [--max-legs 5] [--allow-rest]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 4 \
+    --start-from 10:00 --start-to 12:00 --allow-rest --reserve 1 \
+    --read-set-dir runs/sofa/<data>/read_set_slip
 ```
 
-- **Mniej nóg, nie krótszy kurs.** Każda noga traci podobnie w każdym
-  przedziale kursu (10-13..10-19: 1.10–1.30 ROI −5,1% na 22 663 nogach,
-  1.30–1.70 −4,2% na 5 544, różnica +0,9 pp [−1,0; +2,8]), więc kupon płaci
-  marżę raz na nogę. Skrypt maksymalizuje zmierzoną szansę przy iloczynie
-  kursów ≥ cel — to samo wybiera najmniej nóg.
+- **Wszystkie rynki** (`--allow-rest`, decyzja operatora 2026-10-20). Pierwsza
+  linia i tak mówi najpierw „nie”: ile kuponów dzień daje z rodzin na plusie;
+  kupon z reszty rynków jest oznaczony „poza poparciem”.
+- **Algorytm**: dokładny problem plecakowy z wyborem (jedna noga z meczu) —
+  maksymalna zmierzona szansa kuponu przy iloczynie kursów ≥ cel; to samo
+  wybiera najmniej nóg, bo każda noga traci podobnie w każdym przedziale kursu
+  (10-13..10-19: 1.10–1.30 ROI −5,1%, 1.30–1.70 −4,2%, różnica +0,9 pp
+  [−1,0; +2,8]). Logarytm kursu zaokrąglany w dół do 0,002 — znaleziony
+  kupon zawsze sięga celu. Sprawdzone pełnym przeglądem na losowych danych.
 - **Szansa nogi** = min(pewność, cena przy `price_gap`, 1/kurs + luka
   rodziny z `family_record.json`); rodzina na plusie czyta lukę swojej
-  selekcji z walk-forward (`TIER_SHORTFALL`, −0,8 / −1,6 pp), nigdy nadwyżkę.
-  Szansa kuponu nie jest więc nigdy wyższa niż jego cena.
-- **Najpierw „nie”**: pierwsza linia mówi, ile z proszonych kuponów dzień daje
-  z nóg rodzin na plusie („dzień cienki — masz 1 z 2”, „dziś żadnego”, z
-  najwyższym osiągalnym iloczynem). Reszta kuponu wchodzi tylko z
-  `--allow-rest` i jest oznaczona „poza poparciem”.
-- Jedna noga z meczu (dwie nogi jednego meczu to Bet Builder — kurs z ekranu).
-  Nogi rozpoczęte lub startujące w 10 min odpadają; kursy 1.10–2.00. Kolumna
-  „czytana” pokazuje werdykt analityka — nieczytaną nogę można dodać do
-  `read_requests.json` („dodatkowo”) i przeczytać `/sofa-analyze`.
-- Przewaga selekcji rodzin jest **niepotwierdzona** (T-FAMILY-SELECTION;
-  `docs/sofa/evidence/selection_walk_forward_2026-10-20.md`).
+  selekcji z walk-forward (−0,8 / −1,6 pp), nigdy nadwyżkę.
+- **Czytanie**: skrypt zapisuje nieczytane nogi kuponu i kuponu zapasowego
+  (`--reserve 1`) do `read_set_slip_<sport>.json`; analityk danego sportu
+  czyta plik, raport idzie przez `merge_reads.py`. Noga z WATCH / NO_BET /
+  wetem wypada, a ponowne uruchomienie liczy kupon od nowa z następną
+  najlepszą nogą — i ją też daje do czytania. Koniec, gdy każda noga ma KEEP
+  (najwyżej 3 rundy; nieczytana noga jest tak nazwana). Werdykty trafiają do
+  `reads.json`, więc następna przebudowa zastosuje je też do kuponu.
+- Okno powinno zaczynać się ≥ 30 min później — nogi startujące w trakcie
+  czytania wypadają. Przewaga selekcji rodzin jest **niepotwierdzona**
+  (T-FAMILY-SELECTION; `docs/sofa/evidence/selection_walk_forward_2026-10-20.md`).
 
 ---
 

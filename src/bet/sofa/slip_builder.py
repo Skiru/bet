@@ -43,6 +43,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from bet.sofa import family_record as fr
+from bet.sofa.veto import read_refusal, veto_matches
+
+# A leg's analyst read (reads.json / vetoes.json, matched like a veto; or
+# the reads the coupon carries): KEEP, unread, or refused - a refused leg
+# never enters a slip, so the next search takes the next best leg.
+READ_KEEP = "KEEP"
+READ_NONE = "nie"
 
 TIER_SELECTION = 1  # x >= 1 and family on the plus (the HTML view's button)
 TIER_FAMILY_PLUS = 2  # family on the plus
@@ -79,6 +86,7 @@ class Leg:
     chance: float
     chance_source: str
     tier: int
+    read: str = READ_NONE
 
     @property
     def match_key(self) -> str:
@@ -116,6 +124,7 @@ class Result:
     candidates: dict[int, int]
     refused: dict[str, int] = field(default_factory=dict)
     reachable: float = 1.0  # the highest price product the supported legs reach
+    reserve: list[Slip] = field(default_factory=list)
 
 
 def shortfalls(
@@ -164,6 +173,39 @@ def measured_chance(
     return max(min(chance, 0.999), 1e-6), source
 
 
+def _row_key(leg: Mapping[str, Any]) -> dict[str, Any]:
+    line = leg.get("line")
+    period = leg.get("period")
+    return {
+        "sofascore_event_id": int(leg["sofascore_event_id"]),
+        "market": str(leg["market"]),
+        "subject": str(leg.get("subject") or ""),
+        "line": None if line is None else float(line),
+        "direction": str(leg["direction"]),
+        "period": None if period is None else int(period),
+    }
+
+
+def read_status(
+    leg: Mapping[str, Any], reads: Sequence[Any] = (), vetoes: Sequence[Any] = ()
+) -> str | None:
+    """READ_KEEP when an analyst read covers the leg, READ_NONE when none,
+    None when a veto or a WATCH / NO_BET read refuses it (from the day's files
+    or carried on the leg) - the same rules the rebuild applies."""
+    key = _row_key(leg)
+    covering = [r for r in reads if veto_matches(r, **key)]
+    if any(veto_matches(v, **key) for v in vetoes) or read_refusal(covering):
+        return None
+    carried = [r for r in leg.get("reads") or [] if isinstance(r, Mapping)]
+    if {str(r.get("verdict")) for r in carried} & {"WATCH", "NO_BET"}:
+        return None
+    if any(r.author == "analyst" for r in covering) or any(
+        r.get("author") == "analyst" for r in carried
+    ):
+        return READ_KEEP
+    return READ_NONE
+
+
 def tier(leg: Mapping[str, Any], plus: frozenset[str]) -> int:
     if fr.selected(leg, plus):
         return TIER_SELECTION
@@ -181,6 +223,8 @@ def candidates(
     max_odds: float = MAX_LEG_ODDS,
     exclude_matches: Iterable[str] = (),
     window: tuple[datetime.datetime, datetime.datetime] | None = None,
+    reads: Sequence[Any] = (),
+    vetoes: Sequence[Any] = (),
 ) -> tuple[list[Leg], dict[str, int]]:
     fam, sport = shortfalls(record)
     plus = frozenset(
@@ -228,7 +272,11 @@ def candidates(
         if mc is None:
             refused["brak pomiaru rodziny / sportu"] += 1
             continue
-        leg = Leg(s, float(odds), mc[0], mc[1], t)
+        read = read_status(s, reads, vetoes)
+        if read is None:
+            refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
+            continue
+        leg = Leg(s, float(odds), mc[0], mc[1], t, read)
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -314,32 +362,42 @@ def build(
     window: tuple[datetime.datetime, datetime.datetime] | None = None,
     min_odds: float = MIN_LEG_ODDS,
     max_odds: float = MAX_LEG_ODDS,
+    reads: Sequence[Any] = (),
+    vetoes: Sequence[Any] = (),
+    reserve: int = 0,
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice). Supported slips use only
     legs of families on the plus; with `allow_rest` the shortfall is filled
-    from the rest of the coupon, each such slip marked unsupported."""
+    from the rest of the coupon, each such slip marked unsupported. `reserve`
+    more disjoint slips on the same terms are the analysts' buffer: their legs
+    replace a slip leg a read refuses, so one read round covers them."""
     pool, refused = candidates(
-        singles, record, now, min_odds=min_odds, max_odds=max_odds, window=window
+        singles,
+        record,
+        now,
+        min_odds=min_odds,
+        max_odds=max_odds,
+        window=window,
+        reads=reads,
+        vetoes=vetoes,
     )
     counts: dict[int, int] = defaultdict(int)
     for x in pool:
         counts[x.tier] += 1
     used: set[str] = set()
     out: list[Slip] = []
-    supported = 0
     for allowed in (
         (TIER_SELECTION, TIER_FAMILY_PLUS),
         (TIER_SELECTION, TIER_FAMILY_PLUS, TIER_REST),
     ):
         if allowed[-1] == TIER_REST and not allow_rest:
             break
-        while len(out) < slips:
+        while len(out) < slips + reserve:
             legs = [x for x in pool if x.tier in allowed and x.match_key not in used]
             s = best_slip(legs, target, max_legs)
             if s is None:
                 break
             out.append(s)
-            supported += s.supported
             used.update(x.match_key for x in s.legs)
     best_per_match: dict[str, float] = {}
     for x in pool:
@@ -348,7 +406,14 @@ def build(
                 best_per_match.get(x.match_key, 1.0), x.odds
             )
     reachable = math.prod(sorted(best_per_match.values(), reverse=True)[:max_legs])
-    return Result(out, slips, supported, dict(counts), refused, reachable)
+    supported = sum(s.supported for s in out[:slips])
+    return Result(
+        out[:slips], slips, supported, dict(counts), refused, reachable, out[slips:]
+    )
+
+
+def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
+    return [x for s in slips for x in s.legs if x.read != READ_KEEP]
 
 
 def legs_pl(n: int) -> str:
@@ -412,8 +477,7 @@ def render(
         ]
         for x in s.legs:
             g = x.leg
-            reads = g.get("reads") or []
-            read = ", ".join(sorted({str(r.get("verdict")) for r in reads})) or "nie"
+            read = x.read
             start = str(g.get("kickoff_utc"))[5:16].replace("T", " ")
             bet = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
             lines.append(
@@ -427,6 +491,23 @@ def render(
             f"celu - to nie jest kurs kuponu.",
             "",
         ]
+    unread = unread_legs(result.slips)
+    if result.slips:
+        lines.append(
+            f"**Nieczytane nogi w kuponach: {len(unread)}** - kupon jest gotowy "
+            "dopiero, gdy każda noga ma KEEP analityka; odrzucona wypada i kupon "
+            "liczy się od nowa."
+            if unread
+            else "Każda noga kuponów ma KEEP analityka."
+        )
+    if result.reserve:
+        names = "; ".join(
+            f"{x.leg.get('match')} - {x.leg.get('superbet_market')}: "
+            f"{x.leg.get('superbet_selection')} ({x.odds:.2f}, {x.read})"
+            for s in result.reserve
+            for x in s.legs
+        )
+        lines.append(f"Zapas do czytania (nie do grania): {names}")
     lines.append(
         "Nogi w puli: "
         + ", ".join(

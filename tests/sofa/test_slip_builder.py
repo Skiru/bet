@@ -287,3 +287,58 @@ def test_search_is_exact_against_brute_force() -> None:
         assert got.price_product >= target
         assert len({x.match_key for x in got.legs}) == len(got.legs)
         assert math.log(got.chance) >= best - 1e-9
+
+
+def test_a_refused_read_drops_the_leg_and_the_next_best_takes_its_place() -> None:
+    from bet.sofa.contracts import LegRead
+
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    legs = [_leg(1, 1.6, 0.66), _leg(2, 1.55, 0.68), _leg(3, 1.5, 0.70)]
+    first = sb.build(legs, rec, NOW, target=2.3)
+    chosen = {x.leg["sofascore_event_id"] for x in first.slips[0].legs}
+    assert all(x.read == sb.READ_NONE for x in first.slips[0].legs)
+    out = min(chosen)
+    reads = [
+        LegRead(
+            sofascore_event_id=out,
+            market="corners_total",
+            subject="",
+            line=7.5,
+            direction="OVER",
+            verdict="WATCH",
+            author="analyst",
+            reason="test",
+        ),
+        LegRead(
+            sofascore_event_id=max(chosen),
+            market="corners_total",
+            subject="",
+            line=7.5,
+            direction="OVER",
+            verdict="KEEP",
+            author="analyst",
+            reason="test",
+        ),
+    ]
+    second = sb.build(legs, rec, NOW, target=2.3, reads=reads)
+    again = {x.leg["sofascore_event_id"]: x.read for x in second.slips[0].legs}
+    assert out not in again and again[max(chosen)] == sb.READ_KEEP
+    assert second.refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] == 1
+    carried = [dict(legs[0], reads=[{"verdict": "NO_BET", "author": "verifier"}])]
+    assert sb.read_status(carried[0]) is None
+
+
+def test_reserve_slips_and_the_slip_read_set(tmp_path: Path) -> None:
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    legs = [_leg(i, 1.5, 0.7) for i in range(1, 7)]
+    res = sb.build(legs, rec, NOW, target=2.2, reserve=1)
+    assert len(res.slips) == 1 and len(res.reserve) == 1 and res.supported == 1
+    keys = [x.match_key for s in res.slips + res.reserve for x in s.legs]
+    assert len(keys) == len(set(keys)) == 4
+    written = build_slip.write_read_set(tmp_path, res)
+    assert written == {"football": 4}
+    rows = json.loads((tmp_path / "read_set_slip_football.json").read_text())
+    assert sorted(r["in_set"] for r in rows) == ["slip"] * 2 + ["slip_reserve"] * 2
+    assert rows[0]["superbet_market"] == "Liczba rzutów rożnych"
+    text = sb.render(res, day="2026-10-20", target=2.2, record=rec, now=NOW)
+    assert "Nieczytane nogi w kuponach: 2" in text and "Zapas do czytania" in text
