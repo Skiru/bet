@@ -368,6 +368,126 @@ def test_a_slip_exactly_at_the_target_is_found() -> None:
     assert got is not None and got.price_product == pytest.approx(4.0)
 
 
+def test_a_slip_at_the_target_is_not_lost_to_one_just_below_it() -> None:
+    # 1.25 x 1.6 x 2.0 = 4 exactly; 2.0 x 1.11 x 1.82 = 4.04 is the runner-up
+    # (review 4: the exact-target state shared a bucket with a richer one
+    # just under the target and was dropped)
+    spec = [(1.25, 0.79), (1.6, 0.60), (2.0, 0.48), (1.11, 0.88), (1.82, 0.53)]
+    spec.append((1.98, 0.49))
+    legs = [
+        sb.Leg(_leg(i, o, c), o, c, "t", sb.TIER_REST) for i, (o, c) in enumerate(spec)
+    ]
+    got = sb.best_slip(legs, 4.0, 3)
+    assert got is not None
+    assert sorted(x.odds for x in got.legs) == [1.25, 1.6, 2.0]
+    one = [
+        sb.Leg(_leg(1, 2.0, 0.4), 2.0, 0.4, "t", sb.TIER_REST),
+        sb.Leg(_leg(2, 1.99995, 0.45), 1.99995, 0.45, "t", sb.TIER_REST),
+    ]
+    got = sb.best_slip(one, 2.0, 1)
+    assert got is not None and got.legs[0].odds == 2.0
+
+
+def test_round_targets_with_two_decimal_odds_are_exact() -> None:
+    import itertools
+    import random
+
+    rnd = random.Random(11)
+    grid = [1.10, 1.11, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.8, 1.82, 1.9, 2.0]
+    for _ in range(300):
+        legs = [
+            sb.Leg(
+                _leg(m, 1.0, 0.0, line=i),
+                o,
+                min(rnd.uniform(0.45, 0.9), 1 / o),
+                "t",
+                sb.TIER_REST,
+            )
+            for i, (m, o) in enumerate(
+                (m, rnd.choice(grid))
+                for m in range(1, 8)
+                for _ in range(rnd.randint(1, 2))
+            )
+        ]
+        target = float(rnd.choice([2, 2.5, 3, 4, 5]))
+        best = None
+        for k in range(1, 4):
+            for combo in itertools.combinations(legs, k):
+                if len({x.match_key for x in combo}) < k:
+                    continue
+                if math.prod(x.odds for x in combo) < target - 1e-9:
+                    continue
+                score = sum(math.log(x.chance) for x in combo)
+                best = score if best is None else max(best, score)
+        got = sb.best_slip(legs, target, max_legs=3)
+        if best is None:
+            assert got is None
+            continue
+        assert got is not None and math.log(got.chance) >= best - 1e-9
+
+
+def test_a_leg_with_a_non_finite_confidence_is_refused() -> None:
+    legs = [_leg(1, 1.5, float("nan")), _leg(2, 1.5, 0.7), _leg(3, 1.5, None)]
+    record = _record({"football|corners_total|OVER": _fam(100, 0.5, 0.55)})
+    got, refused = sb.candidates(legs, record, NOW)
+    assert [x.leg["sofascore_event_id"] for x in got] == [2]
+    assert refused["brak ceny lub pewności"] == 2
+
+
+def test_one_family_slip_is_named_never_gated() -> None:
+    legs = [sb.Leg(_leg(i, 1.6, 0.6), 1.6, 0.55, "t", sb.TIER_REST) for i in (1, 2, 3)]
+    slip = sb.Slip(legs)
+    assert sb.concentration(slip) == ("football|corners_total|OVER", 3)
+    mixed = sb.Slip(
+        [
+            legs[0],
+            sb.Leg(_leg(4, 1.6, 0.6, direction="UNDER"), 1.6, 0.55, "t", sb.TIER_REST),
+        ]
+    )
+    assert sb.concentration(mixed) is None
+    assert sb.concentration(sb.Slip(legs[:2])) == ("football|corners_total|OVER", 2)
+    result = sb.Result([slip], 1, 0, {}, {})
+    text = sb.render(result, day="2026-10-20", target=4, record=None, now=NOW)
+    assert "3 z 3 nóg z jednej rodziny (football|corners_total|OVER)" in text
+
+
+def test_an_earlier_requests_slip_keep_shows_its_time(tmp_path: Path) -> None:
+    from scripts.sofa import merge_reads
+
+    run = tmp_path / "2026-10-20"
+    run.mkdir()
+    read = {
+        "sofascore_event_id": 1,
+        "market": "corners_total",
+        "subject": "",
+        "line": 7.5,
+        "direction": "OVER",
+        "verdict": "KEEP",
+        "author": "analyst",
+        "reason": "test",
+    }
+    report = tmp_path / "r.md"
+    report.write_text("```json reads\n" + json.dumps([read]) + "\n```\n")
+    assert merge_reads.merge(run, [report], "analyst", False, slip=True) == 0
+    assert merge_reads.merge(run, [report], "analyst", False, slip=True) == 0
+    stored = json.loads((run / merge_reads.SLIP_READS).read_text())
+    assert len(stored) == 1 and stored[0]["read_at_utc"]  # the latest replaced
+    keep = [
+        _read(1, 7.5, "KEEP").model_copy(
+            update={"read_at_utc": "2026-10-20T08:00:00+00:00"}
+        )
+    ]
+    leg = _leg(1, 1.5, 0.7)
+    at = datetime.datetime(2026, 10, 20, 10, 0, tzinfo=datetime.UTC)
+    assert sb.read_status(leg, slip_reads=keep, now=at) == sb.READ_KEEP
+    later = at + datetime.timedelta(hours=8)
+    assert sb.read_status(leg, slip_reads=keep, now=later) == "KEEP (10:00)"
+    assert (
+        sb.read_status(leg, slip_reads=[_read(1, 7.5, "KEEP")], now=later)
+        == sb.READ_KEEP
+    )
+
+
 def test_window_parsing_midnight_and_the_next_day() -> None:
     utc = datetime.UTC
     lo, hi = build_slip.window("2026-10-20", "20", "24") or (NOW, NOW)

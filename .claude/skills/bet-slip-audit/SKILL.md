@@ -107,9 +107,11 @@ local time, so a second slip of the day never collides with the first):
 answer about families on the plus); line 2 = a warning when the window starts
 < 30 min from the request. Then each slip's table as printed - Superbet's
 words, start in local time, measured chance beside 1/odds, the read
-("KEEP" = read for this slip; "KEEP (kupon dnia)" = the day's morning read,
-possibly before lineups - say so), price age, "poza poparciem" where it says
-so - the stale-price line when printed (the screen's price decides; the day's
+("KEEP" = read for this slip within 3 h; "KEEP (10:42)" = a slip read of an
+earlier request at that time; "KEEP (kupon dnia)" = the day's morning read -
+both possibly before lineups, say so), price age, "poza poparciem" and the
+"Uwaga: N z M nóg z jednej rodziny" line where printed (a warning, never a
+reason to swap a leg by hand) - the stale-price line when printed (the screen's price decides; the day's
 coupon is never rebuilt for a chat slip), and which legs fell out on which
 read and what replaced them. No slip price and no stake: the script's "Cel ~X
 osiągnięty" line carries no number; "kurs kuponu: sprawdź na ekranie

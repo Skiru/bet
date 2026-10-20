@@ -503,8 +503,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   OVER 8.5), a ponowne uruchomienie liczy kupon od nowa z następną najlepszą
   nogą — i ją też daje do czytania. Koniec, gdy skrypt pisze „Każda noga
   kuponów ma KEEP analityka” (najwyżej 3 rundy; nieczytana noga jest tak
-  nazwana). „KEEP (kupon dnia)” = poranny odczyt kuponu dnia, możliwe że
-  sprzed składów. Werdykty idą przez
+  nazwana). „KEEP (kupon dnia)” = poranny odczyt kuponu dnia, „KEEP (10:42)”
+  = odczyt kuponu z czatu starszy niż 3 h (merge `--slip` stempluje
+  `read_at_utc`, nowszy odczyt tej samej nogi zastępuje starszy) — oba
+  możliwe, że sprzed składów.
+- **Jedna rodzina**: kupon z ≥ 3 nogami jednej rodziny (albo cały z jednej)
+  dostaje linię „Uwaga: N z M nóg z jednej rodziny” — ostrzeżenie, nie
+  bramka. Werdykty idą przez
   `merge_reads.py --slip` do `reads_slip.json` / `vetoes_slip.json` — kupon
   z czatu je czyta, kupon dnia **nie** (prośba o typy nie rusza kuponu).
 - **Wiek ceny**: kolumna „cena sprzed” i linia „Cena starsza niż limit

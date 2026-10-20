@@ -517,6 +517,9 @@ class LegRead(BaseModel):
     # A measured sport's period (a hockey period, a quarter, a set, a CS2
     # map); None covers every period, as a None field always does.
     period: int | None = None
+    # When the read was merged (ISO UTC) - stamped by `merge_reads.py --slip`
+    # so a chat slip tells this request's read from an earlier one's.
+    read_at_utc: str | None = None
 
     @model_validator(mode="after")
     def _known_side(self) -> "LegRead":

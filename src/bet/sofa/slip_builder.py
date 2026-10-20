@@ -54,6 +54,9 @@ from bet.sofa.veto import read_refusal, veto_matches
 READ_KEEP = "KEEP"  # the slip's own read (reads_slip.json)
 READ_KEEP_DAY = "KEEP (kupon dnia)"  # the day's C3 read - may be hours old
 READ_NONE = "nie"
+# a slip read older than this (an earlier request's, maybe before lineups) is
+# shown with its local time, "KEEP (10:42)"; it still counts as read
+SLIP_READ_FRESH = datetime.timedelta(hours=3)
 REFUSING = frozenset({"WATCH", "NO_BET"})
 
 TIER_SELECTION = 1  # x >= 1 and family on the plus (the HTML view's button)
@@ -72,6 +75,7 @@ TIER_NAMES = {
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
+CROWD_LEGS = 3  # a slip with this many legs of one family is named
 START_MARGIN = datetime.timedelta(minutes=10)
 STEP = 0.0001
 LOCAL = ZoneInfo("Europe/Warsaw")  # the operator's clock
@@ -231,11 +235,13 @@ def read_status(
     reads: Sequence[Any] = (),
     vetoes: Sequence[Any] = (),
     slip_reads: Sequence[Any] = (),
+    now: datetime.datetime | None = None,
 ) -> str | None:
     """None when a veto or a WATCH / NO_BET read refuses the leg or a lower
     rung of it (the day's files, the slip's own, or carried on the leg - the
     rebuild's matching rule); else READ_KEEP when the slip's own analyst read
-    covers it, READ_KEEP_DAY when only the day's C3 read does, READ_NONE."""
+    covers it ("KEEP (HH:MM)" when that read is older than SLIP_READ_FRESH at
+    `now`), READ_KEEP_DAY when only the day's C3 read does, READ_NONE."""
     key = row_key(leg)
     every = [*reads, *slip_reads]
     covering = [r for r in every if veto_matches(r, **key)]
@@ -247,8 +253,17 @@ def read_status(
     carried = [r for r in leg.get("reads") or [] if isinstance(r, Mapping)]
     if {str(r.get("verdict")) for r in carried} & REFUSING:
         return None
-    if any(r.author == "analyst" and veto_matches(r, **key) for r in slip_reads):
-        return READ_KEEP
+    own = [r for r in slip_reads if r.author == "analyst" and veto_matches(r, **key)]
+    if own:
+        stamps = [r.read_at_utc for r in own if getattr(r, "read_at_utc", None)]
+        if now is None or len(stamps) < len(own):
+            return READ_KEEP
+        latest = max(
+            datetime.datetime.fromisoformat(s.replace("Z", "+00:00")) for s in stamps
+        )
+        if now - latest <= SLIP_READ_FRESH:
+            return READ_KEEP
+        return f"{READ_KEEP} ({latest.astimezone(LOCAL):%H:%M})"
     if any(r.author == "analyst" for r in covering) or any(
         r.get("author") == "analyst" for r in carried
     ):
@@ -313,7 +328,7 @@ def candidates(
             refused["rozpoczęty lub za chwilę"] += 1
             continue
         kickoff = s.get("kickoff_utc")
-        if odds is None or s.get("confidence") is None:
+        if odds is None or not _finite(s.get("confidence")) or not _finite(odds):
             refused["brak ceny lub pewności"] += 1
             continue
         start = (
@@ -335,7 +350,7 @@ def candidates(
         if mc is None:
             refused["brak pomiaru rodziny / sportu"] += 1
             continue
-        read = read_status(s, reads, vetoes, slip_reads)
+        read = read_status(s, reads, vetoes, slip_reads, now)
         if read is None:
             refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
             continue
@@ -366,9 +381,10 @@ def best_slip(
     filed under that price's `STEP` bucket; a bucket keeps the best log chance
     (on a tie the higher price), and a state no better than one in a higher
     bucket is dropped (Pareto - every later leg only adds price and loses
-    chance). Buckets above the target's collapse into one. The only slips it
-    can miss are those beaten inside the target's own bucket (a `STEP`-wide
-    band of log price just at the target)."""
+    chance). Every state at or above the target files under one bucket, the
+    cap; one below it never does. The only slips it can miss are those whose
+    partial state was beaten inside a `STEP`-wide bucket below the target by
+    one that later fell short by less than the summed bucket width."""
     log_target = math.log(target)
     cap = math.floor(log_target / STEP) + 1
     by_match: dict[str, list[Leg]] = defaultdict(list)
@@ -387,7 +403,13 @@ def best_slip(
                 for x in options:
                     p = price + math.log(x.odds)
                     cand = (score + math.log(x.chance), p, chosen + (x,))
-                    b = min(cap, math.floor(p / STEP))
+                    # only a state at or above the target files under the cap,
+                    # so one exactly at it never shares a bucket with one below
+                    b = (
+                        cap
+                        if p >= log_target - 1e-12
+                        else min(cap - 1, math.floor(p / STEP))
+                    )
                     cur = nxt.get(b)
                     if cur is None or (cand[0], cand[1]) > (cur[0], cur[1]):
                         nxt[b] = cand
@@ -402,6 +424,13 @@ def best_slip(
     if best is None:
         return None
     return Slip(sorted(best[2], key=lambda x: str(x.leg.get("kickoff_utc"))))
+
+
+def _finite(value: Any) -> bool:
+    try:
+        return value is not None and math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
 
 
 def _pareto_legs(options: Sequence[Leg]) -> list[Leg]:
@@ -490,6 +519,20 @@ def build(
     return Result(
         out[:slips], slips, supported, dict(counts), refused, reachable, out[slips:]
     )
+
+
+def concentration(slip: Slip) -> tuple[str, int] | None:
+    """The family holding at least CROWD_LEGS legs of the slip, or all of a
+    slip of two or more legs, with its count; else None. One family's legs
+    win or lose together more than the measured chance says (one selection,
+    one model), so the answer names it - a warning, never a gate."""
+    count: dict[str, int] = defaultdict(int)
+    for x in slip.legs:
+        count[fr.family_key(x.leg)] += 1
+    fam, n = max(count.items(), key=lambda kv: kv[1], default=("", 0))
+    if n >= CROWD_LEGS or (n == len(slip.legs) >= 2):
+        return fam, n
+    return None
 
 
 def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
@@ -594,8 +637,15 @@ def render(
             "",
             f"Cel ~{target:g} osiągnięty (iloczyn kursów nóg ≥ cel); kurs kuponu "
             "sprawdź na ekranie Superbetu.",
-            "",
         ]
+        crowd = concentration(s)
+        if crowd is not None:
+            fam, n = crowd
+            lines.append(
+                f"Uwaga: {n} z {len(s.legs)} nóg z jednej rodziny ({fam}) - wynik "
+                "zależy od jednej rodziny, jej przewaga niepotwierdzona."
+            )
+        lines.append("")
     stale = [x for s in result.slips for x in s.legs if x.stale]
     if stale:
         lines.append(

@@ -19,7 +19,7 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
   default **4**.
 - **Slips**: `x2` / `2 kupony` -> `--slips 2`; default 1.
 - **Date**: the UTC date (`date -u +%F`) - a day's coupon holds kickoffs up
-  to 23:59Z (01:59 local), and the script moves a window that has already
+  to 23:59Z (01:59 local in summer, 00:59 in winter), and the script moves a window that has already
   ended to the next local day (`22-2` crosses midnight; `24` is midnight). No
   `runs/sofa/<date>/11_coupon.json` -> say "brak kuponu dnia - najpierw
   /sofa-day" and stop.

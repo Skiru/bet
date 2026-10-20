@@ -56,6 +56,7 @@ from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
 from bet.sofa.slip_builder import row_key  # noqa: E402
+from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import find_unmatched_vetoes, veto_matches  # noqa: E402
 
 # A fence may be indented (a block inside a list) and its label may carry a
@@ -114,6 +115,11 @@ def _key(entry: dict[str, Any]) -> str:
     return json.dumps(entry, sort_keys=True)
 
 
+def _leg_key(entry: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(entry.get(k) for k in ("sofascore_event_id", "market", "subject",
+                                        "line", "direction", "period", "author"))
+
+
 SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
 
 
@@ -143,6 +149,13 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     carried = [v for v in earlier_v if _key(v) not in fresh_keys]
     merged_v = _dedupe(fresh_v) + carried
     earlier_r = _load(reads_path)
+    if slip:
+        # a slip's read is stamped, and a later read of the same leg by the
+        # same author replaces the earlier one (the latest read decides)
+        stamp = utc_now().isoformat(timespec="seconds")
+        fresh_r = [{**r, "read_at_utc": stamp} for r in fresh_r]
+        again = {_leg_key(r) for r in fresh_r}
+        earlier_r = [r for r in earlier_r if _leg_key(r) not in again]
     seen = {_key(r) for r in earlier_r}
     merged_r = earlier_r + [r for r in _dedupe(fresh_r) if _key(r) not in seen]
 
