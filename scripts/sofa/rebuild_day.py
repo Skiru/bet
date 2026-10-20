@@ -16,7 +16,10 @@ bet.sofa.rebuild_plan (offline, tested) from the files' ages and the clock:
 2. SHEET only when CONFIDENCE would refuse the sheet (epoch); COUPON
    (06_coupon.json, audit_coupon's input, not the coupon) when it is older
    than the sheet / vetoes / reads;
-3. ensure_bridge + FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE,
+3. ensure_bridge + FIXTURE_CHECK, (SHEET again when FIXTURE_CHECK's fresh
+   /event names a referee the sheet priced without - rebuild_plan.
+   after_fixture_check, epochs.FOOTBALL_REFEREE: step 2 runs before
+   FIXTURE_CHECK and cannot see it), CONFIDENCE, SPORT_CONFIDENCE,
    COUPON_ASSEMBLY (build_coupon.py), PDF (build_coupon_pdf.py), then
    audit_variants.py and audit_coupon.py (--skip-audits leaves them out and
    says so).
@@ -150,10 +153,11 @@ def main() -> int:
 
     config = SofaConfig.from_env()
     runs_dir = str(Path(config.runs_dir).resolve())
+    db_path = str(Path(config.db_path).resolve())
     at = now()
     run_id = "rebuild-" + uuid.uuid4().hex[:8]
     state = rp.observe(runs_dir, args.date, at, timedelta(
-        minutes=config.price_max_age_min))
+        minutes=config.price_max_age_min), db_path=db_path)
     plan = rp.build_plan(state, run_id=run_id, skip_audits=args.skip_audits)
 
     print(f"REBUILD {args.date} epoch={plan.epoch} sports_on_coupon="
@@ -194,7 +198,10 @@ def main() -> int:
     print(f"log: {log}", flush=True)
     results: list[dict[str, Any]] = []
     stopped_by: str | None = None
-    for i, step in enumerate(plan.steps, 1):
+    i = 0
+    while i < len(plan.steps):
+        step = plan.steps[i]
+        i += 1
         if stopped_by is not None:
             results.append({"step": step.name, "verdict": "SKIPPED", "exit": None,
                             "soft": step.soft, "summary": None})
@@ -220,6 +227,14 @@ def main() -> int:
         elif code >= 2:
             print(f"    {step.name} FAILED but is soft: the rebuild goes on "
                   "(PARTIAL)", flush=True)
+        if step.name == "FIXTURE_CHECK" and stopped_by is None:
+            # D7: a referee FIXTURE_CHECK's fresh /event names re-prices the
+            # sheet's cards / fouls rows before CONFIDENCE reads them
+            extra = rp.after_fixture_check(runs_dir, args.date, now(), db_path,
+                                           run_id=run_id)
+            for k, added in enumerate(extra):
+                plan.steps.insert(i + k, added)
+                print(f"    + {added.name}: {added.reason}", flush=True)
     worst = overall(results)
     print("SOFA_SUMMARY: " + json.dumps(
         {**base, "verdict": {0: "OK", 1: "PARTIAL"}.get(worst, "FAILED"),

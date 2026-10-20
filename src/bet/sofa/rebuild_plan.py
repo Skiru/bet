@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import math
+import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -43,6 +44,7 @@ from typing import Any
 
 from bet.sofa import epochs, sheet_config, sport_day
 from bet.sofa import fixture_status as fs
+from bet.sofa import referees as referee_terms
 from bet.sofa import sport_identity as si
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.locked_print import starts_after
@@ -156,6 +158,10 @@ class DayState:
     # 06_coupon.json (the priced VALUE selector audit_coupon checks, not the
     # coupon) missing or older than the sheet / vetoes / reads it reads.
     coupon06_stale: bool = False
+    # epochs.FOOTBALL_REFEREE (audit 2026-10-21 D7): open football fixtures
+    # whose cards / fouls rows say NO_REFEREE while the DB now names their
+    # referee (a label, or the /event RESOLVE / FIXTURE_CHECK cached)
+    referee_now_known: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -361,9 +367,75 @@ def audit_sheet_stale(state: DayState) -> list[str]:
     return [why for on, has, why in checks if on and not has]
 
 
+def referee_now_known(runs_dir: str, date: str, now: datetime,
+                      db_path: str | Path | None) -> tuple[int, ...]:
+    """Football fixtures not yet started whose 05_sheet.json cards / fouls
+    rows were priced with no referee (referee_read.status NO_REFEREE) while
+    referees.referee_for_event now names one on ``db_path`` (audit
+    2026-10-21 D7: Sofascore announces referees late, after the morning
+    SHEET). One read-only lookup per such fixture; nothing when the switch
+    is off, there is no DB or no sheet. A DB error is no information."""
+    if db_path is None or not epochs.football_referee(date, now):
+        return ()
+    run = Path(runs_dir) / date
+    sheet_path, fixtures_path = run / "05_sheet.json", run / "02_fixtures.json"
+    if not sheet_path.exists() or not Path(db_path).exists():
+        return ()
+    waiting = sorted({
+        int(r["sofascore_event_id"]) for r in _load_json(sheet_path) or []
+        if r.get("sport") == "football"
+        and r.get("sofascore_event_id") is not None
+        and (r.get("referee_read") or {}).get("status")
+        == referee_terms.NO_REFEREE})
+    if not waiting:
+        return ()
+    fixtures = {f.get("sofascore_event_id"): f for f in (
+        _load_json(fixtures_path) if fixtures_path.exists() else [])}
+    status = fs.load(run)
+    known: list[int] = []
+    for eid in waiting:
+        fx = fixtures.get(eid)
+        if fx is None or not starts_after(fx, None, status.get(eid), now):
+            continue  # started: its legs are locked or gone, nothing to price
+        try:
+            found = referee_terms.referee_for_event(db_path, eid)
+        except sqlite3.Error:
+            return tuple(known)
+        if found is not None and found.referee_id is not None:
+            known.append(eid)
+    return tuple(known)
+
+
+def referee_sheet_step(date: str, events: tuple[int, ...], run_id: str,
+                       where: str) -> Step:
+    """SHEET again for the referees named since the sheet (D7)."""
+    shown = ", ".join(str(e) for e in events[:5])
+    return Step(
+        "SHEET", _pipeline(date, "SHEET", run_id),
+        f"{len(events)} football fixtures priced with no referee now have one "
+        f"{where} (epochs.football_referee; {shown}): their cards / fouls "
+        "centres read the referee term")
+
+
+def after_fixture_check(runs_dir: str, date: str, now: datetime,
+                        db_path: str | Path | None,
+                        run_id: str = "rebuild") -> list[Step]:
+    """The steps a rebuild inserts right after its FIXTURE_CHECK, before
+    CONFIDENCE: SHEET again when FIXTURE_CHECK's refreshed /event names the
+    referee of an open fixture the sheet priced without one. The plan's own
+    SHEET step runs BEFORE FIXTURE_CHECK, so it cannot see that referee."""
+    events = referee_now_known(runs_dir, date, now, db_path)
+    if not events:
+        return []
+    return [referee_sheet_step(date, events, run_id,
+                               "after FIXTURE_CHECK's /event")]
+
+
 def observe(runs_dir: str, date: str, now: datetime,
-            price_max_age: timedelta) -> DayState:
-    """Read the day's artifacts into a DayState (no network, read-only)."""
+            price_max_age: timedelta,
+            db_path: str | Path | None = None) -> DayState:
+    """Read the day's artifacts into a DayState (no network, read-only;
+    ``db_path`` is read for the referees only, D7 - None skips it)."""
     run = Path(runs_dir) / date
     fixtures_path, sheet_path, offer_path = (
         run / "02_fixtures.json", run / "05_sheet.json", run / "04_offer.json")
@@ -468,6 +540,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
         coupon06_stale=coupon06_stale,
+        referee_now_known=referee_now_known(runs_dir, date, now, db_path),
     )
 
 
@@ -646,10 +719,14 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     opponent_stale = (epochs.sample_opponent_correction(d, now)
                       and not state.sheet_opponent)
     audit_stale = audit_sheet_stale(state)
+    # D7: a referee named since SHEET (RESOLVE / an earlier FIXTURE_CHECK);
+    # one this rebuild's FIXTURE_CHECK names is after_fixture_check's
+    referee_stale = (epochs.football_referee(d, now)
+                     and bool(state.referee_now_known))
     sheet_rebuilt = (epoch_stale or link_stale or dispersion_stale or cards_stale
                      or k_stale
                      or tennis_table_stale or opponent_stale or winner_stale
-                     or score_stale or bool(audit_stale))
+                     or score_stale or bool(audit_stale) or referee_stale)
     if epoch_stale:
         plan.steps.append(Step(
             "SHEET", _pipeline(d, "SHEET", run_id),
@@ -706,6 +783,9 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "SHEET", _pipeline(d, "SHEET", run_id),
             "05_sheet.json priced before a switch now on: "
             + "; ".join(audit_stale)))
+    elif referee_stale:
+        plan.steps.append(referee_sheet_step(
+            d, state.referee_now_known, run_id, "on the DB"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if (state.sheet_config_sha is not None and state.config_sha is not None

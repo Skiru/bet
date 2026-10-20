@@ -600,6 +600,27 @@ n >= 300 nie zawyża o więcej niż 2 pp. Wynik w
 klucze nowych rynków sportu (`fit_meta.carry_sport_new_market_curves`); klucz,
 który refit dopasował sam, nigdy nie jest nadpisywany. Wcześniej każdy refit
 musiał je przenosić ręcznie (`data/refit_2026-10-16/carry_over.py`).
+Wyjątek (audyt 2026-10-21 D6, `fit_meta.PRIOR_WINS_GROUPS`): grupy
+`card_halves`, `player_props_v2`, `shot_detail` (bez `requires_replay_flags`)
+mają p z estymatora, którego replay nie uruchamia, i weszły po jednostronnej
+bramce holdout - ich zainstalowana krzywa **zawsze wygrywa** z krzywą, którą
+refit zbudowałby sam (z wierszy zawodnika replayu z próbki albo z samych
+wierszy SETTLE na żywo, bez bramki); test
+`tests/sofa/test_refit_keeps_gated_separate_curves.py`.
+
+**Strażnik przełączników replayu** (audyt 2026-10-21 D4 / D5):
+`prepare_refit.py rebuild-cache-rows` przekazuje `--closeness-stretch` i
+`--player-coverage` do `calibrate_from_cache.py` i zapisuje je w
+`fitted_from.replay_rules.flags`. `install` odmawia, gdy przełącznik
+odtwarzalny (`REPLAYABLE_SWITCHES`: `FOOTBALL_CLOSENESS_STRETCH`,
+`FOOTBALL_PLAYER_COVERAGE`) jest włączony teraz lub w dniu po instalacji, a
+replay nie miał jego flagi; furtka jawna:
+`install --allow-missing-replay-flag=--player-coverage` (powtarzana per
+flaga, zapisana w `install_manifest.json`). Przełączniki, których replay nie
+umie odtworzyć (`FOOTBALL_REFEREE`, `FOOTBALL_PLAYER_SHARE`), dają tylko
+`WARNING` z listą rynków (`markets` z `sofa_referee_effect.json` /
+`sofa_player_share.json`), których krzywe będą dopasowane na centrach bez
+nich (`replay_switch_warnings` w manifeście).
 
 ### 7.10 Krzywe rynków serwisowych tenisa (dopasowane 2026-10-17, **niezainstalowane**)
 

@@ -17,6 +17,7 @@ Two defects of 2026-10-02 live here:
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -110,21 +111,43 @@ def _get(doc: dict[str, Any], klass: str, field: str) -> dict[str, Any] | None:
     return sec if isinstance(sec, dict) else None
 
 
+# Groups of `new_market_curves_fitted_from` whose curve the full fit never
+# replaces, even when it holds the key itself (audit 2026-10-21 D6): their
+# p comes from an estimator the cache replay does not run (the card-halves
+# share model, scripts/sofa/fit_incident_set_curves.py; the footballer fouls
+# drawn, scripts/sofa/measure_player_props_v2.py; the shot-detail forecast),
+# and each was installed only after the one-sided holdout gate. A full fit
+# holds such a key from replayed plain-sample player rows (printed_player_
+# ladder lets player_fouls_drawn_for into build_player_rows) or from live
+# SETTLE rows alone - another p, never gated - so the installed curve wins.
+PRIOR_WINS_GROUPS: frozenset[str] = frozenset(
+    {"card_halves", "player_props_v2", "shot_detail"})
+
+
+def prior_curve_wins(entry: object) -> bool:
+    """Does a separately fitted curve (its `new_market_curves_fitted_from`
+    entry) replace the full fit's own curve of the key?"""
+    return (isinstance(entry, Mapping)
+            and entry.get("group") in PRIOR_WINS_GROUPS
+            and not entry.get("requires_replay_flags"))
+
+
 def carry_separately_fitted_curves(
     new: dict[str, Any], prior: dict[str, Any] | None
 ) -> list[str]:
     """Copy into `new`, in place, every separately fitted curve of `prior`
-    (SEPARATE_FIT_META) that `new` lacks; returns the carried keys."""
+    (SEPARATE_FIT_META) that `new` lacks - and, for a PRIOR_WINS_GROUPS
+    entry, also one `new` holds; returns the carried keys."""
     if not prior:
         return []
     carried: list[str] = []
-    for key in prior.get("new_market_curves_fitted_from") or {}:
+    for key, entry in (prior.get("new_market_curves_fitted_from") or {}).items():
         klass, _, mk = str(key).rpartition(":")
         src = _get(prior, klass, "by_market_direction")
         if src is None or mk not in src:
             continue
         dst = _section(new, klass, "by_market_direction")
-        if mk not in dst:
+        if mk not in dst or prior_curve_wins(entry):
             dst[mk] = src[mk]
             carried.append(str(key))
     if prior.get("match_won_for_fitted_from"):

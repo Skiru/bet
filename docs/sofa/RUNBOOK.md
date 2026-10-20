@@ -416,9 +416,16 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   `dispersion_rule` / `tennis_table_rule` / `cards_rule` / `k_rule`). Zmiany kodu
   SHEET albo jego konfiguracji polecenie nie wykrywa — wtedy najpierw
   `run_pipeline.py --only SHEET` ręcznie i napisz, co go wymusiło.
+  Pod `FOOTBALL_REFEREE` SHEET wraca też, gdy wiersz kartek / fauli otwartego
+  meczu ma `referee_read.status == "NO_REFEREE"`, a baza już zna sędziego
+  (`referees.referee_for_event`: etykieta albo /event z RESOLVE / wcześniejszego
+  FIXTURE_CHECK; `rebuild_plan.referee_now_known`, jedno zapytanie na mecz).
 - **COUPON** (`--only COUPON`, `06_coupon.json` — wejście `audit_coupon`, nie
   kupon) tylko, gdy jest starszy niż arkusz / weta / odczyty.
-- potem `ensure_bridge.py`, **FIXTURE_CHECK**, **CONFIDENCE**,
+- potem `ensure_bridge.py`, **FIXTURE_CHECK** (SHEET tej przebudowy idzie
+  PRZED nim, więc sędziego, którego nazwał dopiero świeży /event, widzi
+  `rebuild_plan.after_fixture_check`: `rebuild_day.py` wstawia wtedy SHEET
+  zaraz po FIXTURE_CHECK, przed CONFIDENCE - audyt 2026-10-21 D7), **CONFIDENCE**,
   **SPORT_CONFIDENCE**, **COUPON_ASSEMBLY** (`build_coupon.py`), **PDF**
   (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `KUPON_<data>.html` + `12_printed.json`),
   `audit_variants.py`, `audit_coupon.py`.

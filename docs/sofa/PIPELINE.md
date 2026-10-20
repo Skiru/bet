@@ -1063,8 +1063,9 @@ NB centrum przy wyniku, nie linie Superbetu):
   `config/sofa_closeness_stretch.json` (`scripts/sofa/fit_closeness_stretch.py`),
   notatka `CLOSENESS_STRETCH`, znacznik `closeness_rule`, replay
   `calibrate_from_cache.py --closeness-stretch` (`prepare_refit.py
-  rebuild-cache-rows --closeness-stretch`; refit po włączeniu powinien go
-  nieść). Łączniki kartek (`both_over_` / `handicap_` / `most_cards_points`)
+  rebuild-cache-rows --closeness-stretch`; refit po włączeniu musi go
+  nieść - `install` odmawia bez flagi, tak samo dla `--player-coverage`
+  przy `FOOTBALL_PLAYER_COVERAGE`; CONFIG.md, strażnik przełączników replayu). Łączniki kartek (`both_over_` / `handicap_` / `most_cards_points`)
   czytają centra stron, więc też się ruszają. Faule, sumy rożnych, dyspersja
   zależna od |s| - zmierzone, nie włączone
   (`docs/sofa/evidence/football_closeness_stretch_2026-10-21.md`).

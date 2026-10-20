@@ -621,13 +621,23 @@ def test_frozen_runner_fixes_the_clock_for_the_stage(
 # --------------------------------------------------------------------------
 
 
-def _ready_to_install(tmp_path: Path) -> pr.Paths:
+def _ready_to_install(
+    tmp_path: Path, replay_flags: dict[str, Any] | None = None,
+) -> pr.Paths:
+    """A fitted, backed-up refit; its replay carried every replayable
+    switch's flag (prepare_refit.REPLAYABLE_SWITCHES, audit 2026-10-21 D5)
+    unless ``replay_flags`` says otherwise."""
     paths = _paths(tmp_path)
     _config_set(paths.config_dir, new=False)
     live_cal = json.loads((paths.config_dir / pr.CONFIDENCE_FILE).read_text())
     live_cal["admitted_player_markets"] = ["player_shots_for"]
     _write(paths.config_dir / pr.CONFIDENCE_FILE, live_cal)
     _db(paths.db_path)
+    flags = (replay_flags if replay_flags is not None
+             else {key: True for _, _, key in pr.REPLAYABLE_SWITCHES})
+    _write(paths.scratch / pr.REPLAY_RULES,
+           {"db_path": str(paths.db_path), "written_at_utc": "test",
+            "flags": flags})
     pr.fit(paths, force=False, runner=_fake_fit())
     # The operator decision is made in config/ after the fit started.
     scratch_cal = json.loads((paths.scratch_config / pr.CONFIDENCE_FILE).read_text())

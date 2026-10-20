@@ -48,7 +48,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +57,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import epochs, timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic, write_bytes_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     CONFIDENCE_ARTIFACT,
@@ -110,6 +111,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
     "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
     "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
+    "player_coverage",
 )
 
 
@@ -578,6 +580,7 @@ def rebuild_cache_rows(
     tennis_aces_opponent: bool = False,
     tennis_serve_markets: bool = False,
     closeness_stretch: bool = False,
+    player_coverage: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -795,6 +798,9 @@ def rebuild_cache_rows(
         "tennis_serve_markets": tennis_serve_markets,
         # epochs.FOOTBALL_CLOSENESS_STRETCH (bet.sofa.closeness_stretch)
         "closeness_stretch": closeness_stretch,
+        # epochs.FOOTBALL_PLAYER_COVERAGE (calibrate_from_cache
+        # --player-coverage: a thin player sampled over the wide window)
+        "player_coverage": player_coverage,
     }
     for name, on in new_flags.items():
         if on:
@@ -1959,6 +1965,78 @@ def dropped_replay_rules(
     return sorted(out)
 
 
+# A switch that changes p and that the cache replay can carry: when it is on
+# for the day after an install, the installed curves must have been fitted on
+# a replay with its flag (audit 2026-10-21 D5) - else SHEET prices a centre
+# the curve never saw. (switch name, its is-on function, the replay flag key)
+REPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
+    ("FOOTBALL_CLOSENESS_STRETCH", epochs.football_closeness_stretch,
+     "closeness_stretch"),
+    ("FOOTBALL_PLAYER_COVERAGE", epochs.football_player_coverage,
+     "player_coverage"),
+)
+# Switches the replay cannot carry (no referee labels / no team centres for
+# the player share in calibrate_from_cache): an install fits those markets'
+# curves on centres without them - warned, never refused. (switch name, its
+# is-on function, the config file whose `markets` it moves)
+UNREPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
+    ("FOOTBALL_REFEREE", epochs.football_referee, "sofa_referee_effect.json"),
+    ("FOOTBALL_PLAYER_SHARE", epochs.football_player_share,
+     "sofa_player_share.json"),
+)
+
+
+def _flag_key(flag: str) -> str:
+    """'--closeness-stretch' / 'closeness-stretch' / 'closeness_stretch' ->
+    'closeness_stretch'."""
+    return flag.strip().lstrip("-").replace("-", "_")
+
+
+def _on_through_next_day(is_on: Callable[..., bool], at: datetime) -> bool:
+    """Is a switch on now or at any moment of the next UTC day (the day the
+    installed curves first price whole)?"""
+    nxt = (at + timedelta(days=1)).date()
+    end = datetime(nxt.year, nxt.month, nxt.day, 23, 59, 59, tzinfo=UTC)
+    return bool(is_on(at.strftime("%Y-%m-%d"), at)
+                or is_on(nxt.isoformat(), end))
+
+
+def replay_switch_gaps(
+    staged: Mapping[str, Any],
+    *,
+    at: datetime,
+    config_dir: Path,
+    allow_missing: Iterable[str] = (),
+) -> tuple[list[str], list[str]]:
+    """(refusals, warnings) of an install at ``at``: a replayable switch on
+    for the day after the install whose flag the staged fit's replay
+    (`fitted_from.replay_rules.flags`) did not set is a refusal unless its
+    flag is in ``allow_missing``; a switch the replay cannot carry, on for
+    that day, is a warning naming the markets whose curves the fit put on
+    centres without it."""
+    flags = (((staged.get("fitted_from") or {}).get("replay_rules") or {})
+             .get("flags") or {})
+    allowed = {_flag_key(f) for f in allow_missing}
+    refusals: list[str] = []
+    for name, is_on, key in REPLAYABLE_SWITCHES:
+        if (_on_through_next_day(is_on, at) and not flags.get(key)
+                and key not in allowed):
+            refusals.append(f"{name} is on, the replay lacks "
+                            f"--{key.replace('_', '-')}")
+    warnings: list[str] = []
+    for name, is_on, cfg in UNREPLAYABLE_SWITCHES:
+        if not _on_through_next_day(is_on, at):
+            continue
+        doc = load_json(config_dir / cfg)
+        raw = doc.get("markets") or ()
+        markets = sorted(raw.keys() if isinstance(raw, Mapping) else raw)
+        warnings.append(
+            f"{name} is on and the replay cannot carry it: the curves of "
+            f"{', '.join(markets) or '(no markets in ' + cfg + ')'} are "
+            f"fitted on centres without it")
+    return refusals, warnings
+
+
 def install(
     paths: Paths,
     *,
@@ -1968,6 +2046,8 @@ def install(
     count_dispersion: bool = False,
     tennis_rating: bool = False,
     per_market_k: bool = False,
+    allow_missing_replay_flags: Sequence[str] = (),
+    at: datetime | None = None,
 ) -> dict[str, Any]:
     if not confirm:
         raise RefitError("install writes config/ - pass --confirm")
@@ -2011,6 +2091,19 @@ def install(
             "the installed curves were fitted on replay rules this refit's "
             f"replay lacks: {dropped} - their keys would describe a centre "
             "SHEET does not price; rebuild-cache-rows with those flags")
+    gaps, switch_warnings = replay_switch_gaps(
+        load_json(paths.scratch_config / CONFIDENCE_FILE),
+        at=at if at is not None else timeutil.now(),
+        config_dir=paths.config_dir,
+        allow_missing=allow_missing_replay_flags)
+    if gaps:
+        raise RefitError(
+            f"switches on for the day after the install: {gaps} - the curves "
+            "would describe a centre SHEET does not price; rebuild-cache-rows "
+            "with those flags, or name each one with "
+            "--allow-missing-replay-flag <flag>")
+    for line in switch_warnings:
+        say(f"WARNING: {line}")
 
     written: dict[str, str] = {}
     for name in FIT_OUTPUTS:
@@ -2057,6 +2150,9 @@ def install(
         "backup_dir": str(bdir),
         "installed_sha256": written,
         "fit_manifest": manifest.get("fitted_at_utc"),
+        "replay_switch_warnings": switch_warnings,
+        "allowed_missing_replay_flags": sorted(
+            {_flag_key(f) for f in allow_missing_replay_flags}),
     }
     write_atomic(
         paths.scratch / "install_manifest.json", json.dumps(record, indent=1) + "\n"
@@ -2282,6 +2378,13 @@ def build_parser() -> argparse.ArgumentParser:
         "after the switch is on should carry it",
     )
     r.add_argument(
+        "--player-coverage", action="store_true",
+        help="epochs.FOOTBALL_PLAYER_COVERAGE (calibrate_from_cache "
+        "--player-coverage: a footballer thin in the newest sample_n is "
+        "sampled over the newest samples.PLAYER_WIDE_SAMPLE_N). A refit "
+        "after the switch is on should carry it",
+    )
+    r.add_argument(
         "--rating-weight", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
         "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
@@ -2356,6 +2459,12 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--per-market-k", action="store_true",
                    help="require K_CENTRE.by_market.football in the staged "
                    "engine constants (installed with them)")
+    i.add_argument("--allow-missing-replay-flag", action="append", default=[],
+                   metavar="FLAG",
+                   help="install although a replayable switch on for the day "
+                   "after the install (REPLAYABLE_SWITCHES: --closeness-stretch, "
+                   "--player-coverage) was not replayed; repeat per flag, "
+                   "e.g. --allow-missing-replay-flag=--player-coverage")
 
     s = sub.add_parser("restore", help="config/ back from a backup dir")
     s.add_argument("--confirm", action="store_true")
@@ -2466,6 +2575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     tennis_aces_opponent=args.tennis_aces_opponent,
                     tennis_serve_markets=args.tennis_serve_markets,
                     closeness_stretch=args.closeness_stretch,
+                    player_coverage=args.player_coverage,
                 )["exit"]
             )
         if args.command == "fit":
@@ -2488,6 +2598,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     count_dispersion=args.count_dispersion,
                     tennis_rating=args.tennis_rating,
                     per_market_k=args.per_market_k,
+                    allow_missing_replay_flags=args.allow_missing_replay_flag,
                 )["exit"]
             )
         if args.command == "restore":
