@@ -57,6 +57,9 @@ READ_NONE = "nie"
 # a slip read older than this (an earlier request's, maybe before lineups) is
 # shown with its local time, "KEEP (10:42)"; it still counts as read
 SLIP_READ_FRESH = datetime.timedelta(hours=3)
+# the search's tie-break for a read leg: +0.25% relative chance (review 5: a
+# slip of two KEEP legs at 0.2385 lost to two unread legs at 0.2388)
+READ_TIE = math.log(1.0025)
 REFUSING = frozenset({"WATCH", "NO_BET"})
 
 TIER_SELECTION = 1  # x >= 1 and family on the plus (the HTML view's button)
@@ -402,7 +405,7 @@ def best_slip(
             for score, price, chosen in dp[k].values():
                 for x in options:
                     p = price + math.log(x.odds)
-                    cand = (score + math.log(x.chance), p, chosen + (x,))
+                    cand = (score + _search_score(x), p, chosen + (x,))
                     # only a state at or above the target files under the cap,
                     # so one exactly at it never shares a bucket with one below
                     b = (
@@ -426,6 +429,13 @@ def best_slip(
     return Slip(sorted(best[2], key=lambda x: str(x.leg.get("kickoff_utc"))))
 
 
+def _search_score(x: Leg) -> float:
+    """A leg's log chance in the search: a read leg gains READ_TIE, so a
+    slip of read legs is not swapped for unread ones over a hair of chance
+    (each swap costs a round of reads). The printed chance is never touched."""
+    return math.log(x.chance) + (READ_TIE if x.read != READ_NONE else 0.0)
+
+
 def _finite(value: Any) -> bool:
     try:
         return value is not None and math.isfinite(float(value))
@@ -435,13 +445,13 @@ def _finite(value: Any) -> bool:
 
 def _pareto_legs(options: Sequence[Leg]) -> list[Leg]:
     """A match's legs that no other leg beats on both price and chance."""
-    ranked = sorted(options, key=lambda x: (-x.odds, -x.chance))
+    ranked = sorted(options, key=lambda x: (-x.odds, -_search_score(x)))
     out: list[Leg] = []
     best_chance = -1.0
     for x in ranked:
-        if x.chance > best_chance:
+        if _search_score(x) > best_chance:
             out.append(x)
-            best_chance = x.chance
+            best_chance = _search_score(x)
     return out
 
 
@@ -586,7 +596,8 @@ def render(
         )
     elif n_ok == 0:
         reach = (
-            f" (najwyżej ~{result.reachable:.2f} w jednym kuponie)"
+            f" (iloczyn kursów najlepszych nóg sięga ~{result.reachable:.2f} - "
+            "zasięg, nie kurs kuponu)"
             if result.reachable > 1.0
             else " (w oknie nie ma ani jednej takiej nogi)"
         )

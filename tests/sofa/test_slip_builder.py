@@ -652,3 +652,49 @@ def test_merge_reads_checks_the_slip_read_set(
         merge_reads.merge(run, [report], "analyst", True, slip=True, read_sets=[rs])
         == 0
     )
+
+
+def test_a_later_keep_never_erases_a_slip_watch(tmp_path: Path) -> None:
+    from scripts.sofa import merge_reads
+
+    run = tmp_path / "2026-10-20"
+    run.mkdir()
+    base = {
+        "sofascore_event_id": 1,
+        "market": "corners_total",
+        "subject": "",
+        "line": 7.5,
+        "direction": "OVER",
+        "author": "analyst",
+        "reason": "t",
+    }
+    for verdict in ("WATCH", "KEEP"):
+        report = tmp_path / f"{verdict}.md"
+        body = json.dumps([{**base, "verdict": verdict}])
+        report.write_text("```json reads\n" + body + "\n```\n")
+        assert merge_reads.merge(run, [report], "analyst", False, slip=True) == 0
+    stored = json.loads((run / merge_reads.SLIP_READS).read_text())
+    assert sorted(r["verdict"] for r in stored) == ["KEEP", "WATCH"]
+    from bet.sofa.veto import load_reads
+
+    assert (
+        sb.read_status(
+            _leg(1, 1.5, 0.7), slip_reads=load_reads(run / merge_reads.SLIP_READS)
+        )
+        is None
+    )
+
+
+def test_read_legs_are_kept_over_unread_ones_on_a_hair_of_chance() -> None:
+    read = [
+        sb.Leg(_leg(i, 2.0, 0.5), 2.0, 0.4884, "t", sb.TIER_REST, sb.READ_KEEP)
+        for i in (1, 2)
+    ]
+    unread = [sb.Leg(_leg(i, 2.0, 0.5), 2.0, 0.4887, "t", sb.TIER_REST) for i in (3, 4)]
+    got = sb.best_slip(read + unread, 4.0, 2)
+    assert got is not None
+    assert {x.leg["sofascore_event_id"] for x in got.legs} == {1, 2}
+    clearly = [sb.Leg(_leg(i, 2.0, 0.5), 2.0, 0.52, "t", sb.TIER_REST) for i in (3, 4)]
+    got = sb.best_slip(read + clearly, 4.0, 2)
+    assert got is not None
+    assert {x.leg["sofascore_event_id"] for x in got.legs} == {3, 4}

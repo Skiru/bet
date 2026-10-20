@@ -13,7 +13,9 @@ coupon). Same validation. With --read-set <read_set_slip_*.json> (repeat
 per file) every fresh read must cover a leg of those files and every leg
 must get a read: UNMATCHED_READ / LEG_WITHOUT_READ are listed, exit 1 (the
 merge is still written - a typo in an id would otherwise leave the loop
-re-reading a leg it thinks is read).
+re-reading a leg it thinks is read). A slip read is stamped `read_at_utc`;
+a later read of the same leg by the same author replaces an earlier KEEP
+(the slip shows the latest read's time), never a WATCH / NO_BET.
 
 A report ends with fenced JSON arrays (```json vetoes / ```json reads).
 Every array is classified by its entries (a `verdict` = reads, a
@@ -151,11 +153,13 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     earlier_r = _load(reads_path)
     if slip:
         # a slip's read is stamped, and a later read of the same leg by the
-        # same author replaces the earlier one (the latest read decides)
+        # same author replaces an earlier KEEP (its time is what the slip
+        # shows); an earlier WATCH / NO_BET is never replaced - it wins
         stamp = utc_now().isoformat(timespec="seconds")
         fresh_r = [{**r, "read_at_utc": stamp} for r in fresh_r]
         again = {_leg_key(r) for r in fresh_r}
-        earlier_r = [r for r in earlier_r if _leg_key(r) not in again]
+        earlier_r = [r for r in earlier_r
+                     if r.get("verdict") != "KEEP" or _leg_key(r) not in again]
     seen = {_key(r) for r in earlier_r}
     merged_r = earlier_r + [r for r in _dedupe(fresh_r) if _key(r) not in seen]
 
