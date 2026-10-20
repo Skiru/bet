@@ -424,6 +424,10 @@ class SheetRow(BaseModel):
     # APPLIED (referee_id, n, ratio, multiplier), NO_REFEREE (nobody named
     # yet - multiplier 1) or NO_REFEREE_RECORD; absent when off.
     referee_read: dict[str, Any] | None = None
+    # bet.sofa.epochs.FOOTBALL_PLAYER_SHARE: the rule's name on a football
+    # row priced while a footballer's centre is his share of his side's team
+    # centre (bet.sofa.player_share); absent when off.
+    player_share_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_RESULT_MARKETS (audit D1): the rule's name on a
     # double_chance row (bet.sofa.football_result); absent when off.
     result_rule: str | None = None

@@ -18,6 +18,7 @@ from rapidfuzz import fuzz
 
 from bet.sofa import epochs, sheet_config
 from bet.sofa import referees as referee_terms
+from bet.sofa import player_share as psh
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
@@ -1958,6 +1959,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_GOALS_STRETCH_MARKER, epochs.FOOTBALL_COUNT_STRETCH_MARKER,
     epochs.FOOTBALL_PLAYER_STRETCH_MARKER, epochs.TENNIS_ACES_OPPONENT_MARKER,
     epochs.FOOTBALL_REFEREE_MARKER,
+    epochs.FOOTBALL_PLAYER_SHARE_MARKER,
 ))
 
 
@@ -2020,6 +2022,64 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
     return out
 
 
+def player_share_centre(
+    market: str,
+    subject: str,
+    side: str,
+    samples: FixtureSamples,
+    cell: psh.ShareCell,
+    team_centres: Mapping[tuple[str, str], float],
+) -> tuple[float | None, str]:
+    """(the share model's centre or None, the row's note) for one
+    footballer's row (epochs.FOOTBALL_PLAYER_SHARE): his volume over his
+    sampled starts against his side's in the same matches (the raw SAMPLES
+    values), shrunk to his position's share, x his side's team centre today
+    (``team_centres``, the team rows SHEET priced); None - the old centre -
+    when the side has no team row or too few matched starts."""
+    team_metric = psh.TEAM_METRIC[market]
+    team_centre = team_centres.get((team_metric, side))
+    if team_centre is None:
+        return None, (f"{psh.NOTE}: no {team_metric} row for his side (not "
+                      "quoted or not priced) - the centre is his own sample's")
+    volume = samples.players.get(
+        player_sample_key(psh.VOLUME_METRIC[market], subject))
+    team_sample = samples.metrics.get(team_metric)
+    if volume is None or team_sample is None:
+        return None, (f"{psh.NOTE}: no {psh.VOLUME_METRIC[market]} / "
+                      f"{team_metric} sample - the centre is his own sample's")
+    own_sample = (samples.players.get(player_sample_key(market, subject))
+                  if market in psh.ACCURACY_MARKETS else None)
+    team_obs = team_sample.side_a if side == "side_a" else team_sample.side_b
+    inputs = psh.share_inputs(
+        [(o.sofascore_event_id, o.value) for o in volume.observations],
+        [(o.sofascore_event_id, o.value) for o in team_obs],
+        None if own_sample is None
+        else [(o.sofascore_event_id, o.value) for o in own_sample.observations])
+    if inputs.matches < psh.MIN_SHARE_MATCHES:
+        return None, (f"{psh.NOTE}: {inputs.matches} of his starts matched to "
+                      f"his side's {team_metric} (< {psh.MIN_SHARE_MATCHES}) - "
+                      "the centre is his own sample's")
+    position = next(
+        (ps.position for key, ps in sorted(samples.players.items())
+         if ps.position and key.endswith(f"|{subject}")), None)
+    prior = cell.share_prior(position)
+    accuracy_prior = cell.accuracy_prior(position)
+    centre = psh.share_centre(
+        his_volume=inputs.his_volume, team_volume=inputs.team_volume,
+        team_centre=team_centre, prior_share=prior, m=cell.m,
+        his_count=inputs.his_count if market in psh.ACCURACY_MARKETS else None,
+        prior_accuracy=accuracy_prior, m_accuracy=cell.m_accuracy)
+    text = (f"{psh.NOTE}: centre {centre:.2f} = share of {inputs.his_volume:g} "
+            f"/ {inputs.team_volume:g} in {inputs.matches} starts (prior "
+            f"{prior:.3f}, {position or 'all positions'}) x his side's "
+            f"{team_metric} centre {team_centre:.2f}")
+    if market in psh.ACCURACY_MARKETS and inputs.his_count is not None:
+        text += (f" x accuracy of {inputs.his_count:g} / {inputs.his_volume:g} "
+                 f"(prior {accuracy_prior or 0.0:.3f})")
+    return centre, (f"{text}; {cell.describe()}; "
+                    "epochs.FOOTBALL_PLAYER_SHARE")
+
+
 def process_fixture(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -2043,6 +2103,7 @@ def process_fixture(
     goals_stretch: GoalsStretchTable | None = None,
     count_stretch: CountStretchTable | None = None,
     player_stretch: PlayerStretchTable | None = None,
+    player_share: psh.ShareTable | None = None,
     venue_prior_on: bool = False,
     set_rating_prices: bool = False,
     sample_corrector: SampleCorrector | None = None,
@@ -2131,8 +2192,16 @@ def process_fixture(
         ladder_centres[key] = lc
         ladder_sds[key] = ladder_implied_sd(devigged)
 
+    # epochs.FOOTBALL_PLAYER_SHARE: a footballer's centre reads his side's
+    # team centre, so the team rows are priced first (the rows are put back
+    # in the offer's order after the loop); off, the loop is as it was.
+    share_on = player_share is not None and fixture.sport == "football"
+    team_centres: dict[tuple[str, str], float] = {}
+    loop_rungs = (sorted(offer.rungs, key=lambda r: is_player_metric(r.market))
+                  if share_on else offer.rungs)
+
     # Now evaluate each rung and direction
-    for rung in offer.rungs:
+    for rung in loop_rungs:
         # D2: the tennis match winner, priced by the rating alone (no sample).
         # OFFER emits it only under epochs.TENNIS_MATCH_WINNER; off, a stray
         # rung of it is dropped like a market with no sample.
@@ -2537,10 +2606,24 @@ def process_fixture(
                         f"{' (home)' if side_key is None else ''}, "
                         f"{goals_stretch.describe(rung.market, season_phase_label)}; "
                         "epochs.FOOTBALL_GOALS_STRETCH)")
+            # epochs.FOOTBALL_PLAYER_SHARE: his shrunk share of his side's
+            # team centre in place of his own mean (and of the stretch below,
+            # which the team centre's game state already carries).
+            shared = False
+            if share_on and player_share is not None and player_side is not None:
+                share_cell = player_share.cell(rung.market)
+                if share_cell is not None:
+                    s_centre, s_note = player_share_centre(
+                        rung.market, rung.subject, player_side, samples,
+                        share_cell, team_centres)
+                    extra_notes.append(s_note)
+                    if s_centre is not None:
+                        centre = s_centre
+                        shared = True
             # epochs.FOOTBALL_PLAYER_STRETCH: a footballer's shots centre x
             # exp(beta x s), s his own side's expected goal difference.
             if (player_stretch is not None and football is not None
-                    and player_side is not None):
+                    and player_side is not None and not shared):
                 ps_sup = football.supremacy(player_side)
                 ps_mult = player_stretch.multiplier(rung.market, ps_sup)
                 if ps_mult is not None and ps_sup is not None:
@@ -2578,6 +2661,13 @@ def process_fixture(
                     centre *= a_mult
                     extra_notes.append(
                         aces_opp.describe(a_mult, a_before, centre, a_detail))
+
+        # epochs.FOOTBALL_PLAYER_SHARE: the side's team centre, for its
+        # players' rows (priced after every team row while the switch is on)
+        if (share_on and rung.subject and rung.market in psh.TEAM_METRIC_KEYS):
+            t_side = determine_side(rung.subject, fixture)
+            if t_side in ("side_a", "side_b"):
+                team_centres.setdefault((rung.market, t_side), centre)
 
         # The spread moves with the centre (football counts) - see
         # engine.sheet_predictive_sd, which the cache replay shares.
@@ -3028,6 +3118,15 @@ def process_fixture(
             )
             rows.append(row)
 
+    if share_on:
+        # back in the offer's order (a stable sort: OVER before UNDER)
+        order: dict[tuple[str, str, float], int] = {}
+        for i, r in enumerate(offer.rungs):
+            order.setdefault((r.market, r.subject, r.line), i)
+        rows.sort(key=lambda r: order.get((r.market, r.subject, r.line), len(order)))
+        rung_index = {id(r): i for i, r in enumerate(offer.rungs)}
+        skipped.sort(key=lambda s: rung_index.get(id(s[0]), len(rung_index)))
+
     marginal_centres: dict[tuple[str, str], float] | None = None
     if fixture.sport == "football" and marginal_centres_on:
         marginal_centres = {}
@@ -3281,6 +3380,11 @@ def _main() -> int:
     player_stretch_table = (
         load_player_stretch_table()
         if stats_only and epochs.football_player_stretch(args.date) else None)
+    # epochs.FOOTBALL_PLAYER_SHARE (off: None, the centre byte for byte; a
+    # missing / malformed config raises, rc 2)
+    player_share_table = (
+        psh.load_table()
+        if stats_only and epochs.football_player_share(args.date) else None)
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
     # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5): the
@@ -3405,6 +3509,7 @@ def _main() -> int:
                 referee_effect=referee_effect_table,
                 referee_reads=referee_reads_by_event.get(fixture.sofascore_event_id),
                 player_stretch=player_stretch_table,
+                player_share=player_share_table,
                 venue_prior_on=venue_prior_on,
                 set_rating_prices=set_rating_prices,
                 aces_opponent_on=aces_opponent_on,
@@ -3501,6 +3606,8 @@ def _main() -> int:
             (epochs.FOOTBALL_PLAYER_STRETCH_MARKER,
              player_stretch_table is not None),
             (epochs.FOOTBALL_REFEREE_MARKER, referee_effect_table is not None),
+            (epochs.FOOTBALL_PLAYER_SHARE_MARKER,
+             player_share_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
@@ -3585,6 +3692,9 @@ def _main() -> int:
             "referee_rule": (
                 epochs.FOOTBALL_REFEREE if referee_effect_table is not None
                 else "old"),
+            "player_share_rule": (
+                epochs.FOOTBALL_PLAYER_SHARE
+                if player_share_table is not None else "old"),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

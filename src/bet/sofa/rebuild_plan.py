@@ -125,6 +125,7 @@ class DayState:
     sheet_count_stretch: bool = True
     sheet_player_stretch: bool = True
     sheet_referee: bool = True
+    sheet_player_share: bool = True
     sheet_tennis_aces: bool = True
     # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
     # sheet written before the stamp; "mixed": rows disagree) and the files'
@@ -291,6 +292,7 @@ AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
     epochs.FOOTBALL_GOALS_STRETCH_MARKER, epochs.FOOTBALL_COUNT_STRETCH_MARKER,
     epochs.FOOTBALL_PLAYER_STRETCH_MARKER, epochs.TENNIS_ACES_OPPONENT_MARKER,
     epochs.FOOTBALL_REFEREE_MARKER,
+    epochs.FOOTBALL_PLAYER_SHARE_MARKER,
 )
 
 
@@ -340,6 +342,9 @@ def audit_sheet_stale(state: DayState) -> list[str]:
         (epochs.football_player_stretch(d, now), state.sheet_player_stretch,
          "footballers' shots centres carry the supremacy stretch "
          "(epochs.football_player_stretch)"),
+        (epochs.football_player_share(d, now), state.sheet_player_share,
+         "footballers' shots centres are their share of the side's team centre "
+         "(epochs.football_player_share)"),
         (epochs.tennis_aces_opponent(d, now), state.sheet_tennis_aces,
          "tennis aces centres read the returner's factor "
          "(epochs.tennis_aces_opponent)"),
@@ -439,6 +444,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_count_stretch=markers[epochs.FOOTBALL_COUNT_STRETCH_MARKER],
         sheet_player_stretch=markers[epochs.FOOTBALL_PLAYER_STRETCH_MARKER],
         sheet_referee=markers[epochs.FOOTBALL_REFEREE_MARKER],
+        sheet_player_share=markers[epochs.FOOTBALL_PLAYER_SHARE_MARKER],
         sheet_tennis_aces=markers[epochs.TENNIS_ACES_OPPONENT_MARKER],
         sheet_config_sha=sheet_config_sha,
         config_sha=sheet_config.fingerprint(),

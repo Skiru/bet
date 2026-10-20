@@ -2309,6 +2309,36 @@ def football_player_stretch(date: str, build_at: datetime | None = None) -> bool
             and at >= FOOTBALL_PLAYER_STRETCH_FROM_UTC)
 
 
+# The footballer share model (bet.sofa.player_share): from this moment the
+# centre of a player market of config/sofa_player_share.json (shots, shots on
+# target) is his shrunk share of his side's volume over his sampled starts x
+# his side's team centre today (the centre SHEET prices the side's shots_for
+# row with: rating, game state, opponent correction), x his shrunk accuracy
+# for shots on target, in place of the mean of his starts x the player
+# stretch. A player whose side has no team row (Superbet quotes no team
+# shots) keeps the old centre and says so. Measured 2026-10-21 (history
+# replay out of sample and Superbet's settled lines 10-12..10-19):
+# docs/sofa/evidence/football_player_share_2026-10-21.md. It changes p of the
+# player rows; the player curves were fitted on the old p. Rows priced under
+# it carry `player_share_rule` (every football row), so a rebuild re-runs
+# SHEET on a sheet without it. The fitted file is staged, not installed: it
+# goes to config/ with the switch. None: OFF, byte for byte.
+FOOTBALL_PLAYER_SHARE = "player_share_v1"
+FOOTBALL_PLAYER_SHARE_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_SHARE_MARKER = (
+    "player_share_rule", FOOTBALL_PLAYER_SHARE, "football")
+
+
+def football_player_share(date: str, build_at: datetime | None = None) -> bool:
+    """Is a footballer's shots / SOT centre his share of his side's team
+    centre (FOOTBALL_PLAYER_SHARE_FROM_UTC)?"""
+    if FOOTBALL_PLAYER_SHARE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_PLAYER_SHARE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_PLAYER_SHARE_FROM_UTC)
+
+
 # Football "or" result markets, the underdog's European handicap and the
 # double chance & goals pairs that clear their gate
 # (bet.sofa.football_score_markets): OFFER reads "Mecz lub liczba goli",

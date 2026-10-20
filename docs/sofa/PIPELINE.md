@@ -1281,6 +1281,34 @@ Dowody: `docs/sofa/evidence/player_sample_gates_2026-10-16.md`,
 `docs/sofa/evidence/player_line_evidence_2026-10-16.md`; test na nowych
 danych `T-PLAYER-SAMPLE-GATES`.
 
+**Udział zawodnika w drużynie (`epochs.FOOTBALL_PLAYER_SHARE_FROM_UTC`,
+WYŁĄCZONE do decyzji sesji głównej; `bet.sofa.player_share`).** Środek
+`player_shots_for` / `player_shots_on_target_for` to dziś średnia jego startów
+(5-10 wartości, bez skurczu - `NO_PRIOR`, bo dla rynków zawodnika nie ma
+bazy ligowej) x rozciągnięcie zawodnika. Po włączeniu: środek = jego udział w
+strzałach drużyny w tych samych meczach, skurczony do udziału pozycji
+(`(jego strzały + m x prior_pozycji) / (strzały drużyny + m)`, m = 40),
+x środek wiersza `shots_for` jego strony z tego samego arkusza (rating, game
+state, korekta rywala) - a dla celnych dodatkowo x jego celność skurczona do
+celności pozycji (m = 40 strzałów). Rozciągnięcie zawodnika wtedy nie działa
+(gra je już środek drużyny). SHEET liczy wiersze drużynowe przed zawodniczymi
+i oddaje wiersze w kolejności oferty; strona bez wiersza `shots_for` (Superbet
+nie wystawił strzałów drużyny) albo < 3 dopasowane starty = stary środek z
+notą `PLAYER_SHARE: ...`. Pozycja z próbki shot-detail (brak = prior
+wszystkich pozycji). Wiersze piłkarskie mają `player_share_rule`;
+`rebuild_plan` puszcza SHEET ponownie, gdy go brak. Plik
+`config/sofa_player_share.json` jest **przygotowany, nie zainstalowany**
+(`data/refit_player_share_2026-10-21/`), wchodzi z przełącznikiem.
+Pomiar (`scripts/sofa/measure_player_share.py`, replay
+`data/refit_2026-10-17/sofa_replay.db`, dopasowanie przed 2026-04-01, test
+2026-04-01..10-12, bootstrap meczów): log-loss B - A na liniach 0,5 / 1,5 /
+2,5 strzały −0,0235 / −0,0197 / −0,0124, celne −0,0228 / −0,0154 / −0,0066,
+każdy przedział poniżej zera; na liniach Superbetu 10-12..10-19 (krzywa
+zainstalowana): strzały −0,0178 [−0,0240; −0,0104], celne −0,0168 [−0,0237;
+−0,0097]. Poprawka kalibracji, nie przewaga: przy x ≥ 0,90 ROI bez zmian.
+Faule / odbiory zmierzone osobno i **nie** włączone (linia 0,5 bez zysku lub
+gorzej). Dowody: `docs/sofa/evidence/football_player_share_2026-10-21.md`.
+
 **Nazwiska (od 2026-10-12 00:00Z, `epochs.PLAYER_NAME_TOKENS_FROM_UTC`).**
 Superbet pisze wielu zawodników pełnym nazwiskiem rejestrowym („Andrade,
 Matheus Araujo”), Sofascore boiskowym („Matheus Araujo”); `token_sort_ratio`
