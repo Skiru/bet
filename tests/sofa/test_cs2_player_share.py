@@ -85,3 +85,87 @@ def test_a_key_without_fit_rows_is_not_a_thin_bucket() -> None:
     assert no_curve_reason("player_kills|OVER", set()) == "NO_HISTORY_ROWS"
     assert no_curve_reason("map_winner|TEAM", {"map_winner|TEAM"}).startswith(
         "NO_FIT_BUCKET_WITH_N>=")
+
+
+def _synthetic_history(n_maps: int = 120) -> list[eng.MapRow]:
+    """Two teams of five, every map with rounds and full player rows."""
+    import random
+
+    rng = random.Random(5)
+    out: list[eng.MapRow] = []
+    for i in range(n_maps):
+        hw = rng.random() < 0.55
+        w, lost = 13, rng.randint(3, 11)
+        hr, ar = (w, lost) if hw else (lost, w)
+        players = []
+        for team, base, rounds in ((A, 7, hr), (B, 70, ar)):
+            for j in range(5):
+                k = max(0, int(rounds * (0.9 + 0.1 * j) + rng.randint(-3, 3)))
+                players.append((team, base + j, f"n{base + j}",
+                                (("kills", k), ("deaths", rng.randint(8, 20)),
+                                 ("assists", rng.randint(1, 8)),
+                                 ("headshots", k // 2))))
+        out.append(eng.MapRow(1000 + i, 1000 + i * 100, 1, A, B, hr, ar, hr > ar,
+                              tuple(players), None, 3))
+    return out
+
+
+def test_model_probability_prices_headshots_from_the_exposure_only_when_on() -> None:
+    from bet.sofa.cs2 import Cs2Line
+
+    hist = _synthetic_history()
+    ratings = eng.build_ratings(hist)
+    hs = Cs2Line("e", "player_headshots", 1, "n9", 7.5, "OVER", 1.9)
+    kills = Cs2Line("e", "player_kills", 1, "n9", 14.5, "OVER", 1.9)
+    off, on = eng.build_exposure(hist), eng.build_exposure(hist, player_share=True)
+    got = {name: eng.model_probability(line, A, B, "a", "b", 3, hist, ratings, True,
+                                       exposure=book)
+           for name, line, book in (("hs_off", hs, off), ("hs_on", hs, on),
+                                    ("k_off", kills, off), ("k_on", kills, on))}
+    assert all(v is not None for v in got.values())
+    assert got["hs_off"].model != "round_exposure"  # type: ignore[union-attr]
+    assert got["hs_on"].model == "round_exposure"  # type: ignore[union-attr]
+    assert got["k_off"].model == got["k_on"].model == "round_exposure"  # type: ignore[union-attr]
+    assert got["k_off"].p != got["k_on"].p  # type: ignore[union-attr]
+
+
+def test_sport_confidence_builds_the_book_with_the_days_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.sofa import run_sport_confidence as rsc
+
+    seen: list[bool] = []
+    def fake(maps: list[eng.MapRow], share: bool = False) -> eng.ExposureBook:
+        seen.append(share)
+        return eng.ExposureBook()
+
+    monkeypatch.setattr(rsc.cs2_engine, "build_exposure", fake)
+    rsc.DbForecaster("unused.db", datetime(2026, 10, 20, 9, tzinfo=UTC),
+                     "2026-10-20")._cs2_counts([])
+    rsc.DbForecaster("unused.db", datetime(2026, 10, 21, 9, tzinfo=UTC),
+                     "2026-10-21")._cs2_counts([])
+    assert seen == [False, True]
+
+
+def test_cs2_settle_builds_the_book_with_the_offered_days_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    from scripts.sofa import settle_cs2 as sc
+
+    seen: list[bool] = []
+    monkeypatch.setattr(sc, "get_connection", lambda db: nullcontext(None))
+    monkeypatch.setattr(sc, "load_history", lambda conn, before, eid: [])
+    monkeypatch.setattr(sc, "build_ratings", lambda history, *a: {})
+    monkeypatch.setattr(sc, "build_exposure",
+                        lambda history, share=False: seen.append(share) or None)
+    monkeypatch.setattr(sc, "model_probability", lambda *a, **k: SimpleNamespace(
+        p=0.6, n=5, model="m"))
+    fields = {k: None for k in sc.Cs2Line.__dataclass_fields__}
+    for kick in (datetime(2026, 10, 20, 18, tzinfo=UTC),
+                 datetime(2026, 10, 21, 18, tzinfo=UTC)):
+        sc.attach_model([dict(fields)], SimpleNamespace(team1="a", team2="b"),
+                        {"id": 1, "bestOf": 3}, {}, True, kick, "x.db")
+    assert seen == [False, True]
