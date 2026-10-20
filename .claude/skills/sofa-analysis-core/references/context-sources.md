@@ -8,10 +8,12 @@ squad. This file says where to look, so a fact is found, not re-derived.
 is what the settlement audit answers per `context` tag (7e for vetoes, 7i for
 removed legs). A source earns trust from that table, not its reputation.
 
-The rules of SKILL.md bind every lookup: decision point first, one web pass
-per match and only when a fact could change a verdict, queries that cannot
-return a scoreline, two independent domains, every claim tagged with domain
-and publication time, a leak declared.
+The rules of SKILL.md bind every lookup: decision point first, then a context
+pass on **every** match not yet started (news, conditions, morale and the
+backstage, stakes, opinions; up to ~8 searches / fetches), queries that cannot
+return a scoreline, every claim tagged with domain and publication time, a
+leak declared. Two independent domains for a NO_BET; one domain or an opinion
+carries at most a WATCH, through the leg's own variable.
 
 ## Derive it before you search for it
 
@@ -57,10 +59,21 @@ not an opinion.
 | hockey / basketball / volleyball schedule, postponement, format | the league's or federation's site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
 | overtime / shoot-out scope | Superbet's market text on the leg (`superbet_market`) and its rules - not a preview | not a `context` tag; leave `context` out |
 
+## Every sport - the soft half
+
+| what | where | `context` |
+|---|---|---|
+| weather at the venue at the start | a weather service's hourly forecast for the city (two domains), the club's matchday post | `CONDITIONS` |
+| pitch, roof, altitude, indoor / outdoor | the club / venue, local press | `CONDITIONS` |
+| dressing room, conflict, unpaid wages, a sacked or doomed coach, a boycott, fan protest | local press in the club's language, the club's and players' own channels, fan sites (fan site = `opinia`) | `MORALE` |
+| managers' and players' words before the match | press conference reports, the club's channels | the tag the words are about |
+| previews, journalists | any preview with reasoning - `opinia`, a lead to check | the tag the reasoning is about |
+
 ## Tipsters
 
 A tipster's reasoning ("rotating before the derby") is a lead to verify on a
-second domain; a tipster's pick is evidence of nothing.
+second domain - unverified it is an `opinia` that may carry a WATCH through the
+leg's variable; a tipster's pick is evidence of nothing.
 
 ## Never a source
 

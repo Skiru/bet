@@ -207,7 +207,26 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   **próbkę** (k/n) i **model** (`forecast_p`, nieskalibrowany); cena to
   tylko filtr zakładu;
 - punkt decyzyjny przed jakimkolwiek wyszukiwaniem: mecz, który się zaczął,
-  wypada przed researchem; web — dwie niezależne domeny, otagowane;
+  wypada przed researchem;
+- najpierw **dossier meczu** (`runs/sofa/<d>/dossier/<sport>_<id>.json`,
+  `bet.sofa.dossier`, offline, pisane przez `read_set.py` i `build_slip.py`,
+  ścieżka w polu nogi `dossier`): forma z okresami / mapami, odpoczynek i
+  mecze w 7 / 14 dni, tabela odtworzona z listingów (mówi, ile meczów
+  policzyła), H2H, stadion z miastem i godziną lokalną, sędzia, ranking,
+  CS2: skład i nowe nazwisko, pula map, forma graczy; ruch linii Superbetu
+  przez dzień; lista kontrolna webu z wpisanymi nazwami — tylko podgląd,
+  nigdy bramka; KEEP podaje oczekiwanie w jednostkach rynku, fakt z dossier
+  i ustalenie z kontekstu, nigdy samo „15/18”;
+- **każdy nierozpoczęty mecz dostaje przegląd kontekstu w sieci** (operator
+  2026-10-20; do ~8 wyszukiwań / pobrań na mecz, także prasa lokalna):
+  newsy i fakty (składy, absencje, bramkarz / zawodnik zastępczy, format),
+  warunki (pogoda w miejscu meczu, murawa, hala), nastroje i kulisy (konflikt,
+  zaległe pensje, zwolniony trener, protesty kibiców — tag `MORALE`), stawka
+  meczu, opinie (zapowiedzi, słowa trenerów, rozumowanie typera — nigdy sam
+  typ); w sekcji meczu „Kontekst (web)”, także „nic istotnego”;
+- waga: fakt z dwóch niezależnych domen może dać `NO_BET`; jedna domena,
+  opinia albo nastrój — co najwyżej `WATCH` i tylko przez zmienną tej nogi
+  (deszcz → rożne i gole, rezerwowy bramkarz → suma); wszystko otagowane,
   „niezweryfikowane” bywa uczciwą odpowiedzią;
 - źródła: tylko Sofascore i Superbet z artefaktów dnia oraz otwarty web;
   **bzzoiro ani żaden inny dostawca**;

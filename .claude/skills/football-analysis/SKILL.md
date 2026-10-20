@@ -27,8 +27,9 @@ minority of fixtures; a venue on few; **the raw observations**; the schedule
 block; the table-stakes flag; and the rating behind the centre (its ratios
 are in the row's `FOOTBALL_RATING` note). Not on disk: standings, aggregates,
 absences, lineups, manager changes, weather, derby status, any 1X2 consensus.
-That half comes from the open web (SKILL core: one pass per match, two
-domains, tagged) or is `UNVERIFIED`.
+That half comes from the open web - every match gets a context pass (SKILL
+core, decision point step 3: news, weather, morale and the backstage,
+opinions; tagged, weighted) - or is `UNVERIFIED`.
 
 ## What the code already does - do not re-derive or veto for it
 

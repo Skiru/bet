@@ -49,6 +49,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `13_results.json` | settled result of every printed position, the ledger's own grades (`bet.sofa.coupon_results`); written by `mark_coupon_results.py` (called by `record_results.py`) |
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts, vetoes, the operator's extra positions |
 | `read_set/read_set_<sport>[_<i>].json` | C3's read set as compact legs (`read_set.py`) |
+| `dossier/<sport>_<event id>.json` | the analysts' match fact sheet (`bet.sofa.dossier`, offline, written by `read_set.py` / `build_slip.py`, path on each leg's `dossier`): form with periods, rest, rebuilt table, h2h, venue city / local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, the web checklist - **display only**, never a gate |
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; pinned Sofascore ids of sport games |
 | `unmapped_prices/<ts>.jsonl.gz` | prices of markets OFFER does not read - a record, read by nothing |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** |
@@ -185,7 +186,10 @@ could win is cut by name.
   `MAX_OWN_SAMPLE_GAP` 0.15, props excluded) - moves a leg to
   `removed_by_reads`, graded on its own, never in the coupon's result.
   `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`) are shown,
-  never gated.
+  never gated. Every analyst reads the match's dossier first and makes a web
+  context pass on every match not yet started (news, weather, morale and the
+  backstage - `MORALE` tag - stakes, opinions; operator 2026-10-20); one
+  domain or an opinion carries at most a WATCH, through the leg's variable.
 
 ### Measured sports (hockey, basketball, volleyball, CS2)
 

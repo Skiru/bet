@@ -43,6 +43,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import dossier  # noqa: E402
 from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
@@ -97,8 +98,10 @@ def window(
     return lo, hi
 
 
-def write_read_set(out_dir: Path, result: sb.Result) -> dict[str, int]:
-    """read_set_slip_<sport>.json of the unread slip and reserve legs."""
+def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
+                   db_path: str | None = None) -> dict[str, int]:
+    """read_set_slip_<sport>.json of the unread slip and reserve legs; with
+    `run`, each match's dossier too (`bet.sofa.dossier`, the leg's `dossier`)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     for stale in out_dir.glob("read_set_slip_*.json"):
         stale.unlink()
@@ -110,6 +113,9 @@ def write_read_set(out_dir: Path, result: sb.Result) -> dict[str, int]:
             sport = str(leg.get("sport") or "football")
             compact.update(sport=sport, in_set=why)
             by_sport.setdefault(sport, []).append(compact)
+    if run is not None and by_sport:
+        every = [x for legs in by_sport.values() for x in legs]
+        print(dossier.attach(run, every, db_path))
     for sport, legs in by_sport.items():
         (out_dir / f"read_set_slip_{sport}.json").write_text(
             json.dumps(legs, indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -134,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
     ap.add_argument("--reserve", type=int, default=0)
     ap.add_argument("--read-set-dir", default=None)
+    ap.add_argument("--db-path", default=None, help="dossier source")
+    ap.add_argument("--no-dossier", action="store_true")
     ap.add_argument(
         "--no-refresh-record",
         action="store_true",
@@ -200,7 +208,8 @@ def main(argv: list[str] | None = None) -> int:
     print(text)
     if args.read_set_dir:
         out_dir = Path(args.read_set_dir)
-        written = write_read_set(out_dir, result)
+        written = write_read_set(out_dir, result, None if args.no_dossier else run,
+                                 args.db_path)
         for sport, n in sorted(written.items()):
             path = out_dir / f"read_set_slip_{sport}.json"
             print(f"do przeczytania: {sport} {sb.legs_pl(n)} -> {path}")

@@ -40,13 +40,21 @@ return that in one line.
    (`02_fixtures.json`), `fixture_status.json`, `now` (`date -u`), the delta.
    A started match is dropped and listed.
 3. **Per match, in the read-set order** - the protocol of `football-analysis`:
+   - the match's **dossier** first (the leg's `dossier` file: form, rest,
+     table, head-to-head, venue / city / local hour, referee, every metric's
+     values per side, the ladder, the web checklist);
    - the match's legs from `11_coupon.json` (the lookup in
      `sofa-analysis-core`), the sheet rows behind them (`05_sheet.json`
      filtered with `jq` to the event id and market), the observations
      (`03_samples.json`, the `jq` in `.claude/skills/sofa-analysis-core/references/evidence-rules.md`);
-   - decide whether any web fact could change a verdict; if yes, **one** web
-     pass for the match (lineups, absences, stakes, aggregate, why a make-up),
-     two independent domains, tagged; else none;
+   - the **context pass on the web, every match** (core decision point,
+     step 3; up to ~8 searches / fetches, local press in the clubs' language):
+     lineups and absences, stakes and aggregate, why a make-up, **weather at
+     the venue at kickoff** (rain / wind on goals, corners, shots), the
+     pitch, **morale and the backstage** (a coach under pressure or sacked,
+     unpaid wages, conflict, fan protest), the referee's name if announced,
+     previews and managers' words; tagged, weighted as the core says
+     ("Kontekst (web)" in the match section);
    - a verdict per leg; a veto where the sample itself is broken.
 4. **If the file is larger than you can read well**, keep its order but put
    first: matches behind a printed builder, then legs on `*_1h_*` / `*_2h_*`

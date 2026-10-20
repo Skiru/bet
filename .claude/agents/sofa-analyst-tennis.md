@@ -43,14 +43,20 @@ return that in one line.
    11 h - take the earlier), `fixture_status.json`, `now` (`date -u`), the
    delta. A started match is dropped and listed.
 4. **Per match, in the read-set order** - the protocol of `tennis-analysis`:
+   - the match's **dossier** first (the leg's `dossier` file: rankings,
+     last 10 matches with set scores, rest, head-to-head, venue / local hour,
+     surface, every metric's values per side, the ladder, the web checklist);
    - the match's legs from `11_coupon.json` (the lookup in
      `sofa-analysis-core`); which estimator priced each (`model_p` vs
      `forecast_p`); the observations per side (`03_samples.json`, the `jq` in
      `.claude/skills/sofa-analysis-core/references/evidence-rules.md`) and the `schedule` block;
-   - decide whether any web fact could change a verdict; if yes, **one** web
-     pass for the match (order of play and round, previous match length,
-     withdrawals, hold / return profile, the sample's opposition), two
-     independent domains, tagged; else none;
+   - the **context pass on the web, every match** (core decision point,
+     step 3; up to ~8 searches / fetches): order of play and round, previous
+     match length, withdrawals, a medical time-out or strapping last round,
+     **conditions** (wind, heat, indoor / outdoor, balls, court speed),
+     the player's own words and mood (a coach split, a row, a home crowd),
+     hold / return profile, the sample's opposition; tagged, weighted as the
+     core says ("Kontekst (web)" in the match section);
    - scoreline arithmetic for every rung; a verdict per leg; a veto where
      the sample itself is broken.
 5. **If the file is larger than you can read well**, keep its order but put

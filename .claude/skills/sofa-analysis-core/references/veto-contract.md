@@ -16,7 +16,7 @@ Both files live in `runs/sofa/<d>/` and are written only by
 | `direction` | `"OVER"` \| `"UNDER"` \| null | yes | null = both. No other side and no period - a measured-sport leg takes a read, not a veto |
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | Polish; the operator reads it |
-| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS`; on any other class it fails validation |
+| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS \| MORALE`; on any other class it fails validation |
 
 All seven required keys must be present, the null ones included. An invented
 key (`action`, `player`, `event_id`) fails the whole file; `merge_reads.py`
@@ -76,6 +76,7 @@ Set it on every CONTEXT veto; the settlement audit grades each tag apart
 | `DERBY` | rivalry where the sample's normal matches do not describe tonight | "derby miasta; ostatnie trzy: 7, 8, 9 kartek" |
 | `SCHEDULE` | fatigue, travel, back-to-back, a long previous match, a postponement | "wczoraj 3h40 w pięciu setach" |
 | `CONDITIONS` | weather, pitch, altitude, indoor / outdoor | "ulewa, podtopione boisko" |
+| `MORALE` | dressing room, conflict, unpaid wages, a sacked coach, a boycott, fan protest | "piłkarze od trzech miesięcy bez pensji, zapowiedź bojkotu treningów" |
 
 A CONTEXT `reason` names the source domain and its publication time, before
 the decision point: `"[sportsmole.co.uk, publ. 2026-09-22 09:14 UTC] ..."`. A

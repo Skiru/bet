@@ -377,6 +377,31 @@
           "quote": "| asy sety | EXP_T | -0.0006 [-0.0078, +0.0069] | 35 / 15 | 0.742 | 0.629 | -11.3 pp [-26.0, +4.4] | 0.581 | +8.0% |"
         }
       ]
+    },
+    {
+      "id": "T-CONTEXT-READS-REMOVE-LOSERS",
+      "registered_on": "2026-10-20",
+      "status": "PROPOSED",
+      "hypothesis": "Analyst reads made under the 2026-10-20 contract (dossier first, a web context pass on every match: news, weather, morale / backstage, stakes, opinions) remove legs that realise below the legs they keep at the same price: the read-removed legs' realised minus 1/odds is lower than the kept legs' in the same price bands.",
+      "rule": "Printed-or-removed legs of days >= 2026-10-21 (11_coupon.json singles and removed_by_reads, graded by the ledger, record_results.py): units per leg of removed_by_reads (author analyst) minus units per leg of kept read legs, price-band matched (PRICE_BANDS), 95% bootstrap over matches; per context tag (MORALE, CONDITIONS, ROTATION, ABSENCES, MOTIVATION, SCHEDULE, DERBY) reported apart, never pooled into the verdict.",
+      "population": "Every sport's legs the analysts read (C3 read set and /kupon slip read sets), days from 2026-10-21.",
+      "data_window": {
+        "from": "2026-10-21",
+        "to": "2027-01-20"
+      },
+      "required_n": {
+        "legs": 300,
+        "matches": 150,
+        "basis": "removed legs before 10-20 ran ~5-15 a day; 300 removed legs needs ~1-2 months."
+      },
+      "evaluation": "audit_settlement 7i (removed legs) beside 7c, price-band matched; audit_vetoes.py per context tag.",
+      "stop_criterion": "PASSED when the upper 95% bound of (removed minus kept, units per leg) is below 0 at the required n; FAILED when the lower bound is above 0 (reads remove winners - narrow the context rules); STOPPED_FUTILE if fewer than 150 matches by 2027-01-20.",
+      "evidence": [
+        {
+          "source": "docs/sofa/history/DOSSIER_I_KONTEKST_ANALITYKOW_2026-10-20.md",
+          "note": "contract change and dossier build, 2026-10-20"
+        }
+      ]
     }
   ]
 }

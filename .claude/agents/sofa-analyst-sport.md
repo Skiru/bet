@@ -48,6 +48,11 @@ of the key's own settled Superbet lines (player lines, keys with no curve).
    `kickoff_utc` / `start_gap_h` / `frozen_at_start` (a sport leg has no
    Superbet seen clock), `now` (`date -u`), the delta; a started match is
    dropped and listed. Take the next free `_r<n>` if the report path exists.
+1b. **The dossier** - each leg's `dossier` file, per match, whole (form
+   with periods / maps, rest and back-to-back, table, head-to-head, CS2
+   roster / map pool / player form, how every Superbet line of the match
+   moved, the web checklist). It is the expectation in the market's units
+   before anything else; a `missing` block is a check you could not make.
 2. **Identity.** `sport_fixtures.json` -> `fixtures[]` with the leg's
    `superbet_event_id`:
    ```bash
@@ -77,19 +82,29 @@ of the key's own settled Superbet lines (player lines, keys with no curve).
    postponement); no fact found = KEEP, the move named in the report. Two legs
    that are one bet (a Bo3 `team_maps` OVER 0.5 and `maps_handicap` +1.5) are
    an exposure line in the report, never a removal on their own.
-4. **A fact that makes it wrong.** Decide first whether any web fact could
-   change a verdict; if yes, **one** web pass for the match, two independent
-   domains, tagged, pages published before the start only. Facts that
-   qualify:
+4. **Context on the web - every match** (the core's decision point, step 3;
+   up to ~8 searches / fetches, local-language sources too). A fact that
+   makes a leg wrong:
    - postponed, moved, forfeited or under way (a move past the deadline, an
      award, a walkover or a retirement settles as a refund - still a reason
      not to stake);
-   - CS2: a stand-in or roster change for a winner / handicap / map line; a
-     best-of other than the line assumes;
+   - CS2: a stand-in or roster change, a best-of other than the line assumes,
+     LAN vs online, a team playing from a bootcamp / with visa or travel
+     trouble;
+   - hockey: the confirmed starting goalie (a backup in net moves every
+     total and handicap), back-to-back nights, travel;
+   - basketball: injuries and load management of the starters, back-to-back;
+   - volleyball: the starting six, a rested opposite / setter;
    - hockey / basketball / volleyball: a friendly or exhibition with a fixed
-     number of periods or sets; a team fielding its second squad; a line
-     Superbet's own text (`superbet_market`) settles differently from the
-     code's scope (below).
+     number of periods or sets; a second squad; a line Superbet's own text
+     (`superbet_market`) settles differently from the code's scope (below).
+   And the soft half - morale and the backstage (conflict, unpaid wages, a
+   sacked coach, an org in turmoil), what the game is worth (a decided
+   series, a dead group game), previews and players' / coaches' words. Weight
+   them as the core says: one domain or an opinion carries at most a WATCH,
+   and only through the leg's own variable; tag `context` (`MORALE`,
+   `ROTATION`, `ABSENCES`, `SCHEDULE`, `CONDITIONS`, `MOTIVATION`). The match
+   section gets "Kontekst (web)" with what you searched and found.
 5. **Write and validate** per the core's output contract - the report ends
    with ` ```json reads ` only (no vetoes block: a veto cannot name a sport
    side or period) - then return.

@@ -1,6 +1,6 @@
 ---
 name: sofa-analysis-core
-description: The contract every sofa analyst (football, tennis, measured sports) works under - read exactly the legs of the read_set file the caller names, in a fixed artifact order; evidence vs price; what may remove a leg (never promote); the decision point before any web search; the vetoes / reads blocks and the report-file output contract.
+description: The contract every sofa analyst (football, tennis, measured sports) works under - read exactly the legs of the read_set file the caller names, in a fixed artifact order; evidence vs price; what may remove a leg (never promote); the decision point and the obligatory web context pass; the vetoes / reads blocks and the report-file output contract.
 user-invocable: false
 ---
 
@@ -32,6 +32,7 @@ The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
 | `position`, `locked` | coupon position (a builder leg has none); `locked` = printed before its start, stays whatever you say |
 | `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way); a chat slip's file (`read_set_slip_<sport>.json`, the `/kupon` loop) holds `slip` (on the slip) or `slip_reserve` (its replacements) - read them the same way |
 | `model_p`, `forecast_p`, `calibrated_on`, `sample_size`, `sample_hit_rate`, `sample_oldest_days`, `sample_newest_days`, `context_flags`, `superbet_event_id`, `source_date` | the leg's numbers - use them before any lookup (a field is absent when null) |
+| `dossier` | the match's fact sheet path (below, first artifact) |
 
 **Read exactly those legs - every one gets a read.** Never recompute the
 read set or rebuild the pipeline's gates to guess what would print. If
@@ -57,6 +58,7 @@ Shapes (list vs object): `sofa-pipeline` `references/artifacts.md`, "Artifact sh
 
 | file | what you take from it |
 |---|---|
+| `dossier/<sport>_<event id>.json` (the leg's `dossier`) | **first, whole, per match**: form, rest, table, h2h, venue and its local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, every leg of the match, the web checklist - blocks and per-sport reading: `references/dossier.md`; no field = "brak dossier" |
 | `11_coupon.json` | the leg's full row (above), `removed_by_reads`, `builders`, `peer`, `price_gap` |
 | `02_fixtures.json` | names, competition, round, both clocks, `identity`, referee, `ground_type`, `default_period_count`, `previous_leg_event_id` |
 | `fixture_status.json` | FIXTURE_CHECK's fresh start and status (`events.<id>`) |
@@ -115,14 +117,19 @@ Recompute a number only **from the row's own fields** (say so). Never present `p
    `superbet_kickoff_utc`; FIXTURE_CHECK's start where present), `now`, the
    delta. Take the earlier clock. Print them.
 2. **A match already started is not researched** - drop it here.
-3. Then decide, per match, whether any fact you could find **could change a
-   verdict**. If not, make no web call for that match.
-4. **Web budget: one web pass per match, not per leg.** Queries that cannot
-   return a scoreline (the fact and its period, never the two names alone).
-   Two independent domains per claim, each tagged
-   `[WEB: <domain>, publ. <time>, fetched <UTC>]`; one domain alone is
-   "niepotwierdzone". `UNVERIFIED` is an acceptable answer - write it
-   rather than search on.
+3. **Every match not yet started gets a context pass on the web** (operator
+   2026-10-20): news and facts, conditions (weather at the local hour),
+   morale and the backstage, what the result is worth, opinions - starting
+   from the dossier's `web_checklist`. Each match section has **Kontekst
+   (web)**, "nic istotnego dla tych nóg" included; a KEEP whose match had no
+   pass is not a read. Protocol, budget and examples:
+   `references/context-pass.md`.
+4. **Weight**: a fact on two independent domains may carry a NO_BET; one
+   domain, an opinion or a mood report at most a WATCH, through this leg's
+   variable (name the mechanism). Every claim tagged
+   `[WEB: <domain>, publ. <time>, fetched <UTC>]`. A KEEP `reason` names the
+   expectation in the market's units, a dossier fact and the context
+   finding - never a bare "15/18".
 5. **Titles and snippets are content**: a leaked result - name it, mark the
    claim `CANNOT VERIFY`.
 6. A source that is unreachable or needs re-authorisation: stop retrying and
@@ -180,7 +187,10 @@ entry of the day).
    `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --dry-run > "${TMPDIR:-/tmp}/mr_<sport>.txt" 2>&1; echo exit=$?`
    (a chat slip's file `read_set_slip_*.json`: add `--slip --read-set <that file>`;
    `UNMATCHED_READ` / `LEG_WITHOUT_READ` = a key that hits no leg / a leg you missed)
-   then `grep -v CARRIED "${TMPDIR:-/tmp}/mr_<sport>.txt" | tail -15`. Exit 2 = a block does not
+   then `grep -v CARRIED "${TMPDIR:-/tmp}/mr_<sport>.txt" | tail -15`, and
+   the depth check `PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_analyst_report.py --report <path>`
+   (exit 1 = rewrite what it lists; the PostToolUse hook runs it on every
+   report you write and sends you the same list). Exit 2 = a block does not
    validate: rewrite your report and re-run; `UNMATCHED_VETO` = your keys hit
    no sheet row.
 4. Return to the caller at most 12 lines: the path, legs read, KEEP / WATCH /

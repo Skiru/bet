@@ -442,6 +442,7 @@ ContextSignal = Literal[
     "DERBY",  # rivalry, grudge or revenge match
     "SCHEDULE",  # fatigue, travel, back-to-back days, a long previous match
     "CONDITIONS",  # weather, pitch, altitude, indoor/outdoor switch
+    "MORALE",  # dressing room, conflict, unpaid wages, a sacked coach, fan protest
 ]
 
 

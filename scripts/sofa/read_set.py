@@ -21,6 +21,12 @@ The operator's requests are read from runs/sofa/<d>/read_requests.json (the
 file the next rebuild applies); audit C3 reads the copy 11_coupon.json
 carries - they differ only between an edit of the file and that rebuild.
 
+Each match also gets its dossier (`bet.sofa.dossier`, offline: form, rest,
+table, head-to-head, venue and its local hour, referee / ranking / roster,
+Superbet line moves, the web checklist) in runs/sofa/<d>/dossier/, and each
+leg its path in `dossier` (--no-dossier skips it; --db-path, default
+$SOFA_DB_PATH or data/sofa.db).
+
 Writes <out-dir>/read_set_<sport>[_<i>].json (default runs/sofa/<d>/read_set/;
 stale sport files of an earlier call are removed) and prints one line per
 sport: legs, matches, file. Offline, read-only on the day's artifacts.
@@ -41,6 +47,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import dossier  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     READ_REQUIRED_EVENTS,
@@ -160,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--split", type=int, default=0)
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--out-dir")
+    ap.add_argument("--db-path", default=None)
+    ap.add_argument("--no-dossier", action="store_true")
     args = ap.parse_args(argv)
     run = Path(args.runs_dir) / args.date
     try:
@@ -173,6 +182,9 @@ def main(argv: list[str] | None = None) -> int:
         stale.unlink()
     if not sets:
         print("read set: empty")
+    elif not args.no_dossier:
+        every = [x for legs in sets.values() for x in legs]
+        print(dossier.attach(run, every, args.db_path))
     for sport, all_legs in sorted(sets.items()):
         chunks = parts(all_legs, args.split)
         for i, legs in enumerate(chunks, 1):
