@@ -233,7 +233,7 @@ def test_classify_odd_reads_them_only_when_the_switch_asks() -> None:
     item = {"marketName": "1. połowa - liczba kartek", "name": "poniżej 1.5",
             "specialBetValue": "1.5", "price": 1.4}
     assert classify_odd(item, (), False, NAMES) == (None, "1. połowa - liczba kartek")
-    on = classify_odd(item, (), False, NAMES, False, False, False, False, False, True)
+    on = classify_odd(item, (), False, NAMES, football_card_halves=True)
     assert on == ((fch.CARDS_1H_TOTAL, "", 1.5, "UNDER"), None)
     # the half "najwięcej kartek" stays unmapped with the switch off (the
     # half metric is not in FOOTBALL_METRICS, so the derived mapper refuses)
