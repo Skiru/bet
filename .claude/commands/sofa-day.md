@@ -66,6 +66,7 @@ commands as one background Bash call (`run_in_background: true`, 10-30 min):
 mkdir -p runs/sofa/<D>
 { PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py --max-minutes 12; echo "history exit $?"
   for s in hockey basketball volleyball; do PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport $s --days 7 --with-lineups --max-minutes 6; echo "$s exit $?"; done
+  PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_referees.py --days 14 --max-minutes 8; echo "referees exit $?"
   echo BRIDGE_PART_DONE; } > runs/sofa/<D>/line_evidence_bridge.log 2>&1
 ```
 

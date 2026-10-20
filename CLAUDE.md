@@ -103,6 +103,17 @@ could win is cut by name.
   `LINE_EVIDENCE_FROM_UTC` use the old by-name refusals (`refused_markets`,
   `admitted_player_markets`, `admitted_tennis_set_markets`,
   `DERIVED_NOT_CALIBRATABLE`, the sports' `admitted` keys).
+- **Football from 2026-10-21** (model-state.md, "Football statistics night"):
+  cards / fouls centres carry the fixture **referee's** as-of shrunk rate
+  (`bet.sofa.referees`; labels from `backfill_referees.py`, the fixture's
+  referee from its cached `/event` - named ~48 h before kick-off, none = x1)
+  and cards / shots totals a **closeness** term (`bet.sofa.closeness_stretch`);
+  a footballer's shots / SOT / fouls centre is his shrunk **share** of his
+  side's team centre (`bet.sofa.player_share`); SAMPLES widens thin player
+  samples to the last 20 matches (`FOOTBALL_PLAYER_COVERAGE`); new markets:
+  fouls drawn on a player, card points by half, side / half reds and
+  penalties, both-over throw-ins / goal kicks / tackles, shots handicaps.
+  Neither the referee nor the share is replayed by a refit yet.
 - What each estimator does today (ratings, dispersion, stretches, cup strength,
   opponent correction, new markets...) and when it switched on: model-state.md.
 

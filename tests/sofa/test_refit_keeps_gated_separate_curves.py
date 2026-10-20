@@ -119,7 +119,10 @@ def test_the_installed_gated_curves_survive_a_fit_that_holds_them() -> None:
     gated = {k for k, v in listed.items() if v.get("group") in PRIOR_WINS_GROUPS
              and v.get("group") != "shot_detail"}
     assert "player_fouls_drawn_for|OVER" in gated
-    assert len([k for k in gated if listed[k]["group"] == "card_halves"]) == 20
+    # 20 installed 10-20, two dropped 10-21 (failed the gate on the
+    # FOOTBALL_CARD_HALVES_TERMS p): cards_points_2h_for|UNDER and the women's
+    # handicap_cards_points_1h|OVER
+    assert len([k for k in gated if listed[k]["group"] == "card_halves"]) == 18
     new: dict[str, Any] = {"by_market_direction": {}, "by_class": {}}
     for key in gated:
         klass, _, mk = key.rpartition(":")

@@ -250,6 +250,34 @@ player keys mixes the old and the new p until enough days of the new one.
 |---|---|---|---|
 | `CS2_PRICE_GAP_FROM_UTC` | 10-21 00:00 | `price_gap` (`CONFIDENCE_ABOVE_PRICE`, `GAP` 0.03) on CS2 legs too (`price_gap.LATER_SPORTS`, `epochs.price_gap_sports`); annotation only, but a flagged CS2 leg is capped at 1/odds + `GAP` in `confidence.read_value` (read order). Measured on settled Superbet CS2 lines 09-28..10-19 whose `model_p` the installed curve puts on the coupon's floor and x, line evidence not applied: flagged 238 lines / 77 series -18.6 pp [-27.1, -10.1] vs confidence, -2.1 pp vs de-margined price; rest 234 +2.2 pp; ROI -8.8% [-23.1, +4.9] vs -0.6%. Series families alone (38 flagged) and "model favourite, market underdog" (55) show nothing. `T-CS2-PRICE-GAP-flag` registered | `docs/sofa/history/POMIAR_CS2_PRICE_GAP_2026-10-20.md` |
 
+### Football statistics night (2026-10-21 00:00Z; standing go of 10-15; ledger group "od 10-21")
+
+Operator 2026-10-20 evening: every Superbet football statistic, cards / fouls /
+players / shots in every combination. Report
+`docs/sofa/history/RAPORT_NOC_STATYSTYKI_2026-10-21.md`. Log-loss x1e-4 unless
+marked, new minus old.
+
+| constant | what | evidence |
+|---|---|---|
+| `FOOTBALL_REFEREE_FROM_UTC` | `referee_v1` (`bet.sofa.referees`, `config/sofa_referee_effect.json`, fit 2026-01-01..10-16): cards_points_* and fouls_* (incl. halves) centre x the referee's as-of shrunk ratio ** beta (cards 0.59, K 10; fouls 0.70-0.72), after GAME_STATE / count stretch; referee from `sofa_event_referee` (`backfill_referees.py`: 83,872 matches, 2,540 referees, 20-10) or the cached `/event`; none named = x1 (`referee_read.status` NO_REFEREE / NO_REFEREE_RECORD). Test 2026: cards_points_total -28.6 [-35.8, -22.0], cards_points_for -16.1, fouls_total -54.3, fouls_for -27.6, fouls halves -21..-67, every CI below zero, again on the 2026-H1 -> 07.. split; after the curve fouls_1h_total (<2026) / fouls_2h_total (H1) touch zero; calibration at >= 0.70 unchanged (the gain is discrimination). Live: referee named ~48 h before kick-off (0% beyond); 85.9% of cards / fouls events labelled. Not replayable yet (no labels in the replay): the next refit cannot carry it | `docs/sofa/evidence/referee_effect_2026-10-21.md` |
+| `FOOTBALL_CLOSENESS_STRETCH_FROM_UTC` | `closeness_stretch_v1` (`bet.sofa.closeness_stretch`, `config/sofa_closeness_stretch.json`): x exp(g1 abs(s) + g2 s^2) after GAME_STATE / count stretch / referee on cards_points_for / _total (x0.84 at abs(s) 2) and shots_total / shots_1h_total (x1.03); walk-forward NB cards_points_total -34.6 [-43.0, -24.7], shots_total -11.2 [-15.5, -6.8]; after the curve significant on one split each, never worse; on top of the referee cards_points_total -33.4 [-47.8, -17.6], together <= 0.2 pp overclaim at >= 0.70. Declined: fouls (H1 fit +33.8 worse), corners, side counts, dispersion(abs(s)) (worse at >= 0.70 through the curves). Replay `--closeness-stretch` | `docs/sofa/evidence/football_closeness_stretch_2026-10-21.md` |
+| `FOOTBALL_PLAYER_SHARE_FROM_UTC` | `player_share_v1` (`bet.sofa.player_share`, `config/sofa_player_share.json`): player_shots_for / _shots_on_target_for / _fouls_for centre = his shrunk share of his side's count over his starts (m 40 / 40 / 80, position prior) x the side's team centre today, SOT x shrunk accuracy (m_acc 40); a side without a team row keeps the old centre. Before: the centre was the raw mean of his starts (no prior); our p was right on level, 1/odds of the one-sided OVER ladders carries the margin (shots 0.5: hit 0.537, p 0.505, 1/odds 0.750). History test 2026-04..10-12: shots -235 / -197 / -124 / -76 at 0.5 / 1.5 / 2.5 / 3.5, SOT -228 / -154 / -66, all CIs below zero; Superbet settled lines 10-12..10-19: shots -178 [-240, -104], SOT -168, fouls -239 [-305, -170] (0.5 neutral). Curves fitted on the old p under-claim it by 2-6 pp at >= 0.70 - needs a refit. Fouls legs nearly stop printing (old: 57 legs hit 0.632 at ~0.73). Tackles declined (0.5 +51 worse). Not replayable yet | `docs/sofa/evidence/football_player_share_2026-10-21.md` |
+| `FOOTBALL_PLAYER_COVERAGE_FROM_UTC` | SAMPLES: (a) a missing `onTargetScoringAttempt` proven zero by on + off target + blocked (213,047 / 213,047; woodwork is inside them); (b) a player with < 5 starts in the last 10 sampled from his newest <= 10 starts of the last 20 (`PLAYER_WIDE_SAMPLE_N`; history at >= 0.70 recovered rows -0.1 pp [-0.6, +0.5] vs base; vs 3-4 starts -339 [-387, -293]); (c) transliteration and inner-surname name rules (0 wrong of 23,666). SHEET +17-20% player rows, 0-2 legs a day. Replay `--player-coverage` | `docs/sofa/evidence/football_player_coverage_2026-10-21.md` |
+| `FOOTBALL_PLAYER_PROPS_V2_FROM_UTC` | "Zawodnik - liczba fauli na zawodniku" as `player_fouls_drawn_for` (OVER only): `wasFouled` from /lineups, a missing key 0 only when the squad sum lies in [opponent fouls - 4, opponent fouls] (99.6%); NB on his starts (-211 [-221, -202] vs normal); curve `player_fouls_drawn_for|OVER` installed (holdout +1.79 pp [+0.32, +3.33], n 3,008). Declined: "otrzyma kartkę" (p never >= 0.70, max 0.536), "Którykolwiek z zawodników ..." (loses to a base rate in 8 of 9), player pairs | `docs/sofa/evidence/football_player_props_v2_2026-10-21.md` |
+| `FOOTBALL_STAT_VARIANTS_FROM_UTC` | OFFER reads "Każda drużyna powyżej X rzutów z autu / wybić od bramki", "Każda z drużyn powyżej X odbiorów", "Strzały - Handicap", "1. / 2. połowa - liczba strzałów - handicap" (`market_mapper.classify_stat_variant`) as both_over_* / handicap_shots*; joint of the sides' samples, no curve: NO_LINE_EVIDENCE, one-sided, never a single. Declined (never 0.70 except copies of read rungs): corner parity / ranges, exact cards | `docs/sofa/evidence/football_stat_variants_2026-10-21.md` |
+| `FOOTBALL_CARD_HALVES_FROM_UTC` | `bet.sofa.football_card_halves`: card points by half ("1. / 2. połowa - [<TEAM>] liczba kartek", most, handicap), side / half red cards and penalties, both teams red; a card counts in the half it was shown (komunikat 06/2022: shown at the break = 2nd half; a two-yellow dismissal split 1 + 2 is an assumption, 3.1% of matches); half centre = league as-of half share x the full-match centre (beats own half sample by 144 / 138); 20 curves installed, 18 kept (one-sided gate; every OVER of reds / pens, most_*, 2nd-half handicap, 1st-half side OVER failed). Graded 10-14..10-19: would-print 579 rows won 0.810 at 0.827 | `docs/sofa/evidence/football_card_halves_2026-10-21.md` |
+| `FOOTBALL_CARD_HALVES_TERMS_FROM_UTC` | `card_halves_terms_v1` (audit 2026-10-21): half card centre = league half share x the side's live `cards_points_for` centre (rating, game state, referee, closeness; no row: rating x the same terms) - 1H side -53 [-65, -39], 2H side -87 [-105, -67], totals -26 / -52; side penalties / reds p = 1 - exp(-lambda_L exp(beta s)), s the side's expected goal difference: penalties_for -36.7 [-43.4, -30.6] (beta 0.276), penalties_1h_for -17.6, red_cards_for -6.7 (beta -0.172); red_cards_1h_for and the 1st-half totals unchanged. On the new p `cards_points_2h_for|UNDER` (-2.12 pp, n 1,261) and women's `handicap_cards_points_1h|OVER` (n 298) failed the gate and were removed 10-20 ~23:10Z (18 card-halves curves stay) | `docs/sofa/evidence/football_card_halves_terms_2026-10-21.md` |
+
+Not replayable in a refit yet: referee (labels absent from the replay), player
+share (its measurement replays it; calibrate_from_cache does not). The curves of
+the moved markets were fitted without them; the next refit must decide
+(`prepare_refit.py install` warns for both, and refuses a replay without
+`--closeness-stretch` / `--player-coverage` while those switches are on; the
+gated card-halves / fouls-drawn / shot-detail curves win over a fit's own).
+Morning routine (sofa-day 1a): `backfill_referees.py --days 14 --max-minutes 8` after D-1 is settled
+(labels the referees of new matches; the fixture's referee comes from RESOLVE /
+FIXTURE_CHECK's `/event`).
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -290,7 +318,6 @@ player keys mixes the old and the new p until enough days of the new one.
 | coupon form dials | `ladder_form` / `max_positions_per_match` in `config/sofa_coupon_form.json` | operator's call |
 | `DERIVED_CURVES_FROM_UTC` | football joints read a history curve | the three go on together or not at all |
 | `CARDS_CORRELATION_FROM_UTC` | cards joints with side correlation +0.126 (the 10-14 cards joint curves were fitted with it) | must go on with DERIVED_CURVES |
-| `FOOTBALL_REFEREE_FROM_UTC` | `referee_v1`: cards / fouls centres (8 markets incl. fouls halves, `config/sofa_referee_effect.json`, fit 2026-01-01..10-16) x the referee's as-of shrunk ratio ** beta, after GAME_STATE / count stretch; referee from `sofa_event_referee` (`backfill_referees.py`) or the cached `/event`; none = x1, `referee_read.status` NO_REFEREE. Out of sample NB log-loss below zero on all 8 in both splits (<2026 -> 2026, 2026-H1 -> 07..); after the curve fouls_1h_total (<2026 split) and fouls_2h_total (H1 split) touch zero. Needs: a replay flag in calibrate_from_cache + refit, SHEET re-run after FIXTURE_CHECK (referee named ~48 h before) | measured 2026-10-21, OFF; `docs/sofa/evidence/referee_effect_2026-10-21.md` |
 | `DERIVED_SHEET_MARGINS_FROM_UTC` | audit B3: a joint's side with no quoted ladder priced by `run_sheet.sample_centre`; an UNLINKED fixture's joints refused; history one step ahead -0.0254 [-0.0264, -0.0245] on 60,000 matches (`docs/sofa/evidence/derived_margins_2026-10-13.md`) | with the two above |
 
 Derived joints: the 10-14 refit replayed them; on Superbet lines 10-09..10-12
@@ -578,7 +605,7 @@ Groups are never pooled.
 | "od 10-18" | none | holds no day |
 | "10-18 mieszany" | 10-18 | LINE_CURVES 12:48Z into it |
 | "od 10-19" | 10-19 .. 10-20 | LINE_CURVES from 00:00Z |
-| "od 10-21" | 10-21 .. | current; CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order) |
+| "od 10-21" | 10-21 .. | current; CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 
