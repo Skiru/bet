@@ -878,3 +878,14 @@ def test_the_measurement_reads_with_the_same_reader() -> None:
     assert m.read_incidents is read_incidents
     assert m.band_index is band_index
     assert m.wilson_lower(80, 100) == pytest.approx(0.7112, abs=1e-3)
+
+
+def test_a_red_shown_outside_play_is_never_a_first_half_red() -> None:
+    # Sofascore writes time -5 for a card shown outside play (event
+    # 17255664, audit 2026-10-21): it stays a match red, never a first-half
+    # one (it graded red_cards_1h 2 where the half held 1).
+    inc = {"incidents": [SUB, _card(-5, "red", True), _card(30, "red", False)]}
+    rec = read_incidents(inc, (0.0, 0.0))
+    assert rec is not None
+    assert rec.red_cards == (1, 1)
+    assert rec.red_cards_1h == (0, 1)

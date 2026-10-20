@@ -176,7 +176,10 @@ def read_incidents(
                 continue
             kind, cls = i.get("incidentType"), i.get("incidentClass")
             col = 0 if i.get("isHome") else 1
-            in_1h = int(_num(i.get("time")) is not None and float(i["time"]) <= 45)
+            # Sofascore writes `time` -5 for a card shown outside play: never a
+            # first-half incident (audit 2026-10-21, event 17255664).
+            in_1h = int(_num(i.get("time")) is not None
+                        and 0 <= float(i["time"]) <= 45)
             if (
                 kind == "card"
                 and cls in RED_CLASSES

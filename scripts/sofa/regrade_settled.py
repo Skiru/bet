@@ -62,6 +62,7 @@ from typing import Any
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import RetryingConnection
+from bet.sofa.epochs import football_player_coverage
 from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
@@ -514,7 +515,10 @@ def _player_grades(
         own = player_own_home(side, fixtures[day].get(eid), event)
         yield row, side, _settle_player(
             row, squads, own, token_names[day].get((eid, sample_key)),
-            sample_names[day].get((eid, sample_key)))
+            sample_names[day].get((eid, sample_key)),
+            # SETTLE's own coverage rules for the day (woodwork SOT zero, the
+            # two name rules), else a SETTLE-graded row reads STAT_KEY_ABSENT
+            coverage=football_player_coverage(day))
 
 
 def regrade_players(

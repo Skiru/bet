@@ -2358,7 +2358,8 @@ def football_player_share(date: str, build_at: datetime | None = None) -> bool:
 # `closeness_rule` (every football row), so a rebuild re-runs SHEET on a
 # sheet without it. None: OFF, byte for byte.
 FOOTBALL_CLOSENESS_STRETCH = "closeness_stretch_v1"
-FOOTBALL_CLOSENESS_STRETCH_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
+FOOTBALL_CLOSENESS_STRETCH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, tzinfo=UTC)
 FOOTBALL_CLOSENESS_STRETCH_MARKER = (
     "closeness_rule", FOOTBALL_CLOSENESS_STRETCH, "football")
 
