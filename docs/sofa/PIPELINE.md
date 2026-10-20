@@ -2454,6 +2454,20 @@ starym p; kontroli na liniach Superbetu 10-05..10-12 nie wykonano
 (`docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`,
 `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md`).
 
+**Udział zawodnika** (`epochs.CS2_PLAYER_SHARE_FROM_UTC` 2026-10-21 00:00Z,
+zgoda operatora 2026-10-20): udział zawodnika w statystyce drużyny z ostatnich
+`cs2_engine.SHARE_WINDOW` (40) map, ściągnięty do `SHARE_PRIOR` z
+`K_SHARE_BY_STAT` (zabójstwa 8, śmierci 8, asysty 16, headshoty 4 - wybrane
+walk-forward na historii); headshoty też z ekspozycji
+(`ExposureBook.families`). `load_history` od 2026-10-20 odrzuca headshoty
+wiersza, gdy headshots > kills (239 wierszy z 2025-10-27 - to one dały B12
+wynik +0,188). Walk-forward 2026-04..09-27 (100 525 map-zawodnik, 4 477
+meczów) przy linii emulującej Superbet: log-loss -0,00305 / -0,00111 /
+-0,00402 / -0,01018, nachylenie kalibracji zabójstw 0,71 -> 0,87. Poprawka
+kalibracji, nie przewaga: na 20 rozliczonych dniach Superbetu żaden wariant
+nie dodaje nic ponad cenę (`docs/sofa/history/POMIAR_CS2_PLAYER_KILLS_2026-10-20.md`).
+Grupa ledgera "od 10-21".
+
 **Rundy serii** (`epochs.CS2_SERIES_ROUNDS_FROM_UTC` 2026-10-15 00:00Z,
 zlecenie operatora 2026-10-14): `rounds_total`, `rounds_handicap`,
 `team_rounds` całej serii z `cs2_engine.series_rounds_side_p` - liczba map

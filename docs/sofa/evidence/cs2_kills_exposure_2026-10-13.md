@@ -79,9 +79,13 @@ assists 0,763 / 0,753 vs 0,772 / 0,773; team_kills 0,717 / 0,755 vs 0,792 /
 Decyzja: cztery rodziny (kills, deaths, assists, team_kills) mają górną
 granicę < 0 i dolną granicę strażnika < 0 (nie gorsze); headshots gorsze -
 zostają na `count_p` (`EXPOSURE_FAMILIES` bez `player_headshots`; przyczyna
-niezbadana - podejrzenie: sumy zespołowe HS z niepełnych składów). Przełącznik
-`CS2_COUNT_EXPOSURE_FROM_UTC` włączony na 2026-10-14 00:00Z na podstawie
-stałej zgody audytu (CLAUDE.md, Changing the pipeline 4). Uwagi: linie są
+niezbadana - podejrzenie: sumy zespołowe HS z niepełnych składów; pomiar
+2026-10-20 wskazał przyczynę: 239 niemożliwych wierszy headshots > kills
+z 2025-10-27, zob. `docs/sofa/history/POMIAR_CS2_PLAYER_KILLS_2026-10-20.md`).
+Przełącznik `CS2_COUNT_EXPOSURE_FROM_UTC` włączony na podstawie stałej zgody
+audytu (CLAUDE.md, Changing the pipeline 4), pierwotnie na 2026-10-14 00:00Z;
+operator przesunął go 2026-10-13 na **2026-10-13 18:10Z** (rebuild refitu,
+dzień mieszany) - obowiązuje ta godzina (`epochs.py`). Uwagi: linie są
 syntetyczne wokół średniej starego modelu (nie linie Superbetu); kontrola na
 rozliczonych liniach Superbetu 10-05..10-12 **nie wykonana**; line evidence
 tych rodzin było fitowane na p starego estymatora i do refitu czyta je przy

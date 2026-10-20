@@ -119,6 +119,14 @@ def market_lines_for(sport: str, before: str, path: str | None
     return load_market_lines(cache)
 
 
+def no_curve_reason(key: str, fitted_keys: set[str]) -> str:
+    """Why a key seen in the rows has no curve: a key no fit row carries (CS2
+    player families: no history rows) is not a thin bucket."""
+    if key in fitted_keys:
+        return f"NO_FIT_BUCKET_WITH_N>={scf.MIN_BUCKET}"
+    return "NO_HISTORY_ROWS"
+
+
 def fit_sport(sport: str, before: str, args: argparse.Namespace,
               db_path: str, runs_dir: str) -> tuple[dict[str, Any],
                                                      dict[str, list[scf.Row]]]:
@@ -227,8 +235,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     }
     admitted, refused = scf.admission(curves, checks)
     seen = {r["key"] for rs in rows.values() for r in rs}
+    fitted = {r["key"] for r in fit_rows}
     for key in sorted(seen - set(curves)):
-        refused[key] = f"NO_FIT_BUCKET_WITH_N>={scf.MIN_BUCKET}"
+        refused[key] = no_curve_reason(key, fitted)
     section = {
         "fitted_from": {
             "before": before,

@@ -525,11 +525,12 @@ def attach_model(
     with get_connection(db_path) as conn:
         history = load_history(conn, before, int(event["id"]))
     day = kickoff.strftime("%Y-%m-%d")
-    # epochs.CS2_MAP_IDENTITY / CS2_COUNT_EXPOSURE: the day the game was offered
+    # epochs.CS2_MAP_IDENTITY / CS2_COUNT_EXPOSURE / CS2_PLAYER_SHARE: the day
+    # the game was offered
     map_identity = epochs.cs2_map_identity(day, kickoff)
     ratings = (build_ratings(history, MAP_TERMS) if map_identity
                else build_ratings(history))
-    exposure = (build_exposure(history)
+    exposure = (build_exposure(history, epochs.cs2_player_share(day, kickoff))
                 if epochs.cs2_count_exposure(day, kickoff) else None)
     home_id = int((event.get("homeTeam") or {}).get("id") or 0)
     away_id = int((event.get("awayTeam") or {}).get("id") or 0)

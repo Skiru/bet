@@ -147,7 +147,8 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 # never summed across groups.
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
-                "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19")
+                "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
+                "od 10-21")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -189,10 +190,15 @@ STRETCH_EPOCH_FROM_DATE = "2026-10-18"
 # "od 10-18" (which therefore holds no day) nor "od 10-19".
 LINE_CURVES_1018_MIXED_DATE = "2026-10-18"
 LINE_CURVES_EPOCH_FROM_DATE = "2026-10-19"
+# The CS2 player share (epochs.CS2_PLAYER_SHARE_FROM_UTC, 2026-10-21 00:00Z):
+# 40-map share, per-stat shrinkage, headshots from the exposure.
+CS2_PLAYER_SHARE_EPOCH_FROM_DATE = "2026-10-21"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= CS2_PLAYER_SHARE_EPOCH_FROM_DATE:
+            return "od 10-21"
         if str(row.get("date", "")) >= LINE_CURVES_EPOCH_FROM_DATE:
             return "od 10-19"
         if str(row.get("date", "")) == LINE_CURVES_1018_MIXED_DATE:

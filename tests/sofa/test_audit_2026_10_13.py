@@ -259,8 +259,14 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
     # the football curves per line from 2026-10-19 00:00Z: od 10-19
     assert audit_ledger.epoch_group(
         {"date": "2026-10-19", "epoch": "stats_only"}) == "od 10-19"
-    assert audit_ledger.EPOCH_GROUPS[-5:] == (
-        "10-16 mieszany", "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19")
+    # the CS2 player share from 2026-10-21 00:00Z: od 10-21
+    assert audit_ledger.epoch_group(
+        {"date": "2026-10-20", "epoch": "stats_only"}) == "od 10-19"
+    assert audit_ledger.epoch_group(
+        {"date": "2026-10-21", "epoch": "stats_only"}) == "od 10-21"
+    assert audit_ledger.EPOCH_GROUPS[-6:] == (
+        "10-16 mieszany", "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
+        "od 10-21")
 
 
 def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:

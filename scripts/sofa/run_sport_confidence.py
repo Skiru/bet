@@ -195,11 +195,13 @@ class DbForecaster:
 
     def _cs2_counts(self, maps: list[cs2_engine.MapRow]
                     ) -> cs2_engine.ExposureBook | None:
-        """epochs.CS2_COUNT_EXPOSURE: the rounds' exposure book, else None."""
+        """epochs.CS2_COUNT_EXPOSURE: the rounds' exposure book, else None
+        (epochs.CS2_PLAYER_SHARE: the 40-map share, headshots too)."""
         if not epochs.cs2_count_exposure(str(self.date), self.at):
             return None
         if self._cs2_exposure is None:
-            self._cs2_exposure = cs2_engine.build_exposure(maps)
+            self._cs2_exposure = cs2_engine.build_exposure(
+                maps, epochs.cs2_player_share(str(self.date), self.at))
         return self._cs2_exposure
 
     @staticmethod

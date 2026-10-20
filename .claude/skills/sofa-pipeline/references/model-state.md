@@ -107,7 +107,7 @@ nothing; a leading favourite's shots / corners OVER too few legs
 | `SEASON_PHASE_FROM_UTC` | 10-13 18:10 | C1: goals centre x exp(c[market][phase]), `config/sofa_season_phase.json`; `season_phase_rule` | `docs/sofa/evidence/season_phase_2026-10-13.md` |
 | `TENNIS_SET_RATING_PRICES_FROM_UTC` | 10-13 18:10 | B5: per-set games and sets_total from the rating's neighbours; `tennis_set_rule` | `docs/sofa/evidence/tennis_set_markets_2026-10-13.md` |
 | `CS2_TEAM_ROUNDS_RACE_FROM_UTC` | 10-13 18:10 | B10: a team's rounds on a map from the round race (`cs2_engine.team_rounds_from_race`), live, at CS2_SETTLE and in the replay; walk-forward log-loss -0.0213 [-0.0237, -0.0188]; CS2 curve refitted on it staged 10-13, promoted 10-14 (bc69b56e). Moved by the operator from 10-14 00:00Z | - |
-| `CS2_COUNT_EXPOSURE_FROM_UTC` | 10-13 18:10 | B12: kills / deaths / assists / team kills from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`); log-loss -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero; headshots measured worse (+0.188), stay on the sample (outside `EXPOSURE_FAMILIES`); line evidence of these families fitted on the old p, no check on Superbet lines 10-05..10-12 | `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md` |
+| `CS2_COUNT_EXPOSURE_FROM_UTC` | 10-13 18:10 | B12: kills / deaths / assists / team kills from the round race's (W, L) x per-round rates (`cs2_engine.ExposureBook`); log-loss -0.0135 / -0.0258 / -0.0099 / -0.0380, every interval below zero; headshots measured worse (+0.188), stay on the sample (outside `EXPOSURE_FAMILIES`) - the +0.188 was 239 impossible rows; headshots join with `CS2_PLAYER_SHARE_FROM_UTC` 10-21; line evidence of these families fitted on the old p, no check on Superbet lines 10-05..10-12 | `docs/sofa/evidence/cs2_kills_exposure_2026-10-13.md`, `docs/sofa/history/RAPORT_B11_B12_2026-10-13.md` |
 
 Refit 10-13: `docs/sofa/history/RAPORT_REFIT_2026-10-13.md`; superseded by the
 10-14 refit.
@@ -225,6 +225,24 @@ unchanged. Installed 10-18 12:04Z by `install_line_curves.py` (inert before the
 switch: 320,733 / 320,733 rows read alike without a line); backup
 `config/backup_2026-10-18_line_curves/`. A class leg (women, season_early)
 unchanged.
+
+### CS2 player share (2026-10-21 00:00Z; operator's go 2026-10-20)
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `CS2_PLAYER_SHARE_FROM_UTC` | 10-21 00:00 | the exposure's player share over `cs2_engine.SHARE_WINDOW` 40 maps shrunk with `K_SHARE_BY_STAT` (kills 8, deaths 8, assists 16, headshots 4; walk-forward on history), headshots join the exposure (`ExposureBook.families`); live, at CS2_SETTLE (`model_p`); log-loss at the emulated Superbet line 2026-04..09-27 (100,525 player-maps, 4,477 matches): kills -0.00305 [-0.00357, -0.00253], deaths -0.00111, assists -0.00402, headshots -0.01018; kills slope 0.71 -> 0.87. Calibration fix, not an edge: Superbet 09-28..10-19 blend over the devigged price includes zero in every family (kills +0.00037 [-0.0020, +0.0030]) | `docs/sofa/history/POMIAR_CS2_PLAYER_KILLS_2026-10-20.md` |
+
+Live from 2026-10-20 (correctness, no switch): `cs2_engine.load_history` drops
+a row's headshots when headshots > kills (239 rows of 2025-10-27, up to 2030;
+they made B12's headshots +0.188). The CS2 player families never had a
+history curve: `cs2_walk_forward_rows` carries no player rows, so their
+`not_calibrated` reason is `NO_HISTORY_ROWS` from the next fit (the installed
+files still say `NO_FIT_BUCKET_WITH_N>=200`); their confidence is line evidence
+only. Measured on Superbet's lines 09-28..10-19 (127 series, 9,414 lines):
+today's model AUC kills 0.484 vs price 0.516, adds nothing over the price; do
+not build player curves on synthetic lines (at our own mean line kills is
+calibrated, at Superbet-placed lines overconfident). Line evidence of the
+player keys mixes the old and the new p until enough days of the new one.
 
 ### CS2 price_gap flag (2026-10-21 00:00Z; operator's go 2026-10-20)
 
@@ -558,7 +576,8 @@ Groups are never pooled.
 | "10-17 mieszany" | 10-17 | stretches 13:37Z and refit 2026-10-17 19:13Z into it |
 | "od 10-18" | none | holds no day |
 | "10-18 mieszany" | 10-18 | LINE_CURVES 12:48Z into it |
-| "od 10-19" | 10-19 .. | current |
+| "od 10-19" | 10-19 .. 10-20 | LINE_CURVES from 00:00Z |
+| "od 10-21" | 10-21 .. | current; CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 

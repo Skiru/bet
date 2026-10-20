@@ -1574,6 +1574,35 @@ def cs2_count_exposure(date: str, build_at: datetime | None = None) -> bool:
             and at >= CS2_COUNT_EXPOSURE_FROM_UTC)
 
 
+# The exposure model's player share (B12) read the player's last MAX_SAMPLE
+# (20) maps shrunk with K_SHARE 2 maps (unfitted): at lines placed like
+# Superbet's it was overconfident (kills calibration slope 0.71), stars
+# over- and low-share players under-predicted (kill-share terciles -3.3 /
+# +2.9 pp), and headshots stayed on the sample because 239 impossible rows
+# (headshots > kills, 2025-10-27) had inflated their dispersion. From this
+# moment the share reads the last cs2_engine.SHARE_WINDOW (40) maps shrunk
+# with cs2_engine.K_SHARE_BY_STAT (kills 8, deaths 8, assists 16, headshots 4,
+# chosen walk-forward on history), and player_headshots joins the exposure
+# families. Walk-forward 2026-04..09-27 (100,525 player-maps, 4,477 matches),
+# log-loss at the emulated Superbet line: kills -0.00305 [-0.00357, -0.00253],
+# deaths -0.00111, assists -0.00402, headshots -0.01018, every interval below
+# zero. A calibration fix, not an edge: on Superbet's 20 settled days no
+# variant adds anything over the devigged price (kills blend +0.00037
+# [-0.0020, +0.0030]). docs/sofa/history/POMIAR_CS2_PLAYER_KILLS_2026-10-20.md.
+# Operator's go 2026-10-20, from the next day's 00:00Z.
+CS2_PLAYER_SHARE_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
+
+
+def cs2_player_share(date: str, build_at: datetime | None = None) -> bool:
+    """Does a CS2 player line read the 40-map share with per-stat shrinkage
+    and headshots from the exposure (CS2_PLAYER_SHARE_FROM_UTC)?"""
+    if CS2_PLAYER_SHARE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CS2_PLAYER_SHARE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CS2_PLAYER_SHARE_FROM_UTC)
+
+
 # The hockey / basketball player model (bet.sofa.player_model) read a past
 # game's squad from each lineup entry's `teamId` - the player's team when the
 # box was downloaded, not his team in that game. A traded player's games for

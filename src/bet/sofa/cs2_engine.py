@@ -619,6 +619,10 @@ def load_history(
             f"headshots FROM cs2_player_map WHERE game_id IN ({marks})",
             chunk,
         ):
+            if isinstance(h, int) and isinstance(k, int) and h > k:
+                # impossible as recorded (239 rows of 2025-10-27, up to 2030):
+                # the row's headshots are missing, its other stats stand
+                h = None
             stats = tuple(
                 (stat, v)
                 for stat, v in (
@@ -1104,6 +1108,14 @@ UNFITTED_EXPOSURE = ("K_TEAM_RATE", "K_SHARE", "SHARE_PRIOR", "RACE_MIN_Q")
 # The families the switch covers (the pre-registered measurement, B12): headshots
 # were worse than the sample (+0.188 log-loss) and stay on count_p.
 EXPOSURE_FAMILIES: frozenset[str] = frozenset(COUNT_FAMILIES) - {"player_headshots"}
+# epochs.CS2_PLAYER_SHARE_FROM_UTC: the player share over SHARE_WINDOW maps,
+# shrunk with K_SHARE_BY_STAT (chosen walk-forward on history, log-loss at the
+# emulated Superbet line; docs/sofa/history/POMIAR_CS2_PLAYER_KILLS_2026-10-20.md),
+# and headshots from the exposure too (B12's +0.188 was the impossible rows
+# load_history now drops).
+SHARE_WINDOW = 40
+K_SHARE_BY_STAT = {"kills": 8.0, "deaths": 8.0, "assists": 16.0, "headshots": 4.0}
+PLAYER_SHARE_FAMILIES: frozenset[str] = frozenset(COUNT_FAMILIES)
 
 TeamMap = tuple[int, int, int, int, dict[str, int], list[tuple[int, dict[str, int]]]]
 
@@ -1137,6 +1149,11 @@ class ExposureBook:
     player_recent: dict[int, deque[tuple[dict[str, int], dict[str, int]]]] = field(
         default_factory=dict)
     phi_sums: dict[tuple[str, str], list[float]] = field(default_factory=dict)
+    player_share: bool = False  # epochs.CS2_PLAYER_SHARE_FROM_UTC
+
+    @property
+    def families(self) -> frozenset[str]:
+        return PLAYER_SHARE_FAMILIES if self.player_share else EXPOSURE_FAMILIES
 
     def coef(self, stat: str) -> tuple[float, float] | None:
         s = self.sums.get(stat)
@@ -1178,8 +1195,9 @@ class ExposureBook:
             return None
         team_sum = sum(t for _, t in recent)
         mean_t = team_sum / len(recent)
-        return ((sum(o for o, _ in recent) + K_SHARE * SHARE_PRIOR * mean_t)
-                / (team_sum + K_SHARE * mean_t)) if team_sum + mean_t > 0 else None
+        k = K_SHARE_BY_STAT[stat] if self.player_share else K_SHARE
+        return ((sum(o for o, _ in recent) + k * SHARE_PRIOR * mean_t)
+                / (team_sum + k * mean_t)) if team_sum + mean_t > 0 else None
 
     def phi(self, level: str, stat: str) -> float | None:
         s = self.phi_sums.get((level, stat))
@@ -1221,14 +1239,16 @@ class ExposureBook:
                 s[5] += 1
             self.team_recent.setdefault(team, deque(maxlen=MAX_SAMPLE)).append(
                 (w, lost, totals))
+            window = SHARE_WINDOW if self.player_share else MAX_SAMPLE
             for pid, own in rows:
                 vals = {k: v for k, v in own.items() if isinstance(v, int)}
-                self.player_recent.setdefault(pid, deque(maxlen=MAX_SAMPLE)).append(
+                self.player_recent.setdefault(pid, deque(maxlen=window)).append(
                     (vals, totals))
 
 
-def build_exposure(history: list[MapRow]) -> ExposureBook:
-    book = ExposureBook()
+def build_exposure(history: list[MapRow], player_share: bool = False) -> ExposureBook:
+    """`player_share`: epochs.CS2_PLAYER_SHARE_FROM_UTC."""
+    book = ExposureBook(player_share=player_share)
     for m in history:
         book.update(m)
     return book
@@ -1339,7 +1359,7 @@ def model_probability(
     `map_identity` (epochs.CS2_MAP_IDENTITY_FROM_UTC): a map-level line reads
     its own map's p (RatingModel.p_map_nr; ratings built with MAP_TERMS).
     `exposure` (epochs.CS2_COUNT_EXPOSURE_FROM_UTC, build_exposure of the
-    same history): an EXPOSURE_FAMILIES line from the rounds' exposure, the
+    same history): a line of its `families` from the rounds' exposure, the
     old sample model where the exposure has no number.
     `series_rounds` (epochs.CS2_SERIES_ROUNDS_FROM_UTC): SERIES_ROUND_FAMILIES
     from series_rounds_side_p; without it they have no number."""
@@ -1454,7 +1474,7 @@ def model_probability(
             base = base_rate(both_sides_rounds(history), line.line)
             values = own_rounds(_rounds_maps(history, side_team), side_team)
             return shrunk_frequency(values, line.line, over, base)
-        if exposure is not None and fam in EXPOSURE_FAMILIES:
+        if exposure is not None and fam in exposure.families:
             opp = team2_id if side_team == team1_id else team1_id
             mp = _exposure_line(exposure, ratings, team1_id, team2_id,
                                 team1_is_home, best_of, line, map_identity,
@@ -1466,7 +1486,7 @@ def model_probability(
     for team in (team1_id, team2_id):
         values = player_values(history, team, line.subject, stat)
         if values:
-            if exposure is not None and fam in EXPOSURE_FAMILIES:
+            if exposure is not None and fam in exposure.families:
                 pid = player_id(history, team, line.subject)
                 opp = team2_id if team == team1_id else team1_id
                 mp = _exposure_line(exposure, ratings, team1_id, team2_id,
