@@ -1,0 +1,54 @@
+{
+  "_doc": "Footballer share model (epochs.FOOTBALL_PLAYER_SHARE, bet.sofa.player_share): m / m_accuracy and the position priors fitted on the replayed history before the split. Read only while epochs.FOOTBALL_PLAYER_SHARE_FROM_UTC is set. Written by scripts/sofa/measure_player_share.py.",
+  "fitted_from": {
+    "features": "/private/tmp/claude-501/-Users-mkoziol-projects-bet/903bccad-c2ff-46fb-9191-12f8ef2c9866/scratchpad/ps/hist/all.jsonl.gz",
+    "split": "2026-04-01",
+    "fit": "grid on binary log-loss at LINES, train only"
+  },
+  "markets": {
+    "player_shots_for": {
+      "m": 40.0,
+      "prior_share": {
+        "*": 0.08902,
+        "D": 0.04744,
+        "F": 0.16332,
+        "G": 0.00985,
+        "M": 0.09784
+      },
+      "n_train_samples": 47754,
+      "n_test_samples": 51650
+    },
+    "player_shots_on_target_for": {
+      "m": 40.0,
+      "prior_share": {
+        "*": 0.09917,
+        "D": 0.0537,
+        "F": 0.16447,
+        "G": 0.0086,
+        "M": 0.10458
+      },
+      "n_train_samples": 38015,
+      "n_test_samples": 41086,
+      "m_accuracy": 40.0,
+      "prior_accuracy": {
+        "*": 0.38162,
+        "D": 0.3641,
+        "F": 0.4204,
+        "G": 0.82857,
+        "M": 0.36222
+      }
+    },
+    "player_fouls_for": {
+      "m": 80.0,
+      "prior_share": {
+        "*": 0.08495,
+        "D": 0.08075,
+        "F": 0.09169,
+        "G": 0.01034,
+        "M": 0.08921
+      },
+      "n_train_samples": 49593,
+      "n_test_samples": 53851
+    }
+  }
+}

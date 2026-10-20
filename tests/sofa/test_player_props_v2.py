@@ -51,7 +51,9 @@ NAME = "Zawodnik - liczba fauli na zawodniku"
 
 def test_switch_is_off_and_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.FOOTBALL_PLAYER_PROPS_V2_FROM_UTC is None
+    # switched on 2026-10-21 00:00Z (night 2026-10-20/21)
+    assert epochs.FOOTBALL_PLAYER_PROPS_V2_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    monkeypatch.setattr(epochs, "FOOTBALL_PLAYER_PROPS_V2_FROM_UTC", None)
     assert epochs.FOOTBALL_PLAYER_PROPS_V2 == "player_props_v2"
     late = datetime(2030, 1, 1, tzinfo=UTC)
     assert not epochs.football_player_props_v2("2030-01-01", late)

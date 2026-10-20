@@ -82,8 +82,11 @@ _OLD = [
 # --- the switch ------------------------------------------------------------
 
 
-def test_the_switch_is_off_until_the_main_session_sets_it() -> None:
-    assert epochs.FOOTBALL_STAT_VARIANTS_FROM_UTC is None
+def test_the_switch_is_on_from_2026_10_21(monkeypatch: pytest.MonkeyPatch) -> None:
+    # switched on 2026-10-21 00:00Z (night 2026-10-20/21)
+    assert epochs.FOOTBALL_STAT_VARIANTS_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    assert not epochs.football_stat_variants("2026-10-20", FROZEN)
+    monkeypatch.setattr(epochs, "FOOTBALL_STAT_VARIANTS_FROM_UTC", None)
     assert not epochs.football_stat_variants("2026-10-21", FROZEN)
 
 
@@ -100,6 +103,7 @@ def test_the_switch_is_judged_on_the_day_built_and_the_clock(
 
 def test_day_flags_carry_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SOFA_NOW", "2026-10-21T06:00:00Z")
+    monkeypatch.setattr(epochs, "FOOTBALL_STAT_VARIANTS_FROM_UTC", None)
     assert offer_mod.day_flags("2026-10-21")["football_stat_variants"] is False
     monkeypatch.setattr(epochs, "FOOTBALL_STAT_VARIANTS_FROM_UTC",
                         datetime(2026, 10, 21, tzinfo=UTC))

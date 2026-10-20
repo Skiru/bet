@@ -1962,7 +1962,7 @@ def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:
 # rows, so a day >= the date built at or after the moment. Off (None, until
 # the operator sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
 FOOTBALL_PLAYER_PROPS_V2 = "player_props_v2"
-FOOTBALL_PLAYER_PROPS_V2_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_PROPS_V2_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def football_player_props_v2(
@@ -2265,7 +2265,7 @@ def football_count_stretch(date: str, build_at: datetime | None = None) -> bool:
 # a refit needs). Rows priced under it carry `referee_rule` (every football
 # row). None: OFF, byte for byte.
 FOOTBALL_REFEREE = "referee_v1"
-FOOTBALL_REFEREE_FROM_UTC: datetime | None = None
+FOOTBALL_REFEREE_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 FOOTBALL_REFEREE_MARKER = ("referee_rule", FOOTBALL_REFEREE, "football")
 
 
@@ -2325,7 +2325,7 @@ def football_player_stretch(date: str, build_at: datetime | None = None) -> bool
 # SHEET on a sheet without it. The fitted file is staged, not installed: it
 # goes to config/ with the switch. None: OFF, byte for byte.
 FOOTBALL_PLAYER_SHARE = "player_share_v1"
-FOOTBALL_PLAYER_SHARE_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_SHARE_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 FOOTBALL_PLAYER_SHARE_MARKER = (
     "player_share_rule", FOOTBALL_PLAYER_SHARE, "football")
 
@@ -2476,7 +2476,7 @@ def line_curves(date: str, build_at: datetime | None = None) -> bool:
 #      (players.match_player_by_inner_surname).
 # Adds player samples: changes what prints - a day >= the date, built at or
 # after the moment. Off (None): byte-identical.
-FOOTBALL_PLAYER_COVERAGE_FROM_UTC: datetime | None = None
+FOOTBALL_PLAYER_COVERAGE_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def football_player_coverage(date: str, build_at: datetime | None = None) -> bool:
@@ -2505,7 +2505,7 @@ def football_player_coverage(date: str, build_at: datetime | None = None) -> boo
 # (None, until the main session / operator sets it): OFFER, SAMPLES, SHEET,
 # CONFIDENCE byte-identical. Evidence:
 # docs/sofa/evidence/football_stat_variants_2026-10-21.md.
-FOOTBALL_STAT_VARIANTS_FROM_UTC: datetime | None = None
+FOOTBALL_STAT_VARIANTS_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def football_stat_variants(date: str, build_at: datetime | None = None) -> bool:
