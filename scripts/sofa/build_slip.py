@@ -15,8 +15,11 @@ requested slips the day supports. No slip price, no stake.
 (Europe/Warsaw), [from, to).
 
 Analysts' reads: a leg a veto or a WATCH / NO_BET read refuses (vetoes.json,
-reads.json, or the reads the coupon carries) never enters a slip, so after
-merge_reads.py a re-run takes the next best leg. --read-set-dir writes the
+reads.json, the slip's own vetoes_slip.json / reads_slip.json written by
+`merge_reads.py --slip`, or the reads the coupon carries) never enters a
+slip, so after the merge a re-run takes the next best leg. The day's
+family_record.json is refreshed first when the ledger is newer
+(build_family_record.ensure). --read-set-dir writes the
 unread legs of the slips and of the --reserve slips (the next disjoint ones,
 the buffer a refusal falls back on) as read_set_slip_<sport>.json in
 read_set.py's compact form, for one analyst per sport; stale files of an
@@ -45,6 +48,8 @@ from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
+from scripts.sofa.build_family_record import ensure_quietly  # noqa: E402
+from scripts.sofa.merge_reads import SLIP_READS, SLIP_VETOES  # noqa: E402
 from scripts.sofa.read_set import FIELDS  # noqa: E402
 
 LOCAL = ZoneInfo("Europe/Warsaw")
@@ -129,6 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
     ap.add_argument("--reserve", type=int, default=0)
     ap.add_argument("--read-set-dir", default=None)
+    ap.add_argument(
+        "--no-refresh-record",
+        action="store_true",
+        help="read family_record.json as it is (no ledger / database access)",
+    )
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--md-out", default=None)
     args = ap.parse_args(argv)
@@ -148,6 +158,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAILED: no {COUPON_ARTIFACT} in {run}", file=sys.stderr)
         return 2
     coupon = json.loads(path.read_text(encoding="utf-8"))
+    problem = "" if args.no_refresh_record else ensure_quietly(args.runs_dir, args.date)
+    if problem:
+        print(f"WARN: {fr.FILE} not refreshed - {problem}", file=sys.stderr)
     record = fr.load(run, args.date)
     if record is None:
         print(
@@ -168,11 +181,19 @@ def main(argv: list[str] | None = None) -> int:
         min_odds=args.min_odds,
         max_odds=args.max_odds,
         window=span,
-        reads=load_reads(run / "reads.json"),
-        vetoes=load_vetoes(run / "vetoes.json"),
+        reads=load_reads(run / "reads.json") + load_reads(run / SLIP_READS),
+        vetoes=load_vetoes(run / "vetoes.json") + load_vetoes(run / SLIP_VETOES),
         reserve=args.reserve,
+        built_at=coupon.get("created_at_utc"),
     )
-    text = sb.render(result, day=args.date, target=args.target, record=record, now=now)
+    text = sb.render(
+        result,
+        day=args.date,
+        target=args.target,
+        record=record,
+        now=now,
+        built_at=coupon.get("created_at_utc"),
+    )
     if args.md_out:
         Path(args.md_out).write_text(text, encoding="utf-8")
     print(text)

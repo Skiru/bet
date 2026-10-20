@@ -66,7 +66,7 @@ walk-forward shortfall, never a surplus). An exact multiple-choice knapsack
 maximises the slip's measured chance under "price product >= target" - which
 picks the fewest legs (every odds band loses about alike per leg,
 10-13..10-19). A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
-`reads.json`, or carried) never enters, so a re-run after a merge takes the
+`reads.json`, the slip's `*_slip.json`, or carried) never enters, so a re-run after a merge takes the
 next best leg. `--reserve 1` also builds the next disjoint slip: read with
 the slip, it is the buffer a refusal falls back on.
 
@@ -83,9 +83,10 @@ the slip, it is the buffer a refusal falls back on.
    the **foreground**, naming the file and the report path
    `runs/sofa/<d>/<d>_analiza_<sport>_kupon_<round>.md`; independent sports
    in one message.
-3. `merge_reads.py --date <d> --report <each report>` (never re-type a
-   report). The reads are real reads: the next rebuild applies them to the
-   coupon too.
+3. `merge_reads.py --date <d> --slip --author analyst --report <each report>`
+   (never re-type a report). `--slip` writes `reads_slip.json` /
+   `vetoes_slip.json`: the slip honours them, the coupon never reads them (a
+   picks request does not touch the coupon).
 4. Re-run step 1. Done when it prints "Każda noga kuponów ma KEEP analityka"
    (`do przeczytania: nic`); otherwise the refused legs are gone, the
    replacements are listed - back to 2. After round 3, report the unread legs
@@ -96,8 +97,11 @@ plus), then each slip's table as printed - Superbet's words, measured chance
 beside 1/odds, the read verdict, "poza poparciem" where it says so - and
 which legs fell out on which read. No slip price, no stake; the price
 product line is a target check only. The family selection's advantage is not
-yet shown (T-FAMILY-SELECTION). Legs starting while the analysts read drop
-out on the re-run: name a window that starts >= 30 min ahead. Exit 0 all
+yet shown (T-FAMILY-SELECTION). The table's "cena sprzed" column and the
+"Cena starsza niż limit pipeline'u" line flag a price past the pipeline's own
+limit (45 min football / tennis, 3 h sports; a football leg's age is at least
+the coupon's age, "≥") - relay it: the screen's price decides. Legs starting
+while the analysts read drop out on the re-run: name a window that starts >= 30 min ahead. Exit 0 all
 supported, 1 fewer, 2 no coupon. Tests `tests/sofa/test_slip_builder.py`.
 
 ## Three cases

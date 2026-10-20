@@ -3,7 +3,13 @@
 and reads.json - parsed from the report file, validated, then written.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> \\
-        --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run]
+        --report <md> [--report <md> ...] [--author analyst|verifier] [--slip] \\
+        [--dry-run]
+
+--slip: the reads of a chat slip (`build_slip.py`, the `/kupon` loop) go to
+vetoes_slip.json / reads_slip.json instead - the slip honours them, the
+coupon never reads them (operator: a picks request does not touch the
+coupon). Same validation.
 
 A report ends with fenced JSON arrays (```json vetoes / ```json reads).
 Every array is classified by its entries (a `verdict` = reads, a
@@ -103,8 +109,11 @@ def _key(entry: dict[str, Any]) -> str:
     return json.dumps(entry, sort_keys=True)
 
 
-def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool
-          ) -> int:
+SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
+
+
+def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
+          slip: bool = False) -> int:
     fresh_v: list[dict[str, Any]] = []
     fresh_r: list[dict[str, Any]] = []
     for path in reports:
@@ -121,7 +130,9 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool
             raise ReportError(f"{len(wrong)} reads not authored {author!r}: "
                               f"{json.dumps(wrong[0], ensure_ascii=False)}")
 
-    veto_path, reads_path = run / "vetoes.json", run / "reads.json"
+    veto_path, reads_path = (
+        (run / SLIP_VETOES, run / SLIP_READS) if slip
+        else (run / "vetoes.json", run / "reads.json"))
     earlier_v = _load(veto_path)
     fresh_keys = {_key(v) for v in fresh_v}
     carried = [v for v in earlier_v if _key(v) not in fresh_keys]
@@ -152,7 +163,7 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool
     fresh_unmatched = {rung(v) for v in unmatched} & {rung(v) for v in fresh_v}
 
     print(f"vetoes: {len(fresh_v)} fresh, {len(carried)} carried over, "
-          f"{len(merged_v)} in vetoes.json")
+          f"{len(merged_v)} in {veto_path.name}")
     for v in carried[:10]:
         print("  CARRIED:", json.dumps(v, ensure_ascii=False))
     if len(carried) > 10:
@@ -163,7 +174,7 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool
     counts = {x: sum(r["verdict"] == x for r in merged_r)
               for x in ("KEEP", "WATCH", "NO_BET")}
     print(f"reads: {len(merged_r) - len(earlier_r)} new, {len(merged_r)} in "
-          f"reads.json {counts}")
+          f"{reads_path.name} {counts}")
     for r in merged_r[len(earlier_r):]:
         if r["verdict"] != "KEEP":
             print(f"  {r['verdict']} {r['author']} {r['sofascore_event_id']} "
@@ -206,10 +217,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--author", choices=("analyst", "verifier"))
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--slip", action="store_true",
+                    help="a chat slip's reads: *_slip.json, never the coupon's")
     args = ap.parse_args(argv)
     try:
         return merge(Path(args.runs_dir) / args.date, args.report, args.author,
-                     args.dry_run)
+                     args.dry_run, slip=args.slip)
     except (OSError, ValueError, ValidationError) as exc:
         print(f"merge_reads: REFUSED, nothing written - {type(exc).__name__}: "
               f"{exc}", file=sys.stderr)

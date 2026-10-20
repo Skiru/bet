@@ -188,7 +188,17 @@ def test_render_names_superbet_words_and_never_a_slip_price() -> None:
 def test_script_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     day = "2026-10-20"
     assert (
-        build_slip.main(["--date", day, "--target", "2", "--runs-dir", str(tmp_path)])
+        build_slip.main(
+            [
+                "--date",
+                day,
+                "--target",
+                "2",
+                "--runs-dir",
+                str(tmp_path),
+                "--no-refresh-record",
+            ]
+        )
         == 2
     )
     run = tmp_path / day
@@ -208,7 +218,17 @@ def test_script_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
         json.dumps(_record({PLUS: _fam(300, 0.82, 0.80)})), encoding="utf-8"
     )
     assert (
-        build_slip.main(["--date", day, "--target", "2", "--runs-dir", str(tmp_path)])
+        build_slip.main(
+            [
+                "--date",
+                day,
+                "--target",
+                "2",
+                "--runs-dir",
+                str(tmp_path),
+                "--no-refresh-record",
+            ]
+        )
         == 0
     )
     assert (
@@ -222,6 +242,7 @@ def test_script_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
                 "2",
                 "--runs-dir",
                 str(tmp_path),
+                "--no-refresh-record",
             ]
         )
         == 1
@@ -368,7 +389,15 @@ def test_script_refuses_bad_arguments_and_a_missing_family_record(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     day = "2026-10-20"
-    base = ["--date", day, "--target", "2", "--runs-dir", str(tmp_path)]
+    base = [
+        "--date",
+        day,
+        "--target",
+        "2",
+        "--runs-dir",
+        str(tmp_path),
+        "--no-refresh-record",
+    ]
     for extra in (
         ["--reserve", "-1"],
         ["--min-odds", "2", "--max-odds", "1.5"],
@@ -390,3 +419,54 @@ def test_a_leg_without_a_fixture_id_is_counted_not_fatal() -> None:
     del bare["sofascore_event_id"]
     pool, refused = sb.candidates([bare, _leg(2, 1.5, 0.7)], rec, NOW)
     assert len(pool) == 1 and refused == {"brak id meczu": 1}
+
+
+def test_stale_prices_are_flagged_by_the_pipelines_own_limits() -> None:
+    rec = _record(
+        {PLUS: _fam(300, 0.82, 0.80), "hockey|corners_total|OVER": _fam(300, 0.82, 0.8)}
+    )
+    old = (NOW - datetime.timedelta(minutes=50)).isoformat().replace("+00:00", "Z")
+    fresh = (NOW - datetime.timedelta(minutes=20)).isoformat().replace("+00:00", "Z")
+    legs = [
+        _leg(1, 1.5, 0.7, price_fetched_at_utc=old),
+        _leg(2, 1.5, 0.7, price_fetched_at_utc=fresh),
+        dict(_leg(3, 1.5, 0.7, price_fetched_at_utc=old), sport="hockey"),
+    ]
+    pool, _ = sb.candidates(legs, rec, NOW)
+    stale = {x.leg["sofascore_event_id"]: x.stale for x in pool}
+    assert stale == {1: True, 2: False, 3: False}  # hockey: 3 h
+    res = sb.build(legs[:2], rec, NOW, target=2.2)
+    text = sb.render(
+        res,
+        day="2026-10-20",
+        target=2.2,
+        record=rec,
+        now=NOW,
+        built_at="2026-10-20T07:00:00Z",
+    )
+    assert "Cena starsza niż limit pipeline'u: 1 noga" in text
+    assert "zbudowany 20.10 09:00" in text and "| 20.10 20:00 |" in text
+
+
+def test_merge_reads_slip_goes_to_the_slip_files_only(tmp_path: Path) -> None:
+    from scripts.sofa import merge_reads
+
+    run = tmp_path / "2026-10-20"
+    run.mkdir()
+    report = tmp_path / "r.md"
+    read = {
+        "sofascore_event_id": 1,
+        "market": "corners_total",
+        "subject": "",
+        "line": 7.5,
+        "direction": "OVER",
+        "verdict": "WATCH",
+        "author": "analyst",
+        "reason": "test",
+    }
+    report.write_text("```json reads\n" + json.dumps([read]) + "\n```\n")
+    assert merge_reads.merge(run, [report], "analyst", False, slip=True) == 0
+    assert not (run / "reads.json").exists()
+    assert (
+        json.loads((run / merge_reads.SLIP_READS).read_text())[0]["verdict"] == "WATCH"
+    )

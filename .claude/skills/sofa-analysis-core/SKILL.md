@@ -30,7 +30,7 @@ The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
 | `superbet_market`, `superbet_selection` | Superbet's words - name the leg with them |
 | `confidence`, `offered_odds`, `price_gap` | pewność, the price, the over-price flag |
 | `position`, `locked` | coupon position (a builder leg has none); `locked` = printed before its start, stays whatever you say |
-| `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way) |
+| `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way); a chat slip's file (`read_set_slip_<sport>.json`, the `/kupon` loop) holds `slip` (on the slip) or `slip_reserve` (its replacements) - read them the same way |
 | `model_p`, `forecast_p`, `calibrated_on`, `sample_size`, `sample_hit_rate`, `sample_oldest_days`, `sample_newest_days`, `context_flags`, `superbet_event_id`, `source_date` | the leg's numbers - use them before any lookup (a field is absent when null) |
 
 **Read exactly those legs - every one gets a read.** Never recompute the

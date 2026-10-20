@@ -35,7 +35,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <date> --tar
 then the skill's loop: one foreground analyst per `read_set_slip_<sport>.json`
 (`sofa-analyst-football` / `sofa-analyst-tennis` / `sofa-analyst-sport` with the
 sport named; report `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<round>.md`),
-`merge_reads.py --date <date> --report <each>`, re-run the same command, until
+`merge_reads.py --date <date> --slip --author analyst --report <each>` (the
+slip's own `reads_slip.json`; the coupon never reads it), re-run the same command, until
 it prints "Każda noga kuponów ma KEEP analityka" - at most 3 rounds. Narrate a
 line per step.
 
@@ -49,7 +50,8 @@ line per step.
 
 First line: the script's "say no first" line. Then each slip's final table as
 printed (Superbet's words, start in local time, price, 1/price, measured
-chance, read verdict, "poza poparciem" where it says so), the slip's measured
+chance, read verdict, price age, "poza poparciem" where it says so, the
+stale-price line when printed), the slip's measured
 chance, which legs fell out on which read and what replaced them, and any leg
 still unread named as unread. No slip price (the price product line is a
 target check), no stake, no "na minusie" labels; "kurs kuponu: sprawdź na

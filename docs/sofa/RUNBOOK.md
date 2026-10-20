@@ -494,8 +494,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   czyta plik, raport idzie przez `merge_reads.py`. Noga z WATCH / NO_BET /
   wetem wypada, a ponowne uruchomienie liczy kupon od nowa z następną
   najlepszą nogą — i ją też daje do czytania. Koniec, gdy każda noga ma KEEP
-  (najwyżej 3 rundy; nieczytana noga jest tak nazwana). Werdykty trafiają do
-  `reads.json`, więc następna przebudowa zastosuje je też do kuponu.
+  (najwyżej 3 rundy; nieczytana noga jest tak nazwana). Werdykty idą przez
+  `merge_reads.py --slip` do `reads_slip.json` / `vetoes_slip.json` — kupon
+  z czatu je czyta, kupon dnia **nie** (prośba o typy nie rusza kuponu).
+- **Wiek ceny**: kolumna „cena sprzed” i linia „Cena starsza niż limit
+  pipeline'u” (45 min piłka / tenis, 3 h sporty; u piłki to co najmniej wiek
+  kuponu, „≥”) — skrypt nie odświeża cen, rozstrzyga kurs na ekranie.
 - Okno powinno zaczynać się ≥ 30 min później — nogi startujące w trakcie
   czytania wypadają. Przewaga selekcji rodzin jest **niepotwierdzona**
   (T-FAMILY-SELECTION; `docs/sofa/evidence/selection_walk_forward_2026-10-20.md`).

@@ -41,8 +41,11 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from bet.sofa import family_record as fr
+from bet.sofa.config import SofaConfig
+from bet.sofa.sport_day import MAX_PRICE_AGE as SPORT_PRICE_AGE
 from bet.sofa.veto import read_refusal, veto_matches
 
 # A leg's analyst read (reads.json / vetoes.json, matched like a veto; or
@@ -69,6 +72,13 @@ MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
 START_MARGIN = datetime.timedelta(minutes=10)
 STEP = 0.0001
+LOCAL = ZoneInfo("Europe/Warsaw")  # the operator's clock
+# The pipeline's own price-age limits: CONFIDENCE refuses a football / tennis
+# price older than SofaConfig.price_max_age_min (STALE_PRICE), SPORT_CONFIDENCE
+# a measured sport's older than sport_day.MAX_PRICE_AGE. The coupon is not
+# rebuilt for a chat slip, so a leg past its limit is flagged, not refused -
+# the screen's price decides.
+SHEET_PRICE_AGE = datetime.timedelta(minutes=SofaConfig.price_max_age_min)
 
 # Hit minus 1/odds the tiers realised walk-forward (families chosen on the
 # days before each day; measure_selection_walk_forward.py --from 2026-10-12
@@ -87,6 +97,14 @@ class Leg:
     chance_source: str
     tier: int
     read: str = READ_NONE
+    price_age: datetime.timedelta | None = None
+    age_is_floor: bool = False  # no fetch time on the leg: age since the build
+
+    @property
+    def stale(self) -> bool:
+        sport = str(self.leg.get("sport") or "football")
+        limit = SHEET_PRICE_AGE if sport in ("football", "tennis") else SPORT_PRICE_AGE
+        return self.price_age is not None and self.price_age > limit
 
     @property
     def match_key(self) -> str:
@@ -225,7 +243,12 @@ def candidates(
     window: tuple[datetime.datetime, datetime.datetime] | None = None,
     reads: Sequence[Any] = (),
     vetoes: Sequence[Any] = (),
+    built_at: str | None = None,
 ) -> tuple[list[Leg], dict[str, int]]:
+    """The legs a slip may take, and the count of every refusal. A football
+    / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
+    and refuses one older than its limit), so its price is at least as old as
+    the coupon's build (`built_at`)."""
     fam, sport = shortfalls(record)
     plus = frozenset(
         k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e)
@@ -253,6 +276,9 @@ def candidates(
             continue
         seen.add(ident)
         odds = s.get("offered_odds") or s.get("odds")
+        if s.get("locked") and not s.get("kickoff_utc"):
+            refused["rozpoczęty lub za chwilę"] += 1
+            continue
         kickoff = s.get("kickoff_utc")
         if odds is None or s.get("confidence") is None:
             refused["brak ceny lub pewności"] += 1
@@ -280,7 +306,14 @@ def candidates(
         if read is None:
             refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
             continue
-        leg = Leg(s, float(odds), mc[0], mc[1], t, read)
+        fetched = s.get("price_fetched_at_utc") or built_at
+        age = (
+            now - datetime.datetime.fromisoformat(str(fetched).replace("Z", "+00:00"))
+            if fetched
+            else None
+        )
+        floor = not s.get("price_fetched_at_utc") and age is not None
+        leg = Leg(s, float(odds), mc[0], mc[1], t, read, age, floor)
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -375,6 +408,7 @@ def build(
     reads: Sequence[Any] = (),
     vetoes: Sequence[Any] = (),
     reserve: int = 0,
+    built_at: str | None = None,
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice). Supported slips use only
     legs of families on the plus; with `allow_rest` the shortfall is filled
@@ -390,6 +424,7 @@ def build(
         window=window,
         reads=reads,
         vetoes=vetoes,
+        built_at=built_at,
     )
     counts: dict[int, int] = defaultdict(int)
     for x in pool:
@@ -431,6 +466,24 @@ def legs_pl(n: int) -> str:
     return f"{n} {'noga' if n == 1 else 'nogi' if few else 'nóg'}"
 
 
+def _local(raw: Any) -> str:
+    """An ISO UTC time as the operator's HH:MM (with the date when not
+    today's), or "?"."""
+    if not raw:
+        return "?"
+    at = datetime.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    return f"{at.astimezone(LOCAL):%d.%m %H:%M}"
+
+
+def _age(x: Leg) -> str:
+    if x.price_age is None:
+        return "?"
+    minutes = int(x.price_age.total_seconds() // 60)
+    text = f"{minutes} min" if minutes < 120 else f"{minutes // 60} h"
+    text = ("≥ " if x.age_is_floor else "") + text
+    return f"**{text}**" if x.stale else text
+
+
 def _pct(v: float) -> str:
     return f"{v * 100:.1f}%".replace(".", ",")
 
@@ -442,6 +495,7 @@ def render(
     target: float,
     record: Mapping[str, Any] | None,
     now: datetime.datetime,
+    built_at: str | None = None,
 ) -> str:
     """Polish markdown for the operator. The first line answers the request
     ("say no first"); no slip price, no stake."""
@@ -470,7 +524,8 @@ def render(
     lines += [
         "",
         f"Poza pipeline'em: czat nie jest kuponem i nie ma bramek. Nogi z "
-        f"`runs/sofa/{day}/11_coupon.json`, stan na {now:%Y-%m-%d %H:%M}Z. "
+        f"`runs/sofa/{day}/11_coupon.json` (zbudowany {_local(built_at)}), "
+        f"liczone {now.astimezone(LOCAL):%H:%M}. "
         f"Szansa nogi = min(pewność, cena przy price_gap, 1/kurs + luka rodziny "
         f"na wydrukowanych nogach {days}); nigdy sama pewność. Jedna noga z meczu. "
         "Kurs kuponu: sprawdź na ekranie Superbetu. Stawka jest Twoja.",
@@ -485,19 +540,20 @@ def render(
         lines += [
             head + tag,
             "",
-            "| start (UTC) | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
-            "szansa | źródło | pewność | grupa | czytana |",
-            "|---|---|---|---|---|---|---|---|---|---|",
+            "| start | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
+            "szansa | źródło | pewność | grupa | czytana | cena sprzed |",
+            "|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for x in s.legs:
             g = x.leg
             read = x.read
-            start = str(g.get("kickoff_utc"))[5:16].replace("T", " ")
+            start = _local(g.get("kickoff_utc"))
             bet = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
             lines.append(
                 f"| {start} | {g.get('match')} | {bet} | {x.odds:.2f} | "
                 f"{_pct(1 / x.odds)} | {_pct(x.chance)} | {x.chance_source} | "
-                f"{_pct(float(g['confidence']))} | {TIER_NAMES[x.tier]} | {read} |"
+                f"{_pct(float(g['confidence']))} | {TIER_NAMES[x.tier]} | {read} | "
+                f"{_age(x)} |"
             )
         lines += [
             "",
@@ -505,6 +561,13 @@ def render(
             f"celu - to nie jest kurs kuponu.",
             "",
         ]
+    stale = [x for s in result.slips for x in s.legs if x.stale]
+    if stale:
+        lines.append(
+            f"**Cena starsza niż limit pipeline'u: {legs_pl(len(stale))}** (piłka / "
+            "tenis 45 min, sporty 3 h) - kurs na ekranie mógł się zmienić albo "
+            "mecz zejść z oferty; świeże ceny daje przebudowa dnia."
+        )
     unread = unread_legs(result.slips)
     if result.slips:
         lines.append(
