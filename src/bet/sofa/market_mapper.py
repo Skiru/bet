@@ -964,6 +964,111 @@ def classify_mappable_family(
     return None
 
 
+# ---------------------------------------------------------------------------
+# Football statistic variants - read only behind epochs.FOOTBALL_STAT_VARIANTS
+# ---------------------------------------------------------------------------
+#
+# Night 2026-10-20/21. Variants of statistics SHEET already samples per side
+# (throw_ins_for, goal_kicks_for, tackles_for, shots_for, shots_1h_for,
+# shots_2h_for) under names no classifier above reads. Shapes as Superbet sent
+# them 2026-10-14..10-20 (runs/sofa/<d>/unmapped_prices):
+#
+#   "Każda drużyna powyżej X rzutów z autu"   "Powyżej 13.5 - Tak"  sbv "13.5"
+#   "Każda drużyna powyżej X wybić od bramki" "Powyżej 4.5 - Tak"   sbv "4.5"
+#   "Każda z drużyn powyżej X odbiorów"       "Powyżej 12.5 - tak"  sbv "12.5"
+#   "Strzały - Handicap"                      "LASK Linz (8.5)"     sbv "8.5"
+#   "1. połowa - liczba strzałów - handicap"  "Liverpool (-3.5)"    sbv "3.5"
+#   "2. połowa - liczba strzałów - handicap"  (the same)
+#
+# Superbet writes "Każda drużyna" for throw-ins and goal kicks, "Każda z
+# drużyn" for tackles; both spellings are read for the three. A handicap's
+# specialBetValue is the home side's line for the pair: the selection's own
+# bracket is read, as for every handicap here.
+
+# Superbet's name for the quantity -> our derived base (side metric
+# `<base>_for`, declared in metrics.FOOTBALL_METRICS).
+_STAT_VARIANT_BOTH_OVER_METRICS = {
+    "rzutow z autu": "throw_ins",
+    "wybic od bramki": "goal_kicks",
+    "odbiorow": "tackles",
+}
+_STAT_VARIANT_BOTH_OVER = re.compile(
+    r"^kazda (?:z druzyn|druzyna) powyzej x (?P<metric>rzutow z autu"
+    r"|wybic od bramki|odbiorow)$"
+)
+# "Powyżej 13.5 - Tak": the line the selection names, read to cross-check the
+# specialBetValue (a disagreement is another rung's price, not this one).
+_STAT_VARIANT_SELECTION_LINE = re.compile(r"powyzej (?P<line>\d+(?:\.\d+)?)")
+_STAT_VARIANT_HANDICAP = re.compile(
+    r"^(?:strzaly - handicap|(?P<half>[12])\.\s?polowa - liczba strzalow - handicap)$"
+)
+
+# The market keys this classifier writes (and only it): an audit or a test
+# can tell a stat-variant row by its market alone.
+STAT_VARIANT_MARKETS = frozenset({
+    "both_over_throw_ins", "both_over_goal_kicks", "both_over_tackles",
+    "handicap_shots", "handicap_shots_1h", "handicap_shots_2h",
+})
+
+
+def classify_stat_variant(
+    market_name: str | None,
+    selection_name: str | None,
+    special_bet_value: str | None,
+    sides: Sequence[str],
+) -> tuple[str, str, float, str] | None:
+    """(market, subject, line, direction) for one odd of a football
+    statistic variant (epochs.FOOTBALL_STAT_VARIANTS), or None. `sides` are
+    the listing's own participant names; a handicap's club must be one of
+    them."""
+    folded = fold(market_name)
+    selection = fold(selection_name)
+    if not folded or not selection or ";" in folded:
+        return None
+    sbv = (
+        str(special_bet_value).strip()
+        if special_bet_value not in (None, "")
+        else None
+    )
+
+    m = _STAT_VARIANT_BOTH_OVER.match(folded)
+    if m:
+        direction = _yes_no(selection)
+        if direction is None or sbv is None:
+            return None
+        try:
+            line = float(sbv)
+        except ValueError:
+            return None
+        named = _STAT_VARIANT_SELECTION_LINE.search(selection)
+        if named is not None and float(named.group("line")) != line:
+            return None
+        base = _STAT_VARIANT_BOTH_OVER_METRICS[m.group("metric")]
+        return (f"both_over_{base}", "", line, direction)
+
+    m = _STAT_VARIANT_HANDICAP.match(folded)
+    if m:
+        half = m.group("half")
+        scoped: str | None = "shots"
+        if half:
+            scoped = _scope_metric("shots_for", f"{half}h")
+        if scoped is None:
+            return None
+        sel = _HANDICAP_SELECTION.match(selection)
+        if not sel:
+            return None
+        team = sel.group("team").strip()
+        if not _listing_side(team, sides) or _SUBJECT_IS_PARLAY.search(team):
+            return None
+        try:
+            line = float(sel.group("line"))
+        except ValueError:
+            return None
+        return (f"handicap_{scoped}", team, line, "OVER")
+
+    return None
+
+
 # Bases whose per-side sample is NOT simply `<base>_for` — `games` is measured
 # as `games_won_for`. Everything else follows the regular rule, so read this
 # table through `derived_side_metric`, never with a bare `.get(base)`.

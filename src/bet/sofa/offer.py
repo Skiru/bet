@@ -16,6 +16,7 @@ from bet.sofa.market_mapper import (
     classify_mappable_family,
     classify_market,
     classify_player_market,
+    classify_stat_variant,
     is_ladder_answer,
 )
 from bet.sofa.shot_detail import MARKET_NAMES as SHOT_DETAIL_NAMES
@@ -93,6 +94,7 @@ def classify_odd(
     football_incidents: bool = False,
     tennis_sets: bool = False,
     player_props_v2: bool = False,
+    stat_variants: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -142,6 +144,10 @@ def classify_odd(
     only) reads "Zawodnik - liczba fauli na zawodniku" as
     player_fouls_drawn_for (market_mapper.PLAYER_PROPS_V2_NAMES), parsed
     exactly as PLAYER_MARKET_NAMES are. Off, the default, changes nothing.
+    `stat_variants` (epochs.football_stat_variants, a football fixture only)
+    reads the both-teams throw-ins / goal kicks / tackles and the shots
+    handicaps (market_mapper.classify_stat_variant) against `listing_names`,
+    tried last; off, the default, changes nothing.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -210,6 +216,11 @@ def classify_odd(
         set_market = classify_set_market(market_name, selection_name, listing_names)
         if set_market:
             return set_market, None
+    if stat_variants:
+        variant = classify_stat_variant(
+            market_name, selection_name, line_text, listing_names)
+        if variant:
+            return variant, None
     return None, str(market_name)
 
 
@@ -249,6 +260,7 @@ def day_flags(date: str) -> dict[str, bool]:
         "football_score_markets": epochs.football_score_markets(date),
         "tennis_set_complements": epochs.tennis_set_complements(date),
         "player_props_v2": epochs.football_player_props_v2(date),
+        "football_stat_variants": epochs.football_stat_variants(date),
     }
 
 
@@ -274,11 +286,16 @@ class OfferFetcher:
         football_score_markets: bool = False,
         tennis_set_complements: bool = False,
         player_props_v2: bool = False,
+        football_stat_variants: bool = False,
     ) -> None:
         self.client = client
         # epochs.football_player_props_v2(date): read the v2 footballer
         # props (market_mapper.PLAYER_PROPS_V2_NAMES). Off is the old rule.
         self.player_props_v2 = player_props_v2
+        # epochs.football_stat_variants(date): the football both-teams
+        # throw-ins / goal kicks / tackles and the shots handicaps
+        # (market_mapper.classify_stat_variant). Off is the old rule.
+        self.football_stat_variants = football_stat_variants
         # epochs.football_score_markets(date) / tennis_set_complements(date):
         # the football "or" / handicap / DC & goals markets
         # (bet.sofa.football_score_markets) and the tennis exact-score
@@ -445,11 +462,13 @@ class OfferFetcher:
                                  and fixture.sport == "football")
                 set_complements = (self.tennis_set_complements
                                    and fixture.sport == "tennis")
+                stat_variants = (self.football_stat_variants
+                                 and fixture.sport == "football")
                 names = (
                     listing_sides(payload)
                     if (self.ampersand_subjects or self.mappable_families or winner
                         or incidents or set_markets or result_1x2_dnb
-                        or score_markets or set_complements)
+                        or score_markets or set_complements or stat_variants)
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
@@ -458,6 +477,7 @@ class OfferFetcher:
                     classified_odd, unmapped_label = classify_odd(
                         item, sides, self.mappable_families, names, winner,
                         result, shots, incidents, set_markets, props_v2,
+                        stat_variants,
                     )
                     # epochs.FOOTBALL_RESULT_1X2_DNB: one odd may feed a
                     # second rung ("Mecz" 1 is the DC X2's UNDER and the

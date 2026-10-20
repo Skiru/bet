@@ -2454,3 +2454,33 @@ def football_player_coverage(date: str, build_at: datetime | None = None) -> boo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_PLAYER_COVERAGE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_PLAYER_COVERAGE_FROM_UTC)
+
+
+# Football statistic variants of metrics SHEET already samples
+# (market_mapper.classify_stat_variant): OFFER reads "Każda drużyna powyżej X
+# rzutów z autu" / "... wybić od bramki" and "Każda z drużyn powyżej X
+# odbiorów" as both_over_throw_ins / both_over_goal_kicks / both_over_tackles,
+# "Strzały - Handicap" as handicap_shots and "1. / 2. połowa - liczba strzałów
+# - handicap" as handicap_shots_1h / handicap_shots_2h. SHEET prices them with
+# the existing joint of the two sides' samples (bet.sofa.derived, as every
+# both_over_ / handicap_ market), SETTLE grades them with the derived path
+# (min of the sides / the side's margin, regular-time statistics). No curve:
+# CONFIDENCE reads their own Superbet lines, NO_LINE_EVIDENCE until a bucket
+# holds enough. A football fixture only, tried after every other classifier
+# refused the odd. Adds rungs (and so SAMPLES asks the side metrics), rows
+# and possibly legs: a day >= the date built at or after the moment. Off
+# (None, until the main session / operator sets it): OFFER, SAMPLES, SHEET,
+# CONFIDENCE byte-identical. Evidence:
+# docs/sofa/evidence/football_stat_variants_2026-10-21.md.
+FOOTBALL_STAT_VARIANTS_FROM_UTC: datetime | None = None
+
+
+def football_stat_variants(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read the football statistic variants
+    (FOOTBALL_STAT_VARIANTS_FROM_UTC)? Judged on the day built and the build
+    clock."""
+    if FOOTBALL_STAT_VARIANTS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_STAT_VARIANTS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_STAT_VARIANTS_FROM_UTC)

@@ -153,6 +153,20 @@ PLAYER_COUNTS: dict[str, str] = {
     "player_sot_right_foot_for": "Zawodnik - liczba celnych strzałów prawą nogą",
 }
 
+# epochs.FOOTBALL_STAT_VARIANTS: the market and the "yes" word as Superbet
+# writes them (throw-ins / goal kicks "Tak", tackles "tak"); a handicap's
+# selection is "<club> (<own line>)".
+STAT_VARIANT_BOTH_OVER = {
+    "both_over_throw_ins": ("Każda drużyna powyżej X rzutów z autu", "Tak"),
+    "both_over_goal_kicks": ("Każda drużyna powyżej X wybić od bramki", "Tak"),
+    "both_over_tackles": ("Każda z drużyn powyżej X odbiorów", "tak"),
+}
+STAT_VARIANT_HANDICAP = {
+    "handicap_shots": "Strzały - Handicap",
+    "handicap_shots_1h": "1. połowa - liczba strzałów - handicap",
+    "handicap_shots_2h": "2. połowa - liczba strzałów - handicap",
+}
+
 # --- measured sports, by Superbet market id ----------------------------------
 # {N} the period / quarter / set, {T1} / {T2} the teams. A selection kind:
 # "ou" over / under, "hcp" a handicap, "code" 1 / X / 2 / 1X ..., "named" the
@@ -371,6 +385,15 @@ def _football_tennis(leg: Mapping[str, Any], sides: Sides | None
         return "Handicap gemy", f"{_name(subject, sides)} ({float(line):g})"
     if market == "most_games" and direction == "OVER" and subject:
         return "Najwięcej gemów", _name(subject, sides)
+    # epochs.FOOTBALL_STAT_VARIANTS (market_mapper.classify_stat_variant)
+    if market in STAT_VARIANT_BOTH_OVER and ou and line is not None:
+        name, yes = STAT_VARIANT_BOTH_OVER[market]
+        answer = yes if direction == "OVER" else ("Nie" if yes == "Tak" else "nie")
+        return name, f"Powyżej {_num(line)} - {answer}"
+    if market in STAT_VARIANT_HANDICAP and direction == "OVER" \
+            and line is not None and subject:
+        return (STAT_VARIANT_HANDICAP[market],
+                f"{_name(subject, sides)} ({float(line):g})")
 
     # football score markets and set_score_not: their own Superbet wording
     label = fsm.display_market(leg)

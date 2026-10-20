@@ -335,6 +335,31 @@ golden `tests/sofa/golden/offer_mappable_off.json`). Nowe rynki pochodne nie
 mają krzywej – `NO_LINE_EVIDENCE` do 50 rozliczonych linii; szczeble
 `goals_*_for` 0,5 i `sets_total` czytają istniejące krzywe, więc mogą drukować.
 
+**Warianty statystyk piłkarskich za przełącznikiem
+`FOOTBALL_STAT_VARIANTS_FROM_UTC`** (`bet.sofa.epochs`, noc 2026-10-20/21;
+**wyłączony** – datę ustala sesja główna; dowody:
+`docs/sofa/evidence/football_stat_variants_2026-10-21.md`). Włączony, OFFER
+(tylko mecz piłkarski, po wszystkich innych klasyfikatorach,
+`market_mapper.classify_stat_variant`) czyta „Każda drużyna powyżej X rzutów z
+autu” (`both_over_throw_ins`), „Każda drużyna powyżej X wybić od bramki”
+(`both_over_goal_kicks`), „Każda z drużyn powyżej X odbiorów”
+(`both_over_tackles`; obie pisownie „Każda drużyna” / „Każda z drużyn” dla
+tych trzech), „Strzały - Handicap” (`handicap_shots`) i „1. / 2. połowa -
+liczba strzałów - handicap” (`handicap_shots_1h` / `_2h`; linia z nawiasu
+wyboru, klub musi być stroną listingu). SAMPLES dociąga próbki stron
+(`throw_ins_for`, `goal_kicks_for`, `tackles_for`, `shots_for`,
+`shots_1h_for`, `shots_2h_for`), SHEET wycenia je istniejącym łącznym
+rozkładem stron (`bet.sofa.derived`, jak każdy `both_over_` / `handicap_`),
+SETTLE rozlicza ścieżką pochodną (minimum stron / przewaga strony, statystyki
+z czasu regulaminowego; handicap całkowity trafiony w linię = zwrot, „PUSH”).
+Brak krzywej: CONFIDENCE czyta własne linie Superbetu, `NO_LINE_EVIDENCE` do
+50 rozliczonych linii. Nogi niosą nazwy Superbetu (`bet.sofa.superbet_names`).
+Przy `None` OFFER, SAMPLES, SHEET, CONFIDENCE bajt w bajt jak przed zmianą
+(`tests/sofa/test_football_stat_variants.py`). Zmierzone i odrzucone (nigdy
+>= 0,70 albo kopia czytanego szczebla): parzystość rzutów rożnych (mecz,
+1. połowa), przedziały rzutów rożnych (mecz, 1. połowa, drużyna) i dokładna
+liczba kartek (`scripts/sofa/measure_stat_variant_distributions.py`).
+
 **Zwycięzca meczu w tenisie za przełącznikiem `TENNIS_MATCH_WINNER_FROM_UTC`**
 (`bet.sofa.epochs`, audyt 2026-10-13 D2; **włączony od 2026-10-14 00:00Z**,
 decyzja operatora; umiejętność -0,1263 [-0,1303; -0,1228] log-loss wobec bazy
