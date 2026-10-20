@@ -135,6 +135,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_red_flags.py --from <d> -
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE
 ```
 
+## Chat slip to a target price (outside the pipeline; read-only, no network)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target 5 [--slips 2] [--max-legs 5] [--allow-rest]   # bet.sofa.slip_builder; exit 0 all supported, 1 fewer, 2 no 11_coupon.json
+```
+
 ## Gates before a commit
 
 ```bash

@@ -461,6 +461,36 @@ Jeśli dzień jest **zakończony**, nie odświeżaj ceny. Powiedz, że ceny są
 historyczne i że każda bramka niżej je teraz odrzuci — bo to poprawne
 zachowanie.
 
+### Kupon z czatu na kurs docelowy (poza pipeline'em)
+
+Gdy operator prosi o kupon AKO „na ~5” (albo kilka rozłącznych), skład robi
+skrypt, nie ręka — tylko z nóg `11_coupon.json`, bez sieci, bez stawki i bez
+ceny kuponu:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 5 [--slips 2] [--max-legs 5] [--allow-rest]
+```
+
+- **Mniej nóg, nie krótszy kurs.** Każda noga traci podobnie w każdym
+  przedziale kursu (10-13..10-19: 1.10–1.30 ROI −5,1% na 22 663 nogach,
+  1.30–1.70 −4,2% na 5 544, różnica +0,9 pp [−1,0; +2,8]), więc kupon płaci
+  marżę raz na nogę. Skrypt maksymalizuje zmierzoną szansę przy iloczynie
+  kursów ≥ cel — to samo wybiera najmniej nóg.
+- **Szansa nogi** = min(pewność, cena przy `price_gap`, 1/kurs + luka
+  rodziny z `family_record.json`); rodzina na plusie czyta lukę swojej
+  selekcji z walk-forward (`TIER_SHORTFALL`, −0,8 / −1,6 pp), nigdy nadwyżkę.
+  Szansa kuponu nie jest więc nigdy wyższa niż jego cena.
+- **Najpierw „nie”**: pierwsza linia mówi, ile z proszonych kuponów dzień daje
+  z nóg rodzin na plusie („dzień cienki — masz 1 z 2”, „dziś żadnego”, z
+  najwyższym osiągalnym iloczynem). Reszta kuponu wchodzi tylko z
+  `--allow-rest` i jest oznaczona „poza poparciem”.
+- Jedna noga z meczu (dwie nogi jednego meczu to Bet Builder — kurs z ekranu).
+  Nogi rozpoczęte lub startujące w 10 min odpadają; kursy 1.10–2.00. Kolumna
+  „czytana” pokazuje werdykt analityka — nieczytaną nogę można dodać do
+  `read_requests.json` („dodatkowo”) i przeczytać `/sofa-analyze`.
+- Przewaga selekcji rodzin jest **niepotwierdzona** (T-FAMILY-SELECTION;
+  `docs/sofa/evidence/selection_walk_forward_2026-10-20.md`).
+
 ---
 
 ## 5. Weryfikacja — nie do pominięcia

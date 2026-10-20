@@ -1,6 +1,6 @@
 ---
 name: bet-slip-audit
-description: Price a Superbet single, Bet Builder or SUPERBETS boost before recommending it and refuse what cannot be worth its price - sofa confidence (11_coupon.json) for a row of the day, an outside price only when the operator types it. Use for a screenshotted slip, a boost, a builder draft, team goals 0.5, range markets, per-team counts, props.
+description: Price a Superbet single, Bet Builder or SUPERBETS boost before recommending it and refuse what cannot be worth its price; build a chat slip (AKO) to a target price from the day's coupon with build_slip.py - sofa confidence (11_coupon.json) for a row of the day, an outside price only when the operator types it. Use for a screenshotted slip, a boost, a builder draft, team goals 0.5, range markets, per-team counts, props.
 ---
 
 # Audit the price before the fixture
@@ -49,6 +49,29 @@ A slip assembled in chat is not a coupon and has no gates.
 6. **No stake sizing, no placement.** The stake is the operator's.
 7. **Judge the decision, never the result.** A settled win or loss never enters
    the next decision.
+
+## Building a slip to a target price
+
+When the operator asks for a slip (AKO) "na ~X", or several disjoint ones,
+build it with the script, never by hand, and relay its first line first:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> [--slips N] [--max-legs 5] [--allow-rest]
+```
+
+It takes only `11_coupon.json` singles (not started, odds 1.10-2.00, one leg
+per match), reads each leg at min(confidence, price for a `price_gap` leg,
+1/odds + its family's measured shortfall; a family on the plus reads its
+tier's walk-forward shortfall, never a surplus) and maximises the slip's
+measured chance under "price product >= target" - which picks the fewest legs
+(every odds band loses about alike per leg, 10-13..10-19). Its first line is
+the "say no first" answer; `--allow-rest` (only when the operator asks) fills
+from legs outside families on the plus, marked "poza poparciem". Relay the
+table as it is: Superbet's words, measured chance beside 1/odds, the read
+verdict; no slip price, no stake. The family selection's advantage is not yet
+shown (T-FAMILY-SELECTION) - say so. Exit 0 all supported, 1 fewer, 2 no
+coupon. Code: `src/bet/sofa/slip_builder.py`, tests
+`tests/sofa/test_slip_builder.py`.
 
 ## Three cases
 
