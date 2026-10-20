@@ -463,6 +463,9 @@ zachowanie.
 
 ### Kupon z czatu na kurs docelowy (poza pipeline'em)
 
+Skrót: **`/kupon 11-13`** (opcjonalnie `~5`, `x2`) — operator podaje tylko
+godziny, reszta poniżej dzieje się sama.
+
 Gdy operator prosi o kupon AKO „na ~4” (także w oknie godzin, np. 10:00–12:00,
 albo kilka rozłącznych), skład robi skrypt, nie ręka — tylko z nóg
 `11_coupon.json`, bez sieci, bez stawki i bez ceny kuponu — a każdą nogę

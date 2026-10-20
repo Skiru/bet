@@ -337,7 +337,7 @@ before a code change runs its old steps until it ends.
 | adversarial verification of a built day | `/sofa-verify` |
 | settle D-1 and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
-| a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) | `build_slip.py` + analysts through the `bet-slip-audit` skill's loop |
+| a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) | `/kupon 11-13 [~4] [x2]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
 `sofa-analyst-sport` (one instance per measured sport), `sofa-verifier`,
