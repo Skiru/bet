@@ -245,7 +245,9 @@ def test_classify_odd_reads_them_only_when_the_switch_asks() -> None:
 def test_the_switch_is_off_and_rides_on_the_day_and_the_clock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert epochs.FOOTBALL_CARD_HALVES_FROM_UTC is None
+    # switched on 2026-10-21 00:00Z (night 2026-10-20/21)
+    assert epochs.FOOTBALL_CARD_HALVES_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    monkeypatch.setattr(epochs, "FOOTBALL_CARD_HALVES_FROM_UTC", None)
     assert not epochs.football_card_halves("2026-10-21")
     assert day_flags("2026-10-21")["football_card_halves"] is False
     on = datetime(2026, 10, 21, tzinfo=UTC)

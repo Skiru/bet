@@ -57,7 +57,9 @@ AFTER = datetime(2026, 10, 22, 9, 0, tzinfo=UTC)
 
 def test_the_switch_is_off_and_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC is None
+    # switched on 2026-10-21 00:00Z (night 2026-10-20/21)
+    assert epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    monkeypatch.setattr(epochs, "FOOTBALL_CLOSENESS_STRETCH_FROM_UTC", None)
     assert not epochs.football_closeness_stretch(
         "2027-01-01", datetime(2027, 1, 1, tzinfo=UTC))
     monkeypatch.setattr(epochs, "FOOTBALL_CLOSENESS_STRETCH_FROM_UTC",
@@ -230,6 +232,7 @@ def test_sheet_stamps_the_marker_on_football_rows_only_while_on(
 
 def test_rebuild_plan_re_runs_sheet_on_a_missing_marker(
         monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "FOOTBALL_CLOSENESS_STRETCH_FROM_UTC", None)
     stale = rp.DayState(DAY, AFTER, LIMIT, sheet_closeness_stretch=False)
     assert "SHEET" not in rp.build_plan(stale).names()
     monkeypatch.setattr(epochs, "FOOTBALL_CLOSENESS_STRETCH_FROM_UTC",

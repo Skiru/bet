@@ -2358,7 +2358,7 @@ def football_player_share(date: str, build_at: datetime | None = None) -> bool:
 # `closeness_rule` (every football row), so a rebuild re-runs SHEET on a
 # sheet without it. None: OFF, byte for byte.
 FOOTBALL_CLOSENESS_STRETCH = "closeness_stretch_v1"
-FOOTBALL_CLOSENESS_STRETCH_FROM_UTC: datetime | None = None
+FOOTBALL_CLOSENESS_STRETCH_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 FOOTBALL_CLOSENESS_STRETCH_MARKER = (
     "closeness_rule", FOOTBALL_CLOSENESS_STRETCH, "football")
 
@@ -2539,7 +2539,7 @@ def football_stat_variants(date: str, build_at: datetime | None = None) -> bool:
 # session sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
 # Evidence: docs/sofa/evidence/football_card_halves_2026-10-21.md.
 FOOTBALL_CARD_HALVES = "card_halves_v1"
-FOOTBALL_CARD_HALVES_FROM_UTC: datetime | None = None
+FOOTBALL_CARD_HALVES_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def football_card_halves(date: str, build_at: datetime | None = None) -> bool:
