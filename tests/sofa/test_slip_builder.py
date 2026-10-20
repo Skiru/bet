@@ -227,3 +227,63 @@ def test_script_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
         == 1
     )
     assert "Dzień cienki - masz 1 z 2" in capsys.readouterr().out
+
+
+def test_kickoff_window_is_local_time_and_half_open() -> None:
+    lo, hi = build_slip.window("2026-10-20", "10:00", "12:00") or (NOW, NOW)
+    assert lo == datetime.datetime(2026, 10, 20, 8, 0, tzinfo=datetime.UTC)
+    assert hi == datetime.datetime(2026, 10, 20, 10, 0, tzinfo=datetime.UTC)
+    assert build_slip.window("2026-10-20", None, None) is None
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    early = datetime.datetime(2026, 10, 20, 7, 0, tzinfo=datetime.UTC)
+    legs = [
+        _leg(1, 1.5, 0.7, kickoff="2026-10-20T08:00:00Z"),
+        _leg(2, 1.5, 0.7, kickoff="2026-10-20T10:00:00Z"),
+    ]
+    pool, refused = sb.candidates(legs, rec, early, window=(lo, hi))
+    assert [x.leg["sofascore_event_id"] for x in pool] == [1]
+    assert refused == {"start poza oknem": 1}
+
+
+def test_search_is_exact_against_brute_force() -> None:
+    import itertools
+    import random
+
+    rnd = random.Random(5)
+    for _ in range(30):
+        legs = [
+            sb.Leg(
+                _leg(m, 1.0, 0.0),
+                round(rnd.uniform(1.10, 2.00), 2),
+                rnd.uniform(0.45, 0.88),
+                "t",
+                sb.TIER_REST,
+            )
+            for m in range(1, 9)
+            for _ in range(rnd.randint(1, 3))
+        ]
+        legs = [
+            sb.Leg(dict(x.leg, line=i), x.odds, min(x.chance, 1 / x.odds), "t", x.tier)
+            for i, x in enumerate(legs)
+        ]
+        target = rnd.uniform(1.8, 5.0)
+        best = None
+        for k in range(1, 5):
+            for combo in itertools.combinations(legs, k):
+                if len({x.match_key for x in combo}) < k:
+                    continue
+                # the search's grid: a combo within k x STEP of the target may be missed
+                if (
+                    sum(math.log(x.odds) for x in combo)
+                    < math.log(target) + k * sb.STEP
+                ):
+                    continue
+                score = sum(math.log(x.chance) for x in combo)
+                best = score if best is None else max(best, score)
+        got = sb.best_slip(legs, target, max_legs=4)
+        if best is None:
+            continue
+        assert got is not None
+        assert got.price_product >= target
+        assert len({x.match_key for x in got.legs}) == len(got.legs)
+        assert math.log(got.chance) >= best - 1e-9

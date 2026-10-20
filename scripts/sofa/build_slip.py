@@ -8,7 +8,11 @@ requested slips the day supports. No slip price, no stake.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
         --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--allow-rest] \\
-        [--min-odds 1.10] [--max-odds 2.00] [--md-out f]
+        [--min-odds 1.10] [--max-odds 2.00] [--start-from 10:00 --start-to 12:00] \\
+        [--md-out f]
+
+--start-from / --start-to: kickoff window in the operator's local time
+(Europe/Warsaw), [from, to).
 
 Exit 0: every requested slip is supported; 1: fewer (the answer says so);
 2: no 11_coupon.json.
@@ -17,9 +21,11 @@ Exit 0: every requested slip is supported; 1: fewer (the answer says so);
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 _ROOT = Path(__file__).resolve().parents[2]
 for _p in (str(_ROOT / "src"), str(_ROOT)):
@@ -30,6 +36,31 @@ from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
+
+LOCAL = ZoneInfo("Europe/Warsaw")
+
+
+def window(
+    day: str, start_from: str | None, start_to: str | None
+) -> tuple[datetime.datetime, datetime.datetime] | None:
+    """The kickoff window [from, to) of `day` in local time, as UTC."""
+    if start_from is None and start_to is None:
+        return None
+    d = datetime.date.fromisoformat(day)
+
+    def at(hhmm: str) -> datetime.datetime:
+        t = datetime.time.fromisoformat(hhmm)
+        return datetime.datetime.combine(d, t, LOCAL).astimezone(datetime.UTC)
+
+    lo = (
+        at(start_from)
+        if start_from
+        else datetime.datetime.min.replace(tzinfo=datetime.UTC)
+    )
+    hi = (
+        at(start_to) if start_to else datetime.datetime.max.replace(tzinfo=datetime.UTC)
+    )
+    return lo, hi
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -45,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="fill missing slips from legs outside families on the plus",
     )
+    ap.add_argument("--start-from", default=None, help="HH:MM local (Europe/Warsaw)")
+    ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--md-out", default=None)
     args = ap.parse_args(argv)
@@ -74,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_rest=args.allow_rest,
         min_odds=args.min_odds,
         max_odds=args.max_odds,
+        window=window(args.date, args.start_from, args.start_to),
     )
     text = sb.render(result, day=args.date, target=args.target, record=record, now=now)
     if args.md_out:

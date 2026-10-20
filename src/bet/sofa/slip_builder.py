@@ -36,7 +36,6 @@ one day; the registered window starts 10-19).
 from __future__ import annotations
 
 import datetime
-import itertools
 import math
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
@@ -56,13 +55,13 @@ TIER_NAMES = {
 
 # Defaults (tolerances, not fitted constants): the measured bands end at
 # 2.00 (above it the coupon holds few legs), a leg starting within
-# START_MARGIN cannot be placed in time, and the search keeps the POOL legs
-# that buy price most cheaply.
+# START_MARGIN cannot be placed in time, and the search rounds each log price
+# down to STEP.
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
 START_MARGIN = datetime.timedelta(minutes=10)
-POOL = 28
+STEP = 0.002
 
 # Hit minus 1/odds the tiers realised walk-forward (families chosen on the
 # days before each day; measure_selection_walk_forward.py --from 2026-10-12
@@ -181,6 +180,7 @@ def candidates(
     min_odds: float = MIN_LEG_ODDS,
     max_odds: float = MAX_LEG_ODDS,
     exclude_matches: Iterable[str] = (),
+    window: tuple[datetime.datetime, datetime.datetime] | None = None,
 ) -> tuple[list[Leg], dict[str, int]]:
     fam, sport = shortfalls(record)
     plus = frozenset(
@@ -209,12 +209,16 @@ def candidates(
         if odds is None or s.get("confidence") is None:
             refused["brak ceny lub pewności"] += 1
             continue
-        if (
-            not kickoff
-            or datetime.datetime.fromisoformat(str(kickoff).replace("Z", "+00:00"))
-            <= now + START_MARGIN
-        ):
+        start = (
+            datetime.datetime.fromisoformat(str(kickoff).replace("Z", "+00:00"))
+            if kickoff
+            else None
+        )
+        if start is None or start <= now + START_MARGIN:
             refused["rozpoczęty lub za chwilę"] += 1
+            continue
+        if window is not None and not window[0] <= start < window[1]:
+            refused["start poza oknem"] += 1
             continue
         if not min_odds <= float(odds) <= max_odds:
             refused["kurs poza przedziałem"] += 1
@@ -231,33 +235,71 @@ def candidates(
     return out, dict(refused)
 
 
+_State = tuple[float, tuple[Leg, ...]]
+
+
 def best_slip(
-    legs: Sequence[Leg], target: float, max_legs: int = MAX_LEGS, pool: int = POOL
+    legs: Sequence[Leg], target: float, max_legs: int = MAX_LEGS
 ) -> Slip | None:
     """The slip of at most `max_legs` legs, one per match, whose price product
-    reaches `target` with the highest measured chance. The search keeps each
-    match's cheapest leg and the `pool` cheapest of those."""
-    per_match: dict[str, Leg] = {}
+    reaches `target` with the highest measured chance - exact over every leg
+    given (a multiple-choice knapsack). Each leg's log price is rounded down
+    to `STEP`, so a slip found always reaches the target; one that reaches it
+    by less than k x `STEP` in log may be missed. A state (legs, log price
+    reached) keeps only the best log chance, and a state no better than one
+    that already reached more price is dropped (Pareto)."""
+    need = max(1, math.ceil(math.log(target) / STEP - 1e-9))
+    by_match: dict[str, list[Leg]] = defaultdict(list)
     for x in legs:
-        cur = per_match.get(x.match_key)
-        if cur is None or (x.cost, -x.odds) < (cur.cost, -cur.odds):
-            per_match[x.match_key] = x
-    ranked = sorted(
-        per_match.values(),
-        key=lambda x: (x.cost, -x.odds, str(x.leg.get("kickoff_utc"))),
-    )[:pool]
-    need = math.log(target)
-    best: tuple[float, int, list[Leg]] | None = None
-    for k in range(1, max_legs + 1):
-        for combo in itertools.combinations(ranked, k):
-            if sum(math.log(x.odds) for x in combo) < need - 1e-9:
+        by_match[x.match_key].append(x)
+    empty: tuple[Leg, ...] = ()
+    dp: list[dict[int, _State]] = [{0: (0.0, empty)}]
+    dp += [{} for _ in range(max_legs)]
+    for key in sorted(by_match):
+        options = _pareto_legs(by_match[key])
+        for k in range(max_legs - 1, -1, -1):
+            if not dp[k]:
                 continue
-            score = sum(math.log(x.chance) for x in combo)
-            if best is None or (score, -k) > (best[0], -best[1]):
-                best = (score, k, list(combo))
+            nxt = dp[k + 1]
+            for b, (score, chosen) in dp[k].items():
+                for x in options:
+                    nb = min(need, b + int(math.log(x.odds) / STEP))
+                    cand = (score + math.log(x.chance), chosen + (x,))
+                    if nb not in nxt or cand[0] > nxt[nb][0]:
+                        nxt[nb] = cand
+            dp[k + 1] = _pareto_states(nxt)
+    best: tuple[float, int, tuple[Leg, ...]] | None = None
+    for k in range(1, max_legs + 1):
+        hit = dp[k].get(need)
+        if hit is not None and (best is None or (hit[0], -k) > (best[0], -best[1])):
+            best = (hit[0], k, hit[1])
     if best is None:
         return None
     return Slip(sorted(best[2], key=lambda x: str(x.leg.get("kickoff_utc"))))
+
+
+def _pareto_legs(options: Sequence[Leg]) -> list[Leg]:
+    """A match's legs that no other leg beats on both price and chance."""
+    ranked = sorted(options, key=lambda x: (-x.odds, -x.chance))
+    out: list[Leg] = []
+    best_chance = -1.0
+    for x in ranked:
+        if x.chance > best_chance:
+            out.append(x)
+            best_chance = x.chance
+    return out
+
+
+def _pareto_states(
+    states: dict[int, _State],
+) -> dict[int, _State]:
+    out: dict[int, _State] = {}
+    best = -math.inf
+    for b in sorted(states, reverse=True):
+        if states[b][0] > best:
+            out[b] = states[b]
+            best = states[b][0]
+    return out
 
 
 def build(
@@ -269,6 +311,7 @@ def build(
     *,
     max_legs: int = MAX_LEGS,
     allow_rest: bool = False,
+    window: tuple[datetime.datetime, datetime.datetime] | None = None,
     min_odds: float = MIN_LEG_ODDS,
     max_odds: float = MAX_LEG_ODDS,
 ) -> Result:
@@ -276,7 +319,7 @@ def build(
     legs of families on the plus; with `allow_rest` the shortfall is filled
     from the rest of the coupon, each such slip marked unsupported."""
     pool, refused = candidates(
-        singles, record, now, min_odds=min_odds, max_odds=max_odds
+        singles, record, now, min_odds=min_odds, max_odds=max_odds, window=window
     )
     counts: dict[int, int] = defaultdict(int)
     for x in pool:
