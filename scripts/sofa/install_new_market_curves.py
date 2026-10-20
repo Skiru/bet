@@ -84,7 +84,11 @@ GROUPS = ("shot_detail", "double_chance", "football_incidents", "tennis_sets",
           "football_score_markets", "tennis_set_complements",
           # scripts/sofa/fit_tennis_serve_curves.py (2026-10-17): REPLACES
           # its markets' curves (`replace_markets`), see below
-          "tennis_serve")
+          "tennis_serve",
+          # epochs.FOOTBALL_PLAYER_PROPS_V2 (2026-10-21): fouls drawn, staged
+          # by the measurement of docs/sofa/evidence/
+          # football_player_props_v2_2026-10-21.md
+          "player_props_v2")
 FOOTBALL_TARGET = "sofa_confidence_calibration.json"
 SPORT_TARGET = "sofa_sport_confidence_calibration.json"
 DEFAULT_TARGET = {g: FOOTBALL_TARGET for g in GROUPS} | {

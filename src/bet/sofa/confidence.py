@@ -235,6 +235,9 @@ PLAYER_PROP_MARKETS = frozenset(
         "player_tackles_for",
         "player_interceptions_for",
         "player_offsides_for",
+        # epochs.FOOTBALL_PLAYER_PROPS_V2 (fouls drawn, /lineups wasFouled):
+        # no installed curve; the line evidence alone reads it.
+        "player_fouls_drawn_for",
         # epochs.SHOT_DETAIL_MARKETS (bet.sofa.shot_detail.METRICS): no
         # curve of their own; the line evidence alone reads them.
         "player_shots_outside_box_for",

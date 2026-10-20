@@ -47,7 +47,9 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # tennis aces x the returner (TENNIS_ACES_OPPONENT)
                 "tennis_aces_rule",
                 # football cards / fouls x the referee (FOOTBALL_REFEREE)
-                "referee_rule", "referee_read")
+                "referee_rule", "referee_read",
+                # footballer props v2 (FOOTBALL_PLAYER_PROPS_V2)
+                "player_props_v2_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

@@ -11,6 +11,7 @@ from bet.sofa.football_incidents import classify_incident
 from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
 from bet.sofa.football_score_markets import classify as classify_score_market
 from bet.sofa.market_mapper import (
+    PLAYER_PROPS_V2_NAMES,
     classify_derived_market,
     classify_mappable_family,
     classify_market,
@@ -91,6 +92,7 @@ def classify_odd(
     shot_detail: bool = False,
     football_incidents: bool = False,
     tennis_sets: bool = False,
+    player_props_v2: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -135,6 +137,11 @@ def classify_odd(
     fixture only) reads "X. set - zwycięzca" and the exact sets score
     "Dokładny wynik" (bet.sofa.tennis_sets). Both tried last; off, the
     default, changes nothing.
+
+    `player_props_v2` (epochs.football_player_props_v2, a football fixture
+    only) reads "Zawodnik - liczba fauli na zawodniku" as
+    player_fouls_drawn_for (market_mapper.PLAYER_PROPS_V2_NAMES), parsed
+    exactly as PLAYER_MARKET_NAMES are. Off, the default, changes nothing.
     """
     market_name = item.get("marketName")
     if not market_name:
@@ -176,7 +183,7 @@ def classify_odd(
     # last so nothing above changes behaviour.
     player = classify_player_market(
         market_name, selection_name, line_text,
-        SHOT_DETAIL_NAMES if shot_detail else None,
+        _player_extra_names(shot_detail, player_props_v2),
     )
     if player:
         return player, None
@@ -206,6 +213,21 @@ def classify_odd(
     return None, str(market_name)
 
 
+def _player_extra_names(
+    shot_detail: bool, player_props_v2: bool
+) -> dict[str, str] | None:
+    """The player-market names beyond PLAYER_MARKET_NAMES the day reads
+    (None: none, the rule before either switch)."""
+    if not shot_detail and not player_props_v2:
+        return None
+    names: dict[str, str] = {}
+    if shot_detail:
+        names.update(SHOT_DETAIL_NAMES)
+    if player_props_v2:
+        names.update(PLAYER_PROPS_V2_NAMES)
+    return names
+
+
 def day_flags(date: str) -> dict[str, bool]:
     """Every OfferFetcher switch as the day's epochs set it - the one place
     OFFER (run_offer.py), the closing capture and the verifier / scout
@@ -226,6 +248,7 @@ def day_flags(date: str) -> dict[str, bool]:
         "football_1x2_dnb": epochs.football_result_1x2_dnb(date),
         "football_score_markets": epochs.football_score_markets(date),
         "tennis_set_complements": epochs.tennis_set_complements(date),
+        "player_props_v2": epochs.football_player_props_v2(date),
     }
 
 
@@ -250,8 +273,12 @@ class OfferFetcher:
         football_1x2_dnb: bool = False,
         football_score_markets: bool = False,
         tennis_set_complements: bool = False,
+        player_props_v2: bool = False,
     ) -> None:
         self.client = client
+        # epochs.football_player_props_v2(date): read the v2 footballer
+        # props (market_mapper.PLAYER_PROPS_V2_NAMES). Off is the old rule.
+        self.player_props_v2 = player_props_v2
         # epochs.football_score_markets(date) / tennis_set_complements(date):
         # the football "or" / handicap / DC & goals markets
         # (bet.sofa.football_score_markets) and the tennis exact-score
@@ -409,6 +436,7 @@ class OfferFetcher:
                 winner = self.tennis_winner and fixture.sport == "tennis"
                 result = self.football_result and fixture.sport == "football"
                 shots = self.shot_detail and fixture.sport == "football"
+                props_v2 = self.player_props_v2 and fixture.sport == "football"
                 incidents = self.football_incidents and fixture.sport == "football"
                 set_markets = self.tennis_sets and fixture.sport == "tennis"
                 result_1x2_dnb = (self.football_1x2_dnb
@@ -429,7 +457,7 @@ class OfferFetcher:
                 for item in items:
                     classified_odd, unmapped_label = classify_odd(
                         item, sides, self.mappable_families, names, winner,
-                        result, shots, incidents, set_markets,
+                        result, shots, incidents, set_markets, props_v2,
                     )
                     # epochs.FOOTBALL_RESULT_1X2_DNB: one odd may feed a
                     # second rung ("Mecz" 1 is the DC X2's UNDER and the

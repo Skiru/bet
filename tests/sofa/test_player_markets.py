@@ -249,6 +249,7 @@ def test_a_player_and_his_team_are_one_mechanism() -> None:
         "player_fouls_for": "fouls_for",
         "player_tackles_for": "tackles_for",
         "player_interceptions_for": "tackles_for",
+        "player_fouls_drawn_for": "fouls_for",
         # bet.sofa.shot_detail: a footballer's shots by place / body part
         "player_shots_outside_box_for": "shots_for",
         "player_sot_outside_box_for": "shots_for",
@@ -1055,6 +1056,8 @@ def test_every_player_metric_shares_its_teams_quantity_family() -> None:
         "player_offsides_for": "offsides_for",
         "player_tackles_for": "tackles_for",
         "player_interceptions_for": "tackles_for",
+        # epochs.FOOTBALL_PLAYER_PROPS_V2: fouls drawn are the fouls family
+        "player_fouls_drawn_for": "fouls_for",
         # bet.sofa.shot_detail: a footballer's shots by place / body part
         "player_shots_outside_box_for": "shots_for",
         "player_sot_outside_box_for": "shots_for",

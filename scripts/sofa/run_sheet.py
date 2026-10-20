@@ -141,7 +141,11 @@ from bet.sofa.opponent_correction import SampleCorrector, correct_total
 from bet.sofa.per_market_k import k_for_market
 from bet.sofa.player_stretch import PLAYER_STRETCH_UNFITTED, PlayerStretchTable
 from bet.sofa.player_stretch import load_table as load_player_stretch_table
-from bet.sofa.players import is_player_metric, player_sample_key
+from bet.sofa.players import (
+    PLAYER_PROPS_V2_METRICS,
+    is_player_metric,
+    player_sample_key,
+)
 from bet.sofa.rating_weight import RatingWeightTable
 from bet.sofa.rating_weight import blend as rating_blend
 from bet.sofa.rating_weight import load_table as load_rating_weight_table
@@ -2009,7 +2013,8 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
                                       "incident_rule", "set_market_rule",
                                       "result_1x2_dnb_rule", "result_phase",
                                       "score_market_rule", "set_complement_rule",
-                                      "referee_read", "config_sha"):
+                                      "referee_read", "player_props_v2_rule",
+                                      "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
     return out
@@ -3498,6 +3503,14 @@ def _main() -> int:
             (epochs.FOOTBALL_REFEREE_MARKER, referee_effect_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
+        # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
+        # read them, so the mark goes on those rows alone (off: no row).
+        all_rows = [
+            r.model_copy(update={
+                "player_props_v2_rule": epochs.FOOTBALL_PLAYER_PROPS_V2})
+            if r.market in PLAYER_PROPS_V2_METRICS else r
+            for r in all_rows
+        ]
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
         config_sha = sheet_config.fingerprint()
         all_rows = [r.model_copy(update={"config_sha": config_sha})

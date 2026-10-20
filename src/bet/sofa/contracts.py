@@ -436,6 +436,9 @@ class SheetRow(BaseModel):
     # bet.sofa.epochs.SHOT_DETAIL_MARKETS: the rule's name on a footballer
     # shot-detail row (bet.sofa.shot_detail); absent when off.
     shot_detail_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_PLAYER_PROPS_V2: the rule's name on a v2
+    # footballer prop row (fouls drawn); absent when off.
+    player_props_v2_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS: the
     # rule's name on a first_goal / red_cards_total / penalties_total row
     # (bet.sofa.football_incidents) and on a set1_won_for / set2_won_for /

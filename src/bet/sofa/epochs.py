@@ -1948,6 +1948,35 @@ def shot_detail_markets(date: str, build_at: datetime | None = None) -> bool:
             and at >= SHOT_DETAIL_MARKETS_FROM_UTC)
 
 
+# Football player props v2 (docs/sofa/evidence/
+# football_player_props_v2_2026-10-21.md): OFFER reads "Zawodnik - liczba
+# fauli na zawodniku" as `player_fouls_drawn_for` (players.PLAYER_METRICS,
+# Sofascore /lineups `wasFouled`, a missing key a zero only where the
+# opponent's team fouls bound the squad's sum - players.squad_statistics),
+# SAMPLES samples his starts, SHEET prices the sample mean with the
+# negative binomial (engine.NEGATIVE_BINOMIAL_METRICS), SETTLE grades from
+# his own squad like every other player prop. Rows marked
+# `player_props_v2_rule`. No curve is installed: CONFIDENCE reads the key's
+# own Superbet lines - NO_LINE_EVIDENCE until a bucket holds enough of them
+# (a staged history curve: data/refit_player_props_v2_2026-10-21/). Adds
+# rows, so a day >= the date built at or after the moment. Off (None, until
+# the operator sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
+FOOTBALL_PLAYER_PROPS_V2 = "player_props_v2"
+FOOTBALL_PLAYER_PROPS_V2_FROM_UTC: datetime | None = None
+
+
+def football_player_props_v2(
+    date: str, build_at: datetime | None = None
+) -> bool:
+    """Does OFFER read, SAMPLES sample and SHEET price the v2 footballer
+    props (FOOTBALL_PLAYER_PROPS_V2_FROM_UTC)?"""
+    if FOOTBALL_PLAYER_PROPS_V2_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_PLAYER_PROPS_V2_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_PLAYER_PROPS_V2_FROM_UTC)
+
+
 # The measured sports' markets derived from the score model they already have
 # (bet.sofa.shadow DERIVED_MARKETS; no new data source): hockey's double
 # chance for the game and a period ("Podwójna szansa" 606, "N. tercja -

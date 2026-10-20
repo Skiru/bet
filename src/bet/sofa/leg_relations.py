@@ -51,6 +51,7 @@ from bet.sofa.market_mapper import (
     DERIVED_DRAW_SUBJECT,
     MATCH_MARKET_NAMES,
     PLAYER_MARKET_NAMES,
+    PLAYER_PROPS_V2_NAMES,
     TEAM_MARKET_PATTERNS,
     derived_base,
     derived_side_metric,
@@ -144,6 +145,8 @@ _PLAYER_TEAM_STAT = {
     "totalTackle": "totalTackle",
     "interceptionWon": "interceptions",
     "totalOffside": "offsides",
+    # epochs.FOOTBALL_PLAYER_PROPS_V2: fouls suffered, not committed
+    "wasFouled": "fouls_drawn",
 }
 
 # Known structural links between two DIFFERENT statistics of one sport, with
@@ -170,6 +173,10 @@ _LINKS: dict[str, dict[frozenset[str], str]] = {
             "xG is counted over the shots",
         frozenset({"expectedGoals", "shotsOnGoal"}): "xG is counted over the shots",
         frozenset({"fouls", "cards_points"}): "cards are given for fouls",
+        frozenset({"fouls_drawn", "fouls"}):
+            "a foul drawn is a foul by the other side",
+        frozenset({"fouls_drawn", "cards_points"}):
+            "cards are given for fouls",
         frozenset({"goal_assists", "goals"}): "an assist is a goal",
     },
     "tennis": {
@@ -730,7 +737,8 @@ def mapped_sheet_markets() -> list[tuple[str, str]]:
         out.add(("football", metric))
     for metric in TENNIS_METRICS:
         out.add(("tennis", metric))
-    for metric in [*PLAYER_MARKET_NAMES.values(), *SHOT_DETAIL_METRICS]:
+    for metric in [*PLAYER_MARKET_NAMES.values(), *SHOT_DETAIL_METRICS,
+                   *PLAYER_PROPS_V2_NAMES.values()]:
         out.add(("football", metric))
     for sport, table in (("football", FOOTBALL_METRICS), ("tennis", TENNIS_METRICS)):
         for metric, spec in table.items():

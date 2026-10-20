@@ -95,10 +95,10 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
     # the 1-2% where it does not - the offsides note that stood here asked
     # for exactly this measurement.
     #
-    # "Zawodnik - liczba fauli na zawodniku" (`wasFouled`) is NOT here: summed
-    # against the opponent's fouls it closed in only 58.1% of team-games, so
-    # there is no identity to prove its zeros. "... odbiorow na zawodniku"
-    # has no Sofascore key that means it.
+    # "Zawodnik - liczba fauli na zawodniku" (`wasFouled`) is not a team_sum
+    # metric: summed against the opponent's fouls it closed in only 58.1% of
+    # team-games. It is proven another way (`opponent_bound`, below). "...
+    # odbiorow na zawodniku" has no Sofascore key that means it.
     "player_fouls_for": {
         "sofascore": "fouls",
         "zero_when_absent": True,
@@ -119,6 +119,26 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
         "zero_when_absent": True,
         "team_sum": "offsides",
     },
+    # epochs.FOOTBALL_PLAYER_PROPS_V2: "Zawodnik - liczba fauli na
+    # zawodniku". The 58% above is right and is not the question: the
+    # opponent's fouls include fouls with no fouled player (a handball), so
+    # the squad's `wasFouled` sum falls short of them by ~0.6 a team-game
+    # and never exceeds them. Measured 2026-10-20 over 25,550 cached
+    # team-games (docs/sofa/evidence/football_player_props_v2_2026-10-21.md;
+    # scripts/sofa/measure_player_props_v2.py proof): against the opposing
+    # players' fouls, in the 2,224 where Sofascore wrote the key for EVERY
+    # appearing player (zeros included) the shortfall averages 0.71, in the
+    # 23,326 where it omits zeros 0.58 - the omitted keys hide nothing; the
+    # bound below holds in 23,077 of the 23,162 omitting team-games with a
+    # team fouls figure (99.6%) and 2,134 of 2,146 full ones. So a missing key is
+    # a zero only in a team-game where the side's feed writes the key at all
+    # and its sum lies within [opponent fouls - OPPONENT_BOUND_MAX_SHORTFALL,
+    # opponent fouls] (`opponent_bound`); anywhere else it is a gap.
+    "player_fouls_drawn_for": {
+        "sofascore": "wasFouled",
+        "zero_when_absent": True,
+        "opponent_bound": "fouls",
+    },
     # epochs.SHOT_DETAIL_MARKETS: a footballer's shots by place / body part,
     # counted from the match's /shotmap (bet.sofa.shot_detail), never from
     # /lineups. `squad_statistics(..., shotmap=...)` writes them under
@@ -132,9 +152,24 @@ PLAYER_METRICS: dict[str, dict[str, Any]] = {
     },
 }
 
+# The metrics OFFER reads only under epochs.FOOTBALL_PLAYER_PROPS_V2
+# (market_mapper.PLAYER_PROPS_V2_NAMES); SHEET marks their rows.
+PLAYER_PROPS_V2_METRICS = frozenset({"player_fouls_drawn_for"})
+
 # Written by `squad_statistics` into each appearing player's statistics: the
 # Sofascore keys whose absence this team-game proves to be zero.
 ZERO_PROVEN_KEY = "_zero_proven_by_team_sum"
+
+# The same for the `opponent_bound` metrics (fouls drawn): the Sofascore keys
+# whose absence the opponent's team figure proves zero in this team-game. A
+# key of its own so the team-sum list above stays what it was.
+ZERO_PROVEN_BY_OPPONENT_KEY = "_zero_proven_by_opponent_bound"
+
+# How far a squad's `wasFouled` sum may fall short of the opponent's fouls
+# for its missing keys to read as zeros. Where every key is written the
+# shortfall is 0-3 in 99.2% of 2,224 team-games and 0-4 in 99.8%; a larger
+# one is a feed that dropped fouled players, not fouls without a victim.
+OPPONENT_BOUND_MAX_SHORTFALL = 4.0
 
 # Written by `squad_statistics` into each entry that has statistics: did he
 # start (the payload's `substitute` false)? Superbet voids a player market on
@@ -224,6 +259,10 @@ def extract_player_metric(
         proven = stats.get(ZERO_PROVEN_KEY) or ()
         return 0.0 if key in proven else GapReason.STAT_KEY_ABSENT
 
+    if config.get("opponent_bound"):
+        proven = stats.get(ZERO_PROVEN_BY_OPPONENT_KEY) or ()
+        return 0.0 if key in proven else GapReason.STAT_KEY_ABSENT
+
     identity = config.get("identity")
     if not identity:
         return GapReason.STAT_KEY_ABSENT
@@ -283,6 +322,31 @@ def _zero_proven(
         key = str(config["sofascore"])
         summed = sum(_statistic(st, key) or 0.0 for st in appearing)
         if abs(summed - totals[team_key]) < 1e-9:
+            proven.append(key)
+    return proven
+
+
+def _zero_proven_by_opponent(
+    squad: dict[str, dict[str, Any]], opponent: dict[str, float]
+) -> list[str]:
+    """The opponent_bound metrics whose missing keys this team-game proves
+    zero: the side's feed writes the key for at least one appearing player
+    and the side's sum lies within OPPONENT_BOUND_MAX_SHORTFALL below the
+    opponent's team figure (never above it)."""
+    proven: list[str] = []
+    appearing = [
+        st for st in squad.values() if _statistic(st, "minutesPlayed") is not None
+    ]
+    for config in PLAYER_METRICS.values():
+        team_key = config.get("opponent_bound")
+        if not team_key or team_key not in opponent or not appearing:
+            continue
+        key = str(config["sofascore"])
+        if not any(_statistic(st, key) is not None for st in appearing):
+            continue
+        summed = sum(_statistic(st, key) or 0.0 for st in appearing)
+        shortfall = opponent[team_key] - summed
+        if -1e-9 < shortfall < OPPONENT_BOUND_MAX_SHORTFALL + 1e-9:
             proven.append(key)
     return proven
 
@@ -355,6 +419,12 @@ def squad_statistics(
             for st in out.values():
                 if _statistic(st, "minutesPlayed") is not None:
                     st[ZERO_PROVEN_KEY] = proven
+        by_opponent = _zero_proven_by_opponent(
+            out, team_totals(statistics, is_home=not is_home))
+        if by_opponent:
+            for st in out.values():
+                if _statistic(st, "minutesPlayed") is not None:
+                    st[ZERO_PROVEN_BY_OPPONENT_KEY] = by_opponent
     return out
 
 

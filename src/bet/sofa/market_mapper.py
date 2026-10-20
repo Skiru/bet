@@ -293,6 +293,15 @@ PLAYER_MARKET_NAMES = {
     "zawodnik - liczba spalonych": "player_offsides_for",
 }
 
+# epochs.FOOTBALL_PLAYER_PROPS_V2: read only when the day's switch is on
+# (offer.classify_odd `player_props_v2`, passed as `extra_names`). "Fauli na
+# zawodniku" is Sofascore's `wasFouled`, whose missing key is a zero only
+# where the opponent's team fouls bound the squad's sum (players.
+# PLAYER_METRICS; docs/sofa/evidence/football_player_props_v2_2026-10-21.md).
+PLAYER_PROPS_V2_NAMES = {
+    "zawodnik - liczba fauli na zawodniku": "player_fouls_drawn_for",
+}
+
 # "sr:player:1011725-Castan, Luciano-0.5". The id is Sportradar's, not
 # Sofascore's, and there is no table between them — the player is identified
 # by name downstream (players.match_player). The line is read from the END so
@@ -375,7 +384,9 @@ def classify_player_market(
 
 
 def is_player_market(market: str) -> bool:
-    return market in set(PLAYER_MARKET_NAMES.values()) or market in SHOT_DETAIL_METRICS
+    return (market in set(PLAYER_MARKET_NAMES.values())
+            or market in SHOT_DETAIL_METRICS
+            or market in set(PLAYER_PROPS_V2_NAMES.values()))
 
 
 def get_mechanism_family(market: str) -> str:
@@ -454,6 +465,7 @@ def get_mechanism_family(market: str) -> str:
         "fouls_total",
         "fouls_for",
         "player_fouls_for",
+        "player_fouls_drawn_for",
     ):
         return "discipline"
     if market in ("games_total", "games_won_for", "sets_total", "tiebreaks_total"):

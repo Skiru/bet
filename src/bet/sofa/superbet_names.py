@@ -141,6 +141,7 @@ PLAYER_COUNTS: dict[str, str] = {
     "player_tackles_for": "Zawodnik - liczba odbiorów",
     "player_interceptions_for": "Zawodnik - liczba przechwytów",
     "player_offsides_for": "Zawodnik - liczba spalonych",
+    "player_fouls_drawn_for": "Zawodnik - liczba fauli na zawodniku",
     "player_shots_outside_box_for": "Zawodnik - liczba strzałów spoza pola karnego",
     "player_sot_outside_box_for":
         "Zawodnik - liczba celnych strzałów spoza pola karnego",

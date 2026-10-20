@@ -36,4 +36,5 @@ def test_a_team_market_still_falls_back_to_its_combined_curve() -> None:
 
 def test_the_rule_covers_every_player_prop() -> None:
     # 7 /lineups props + 8 shot-detail ones (bet.sofa.shot_detail.METRICS)
-    assert M in PLAYER_PROP_MARKETS and len(PLAYER_PROP_MARKETS) == 15
+    # + fouls drawn (epochs.FOOTBALL_PLAYER_PROPS_V2)
+    assert M in PLAYER_PROP_MARKETS and len(PLAYER_PROP_MARKETS) == 16

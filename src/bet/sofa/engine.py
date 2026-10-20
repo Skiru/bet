@@ -205,6 +205,16 @@ NEGATIVE_BINOMIAL_METRICS = frozenset(
         "player_assists_for",
         "player_shots_on_target_for",
         "player_shots_for",
+        # epochs.FOOTBALL_PLAYER_PROPS_V2 (fouls drawn, /lineups wasFouled):
+        # replayed 2026-10-20 on every cached football match with a squad
+        # list 2025-09-05..2026-10-19 (calibrate_from_cache.build_player_rows,
+        # his starts, centre = sample mean, the same predictive sd), OVER at
+        # lines 0.5-4.5, rows both estimators price: log-loss NB - normal
+        # -0.02113 [-0.02215; -0.02016] (357,095 rows, 95% resampling
+        # matches), below zero at every line; the normal claimed 0.651 at
+        # 0.5 where 0.551 happened, the NB 0.506. Not measured on any other
+        # metric (docs/sofa/evidence/football_player_props_v2_2026-10-21.md).
+        "player_fouls_drawn_for",
     }
 )
 

@@ -1189,7 +1189,28 @@ Trzy pułapki, każda zamknięta w kodzie:
   `player_offsides_for`, `player_fouls_for` („liczba popełnionych fauli”),
   `player_tackles_for` („liczba odbiorów”), `player_interceptions_for`.
   „Faule na zawodniku” (`wasFouled`) domykają się z faulami rywala tylko w
-  58%, więc **nie są** mapowane; „odbiory na zawodniku” nie mają klucza.
+  58% - i nie muszą: faule rywala obejmują faule bez poszkodowanego (ręka),
+  więc suma `wasFouled` drużyny leży 0-4 **poniżej** fauli rywala i nigdy
+  powyżej. Od przełącznika **`FOOTBALL_PLAYER_PROPS_V2_FROM_UTC`**
+  (`bet.sofa.epochs`, wyłączony - `None`; znacznik wiersza
+  `player_props_v2_rule`) OFFER czyta „Zawodnik - liczba fauli na zawodniku”
+  jako `player_fouls_drawn_for` (`market_mapper.PLAYER_PROPS_V2_NAMES`).
+  Brak klucza = zero tylko w meczu-drużynie, w którym klucz w ogóle jest w
+  składzie, a suma leży w [faule rywala - 4, faule rywala]
+  (`players.OPPONENT_BOUND_MAX_SHORTFALL`, klucz `ZERO_PROVEN_BY_OPPONENT_KEY`;
+  25 550 meczów-drużyn: niedobór 0,71 tam, gdzie Sofascore pisze zera, 0,58
+  tam, gdzie je pomija - pominięte klucze niczego nie chowają; reguła trzyma
+  w 99,6%). Próbka = jego starty, SHEET: średnia próbki i rozkład ujemny
+  dwumianowy (`engine.NEGATIVE_BINOMIAL_METRICS`; log-loss NB − normalny
+  −0,0211 [−0,0222; −0,0202] na historii), SETTLE jak każdy rynek
+  zawodnika (zwrot dla niewychodzącego w składzie). Krzywej nie
+  zainstalowano: CONFIDENCE daje `NO_LINE_EVIDENCE`, dopóki nie przybędzie
+  rozliczonych linii; krzywa historyczna przeszła bramkę (holdout
+  09-01..10-13: n 3008, luka +1,8 pp [+0,3; +3,3]) i czeka w
+  `data/refit_player_props_v2_2026-10-21/` (`install_new_market_curves.py`
+  grupa `player_props_v2`). Dowody:
+  `docs/sofa/evidence/football_player_props_v2_2026-10-21.md`.
+  „Odbiory na zawodniku” nie mają klucza.
 
 **Pokrycie zawodników (`epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC`, wyłączone
 do decyzji sesji głównej; `docs/sofa/evidence/football_player_coverage_2026-10-21.md`).**
