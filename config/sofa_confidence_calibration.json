@@ -15517,6 +15517,591 @@
         "realised": 0.941,
         "realised_lo95": 0.9272
       }
+    },
+    "player_fouls_drawn_for|OVER": {
+      "0.000-0.600": {
+        "n": 316496,
+        "realised": 0.2367,
+        "realised_lo95": 0.2352
+      },
+      "0.600-0.700": {
+        "n": 23752,
+        "realised": 0.6292,
+        "realised_lo95": 0.623
+      },
+      "0.700-0.750": {
+        "n": 9396,
+        "realised": 0.6984,
+        "realised_lo95": 0.689
+      },
+      "0.750-0.800": {
+        "n": 8454,
+        "realised": 0.7344,
+        "realised_lo95": 0.7249
+      },
+      "0.800-0.825": {
+        "n": 3901,
+        "realised": 0.7616,
+        "realised_lo95": 0.748
+      },
+      "0.825-0.850": {
+        "n": 3354,
+        "realised": 0.7871,
+        "realised_lo95": 0.7729
+      },
+      "0.850-0.875": {
+        "n": 2120,
+        "realised": 0.7972,
+        "realised_lo95": 0.7795
+      },
+      "0.875-0.900": {
+        "n": 2034,
+        "realised": 0.8324,
+        "realised_lo95": 0.8155
+      },
+      "0.900-0.925": {
+        "n": 1560,
+        "realised": 0.8583,
+        "realised_lo95": 0.8401
+      },
+      "0.925-0.950": {
+        "n": 1061,
+        "realised": 0.8897,
+        "realised_lo95": 0.8695
+      }
+    },
+    "cards_points_1h_for|UNDER": {
+      "0.000-0.600": {
+        "n": 90883,
+        "realised": 0.4609,
+        "realised_lo95": 0.4576
+      },
+      "0.600-0.700": {
+        "n": 12594,
+        "realised": 0.6571,
+        "realised_lo95": 0.6488
+      },
+      "0.700-0.750": {
+        "n": 11449,
+        "realised": 0.7487,
+        "realised_lo95": 0.7407
+      },
+      "0.750-0.800": {
+        "n": 20764,
+        "realised": 0.7966,
+        "realised_lo95": 0.791
+      },
+      "0.800-0.825": {
+        "n": 13900,
+        "realised": 0.8184,
+        "realised_lo95": 0.8119
+      },
+      "0.825-0.850": {
+        "n": 14444,
+        "realised": 0.8453,
+        "realised_lo95": 0.8393
+      },
+      "0.850-0.875": {
+        "n": 13438,
+        "realised": 0.8643,
+        "realised_lo95": 0.8584
+      },
+      "0.875-0.900": {
+        "n": 10627,
+        "realised": 0.8821,
+        "realised_lo95": 0.8758
+      },
+      "0.900-0.925": {
+        "n": 6448,
+        "realised": 0.9066,
+        "realised_lo95": 0.8993
+      },
+      "0.925-0.950": {
+        "n": 3212,
+        "realised": 0.9352,
+        "realised_lo95": 0.9262
+      }
+    },
+    "cards_points_1h_total|OVER": {
+      "0.000-0.600": {
+        "n": 128536,
+        "realised": 0.2581,
+        "realised_lo95": 0.2557
+      },
+      "0.600-0.700": {
+        "n": 10952,
+        "realised": 0.625,
+        "realised_lo95": 0.6159
+      },
+      "0.700-0.750": {
+        "n": 9462,
+        "realised": 0.7023,
+        "realised_lo95": 0.693
+      },
+      "0.750-0.800": {
+        "n": 11873,
+        "realised": 0.7428,
+        "realised_lo95": 0.7348
+      },
+      "0.800-0.825": {
+        "n": 6309,
+        "realised": 0.7722,
+        "realised_lo95": 0.7617
+      },
+      "0.825-0.850": {
+        "n": 5500,
+        "realised": 0.8045,
+        "realised_lo95": 0.7939
+      },
+      "0.850-0.875": {
+        "n": 4393,
+        "realised": 0.8247,
+        "realised_lo95": 0.8132
+      },
+      "0.875-0.900": {
+        "n": 2302,
+        "realised": 0.8462,
+        "realised_lo95": 0.8309
+      },
+      "0.900-0.925": {
+        "n": 949,
+        "realised": 0.9052,
+        "realised_lo95": 0.8849
+      },
+      "0.925-0.950": {
+        "n": 520,
+        "realised": 0.8923,
+        "realised_lo95": 0.8627
+      }
+    },
+    "cards_points_1h_total|UNDER": {
+      "0.000-0.600": {
+        "n": 83214,
+        "realised": 0.3624,
+        "realised_lo95": 0.3591
+      },
+      "0.600-0.700": {
+        "n": 18350,
+        "realised": 0.662,
+        "realised_lo95": 0.6551
+      },
+      "0.700-0.750": {
+        "n": 10252,
+        "realised": 0.7309,
+        "realised_lo95": 0.7222
+      },
+      "0.750-0.800": {
+        "n": 12090,
+        "realised": 0.7832,
+        "realised_lo95": 0.7758
+      },
+      "0.800-0.825": {
+        "n": 6710,
+        "realised": 0.8109,
+        "realised_lo95": 0.8013
+      },
+      "0.825-0.850": {
+        "n": 7261,
+        "realised": 0.8324,
+        "realised_lo95": 0.8236
+      },
+      "0.850-0.875": {
+        "n": 9220,
+        "realised": 0.8557,
+        "realised_lo95": 0.8484
+      },
+      "0.875-0.900": {
+        "n": 9814,
+        "realised": 0.8779,
+        "realised_lo95": 0.8713
+      },
+      "0.900-0.925": {
+        "n": 11415,
+        "realised": 0.9068,
+        "realised_lo95": 0.9013
+      },
+      "0.925-0.950": {
+        "n": 12470,
+        "realised": 0.9233,
+        "realised_lo95": 0.9185
+      }
+    },
+    "cards_points_2h_for|OVER": {
+      "0.000-0.600": {
+        "n": 101068,
+        "realised": 0.4203,
+        "realised_lo95": 0.4173
+      },
+      "0.600-0.700": {
+        "n": 21775,
+        "realised": 0.6643,
+        "realised_lo95": 0.658
+      },
+      "0.700-0.750": {
+        "n": 22740,
+        "realised": 0.735,
+        "realised_lo95": 0.7292
+      },
+      "0.750-0.800": {
+        "n": 28887,
+        "realised": 0.7746,
+        "realised_lo95": 0.7697
+      },
+      "0.800-0.825": {
+        "n": 11746,
+        "realised": 0.8085,
+        "realised_lo95": 0.8013
+      },
+      "0.825-0.850": {
+        "n": 7801,
+        "realised": 0.8307,
+        "realised_lo95": 0.8222
+      },
+      "0.850-0.875": {
+        "n": 4029,
+        "realised": 0.8379,
+        "realised_lo95": 0.8262
+      },
+      "0.875-0.900": {
+        "n": 1428,
+        "realised": 0.8543,
+        "realised_lo95": 0.8351
+      },
+      "0.900-0.925": {
+        "n": 484,
+        "realised": 0.8802,
+        "realised_lo95": 0.8482
+      }
+    },
+    "cards_points_2h_for|UNDER": {
+      "0.000-0.600": {
+        "n": 162310,
+        "realised": 0.3547,
+        "realised_lo95": 0.3524
+      },
+      "0.600-0.700": {
+        "n": 26715,
+        "realised": 0.6387,
+        "realised_lo95": 0.6329
+      },
+      "0.700-0.750": {
+        "n": 5202,
+        "realised": 0.7092,
+        "realised_lo95": 0.6967
+      },
+      "0.750-0.800": {
+        "n": 2623,
+        "realised": 0.7671,
+        "realised_lo95": 0.7505
+      },
+      "0.800-0.825": {
+        "n": 1112,
+        "realised": 0.7986,
+        "realised_lo95": 0.774
+      },
+      "0.825-0.850": {
+        "n": 840,
+        "realised": 0.7964,
+        "realised_lo95": 0.7679
+      },
+      "0.850-0.875": {
+        "n": 432,
+        "realised": 0.8472,
+        "realised_lo95": 0.8102
+      }
+    },
+    "cards_points_2h_total|OVER": {
+      "0.000-0.600": {
+        "n": 129357,
+        "realised": 0.3256,
+        "realised_lo95": 0.3231
+      },
+      "0.600-0.700": {
+        "n": 21577,
+        "realised": 0.627,
+        "realised_lo95": 0.6205
+      },
+      "0.700-0.750": {
+        "n": 11963,
+        "realised": 0.7022,
+        "realised_lo95": 0.694
+      },
+      "0.750-0.800": {
+        "n": 12998,
+        "realised": 0.7563,
+        "realised_lo95": 0.7489
+      },
+      "0.800-0.825": {
+        "n": 7318,
+        "realised": 0.8016,
+        "realised_lo95": 0.7923
+      },
+      "0.825-0.850": {
+        "n": 7093,
+        "realised": 0.8114,
+        "realised_lo95": 0.8021
+      },
+      "0.850-0.875": {
+        "n": 5782,
+        "realised": 0.8336,
+        "realised_lo95": 0.8238
+      },
+      "0.875-0.900": {
+        "n": 6391,
+        "realised": 0.8686,
+        "realised_lo95": 0.8601
+      },
+      "0.900-0.925": {
+        "n": 9948,
+        "realised": 0.9063,
+        "realised_lo95": 0.9004
+      },
+      "0.925-0.950": {
+        "n": 14938,
+        "realised": 0.9258,
+        "realised_lo95": 0.9215
+      }
+    },
+    "cards_points_2h_total|UNDER": {
+      "0.000-0.600": {
+        "n": 144579,
+        "realised": 0.3165,
+        "realised_lo95": 0.3141
+      },
+      "0.600-0.700": {
+        "n": 24484,
+        "realised": 0.6626,
+        "realised_lo95": 0.6566
+      },
+      "0.700-0.750": {
+        "n": 14891,
+        "realised": 0.733,
+        "realised_lo95": 0.7258
+      },
+      "0.750-0.800": {
+        "n": 15000,
+        "realised": 0.7707,
+        "realised_lo95": 0.7639
+      },
+      "0.800-0.825": {
+        "n": 6274,
+        "realised": 0.8038,
+        "realised_lo95": 0.7938
+      },
+      "0.825-0.850": {
+        "n": 5916,
+        "realised": 0.8364,
+        "realised_lo95": 0.8267
+      },
+      "0.850-0.875": {
+        "n": 5850,
+        "realised": 0.8559,
+        "realised_lo95": 0.8467
+      },
+      "0.875-0.900": {
+        "n": 5095,
+        "realised": 0.8652,
+        "realised_lo95": 0.8555
+      },
+      "0.900-0.925": {
+        "n": 3220,
+        "realised": 0.8981,
+        "realised_lo95": 0.8872
+      },
+      "0.925-0.950": {
+        "n": 2057,
+        "realised": 0.9208,
+        "realised_lo95": 0.9083
+      }
+    },
+    "handicap_cards_points_1h|OVER": {
+      "0.000-0.600": {
+        "n": 104163,
+        "realised": 0.3041,
+        "realised_lo95": 0.3014
+      },
+      "0.600-0.700": {
+        "n": 56609,
+        "realised": 0.6861,
+        "realised_lo95": 0.6823
+      },
+      "0.700-0.750": {
+        "n": 29349,
+        "realised": 0.7385,
+        "realised_lo95": 0.7335
+      },
+      "0.750-0.800": {
+        "n": 8056,
+        "realised": 0.7793,
+        "realised_lo95": 0.7701
+      },
+      "0.800-0.825": {
+        "n": 912,
+        "realised": 0.8103,
+        "realised_lo95": 0.7836
+      },
+      "0.825-0.850": {
+        "n": 419,
+        "realised": 0.8258,
+        "realised_lo95": 0.7865
+      }
+    },
+    "penalties_1h_for|UNDER": {
+      "0.875-0.900": {
+        "n": 2262,
+        "realised": 0.9182,
+        "realised_lo95": 0.9062
+      },
+      "0.900-0.925": {
+        "n": 17118,
+        "realised": 0.9272,
+        "realised_lo95": 0.9232
+      },
+      "0.925-0.950": {
+        "n": 58984,
+        "realised": 0.9378,
+        "realised_lo95": 0.9358
+      }
+    },
+    "penalties_1h_total|UNDER": {
+      "0.800-0.825": {
+        "n": 1478,
+        "realised": 0.8396,
+        "realised_lo95": 0.8201
+      },
+      "0.825-0.850": {
+        "n": 4337,
+        "realised": 0.8584,
+        "realised_lo95": 0.8477
+      },
+      "0.850-0.875": {
+        "n": 13717,
+        "realised": 0.872,
+        "realised_lo95": 0.8663
+      },
+      "0.875-0.900": {
+        "n": 18629,
+        "realised": 0.8824,
+        "realised_lo95": 0.8777
+      },
+      "0.900-0.925": {
+        "n": 12766,
+        "realised": 0.9009,
+        "realised_lo95": 0.8956
+      },
+      "0.925-0.950": {
+        "n": 5352,
+        "realised": 0.9191,
+        "realised_lo95": 0.9115
+      }
+    },
+    "penalties_for|UNDER": {
+      "0.750-0.800": {
+        "n": 2330,
+        "realised": 0.8193,
+        "realised_lo95": 0.8032
+      },
+      "0.800-0.825": {
+        "n": 9762,
+        "realised": 0.8283,
+        "realised_lo95": 0.8207
+      },
+      "0.825-0.850": {
+        "n": 22546,
+        "realised": 0.846,
+        "realised_lo95": 0.8413
+      },
+      "0.850-0.875": {
+        "n": 35036,
+        "realised": 0.8622,
+        "realised_lo95": 0.8585
+      },
+      "0.875-0.900": {
+        "n": 28190,
+        "realised": 0.8785,
+        "realised_lo95": 0.8746
+      },
+      "0.900-0.925": {
+        "n": 12434,
+        "realised": 0.9036,
+        "realised_lo95": 0.8983
+      },
+      "0.925-0.950": {
+        "n": 3770,
+        "realised": 0.9231,
+        "realised_lo95": 0.9141
+      }
+    },
+    "red_cards_1h_for|UNDER": {
+      "0.900-0.925": {
+        "n": 1792,
+        "realised": 0.9241,
+        "realised_lo95": 0.9109
+      },
+      "0.925-0.950": {
+        "n": 8346,
+        "realised": 0.9509,
+        "realised_lo95": 0.946
+      }
+    },
+    "red_cards_1h_total|UNDER": {
+      "0.850-0.875": {
+        "n": 1175,
+        "realised": 0.8511,
+        "realised_lo95": 0.8296
+      },
+      "0.875-0.900": {
+        "n": 1969,
+        "realised": 0.9132,
+        "realised_lo95": 0.8999
+      },
+      "0.900-0.925": {
+        "n": 7611,
+        "realised": 0.9195,
+        "realised_lo95": 0.9131
+      },
+      "0.925-0.950": {
+        "n": 17881,
+        "realised": 0.9414,
+        "realised_lo95": 0.9379
+      }
+    },
+    "red_cards_for|UNDER": {
+      "0.750-0.800": {
+        "n": 2256,
+        "realised": 0.8072,
+        "realised_lo95": 0.7904
+      },
+      "0.800-0.825": {
+        "n": 3176,
+        "realised": 0.8174,
+        "realised_lo95": 0.8036
+      },
+      "0.825-0.850": {
+        "n": 5856,
+        "realised": 0.8426,
+        "realised_lo95": 0.833
+      },
+      "0.850-0.875": {
+        "n": 15146,
+        "realised": 0.8718,
+        "realised_lo95": 0.8664
+      },
+      "0.875-0.900": {
+        "n": 26070,
+        "realised": 0.8908,
+        "realised_lo95": 0.887
+      },
+      "0.900-0.925": {
+        "n": 34498,
+        "realised": 0.912,
+        "realised_lo95": 0.909
+      },
+      "0.925-0.950": {
+        "n": 20956,
+        "realised": 0.9324,
+        "realised_lo95": 0.9289
+      }
     }
   },
   "min_thin_bucket": 100,
@@ -27466,6 +28051,183 @@
             "realised": 0.9295,
             "realised_lo95": 0.9223
           }
+        },
+        "cards_points_1h_for|UNDER": {
+          "0.000-0.600": {
+            "n": 1480,
+            "realised": 0.523,
+            "realised_lo95": 0.4975
+          },
+          "0.600-0.700": {
+            "n": 1600,
+            "realised": 0.6419,
+            "realised_lo95": 0.6181
+          },
+          "0.700-0.750": {
+            "n": 665,
+            "realised": 0.7338,
+            "realised_lo95": 0.699
+          },
+          "0.750-0.800": {
+            "n": 594,
+            "realised": 0.7744,
+            "realised_lo95": 0.7391
+          },
+          "0.800-0.825": {
+            "n": 407,
+            "realised": 0.8182,
+            "realised_lo95": 0.7778
+          },
+          "0.825-0.850": {
+            "n": 481,
+            "realised": 0.842,
+            "realised_lo95": 0.8067
+          },
+          "0.850-0.875": {
+            "n": 476,
+            "realised": 0.8739,
+            "realised_lo95": 0.8411
+          },
+          "0.875-0.900": {
+            "n": 507,
+            "realised": 0.8974,
+            "realised_lo95": 0.868
+          },
+          "0.900-0.925": {
+            "n": 640,
+            "realised": 0.9062,
+            "realised_lo95": 0.8812
+          },
+          "0.925-0.950": {
+            "n": 1125,
+            "realised": 0.944,
+            "realised_lo95": 0.929
+          }
+        },
+        "cards_points_2h_total|UNDER": {
+          "0.000-0.600": {
+            "n": 5064,
+            "realised": 0.3292,
+            "realised_lo95": 0.3164
+          },
+          "0.600-0.700": {
+            "n": 874,
+            "realised": 0.6808,
+            "realised_lo95": 0.6491
+          },
+          "0.700-0.750": {
+            "n": 668,
+            "realised": 0.741,
+            "realised_lo95": 0.7065
+          },
+          "0.750-0.800": {
+            "n": 794,
+            "realised": 0.7809,
+            "realised_lo95": 0.7508
+          },
+          "0.850-0.875": {
+            "n": 468,
+            "realised": 0.8504,
+            "realised_lo95": 0.8153
+          },
+          "0.875-0.900": {
+            "n": 574,
+            "realised": 0.8554,
+            "realised_lo95": 0.8243
+          },
+          "0.900-0.925": {
+            "n": 614,
+            "realised": 0.9137,
+            "realised_lo95": 0.8888
+          },
+          "0.925-0.950": {
+            "n": 674,
+            "realised": 0.9332,
+            "realised_lo95": 0.9118
+          }
+        },
+        "handicap_cards_points_1h|OVER": {
+          "0.000-0.600": {
+            "n": 4895,
+            "realised": 0.2304,
+            "realised_lo95": 0.2189
+          },
+          "0.600-0.700": {
+            "n": 791,
+            "realised": 0.6953,
+            "realised_lo95": 0.6624
+          },
+          "0.700-0.750": {
+            "n": 1204,
+            "realised": 0.7284,
+            "realised_lo95": 0.7026
+          },
+          "0.750-0.800": {
+            "n": 1590,
+            "realised": 0.7824,
+            "realised_lo95": 0.7614
+          },
+          "0.800-0.825": {
+            "n": 469,
+            "realised": 0.823,
+            "realised_lo95": 0.7859
+          }
+        },
+        "penalties_1h_for|UNDER": {
+          "0.900-0.925": {
+            "n": 656,
+            "realised": 0.9238,
+            "realised_lo95": 0.9009
+          },
+          "0.925-0.950": {
+            "n": 2110,
+            "realised": 0.9336,
+            "realised_lo95": 0.9222
+          }
+        },
+        "penalties_1h_total|UNDER": {
+          "0.875-0.900": {
+            "n": 783,
+            "realised": 0.8685,
+            "realised_lo95": 0.843
+          },
+          "0.900-0.925": {
+            "n": 962,
+            "realised": 0.9179,
+            "realised_lo95": 0.8988
+          },
+          "0.925-0.950": {
+            "n": 847,
+            "realised": 0.928,
+            "realised_lo95": 0.9086
+          }
+        },
+        "penalties_for|UNDER": {
+          "0.825-0.850": {
+            "n": 900,
+            "realised": 0.8456,
+            "realised_lo95": 0.8205
+          },
+          "0.850-0.875": {
+            "n": 1352,
+            "realised": 0.8558,
+            "realised_lo95": 0.836
+          },
+          "0.875-0.900": {
+            "n": 1466,
+            "realised": 0.8779,
+            "realised_lo95": 0.8601
+          },
+          "0.900-0.925": {
+            "n": 1972,
+            "realised": 0.9128,
+            "realised_lo95": 0.8995
+          },
+          "0.925-0.950": {
+            "n": 786,
+            "realised": 0.9326,
+            "realised_lo95": 0.9129
+          }
         }
       },
       "thin_by_market_direction": {
@@ -32900,6 +33662,495 @@
       "fitted_at_utc": "2026-10-16T06:04:08+00:00",
       "script": "scripts/sofa/fit_score_market_curves.py",
       "rows": "/Users/mkoziol/projects/bet/data/refit_new_markets_2026-10-15/tennis_sets/rows.csv"
+    },
+    "player_fouls_drawn_for|OVER": {
+      "group": "player_props_v2",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-13",
+      "fitted_at_utc": "2026-10-20T21:32:15+00:00",
+      "script": "scripts/sofa/measure_player_props_v2.py fouls-drawn",
+      "replay": "calibrate_from_cache.build_player_rows starts_only, engine NB (NEGATIVE_BINOMIAL_METRICS)",
+      "final_curve_rows_before": "2026-10-14"
+    },
+    "cards_points_1h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_1h_total|OVER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_1h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_2h_for|OVER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_2h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_2h_total|OVER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "cards_points_2h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "handicap_cards_points_1h|OVER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "penalties_1h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "penalties_1h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "penalties_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "red_cards_1h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "red_cards_1h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "red_cards_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:cards_points_1h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:cards_points_2h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:handicap_cards_points_1h|OVER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:penalties_1h_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:penalties_1h_total|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
+    },
+    "women:penalties_for|UNDER": {
+      "group": "card_halves",
+      "script": "scripts/sofa/fit_incident_set_curves.py",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/incidents.db",
+      "history_pickle": "/Users/mkoziol/projects/bet/data/refit_card_halves_2026-10-21/football_incidents/football_history.pkl",
+      "history_pickle_source_mtime_utc": "2026-10-20T05:48:33+00:00",
+      "source_db": "/Users/mkoziol/projects/bet/data/sofa.db",
+      "fitted_at_utc": "2026-10-20T21:35:10+00:00",
+      "rows_from": "2025-08-01",
+      "train_before": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "final_before": "2026-10-15",
+      "first_row_date": "2025-08-01",
+      "rows": 3116292,
+      "curve_rows": 3110384,
+      "incident_records": 157664,
+      "estimator": "football_card_halves.card_half_p: NB card points per side on FootballForecast.centre(cards_points_for) of the day-cut RatingBook (shared league link, cup strength, rated scope) x CardHalfRates.half_share (SHARE_M 30), r {1: 1000000.0, 2: 12.0}; events CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)",
+      "excluded_from_curves": "card rows of an UNLINKED fixture (CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+      "unfitted_constants": [
+        "FOOTBALL_CARD_HALVES_SHARE_M",
+        "FOOTBALL_INCIDENT_BASE_M"
+      ],
+      "min_market_bucket": 400
     }
   },
   "match_won_for_fitted_from": {
