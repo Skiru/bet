@@ -180,7 +180,7 @@ def test_render_names_superbet_words_and_never_a_slip_price() -> None:
     assert text.startswith("**Dzień daje 1 z 1")
     assert "Liczba rzutów rożnych: powyżej 7.5" in text
     assert "sprawdź na ekranie Superbetu" in text
-    assert "to nie jest kurs kuponu" in text
+    assert "Cel ~2.2 osiągnięty" in text and "2.25" not in text
     assert "2 nogi" in text
     assert math.isclose(res.slips[0].chance, (1 / 1.5 - 0.008) ** 2)
 
@@ -338,7 +338,7 @@ def test_a_refused_read_drops_the_leg_and_the_next_best_takes_its_place() -> Non
             reason="test",
         ),
     ]
-    second = sb.build(legs, rec, NOW, target=2.3, reads=reads)
+    second = sb.build(legs, rec, NOW, target=2.3, reads=reads[:1], slip_reads=reads[1:])
     again = {x.leg["sofascore_event_id"]: x.read for x in second.slips[0].legs}
     assert out not in again and again[max(chosen)] == sb.READ_KEEP
     assert second.refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] == 1
@@ -469,4 +469,66 @@ def test_merge_reads_slip_goes_to_the_slip_files_only(tmp_path: Path) -> None:
     assert not (run / "reads.json").exists()
     assert (
         json.loads((run / merge_reads.SLIP_READS).read_text())[0]["verdict"] == "WATCH"
+    )
+
+
+def _read(eid: int, line: float, verdict: str, direction: str = "OVER") -> Any:
+    from bet.sofa.contracts import LegRead
+
+    return LegRead(
+        sofascore_event_id=eid,
+        market="corners_total",
+        subject="",
+        line=line,
+        direction=direction,
+        verdict=verdict,
+        author="analyst",
+        reason="test",
+    )
+
+
+def test_a_refused_rung_refuses_its_harder_rungs_not_the_easier() -> None:
+    watch = [_read(1, 7.5, "WATCH")]
+    assert sb.read_status(_leg(1, 1.5, 0.7, line=8.5), watch) is None
+    assert sb.read_status(_leg(1, 1.5, 0.7, line=7.5), watch) is None
+    assert sb.read_status(_leg(1, 1.3, 0.8, line=6.5), watch) == sb.READ_NONE
+    under = [_read(1, 9.5, "NO_BET", "UNDER")]
+    assert sb.read_status(_leg(1, 1.5, 0.7, line=8.5, direction="UNDER"), under) is None
+    assert sb.read_status(_leg(1, 1.5, 0.7, line=10.5, direction="UNDER"), under) == (
+        sb.READ_NONE
+    )
+
+
+def test_the_days_read_is_labelled_apart_from_the_slips_own() -> None:
+    keep = [_read(1, 7.5, "KEEP")]
+    leg = _leg(1, 1.5, 0.7)
+    assert sb.read_status(leg, reads=keep) == sb.READ_KEEP_DAY
+    assert sb.read_status(leg, slip_reads=keep) == sb.READ_KEEP
+    slip = sb.Slip([sb.Leg(leg, 1.5, 0.6, "t", 3, sb.READ_KEEP_DAY)])
+    assert sb.unread_legs([slip]) == []
+
+
+def test_merge_reads_checks_the_slip_read_set(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from scripts.sofa import merge_reads
+
+    run = tmp_path / "2026-10-20"
+    run.mkdir()
+    rs = tmp_path / "read_set_slip_football.json"
+    rs.write_text(json.dumps([_leg(1, 1.5, 0.7), _leg(2, 1.5, 0.7)]))
+    report = tmp_path / "r.md"
+    typo = _read(3, 7.5, "KEEP").model_dump()
+    report.write_text("```json reads\n" + json.dumps([typo]) + "\n```\n")
+    assert (
+        merge_reads.merge(run, [report], "analyst", True, slip=True, read_sets=[rs])
+        == 1
+    )
+    out = capsys.readouterr().out
+    assert "UNMATCHED_READ: 3" in out and out.count("LEG_WITHOUT_READ") == 2
+    good = [_read(1, 7.5, "KEEP").model_dump(), _read(2, 7.5, "WATCH").model_dump()]
+    report.write_text("```json reads\n" + json.dumps(good) + "\n```\n")
+    assert (
+        merge_reads.merge(run, [report], "analyst", True, slip=True, read_sets=[rs])
+        == 0
     )

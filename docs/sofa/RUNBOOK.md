@@ -473,7 +473,7 @@ czyta analityk:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 4 \
-    --start-from 10:00 --start-to 12:00 --allow-rest --reserve 1 \
+    --start-from 10:00 --start-to 12:00 --allow-rest \
     --read-set-dir runs/sofa/<data>/read_set_slip
 ```
 
@@ -484,17 +484,27 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   maksymalna zmierzona szansa kuponu przy iloczynie kursów ≥ cel; to samo
   wybiera najmniej nóg, bo każda noga traci podobnie w każdym przedziale kursu
   (10-13..10-19: 1.10–1.30 ROI −5,1%, 1.30–1.70 −4,2%, różnica +0,9 pp
-  [−1,0; +2,8]). Logarytm kursu zaokrąglany w dół do 0,002 — znaleziony
-  kupon zawsze sięga celu. Sprawdzone pełnym przeglądem na losowych danych.
+  [−1,0; +2,8]). Stan trzyma dokładny logarytm kursu (koszyki 0,0001 do
+  odcięcia Pareto) — kupon 2,00 × 2,00 na cel 4 jest znajdowany, a
+  znaleziony zawsze sięga celu. Sprawdzone pełnym przeglądem na losowych danych.
 - **Szansa nogi** = min(pewność, cena przy `price_gap`, 1/kurs + luka
   rodziny z `family_record.json`); rodzina na plusie czyta lukę swojej
   selekcji z walk-forward (−0,8 / −1,6 pp), nigdy nadwyżkę.
-- **Czytanie**: skrypt zapisuje nieczytane nogi kuponu i kuponu zapasowego
-  (`--reserve 1`) do `read_set_slip_<sport>.json`; analityk danego sportu
-  czyta plik, raport idzie przez `merge_reads.py`. Noga z WATCH / NO_BET /
-  wetem wypada, a ponowne uruchomienie liczy kupon od nowa z następną
-  najlepszą nogą — i ją też daje do czytania. Koniec, gdy każda noga ma KEEP
-  (najwyżej 3 rundy; nieczytana noga jest tak nazwana). Werdykty idą przez
+- **Czytanie**: skrypt zapisuje nieczytane nogi kuponu (z `--reserve 1`
+  także kuponu zapasowego; domyślnie wyłączone — plecak liczy wszystko od
+  nowa, więc zamiennik rzadko pochodzi z zapasu) do
+  `read_set_slip_<sport>.json`; analityk danego sportu czyta plik i pisze
+  raport `<data>_analiza_<sport>_kupon_<HHMM>_<runda>.md`; scala się ścieżkę
+  z linii `raport:` analityka:
+  `merge_reads.py --slip --author analyst --report <ścieżka> --read-set <plik>`
+  (`UNMATCHED_READ` / `LEG_WITHOUT_READ` = odczyt bez nogi / noga bez odczytu
+  — wraca do analityka). Noga z WATCH / NO_BET / wetem wypada razem z
+  trudniejszymi progami tej samej zmiennej (WATCH na OVER 7.5 zdejmuje też
+  OVER 8.5), a ponowne uruchomienie liczy kupon od nowa z następną najlepszą
+  nogą — i ją też daje do czytania. Koniec, gdy skrypt pisze „Każda noga
+  kuponów ma KEEP analityka” (najwyżej 3 rundy; nieczytana noga jest tak
+  nazwana). „KEEP (kupon dnia)” = poranny odczyt kuponu dnia, możliwe że
+  sprzed składów. Werdykty idą przez
   `merge_reads.py --slip` do `reads_slip.json` / `vetoes_slip.json` — kupon
   z czatu je czyta, kupon dnia **nie** (prośba o typy nie rusza kuponu).
 - **Wiek ceny**: kolumna „cena sprzed” i linia „Cena starsza niż limit

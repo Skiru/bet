@@ -64,7 +64,7 @@ Shapes (list vs object): `sofa-pipeline` `references/artifacts.md`, "Artifact sh
 | `05_sheet.json` | the sheet row behind a football / tennis leg: `p_central`, `centre`, notes, rule markers |
 | `04_offer.json` | the ladder and each rung's `fetched_at_utc` |
 | `sport_fixtures.json`, `runs/sofa/{shadow/<sport>,cs2}/<source_date>/snapshots.jsonl` | measured sports: pinned identity, raw Superbet snapshot |
-| `reads.json`, `vetoes.json` | what earlier passes said - **not evidence**: form your verdict first, then compare; name a disagreement with an earlier KEEP in the reason (WATCH / NO_BET win over KEEP by design) |
+| `reads.json`, `vetoes.json` (a chat slip also `reads_slip.json`, `vetoes_slip.json`) | what earlier passes said - **not evidence**: form your verdict first, then compare; name a disagreement with an earlier KEEP in the reason (WATCH / NO_BET win over KEEP by design) |
 
 Filter big files to the event id (`jq`, a one-liner) - never `cat`. Show
 names, not bare `sofascore_event_id`s.
@@ -178,6 +178,8 @@ entry of the day).
       ` ```json reads ` - bare arrays, labelled exactly so.
 3. Validate (read-only; no pipe that hides the exit code):
    `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --dry-run > "${TMPDIR:-/tmp}/mr_<sport>.txt" 2>&1; echo exit=$?`
+   (a chat slip's file `read_set_slip_*.json`: add `--slip --read-set <that file>`;
+   `UNMATCHED_READ` / `LEG_WITHOUT_READ` = a key that hits no leg / a leg you missed)
    then `grep -v CARRIED "${TMPDIR:-/tmp}/mr_<sport>.txt" | tail -15`. Exit 2 = a block does not
    validate: rewrite your report and re-run; `UNMATCHED_VETO` = your keys hit
    no sheet row.

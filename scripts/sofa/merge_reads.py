@@ -9,7 +9,11 @@ and reads.json - parsed from the report file, validated, then written.
 --slip: the reads of a chat slip (`build_slip.py`, the `/kupon` loop) go to
 vetoes_slip.json / reads_slip.json instead - the slip honours them, the
 coupon never reads them (operator: a picks request does not touch the
-coupon). Same validation.
+coupon). Same validation. With --read-set <read_set_slip_*.json> (repeat
+per file) every fresh read must cover a leg of those files and every leg
+must get a read: UNMATCHED_READ / LEG_WITHOUT_READ are listed, exit 1 (the
+merge is still written - a typo in an id would otherwise leave the loop
+re-reading a leg it thinks is read).
 
 A report ends with fenced JSON arrays (```json vetoes / ```json reads).
 Every array is classified by its entries (a `verdict` = reads, a
@@ -51,7 +55,8 @@ from pydantic import RootModel, ValidationError  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
-from bet.sofa.veto import find_unmatched_vetoes  # noqa: E402
+from bet.sofa.slip_builder import row_key  # noqa: E402
+from bet.sofa.veto import find_unmatched_vetoes, veto_matches  # noqa: E402
 
 # A fence may be indented (a block inside a list) and its label may carry a
 # note ("```json reads (pass 2)"); every ```json opening must be consumed.
@@ -113,7 +118,7 @@ SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
 
 
 def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
-          slip: bool = False) -> int:
+          slip: bool = False, read_sets: list[Path] | None = None) -> int:
     fresh_v: list[dict[str, Any]] = []
     fresh_r: list[dict[str, Any]] = []
     for path in reports:
@@ -167,7 +172,7 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     for v in carried[:10]:
         print("  CARRIED:", json.dumps(v, ensure_ascii=False))
     if len(carried) > 10:
-        print(f"  ... {len(carried) - 10} more carried vetoes in vetoes.json")
+        print(f"  ... {len(carried) - 10} more carried vetoes in {veto_path.name}")
     for u in unmatched:
         tag = "" if rung(u) in fresh_unmatched else " (carried)"
         print(f"  UNMATCHED_VETO{tag}:", u.model_dump_json())
@@ -188,7 +193,34 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
                          json.dumps(merged_v, indent=2, ensure_ascii=False) + "\n")
         write_atomic(reads_path,
                      json.dumps(merged_r, indent=2, ensure_ascii=False) + "\n")
-    return 1 if fresh_unmatched else 0
+    off_set = _check_read_sets(read_sets or [], fresh_r, fresh_v)
+    return 1 if fresh_unmatched or off_set else 0
+
+
+def _check_read_sets(paths: list[Path], fresh_r: list[dict[str, Any]],
+                     fresh_v: list[dict[str, Any]]) -> bool:
+    """Every fresh read covers a leg of the files, every leg got a read or a
+    veto; prints each miss. True when anything is off."""
+    if not paths:
+        return False
+    legs = [leg for p in paths
+            for leg in json.loads(p.read_text(encoding="utf-8"))]
+    reads = [LegRead.model_validate(r) for r in fresh_r]
+    vetoes = [Veto.model_validate(v) for v in fresh_v]
+    keys = [row_key(leg) for leg in legs]
+    off = False
+    for r in reads:
+        if not any(veto_matches(r, **k) for k in keys):
+            off = True
+            print(f"  UNMATCHED_READ: {r.sofascore_event_id} {r.market} "
+                  f"{r.line} {r.direction} p{r.period} - no leg of the read set")
+    for leg, k in zip(legs, keys, strict=True):
+        if not any(veto_matches(x, **k) for x in reads) and not any(
+                veto_matches(v, **k) for v in vetoes):
+            off = True
+            print(f"  LEG_WITHOUT_READ: {leg.get('match')} - "
+                  f"{leg.get('superbet_market')}: {leg.get('superbet_selection')}")
+    return off
 
 
 def _load(path: Path) -> list[dict[str, Any]]:
@@ -219,10 +251,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--slip", action="store_true",
                     help="a chat slip's reads: *_slip.json, never the coupon's")
+    ap.add_argument("--read-set", action="append", type=Path, default=[],
+                    help="check the reads against this read-set file")
     args = ap.parse_args(argv)
     try:
         return merge(Path(args.runs_dir) / args.date, args.report, args.author,
-                     args.dry_run, slip=args.slip)
+                     args.dry_run, slip=args.slip, read_sets=args.read_set)
     except (OSError, ValueError, ValidationError) as exc:
         print(f"merge_reads: REFUSED, nothing written - {type(exc).__name__}: "
               f"{exc}", file=sys.stderr)

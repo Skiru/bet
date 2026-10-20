@@ -26,34 +26,21 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 
 ## Run
 
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <date> --target <X> \
-    --start-from <HH:MM> --start-to <HH:MM> [--slips N] --allow-rest --reserve 1 \
-    --read-set-dir runs/sofa/<date>/read_set_slip
-```
+The skill's loop, with `--start-from <HH:MM> --start-to <HH:MM> --target <X>
+[--slips N] --allow-rest --read-set-dir runs/sofa/<date>/read_set_slip`, the
+analysts' reports at `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<hhmm>_<round>.md`
+(`<hhmm>` = now, local) and `merge_reads.py --slip --author analyst ...
+--read-set <file>` - every step as the skill states it. Narrate a line per
+step.
 
-then the skill's loop: one foreground analyst per `read_set_slip_<sport>.json`
-(`sofa-analyst-football` / `sofa-analyst-tennis` / `sofa-analyst-sport` with the
-sport named; report `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<round>.md`),
-`merge_reads.py --date <date> --slip --author analyst --report <each>` (the
-slip's own `reads_slip.json`; the coupon never reads it), re-run the same command, until
-it prints "Każda noga kuponów ma KEEP analityka" - at most 3 rounds. Narrate a
-line per step.
-
-- The window starts less than 30 min from now: say so in the first line (legs
-  that start while the analysts read drop out) and go on.
+- The window starts less than 30 min from now: warn in the answer's second
+  line (legs that start while the analysts read drop out) and go on.
 - No slip at all: relay the script's first line (with the reachable price) and
   offer a lower target or a wider window - never fill with legs outside the
   window.
 
 ## Answer (Polish)
 
-First line: the script's "say no first" line. Then each slip's final table as
-printed (Superbet's words, start in local time, price, 1/price, measured
-chance, read verdict, price age, "poza poparciem" where it says so, the
-stale-price line when printed), the slip's measured
-chance, which legs fell out on which read and what replaced them, and any leg
-still unread named as unread. No slip price (the price product line is a
-target check), no stake, no "na minusie" labels; "kurs kuponu: sprawdź na
-ekranie Superbetu". The family selection's advantage is not yet shown
-(T-FAMILY-SELECTION).
+Exactly the skill's **Relay**: line 1 the script's first line, then the
+tables, the reads, what fell out and what replaced it, unread legs named as
+unread. No slip price, no stake, no "na minusie" labels.

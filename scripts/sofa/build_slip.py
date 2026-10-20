@@ -26,7 +26,7 @@ read_set.py's compact form, for one analyst per sport; stale files of an
 earlier call are removed.
 
 Exit 0: every requested slip is supported; 1: fewer (the answer says so);
-2: no 11_coupon.json.
+2: no 11_coupon.json, no family_record.json or bad arguments.
 """
 
 from __future__ import annotations
@@ -181,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
         min_odds=args.min_odds,
         max_odds=args.max_odds,
         window=span,
-        reads=load_reads(run / "reads.json") + load_reads(run / SLIP_READS),
+        reads=load_reads(run / "reads.json"),
+        slip_reads=load_reads(run / SLIP_READS),
         vetoes=load_vetoes(run / "vetoes.json") + load_vetoes(run / SLIP_VETOES),
         reserve=args.reserve,
         built_at=coupon.get("created_at_utc"),
@@ -204,7 +205,11 @@ def main(argv: list[str] | None = None) -> int:
             path = out_dir / f"read_set_slip_{sport}.json"
             print(f"do przeczytania: {sport} {sb.legs_pl(n)} -> {path}")
         if not written:
-            print("do przeczytania: nic - każda noga ma KEEP analityka")
+            print(
+                "do przeczytania: nic - każda noga ma KEEP analityka"
+                if result.slips
+                else "do przeczytania: nic - brak kuponu"
+            )
     return 0 if result.supported >= args.slips else 1
 
 

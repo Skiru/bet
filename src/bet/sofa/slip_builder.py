@@ -51,8 +51,10 @@ from bet.sofa.veto import read_refusal, veto_matches
 # A leg's analyst read (reads.json / vetoes.json, matched like a veto; or
 # the reads the coupon carries): KEEP, unread, or refused - a refused leg
 # never enters a slip, so the next search takes the next best leg.
-READ_KEEP = "KEEP"
+READ_KEEP = "KEEP"  # the slip's own read (reads_slip.json)
+READ_KEEP_DAY = "KEEP (kupon dnia)"  # the day's C3 read - may be hours old
 READ_NONE = "nie"
+REFUSING = frozenset({"WATCH", "NO_BET"})
 
 TIER_SELECTION = 1  # x >= 1 and family on the plus (the HTML view's button)
 TIER_FAMILY_PLUS = 2  # family on the plus
@@ -191,7 +193,7 @@ def measured_chance(
     return max(min(chance, 0.999), 1e-6), source
 
 
-def _row_key(leg: Mapping[str, Any]) -> dict[str, Any]:
+def row_key(leg: Mapping[str, Any]) -> dict[str, Any]:
     line = leg.get("line")
     period = leg.get("period")
     return {
@@ -204,23 +206,53 @@ def _row_key(leg: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _harder_rung_refused(leg: Mapping[str, Any], refusals: Iterable[Any]) -> bool:
+    """A refusal of an OVER at line L also refuses the leg's harder rungs of
+    the same variable (OVER above L; an UNDER below L): the analyst's reason
+    holds a fortiori, and without it a refused rung's neighbour enters the
+    next round unread."""
+    key = row_key(leg)
+    direction, line = key["direction"], key["line"]
+    if direction not in ("OVER", "UNDER") or line is None:
+        return False
+    for r in refusals:
+        r_line = getattr(r, "line", None)
+        if r_line is None or not veto_matches(r, **{**key, "line": float(r_line)}):
+            continue
+        if (direction == "OVER" and line >= r_line) or (
+            direction == "UNDER" and line <= r_line
+        ):
+            return True
+    return False
+
+
 def read_status(
-    leg: Mapping[str, Any], reads: Sequence[Any] = (), vetoes: Sequence[Any] = ()
+    leg: Mapping[str, Any],
+    reads: Sequence[Any] = (),
+    vetoes: Sequence[Any] = (),
+    slip_reads: Sequence[Any] = (),
 ) -> str | None:
-    """READ_KEEP when an analyst read covers the leg, READ_NONE when none,
-    None when a veto or a WATCH / NO_BET read refuses it (from the day's files
-    or carried on the leg) - the same rules the rebuild applies."""
-    key = _row_key(leg)
-    covering = [r for r in reads if veto_matches(r, **key)]
+    """None when a veto or a WATCH / NO_BET read refuses the leg or a lower
+    rung of it (the day's files, the slip's own, or carried on the leg - the
+    rebuild's matching rule); else READ_KEEP when the slip's own analyst read
+    covers it, READ_KEEP_DAY when only the day's C3 read does, READ_NONE."""
+    key = row_key(leg)
+    every = [*reads, *slip_reads]
+    covering = [r for r in every if veto_matches(r, **key)]
     if any(veto_matches(v, **key) for v in vetoes) or read_refusal(covering):
         return None
-    carried = [r for r in leg.get("reads") or [] if isinstance(r, Mapping)]
-    if {str(r.get("verdict")) for r in carried} & {"WATCH", "NO_BET"}:
+    refusals = [*vetoes, *(r for r in every if r.verdict in REFUSING)]
+    if _harder_rung_refused(leg, refusals):
         return None
+    carried = [r for r in leg.get("reads") or [] if isinstance(r, Mapping)]
+    if {str(r.get("verdict")) for r in carried} & REFUSING:
+        return None
+    if any(r.author == "analyst" and veto_matches(r, **key) for r in slip_reads):
+        return READ_KEEP
     if any(r.author == "analyst" for r in covering) or any(
         r.get("author") == "analyst" for r in carried
     ):
-        return READ_KEEP
+        return READ_KEEP_DAY
     return READ_NONE
 
 
@@ -244,6 +276,7 @@ def candidates(
     reads: Sequence[Any] = (),
     vetoes: Sequence[Any] = (),
     built_at: str | None = None,
+    slip_reads: Sequence[Any] = (),
 ) -> tuple[list[Leg], dict[str, int]]:
     """The legs a slip may take, and the count of every refusal. A football
     / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
@@ -302,7 +335,7 @@ def candidates(
         if mc is None:
             refused["brak pomiaru rodziny / sportu"] += 1
             continue
-        read = read_status(s, reads, vetoes)
+        read = read_status(s, reads, vetoes, slip_reads)
         if read is None:
             refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
             continue
@@ -409,6 +442,7 @@ def build(
     vetoes: Sequence[Any] = (),
     reserve: int = 0,
     built_at: str | None = None,
+    slip_reads: Sequence[Any] = (),
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice). Supported slips use only
     legs of families on the plus; with `allow_rest` the shortfall is filled
@@ -425,6 +459,7 @@ def build(
         reads=reads,
         vetoes=vetoes,
         built_at=built_at,
+        slip_reads=slip_reads,
     )
     counts: dict[int, int] = defaultdict(int)
     for x in pool:
@@ -458,7 +493,7 @@ def build(
 
 
 def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
-    return [x for s in slips for x in s.legs if x.read != READ_KEEP]
+    return [x for s in slips for x in s.legs if x.read == READ_NONE]
 
 
 def legs_pl(n: int) -> str:
@@ -557,8 +592,8 @@ def render(
             )
         lines += [
             "",
-            f"Iloczyn kursów nóg {s.price_product:.2f} służy tylko sprawdzeniu "
-            f"celu - to nie jest kurs kuponu.",
+            f"Cel ~{target:g} osiągnięty (iloczyn kursów nóg ≥ cel); kurs kuponu "
+            "sprawdź na ekranie Superbetu.",
             "",
         ]
     stale = [x for s in result.slips for x in s.legs if x.stale]
@@ -566,7 +601,8 @@ def render(
         lines.append(
             f"**Cena starsza niż limit pipeline'u: {legs_pl(len(stale))}** (piłka / "
             "tenis 45 min, sporty 3 h) - kurs na ekranie mógł się zmienić albo "
-            "mecz zejść z oferty; świeże ceny daje przebudowa dnia."
+            "mecz zejść z oferty - sprawdź kurs na ekranie (kuponu dnia nie "
+            "przebudowujemy dla kuponu z czatu)."
         )
     unread = unread_legs(result.slips)
     if result.slips:

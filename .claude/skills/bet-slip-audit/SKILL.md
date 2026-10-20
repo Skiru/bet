@@ -37,9 +37,9 @@ A slip assembled in chat is not a coupon and has no gates.
    match bootstrap; one family in twenty clearing zero is what chance gives -
    say so. Inside a match prefer such a leg.
 3. **Every table the operator may stake from** carries that measured chance (a
-   `price_gap` leg at its price, never its confidence) and says "na minusie"
-   when it is below the price - in **every** re-summary, not only the first.
-   The product of confidences is never the headline.
+   `price_gap` leg at its price, never its confidence) with 1/odds beside it -
+   in **every** re-summary, not only the first - and no "na minusie" label
+   (operator 2026-10-15). The product of confidences is never the headline.
 4. **Name each leg in Superbet's words**: `superbet_market: superbet_selection`
    from `11_coupon.json` (`bet.sofa.superbet_names.names` for a leg of another
    artifact), never a paraphrase like "Seattle +1.5 w 3. tercji".
@@ -67,42 +67,55 @@ maximises the slip's measured chance under "price product >= target" - which
 picks the fewest legs (every odds band loses about alike per leg,
 10-13..10-19). A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
 `reads.json`, the slip's `*_slip.json`, or carried) never enters, so a re-run after a merge takes the
-next best leg. `--reserve 1` also builds the next disjoint slip: read with
-the slip, it is the buffer a refusal falls back on.
+next best leg (a refusal also drops the refused leg's harder rungs).
 
-**The loop** (main session; at most 3 rounds):
+**The loop** (main session; at most 3 rounds; `<hhmm>` = the request's
+local time, so a second slip of the day never collides with the first):
 
 1. Build and write the read set:
    ```bash
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> \
-       [--start-from HH:MM --start-to HH:MM] [--slips N] --allow-rest --reserve 1 \
+       [--start-from HH:MM --start-to HH:MM] [--slips N] --allow-rest \
        --read-set-dir runs/sofa/<d>/read_set_slip
    ```
-2. For each `read_set_slip_<sport>.json` it lists, spawn that sport's analyst
-   (`sofa-analyst-football` / `-tennis` / `-sport` with the sport named) in
-   the **foreground**, naming the file and the report path
-   `runs/sofa/<d>/<d>_analiza_<sport>_kupon_<round>.md`; independent sports
-   in one message.
-3. `merge_reads.py --date <d> --slip --author analyst --report <each report>`
-   (never re-type a report). `--slip` writes `reads_slip.json` /
-   `vetoes_slip.json`: the slip honours them, the coupon never reads them (a
-   picks request does not touch the coupon).
-4. Re-run step 1. Done when it prints "Każda noga kuponów ma KEEP analityka"
-   (`do przeczytania: nic`); otherwise the refused legs are gone, the
-   replacements are listed - back to 2. After round 3, report the unread legs
-   as unread; never present one as read.
+   (`--reserve 1` also reads the next disjoint slip ahead; off by default -
+   the knapsack re-optimises globally, so a replacement rarely comes from it.)
+2. **Done** when it prints "Każda noga kuponów ma KEEP analityka" - go to the
+   answer. No slip at all ("do przeczytania: nic - brak kuponu"): answer with
+   the first line and stop. Otherwise, for each `read_set_slip_<sport>.json`
+   it lists, spawn that sport's analyst (`sofa-analyst-football` /
+   `sofa-analyst-tennis` / `sofa-analyst-sport` with the sport named) in the
+   **foreground**, independent sports in one message, naming the file and the
+   report path `runs/sofa/<d>/<d>_analiza_<sport>_kupon_<hhmm>_<round>.md`,
+   and telling it: "kupon z czatu - waliduj z `--slip`; gdy powód dotyczy
+   zmiennej, nie progu, daj odczyt dla progu, który czytasz (wyższe progi tej
+   samej zmiennej wypadną same)".
+3. Merge what each analyst wrote - **the path on its `raport:` line**, never
+   the one you named (it writes `_r<n>` on a collision):
+   `merge_reads.py --date <d> --slip --author analyst --report <path> [--report ...] --read-set <each read_set_slip_<sport>.json>`.
+   `--slip` writes `reads_slip.json` / `vetoes_slip.json`: the slip honours
+   them, the coupon never reads them (a picks request does not touch the
+   coupon). Exit 1 with `UNMATCHED_READ` / `LEG_WITHOUT_READ` = a read keyed
+   to no leg or a leg without a read: send that analyst the listed legs again
+   (same round).
+4. Back to 1. A refused leg is gone, and so are its harder rungs (a WATCH on
+   OVER 7.5 also drops OVER 8.5); the knapsack takes the next best slip and
+   lists its unread legs. After round 3, name every leg still unread as
+   unread; never present one as read.
 
-Relay: the first line (the "say no first" answer about families on the
-plus), then each slip's table as printed - Superbet's words, measured chance
-beside 1/odds, the read verdict, "poza poparciem" where it says so - and
-which legs fell out on which read. No slip price, no stake; the price
-product line is a target check only. The family selection's advantage is not
-yet shown (T-FAMILY-SELECTION). The table's "cena sprzed" column and the
-"Cena starsza niż limit pipeline'u" line flag a price past the pipeline's own
-limit (45 min football / tennis, 3 h sports; a football leg's age is at least
-the coupon's age, "≥") - relay it: the screen's price decides. Legs starting
-while the analysts read drop out on the re-run: name a window that starts >= 30 min ahead. Exit 0 all
-supported, 1 fewer, 2 no coupon. Tests `tests/sofa/test_slip_builder.py`.
+**Relay** (Polish): line 1 = the script's first line (the "say no first"
+answer about families on the plus); line 2 = a warning when the window starts
+< 30 min from the request. Then each slip's table as printed - Superbet's
+words, start in local time, measured chance beside 1/odds, the read
+("KEEP" = read for this slip; "KEEP (kupon dnia)" = the day's morning read,
+possibly before lineups - say so), price age, "poza poparciem" where it says
+so - the stale-price line when printed (the screen's price decides; the day's
+coupon is never rebuilt for a chat slip), and which legs fell out on which
+read and what replaced them. No slip price and no stake: the script's "Cel ~X
+osiągnięty" line carries no number; "kurs kuponu: sprawdź na ekranie
+Superbetu". No "na minusie" labels. The family selection's advantage is not
+yet shown (T-FAMILY-SELECTION). Exit 0 all supported, 1 fewer, 2 no coupon /
+no family record / bad arguments. Tests `tests/sofa/test_slip_builder.py`.
 
 ## Three cases
 

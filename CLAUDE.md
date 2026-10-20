@@ -400,9 +400,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   the latest settled days (name the days and N; match bootstrap; one family in
   twenty clearing zero is what chance gives - say so), and inside a match
   prefer such a leg. Every table the operator may stake from carries that
-  measured chance (a `price_gap` leg at its price, never its confidence) and
-  says "na minusie" when it is below the price - in **every** re-summary. The
-  product of confidences is never the headline.
+  measured chance (a `price_gap` leg at its price, never its confidence) with
+  1/odds beside it - in **every** re-summary - and no "na minusie" label
+  (operator 2026-10-15: a leg below its price is by design). The product of
+  confidences is never the headline.
 - **A leg proposed in chat is named in Superbet's words** - its
   `superbet_market: superbet_selection` from `11_coupon.json`
   (`bet.sofa.superbet_names.names` for a leg of another artifact), never a
