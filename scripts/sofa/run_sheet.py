@@ -17,8 +17,8 @@ from pydantic import RootModel
 from rapidfuzz import fuzz
 
 from bet.sofa import epochs, sheet_config
-from bet.sofa import referees as referee_terms
 from bet.sofa import player_share as psh
+from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
