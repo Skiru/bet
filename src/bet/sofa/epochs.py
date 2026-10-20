@@ -2517,3 +2517,36 @@ def football_stat_variants(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_STAT_VARIANTS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_STAT_VARIANTS_FROM_UTC)
+
+
+# Football card points by half, red cards and penalties by side / half, both
+# teams carded red (bet.sofa.football_card_halves): OFFER reads "1. / 2.
+# połowa - [<T>] liczba kartek" (cards_points_1h_total / _1h_for / _2h_total /
+# _2h_for), "1. / 2. połowa - najwięcej kartek" and "... - liczba kartek -
+# handicap" (most_ / handicap_cards_points_1h / _2h), "Liczba czerwonych
+# kartek <T>", "1.połowa - liczba czerwonych kartek [<T>]", "<T> - liczba
+# przyznanych rzutów karnych", "1.połowa - [<T> -] liczba przyznanych rzutów
+# karnych" and "Obie drużyny otrzymają czerwoną kartkę". SHEET prices the
+# card halves as an NB count on the side's full-match card-points rating
+# centre x the competition's as-of half share, the events from the
+# competition's as-of rate (no sample, no price; rows marked
+# `incident_rule` = FOOTBALL_CARD_HALVES); SETTLE grades through
+# extract_metric (metrics.CARD_INCIDENT_SCOPES: each card in the half it was
+# shown in - the documented assumption for a two-yellow dismissal across the
+# interval). No curve is installed: CONFIDENCE reads the keys' own Superbet
+# lines, NO_LINE_EVIDENCE until a bucket holds enough of them. Adds rows, so
+# a day >= the date built at or after the moment. Off (None, until the main
+# session sets it): OFFER, SAMPLES, SHEET and SETTLE byte-identical.
+# Evidence: docs/sofa/evidence/football_card_halves_2026-10-21.md.
+FOOTBALL_CARD_HALVES = "card_halves_v1"
+FOOTBALL_CARD_HALVES_FROM_UTC: datetime | None = None
+
+
+def football_card_halves(date: str, build_at: datetime | None = None) -> bool:
+    """Does OFFER read and SHEET price the football card halves and the
+    side / half red cards and penalties (FOOTBALL_CARD_HALVES_FROM_UTC)?"""
+    if FOOTBALL_CARD_HALVES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_CARD_HALVES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_CARD_HALVES_FROM_UTC)

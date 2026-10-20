@@ -1068,6 +1068,149 @@ def calculate_cards_points(
     return home, away
 
 
+# --- Card points by half (epochs.FOOTBALL_CARD_HALVES) -----------------------
+#
+# Superbet "1. / 2. połowa - [<drużyna>] liczba kartek" are the full-match
+# "liczba kartek" (komunikat 06/2022 section 2: yellow 1, red 2, a dismissal
+# for two yellows 3) scoped to a half. The komunikat says which half a card
+# shown in the interval belongs to ("Kartki pokazane w przerwie meczu są
+# uznawane za pokazane w drugiej połowie") and nothing about how a two-yellow
+# dismissal splits when the first yellow came in the other half.
+#
+# The rule here (an ASSUMPTION, documented in docs/sofa/evidence/
+# football_card_halves_2026-10-21.md): every card's points belong to the half
+# it was SHOWN in, priced exactly as calculate_cards_points prices it - the
+# first yellow 1 in its half, the second-yellow dismissal the remainder up to
+# 3 (Sofascore writes the second yellow as one ``yellowRed`` incident, so 2)
+# in its half. A half is read off the card's ``time``: <= 45 (first-half
+# added time included, 45+N) is the first half, 46..90 (90+N included) the
+# second; > 90 is extra time and in neither. A card with no match time
+# (Sofascore's -5, shown outside play) cannot be placed in a half: the match
+# has no half value (GapReason.CARD_HALF_UNKNOWN). Sofascore writes no marker for a card
+# shown in the interval; such a card reads as the half its ``time`` says.
+def card_half(incident: dict[str, Any]) -> int | None:
+    """1 / 2 for the half a card was shown in, 0 for extra time, None when
+    it carries no match time."""
+    t = incident.get("time")
+    if not isinstance(t, int | float) or isinstance(t, bool) or t < 0:
+        return None
+    if t <= 45:
+        return 1
+    if t <= 90:
+        return 2
+    return 0
+
+
+def calculate_cards_points_by_half(
+    incidents: dict[str, Any] | None,
+    all_stats: dict[str, tuple[float, float]] | None = None,
+) -> tuple[tuple[float, float], tuple[float, float]] | GapReason:
+    """((home 1H, away 1H), (home 2H, away 2H)) Superbet card points, or why
+    not: the gaps of calculate_cards_points, or CARD_HALF_UNKNOWN for a
+    counted card with no match time. Each card is priced as
+    calculate_cards_points prices it; the sum of the halves is its total
+    whenever no counted card fell in extra time."""
+    whole = calculate_cards_points(incidents, all_stats)
+    if isinstance(whole, GapReason):
+        return whole
+    assert incidents  # calculate_cards_points refused an empty payload
+    cards = [
+        inc
+        for inc in incidents.get("incidents", [])
+        if inc.get("incidentType") == "card"
+        and not inc.get("rescinded", False)
+        and not _is_staff_card(inc)
+    ]
+    yellows_by_player: dict[str, int] = {}
+    for inc in cards:
+        if inc.get("incidentClass") == "yellow":
+            key = _incident_player_key(inc)
+            if key:
+                yellows_by_player[key] = yellows_by_player.get(key, 0) + 1
+    out = [[0.0, 0.0], [0.0, 0.0]]
+    for inc in cards:
+        cls = inc.get("incidentClass")
+        if cls == "yellow":
+            pts = 1.0
+        elif cls == "red":
+            pts = 2.0
+        elif cls == "yellowRed":
+            key = _incident_player_key(inc)
+            already = yellows_by_player.get(key, 0) if key else 0
+            pts = float(max(0, 3 - already))
+        else:
+            continue
+        half = card_half(inc)
+        if half is None:
+            return GapReason.CARD_HALF_UNKNOWN
+        if half == 0:
+            continue
+        out[half - 1][0 if inc.get("isHome", False) else 1] += pts
+    return (out[0][0], out[0][1]), (out[1][0], out[1][1])
+
+
+# The markets read off the incident list by half / by side beside the
+# full-match card points (epochs.FOOTBALL_CARD_HALVES; bet.sofa.
+# football_card_halves). Kept OUT of FOOTBALL_METRICS on purpose: the mapper
+# scopes "1. połowa - najwięcej kartek" to a half only when
+# `cards_points_1h_for` is declared there, and with the switch off nothing
+# may change. extract_metric reads them for SETTLE (a row of one exists only
+# while the switch is on). (kind, half or None, is_total)
+CARD_INCIDENT_SCOPES: dict[str, tuple[str, int | None, bool]] = {
+    "cards_points_1h_total": ("cards_points", 1, True),
+    "cards_points_1h_for": ("cards_points", 1, False),
+    "cards_points_2h_total": ("cards_points", 2, True),
+    "cards_points_2h_for": ("cards_points", 2, False),
+    "red_cards_for": ("red_cards", None, False),
+    "red_cards_1h_total": ("red_cards", 1, True),
+    "red_cards_1h_for": ("red_cards", 1, False),
+    "penalties_for": ("penalties", None, False),
+    "penalties_1h_total": ("penalties", 1, True),
+    "penalties_1h_for": ("penalties", 1, False),
+    "both_red_cards": ("both_red", None, True),
+}
+
+
+def card_incident_value(
+    metric_name: str,
+    flat_stats: dict[str, dict[str, tuple[float, float]]],
+    incidents: dict[str, Any] | None,
+    listing_event: dict[str, Any],
+    is_home: bool,
+) -> float | GapReason:
+    """The graded value of one CARD_INCIDENT_SCOPES metric (the extra-time
+    rule is extract_metric's, applied before)."""
+    kind, half, is_total = CARD_INCIDENT_SCOPES[metric_name]
+    if kind == "cards_points":
+        halves = calculate_cards_points_by_half(incidents, flat_stats.get("ALL"))
+        if isinstance(halves, GapReason):
+            return halves
+        h, a = halves[(half or 1) - 1]
+        return float(h + a) if is_total else float(h if is_home else a)
+    # red cards / penalties: the incident record's regular-time counts, a
+    # full feed only (bet.sofa.football_incidents.read_incidents)
+    from bet.sofa.football_incidents import read_incidents
+
+    if goal_score_inconsistent(listing_event):
+        return GapReason.INTERNAL_INCONSISTENT
+    rec = read_incidents(incidents, regulation_score(listing_event))
+    if rec is None:
+        return GapReason.INCIDENTS_UNREADABLE
+    if kind == "both_red":
+        pair = rec.red_cards
+        if pair is None:
+            return GapReason.INCIDENTS_PARTIAL_FEED
+        return 1.0 if pair[0] >= 1 and pair[1] >= 1 else 0.0
+    if kind == "red_cards":
+        pair = rec.red_cards_1h if half == 1 else rec.red_cards
+    else:
+        pair = rec.penalties_1h if half == 1 else rec.penalties
+    if pair is None:
+        return GapReason.INCIDENTS_PARTIAL_FEED
+    return float(pair[0] + pair[1]) if is_total else float(
+        pair[0] if is_home else pair[1])
+
+
 # Counting statistics whose halves must add up to the full-match figure.
 # Reported, never blocking: 0.9-2.2% divergence is the normal noise floor for
 # this class of data, so rejecting on it would throw away good observations.
@@ -1257,8 +1400,19 @@ def extract_metric(
     prints and needs a switch in bet.sofa.epochs.
     """
     metrics_map = FOOTBALL_METRICS if sport == "football" else TENNIS_METRICS
-    if metric_name not in metrics_map:
+    scoped = sport == "football" and metric_name in CARD_INCIDENT_SCOPES
+    if metric_name not in metrics_map and not scoped:
         return GapReason.STAT_KEY_ABSENT
+
+    if scoped:
+        # epochs.FOOTBALL_CARD_HALVES: card points by half, red cards and
+        # penalties by side / half (a row exists only while it is on)
+        if is_extra_time_event(listing_event) and (
+            not settling or played_extra_time(listing_event)
+        ):
+            return GapReason.EVENT_NOT_FINISHED
+        return card_incident_value(
+            metric_name, flat_stats, incidents, listing_event, is_home)
 
     config = metrics_map[metric_name]
     sofascore_key = config["sofascore"]

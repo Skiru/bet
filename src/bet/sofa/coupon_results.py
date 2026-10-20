@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.coupon_sports import MEASURED_SPORTS, sport_key
+from bet.sofa.football_card_halves import BOTH_RED
+from bet.sofa.football_card_halves import MARKETS as CARD_HALF_MARKETS
 from bet.sofa.football_incidents import PENALTIES, RED_CARDS
 from bet.sofa.locked_print import leg_key
 from bet.sofa.superbet_names import FIELD_SELECTION
@@ -64,8 +66,11 @@ UNKNOWN_WHY = {
 
 # Football / tennis markets of one event (yes / no, the settled value 1 or 0):
 # the page shows the match score for them, not "1". Red cards and penalties
-# are counts.
-EVENT_MARKETS = RATING_ONLY_MARKETS - {RED_CARDS, PENALTIES}
+# are counts, and so are the card halves, the side / half red cards and
+# penalties (epochs.FOOTBALL_CARD_HALVES) - "both teams carded red" is a yes /
+# no event.
+EVENT_MARKETS = (RATING_ONLY_MARKETS - {RED_CARDS, PENALTIES}
+                 - (CARD_HALF_MARKETS - {BOTH_RED}))
 
 
 def markable(date: str, now: datetime.datetime) -> str | None:

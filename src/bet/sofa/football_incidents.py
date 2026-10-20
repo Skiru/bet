@@ -62,6 +62,10 @@ class IncidentRecord:
     full_feed: bool
     red_cards: tuple[int, int] | None  # None: not a full feed
     penalties: tuple[int, int] | None  # awarded (scored + missed); None: not full
+    # epochs.FOOTBALL_CARD_HALVES: the same counts in the first half (``time``
+    # <= 45, its added time inside); None: not a full feed
+    red_cards_1h: tuple[int, int] | None = None
+    penalties_1h: tuple[int, int] | None = None
 
 
 def _listed(incidents: Mapping[str, Any] | None) -> list[dict[str, Any]]:
@@ -163,28 +167,34 @@ def read_incidents(
     else:
         side, minute = FIRST_GOAL_NONE, None
     full = is_full_feed(incidents)
-    reds = pens = None
+    reds = pens = reds_1h = pens_1h = None
     if full:
-        rh = ra = ph = pa = 0
+        red = [[0, 0], [0, 0]]  # [match, first half][home, away]
+        pen = [[0, 0], [0, 0]]
         for i in listed:
             if not _regular(i):
                 continue
             kind, cls = i.get("incidentType"), i.get("incidentClass")
-            home = bool(i.get("isHome"))
+            col = 0 if i.get("isHome") else 1
+            in_1h = int(_num(i.get("time")) is not None and float(i["time"]) <= 45)
             if (
                 kind == "card"
                 and cls in RED_CLASSES
                 and not i.get("rescinded", False)
                 and not _is_staff_card(i)
             ):
-                rh, ra = (rh + 1, ra) if home else (rh, ra + 1)
+                red[0][col] += 1
+                red[1][col] += in_1h
             elif (
                 kind == "goal" and cls == "penalty" and not i.get("rescinded", False)
             ) or kind == "inGamePenalty":
-                ph, pa = (ph + 1, pa) if home else (ph, pa + 1)
-        reds, pens = (rh, ra), (ph, pa)
+                pen[0][col] += 1
+                pen[1][col] += in_1h
+        reds, pens = (red[0][0], red[0][1]), (pen[0][0], pen[0][1])
+        reds_1h, pens_1h = (red[1][0], red[1][1]), (pen[1][0], pen[1][1])
     minutes = tuple(band_minute(t[0]) for t in timed)
-    return IncidentRecord(side, minute, want, minutes, full, reds, pens)
+    return IncidentRecord(side, minute, want, minutes, full, reds, pens,
+                          reds_1h, pens_1h)
 
 
 def band_index(minute: float | None, edges: Sequence[float]) -> int:

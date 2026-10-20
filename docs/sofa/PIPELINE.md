@@ -540,6 +540,41 @@ jak w pomiarze), tylko best of three; wiersz ma `set_market_rule`. Od
 (`tests/sofa/test_football_incident_markets.py`,
 `tests/sofa/test_tennis_set_markets.py`).
 
+**Kartki w połowach, czerwone kartki i karne drużyn / 1. połowy za
+przełącznikiem `FOOTBALL_CARD_HALVES_FROM_UTC`** (`bet.sofa.epochs`,
+znacznik `card_halves_v1`; **wyłączony** – `None`, datę ustala sesja
+główna). Włączony, OFFER czyta (tylko piłka, `bet.sofa.football_card_halves`)
+„1. / 2. połowa - [<drużyna>] liczba kartek” (`cards_points_1h_total` /
+`_1h_for` / `_2h_total` / `_2h_for`), „1. / 2. połowa - najwięcej kartek”
+(`most_cards_points_1h` / `_2h`, 1 / 2 / remis), „… - liczba kartek -
+handicap” (`handicap_cards_points_1h` / `_2h`, ±0,5), „Liczba czerwonych
+kartek <drużyna>” (`red_cards_for`), „1.połowa - liczba czerwonych kartek
+[<drużyna>]” (`red_cards_1h_total` / `_1h_for`), „<drużyna> - liczba
+przyznanych rzutów karnych” (`penalties_for`), „1.połowa - [<drużyna> -]
+liczba przyznanych rzutów karnych” (`penalties_1h_total` / `_1h_for`) i „Obie
+drużyny otrzymają czerwoną kartkę” (`both_red_cards`, Tak = OVER). Drużyna
+musi być jedną z dwóch nazw listingu Superbetu. SAMPLES nie buduje próbki
+(rynki „tylko rating”). SHEET: kartki połowy = NB na stronę o średniej
+centrum ratingu kartek całego meczu (`cards_points_for`) × as-of udział
+połowy w punktach kartek rozgrywek (ściągnięty do płci wagą 30 meczów,
+`FOOTBALL_CARD_HALVES_SHARE_M` w `UNFITTED_CONSTANTS`); r: 1. połowa Poisson,
+2. połowa 12 (dopasowane na 2025-08..2026-02); suma = splot stron,
+najwięcej / handicap z łącznego rozkładu. Czerwone / karne / obie czerwone –
+as-of częstość rozgrywek jak w rynkach z 10-14. Wiersz ma `incident_rule`
+= `card_halves_v1`. SETTLE przez `extract_metric`
+(`metrics.CARD_INCIDENT_SCOPES`): punkty kartek jak w całym meczu
+(komunikat 06/2022 sekcja 2: żółta 1, czerwona 2, wykluczenie za dwie żółte
+3), **każda kartka w połowie, w której ją pokazano** (pierwsza żółta 1 w
+swojej połowie, druga żółta = `yellowRed` 2 w swojej) – założenie, komunikat
+podziału nie opisuje; `time` ≤ 45 (z 45+N) = 1. połowa, 46..90+N = 2.;
+kartka zawodnika bez czasu meczu (−5) = `CARD_HALF_UNKNOWN`, brak oceny.
+Brak krzywej: `NO_LINE_EVIDENCE` do czasu linii Superbetu; krzywe z
+historii dopasowane i **przygotowane, nie zainstalowane**
+(`data/refit_card_halves_2026-10-21/card_halves/`). Pomiar:
+`docs/sofa/evidence/football_card_halves_2026-10-21.md`. Przy `None` OFFER,
+SAMPLES, SHEET i SETTLE są bajt w bajt jak przed zmianą
+(`tests/sofa/test_football_card_halves.py`).
+
 **Krzywe nowych rynków (zainstalowane 2026-10-15 00:17Z).** Zgoda operatora
 2026-10-14 („zbudować krzywe dla tych wszystkich rynków”); przed budową
 10-15, więc dzień nie jest mieszany. `scripts/sofa/install_new_market_curves.py

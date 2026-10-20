@@ -75,6 +75,7 @@ from bet.sofa.market_mapper import (
 )
 from bet.sofa.names import normalize_name
 from bet.sofa.tennis_rating import blend_with_price
+from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 CORRELATIONS_PATH = config_path("sofa_side_correlations.json")
 
@@ -484,7 +485,9 @@ def price_derived_rungs(
 
     by_market: dict[str, list[PricedRung]] = {}
     for rung in offer.rungs:
-        if is_derived(rung.market):
+        # a rating-only most_ / handicap_ (the card halves, epochs.
+        # FOOTBALL_CARD_HALVES) is priced by its own module, never here
+        if is_derived(rung.market) and rung.market not in RATING_ONLY_MARKETS:
             by_market.setdefault(rung.market, []).append(rung)
 
     joint_cache: dict[str, tuple[JointCounts, SideStats, SideStats, float]] = {}

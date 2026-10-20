@@ -10,6 +10,11 @@ Plan: docs/sofa/history/PLAN_KRZYWE_NOWE_RYNKI_2026-10-14.md, steps 1-4
                        lines 0.5 / 1.5) - bet.sofa.football_incidents
   tennis_sets          set1_won_for / set2_won_for (OVER / UNDER),
                        set_score (OVER, four scores) - bet.sofa.tennis_sets
+  card_halves          card points by half (totals / sides, OVER / UNDER;
+                       most / handicap OVER), red cards / penalties by side
+                       and half, both teams red (OVER / UNDER) -
+                       bet.sofa.football_card_halves (2026-10-21; rows from
+                       --card-from, the same copy as football_incidents)
 
 1. Copy (CLAUDE.md "Changing the pipeline" 4; pattern
    fit_shot_detail.make_copy): only the tables the replay reads go into
@@ -95,6 +100,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import football_card_halves as fch  # noqa: E402
 from bet.sofa import football_rating as fr  # noqa: E402
 from bet.sofa import tennis_rating as tr  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -124,6 +130,7 @@ from bet.sofa.football_incidents import (  # noqa: E402
 )
 from bet.sofa.football_result import load_config as load_result_config  # noqa: E402
 from bet.sofa.listing_index import LISTED_EVENT, LISTING_EVENT  # noqa: E402
+from bet.sofa.market_mapper import DERIVED_DRAW_SUBJECT  # noqa: E402
 from bet.sofa.tennis_sets import (  # noqa: E402
     SCORES,
     SET1_WON_FOR,
@@ -149,7 +156,7 @@ from scripts.sofa.measure_tennis_outcome_model import score_code  # noqa: E402
 TARGET = "config/sofa_confidence_calibration.json"
 PRINT_FLOOR = 0.70
 DAY = 86400
-GROUPS = ("football_incidents", "tennis_sets")
+GROUPS = ("football_incidents", "tennis_sets", "card_halves")
 # Markets whose OVER and UNDER are one question asked of either player.
 SYMMETRIC = frozenset({SET1_WON_FOR, SET2_WON_FOR})
 ROW_FIELDS = ("key", "market", "direction", "subject", "line", "p", "y",
@@ -301,6 +308,133 @@ def replay_football(history: Sequence[fr.FootballResult],
                     rows.append(_row(market, direction, "", line, p, y,
                                      res.event_id, res.ts, klass, "",
                                      res.competition_id))
+    return rows
+
+
+def card_half_keys() -> tuple[str, ...]:
+    """Every "<market>|<direction>" key the card-halves replay writes."""
+    keys: list[str] = []
+    for market in sorted(fch.MARKETS):
+        directions = (("OVER",) if market in fch.CARD_JOINT_MARKETS
+                      else ("OVER", "UNDER"))
+        keys += [direction_key(market, d) for d in directions]
+    return tuple(keys)
+
+
+def replay_card_halves(history: Sequence[fr.FootballResult],
+                       records: Mapping[int, Any], start: int, end: int
+                       ) -> list[dict[str, Any]]:
+    """One row per (match, selection) SHEET would price for the card halves
+    and the side / half events, as of the match's UTC day (the book and the
+    rates hold only earlier days' matches). `records` are
+    measure_football_card_halves.CardRec (halves = metrics.
+    calculate_cards_points_by_half; events = read_incidents, full feed)."""
+    book = fr.RatingBook(shared_league_link=True)
+    book.unit_strength_from_parent = False
+    apply_cup_strength(book, dc_fit.CUP)
+    rates = fch.CardHalfRates()
+    rows: list[dict[str, Any]] = []
+    pending: list[fr.FootballResult] = []
+    current = -1
+
+    def add(market: str, direction: str, subject: str, line: float, p: float,
+            y: int, res: fr.FootballResult, klass: str, link: str) -> None:
+        if outside_model_resolution(p):
+            return
+        rows.append(_row(market, direction, subject, line, p, y, res.event_id,
+                         res.ts, klass, link, res.competition_id))
+
+    for res in history:
+        if res.ts >= end:
+            break
+        day = res.ts - res.ts % DAY
+        if day != current:
+            for done in pending:
+                book.update(done)
+                rd = records.get(done.event_id)
+                if rd is None:
+                    continue
+                if rd.halves is not None:
+                    rates.add_cards(done.competition_id, done.women, rd.halves)
+                if (rd.reds is not None and rd.reds_1h is not None
+                        and rd.pens is not None and rd.pens_1h is not None):
+                    rates.add_events(done.competition_id, done.women, rd.reds,
+                                     rd.reds_1h, rd.pens, rd.pens_1h)
+            pending = []
+            current = day
+        pending.append(res)
+        rec = records.get(res.event_id)
+        if rec is None or res.ts < start:
+            continue
+        klass = CLASS_WOMEN if res.women else ""
+        comp = res.competition_id
+        if rec.halves is not None and res.values.get("cards_points_for") is not None:
+            fc = fr.FootballForecast(book, comp, res.home_id, res.away_id,
+                                     rated_scope=fr.RATED_SCOPE_MARKETS)
+            ca = fc.centre("cards_points_for", "side_a")
+            cb = fc.centre("cards_points_for", "side_b")
+            if ca is not None and cb is not None:
+                link = fc.fixture_link()
+                for half in (1, 2):
+                    share = rates.half_share(comp, half)
+                    if share is None:
+                        continue
+                    ya, yb = rec.halves[half - 1]
+                    tot_m = fch.CARDS_1H_TOTAL if half == 1 else fch.CARDS_2H_TOTAL
+                    for_m = fch.CARDS_1H_FOR if half == 1 else fch.CARDS_2H_FOR
+                    most_m = fch.MOST_1H if half == 1 else fch.MOST_2H
+                    hcp_m = fch.HCP_1H if half == 1 else fch.HCP_2H
+                    cen = (ca[0], cb[0])
+                    for line in fch.CARD_TOTAL_LINES[half]:
+                        p = fch.card_half_p(tot_m, None, "", line, cen, share)
+                        if p is None:
+                            continue
+                        y = int(ya + yb > line)
+                        add(tot_m, "OVER", "", line, p, y, res, klass, link)
+                        add(tot_m, "UNDER", "", line, 1 - p, 1 - y, res, klass, link)
+                    for side, val in (("side_a", ya), ("side_b", yb)):
+                        for line in fch.CARD_SIDE_LINES:
+                            p = fch.card_half_p(for_m, side, side, line, cen, share)
+                            if p is None:
+                                continue
+                            y = int(val > line)
+                            add(for_m, "OVER", side, line, p, y, res, klass, link)
+                            add(for_m, "UNDER", side, line, 1 - p, 1 - y, res,
+                                klass, link)
+                        for line in fch.HCP_LINES:
+                            p = fch.card_half_p(hcp_m, side, side, line, cen, share)
+                            if p is None:
+                                continue
+                            margin = (ya - yb) if side == "side_a" else (yb - ya)
+                            add(hcp_m, "OVER", side, line, p, int(margin > -line),
+                                res, klass, link)
+                    for subject, won in (("1", ya > yb), ("2", yb > ya),
+                                         (DERIVED_DRAW_SUBJECT, ya == yb)):
+                        p = fch.card_half_p(most_m, None, subject, 0.0, cen, share)
+                        if p is not None:
+                            add(most_m, "OVER", subject, 0.0, p, int(won), res,
+                                klass, link)
+        if (rec.reds is None or rec.reds_1h is None or rec.pens is None
+                or rec.pens_1h is None):
+            continue
+        events: list[tuple[str, str, int]] = [
+            (fch.RED_1H_TOTAL, "", sum(rec.reds_1h)),
+            (fch.PEN_1H_TOTAL, "", sum(rec.pens_1h)),
+            (fch.BOTH_RED, "", int(rec.reds[0] >= 1 and rec.reds[1] >= 1)),
+        ]
+        for i, side in ((0, "side_a"), (1, "side_b")):
+            events += [(fch.RED_FOR, side, rec.reds[i]),
+                       (fch.RED_1H_FOR, side, rec.reds_1h[i]),
+                       (fch.PEN_FOR, side, rec.pens[i]),
+                       (fch.PEN_1H_FOR, side, rec.pens_1h[i])]
+        for market, subject, value in events:
+            for line in fch.EVENT_LINES.get(market, fch.DEFAULT_EVENT_LINES):
+                p = rates.p_over(market, comp, line)
+                if p is None:
+                    continue
+                y = int(value > line)
+                add(market, "OVER", subject, line, p, y, res, klass, "")
+                add(market, "UNDER", subject, line, 1 - p, 1 - y, res, klass, "")
     return rows
 
 
@@ -606,6 +740,54 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
     return write_group(out, "football_incidents", rows, built, stamp)
 
 
+def run_card_halves(args: argparse.Namespace, source: str) -> dict[str, Any]:
+    from scripts.sofa.measure_football_card_halves import (
+        load_records as load_card_records,
+    )
+    out = Path(args.out_root) / "card_halves"
+    out.mkdir(parents=True, exist_ok=True)
+    # the football_incidents copy: incident lists + the history pickle
+    db, pkl = copy_football(source, Path(args.history),
+                            Path(args.out_root) / "football_incidents")
+    import pickle
+    _fp, history = pickle.loads(pkl.read_bytes())
+    history = list(history)
+    note(f"football history {len(history)} matches")
+    final_before = day_ts(args.final_before)
+    records = load_card_records(str(db), history)
+    rows = replay_card_halves(history, records, day_ts(args.card_from), final_before)
+    note(f"card-halves rows {len(rows)}")
+    keys = card_half_keys()
+    built = build(rows, keys, (CLASS_WOMEN,), day_ts(args.train_before),
+                  day_ts(args.holdout_to), final_before, football_usable)
+    stamp = {
+        "script": "scripts/sofa/fit_incident_set_curves.py",
+        "group": "card_halves",
+        "db_path": str(db), "history_pickle": str(pkl),
+        "history_pickle_source_mtime_utc": datetime.fromtimestamp(
+            Path(args.history).stat().st_mtime, UTC).isoformat(timespec="seconds"),
+        "source_db": source,
+        "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "rows_from": args.card_from,
+        "train_before": args.train_before, "holdout_to": args.holdout_to,
+        "final_before": args.final_before,
+        "first_row_date": min((r["date"] for r in rows), default=None),
+        "rows": len(rows), "curve_rows": sum(1 for r in rows if football_usable(r)),
+        "incident_records": len(records),
+        "estimator": ("football_card_halves.card_half_p: NB card points per "
+                      "side on FootballForecast.centre(cards_points_for) of the "
+                      "day-cut RatingBook (shared league link, cup strength, "
+                      "rated scope) x CardHalfRates.half_share (SHARE_M "
+                      f"{fch.SHARE_M:g}), r {fch.HALF_NB_R}; events "
+                      "CardHalfRates.p_over (BASE_M 30, MIN_GENDER_MATCHES 200)"),
+        "excluded_from_curves": "card rows of an UNLINKED fixture "
+                                "(CONFIDENCE refuses CROSS_LEAGUE_UNLINKED)",
+        "unfitted_constants": list(fch.UNFITTED_CONSTANTS),
+        "min_market_bucket": MIN_MARKET_BUCKET,
+    }
+    return write_group(out, "card_halves", rows, built, stamp)
+
+
 def run_tennis(args: argparse.Namespace, source: str) -> dict[str, Any]:
     out = Path(args.out_root) / "tennis_sets"
     db = copy_tennis(source, out)
@@ -665,6 +847,7 @@ GROUP_KEYS = {
         (direction_key(SET1_WON_FOR, "OVER"), direction_key(SET1_WON_FOR, "UNDER"),
          direction_key(SET2_WON_FOR, "OVER"), direction_key(SET2_WON_FOR, "UNDER"),
          direction_key(SET_SCORE, "OVER")), (CLASS_TENNIS_WOMEN,)),
+    "card_halves": (card_half_keys(), (CLASS_WOMEN,)),
 }
 
 
@@ -679,7 +862,8 @@ def regate(out_root: Path, group: str) -> dict[str, Any]:
     stamp = old["fitted_from"]
     rows = read_rows(out / "rows.csv")
     keys, classes = GROUP_KEYS[group]
-    usable = football_usable if group == GROUPS[0] else (lambda r: True)
+    usable = (football_usable if group in ("football_incidents", "card_halves")
+              else (lambda r: True))
     built = build(rows, keys, classes, day_ts(stamp["train_before"]),
                   day_ts(stamp["holdout_to"]), day_ts(stamp["final_before"]),
                   usable)
@@ -702,6 +886,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--holdout-to", default="2026-10-14")
     ap.add_argument("--final-before", default="2026-10-15")
     ap.add_argument("--tennis-from", default="2026-04-01")
+    ap.add_argument("--card-from", default="2025-08-01",
+                    help="card_halves: the first day a row is written")
     ap.add_argument("--regate", action="store_true",
                     help="no copy, no replay: re-gate the saved rows.csv")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
@@ -723,7 +909,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     for group in GROUPS:
         if args.group not in (group, "all"):
             continue
-        doc = (run_football if group == GROUPS[0] else run_tennis)(args, source)
+        runner = {"football_incidents": run_football, "tennis_sets": run_tennis,
+                  "card_halves": run_card_halves}[group]
+        doc = runner(args, source)
         summary[group] = {k: g["pass"] for k, g in doc["gate"].items()}
         note(f"{group} done ({time.time() - t0:.0f}s)")
     print(json.dumps(summary, indent=1))

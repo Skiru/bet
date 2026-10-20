@@ -37,6 +37,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
+from bet.sofa.football_card_halves import MARKETS as CARD_HALF_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
@@ -56,10 +57,12 @@ WINNER_LINE = 0.5
 # and football 1X2 / draw no bet (bet.sofa.football_1x2_dnb, epochs.
 # FOOTBALL_RESULT_1X2_DNB), and the football score markets (bet.sofa.
 # football_score_markets, epochs.FOOTBALL_SCORE_MARKETS; the tennis
-# set_score_not of TENNIS_SET_COMPLEMENTS is in SET_MARKETS).
+# set_score_not of TENNIS_SET_COMPLEMENTS is in SET_MARKETS), and the football
+# card halves / side and half red cards and penalties (bet.sofa.
+# football_card_halves, epochs.FOOTBALL_CARD_HALVES).
 RATING_ONLY_MARKETS = frozenset(
     {MATCH_WON_FOR, DOUBLE_CHANCE} | INCIDENT_MARKETS | SET_MARKETS
-    | RESULT_1X2_DNB_MARKETS | SCORE_MARKETS)
+    | RESULT_1X2_DNB_MARKETS | SCORE_MARKETS | CARD_HALF_MARKETS)
 # The sheet note a winner row carries (and the rule it was priced under).
 WINNER_NOTE = "TENNIS_MATCH_WINNER"
 

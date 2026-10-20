@@ -73,6 +73,11 @@ TOTALS: dict[str, str] = {
     "tackles_total": "Liczba odbiorów",
     "red_cards_total": "Liczba czerwonych kartek",
     "penalties_total": "Liczba przyznanych rzutów karnych",
+    # epochs.FOOTBALL_CARD_HALVES (bet.sofa.football_card_halves)
+    "cards_points_1h_total": "1. połowa - liczba kartek",
+    "cards_points_2h_total": "2. połowa - liczba kartek",
+    "red_cards_1h_total": "1.połowa - liczba czerwonych kartek",
+    "penalties_1h_total": "1.połowa - liczba przyznanych rzutów karnych",
     "games_total": "Liczba gemów",
     "games_set1_total": "1. set - liczba gemów",
     "games_set2_total": "2. set - liczba gemów",
@@ -98,6 +103,13 @@ SIDE_COUNTS: dict[str, str] = {
     "corners_1h_for": "1. połowa - {T} liczba rzutów rożnych",
     "corners_2h_for": "2. połowa - {T} liczba rzutów rożnych",
     "cards_points_for": "{T} - liczba kartek",
+    # epochs.FOOTBALL_CARD_HALVES (bet.sofa.football_card_halves)
+    "cards_points_1h_for": "1. połowa - {T} liczba kartek",
+    "cards_points_2h_for": "2. połowa - {T} liczba kartek",
+    "red_cards_for": "Liczba czerwonych kartek {T}",
+    "red_cards_1h_for": "1.połowa - liczba czerwonych kartek {T}",
+    "penalties_for": "{T} - liczba przyznanych rzutów karnych",
+    "penalties_1h_for": "1.połowa - {T} - liczba przyznanych rzutów karnych",
     "shots_on_target_for": "Liczba celnych strzałów - {T}",
     "shots_on_target_1h_for": "1. połowa - {T} liczba celnych strzałów",
     "shots_on_target_2h_for": "2. połowa - {T} liczba celnych strzałów",
@@ -394,6 +406,21 @@ def _football_tennis(leg: Mapping[str, Any], sides: Sides | None
             and line is not None and subject:
         return (STAT_VARIANT_HANDICAP[market],
                 f"{_name(subject, sides)} ({float(line):g})")
+    # epochs.FOOTBALL_CARD_HALVES: the half's most / handicap and both red
+    if market in ("most_cards_points_1h", "most_cards_points_2h") \
+            and direction == "OVER":
+        half = market[-2]
+        pick = ("remis" if subject == "__draw__"
+                else _code(subject, sides) if subject in ("1", "2") else None)
+        return (f"{half}. połowa - najwięcej kartek", pick) if pick else None
+    if market in ("handicap_cards_points_1h", "handicap_cards_points_2h") \
+            and direction == "OVER" and line is not None and subject:
+        half = market[-2]
+        return (f"{half}. połowa - liczba kartek - handicap",
+                f"{_name(subject, sides)} ({float(line):g})")
+    if market == "both_red_cards" and direction in _OU:
+        return ("Obie drużyny otrzymają czerwoną kartkę",
+                "Tak" if direction == "OVER" else "Nie")
 
     # football score markets and set_score_not: their own Superbet wording
     label = fsm.display_market(leg)

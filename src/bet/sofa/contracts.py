@@ -62,6 +62,12 @@ class GapReason(StrEnum):
     STALE_PRICE = "STALE_PRICE"
     PROVIDER_ERROR = "PROVIDER_ERROR"
     CIRCUIT_OPEN = "CIRCUIT_OPEN"
+    # epochs.FOOTBALL_CARD_HALVES (metrics.CARD_INCIDENT_SCOPES): a counted
+    # card with no match time cannot be placed in a half; an incident list
+    # that is no record of red cards / penalties (football_incidents).
+    CARD_HALF_UNKNOWN = "CARD_HALF_UNKNOWN"
+    INCIDENTS_UNREADABLE = "INCIDENTS_UNREADABLE"
+    INCIDENTS_PARTIAL_FEED = "INCIDENTS_PARTIAL_FEED"
 
 
 class BoardFixture(BaseModel):
