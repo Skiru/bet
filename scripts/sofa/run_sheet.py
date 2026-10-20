@@ -1793,6 +1793,29 @@ def set_market_rows(
     return rows, skipped
 
 
+def player_coverage_notes(subject: str, sample: Any) -> list[str]:
+    """The notes of a footballer's sample built under
+    epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC (its two name fallbacks, its
+    widened window); [] for every other sample, so a sheet built without the
+    switch is unchanged."""
+    notes: list[str] = []
+    if sample.match_rule == "transliteration":
+        notes.append(f"PLAYER_NAME_TRANSLITERATION: Superbet {subject!r} read as "
+                     f"Sofascore {sample.matched_name!r} across the Polish / "
+                     "English transliteration "
+                     "(players.match_player_by_transliteration)")
+    if sample.match_rule == "inner_surname":
+        notes.append(f"PLAYER_NAME_INNER_SURNAME: Superbet {subject!r} read as "
+                     f"Sofascore {sample.matched_name!r} by a surname inside "
+                     "the full name (players.match_player_by_inner_surname)")
+    if sample.wide_window:
+        notes.append(f"PLAYER_WIDE_WINDOW: his newest {len(sample.observations)} "
+                     f"starts in the team's last {sample.wide_window} matches - "
+                     "fewer than min_sample in the last sample_n "
+                     "(samples.coverage_player_samples)")
+    return notes
+
+
 def shot_detail_rows(
     fixture: Fixture,
     rung: PricedRung,
@@ -1872,6 +1895,7 @@ def shot_detail_rows(
             notes.append(f"PLAYER_NAME_SURNAME: Superbet {rung.subject!r} read as "
                          f"Sofascore {player_sample.matched_name!r} by surname "
                          "and first-name prefix (players.match_player_by_surname)")
+        notes.extend(player_coverage_notes(rung.subject, player_sample))
         if verdict == "LEAN":
             notes.append("SHOT_DETAIL_ONLY: no ladder check - VALUE withheld "
                          "(06_coupon.json is not the coupon)")
@@ -2256,6 +2280,7 @@ def process_fixture(
                     f"Sofascore {player_sample.matched_name!r} by surname and "
                     "first-name prefix (players.match_player_by_surname)"
                 )
+            extra_notes.extend(player_coverage_notes(rung.subject, player_sample))
         # Check if metric exists in samples
         elif rung.market not in samples.metrics:
             continue

@@ -2361,3 +2361,36 @@ def line_curves(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= LINE_CURVES_FROM_UTC.strftime("%Y-%m-%d")
             and at >= LINE_CURVES_FROM_UTC)
+
+
+# Football player-prop coverage (SAMPLES; docs/sofa/evidence/
+# football_player_coverage_2026-10-21.md). Three fixes behind one switch:
+#  (a) a missing `onTargetScoringAttempt` is proven zero by the shots
+#      decomposition WITHOUT `hitWoodwork` (players.SHOTS_IDENTITY_PARTS):
+#      213,047 of 213,047 appearing footballers close it, the old four-part
+#      identity refused the 2,116 who hit the woodwork;
+#  (b) a footballer with fewer than min_sample (5) starts in his team's last
+#      sample_n (10) matches is sampled from his newest starts (at most
+#      sample_n) in the team's last PLAYER_WIDE_SAMPLE_N (20): on the history
+#      replay 08-01..10-19 those rows realise like today's at the installed
+#      curve (-0.1 pp [-0.6, +0.5] at confidence >= 0.70, 24,531 rows) and
+#      beat pricing his 3-4 starts of the last ten (log-loss -0.034
+#      [-0.039, -0.029]);
+#  (c) two name fallbacks after the surname rule, 0 wrong men on 23,666
+#      matched (player, squad) pairs 10-12..10-20: the Polish / English
+#      transliteration (players.match_player_by_transliteration) and the
+#      surname in the middle of a full Spanish / Portuguese name
+#      (players.match_player_by_inner_surname).
+# Adds player samples: changes what prints - a day >= the date, built at or
+# after the moment. Off (None): byte-identical.
+FOOTBALL_PLAYER_COVERAGE_FROM_UTC: datetime | None = None
+
+
+def football_player_coverage(date: str, build_at: datetime | None = None) -> bool:
+    """Does SAMPLES widen a footballer's thin sample, prove a woodwork SOT
+    zero and try the two extra name rules (FOOTBALL_PLAYER_COVERAGE_FROM_UTC)?"""
+    if FOOTBALL_PLAYER_COVERAGE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_PLAYER_COVERAGE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_PLAYER_COVERAGE_FROM_UTC)

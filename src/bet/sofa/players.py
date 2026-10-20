@@ -43,6 +43,7 @@ which is why `totalOffside` is not in this table (see the note there).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from bet.sofa import shot_detail
@@ -170,8 +171,24 @@ def _statistic(stats: dict[str, Any], key: str) -> float | None:
     return float(value)
 
 
+# epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC (fix a): the shots decomposition
+# WITHOUT `hitWoodwork`. A shot off the woodwork is already counted in
+# `shotOffTarget` (or `onTargetScoringAttempt`), so adding `hitWoodwork` counts
+# it twice: over the newest 20,000 cached lineups 213,047 of 213,047 appearing
+# footballers closed `totalShots == onTarget + offTarget + blocked`, while the
+# four-part identity above failed for exactly the 2,116 whose missing
+# `onTargetScoringAttempt` sat beside a `hitWoodwork` - a provable zero
+# refused as INTERNAL_INCONSISTENT (scripts/sofa/measure_player_coverage.py
+# identity; docs/sofa/evidence/football_player_coverage_2026-10-21.md).
+SHOTS_IDENTITY_PARTS = (
+    "onTargetScoringAttempt",
+    "shotOffTarget",
+    "blockedScoringAttempt",
+)
+
+
 def extract_player_metric(
-    metric: str, stats: dict[str, Any] | None
+    metric: str, stats: dict[str, Any] | None, *, woodwork_once: bool = False
 ) -> float | GapReason:
     """One player's value for one metric in one match.
 
@@ -179,6 +196,10 @@ def extract_player_metric(
     Returns a GapReason rather than a number whenever the payload does not
     settle the question, including the case where an absent key *might* be a
     zero but the identity that would prove it does not close.
+
+    `woodwork_once` (epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC): the shots
+    identity is read without `hitWoodwork` (SHOTS_IDENTITY_PARTS), which a
+    woodwork shot is already counted in. False: the identity as configured.
     """
     config = PLAYER_METRICS.get(metric)
     if config is None:
@@ -207,6 +228,8 @@ def extract_player_metric(
     if not identity:
         return GapReason.STAT_KEY_ABSENT
     whole_key, part_keys = identity
+    if woodwork_once and whole_key == "totalShots":
+        part_keys = SHOTS_IDENTITY_PARTS
     whole = _statistic(stats, str(whole_key))
     if whole is None:
         # Without the total there is nothing to check the zero against.
@@ -514,6 +537,111 @@ def match_player_by_surname(
             continue
         short, long_ = sorted((first, tokens[0]), key=len)
         if len(short) >= PLAYER_FIRST_NAME_PREFIX_MIN and long_.startswith(short):
+            hits.append(name)
+    return hits[0] if len(hits) == 1 else None
+
+
+# epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC (fix c): Superbet writes a
+# Cyrillic name in the Polish transliteration, Sofascore in the English one -
+# "Jehor Macenko" / "Yegor Matsenko", "Wiktor Cyhankow" / "Viktor Tsygankov",
+# "Wladislaw Krasowskij" / "Vladislav Krasovskiy", "Bohdan Wjunnyk" / "Bogdan
+# Viunnyk" - and an elision mark differently ("N`Lundulu" / "N'Lundulu").
+# No similarity threshold bridges them without also bridging two team-mates
+# ("Kirian" / "Adrian Rodriguez" scored over 85 once the letters were folded),
+# so the folded names are compared only by the two rules that ask for whole
+# tokens: match_player_by_tokens and match_player_by_surname.
+_TRANSLIT_FOLD = (
+    ("szcz", "shch"), ("sz", "sh"), ("cz", "ch"), ("x", "ks"), ("w", "v"),
+    ("tz", "c"), ("ts", "c"), ("y", "i"), ("j", "i"), ("kh", "h"),
+    ("g", "h"),
+)
+
+
+def _fold_part(part: str) -> str:
+    s = normalize_name(part)
+    s = re.sub(r"\s*\(r\)$", "", s)  # a Sofascore "II" suffix, not a reserve
+    s = re.sub(r"[`'’.]", "", s)
+    for old, new in _TRANSLIT_FOLD:
+        s = s.replace(old, new)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def transliteration_key(name: str) -> str:
+    """`name` folded across the Polish / English transliteration of Cyrillic
+    and elision marks; a comma ("Surname, Given") is kept for the surname
+    rule."""
+    if "," in name:
+        sur, given = name.split(",", 1)
+        return f"{_fold_part(sur)}, {_fold_part(given)}"
+    return _fold_part(name)
+
+
+def match_player_by_transliteration(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> str | None:
+    """The one squad member the token or the surname rule finds once both
+    names are folded by transliteration_key; else None (two folded
+    candidates under one key are no answer either)."""
+    if not candidates:
+        return None
+    folded: dict[str, str] = {}
+    clash: set[str] = set()
+    for name in candidates:
+        key = transliteration_key(name)
+        if key in folded:
+            clash.add(key)
+        folded[key] = name
+    for key in clash:
+        del folded[key]
+    target = transliteration_key(superbet_name)
+    stub: dict[str, dict[str, Any]] = {key: {} for key in folded}
+    hit = match_player_by_tokens(target, stub)
+    if hit is None:
+        hit = match_player_by_surname(target, stub)
+        parts = _surname_given(target)
+        if hit is not None and parts is not None and not _given_names_agree(
+                parts[1][0], hit.split()[0]):
+            hit = None
+    return folded[hit] if hit is not None else None
+
+
+# epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC (fix c): Superbet's full Spanish /
+# Portuguese registered name puts the surname Sofascore keeps in the middle:
+# "Javier Martinez Calvo" / "Javi Martinez", "Juan Jose Sanchez Romero" /
+# "Juanjo Sanchez", "Santiago Garcia Gonzalez" / "Santi Garcia". The surname
+# rule takes Superbet's LAST token as the surname and misses them. An Arabic
+# "Abdul..." given name is no prefix ("Abdulelah" / "Abdul Rahman Al
+# Khaibari" are two men), so there the first names must be equal.
+_GIVEN_NAME_NO_PREFIX = ("abd", "abdul", "abu")
+
+
+def _given_names_agree(first: str, other: str) -> bool:
+    """One first name is a prefix of the other (PLAYER_FIRST_NAME_PREFIX_MIN
+    letters at least), never through an "Abdul..." prefix."""
+    short, long_ = sorted((first, other), key=len)
+    if short in _GIVEN_NAME_NO_PREFIX and short != long_:
+        return False
+    return len(short) >= PLAYER_FIRST_NAME_PREFIX_MIN and long_.startswith(short)
+
+
+def match_player_by_inner_surname(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> str | None:
+    """The one squad member whose LAST name token is one of the later tokens
+    of a three-or-more-token Superbet name (no comma), the first names
+    sharing a prefix of PLAYER_FIRST_NAME_PREFIX_MIN letters; else None."""
+    if "," in superbet_name or not candidates:
+        return None
+    tokens = normalize_name(superbet_name).split()
+    if len(tokens) < 3:
+        return None
+    first, later = tokens[0], set(tokens[1:])
+    hits = []
+    for name in candidates:
+        cand = normalize_name(name).split()
+        if len(cand) < 2 or cand[-1] not in later or len(cand[-1]) < 3:
+            continue
+        if _given_names_agree(first, cand[0]):
             hits.append(name)
     return hits[0] if len(hits) == 1 else None
 

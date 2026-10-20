@@ -210,7 +210,12 @@ class PlayerSample(BaseModel):
     # "tokens" its fallback players.match_player_by_tokens
     # (epochs.PLAYER_NAME_TOKENS_FROM_UTC). SETTLE grades a "tokens" sample
     # by `matched_name`, so it grades the person SAMPLES sampled.
-    match_rule: Literal["fuzzy", "tokens", "surname"] = "fuzzy"
+    # "transliteration" / "inner_surname": the two fallbacks after "surname"
+    # (epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC); SETTLE grades them by
+    # `matched_name` like "tokens".
+    match_rule: Literal[
+        "fuzzy", "tokens", "surname", "transliteration", "inner_surname"
+    ] = "fuzzy"
     # Which appearances the sample holds: "all" of them, or only his "starts"
     # (epochs.PLAYER_STARTS_ONLY_FROM_UTC) - Superbet voids the market of a
     # player who does not start, so the bet is conditional on the start.
@@ -220,6 +225,11 @@ class PlayerSample(BaseModel):
     # only on a shot-detail sample; absent from the artifact when None, so a
     # sample without it is byte-for-byte what it was.
     position: str | None = None
+    # epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC: the sample is his newest starts
+    # (at most sample_n) in this many of the team's last matches, because the
+    # last sample_n held fewer than min_sample of them
+    # (samples._widen_thin_players). Absent from the artifact when None.
+    wide_window: int | None = None
 
     @model_serializer(mode="wrap")
     def _drop_absent_position(
@@ -228,6 +238,8 @@ class PlayerSample(BaseModel):
         out: dict[str, Any] = handler(self)
         if out.get("position") is None:
             out.pop("position", None)
+        if out.get("wide_window") is None:
+            out.pop("wide_window", None)
         return out
 
 

@@ -1191,6 +1191,21 @@ Trzy pułapki, każda zamknięta w kodzie:
   „Faule na zawodniku” (`wasFouled`) domykają się z faulami rywala tylko w
   58%, więc **nie są** mapowane; „odbiory na zawodniku” nie mają klucza.
 
+**Pokrycie zawodników (`epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC`, wyłączone
+do decyzji sesji głównej; `docs/sofa/evidence/football_player_coverage_2026-10-21.md`).**
+Trzy poprawki SAMPLES pod jednym przełącznikiem: (a) strzał w słupek jest już
+policzony w `shotOffTarget`, więc zero celnych dowodzi tożsamość **bez**
+`hitWoodwork` (`players.SHOTS_IDENTITY_PARTS`; 213 047 / 213 047 grających;
+SETTLE czyta ją tak samo w dniu z przełącznikiem); (b) zawodnik z < 5 startami
+w 10 ostatnich meczach drużyny dostaje próbkę z najnowszych ≤ 10 startów w 20
+ostatnich (`samples.PLAYER_WIDE_SAMPLE_N`, `coverage_player_samples`; pole
+próbki `wide_window`, notka arkusza `PLAYER_WIDE_WINDOW`); (c) dwie reguły
+nazw po regule nazwiska - transliteracja polska / angielska („Jehor Macenko” /
+„Yegor Matsenko”, `match_rule: "transliteration"`) i nazwisko w środku
+pełnego hiszpańskiego nazwiska („Javier Martinez Calvo” / „Javi Martinez”,
+`"inner_surname"`); SETTLE ocenia je po `matched_name` jak tokeny. Replay
+historii odtwarza (a) i (b) flagą `calibrate_from_cache --player-coverage`.
+
 I ograniczenie, które decyduje o wartości całej rodziny: **Superbet kwotuje te
 rynki jednostronnie**. 437 selekcji „powyżej" i **0** „poniżej" na tablicy
 2026-09-22. Bez drugiej strony nie ma czego odvigować, `market_p` jest `None`,

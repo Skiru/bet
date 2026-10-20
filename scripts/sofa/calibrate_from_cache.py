@@ -162,6 +162,7 @@ from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
     INDEXED_HISTORY_LIMIT,
     MIN_HOURS_BETWEEN_MATCHES,
+    PLAYER_WIDE_SAMPLE_N,
     _competition_id,
     finish_history,
     one_listing_per_match,
@@ -1995,6 +1996,8 @@ def player_rows_for_event(
     player_stretch: PlayerStretchTable | None = None,
     side_supremacy: Mapping[bool, float | None] | None = None,
     on_sample: PlayerSampleHook | None = None,
+    wide_history: dict[bool, list[Squad]] | None = None,
+    sample_n: int | None = None,
 ) -> list[SettledRow]:
     """Every settled player rung of one finished match.
 
@@ -2013,7 +2016,16 @@ def player_rows_for_event(
     `on_sample`: called once per priced sample (event, is_home, player,
     metric, sample mean, n, actual) - a fit's collector
     (scripts/sofa/fit_player_stretch.py), never a row.
+
+    `wide_history` (--player-coverage, epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC;
+    with `sample_n`): each side's squads of its newest
+    samples.PLAYER_WIDE_SAMPLE_N matches. A player whose `history` sample is
+    thin (or tied, or empty) is sampled over it - his newest `sample_n`
+    values, the side found more often there - as
+    samples.coverage_player_samples does; the woodwork shot is then counted
+    once (players.SHOTS_IDENTITY_PARTS) in his sample and his outcome alike.
     """
+    woodwork_once = wide_history is not None
     tally: collections.Counter[str] = (
         counts if counts is not None else collections.Counter()
     )
@@ -2043,27 +2055,33 @@ def player_rows_for_event(
                 side: [(past, match_player(name, past)) for past in squads]
                 for side, squads in history.items()
             }
+            wide_matched = None if wide_history is None else {
+                side: [(past, match_player(name, past)) for past in squads]
+                for side, squads in wide_history.items()
+            }
             for metric, lines in ladder.items():
                 if not lines:
                     continue
-                actual = extract_player_metric(metric, stats)
+                actual = extract_player_metric(
+                    metric, stats, woodwork_once=woodwork_once)
                 if isinstance(actual, GapReason):
                     tally[f"actual_gap:{metric}"] += 1
                     continue
-                per_side: dict[bool, list[float]] = {}
-                for side, pairs in matched.items():
-                    values: list[float] = []
-                    for past, key in pairs:
-                        if key is None:
-                            continue
-                        if starts_only and started(past[key]) is False:
-                            continue
-                        value = extract_player_metric(metric, past[key])
-                        if not isinstance(value, GapReason):
-                            values.append(value)
-                    per_side[side] = values
+                per_side = _side_values(metric, matched, starts_only, woodwork_once)
                 n_home = len(per_side.get(True, []))
                 n_away = len(per_side.get(False, []))
+                if wide_matched is not None and sample_n is not None and (
+                        n_home == n_away
+                        or len(per_side[n_home > n_away]) < min_sample):
+                    wide = _side_values(metric, wide_matched, starts_only, True)
+                    w_home = len(wide.get(True, []))
+                    w_away = len(wide.get(False, []))
+                    if w_home != w_away and len(
+                            wide[w_home > w_away][:sample_n]) >= min_sample:
+                        per_side = {side: values[:sample_n]
+                                    for side, values in wide.items()}
+                        n_home, n_away = w_home, w_away
+                        tally["wide_window"] += 1
                 if n_home == n_away:
                     tally["no_sample" if n_home == 0 else "side_tie"] += 1
                     continue
@@ -2125,6 +2143,30 @@ def player_rows_for_event(
                             )
                         )
     return rows
+
+
+def _side_values(
+    metric: str,
+    matched: dict[bool, list[tuple[Squad, str | None]]],
+    starts_only: bool,
+    woodwork_once: bool,
+) -> dict[bool, list[float]]:
+    """A player's values per side, newest first: build_player_samples' loop
+    over each historical squad he was matched in."""
+    per_side: dict[bool, list[float]] = {}
+    for side, pairs in matched.items():
+        values: list[float] = []
+        for past, key in pairs:
+            if key is None:
+                continue
+            if starts_only and started(past[key]) is False:
+                continue
+            value = extract_player_metric(
+                metric, past[key], woodwork_once=woodwork_once)
+            if not isinstance(value, GapReason):
+                values.append(value)
+        per_side[side] = values
+    return per_side
 
 
 def _event_payloads(
@@ -2252,12 +2294,15 @@ def build_player_rows(
     player_stretch: PlayerStretchTable | None = None,
     football: FootballRatingReplay | None = None,
     on_sample: PlayerSampleHook | None = None,
+    coverage: bool = False,
 ) -> tuple[list[SettledRow], collections.Counter[str]]:
     """The player rows of every finished football match with a squad list
     (`starts_only`: starters' outcomes from their starts - the bet Superbet
     settles). `player_stretch` with `football` (a fresh rating replay - the
     targets are read in kickoff order for it): the shots centres carry each
-    side's supremacy term (player_rows_for_event)."""
+    side's supremacy term (player_rows_for_event). `coverage`
+    (--player-coverage): a thin player is sampled over the side's newest
+    samples.PLAYER_WIDE_SAMPLE_N matches (player_rows_for_event wide_history)."""
     if player_stretch is not None and football is None:
         raise ValueError("player_stretch needs the football rating replay")
     counts: collections.Counter[str] = collections.Counter()
@@ -2300,6 +2345,7 @@ def build_player_rows(
             kickoff = int(event["startTimestamp"])
             competition = _competition_id(event)
             history: dict[bool, list[Squad]] = {}
+            wide_history: dict[bool, list[Squad]] = {}
             for is_home in (True, False):
                 entity = int(((event.get("homeTeam" if is_home else "awayTeam")) or {})
                              .get("id") or 0)
@@ -2314,15 +2360,20 @@ def build_player_rows(
                         continue
                     admitted.append(past)
                 recent = finish_history(
-                    admitted, entity, "football", competition, kickoff, sample_n
+                    admitted, entity, "football", competition, kickoff,
+                    PLAYER_WIDE_SAMPLE_N if coverage else sample_n,
                 )
                 side_squads: list[Squad] = []
-                for past in recent:
+                wide_squads: list[Squad] = []
+                for i, past in enumerate(recent):
                     own_home = (past.get("homeTeam") or {}).get("id") == entity
                     squad = squads_of(int(past["id"]))[own_home]
                     if squad:
-                        side_squads.append(squad)
+                        wide_squads.append(squad)
+                        if i < sample_n:
+                            side_squads.append(squad)
                 history[is_home] = side_squads
+                wide_history[is_home] = wide_squads
             produced = player_rows_for_event(
                 event, squads_of(int(event["id"])), history, ladder, min_sample,
                 counts, starters_only=starts_only, starts_only=starts_only,
@@ -2330,6 +2381,8 @@ def build_player_rows(
                 side_supremacy=(supremacy.get(int(event["id"]))
                                 if player_stretch is not None else None),
                 on_sample=on_sample,
+                wide_history=wide_history if coverage else None,
+                sample_n=sample_n,
             )
             counts["targets"] += 1
             if produced:
@@ -2537,6 +2590,7 @@ def replay_players(
     rows: list[SettledRow],
     starts_only: bool = False,
     football: FootballRatingReplay | None = None,
+    coverage: bool = False,
 ) -> dict[str, Any]:
     """Append the player rows to `rows`; the summary's player metrics.
     `football` (a fresh rating replay) with CENTRE_RULES.player_stretch:
@@ -2555,12 +2609,14 @@ def replay_players(
         starts_only=starts_only,
         player_stretch=stretch if football is not None else None,
         football=football if stretch is not None else None,
+        coverage=coverage,
     )
     rows.extend(produced)
     by_market = collections.Counter(r.market for r in produced)
     return {
         "player_replay": "OK" if produced else "NO_ROWS",
         "player_starts_only": starts_only,
+        "player_coverage": coverage,
         "player_rows": len(produced),
         "player_rows_by_market": dict(sorted(by_market.items())),
         "player_ladder": ladder,
@@ -2623,6 +2679,14 @@ def main() -> int:
         "an outcome, and his sample is his starts (epochs."
         "PLAYER_STARTS_ONLY_FROM_UTC; 2026-10-11). Default off: every "
         "appearance",
+    )
+    parser.add_argument(
+        "--player-coverage",
+        action="store_true",
+        help="football player rows as SAMPLES builds them under epochs."
+        "FOOTBALL_PLAYER_COVERAGE_FROM_UTC: a player thin in the newest "
+        "sample_n is sampled over the newest samples.PLAYER_WIDE_SAMPLE_N, "
+        "a woodwork shot counted once. Default off",
     )
     parser.add_argument(
         "--derived",
@@ -2978,6 +3042,7 @@ def main() -> int:
             config,
             player_rows,
             starts_only=args.player_starts_only,
+            coverage=args.player_coverage,
             football=(FootballRatingReplay(football_history, CENTRE_RULES)
                       if player_stretch_on and football_history is not None
                       else None),
@@ -3098,6 +3163,7 @@ def main() -> int:
                 "halves": args.halves,
                 "derived": sorted(joint_bases),
                 "player_starts_only": bool(args.player_starts_only),
+                "player_coverage": bool(args.player_coverage),
             },
             "football_rating_forecasts": football.forecasts if football else None,
             "football_history_results": football.seen if football else None,

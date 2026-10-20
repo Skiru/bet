@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -58,8 +59,10 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_inner_surname,
     match_player_by_surname,
     match_player_by_tokens,
+    match_player_by_transliteration,
     player_sample_key,
     squad_statistics,
     started,
@@ -1173,6 +1176,8 @@ def build_player_samples(
     token_fallback: bool = False,
     starts_only: bool = False,
     surname_fallback: bool = False,
+    coverage: bool = False,
+    cap: int | None = None,
 ) -> dict[str, PlayerSample]:
     """One sample per (player metric, player Superbet quoted) — F54.
 
@@ -1202,12 +1207,22 @@ def build_player_samples(
     `starts_only` (epochs.player_starts_only): an appearance off the bench is
     not an observation. Superbet voids a player market unless the player
     starts, so the bet is "given that he starts" and the sample is his starts.
+
+    `coverage` (epochs.football_player_coverage): a missing shot on target is
+    proven zero without `hitWoodwork` (extract_player_metric woodwork_once),
+    and two more fallbacks follow the surname one on the same terms -
+    `match_player_by_transliteration`, then `match_player_by_inner_surname`.
+    `cap` keeps the newest `cap` observations (coverage_player_samples).
     """
     samples: dict[str, PlayerSample] = {}
+    extra: list[tuple[str, Callable[[str, dict[str, dict[str, Any]]], str | None]]] = (
+        [("transliteration", match_player_by_transliteration),
+         ("inner_surname", match_player_by_inner_surname)] if coverage else [])
     for metric, players in sorted(wanted.items()):
         for player in sorted(players):
             per_side, per_side_names, named = _player_observations(
-                metric, player, side_results, gaps, match_player, starts_only
+                metric, player, side_results, gaps, match_player, starts_only,
+                coverage,
             )
             match_rule = "fuzzy"
             matcher: Callable[[str, dict[str, dict[str, Any]]], str | None] = (
@@ -1216,7 +1231,7 @@ def build_player_samples(
                 t_gaps: list[GapEntry] = []
                 t_side, t_names, t_named = _player_observations(
                     metric, player, side_results, t_gaps, match_player_by_tokens,
-                    starts_only,
+                    starts_only, coverage,
                 )
                 answered = [s for s in ("side_a", "side_b") if t_names[s]]
                 if len(answered) == 1 and len(t_names[answered[0]]) == 1:
@@ -1241,7 +1256,7 @@ def build_player_samples(
                 s_gaps: list[GapEntry] = []
                 s_side, s_names, s_named = _player_observations(
                     metric, player, side_results, s_gaps, match_player_by_surname,
-                    starts_only,
+                    starts_only, coverage,
                 )
                 answered = [s for s in ("side_a", "side_b") if s_names[s]]
                 if len(answered) == 1 and len(s_names[answered[0]]) == 1:
@@ -1249,6 +1264,20 @@ def build_player_samples(
                     gaps.extend(s_gaps)
                     match_rule = "surname"
                     matcher = match_player_by_surname
+            for rule, fallback in extra:
+                if named:
+                    break
+                x_gaps: list[GapEntry] = []
+                x_side, x_names, x_named = _player_observations(
+                    metric, player, side_results, x_gaps, fallback, starts_only,
+                    coverage,
+                )
+                answered = [s for s in ("side_a", "side_b") if x_names[s]]
+                if len(answered) == 1 and len(x_names[answered[0]]) == 1:
+                    per_side, per_side_names, named = x_side, x_names, x_named
+                    gaps.extend(x_gaps)
+                    match_rule = rule
+                    matcher = fallback
 
             n_a, n_b = len(per_side["side_a"]), len(per_side["side_b"])
             if n_a == 0 and n_b == 0:
@@ -1281,6 +1310,8 @@ def build_player_samples(
             observations = sorted(
                 per_side[side], key=lambda o: o.match_date_utc, reverse=True
             )
+            if cap is not None:
+                observations = observations[:cap]
             sample = PlayerSample(
                 metric=metric,
                 player=player,
@@ -1296,6 +1327,102 @@ def build_player_samples(
                 sample.position = newest_position(
                     player, side_results[side], observations, matcher)
             samples[player_sample_key(metric, player)] = sample
+    return samples
+
+
+# epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC (fix b): how many of a team's
+# newest matches a thin footballer's sample may reach back over. Measured on
+# the history replay 08-01..10-19 (scripts/sofa/measure_player_coverage.py
+# window): his newest starts (at most sample_n) in the last 20 realise like
+# the rows of today's ten at the installed curve.
+PLAYER_WIDE_SAMPLE_N = 20
+
+
+def _wide_side_results(
+    client: SofascoreClient,
+    cache: SofaCache,
+    fixture: Fixture,
+    config: SofaConfig,
+    want_shotmap: bool,
+    base: dict[str, list[dict[str, Any]]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Each side's sampled matches followed by the older ones of its newest
+    PLAYER_WIDE_SAMPLE_N (squads only: no team metric is read from them),
+    through the same listing walk and finish_history as the sample. A side
+    with no older match keeps its sample."""
+    wide_config = replace(config, sample_n=PLAYER_WIDE_SAMPLE_N)
+    out: dict[str, list[dict[str, Any]]] = {}
+    for label, entity in (("side_a", fixture.home_entity_id),
+                          ("side_b", fixture.away_entity_id)):
+        results = base[label]
+        seen = {r["event_id"] for r in results}
+        oldest = min((r["match_date_utc"] for r in results), default=None)
+        older = [
+            e for e in get_historical_events(
+                client, cache, entity, fixture.sport, fixture, wide_config)
+            if e.get("id") not in seen and (
+                oldest is None
+                or datetime.fromtimestamp(e["startTimestamp"], UTC) < oldest)
+        ]
+        out[label] = results + [
+            process_historical_event(
+                client, cache, e, entity, fixture.sport, set(), fixture,
+                True, want_shotmap,
+            )
+            for e in older
+        ]
+    return out
+
+
+def coverage_player_samples(
+    wanted: dict[str, set[str]],
+    side_results: dict[str, list[dict[str, Any]]],
+    wide_results: Callable[[], dict[str, list[dict[str, Any]]]],
+    gaps: list[GapEntry],
+    *,
+    min_sample: int,
+    sample_n: int,
+    token_fallback: bool = False,
+    starts_only: bool = False,
+    surname_fallback: bool = False,
+) -> dict[str, PlayerSample]:
+    """build_player_samples under epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC.
+
+    Each quoted player is sampled as build_player_samples(coverage=True)
+    samples him. One with fewer than `min_sample` observations (or none) is
+    sampled again over his side's `wide_results()` - the sample's matches and
+    the older ones of the team's newest PLAYER_WIDE_SAMPLE_N, fetched once per
+    fixture and only when someone needs it - keeping his newest `sample_n`;
+    taken when that reaches `min_sample`, with its own gaps in place of the
+    first attempt's, and `wide_window` set to the side's history length."""
+    samples: dict[str, PlayerSample] = {}
+    wide: dict[str, list[dict[str, Any]]] | None = None
+    for metric, players in sorted(wanted.items()):
+        for player in sorted(players):
+            pair = {metric: {player}}
+            key = player_sample_key(metric, player)
+            own_gaps: list[GapEntry] = []
+            got = build_player_samples(
+                pair, side_results, own_gaps, token_fallback=token_fallback,
+                starts_only=starts_only, surname_fallback=surname_fallback,
+                coverage=True)
+            sample = got.get(key)
+            if sample is None or len(sample.observations) < min_sample:
+                if wide is None:
+                    wide = wide_results()
+                if any(len(wide[s]) > len(side_results[s]) for s in side_results):
+                    wide_gaps: list[GapEntry] = []
+                    w_got = build_player_samples(
+                        pair, wide, wide_gaps, token_fallback=token_fallback,
+                        starts_only=starts_only, surname_fallback=surname_fallback,
+                        coverage=True, cap=sample_n)
+                    w_sample = w_got.get(key)
+                    if (w_sample is not None
+                            and len(w_sample.observations) >= min_sample):
+                        w_sample.wide_window = len(wide[w_sample.side])
+                        got, own_gaps = w_got, wide_gaps
+            gaps.extend(own_gaps)
+            samples.update(got)
     return samples
 
 
@@ -1325,6 +1452,7 @@ def _player_observations(
     gaps: list[GapEntry],
     matcher: Callable[[str, dict[str, dict[str, Any]]], str | None],
     starts_only: bool = False,
+    woodwork_once: bool = False,
 ) -> tuple[dict[str, list[Observation]], dict[str, list[str]], int]:
     """One player's appearances per side under one name matcher (his starts
     only, when `starts_only`).
@@ -1347,7 +1475,8 @@ def _player_observations(
             named += 1
             if matched not in names[side]:
                 names[side].append(matched)
-            value = extract_player_metric(metric, squad[matched])
+            value = extract_player_metric(
+                metric, squad[matched], woodwork_once=woodwork_once)
             if isinstance(value, GapReason):
                 # EVENT_NOT_FINISHED here means "named in the squad, never
                 # came on" — the normal case, and not worth a gap entry per
@@ -1420,6 +1549,7 @@ def process_fixture_samples(
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
     shot_detail: bool = False,
+    player_coverage: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1435,6 +1565,7 @@ def process_fixture_samples(
             men_friendly_window=men_friendly_window,
             surname_fallback=surname_fallback,
             shot_detail=shot_detail,
+            player_coverage=player_coverage,
         )
     except CircuitOpenError as exc:
         return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1464,6 +1595,7 @@ def _process_fixture_samples(
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
     shot_detail: bool = False,
+    player_coverage: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1675,7 +1807,26 @@ def _process_fixture_samples(
         )
 
     player_samples: dict[str, PlayerSample] = {}
-    if want_lineups:
+    if want_lineups and player_coverage:
+        # epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC
+        def wide_results() -> dict[str, list[dict[str, Any]]]:
+            return _wide_side_results(
+                client, cache, fixture, config, want_shotmap,
+                {"side_a": side_a_results, "side_b": side_b_results},
+            )
+
+        player_samples = coverage_player_samples(
+            wanted_players,
+            {"side_a": side_a_results, "side_b": side_b_results},
+            wide_results,
+            gaps,
+            min_sample=config.min_sample,
+            sample_n=config.sample_n,
+            token_fallback=token_fallback,
+            starts_only=starts_only,
+            surname_fallback=surname_fallback,
+        )
+    elif want_lineups:
         player_samples = build_player_samples(
             wanted_players,
             {"side_a": side_a_results, "side_b": side_b_results},

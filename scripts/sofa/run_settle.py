@@ -47,6 +47,7 @@ from bet.sofa.confidence import (
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import GapReason
 from bet.sofa.db import get_connection, migrate
+from bet.sofa.epochs import football_player_coverage
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.football_1x2_dnb import DNB_DRAW_REFUND
 from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
@@ -72,8 +73,10 @@ from bet.sofa.players import (
     extract_player_metric,
     is_player_metric,
     match_player,
+    match_player_by_inner_surname,
     match_player_by_surname,
     match_player_by_tokens,
+    match_player_by_transliteration,
     player_sample_key,
     squad_statistics,
     started,
@@ -513,6 +516,7 @@ def _settle_player(
     own_home: bool | None = None,
     token_name: str | None = None,
     sample_name: str | None = None,
+    coverage: bool = False,
 ) -> tuple[float, str] | str:
     """Grade one player row against the fixture's own squad lists (F54).
 
@@ -534,6 +538,11 @@ def _settle_player(
     him by tokens (03_samples.json `match_rule` "tokens", `matched_name`):
     where `match_player` finds nobody in his own squad that exact name is
     graded, provided the other squad holds no candidate of either matcher.
+
+    `coverage` (epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC, judged on the day):
+    a missing shot on target is proven zero by the shots identity without
+    `hitWoodwork`, as SAMPLES proves it (players.SHOTS_IDENTITY_PARTS), and
+    the other squad is searched by SAMPLES' two extra name rules too.
 
     `sample_name` is the squad name SAMPLES sampled him under (any rule).
     When his own match squad lists neither it nor anyone either matcher
@@ -570,6 +579,9 @@ def _settle_player(
         if (
             match_player_by_tokens(subject, other) is not None
             or match_player_by_surname(subject, other) is not None
+            or (coverage and (
+                match_player_by_transliteration(subject, other) is not None
+                or match_player_by_inner_surname(subject, other) is not None))
             or best_player_score(subject, other) >= PLAYER_MATCH_THRESHOLD
         ):
             return "PLAYER_AMBIGUOUS"
@@ -598,7 +610,8 @@ def _settle_player(
         ):
             return "PLAYER_AMBIGUOUS"
     squad = squads.get(home) or {}
-    value = extract_player_metric(row["market"], squad[matched])
+    value = extract_player_metric(
+        row["market"], squad[matched], woodwork_once=coverage)
     if value is GapReason.EVENT_NOT_FINISHED:
         return "PLAYER_DID_NOT_PLAY"
     if started(squad[matched]) is False:
@@ -673,7 +686,7 @@ def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
         eid = fixture.get("sofascore_event_id")
         for key, sample in (fixture.get("players") or {}).items():
             if not isinstance(sample, dict) or sample.get("match_rule") not in (
-                    "tokens", "surname"):
+                    "tokens", "surname", "transliteration", "inner_surname"):
                 continue
             name = sample.get("matched_name")
             if isinstance(eid, int) and isinstance(name, str) and name:
@@ -1229,6 +1242,8 @@ def main() -> int:
     sides = load_player_sides(run_dir)
     token_names = load_player_token_names(run_dir)
     sample_names = load_player_sample_names(run_dir)
+    # epochs.FOOTBALL_PLAYER_COVERAGE (off: byte-identical)
+    player_coverage = football_player_coverage(args.date)
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
@@ -1413,6 +1428,7 @@ def main() -> int:
                         row, squads, player_own_home(side, fixture, event),
                         token_names.get((event_id, sample_key)),
                         sample_names.get((event_id, sample_key)),
+                        coverage=player_coverage,
                     )
                     if isinstance(graded, str):
                         skips.add(event_id, graded)

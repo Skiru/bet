@@ -29,6 +29,7 @@ from bet.sofa.contracts import (
 )
 from bet.sofa.coverage import check_coverage_floor
 from bet.sofa.epochs import (
+    football_player_coverage,
     men_friendly_sample_window,
     player_name_surname,
     player_name_tokens,
@@ -155,6 +156,7 @@ def sample_fixtures_concurrently(
     men_friendly_window: bool = False,
     surname_fallback: bool = False,
     shot_detail: bool = False,
+    player_coverage: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -191,6 +193,7 @@ def sample_fixtures_concurrently(
                 men_friendly_window=men_friendly_window,
                 surname_fallback=surname_fallback,
                 shot_detail=shot_detail,
+                player_coverage=player_coverage,
             )
             for fixture in fixtures
         ]
@@ -215,6 +218,7 @@ def sample_fixtures_concurrently(
             men_friendly_window=men_friendly_window,
             surname_fallback=surname_fallback,
             shot_detail=shot_detail,
+            player_coverage=player_coverage,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -324,6 +328,8 @@ def main() -> int:
         surname_fallback=player_name_surname(args.date),
         # epochs.SHOT_DETAIL_MARKETS (off: no shotmap asked, byte-identical)
         shot_detail=shot_detail_markets(args.date),
+        # epochs.FOOTBALL_PLAYER_COVERAGE (off: byte-identical)
+        player_coverage=football_player_coverage(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):
