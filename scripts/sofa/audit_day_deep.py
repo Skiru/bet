@@ -45,6 +45,7 @@ from bet.sofa.confidence import (  # noqa: E402
     MIN_BUILDER_SAMPLE,
     MIN_ODDS_FOR_CEILING,
     coupon_artifact,
+    derived_sample_refusal,
     is_sheet_sport,
     is_stakeable,
     line_is_beyond_sample,
@@ -54,7 +55,11 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.db import get_connection  # noqa: E402
-from bet.sofa.epochs import PLAYER_MIN_SAMPLE, PLAYER_SAMPLE_MARKER  # noqa: E402
+from bet.sofa.epochs import (  # noqa: E402
+    DERIVED_SAMPLE_MARKER,
+    PLAYER_MIN_SAMPLE,
+    PLAYER_SAMPLE_MARKER,
+)
 from bet.sofa.players import is_player_metric, player_observations  # noqa: E402
 from bet.sofa.settle import line_value  # noqa: E402
 from scripts.sofa.run_sheet import determine_side  # noqa: E402
@@ -90,6 +95,12 @@ def shape_gates_failed(
     PLAYER_MIN_SAMPLE values applies."""
     if leg.get(PLAYER_SAMPLE_MARKER):
         return ["THIN_SAMPLE_FOR_BUILDER"] if len(vals) < PLAYER_MIN_SAMPLE else []
+    # epochs.DERIVED_SAMPLE_GATES: a football joint's gate read its two
+    # sides' samples (their counts on the leg); no line / mode gate applies
+    sides = leg.get(DERIVED_SAMPLE_MARKER)
+    if isinstance(sides, list):
+        return [] if derived_sample_refusal(sides) is None else [
+            "THIN_SAMPLE_FOR_BUILDER"]
     failed = []
     if line_is_beyond_sample(line, direction, vals):
         failed.append("LINE_BEYOND_SAMPLE")

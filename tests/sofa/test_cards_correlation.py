@@ -27,11 +27,16 @@ BASELINES = {
 }
 
 
-def test_the_switch_is_off_and_the_config_still_says_null() -> None:
-    assert epochs.CARDS_CORRELATION_FROM_UTC is None
-    assert not epochs.cards_correlation_enabled("2026-10-09")
+def test_the_switch_is_on_from_10_21_and_the_config_still_says_null() -> None:
+    # operator 2026-10-21: on with DERIVED_CURVES; the config file keeps its
+    # null (the switch, not the file, adds the cards correlation)
+    assert epochs.CARDS_CORRELATION_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    assert epochs.cards_correlation_enabled(
+        "2026-10-21", datetime(2026, 10, 21, tzinfo=UTC))
     assert not epochs.cards_correlation_enabled(
-        "2030-01-01", datetime(2030, 1, 1, tzinfo=UTC))
+        "2026-10-20", datetime(2030, 1, 1, tzinfo=UTC))
+    assert not epochs.cards_correlation_enabled(
+        "2026-10-21", datetime(2026, 10, 20, 23, 59, tzinfo=UTC))
     assert json.loads(CONFIG.read_text())["cards_points"]["correlation"] is None
 
 
@@ -52,6 +57,7 @@ def test_loader_on_with_a_missing_file_still_reads_cards(tmp_path: Path) -> None
 
 
 def test_switch_dates(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(epochs, "CARDS_CORRELATION_DATE", "2026-10-09")
     monkeypatch.setattr(epochs, "CARDS_CORRELATION_FROM_UTC",
                         datetime(2026, 10, 9, tzinfo=UTC))
     at = datetime(2026, 10, 9, 7, tzinfo=UTC)
@@ -64,6 +70,8 @@ def test_switch_dates(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_rebuild_reruns_sheet_on_a_sheet_of_the_other_rule(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(epochs, "CARDS_CORRELATION_DATE", "2026-10-09")
+    monkeypatch.setattr(epochs, "CARDS_CORRELATION_FROM_UTC", None)
     at = datetime(2026, 10, 9, 7, 0, tzinfo=UTC)
     limit = timedelta(minutes=45)
     assert epochs.sheet_cards_correlation([{"cards_rule": epochs.CARDS_CORRELATION}])

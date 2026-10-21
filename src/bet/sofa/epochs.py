@@ -242,7 +242,7 @@ def derived_marginal_centres_enabled(
 # docs/sofa/evidence/derived_margins_2026-10-13.md. None = off: SHEET
 # byte-identical.
 DERIVED_SHEET_MARGINS_RULE = "derived_sheet_margins_v1"
-DERIVED_SHEET_MARGINS_FROM_UTC: datetime | None = None
+DERIVED_SHEET_MARGINS_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def derived_sheet_margins(date: str, build_at: datetime | None = None) -> bool:
@@ -333,8 +333,9 @@ def sheet_tennis_scoped_table(rows: Sequence[Mapping[str, Any]]) -> bool:
 # independent sides, byte for byte. Rows priced this way carry `cards_rule`
 # (CARDS_CORRELATION), so a rebuild re-runs SHEET on a sheet of the other rule;
 # the staged refit replays it (calibrate_from_cache --cards-correlation).
-CARDS_CORRELATION_DATE = "2026-10-09"
-CARDS_CORRELATION_FROM_UTC: datetime | None = None
+# the switch's day: a day built before it is never re-priced
+CARDS_CORRELATION_DATE = "2026-10-21"
+CARDS_CORRELATION_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 CARDS_CORRELATION = "cards_correlation"
 CARDS_CORRELATION_RHO = 0.126
 CARDS_CORRELATION_BASE = "cards_points"
@@ -591,8 +592,9 @@ def line_evidence_v2(date: str, build_at: datetime | None = None) -> bool:
 # carries the replayed joints, measured first (out of sample, against the
 # stand-in), and the operator's day. fit_line_evidence --derived-curves fits
 # the offsets against the same curve.
-DERIVED_CURVES_DATE = "2026-10-09"
-DERIVED_CURVES_FROM_UTC: datetime | None = None
+# the switch's day: a day built before it is never re-priced
+DERIVED_CURVES_DATE = "2026-10-21"
+DERIVED_CURVES_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 def derived_curves(date: str, build_at: datetime | None = None) -> bool:
@@ -600,6 +602,31 @@ def derived_curves(date: str, build_at: datetime | None = None) -> bool:
         return False
     at = build_at if build_at is not None else timeutil.now()
     return date >= DERIVED_CURVES_DATE and at >= DERIVED_CURVES_FROM_UTC
+
+
+# A derived football joint (both_over_ / most_ / handicap_) has no sample of
+# its own market in SAMPLES, so CONFIDENCE's shape gates read an empty list and
+# THIN_SAMPLE_FOR_BUILDER refused every such row (0 derived legs 10-09..10-13,
+# model-state b). From this switch the sample gate of a football derived row
+# reads its two sides' marginal samples (`derived_side_metric(base)`, side_a and
+# side_b): each side needs MIN_BUILDER_SAMPLE values, the age gates read both
+# sides; LINE_BEYOND_SAMPLE / MODE_LOSES / MODEL_ABOVE_OWN_SAMPLE do not apply
+# (a side's count does not measure the joint's line) and the leg never joins a
+# builder. Operator 2026-10-21 ("all markets must be taken into account"); on
+# together with DERIVED_CURVES / CARDS_CORRELATION / DERIVED_SHEET_MARGINS.
+# Rows lifted this way carry DERIVED_SAMPLE_MARKER.
+DERIVED_SAMPLE_GATES_FROM_UTC: datetime | None = datetime(2026, 10, 21, tzinfo=UTC)
+DERIVED_SAMPLE_MARKER = "derived_side_samples"
+
+
+def derived_sample_gates(date: str, build_at: datetime | None = None) -> bool:
+    """Does a football derived row's sample gate read its two sides'
+    marginal samples (DERIVED_SAMPLE_GATES_FROM_UTC)?"""
+    if DERIVED_SAMPLE_GATES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= DERIVED_SAMPLE_GATES_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= DERIVED_SAMPLE_GATES_FROM_UTC)
 
 
 def line_evidence(date: str, build_at: datetime | None = None) -> bool:

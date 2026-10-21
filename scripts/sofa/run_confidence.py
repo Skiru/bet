@@ -57,6 +57,7 @@ from bet.sofa.confidence import (  # noqa: E402
     coupon_artifact,
     coupon_sort_key,
     curve_market,
+    derived_sample_refusal,
     direction_key,
     disagrees_with_price,
     empirical_joint,
@@ -85,10 +86,12 @@ from bet.sofa.engine import (  # noqa: E402
     has_calibratable_model,
 )
 from bet.sofa.epochs import (  # noqa: E402
+    DERIVED_SAMPLE_MARKER,
     PLAYER_MIN_SAMPLE,
     PLAYER_SAMPLE_MARKER,
     STATS_ONLY,
     derived_curves,
+    derived_sample_gates,
     line_curves,
     line_evidence,
     line_evidence_v2,
@@ -125,6 +128,7 @@ from bet.sofa.locked_print import (  # noqa: E402
     print_history,
     started_by_evidence,
 )
+from bet.sofa.market_mapper import derived_base, derived_side_metric  # noqa: E402
 from bet.sofa.opponent_correction import gate_values, mode_values  # noqa: E402
 from bet.sofa.players import (  # noqa: E402
     is_player_metric,
@@ -313,6 +317,23 @@ def main() -> int:
                 obs.append(o)
         return obs
 
+    def derived_side_observations(
+        row: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+        """A football derived row's two sides' marginal samples
+        (epochs.DERIVED_SAMPLE_GATES): the per-side metric its base is built
+        from (`derived_side_metric`), side_a and side_b; None for any other
+        row."""
+        if not (derived_gates_on and row.get("sport") == "football"
+                and is_derived(row["market"])):
+            return None
+        base = derived_base(row["market"])
+        if base is None:
+            return None
+        fixture_samples = samples.get(row["sofascore_event_id"], {})
+        mv = (fixture_samples.get("metrics") or {}).get(derived_side_metric(base)) or {}
+        return list(mv.get("side_a") or []), list(mv.get("side_b") or [])
+
     def sample_values(
         obs: list[dict[str, Any]],
     ) -> tuple[list[float], int | None, int | None]:
@@ -376,6 +397,7 @@ def main() -> int:
 
     one_sided_ok = one_sided_singles(args.date, now)
     player_gates_off = player_sample_gates_off(args.date, now)
+    derived_gates_on = derived_sample_gates(args.date, now)
 
     def prints_as_single(leg: dict[str, Any]) -> bool:
         """A fairly priced ladder, or (epochs.ONE_SIDED_SINGLES) an admitted
@@ -798,7 +820,9 @@ def main() -> int:
             refused["NEGATIVE_LEG_EV"] += 1
             continue
 
-        observations = side_observations(row)
+        derived_sides = derived_side_observations(row)
+        observations = (derived_sides[0] + derived_sides[1]
+                        if derived_sides is not None else side_observations(row))
         values, oldest_days, newest_days = sample_values(observations)
         # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 A5 / W7): the
         # gates read the sample SHEET priced from - corrected for opponents
@@ -828,7 +852,23 @@ def main() -> int:
         # gates would have refused carries the lifted gate as its marker and
         # stays out of a builder
         lifted: str | None = None
-        if not rating_only:
+        derived_counts: list[int] | None = None
+        if derived_sides is not None:
+            # epochs.DERIVED_SAMPLE_GATES: each side's own sample must hold
+            # MIN_BUILDER_SAMPLE values; the line / mode gates do not apply
+            # (a side's count does not measure the joint's line)
+            derived_counts = [
+                sum(1 for o in side if o.get("value") is not None)
+                for side in derived_sides]
+            derived_gate = derived_sample_refusal(derived_counts)
+            if derived_gate is not None:
+                refused[derived_gate] += 1
+                continue
+            # the joint is no count of one quantity: nothing below reads
+            # these values as the leg's own sample
+            values = []
+            obs_by_match = {}
+        elif not rating_only:
             gate = shape_gate_refusal(row["line"], row["direction"], values,
                                       mode_values(row, values))
             if gate is not None and player_gates_off and player_shape_gate_scope(
@@ -951,6 +991,8 @@ def main() -> int:
                 # `overround` is None by construction (epochs.ONE_SIDED_SINGLES).
                 **({"one_sided_market": True} if key in one_sided else {}),
                 **({PLAYER_SAMPLE_MARKER: lifted} if lifted else {}),
+                **({DERIVED_SAMPLE_MARKER: derived_counts}
+                   if derived_counts is not None else {}),
                 # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
                 # sheet stamps it in `notes`, which a leg does not carry, so
                 # until 2026-09-25 both confidence artifacts and their .md
@@ -1129,6 +1171,10 @@ def main() -> int:
         # epochs.PLAYER_SAMPLE_GATES: admitted as a single on the singles'
         # measurement; a builder still needs the sample the gates ask for
         if leg.get(PLAYER_SAMPLE_MARKER):
+            continue
+        # epochs.DERIVED_SAMPLE_GATES: a joint of two sides has no
+        # observations of its own to intersect; it prints as a single
+        if leg.get(DERIVED_SAMPLE_MARKER) is not None:
             continue
         by_fixture[leg["sofascore_event_id"]].append(leg)
     for eid, group in by_fixture.items():

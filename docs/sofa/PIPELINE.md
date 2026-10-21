@@ -1170,7 +1170,7 @@ podwójne liczenie, ostrożnie).
 |---|---|---|---|---|
 | dyspersja liczników (ON od 2026-10-09 00:00Z) | `COUNT_DISPERSION_FROM_UTC` | rozrzut piłkarskich liczników z alfy dopasowanej na historii (NB na rozgrywki, `config/sofa_count_dispersion.json`; `shots_total`: normalny z wariancją łączoną) zamiast wariancji z 8-10 meczów; log-loss lepszy na 52/52 rynków (−3,8 gole, −4,1 rożne, −5,7 strzały celne, ×1e-3) | `dispersion_rule` | `--count-dispersion` |
 | tabela tenisowa (ON od 2026-10-09 00:00Z) | `TENNIS_SCOPED_TABLE_FROM_UTC` | sąsiedzi ratingu z komórki tier × płeć (tier, potem tabela wspólna, gdy komórka ma < 1200 wyników) i start ratingu `lp_t`; `games_total` −81e-4 [−90; −74] | `tennis_table_rule` | `--tennis-scoped-table`, `fit_tennis_rating.py --tier-start` |
-| korelacja kartek (**`None`, czeka na operatora**) | `CARDS_CORRELATION_FROM_UTC` | jointy kartek z korelacją stron +0,126 (dziś: niezależne); `both_over` +0,0016, `handicap` +0,0028, `most` +0,0011 | `cards_rule` | `--cards-correlation` |
+| korelacja kartek (**włączona od 2026-10-21 00:00Z** razem z `DERIVED_CURVES_FROM_UTC`, `DERIVED_SHEET_MARGINS_FROM_UTC`, `DERIVED_SAMPLE_GATES_FROM_UTC` - operator 2026-10-21: "wszystkie rynki") | `CARDS_CORRELATION_FROM_UTC` | jointy kartek z korelacją stron +0,126 (dziś: niezależne); `both_over` +0,0016, `handicap` +0,0028, `most` +0,0011 | `cards_rule` | `--cards-correlation` |
 | K na rynek (ON od 2026-10-09 00:00Z) | `PER_MARKET_K_FROM_UTC` | `K_CENTRE.by_market.football` (kartki drużyny 25, faule suma 2, strzały drużyny 8, strzały suma 5; gole zostają 15); sumy meczu −6,4e-4 | `k_rule` | `--per-market-k` |
 
 Odrzucone w tym samym przeglądzie (zob. "Zmierzone i odrzucone" w
@@ -1663,7 +1663,7 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `NEGATIVE_LEG_EV` | noga nie przebija własnej ceny (`profile.clears_price`); od 2026-10-05: pewność × kurs < 0,90, w epoce `stats_only` na świeżym kursie |
 | `LINE_BEYOND_SAMPLE` | linia leży poza wszystkim, co próbka widziała |
 | `MODE_LOSES` | wartość modalna próbki przegrywa zakład |
-| `THIN_SAMPLE_FOR_BUILDER` | mniej niż `MIN_BUILDER_SAMPLE = 10` obserwacji; wiersz zawodnika z rynku `/lineups` od 2026-10-17 (`PLAYER_SAMPLE_GATES_FROM_UTC`): mniej niż `PLAYER_MIN_SAMPLE = 5`, bez `LINE_BEYOND_SAMPLE` / `MODE_LOSES` (noga ma `player_sample_rule`) |
+| `THIN_SAMPLE_FOR_BUILDER` | mniej niż `MIN_BUILDER_SAMPLE = 10` obserwacji; wiersz pochodny piłki (`both_over_` / `most_` / `handicap_`) od 2026-10-21 (`DERIVED_SAMPLE_GATES_FROM_UTC`): każda z dwóch stron w próbie swojej metryki marginalnej (`derived_side_metric`) musi mieć >= 10 wartości, bez `LINE_BEYOND_SAMPLE` / `MODE_LOSES` / `MODEL_ABOVE_OWN_SAMPLE` (noga ma `derived_side_samples`, nie wchodzi do buildera); wiersz zawodnika z rynku `/lineups` od 2026-10-17 (`PLAYER_SAMPLE_GATES_FROM_UTC`): mniej niż `PLAYER_MIN_SAMPLE = 5`, bez `LINE_BEYOND_SAMPLE` / `MODE_LOSES` (noga ma `player_sample_rule`) |
 | `SAMPLE_CROSSES_SEASON` | najstarsza obserwacja starsza niż `MAX_BUILDER_SAMPLE_AGE_DAYS = 180` |
 | `STALE_SAMPLE` | najświeższa starsza niż `MAX_SAMPLE_AGE_DAYS = 60` — **ta sama stała co w COUPON**, celowo w jednym miejscu |
 

@@ -24,8 +24,10 @@ def test_the_switches_are_where_the_install_put_them() -> None:
     start = datetime(2026, 10, 9, 0, 0, tzinfo=UTC)
     for name in ("COUNT_DISPERSION", "TENNIS_SCOPED_TABLE", "PER_MARKET_K"):
         assert getattr(epochs, f"{name}_FROM_UTC") == start, name
-    # CARDS_CORRELATION stays off: its joints' curves are not read
-    assert epochs.CARDS_CORRELATION_FROM_UTC is None
+    # CARDS_CORRELATION on from 10-21 with the derived joints' curves
+    # (operator 2026-10-21), never on a day before it
+    assert epochs.CARDS_CORRELATION_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    assert epochs.CARDS_CORRELATION_DATE == "2026-10-21"
 
 
 def test_off_is_identical_to_the_commit_the_change_set_started_from(

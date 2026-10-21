@@ -29,7 +29,7 @@ import json
 import re
 import statistics
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -1049,6 +1049,16 @@ def shape_gate_refusal(
     if mode_loses(line, direction, values if mode_sample is None else mode_sample):
         return "MODE_LOSES"
     if len(values) < min_values:
+        return "THIN_SAMPLE_FOR_BUILDER"
+    return None
+
+
+def derived_sample_refusal(side_counts: Sequence[int]) -> str | None:
+    """epochs.DERIVED_SAMPLE_GATES: a football derived joint's sample gate
+    reads its two sides' marginal samples - each needs MIN_BUILDER_SAMPLE
+    values, else THIN_SAMPLE_FOR_BUILDER. LINE_BEYOND_SAMPLE / MODE_LOSES do
+    not apply: a side's count does not measure the joint's line."""
+    if len(side_counts) != 2 or min(side_counts) < MIN_BUILDER_SAMPLE:
         return "THIN_SAMPLE_FOR_BUILDER"
     return None
 

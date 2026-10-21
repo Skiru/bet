@@ -162,9 +162,12 @@ def test_a_thin_side_is_not_filled() -> None:
 
 def test_the_switch_reads_the_day_and_the_clock(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    assert epochs.DERIVED_SHEET_MARGINS_FROM_UTC is None
-    assert not epochs.derived_sheet_margins(
+    # operator 2026-10-21: on with DERIVED_CURVES / CARDS_CORRELATION
+    assert epochs.DERIVED_SHEET_MARGINS_FROM_UTC == datetime(2026, 10, 21, tzinfo=UTC)
+    assert epochs.derived_sheet_margins(
         "2026-12-01", datetime(2026, 12, 1, tzinfo=UTC))
+    assert not epochs.derived_sheet_margins(
+        "2026-10-20", datetime(2026, 12, 1, tzinfo=UTC))
     at = datetime(2026, 10, 15, tzinfo=UTC)
     monkeypatch.setattr(epochs, "DERIVED_SHEET_MARGINS_FROM_UTC", at)
     assert epochs.derived_sheet_margins("2026-10-15", at)
