@@ -47,3 +47,15 @@ def test_a_derived_market_without_its_own_curve_reads_no_pool() -> None:
                           ("handicap_unmeasured", "tennis"),
                           ("most_unmeasured", "football")):
         assert cal.realised(market, 0.80, sport, "OVER", None) is None
+
+
+def test_the_morning_refresh_fits_joint_offsets_against_the_curve(monkeypatch) -> None:
+    """10-21: refresh_line_evidence never passed --derived-curves, so with the
+    switch on a joint read its curve but only the sport's pooled offset."""
+    from scripts.sofa import fit_line_evidence as fle
+
+    assert fle.reads_derived_curves("2026-10-22")
+    assert not fle.reads_derived_curves("2026-10-20")
+    assert fle.reads_derived_curves("2026-10-20", flag=True)
+    monkeypatch.setattr(epochs, "DERIVED_CURVES_FROM_UTC", None)
+    assert not fle.reads_derived_curves("2026-10-22")

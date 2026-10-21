@@ -64,7 +64,7 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import cs2_day_dir  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
+from bet.sofa.epochs import STATS_ONLY_DATE, derived_curves  # noqa: E402
 from bet.sofa.line_curves import day_reads_per_line, leg_line  # noqa: E402
 from bet.sofa.shadow import SETTLED_FILE, shadow_day_dir  # noqa: E402
 
@@ -222,6 +222,14 @@ def sport_section(calibration: scf.SportCalibration) -> dict[str, dict[str, Any]
     return out
 
 
+def reads_derived_curves(before: str, flag: bool = False) -> bool:
+    """A derived joint's offsets are fitted against its history curve when the
+    --before day reads it (epochs.DERIVED_CURVES), else against none - the
+    morning refresh never passed the flag, so from the switch the joints got
+    only the sport's pooled offset."""
+    return flag or derived_curves(before)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--before", required=True, help="settled days strictly before")
@@ -229,8 +237,8 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=str(le.DEFAULT_EVIDENCE))
     ap.add_argument("--derived-curves", action="store_true",
-                    help="offsets of a derived joint against its history curve "
-                    "(epochs.DERIVED_CURVES_FROM_UTC), not against none")
+                    help="offsets of a derived joint against its history curve even "
+                    "before epochs.DERIVED_CURVES_FROM_UTC (on by itself from it)")
     ap.add_argument("--sport-calibration", default=None,
                     help="the sport curves the offsets are read against "
                     "(default: the ones the --before day reads, "
@@ -247,7 +255,9 @@ def main() -> int:
     # epochs.LINE_CURVES: the base is the curve the --before day reads, at its
     # own line where that day reads per line
     per_line = day_reads_per_line(args.before)
-    fitted = le.fit(sheet_rows(runs_dir, days, cal, args.derived_curves, per_line))
+    fitted = le.fit(sheet_rows(runs_dir, days, cal,
+                               reads_derived_curves(args.before, args.derived_curves),
+                               per_line))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     design_effect = dict(fitted["design_effect"])
