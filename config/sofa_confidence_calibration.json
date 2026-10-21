@@ -28164,6 +28164,461 @@
             "realised": 0.9326,
             "realised_lo95": 0.9129
           }
+        },
+        "both_over_corners|OVER": {
+          "0.000-0.600": {
+            "n": 10603,
+            "realised": 0.2456,
+            "realised_lo95": 0.2375
+          },
+          "0.600-0.700": {
+            "n": 1058,
+            "realised": 0.621,
+            "realised_lo95": 0.5914
+          },
+          "0.700-0.750": {
+            "n": 635,
+            "realised": 0.748,
+            "realised_lo95": 0.7128
+          },
+          "0.750-0.800": {
+            "n": 833,
+            "realised": 0.7695,
+            "realised_lo95": 0.7397
+          },
+          "0.800-0.825": {
+            "n": 439,
+            "realised": 0.7836,
+            "realised_lo95": 0.7427
+          },
+          "0.900-0.925": {
+            "n": 482,
+            "realised": 0.9232,
+            "realised_lo95": 0.896
+          },
+          "0.925-0.950": {
+            "n": 570,
+            "realised": 0.9193,
+            "realised_lo95": 0.894
+          }
+        },
+        "both_over_corners|UNDER": {
+          "0.000-0.600": {
+            "n": 7290,
+            "realised": 0.3189,
+            "realised_lo95": 0.3083
+          },
+          "0.600-0.700": {
+            "n": 1507,
+            "realised": 0.6735,
+            "realised_lo95": 0.6494
+          },
+          "0.700-0.750": {
+            "n": 805,
+            "realised": 0.7503,
+            "realised_lo95": 0.7193
+          },
+          "0.750-0.800": {
+            "n": 882,
+            "realised": 0.7937,
+            "realised_lo95": 0.7657
+          },
+          "0.800-0.825": {
+            "n": 581,
+            "realised": 0.8244,
+            "realised_lo95": 0.7914
+          },
+          "0.825-0.850": {
+            "n": 594,
+            "realised": 0.8418,
+            "realised_lo95": 0.8102
+          },
+          "0.850-0.875": {
+            "n": 679,
+            "realised": 0.8645,
+            "realised_lo95": 0.8367
+          },
+          "0.875-0.900": {
+            "n": 769,
+            "realised": 0.9103,
+            "realised_lo95": 0.888
+          },
+          "0.900-0.925": {
+            "n": 1009,
+            "realised": 0.9257,
+            "realised_lo95": 0.9078
+          },
+          "0.925-0.950": {
+            "n": 1271,
+            "realised": 0.9536,
+            "realised_lo95": 0.9406
+          }
+        },
+        "both_over_goals|UNDER": {
+          "0.000-0.600": {
+            "n": 34029,
+            "realised": 0.5072,
+            "realised_lo95": 0.5019
+          },
+          "0.600-0.700": {
+            "n": 11613,
+            "realised": 0.6323,
+            "realised_lo95": 0.6235
+          },
+          "0.700-0.750": {
+            "n": 4834,
+            "realised": 0.7718,
+            "realised_lo95": 0.7598
+          },
+          "0.750-0.800": {
+            "n": 7357,
+            "realised": 0.838,
+            "realised_lo95": 0.8294
+          },
+          "0.800-0.825": {
+            "n": 5126,
+            "realised": 0.8531,
+            "realised_lo95": 0.8431
+          },
+          "0.825-0.850": {
+            "n": 6381,
+            "realised": 0.8759,
+            "realised_lo95": 0.8676
+          },
+          "0.850-0.875": {
+            "n": 7288,
+            "realised": 0.8906,
+            "realised_lo95": 0.8833
+          },
+          "0.875-0.900": {
+            "n": 8363,
+            "realised": 0.9109,
+            "realised_lo95": 0.9046
+          },
+          "0.900-0.925": {
+            "n": 10086,
+            "realised": 0.9329,
+            "realised_lo95": 0.9278
+          },
+          "0.925-0.950": {
+            "n": 13215,
+            "realised": 0.9588,
+            "realised_lo95": 0.9552
+          }
+        },
+        "both_over_saves|UNDER": {
+          "0.000-0.600": {
+            "n": 5205,
+            "realised": 0.3274,
+            "realised_lo95": 0.3148
+          },
+          "0.600-0.700": {
+            "n": 1048,
+            "realised": 0.6498,
+            "realised_lo95": 0.6204
+          },
+          "0.700-0.750": {
+            "n": 585,
+            "realised": 0.7692,
+            "realised_lo95": 0.7334
+          },
+          "0.750-0.800": {
+            "n": 680,
+            "realised": 0.7721,
+            "realised_lo95": 0.7391
+          },
+          "0.800-0.825": {
+            "n": 423,
+            "realised": 0.8392,
+            "realised_lo95": 0.8012
+          },
+          "0.825-0.850": {
+            "n": 418,
+            "realised": 0.8493,
+            "realised_lo95": 0.8118
+          },
+          "0.850-0.875": {
+            "n": 472,
+            "realised": 0.8644,
+            "realised_lo95": 0.8306
+          },
+          "0.875-0.900": {
+            "n": 605,
+            "realised": 0.8942,
+            "realised_lo95": 0.8672
+          },
+          "0.900-0.925": {
+            "n": 714,
+            "realised": 0.9188,
+            "realised_lo95": 0.8964
+          },
+          "0.925-0.950": {
+            "n": 942,
+            "realised": 0.9384,
+            "realised_lo95": 0.9212
+          }
+        },
+        "both_over_shots_on_target|UNDER": {
+          "0.000-0.600": {
+            "n": 7134,
+            "realised": 0.3098,
+            "realised_lo95": 0.2992
+          },
+          "0.600-0.700": {
+            "n": 1396,
+            "realised": 0.6777,
+            "realised_lo95": 0.6527
+          },
+          "0.700-0.750": {
+            "n": 813,
+            "realised": 0.7478,
+            "realised_lo95": 0.7169
+          },
+          "0.750-0.800": {
+            "n": 862,
+            "realised": 0.8121,
+            "realised_lo95": 0.7846
+          },
+          "0.800-0.825": {
+            "n": 536,
+            "realised": 0.8563,
+            "realised_lo95": 0.8241
+          },
+          "0.825-0.850": {
+            "n": 598,
+            "realised": 0.8579,
+            "realised_lo95": 0.8276
+          },
+          "0.850-0.875": {
+            "n": 655,
+            "realised": 0.8824,
+            "realised_lo95": 0.8555
+          },
+          "0.875-0.900": {
+            "n": 746,
+            "realised": 0.9155,
+            "realised_lo95": 0.8934
+          },
+          "0.900-0.925": {
+            "n": 973,
+            "realised": 0.9496,
+            "realised_lo95": 0.934
+          },
+          "0.925-0.950": {
+            "n": 1256,
+            "realised": 0.9602,
+            "realised_lo95": 0.9479
+          }
+        },
+        "handicap_cards_points|OVER": {
+          "0.000-0.600": {
+            "n": 12857,
+            "realised": 0.2399,
+            "realised_lo95": 0.2326
+          },
+          "0.600-0.700": {
+            "n": 2391,
+            "realised": 0.6671,
+            "realised_lo95": 0.6479
+          },
+          "0.700-0.750": {
+            "n": 1022,
+            "realised": 0.729,
+            "realised_lo95": 0.7009
+          },
+          "0.750-0.800": {
+            "n": 973,
+            "realised": 0.776,
+            "realised_lo95": 0.7487
+          },
+          "0.800-0.825": {
+            "n": 545,
+            "realised": 0.8183,
+            "realised_lo95": 0.7838
+          },
+          "0.825-0.850": {
+            "n": 782,
+            "realised": 0.8645,
+            "realised_lo95": 0.8387
+          },
+          "0.850-0.875": {
+            "n": 898,
+            "realised": 0.863,
+            "realised_lo95": 0.839
+          },
+          "0.875-0.900": {
+            "n": 1047,
+            "realised": 0.9093,
+            "realised_lo95": 0.8903
+          },
+          "0.900-0.925": {
+            "n": 1173,
+            "realised": 0.9292,
+            "realised_lo95": 0.9131
+          },
+          "0.925-0.950": {
+            "n": 1648,
+            "realised": 0.9399,
+            "realised_lo95": 0.9274
+          }
+        },
+        "handicap_corners|OVER": {
+          "0.000-0.600": {
+            "n": 25126,
+            "realised": 0.3884,
+            "realised_lo95": 0.3824
+          },
+          "0.600-0.700": {
+            "n": 6314,
+            "realised": 0.6552,
+            "realised_lo95": 0.6434
+          },
+          "0.700-0.750": {
+            "n": 3478,
+            "realised": 0.7329,
+            "realised_lo95": 0.7179
+          },
+          "0.750-0.800": {
+            "n": 3085,
+            "realised": 0.7728,
+            "realised_lo95": 0.7577
+          },
+          "0.800-0.825": {
+            "n": 488,
+            "realised": 0.8299,
+            "realised_lo95": 0.794
+          }
+        },
+        "handicap_goals|OVER": {
+          "0.000-0.600": {
+            "n": 352189,
+            "realised": 0.2889,
+            "realised_lo95": 0.2874
+          },
+          "0.600-0.700": {
+            "n": 53889,
+            "realised": 0.6424,
+            "realised_lo95": 0.6384
+          },
+          "0.700-0.750": {
+            "n": 30441,
+            "realised": 0.7132,
+            "realised_lo95": 0.708
+          },
+          "0.750-0.800": {
+            "n": 34827,
+            "realised": 0.7673,
+            "realised_lo95": 0.7629
+          },
+          "0.800-0.825": {
+            "n": 19349,
+            "realised": 0.8073,
+            "realised_lo95": 0.8017
+          },
+          "0.825-0.850": {
+            "n": 20495,
+            "realised": 0.8295,
+            "realised_lo95": 0.8243
+          },
+          "0.850-0.875": {
+            "n": 22333,
+            "realised": 0.8594,
+            "realised_lo95": 0.8548
+          },
+          "0.875-0.900": {
+            "n": 24140,
+            "realised": 0.8862,
+            "realised_lo95": 0.8822
+          },
+          "0.900-0.925": {
+            "n": 25380,
+            "realised": 0.9088,
+            "realised_lo95": 0.9052
+          },
+          "0.925-0.950": {
+            "n": 23934,
+            "realised": 0.938,
+            "realised_lo95": 0.9349
+          }
+        },
+        "handicap_saves_1h|OVER": {
+          "0.000-0.600": {
+            "n": 7499,
+            "realised": 0.2684,
+            "realised_lo95": 0.2585
+          },
+          "0.600-0.700": {
+            "n": 1045,
+            "realised": 0.666,
+            "realised_lo95": 0.6369
+          },
+          "0.700-0.750": {
+            "n": 579,
+            "realised": 0.7133,
+            "realised_lo95": 0.6752
+          },
+          "0.750-0.800": {
+            "n": 677,
+            "realised": 0.7533,
+            "realised_lo95": 0.7195
+          },
+          "0.825-0.850": {
+            "n": 444,
+            "realised": 0.8378,
+            "realised_lo95": 0.8007
+          },
+          "0.850-0.875": {
+            "n": 536,
+            "realised": 0.847,
+            "realised_lo95": 0.8141
+          },
+          "0.875-0.900": {
+            "n": 574,
+            "realised": 0.8676,
+            "realised_lo95": 0.8374
+          },
+          "0.900-0.925": {
+            "n": 666,
+            "realised": 0.9099,
+            "realised_lo95": 0.8858
+          },
+          "0.925-0.950": {
+            "n": 828,
+            "realised": 0.9287,
+            "realised_lo95": 0.9092
+          }
+        },
+        "handicap_shots_on_target|OVER": {
+          "0.000-0.600": {
+            "n": 23088,
+            "realised": 0.3729,
+            "realised_lo95": 0.3667
+          },
+          "0.600-0.700": {
+            "n": 5354,
+            "realised": 0.6563,
+            "realised_lo95": 0.6435
+          },
+          "0.700-0.750": {
+            "n": 2956,
+            "realised": 0.73,
+            "realised_lo95": 0.7137
+          },
+          "0.750-0.800": {
+            "n": 3018,
+            "realised": 0.7704,
+            "realised_lo95": 0.755
+          },
+          "0.800-0.825": {
+            "n": 1114,
+            "realised": 0.8178,
+            "realised_lo95": 0.794
+          },
+          "0.825-0.850": {
+            "n": 574,
+            "realised": 0.8432,
+            "realised_lo95": 0.8112
+          }
         }
       },
       "thin_by_market_direction": {
@@ -34039,6 +34494,591 @@
         "FOOTBALL_INCIDENT_BASE_M"
       ],
       "min_market_bucket": 400
+    },
+    "both_over_goals_1h|UNDER@0.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_goals_1h|UNDER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_goals_2h|UNDER@0.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_goals_2h|UNDER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_goals_2h|UNDER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves_1h|UNDER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves_1h|UNDER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves|OVER@0.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves|UNDER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves|UNDER@3.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves|UNDER@4.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "both_over_saves|UNDER@5.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_1h|OVER@0.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_1h|OVER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_1h|OVER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_1h|OVER@3.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_1h|OVER@4.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_2h|OVER@0.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_2h|OVER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_2h|OVER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_2h|OVER@3.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_goals_2h|OVER@4.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves_1h|OVER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves_1h|OVER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves_1h|OVER@3.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves|OVER@1.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves|OVER@2.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves|OVER@3.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "handicap_saves|OVER@4.5": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:both_over_corners|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:both_over_corners|UNDER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:both_over_goals|UNDER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:both_over_saves|UNDER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:both_over_shots_on_target|UNDER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:handicap_cards_points|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:handicap_corners|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:handicap_goals|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:handicap_saves_1h|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
+    },
+    "women:handicap_shots_on_target|OVER": {
+      "group": "joint_curves",
+      "db_path": "/Users/mkoziol/projects/bet/data/refit_2026-10-17/sofa_replay.db",
+      "stored_rows": "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/replay_joint_rows.csv",
+      "holdout_from": "2026-09-01",
+      "holdout_to": "2026-10-14",
+      "before": "2026-10-17",
+      "fitted_at_utc": "2026-10-21T05:04:39+00:00",
+      "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+      "replay": "the installed curves' replay rows (refit 2026-10-17, --derived), women's matches only",
+      "parts": [
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/g1/joint_curves/curves.json",
+        "/Users/mkoziol/projects/bet/data/refit_joint_curves_2026-10-21/women_installed/joint_curves/curves.json"
+      ]
     }
   },
   "match_won_for_fitted_from": {
@@ -43043,6 +44083,1272 @@
           "n": 776,
           "realised": 0.9356,
           "realised_lo95": 0.9161
+        }
+      }
+    },
+    "both_over_goals_1h|UNDER": {
+      "0.5": {
+        "0.000-0.600": {
+          "n": 26752,
+          "realised": 0.7339,
+          "realised_lo95": 0.7285
+        },
+        "0.600-0.700": {
+          "n": 51036,
+          "realised": 0.7627,
+          "realised_lo95": 0.759
+        },
+        "0.700-0.750": {
+          "n": 45800,
+          "realised": 0.7794,
+          "realised_lo95": 0.7755
+        },
+        "0.750-0.800": {
+          "n": 59424,
+          "realised": 0.788,
+          "realised_lo95": 0.7847
+        },
+        "0.800-0.825": {
+          "n": 39007,
+          "realised": 0.7983,
+          "realised_lo95": 0.7943
+        },
+        "0.825-0.850": {
+          "n": 37535,
+          "realised": 0.7993,
+          "realised_lo95": 0.7952
+        },
+        "0.850-0.875": {
+          "n": 39596,
+          "realised": 0.8051,
+          "realised_lo95": 0.8011
+        },
+        "0.875-0.900": {
+          "n": 35694,
+          "realised": 0.8125,
+          "realised_lo95": 0.8084
+        },
+        "0.900-0.925": {
+          "n": 34977,
+          "realised": 0.8167,
+          "realised_lo95": 0.8126
+        },
+        "0.925-0.950": {
+          "n": 26910,
+          "realised": 0.8285,
+          "realised_lo95": 0.824
+        }
+      },
+      "1.5": {
+        "0.600-0.700": {
+          "n": 541,
+          "realised": 0.9187,
+          "realised_lo95": 0.8926
+        },
+        "0.700-0.750": {
+          "n": 720,
+          "realised": 0.9375,
+          "realised_lo95": 0.9174
+        },
+        "0.750-0.800": {
+          "n": 1702,
+          "realised": 0.9548,
+          "realised_lo95": 0.9438
+        },
+        "0.800-0.825": {
+          "n": 1622,
+          "realised": 0.9723,
+          "realised_lo95": 0.9631
+        },
+        "0.825-0.850": {
+          "n": 2561,
+          "realised": 0.9668,
+          "realised_lo95": 0.9591
+        },
+        "0.850-0.875": {
+          "n": 4737,
+          "realised": 0.9677,
+          "realised_lo95": 0.9623
+        },
+        "0.875-0.900": {
+          "n": 8512,
+          "realised": 0.9716,
+          "realised_lo95": 0.9678
+        },
+        "0.900-0.925": {
+          "n": 17055,
+          "realised": 0.9741,
+          "realised_lo95": 0.9717
+        },
+        "0.925-0.950": {
+          "n": 36511,
+          "realised": 0.9775,
+          "realised_lo95": 0.976
+        }
+      }
+    },
+    "both_over_goals_2h|UNDER": {
+      "0.5": {
+        "0.000-0.600": {
+          "n": 68211,
+          "realised": 0.6787,
+          "realised_lo95": 0.6752
+        },
+        "0.600-0.700": {
+          "n": 85923,
+          "realised": 0.7118,
+          "realised_lo95": 0.7088
+        },
+        "0.700-0.750": {
+          "n": 58970,
+          "realised": 0.7243,
+          "realised_lo95": 0.7206
+        },
+        "0.750-0.800": {
+          "n": 62068,
+          "realised": 0.7356,
+          "realised_lo95": 0.7321
+        },
+        "0.800-0.825": {
+          "n": 32848,
+          "realised": 0.7414,
+          "realised_lo95": 0.7367
+        },
+        "0.825-0.850": {
+          "n": 28062,
+          "realised": 0.748,
+          "realised_lo95": 0.7429
+        },
+        "0.850-0.875": {
+          "n": 25674,
+          "realised": 0.7508,
+          "realised_lo95": 0.7455
+        },
+        "0.875-0.900": {
+          "n": 20387,
+          "realised": 0.7566,
+          "realised_lo95": 0.7506
+        },
+        "0.900-0.925": {
+          "n": 16571,
+          "realised": 0.7692,
+          "realised_lo95": 0.7627
+        },
+        "0.925-0.950": {
+          "n": 11443,
+          "realised": 0.776,
+          "realised_lo95": 0.7683
+        }
+      },
+      "1.5": {
+        "0.000-0.600": {
+          "n": 591,
+          "realised": 0.8257,
+          "realised_lo95": 0.7931
+        },
+        "0.600-0.700": {
+          "n": 1628,
+          "realised": 0.9361,
+          "realised_lo95": 0.9232
+        },
+        "0.700-0.750": {
+          "n": 2345,
+          "realised": 0.9373,
+          "realised_lo95": 0.9268
+        },
+        "0.750-0.800": {
+          "n": 5097,
+          "realised": 0.94,
+          "realised_lo95": 0.9331
+        },
+        "0.800-0.825": {
+          "n": 4915,
+          "realised": 0.9465,
+          "realised_lo95": 0.9398
+        },
+        "0.825-0.850": {
+          "n": 7480,
+          "realised": 0.9501,
+          "realised_lo95": 0.945
+        },
+        "0.850-0.875": {
+          "n": 12263,
+          "realised": 0.9501,
+          "realised_lo95": 0.9461
+        },
+        "0.875-0.900": {
+          "n": 20210,
+          "realised": 0.9549,
+          "realised_lo95": 0.9519
+        },
+        "0.900-0.925": {
+          "n": 34746,
+          "realised": 0.9608,
+          "realised_lo95": 0.9587
+        },
+        "0.925-0.950": {
+          "n": 59796,
+          "realised": 0.9647,
+          "realised_lo95": 0.9632
+        }
+      },
+      "2.5": {
+        "0.850-0.875": {
+          "n": 493,
+          "realised": 0.9858,
+          "realised_lo95": 0.971
+        },
+        "0.875-0.900": {
+          "n": 1056,
+          "realised": 0.9934,
+          "realised_lo95": 0.9864
+        },
+        "0.900-0.925": {
+          "n": 2163,
+          "realised": 0.9917,
+          "realised_lo95": 0.9869
+        },
+        "0.925-0.950": {
+          "n": 5766,
+          "realised": 0.9932,
+          "realised_lo95": 0.9908
+        }
+      }
+    },
+    "both_over_saves_1h|UNDER": {
+      "1.5": {
+        "0.600-0.700": {
+          "n": 827,
+          "realised": 0.8283,
+          "realised_lo95": 0.8011
+        },
+        "0.700-0.750": {
+          "n": 1323,
+          "realised": 0.8624,
+          "realised_lo95": 0.8428
+        },
+        "0.750-0.800": {
+          "n": 2596,
+          "realised": 0.8552,
+          "realised_lo95": 0.8411
+        },
+        "0.800-0.825": {
+          "n": 2057,
+          "realised": 0.8415,
+          "realised_lo95": 0.8251
+        },
+        "0.825-0.850": {
+          "n": 2484,
+          "realised": 0.8539,
+          "realised_lo95": 0.8394
+        },
+        "0.850-0.875": {
+          "n": 3116,
+          "realised": 0.862,
+          "realised_lo95": 0.8494
+        },
+        "0.875-0.900": {
+          "n": 3379,
+          "realised": 0.8662,
+          "realised_lo95": 0.8543
+        },
+        "0.900-0.925": {
+          "n": 3375,
+          "realised": 0.8705,
+          "realised_lo95": 0.8588
+        },
+        "0.925-0.950": {
+          "n": 2917,
+          "realised": 0.8776,
+          "realised_lo95": 0.8652
+        }
+      },
+      "2.5": {
+        "0.875-0.900": {
+          "n": 404,
+          "realised": 0.9554,
+          "realised_lo95": 0.9307
+        },
+        "0.900-0.925": {
+          "n": 1011,
+          "realised": 0.9683,
+          "realised_lo95": 0.9557
+        },
+        "0.925-0.950": {
+          "n": 2747,
+          "realised": 0.9756,
+          "realised_lo95": 0.9691
+        }
+      }
+    },
+    "both_over_saves|OVER": {
+      "0.5": {
+        "0.000-0.600": {
+          "n": 1040,
+          "realised": 0.8202,
+          "realised_lo95": 0.7957
+        },
+        "0.600-0.700": {
+          "n": 3949,
+          "realised": 0.8283,
+          "realised_lo95": 0.8162
+        },
+        "0.700-0.750": {
+          "n": 4821,
+          "realised": 0.8455,
+          "realised_lo95": 0.835
+        },
+        "0.750-0.800": {
+          "n": 7799,
+          "realised": 0.8525,
+          "realised_lo95": 0.8445
+        },
+        "0.800-0.825": {
+          "n": 5270,
+          "realised": 0.8556,
+          "realised_lo95": 0.8458
+        },
+        "0.825-0.850": {
+          "n": 5919,
+          "realised": 0.8655,
+          "realised_lo95": 0.8566
+        },
+        "0.850-0.875": {
+          "n": 6412,
+          "realised": 0.8674,
+          "realised_lo95": 0.8589
+        },
+        "0.875-0.900": {
+          "n": 6265,
+          "realised": 0.8723,
+          "realised_lo95": 0.8638
+        },
+        "0.900-0.925": {
+          "n": 5485,
+          "realised": 0.8707,
+          "realised_lo95": 0.8616
+        },
+        "0.925-0.950": {
+          "n": 3395,
+          "realised": 0.8848,
+          "realised_lo95": 0.8737
+        }
+      }
+    },
+    "both_over_saves|UNDER": {
+      "2.5": {
+        "0.000-0.600": {
+          "n": 9317,
+          "realised": 0.6509,
+          "realised_lo95": 0.6411
+        },
+        "0.600-0.700": {
+          "n": 12239,
+          "realised": 0.6929,
+          "realised_lo95": 0.6846
+        },
+        "0.700-0.750": {
+          "n": 7940,
+          "realised": 0.7237,
+          "realised_lo95": 0.7137
+        },
+        "0.750-0.800": {
+          "n": 8451,
+          "realised": 0.7264,
+          "realised_lo95": 0.7168
+        },
+        "0.800-0.825": {
+          "n": 3824,
+          "realised": 0.7414,
+          "realised_lo95": 0.7273
+        },
+        "0.825-0.850": {
+          "n": 3409,
+          "realised": 0.7551,
+          "realised_lo95": 0.7403
+        },
+        "0.850-0.875": {
+          "n": 2712,
+          "realised": 0.7566,
+          "realised_lo95": 0.7401
+        },
+        "0.875-0.900": {
+          "n": 2088,
+          "realised": 0.783,
+          "realised_lo95": 0.7649
+        },
+        "0.900-0.925": {
+          "n": 1367,
+          "realised": 0.7886,
+          "realised_lo95": 0.7661
+        },
+        "0.925-0.950": {
+          "n": 763,
+          "realised": 0.7969,
+          "realised_lo95": 0.7669
+        }
+      },
+      "3.5": {
+        "0.000-0.600": {
+          "n": 462,
+          "realised": 0.7944,
+          "realised_lo95": 0.7552
+        },
+        "0.600-0.700": {
+          "n": 1475,
+          "realised": 0.8224,
+          "realised_lo95": 0.802
+        },
+        "0.700-0.750": {
+          "n": 2137,
+          "realised": 0.8493,
+          "realised_lo95": 0.8335
+        },
+        "0.750-0.800": {
+          "n": 4206,
+          "realised": 0.8545,
+          "realised_lo95": 0.8435
+        },
+        "0.800-0.825": {
+          "n": 3233,
+          "realised": 0.875,
+          "realised_lo95": 0.8632
+        },
+        "0.825-0.850": {
+          "n": 4188,
+          "realised": 0.8694,
+          "realised_lo95": 0.8588
+        },
+        "0.850-0.875": {
+          "n": 5351,
+          "realised": 0.88,
+          "realised_lo95": 0.871
+        },
+        "0.875-0.900": {
+          "n": 6778,
+          "realised": 0.895,
+          "realised_lo95": 0.8874
+        },
+        "0.900-0.925": {
+          "n": 7659,
+          "realised": 0.903,
+          "realised_lo95": 0.8962
+        },
+        "0.925-0.950": {
+          "n": 7820,
+          "realised": 0.9045,
+          "realised_lo95": 0.8978
+        }
+      },
+      "4.5": {
+        "0.825-0.850": {
+          "n": 636,
+          "realised": 0.9245,
+          "realised_lo95": 0.9014
+        },
+        "0.850-0.875": {
+          "n": 1213,
+          "realised": 0.9398,
+          "realised_lo95": 0.925
+        },
+        "0.875-0.900": {
+          "n": 2382,
+          "realised": 0.9534,
+          "realised_lo95": 0.9442
+        },
+        "0.900-0.925": {
+          "n": 4321,
+          "realised": 0.9549,
+          "realised_lo95": 0.9483
+        },
+        "0.925-0.950": {
+          "n": 7939,
+          "realised": 0.9607,
+          "realised_lo95": 0.9562
+        }
+      },
+      "5.5": {
+        "0.900-0.925": {
+          "n": 611,
+          "realised": 0.9771,
+          "realised_lo95": 0.9619
+        },
+        "0.925-0.950": {
+          "n": 1779,
+          "realised": 0.9826,
+          "realised_lo95": 0.9754
+        }
+      }
+    },
+    "handicap_goals_1h|OVER": {
+      "0.5": {
+        "0.000-0.600": {
+          "n": 184092,
+          "realised": 0.5867,
+          "realised_lo95": 0.5844
+        },
+        "0.600-0.700": {
+          "n": 202073,
+          "realised": 0.6772,
+          "realised_lo95": 0.6752
+        },
+        "0.700-0.750": {
+          "n": 123808,
+          "realised": 0.7086,
+          "realised_lo95": 0.7061
+        },
+        "0.750-0.800": {
+          "n": 120193,
+          "realised": 0.7321,
+          "realised_lo95": 0.7296
+        },
+        "0.800-0.825": {
+          "n": 51083,
+          "realised": 0.7493,
+          "realised_lo95": 0.7455
+        },
+        "0.825-0.850": {
+          "n": 49417,
+          "realised": 0.7545,
+          "realised_lo95": 0.7507
+        },
+        "0.850-0.875": {
+          "n": 40479,
+          "realised": 0.7669,
+          "realised_lo95": 0.7628
+        },
+        "0.875-0.900": {
+          "n": 29673,
+          "realised": 0.7878,
+          "realised_lo95": 0.7831
+        },
+        "0.900-0.925": {
+          "n": 21457,
+          "realised": 0.7962,
+          "realised_lo95": 0.7908
+        },
+        "0.925-0.950": {
+          "n": 17156,
+          "realised": 0.8039,
+          "realised_lo95": 0.7978
+        }
+      },
+      "1.5": {
+        "0.000-0.600": {
+          "n": 8195,
+          "realised": 0.6149,
+          "realised_lo95": 0.6043
+        },
+        "0.600-0.700": {
+          "n": 21297,
+          "realised": 0.7566,
+          "realised_lo95": 0.7508
+        },
+        "0.700-0.750": {
+          "n": 26580,
+          "realised": 0.8084,
+          "realised_lo95": 0.8037
+        },
+        "0.750-0.800": {
+          "n": 52944,
+          "realised": 0.8387,
+          "realised_lo95": 0.8355
+        },
+        "0.800-0.825": {
+          "n": 39443,
+          "realised": 0.8615,
+          "realised_lo95": 0.8581
+        },
+        "0.825-0.850": {
+          "n": 56627,
+          "realised": 0.8737,
+          "realised_lo95": 0.871
+        },
+        "0.850-0.875": {
+          "n": 69755,
+          "realised": 0.8874,
+          "realised_lo95": 0.885
+        },
+        "0.875-0.900": {
+          "n": 91738,
+          "realised": 0.898,
+          "realised_lo95": 0.8961
+        },
+        "0.900-0.925": {
+          "n": 110547,
+          "realised": 0.908,
+          "realised_lo95": 0.9063
+        },
+        "0.925-0.950": {
+          "n": 135585,
+          "realised": 0.9201,
+          "realised_lo95": 0.9186
+        }
+      },
+      "2.5": {
+        "0.000-0.600": {
+          "n": 749,
+          "realised": 0.5594,
+          "realised_lo95": 0.5236
+        },
+        "0.600-0.700": {
+          "n": 1910,
+          "realised": 0.7513,
+          "realised_lo95": 0.7314
+        },
+        "0.700-0.750": {
+          "n": 2628,
+          "realised": 0.7987,
+          "realised_lo95": 0.7829
+        },
+        "0.750-0.800": {
+          "n": 5831,
+          "realised": 0.8499,
+          "realised_lo95": 0.8405
+        },
+        "0.800-0.825": {
+          "n": 5544,
+          "realised": 0.882,
+          "realised_lo95": 0.8733
+        },
+        "0.825-0.850": {
+          "n": 8986,
+          "realised": 0.9024,
+          "realised_lo95": 0.8961
+        },
+        "0.850-0.875": {
+          "n": 15452,
+          "realised": 0.9184,
+          "realised_lo95": 0.914
+        },
+        "0.875-0.900": {
+          "n": 26510,
+          "realised": 0.9322,
+          "realised_lo95": 0.9291
+        },
+        "0.900-0.925": {
+          "n": 47876,
+          "realised": 0.9471,
+          "realised_lo95": 0.9451
+        },
+        "0.925-0.950": {
+          "n": 90309,
+          "realised": 0.9599,
+          "realised_lo95": 0.9586
+        }
+      },
+      "3.5": {
+        "0.700-0.750": {
+          "n": 428,
+          "realised": 0.8201,
+          "realised_lo95": 0.7809
+        },
+        "0.750-0.800": {
+          "n": 1042,
+          "realised": 0.8589,
+          "realised_lo95": 0.8365
+        },
+        "0.800-0.825": {
+          "n": 1040,
+          "realised": 0.8846,
+          "realised_lo95": 0.8638
+        },
+        "0.825-0.850": {
+          "n": 1617,
+          "realised": 0.9048,
+          "realised_lo95": 0.8895
+        },
+        "0.850-0.875": {
+          "n": 2681,
+          "realised": 0.928,
+          "realised_lo95": 0.9176
+        },
+        "0.875-0.900": {
+          "n": 5079,
+          "realised": 0.9386,
+          "realised_lo95": 0.9316
+        },
+        "0.900-0.925": {
+          "n": 10189,
+          "realised": 0.9563,
+          "realised_lo95": 0.9522
+        },
+        "0.925-0.950": {
+          "n": 25070,
+          "realised": 0.9715,
+          "realised_lo95": 0.9694
+        }
+      },
+      "4.5": {
+        "0.850-0.875": {
+          "n": 750,
+          "realised": 0.9067,
+          "realised_lo95": 0.8837
+        },
+        "0.875-0.900": {
+          "n": 1323,
+          "realised": 0.9418,
+          "realised_lo95": 0.9279
+        },
+        "0.900-0.925": {
+          "n": 2083,
+          "realised": 0.9467,
+          "realised_lo95": 0.9362
+        },
+        "0.925-0.950": {
+          "n": 3328,
+          "realised": 0.9612,
+          "realised_lo95": 0.9541
+        }
+      }
+    },
+    "handicap_goals_2h|OVER": {
+      "0.5": {
+        "0.000-0.600": {
+          "n": 235064,
+          "realised": 0.5645,
+          "realised_lo95": 0.5625
+        },
+        "0.600-0.700": {
+          "n": 215456,
+          "realised": 0.6561,
+          "realised_lo95": 0.6541
+        },
+        "0.700-0.750": {
+          "n": 117448,
+          "realised": 0.6908,
+          "realised_lo95": 0.6881
+        },
+        "0.750-0.800": {
+          "n": 105195,
+          "realised": 0.7148,
+          "realised_lo95": 0.712
+        },
+        "0.800-0.825": {
+          "n": 43407,
+          "realised": 0.7367,
+          "realised_lo95": 0.7326
+        },
+        "0.825-0.850": {
+          "n": 39444,
+          "realised": 0.7447,
+          "realised_lo95": 0.7403
+        },
+        "0.850-0.875": {
+          "n": 29528,
+          "realised": 0.7576,
+          "realised_lo95": 0.7527
+        },
+        "0.875-0.900": {
+          "n": 22092,
+          "realised": 0.7779,
+          "realised_lo95": 0.7724
+        },
+        "0.900-0.925": {
+          "n": 14762,
+          "realised": 0.7899,
+          "realised_lo95": 0.7832
+        },
+        "0.925-0.950": {
+          "n": 9314,
+          "realised": 0.8027,
+          "realised_lo95": 0.7945
+        }
+      },
+      "1.5": {
+        "0.000-0.600": {
+          "n": 14125,
+          "realised": 0.6225,
+          "realised_lo95": 0.6145
+        },
+        "0.600-0.700": {
+          "n": 35938,
+          "realised": 0.7359,
+          "realised_lo95": 0.7313
+        },
+        "0.700-0.750": {
+          "n": 41998,
+          "realised": 0.7886,
+          "realised_lo95": 0.7847
+        },
+        "0.750-0.800": {
+          "n": 75017,
+          "realised": 0.82,
+          "realised_lo95": 0.8172
+        },
+        "0.800-0.825": {
+          "n": 52177,
+          "realised": 0.839,
+          "realised_lo95": 0.8358
+        },
+        "0.825-0.850": {
+          "n": 69386,
+          "realised": 0.8566,
+          "realised_lo95": 0.854
+        },
+        "0.850-0.875": {
+          "n": 80208,
+          "realised": 0.8694,
+          "realised_lo95": 0.8671
+        },
+        "0.875-0.900": {
+          "n": 95221,
+          "realised": 0.8786,
+          "realised_lo95": 0.8765
+        },
+        "0.900-0.925": {
+          "n": 106078,
+          "realised": 0.892,
+          "realised_lo95": 0.8901
+        },
+        "0.925-0.950": {
+          "n": 111033,
+          "realised": 0.9046,
+          "realised_lo95": 0.9029
+        }
+      },
+      "2.5": {
+        "0.000-0.600": {
+          "n": 1101,
+          "realised": 0.5513,
+          "realised_lo95": 0.5218
+        },
+        "0.600-0.700": {
+          "n": 3220,
+          "realised": 0.7432,
+          "realised_lo95": 0.7278
+        },
+        "0.700-0.750": {
+          "n": 4671,
+          "realised": 0.8082,
+          "realised_lo95": 0.7966
+        },
+        "0.750-0.800": {
+          "n": 10662,
+          "realised": 0.8423,
+          "realised_lo95": 0.8353
+        },
+        "0.800-0.825": {
+          "n": 9939,
+          "realised": 0.8786,
+          "realised_lo95": 0.872
+        },
+        "0.825-0.850": {
+          "n": 15394,
+          "realised": 0.8924,
+          "realised_lo95": 0.8874
+        },
+        "0.850-0.875": {
+          "n": 24977,
+          "realised": 0.9069,
+          "realised_lo95": 0.9032
+        },
+        "0.875-0.900": {
+          "n": 41727,
+          "realised": 0.923,
+          "realised_lo95": 0.9204
+        },
+        "0.900-0.925": {
+          "n": 68880,
+          "realised": 0.9384,
+          "realised_lo95": 0.9366
+        },
+        "0.925-0.950": {
+          "n": 115307,
+          "realised": 0.9497,
+          "realised_lo95": 0.9484
+        }
+      },
+      "3.5": {
+        "0.600-0.700": {
+          "n": 450,
+          "realised": 0.7378,
+          "realised_lo95": 0.6952
+        },
+        "0.700-0.750": {
+          "n": 704,
+          "realised": 0.8068,
+          "realised_lo95": 0.776
+        },
+        "0.750-0.800": {
+          "n": 1648,
+          "realised": 0.8416,
+          "realised_lo95": 0.8232
+        },
+        "0.800-0.825": {
+          "n": 1570,
+          "realised": 0.886,
+          "realised_lo95": 0.8693
+        },
+        "0.825-0.850": {
+          "n": 2742,
+          "realised": 0.9044,
+          "realised_lo95": 0.8929
+        },
+        "0.850-0.875": {
+          "n": 4899,
+          "realised": 0.9228,
+          "realised_lo95": 0.915
+        },
+        "0.875-0.900": {
+          "n": 8668,
+          "realised": 0.9386,
+          "realised_lo95": 0.9334
+        },
+        "0.900-0.925": {
+          "n": 17489,
+          "realised": 0.9505,
+          "realised_lo95": 0.9472
+        },
+        "0.925-0.950": {
+          "n": 38890,
+          "realised": 0.9675,
+          "realised_lo95": 0.9657
+        }
+      },
+      "4.5": {
+        "0.825-0.850": {
+          "n": 654,
+          "realised": 0.9083,
+          "realised_lo95": 0.8837
+        },
+        "0.850-0.875": {
+          "n": 1107,
+          "realised": 0.9214,
+          "realised_lo95": 0.9041
+        },
+        "0.875-0.900": {
+          "n": 1776,
+          "realised": 0.9403,
+          "realised_lo95": 0.9283
+        },
+        "0.900-0.925": {
+          "n": 3340,
+          "realised": 0.953,
+          "realised_lo95": 0.9453
+        },
+        "0.925-0.950": {
+          "n": 5666,
+          "realised": 0.9629,
+          "realised_lo95": 0.9577
+        }
+      }
+    },
+    "handicap_saves_1h|OVER": {
+      "1.5": {
+        "0.000-0.600": {
+          "n": 1546,
+          "realised": 0.7257,
+          "realised_lo95": 0.703
+        },
+        "0.600-0.700": {
+          "n": 4911,
+          "realised": 0.7726,
+          "realised_lo95": 0.7606
+        },
+        "0.700-0.750": {
+          "n": 5388,
+          "realised": 0.789,
+          "realised_lo95": 0.7779
+        },
+        "0.750-0.800": {
+          "n": 8103,
+          "realised": 0.8033,
+          "realised_lo95": 0.7945
+        },
+        "0.800-0.825": {
+          "n": 4855,
+          "realised": 0.7934,
+          "realised_lo95": 0.7818
+        },
+        "0.825-0.850": {
+          "n": 5348,
+          "realised": 0.8203,
+          "realised_lo95": 0.8098
+        },
+        "0.850-0.875": {
+          "n": 5090,
+          "realised": 0.8163,
+          "realised_lo95": 0.8054
+        },
+        "0.875-0.900": {
+          "n": 4755,
+          "realised": 0.8322,
+          "realised_lo95": 0.8213
+        },
+        "0.900-0.925": {
+          "n": 4069,
+          "realised": 0.838,
+          "realised_lo95": 0.8264
+        },
+        "0.925-0.950": {
+          "n": 2949,
+          "realised": 0.8559,
+          "realised_lo95": 0.8427
+        }
+      },
+      "2.5": {
+        "0.700-0.750": {
+          "n": 666,
+          "realised": 0.8574,
+          "realised_lo95": 0.8287
+        },
+        "0.750-0.800": {
+          "n": 1572,
+          "realised": 0.881,
+          "realised_lo95": 0.8641
+        },
+        "0.800-0.825": {
+          "n": 1543,
+          "realised": 0.8995,
+          "realised_lo95": 0.8835
+        },
+        "0.825-0.850": {
+          "n": 2472,
+          "realised": 0.909,
+          "realised_lo95": 0.897
+        },
+        "0.850-0.875": {
+          "n": 3760,
+          "realised": 0.9064,
+          "realised_lo95": 0.8967
+        },
+        "0.875-0.900": {
+          "n": 5675,
+          "realised": 0.911,
+          "realised_lo95": 0.9033
+        },
+        "0.900-0.925": {
+          "n": 7465,
+          "realised": 0.9127,
+          "realised_lo95": 0.906
+        },
+        "0.925-0.950": {
+          "n": 9149,
+          "realised": 0.921,
+          "realised_lo95": 0.9153
+        }
+      },
+      "3.5": {
+        "0.850-0.875": {
+          "n": 714,
+          "realised": 0.9524,
+          "realised_lo95": 0.9342
+        },
+        "0.875-0.900": {
+          "n": 1366,
+          "realised": 0.951,
+          "realised_lo95": 0.9382
+        },
+        "0.900-0.925": {
+          "n": 2842,
+          "realised": 0.9595,
+          "realised_lo95": 0.9516
+        },
+        "0.925-0.950": {
+          "n": 5529,
+          "realised": 0.9613,
+          "realised_lo95": 0.9559
+        }
+      }
+    },
+    "handicap_saves|OVER": {
+      "1.5": {
+        "0.000-0.600": {
+          "n": 20741,
+          "realised": 0.6011,
+          "realised_lo95": 0.5944
+        },
+        "0.600-0.700": {
+          "n": 25409,
+          "realised": 0.6824,
+          "realised_lo95": 0.6766
+        },
+        "0.700-0.750": {
+          "n": 16014,
+          "realised": 0.7082,
+          "realised_lo95": 0.7011
+        },
+        "0.750-0.800": {
+          "n": 15751,
+          "realised": 0.7288,
+          "realised_lo95": 0.7218
+        },
+        "0.800-0.825": {
+          "n": 7029,
+          "realised": 0.7458,
+          "realised_lo95": 0.7355
+        },
+        "0.825-0.850": {
+          "n": 6081,
+          "realised": 0.7563,
+          "realised_lo95": 0.7453
+        },
+        "0.850-0.875": {
+          "n": 4901,
+          "realised": 0.7762,
+          "realised_lo95": 0.7643
+        },
+        "0.875-0.900": {
+          "n": 3312,
+          "realised": 0.7905,
+          "realised_lo95": 0.7763
+        },
+        "0.900-0.925": {
+          "n": 1767,
+          "realised": 0.7917,
+          "realised_lo95": 0.7722
+        },
+        "0.925-0.950": {
+          "n": 625,
+          "realised": 0.816,
+          "realised_lo95": 0.7837
+        }
+      },
+      "2.5": {
+        "0.000-0.600": {
+          "n": 4083,
+          "realised": 0.6537,
+          "realised_lo95": 0.639
+        },
+        "0.600-0.700": {
+          "n": 10355,
+          "realised": 0.7344,
+          "realised_lo95": 0.7258
+        },
+        "0.700-0.750": {
+          "n": 10569,
+          "realised": 0.7732,
+          "realised_lo95": 0.7651
+        },
+        "0.750-0.800": {
+          "n": 15544,
+          "realised": 0.7957,
+          "realised_lo95": 0.7893
+        },
+        "0.800-0.825": {
+          "n": 9554,
+          "realised": 0.8043,
+          "realised_lo95": 0.7962
+        },
+        "0.825-0.850": {
+          "n": 10228,
+          "realised": 0.8145,
+          "realised_lo95": 0.8069
+        },
+        "0.850-0.875": {
+          "n": 10252,
+          "realised": 0.8233,
+          "realised_lo95": 0.8157
+        },
+        "0.875-0.900": {
+          "n": 8667,
+          "realised": 0.8367,
+          "realised_lo95": 0.8288
+        },
+        "0.900-0.925": {
+          "n": 5964,
+          "realised": 0.8431,
+          "realised_lo95": 0.8336
+        },
+        "0.925-0.950": {
+          "n": 2469,
+          "realised": 0.8538,
+          "realised_lo95": 0.8393
+        }
+      },
+      "3.5": {
+        "0.000-0.600": {
+          "n": 587,
+          "realised": 0.6644,
+          "realised_lo95": 0.6252
+        },
+        "0.600-0.700": {
+          "n": 2278,
+          "realised": 0.7735,
+          "realised_lo95": 0.7558
+        },
+        "0.700-0.750": {
+          "n": 3348,
+          "realised": 0.8011,
+          "realised_lo95": 0.7872
+        },
+        "0.750-0.800": {
+          "n": 6788,
+          "realised": 0.8393,
+          "realised_lo95": 0.8303
+        },
+        "0.800-0.825": {
+          "n": 5534,
+          "realised": 0.8453,
+          "realised_lo95": 0.8356
+        },
+        "0.825-0.850": {
+          "n": 7411,
+          "realised": 0.8691,
+          "realised_lo95": 0.8612
+        },
+        "0.850-0.875": {
+          "n": 8770,
+          "realised": 0.8693,
+          "realised_lo95": 0.8621
+        },
+        "0.875-0.900": {
+          "n": 8927,
+          "realised": 0.8794,
+          "realised_lo95": 0.8724
+        },
+        "0.900-0.925": {
+          "n": 7087,
+          "realised": 0.886,
+          "realised_lo95": 0.8784
+        },
+        "0.925-0.950": {
+          "n": 3086,
+          "realised": 0.8986,
+          "realised_lo95": 0.8874
+        }
+      },
+      "4.5": {
+        "0.700-0.750": {
+          "n": 657,
+          "realised": 0.8189,
+          "realised_lo95": 0.7876
+        },
+        "0.750-0.800": {
+          "n": 1867,
+          "realised": 0.8704,
+          "realised_lo95": 0.8544
+        },
+        "0.800-0.825": {
+          "n": 1818,
+          "realised": 0.8685,
+          "realised_lo95": 0.8522
+        },
+        "0.825-0.850": {
+          "n": 2608,
+          "realised": 0.8934,
+          "realised_lo95": 0.881
+        },
+        "0.850-0.875": {
+          "n": 3343,
+          "realised": 0.9061,
+          "realised_lo95": 0.8957
+        },
+        "0.875-0.900": {
+          "n": 3774,
+          "realised": 0.9099,
+          "realised_lo95": 0.9004
+        },
+        "0.900-0.925": {
+          "n": 2909,
+          "realised": 0.9165,
+          "realised_lo95": 0.9059
+        },
+        "0.925-0.950": {
+          "n": 1111,
+          "realised": 0.9109,
+          "realised_lo95": 0.8927
         }
       }
     }
