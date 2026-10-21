@@ -412,13 +412,20 @@ class SofaCache:
                 }
         return None
 
-    def get_entity_miss(self, sport: str, query_key: str) -> bool:
+    def get_entity_miss(
+        self, sport: str, query_key: str, recorded_after: datetime | None = None
+    ) -> bool:
         """Did we recently look this name up and find nothing?
 
         A miss is as much a fact as a hit, and far cheaper to remember than to
         rediscover: an unknown name costs a search plus up to three listings,
         every single run, forever. Expires so that a team Sofascore adds later
         is eventually found.
+
+        ``recorded_after``: a miss recorded before it does not count - for a
+        name a newer search rule may find (a reserve side under
+        epochs.SQUAD_SEARCH_RETRY_FROM_UTC), without discarding every other
+        name's miss as a MATCH_LOGIC_VERSION bump would.
         """
         with get_connection(self.config.db_path) as conn:
             row = conn.execute(
@@ -435,6 +442,8 @@ class SofaCache:
             if row["match_logic_version"] != MATCH_LOGIC_VERSION:
                 return False
             missed_at = datetime.fromisoformat(row["missed_at"])
+            if recorded_after is not None and missed_at < recorded_after:
+                return False
             return now() - missed_at <= timedelta(
                 minutes=self.config.entity_miss_ttl_min
             )

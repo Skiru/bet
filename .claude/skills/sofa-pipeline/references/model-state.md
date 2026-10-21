@@ -279,6 +279,12 @@ Morning routine (sofa-day 1a): `backfill_referees.py --days 14 --max-minutes 8` 
 (labels the referees of new matches; the fixture's referee comes from RESOLVE /
 FIXTURE_CHECK's `/event`).
 
+### RESOLVE reserve / youth retry (2026-10-22 00:00Z; ledger group "od 10-22")
+
+| constant | what | evidence |
+|---|---|---|
+| `SQUAD_SEARCH_RETRY_FROM_UTC` | `resolve.search_query` strips our "(r)", so "Atlas U21" was searched as "atlas" and Atlas FC U21 (1111909) never reached the candidates. On: a side below the senior squad whose marker-free search matched nothing and held no candidate of its level is searched again with Superbet's name (`resolve.squad_retry_queries`: bracketed markers dropped, a name marked only "(R)" + " Reserve") and only candidates of its own level are tried (`resolve.squad_level_candidate`; the senior club never again); opponent / kickoff / orientation gates unchanged. A miss recorded before the switch does not block such a name (`SofaCache.get_entity_miss(recorded_after=)`). SHADOW_SETTLE (`record_miss=False`) reads it at once (grades only the pinned id). Measured live 2026-10-21 on the 168 distinct squad sides of the 138 football board entries RESOLVE lost 10-07..10-21 (of 1,100 with a squad side): plain search held a candidate of the side's level for 71, the retry for 25 more; RESOLVE replayed on a slim DB copy, retry off vs on: +6 fixtures, all right by eye (Reserves / U21 competitions), 0 changed, 0 lost. Not this fix: "U19" sides with no U19 result (29, 23 Italian), MLS "2" sides, "B" in the middle ("Žalgiris B Vilnius") | `scripts/sofa/measure_squad_search.py`, `docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md` |
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -602,7 +608,8 @@ Groups are never pooled.
 | "od 10-18" | none | holds no day |
 | "10-18 mieszany" | 10-18 | LINE_CURVES 12:48Z into it |
 | "od 10-19" | 10-19 .. 10-20 | LINE_CURVES from 00:00Z |
-| "od 10-21" | 10-21 .. | current; CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) |
+| "od 10-21" | 10-21 | CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) |
+| "od 10-22" | 10-22 .. | current; SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 

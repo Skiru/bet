@@ -236,6 +236,25 @@ listingu”, a nie „tej drużyny nie da się znaleźć”. Wcześniej pudło s
 jako pierwsze blokowało pytanie o znane id na siedem dni — 2026-10-01 ok. 26
 nierozpoczętych meczów tenisowych (Tien–Hurkacz), w piłce Croatia U19 i Jerash.
 
+**Rezerwy i młodzież — drugie wyszukanie** (`epochs.SQUAD_SEARCH_RETRY_FROM_UTC`,
+od 2026-10-22 00:00Z; SHADOW_SETTLE od razu). `search_query` usuwa nasz znacznik
+„(r)”, więc „Atlas U21” szło do Sofascore jako „atlas”: kandydatami zostawała
+pierwsza drużyna (Atlas FC), a „Atlas FC U21” (1111909) nie było w wynikach
+wcale. Teraz strona poniżej seniorów, której wyszukanie bez znacznika nic nie
+dopasowało i nie dało ani jednego kandydata jej poziomu, jest szukana drugi raz
+nazwą Superbetu (`squad_retry_queries`: bez nawiasowych znaczników Superbetu;
+nazwa oznaczona tylko „(R)” dostaje „ Reserve”, pisownię Sofascore), a z wyników
+próbowani są wyłącznie kandydaci jej poziomu (`squad_level_candidate`) —
+pierwsza drużyna nigdy. Bramki przeciwnika, czasu i orientacji bez zmian. Pudło
+zapisane przed przełącznikiem takiej nazwy nie blokuje. Pomiar 2026-10-21
+(`measure_squad_search.py`): 168 stron z 138 zgubionych pozycji 10-07..10-21 —
+zwykłe wyszukanie miało kandydata właściwego poziomu dla 71, drugie dla 25
+kolejnych; powtórka RESOLVE na kopii bazy: +6 meczów, wszystkie poprawne,
+0 zmienionych, 0 utraconych. Nie dotyczy nazw tłumaczonych (Ethiopian Coffee =
+Ethiopia Bunna; tu aliasy) ani stron „U19”, dla których Sofascore nie zwraca
+drużyny U19 (osobny problem). Raport:
+`docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md`.
+
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).
 **Zdrowy wskaźnik dopasowania: 72–90%.**

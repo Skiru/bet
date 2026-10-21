@@ -11,7 +11,7 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import Fixture, RefereeRecord, Sport
-from bet.sofa.names import levels_compatible, normalize_name
+from bet.sofa.names import levels_compatible, normalize_name, team_levels
 
 logger = logging.getLogger(__name__)
 
@@ -540,6 +540,45 @@ def search_query(norm_side: str) -> str:
     return _SQUAD_MARKER_SUFFIX.sub("", norm_side).strip()
 
 
+# Superbet's own bracketed markers: "(R)" reserves, "(K)" / "(W)" / "(F)"
+# women. Sofascore's search knows none of them.
+_BOARD_BRACKET_MARKER = re.compile(r"\s*\((?:r|k|w|f)\)\s*", re.IGNORECASE)
+
+
+def squad_retry_queries(side: str, norm_side: str) -> list[str]:
+    """The searches to send again for a side below the senior squad when the
+    marker-free `search_query` found no candidate of its level.
+
+    The marker is what the stripped query loses: "Atlas U21" searched as
+    "atlas" ranks the senior Atlas FC first and Atlas FC U21 (1111909) is not
+    among the results at all (2026-10-21). So the board's own name goes
+    back, with only Superbet's bracketed markers removed; a name whose only
+    marker is "(R)" ("Sport Huancayo (R)") carries no word Sofascore knows,
+    so it is searched with the word Sofascore spells reserves with
+    ("River Plate Reserve", names.normalize_name). Empty for a senior side.
+    """
+    if team_levels(norm_side) == frozenset({"S"}):
+        return []
+    base = re.sub(r"\s+", " ", _BOARD_BRACKET_MARKER.sub(" ", side)).strip()
+    if not base:
+        return []
+    if team_levels(normalize_name(base)) == frozenset({"S"}) and "(r)" in norm_side:
+        base = f"{base} Reserve"
+    return [] if base.lower() == search_query(norm_side) else [base]
+
+
+def squad_level_candidate(norm_side: str, entity: dict[str, Any]) -> bool:
+    """Is this search result a squad of the side's own non-senior level?
+
+    "atlas (r)" against Sofascore's "Atlas FC U21" (normalised "atlas fc (r)")
+    yes; against the senior "Atlas FC" no - the senior side may still fit
+    (`candidate_fits` lets a level-less name through), but it is never what
+    the retry is for."""
+    wanted = team_levels(norm_side) - {"S"}
+    have = team_levels(normalize_name(entity.get("name", ""))) - {"S"}
+    return bool(wanted & have)
+
+
 _VIRTUAL_NAME = re.compile(r"\((?:cyber|e-?sports?|virtual)\)", re.IGNORECASE)
 
 
@@ -1009,6 +1048,17 @@ class SofaResolver:
 
         cached = self.cache.get_entity(sport, norm_side)
         verified = bool(cached and cached["status"] == "verified")
+
+        from bet.sofa import epochs
+
+        # SHADOW_SETTLE (record_miss=False) grades only the pinned id, so it
+        # reads the squad retry at once; RESOLVE from the switch's day.
+        retry_queries = (
+            squad_retry_queries(side, norm_side)
+            if not record_miss or epochs.squad_search_retry(
+                kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d"))
+            else []
+        )
         # A name we recently failed to resolve costs a search plus up to three
         # listings. Paying that again every run, forever, was ~20% of the
         # request budget spent re-learning the same negative fact.
@@ -1018,7 +1068,14 @@ class SofaResolver:
         # it stopped RESOLVE asking the known id for seven days - on
         # 2026-10-01 ~26 tennis matches that had not started (Tien-Hurkacz),
         # and Croatia U19 / Jerash in football.
-        if not verified and self.cache.get_entity_miss(sport, norm_side):
+        #
+        # A miss the marker-free search recorded before the squad retry
+        # existed is evidence about the old search, not about the name.
+        if not verified and (
+            self.cache.get_entity_miss(sport, norm_side,
+                                       recorded_after=epochs.SQUAD_SEARCH_RETRY_FROM_UTC)
+            if retry_queries else self.cache.get_entity_miss(sport, norm_side)
+        ):
             return None, None, False
 
         scoped = sport in SPORT_SCOPED_SEARCH and bool(board_side_a or board_side_b)
@@ -1061,8 +1118,6 @@ class SofaResolver:
                 method = method_of(e, cached["sofascore_id"])
                 if method is not None:
                     return cached["sofascore_id"], tagged(e, method), False
-            from bet.sofa import epochs
-
             if sport == "football" and epochs.football_day_anchor(
                     kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")):
                 opp = self.cache.get_entity(sport, norm_opp)
@@ -1075,35 +1130,58 @@ class SofaResolver:
                 if anchored is not None:
                     return cached["sofascore_id"], anchored, False
 
+        def search(q: str) -> Any:
+            if sport in SPORT_SCOPED_SEARCH:
+                return self.client.search(q, sport=sport)
+            return self.client.search(q)
+
+        def fitting(data: Any, keep: Any) -> list[dict[str, Any]]:
+            found: list[dict[str, Any]] = []
+            for r in (data or {}).get("results") or []:
+                if (
+                    r.get("type") == "team"
+                    and r.get("entity", {}).get("sport", {}).get("slug") == sport
+                    and candidate_fits(norm_side, r["entity"], sport)
+                    and keep(r["entity"])
+                ):
+                    found.append(r["entity"])
+                if len(found) == 3:
+                    break
+            return found
+
         # Miss -> search/all
-        if sport in SPORT_SCOPED_SEARCH:
-            search_data = self.client.search(search_query(norm_side), sport=sport)
-        else:
-            search_data = self.client.search(search_query(norm_side))
-        if not search_data or "results" not in search_data:
+        search_data = search(search_query(norm_side))
+        if (not search_data or "results" not in search_data) and not retry_queries:
             if record_miss and not verified:
                 self.cache.save_entity_miss(sport, norm_side)
             return None, None, False
 
-        candidates = []
-        for r in search_data["results"]:
-            if (
-                r.get("type") == "team"
-                and r.get("entity", {}).get("sport", {}).get("slug") == sport
-                and candidate_fits(norm_side, r["entity"], sport)
-            ):
-                candidates.append(r["entity"])
-            if len(candidates) == 3:
-                break
+        candidates = fitting(search_data, lambda _e: True)
 
         matching_events: list[tuple[dict[str, Any], dict[str, Any], str]] = []
 
-        for cand in candidates:
-            events = self._fetch_events(cand["id"], sport)
-            for e in events:
-                method = method_of(e, cand.get("id"))
-                if method is not None:
-                    matching_events.append((cand, e, method))
+        def try_candidates(cands: list[dict[str, Any]]) -> None:
+            for cand in cands:
+                events = self._fetch_events(cand["id"], sport)
+                for e in events:
+                    method = method_of(e, cand.get("id"))
+                    if method is not None:
+                        matching_events.append((cand, e, method))
+
+        try_candidates(candidates)
+
+        # epochs.SQUAD_SEARCH_RETRY_FROM_UTC: a reserve / youth side the
+        # marker-free search did not find, with no candidate of its level
+        # among the results, is searched again by the board's name; only
+        # candidates of its own level are tried, never the senior club again.
+        if (retry_queries and not matching_events
+                and not any(squad_level_candidate(norm_side, c) for c in candidates)):
+            tried = {c.get("id") for c in candidates}
+            for q in retry_queries:
+                extra = fitting(search(q), lambda e: e.get("id") not in tried
+                                and squad_level_candidate(norm_side, e))
+                tried.update(c.get("id") for c in extra)
+                try_candidates(extra)
 
         def remember(cand: dict[str, Any], method: str) -> None:
             # Only a match both names confirmed makes the searched name a

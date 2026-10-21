@@ -2610,3 +2610,33 @@ def football_card_halves_terms(date: str, build_at: datetime | None = None) -> b
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_CARD_HALVES_TERMS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_CARD_HALVES_TERMS_FROM_UTC)
+
+
+# --- RESOLVE: a reserve / youth side searched again by its board name
+# (2026-10-21) ---------------------------------------------------------------
+# resolve.search_query strips our "(r)" marker, so "Atlas U21" was searched as
+# "atlas", the senior Atlas FC filled the candidates and Atlas FC U21
+# (1111909) never reached them. On: a side below the senior squad whose
+# marker-free search matched nothing and held no candidate of its level is
+# searched again with Superbet's name (resolve.squad_retry_queries) and only
+# candidates of its own level are tried (resolve.squad_level_candidate); the
+# fixture still needs the opponent and the kickoff, as every pair does.
+# Measured live 2026-10-21 (scripts/sofa/measure_squad_search.py) on the 168
+# distinct squad sides of 138 football board entries RESOLVE lost 10-07..10-21:
+# the plain search held a candidate of the side's level for 71, the retry for
+# 25 more; RESOLVE replayed on a DB copy, retry off vs on: +6 fixtures, each
+# right by eye, 0 changed, 0 lost. Adds fixtures (and what prints), so from the next day's 00:00Z;
+# SHADOW_SETTLE (resolve_entity with record_miss=False) reads it at once - a
+# settle grades only the pinned id. Evidence:
+# docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md.
+SQUAD_SEARCH_RETRY_FROM_UTC: datetime | None = datetime(2026, 10, 22, tzinfo=UTC)
+
+
+def squad_search_retry(date: str, build_at: datetime | None = None) -> bool:
+    """Does RESOLVE search a reserve / youth side again by its board name
+    (SQUAD_SEARCH_RETRY_FROM_UTC)?"""
+    if SQUAD_SEARCH_RETRY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= SQUAD_SEARCH_RETRY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= SQUAD_SEARCH_RETRY_FROM_UTC)
