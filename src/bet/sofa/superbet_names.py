@@ -343,6 +343,66 @@ def _hcp(side: str, line: Any, sides: Sides | None) -> str | None:
     return f"{sides[0 if side == 'T1' else 1]} ({own:g})"
 
 
+# Football derived joints (epochs.DERIVED_SAMPLE_GATES, 2026-10-21) in the
+# words market_mapper.classify_derived_market reads them from (the Superbet
+# names its tests hold); a family whose screen name is not on record (fouls,
+# offsides, saves in a half, shots-on-target handicap) keeps its old label.
+_BOTH_OVER_NAMES = {
+    "corners": "rzutów rożnych", "cards_points": "kartek",
+    "shots_on_target": "celnych strzałów", "shots": "strzałów",
+    "saves": "obronionych strzałów przez bramkarza",
+}
+_MOST_NAMES = {
+    "cards_points": "Najwięcej kartek", "shots": "Najwięcej strzałów",
+    "shots_on_target": "Najwięcej celnych strzałów",
+    "corners": "Liczba rzutów rożnych - H2H",
+    "corners_1h": "1. połowa - najwięcej rzutów rożnych",
+    "corners_2h": "2. połowa - najwięcej rzutów rożnych",
+    "shots_1h": "1. połowa - najwięcej strzałów",
+    "shots_2h": "2. połowa - najwięcej strzałów",
+    "cards_points_1h": "1. połowa - najwięcej kartek",
+    "cards_points_2h": "2. połowa - najwięcej kartek",
+}
+_HANDICAP_NAMES = {
+    "corners": "Rzuty rożne handicap", "cards_points": "Liczba kartek - handicap",
+    "corners_1h": "1. połowa - rzuty rożne - handicap",
+    "corners_2h": "2. połowa - rzuty rożne - handicap",
+}
+
+
+def _football_derived(market: str, subject: str, direction: str, line: Any,
+                      sides: Sides | None) -> tuple[str, str] | None:
+    yes = {"OVER": "tak", "UNDER": "nie"}.get(direction)
+    if market.startswith("both_over_") and yes and line is not None:
+        base = market[len("both_over_"):]
+        if base == "goals":
+            if float(line) == 0.5:
+                return "Obie drużyny strzelą", yes
+            return f"Obie drużyny strzelą powyżej {_num(line)} gola", yes
+        if base in ("goals_1h", "goals_2h"):
+            return f"{base[-2]}.połowa - obie drużyny strzelą", yes
+        if base in _BOTH_OVER_NAMES:
+            return (f"Każda z drużyn powyżej X {_BOTH_OVER_NAMES[base]}",
+                    f"Powyżej {_num(line)} - {yes}")
+        return None
+    if market.startswith("most_") and direction == "OVER" and subject:
+        head = _MOST_NAMES.get(market[len("most_"):])
+        if head is None:
+            return None
+        if subject == "__draw__":
+            return head, "remis (X)"
+        if subject in ("1", "2"):
+            return head, _code(subject, sides)
+        return head, _name(subject, sides)
+    if market.startswith("handicap_") and direction == "OVER" and subject \
+            and line is not None:
+        head = _HANDICAP_NAMES.get(market[len("handicap_"):])
+        if head is None:
+            return None
+        return head, f"{_name(subject, sides)} ({float(line):g})"
+    return None
+
+
 def _football_tennis(leg: Mapping[str, Any], sides: Sides | None
                      ) -> tuple[str, str] | None:
     from bet.sofa import football_score_markets as fsm
@@ -421,6 +481,10 @@ def _football_tennis(leg: Mapping[str, Any], sides: Sides | None
     if market == "both_red_cards" and direction in _OU:
         return ("Obie drużyny otrzymają czerwoną kartkę",
                 "Tak" if direction == "OVER" else "Nie")
+
+    derived = _football_derived(market, subject, direction, line, sides)
+    if derived is not None:
+        return derived
 
     # football score markets and set_score_not: their own Superbet wording
     label = fsm.display_market(leg)

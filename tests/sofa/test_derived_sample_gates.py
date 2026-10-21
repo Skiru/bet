@@ -32,6 +32,33 @@ def test_each_side_needs_the_builder_floor() -> None:
     assert derived_sample_refusal([full]) == "THIN_SAMPLE_FOR_BUILDER"
 
 
+def _leg(market: str, subject: str, line: float, direction: str) -> dict[str, object]:
+    return {"sport": "football", "market": market, "subject": subject,
+            "line": line, "direction": direction}
+
+
+def test_a_derived_leg_is_named_in_superbet_words() -> None:
+    from bet.sofa.superbet_names import names
+
+    sides = ("Chelsea", "Brentford")
+    assert names(_leg("both_over_goals", "", 0.5, "OVER"), sides) == (
+        "Obie drużyny strzelą", "tak")
+    assert names(_leg("both_over_goals", "", 1.5, "UNDER"), sides) == (
+        "Obie drużyny strzelą powyżej 1.5 gola", "nie")
+    assert names(_leg("both_over_goals_1h", "", 0.5, "UNDER"), sides) == (
+        "1.połowa - obie drużyny strzelą", "nie")
+    assert names(_leg("both_over_corners", "", 3.5, "OVER"), sides) == (
+        "Każda z drużyn powyżej X rzutów rożnych", "Powyżej 3.5 - tak")
+    assert names(_leg("most_corners", "__draw__", 0.0, "OVER"), sides) == (
+        "Liczba rzutów rożnych - H2H", "remis (X)")
+    assert names(_leg("most_shots_on_target", "chelsea", 0.0, "OVER"), sides) == (
+        "Najwięcej celnych strzałów", "Chelsea")
+    assert names(_leg("handicap_corners", "chelsea", 1.5, "OVER"), sides) == (
+        "Rzuty rożne handicap", "Chelsea (1.5)")
+    # a family whose screen name is not on record is not guessed
+    assert names(_leg("both_over_fouls", "", 8.5, "OVER"), sides) is None
+
+
 def test_the_deep_audit_reads_the_sides_of_a_marked_derived_leg() -> None:
     from scripts.sofa.audit_day_deep import shape_gates_failed
 

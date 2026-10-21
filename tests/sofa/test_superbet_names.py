@@ -153,8 +153,8 @@ def test_tennis_winner_set_and_score() -> None:
 
 
 def test_unknown_market_is_not_guessed() -> None:
-    assert sn.names({"sport": "football", "market": "both_over_goals",
-                     "subject": "", "line": 0.5, "direction": "OVER",
+    assert sn.names({"sport": "football", "market": "both_over_fouls",
+                     "subject": "", "line": 8.5, "direction": "OVER",
                      "match": "A - B"}) is None
     assert sn.names(_hockey(999999, "mystery", 0, "OVER", 1.5)) is None
 
@@ -162,7 +162,7 @@ def test_unknown_market_is_not_guessed() -> None:
 def test_annotate_names_builder_legs_from_their_builder_and_drops_stale() -> None:
     doc: dict[str, Any] = {
         "singles": [{"sport": "football", "sofascore_event_id": 7,
-                     "market": "both_over_goals", "subject": "", "line": 0.5,
+                     "market": "both_over_fouls", "subject": "", "line": 8.5,
                      "direction": "OVER", "match": "A FC - B FC",
                      sn.FIELD_MARKET: "stale", sn.FIELD_SELECTION: "stale"}],
         "builders": [{"sofascore_event_id": 7, "match": "A FC - B FC",
