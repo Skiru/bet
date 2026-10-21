@@ -86,3 +86,23 @@ kartkę (3,1% meczów) - sprawdzić na pierwszych rozliczonych liniach.
   z porannego odświeżenia 10-20 (plik, na którym zbudowano 10-20; treść niezmieniona przeze mnie).
 - Do obserwacji na żywych liniach: kartki w połowie przy dwóch żółtych, karne / czerwone drużyn,
   faule na zawodniku (zgodność z dostawcą Superbetu niesprawdzona).
+
+## 6. Rano 10-21: rynki łączone drukowalne (przed budową dnia)
+
+Operator: "wszystkie rynki to wszystkie" - rynki łączone (obie drużyny powyżej X, najwięcej,
+handicap) liczone, ale bez krzywej nie mogły się drukować. Od 10-21 00:00Z (`DERIVED_CURVES`,
+`CARDS_CORRELATION`, `DERIVED_SHEET_MARGINS`, `DERIVED_SAMPLE_GATES`) czytają krzywe historii;
+krzywe na linię goli w połowach i obron oraz 10 krzywych kobiet zainstalowane
+(`fit_joint_curves.py`, bramka jednostronna, `docs/sofa/evidence/joint_curves_2026-10-21.md`).
+
+- **Poprawka line evidence** (7b41d17f): poranne odświeżenie nie podawało `--derived-curves`, więc
+  rynek łączony brałby krzywą, ale tylko wspólną poprawkę sportu (-0,6 pp). Na rozliczonych liniach
+  Superbetu 10-05..10-19 "Obie drużyny strzelą powyżej 1.5 gola: nie" przy pewności 0,836
+  zrealizowało 0,765 (-7,1 pp [-9,3; -4,9], 1 393 linie) - bez poprawki drukowałoby się ~7 pp za
+  wysoko. Teraz własna poprawka klucza obniża pewność.
+- **E2E 10-20** (kod main, kopia dnia, line evidence z poprawką): 114 nóg łączonych (1. połowa obie
+  strzelą: nie 44, 2. połowa 41, rożne każda powyżej 11, obie powyżej 1.5 gola: nie 11, celne 3,
+  najwięcej celnych 2, kartki 2), każda w słowach Superbetu; inne rynki bez zmian poza kalibracją
+  line evidence. Pliki prawdziwego kuponu 10-20 nietknięte (md5).
+- Fałszywy alarm po drodze: moje E2E uruchomiło ramię "on2" z wyłączonymi przełącznikami (błąd
+  skryptu testowego, nie potoku).
