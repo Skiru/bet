@@ -267,6 +267,7 @@ marked, new minus old.
 | `FOOTBALL_STAT_VARIANTS_FROM_UTC` | OFFER reads "Każda drużyna powyżej X rzutów z autu / wybić od bramki", "Każda z drużyn powyżej X odbiorów", "Strzały - Handicap", "1. / 2. połowa - liczba strzałów - handicap" (`market_mapper.classify_stat_variant`) as both_over_* / handicap_shots*; joint of the sides' samples, no curve: NO_LINE_EVIDENCE, one-sided, never a single. Declined (never 0.70 except copies of read rungs): corner parity / ranges, exact cards | `docs/sofa/evidence/football_stat_variants_2026-10-21.md` |
 | `FOOTBALL_CARD_HALVES_FROM_UTC` | `bet.sofa.football_card_halves`: card points by half ("1. / 2. połowa - [<TEAM>] liczba kartek", most, handicap), side / half red cards and penalties, both teams red; a card counts in the half it was shown (komunikat 06/2022: shown at the break = 2nd half; a two-yellow dismissal split 1 + 2 is an assumption, 3.1% of matches); half centre = league as-of half share x the full-match centre (beats own half sample by 144 / 138); 20 curves installed, 18 kept (one-sided gate; every OVER of reds / pens, most_*, 2nd-half handicap, 1st-half side OVER failed). Graded 10-14..10-19: would-print 579 rows won 0.810 at 0.827 | `docs/sofa/evidence/football_card_halves_2026-10-21.md` |
 | `FOOTBALL_CARD_HALVES_TERMS_FROM_UTC` | `card_halves_terms_v1` (audit 2026-10-21): half card centre = league half share x the side's live `cards_points_for` centre (rating, game state, referee, closeness; no row: rating x the same terms) - 1H side -53 [-65, -39], 2H side -87 [-105, -67], totals -26 / -52; side penalties / reds p = 1 - exp(-lambda_L exp(beta s)), s the side's expected goal difference: penalties_for -36.7 [-43.4, -30.6] (beta 0.276), penalties_1h_for -17.6, red_cards_for -6.7 (beta -0.172); red_cards_1h_for and the 1st-half totals unchanged. On the new p `cards_points_2h_for|UNDER` (-2.12 pp, n 1,261) and women's `handicap_cards_points_1h|OVER` (n 298) failed the gate and were removed 10-20 ~23:10Z (18 card-halves curves stay) | `docs/sofa/evidence/football_card_halves_terms_2026-10-21.md` |
+| `DERIVED_CURVES_FROM_UTC`, `CARDS_CORRELATION_FROM_UTC`, `DERIVED_SHEET_MARGINS_FROM_UTC`, `DERIVED_SAMPLE_GATES_FROM_UTC` | operator 2026-10-21 ~04:50Z ("wszystkie rynki to wszystkie"): football joints (both_over / most / handicap of goals, cards, corners, SOT, goals halves) read their 10-17 history curves (a one-sided joint leg prints as a single: source `market:`, n >= 300), cards joints with side correlation +0.126, a joint side without a quoted ladder priced by `run_sheet.sample_centre`; `THIN_SAMPLE_FOR_BUILDER` on a joint reads each side's marginal sample (>= 10 values each; LINE_BEYOND / MODE_LOSES / MODEL_ABOVE_OWN_SAMPLE not applied), the leg carries `derived_side_samples` and never joins a builder. E2E 10-20: +49 legs (both_over_goals U 18, _1h U 12, corners O 10, SOT O 4...), 0 lost / changed, builders identical. Measured 10-14: lines admitted realised below price (ROI -1.8% [-4.4, +0.7]) - accepted (operator accepts below price). Joints of fouls / shots / offsides / saves / throw-ins / goal kicks / tackles have no curve yet (NO_LINE_EVIDENCE) | `docs/sofa/evidence/derived_curves_2026-10-14.md`, `docs/sofa/history/RAPORT_NOC_STATYSTYKI_2026-10-21.md` |
 
 Not replayable in a refit yet: referee (labels absent from the replay), player
 share (its measurement replays it; calibrate_from_cache does not). The curves of
@@ -316,9 +317,6 @@ FIXTURE_CHECK's `/event`).
 | `MODEL_FIXES_FROM_UTC` | tennis NB dispersion | with the next refit |
 | `BUILDER_SCREEN_PRICE_FROM_UTC` | a builder prints only with a recorded screen price | switched off 2026-10-05: sofa does not price builders |
 | coupon form dials | `ladder_form` / `max_positions_per_match` in `config/sofa_coupon_form.json` | operator's call |
-| `DERIVED_CURVES_FROM_UTC` | football joints read a history curve | the three go on together or not at all |
-| `CARDS_CORRELATION_FROM_UTC` | cards joints with side correlation +0.126 (the 10-14 cards joint curves were fitted with it) | must go on with DERIVED_CURVES |
-| `DERIVED_SHEET_MARGINS_FROM_UTC` | audit B3: a joint's side with no quoted ladder priced by `run_sheet.sample_centre`; an UNLINKED fixture's joints refused; history one step ahead -0.0254 [-0.0264, -0.0245] on 60,000 matches (`docs/sofa/evidence/derived_margins_2026-10-13.md`) | with the two above |
 
 Derived joints: the 10-14 refit replayed them; on Superbet lines 10-09..10-12
 (in sample for the curve) the joint curves beat the line-evidence stand-in at
@@ -327,10 +325,9 @@ sides had a marginal centre (-0.0357 [-0.0585, -0.0135]); on raw samples (B3's
 population) the curve alone overstates by 11 pp at >= 0.70; lines it would
 admit realised below their price (ROI -1.8% [-4.4, +0.7], `both_over_goals`
 -6.2% [-10.6, -2.1]). Re-measure on rows from 10-13 on
-(`docs/sofa/evidence/derived_curves_2026-10-14.md`). None changes the coupon
-while `THIN_SAMPLE_FOR_BUILDER` refuses every derived football row (it reads
-the derived row's own market as its sample; 0 derived legs in
-`08_confidence.json` 10-09..10-13) - the operator's decision first.
+(`docs/sofa/evidence/derived_curves_2026-10-14.md`). Switched on 2026-10-21
+00:00Z with `DERIVED_SAMPLE_GATES` (section a, "Football statistics night"):
+until then `THIN_SAMPLE_FOR_BUILDER` refused every derived football row.
 
 ### Measured and not switched on
 
