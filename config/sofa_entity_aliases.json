@@ -30,6 +30,146 @@
       "decided_at": "2026-10-21",
       "evidence": "RESOLVE NO_MATCHING_EVENT on Superbet 'Barbara Gatica·Giovana Delatorre Barbosa' (ITF W15 Campina Grande, 10-21); Sofascore lists Barbara Gatica (84013) - Giovana Schincariol Barbosa (509664) in the same tournament that day, player slug 'schincariol-delatorre-barbosa-giovana', Brazil",
       "evidence_event_id": 17374541
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Nova Cidade RJ",
+      "sofascore_id": 301360,
+      "sofascore_name": "Nova Cidade",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Carioca Série B1 Nova Cidade - Macaé Esporte 10-21 18:00Z",
+      "evidence_event_id": 17034186
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Macae EFC",
+      "sofascore_id": 21977,
+      "sofascore_name": "Macaé Esporte",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Carioca Série B1 Nova Cidade - Macaé Esporte 10-21 18:00Z",
+      "evidence_event_id": 17034186
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Carapebus Campos",
+      "sofascore_id": 319872,
+      "sofascore_name": "AA Carapebus",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Carioca Série B1 AA Carapebus - Goytacaz 10-21 18:00Z",
+      "evidence_event_id": 17034185
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Goytacaz RJ",
+      "sofascore_id": 256672,
+      "sofascore_name": "Goytacaz",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Carioca Série B1 AA Carapebus - Goytacaz 10-21 18:00Z",
+      "evidence_event_id": 17034185
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Como U19",
+      "sofascore_id": 206254,
+      "sofascore_name": "Como U20",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: UEFA Youth League Como U20 - Manchester United U19 10-21 11:00Z; Sofascore lists Como's UYL side as U20 (1126495 Como 1917 U19 is another entry)",
+      "evidence_event_id": 17068310
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Manchester United U19",
+      "sofascore_id": 120848,
+      "sofascore_name": "Manchester United U19",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: UEFA Youth League Como U20 - Manchester United U19 10-21 11:00Z",
+      "evidence_event_id": 17068310
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Atlas U21",
+      "sofascore_id": 1111909,
+      "sofascore_name": "Atlas FC U21",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: U21 Liga MX Apertura Atlas FC U21 - Club America U21 10-21 15:00Z; search_query strips the (r) marker and \"atlas\" returns the senior club",
+      "evidence_event_id": 17332866
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Club America U21",
+      "sofascore_id": 1111921,
+      "sofascore_name": "Club America U21",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: U21 Liga MX Apertura Atlas FC U21 - Club America U21 10-21 15:00Z",
+      "evidence_event_id": 17332866
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Al Ahly Cairo",
+      "sofascore_id": 6910,
+      "sofascore_name": "Al Ahly FC",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Egyptian Premier League Al Ahly FC - Canal SC 10-21 17:00Z",
+      "evidence_event_id": 16739005
+    },
+    {
+      "sport": "football",
+      "superbet_name": "El Qanah",
+      "sofascore_id": 134190,
+      "sofascore_name": "Canal SC",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Egyptian Premier League Al Ahly FC - Canal SC 10-21 17:00Z; El Qanah is Arabic for Canal",
+      "evidence_event_id": 16739005
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Ethiopian Coffee",
+      "sofascore_id": 241957,
+      "sofascore_name": "Ethiopia Bunna",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Ethiopian Premier League Ethiopia Bunna - Negelle Arsi 10-21 12:00Z; bunna is Amharic for coffee",
+      "evidence_event_id": 17361499
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Negele Arsi Ketema",
+      "sofascore_id": 513149,
+      "sofascore_name": "Negelle Arsi",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Ethiopian Premier League Ethiopia Bunna - Negelle Arsi 10-21 12:00Z",
+      "evidence_event_id": 17361499
+    },
+    {
+      "sport": "football",
+      "superbet_name": "Independiente (PAN) II",
+      "sofascore_id": 380931,
+      "sofascore_name": "CA Independiente B",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Liga Prom Apertura CA Independiente B - San Francisco FC B 10-21 14:00Z",
+      "evidence_event_id": 17368966
+    },
+    {
+      "sport": "football",
+      "superbet_name": "San Francisco II",
+      "sofascore_id": 376725,
+      "sofascore_name": "San Francisco FC B",
+      "decided_by": "operator (2026-10-21: 'Uzyj mostka!')",
+      "decided_at": "2026-10-21",
+      "evidence": "RESOLVE NO_MATCHING_EVENT 10-21; checked live through the bridge: Liga Prom Apertura CA Independiente B - San Francisco FC B 10-21 14:00Z",
+      "evidence_event_id": 17368966
     }
   ],
   "rejected": []
