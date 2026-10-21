@@ -193,6 +193,18 @@ def merge_duplicate_listing(held: Fixture, board: BoardFixture) -> None:
     )
 
 
+def board_recall(board: list[BoardFixture], resolved: list[Fixture]) -> float:
+    """Share of board entries that reached a fixture. Superbet lists some
+    matches twice (2026-10-21: 104 of 718 tennis entries, the same match with
+    a shifted clock), and the merge folds them into one fixture; counting
+    fixtures over entries read those merges as misses (0.809 for 33 real
+    gaps, 0.954 here)."""
+    if not board:
+        return 0.0
+    bridged = {sid for f in resolved for sid in f.superbet_event_ids}
+    return sum(1 for b in board if b.superbet_event_id in bridged) / len(board)
+
+
 def resolve_board_concurrently(
     fixtures: list[BoardFixture],
     resolver: SofaResolver,
@@ -294,6 +306,11 @@ def main() -> int:
     gaps: dict[GapReason, int] = defaultdict(int)
     breaker_open = False
     breaker_at = 0
+    # A match already under way is in neither Sofascore listing, so its gap
+    # says nothing about matching; counted apart so the gaps that could still
+    # print are visible.
+    started_by = now()
+    gaps_started = 0
 
     # What a previous run of this stage, for this date, already resolved.
     #
@@ -346,6 +363,8 @@ def main() -> int:
                         file=sys.stderr,
                     )
                 gaps[outcome.gap] += 1
+                if outcome.board.kickoff_utc <= started_by:
+                    gaps_started += 1
                 continue
 
             assert outcome.event_id is not None and outcome.fixture is not None
@@ -412,7 +431,7 @@ def main() -> int:
 
     learned_tournaments = learn_tournaments(config.db_path, tournaments)
     fuzzy = sum(1 for f in resolved_fixtures.values() if f.identity == "FUZZY")
-    recall = len(resolved_fixtures) / len(fixtures) if fixtures else 0.0
+    recall = board_recall(fixtures, list(resolved_fixtures.values()))
     # `carried` is bound in the finally block above, which always runs first.
 
     metrics = {
@@ -425,6 +444,7 @@ def main() -> int:
         "identity_fuzzy": fuzzy,
         "recall": round(recall, 4),
         "gaps": {k.value: v for k, v in gaps.items()},
+        "gaps_already_started": gaps_started,
         "tournament_map_events": learned_tournaments,
     }
 
