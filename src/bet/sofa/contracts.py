@@ -151,8 +151,10 @@ class Fixture(BaseModel):
     national_teams: bool | None = None
     # How RESOLVE matched a pair the opponent's name did not confirm:
     # "SEARCHED_ANCHOR:<MUTUAL|NAME|SHARED_WORD>" (resolve.searched_anchor_event,
-    # epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC; identity is then FUZZY).
-    # None for every other fixture.
+    # epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC; identity is then FUZZY), or
+    # "SQUAD_LEVEL_ALIAS:<board level>-><Sofascore level>"
+    # (resolve.squad_level_alias_event, epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC;
+    # FUZZY). None for every other fixture.
     match_rule: str | None = None
 
 

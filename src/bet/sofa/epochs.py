@@ -2737,3 +2737,42 @@ def football_searched_anchor(date: str, build_at: datetime | None = None) -> boo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_SEARCHED_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_SEARCHED_ANCHOR_FROM_UTC)
+
+
+# --- RESOLVE: one squad, two level names (2026-10-21) -------------------------
+# Superbet and Sofascore write a youth / reserve squad's level apart, and the
+# level gate refused the pair: Italy's Primavera 2 is "Cosenza U19" on Superbet
+# and "Cosenza U20" on Sofascore, El Salvador's reserves "CD Fas (R)" /
+# "CD FAS U20", India's "Kenkre FC II" / "Kenkre U19", MLS Next Pro's
+# "Houston Dynamo II" / "Houston Dynamo 2" (Sofascore's trailing "2" is no
+# marker to `names.normalize_name`); 23 board entries 10-13..10-20 with
+# neither side known (class F2). On: a football pair nothing matched by name
+# nor the searched anchor is tried last on the searched candidates' listings
+# plus up to 3 search results of an alias level
+# (resolve.squad_level_alias_event): one game within 60 min, both sides the
+# board's by name with the level words removed (own side >= 90, opponent > 82),
+# one pair-consistent level shift (U19<->U20 one year apart, a reserve side <->
+# U19..U23, a trailing "2" = reserve; never the senior squad), F25 order,
+# gender, not postponed; vetoed when a team the opponent's own search names
+# plays another game then (resolve.squad_alias_veto). Fixture FUZZY,
+# match_rule "SQUAD_LEVEL_ALIAS:<shift>", never cached as a verified name.
+# Measured on the bridged football fixtures 10-05..10-20: with the real
+# opponent 0 wrong picks (as is 1,698, board level shifted 3,429, one-sided
+# 2,509 right); decoy opponents 10 of 9,022 accepted (the ordinary name gate
+# 20 of 2,848); F2 recall 18 of 23. Evidence:
+# docs/sofa/history/RAPORT_RESOLVE_POZIOM_2026-10-21.md
+# (scripts/sofa/measure_squad_level_alias.py). Adds fixtures, so it changes
+# what prints; on at 2026-10-21 10:30Z by the operator's "on at once" (10-21
+# mixed).
+FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 10, 30, tzinfo=UTC)
+
+
+def football_squad_level_alias(date: str, build_at: datetime | None = None) -> bool:
+    """Does RESOLVE accept a football pair under a squad-level alias
+    (FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC)?"""
+    if FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC)

@@ -293,6 +293,43 @@ przyjęte 16 z 29 109 (sobowtóry nazw: Olympique Marsylia za Olympique Lyon);
 na 28 pozycjach F1 rozpoznane 20, cztery „inny przeciwnik” odrzucone. Raport:
 `docs/sofa/history/RAPORT_RESOLVE_KOTWICA_WYSZUKANA_2026-10-21.md`.
 
+**Jedna drużyna, dwie nazwy poziomu — piłka**
+(`epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC`; od 2026-10-21 10:30Z, 10-21
+mieszany). Superbet i Sofascore piszą poziom drużyny młodzieżowej / rezerw
+inaczej i bramka poziomu odrzucała parę: włoska Primavera 2 to u Superbetu
+„Cosenza U19 – Frosinone U19”, u Sofascore „Cosenza U20 – Frosinone U20”;
+„CD Fas (R)” to „CD FAS U20”, „Kenkre FC II” to „Kenkre U19”, a MLS Next Pro
+„Houston Dynamo II” to „Houston Dynamo 2” (końcowe „2” nie jest dla
+`normalize_name` znacznikiem rezerw; 23 pozycje 10-13..10-20, klasa F2). Po
+włączeniu, jako **ostatnia** próba — po zwykłym dopasowaniu i kotwicy
+wyszukanej, więc nie zmienia żadnego meczu, który one mostkują: listingi
+kandydatów plus do 3 wyników wyszukania o poziomie-aliasie
+(`squad_alias_candidate`) są czytane w poszukiwaniu **jedynego** meczu w ±60 min
+od startu Superbetu, którego obie strony to strony tablicy po nazwie bez słów
+poziomu (`level_free_name`; strona wyszukana `part_score` ≥ 90, przeciwnik > 82)
+i po **jednym, wspólnym dla pary** przesunięciu poziomu (`squad_level_shift`:
+ten sam poziom niesenioralny, roczniki o rok (U19↔U20), rezerwy ↔ U19..U23,
+końcowe „2” Sofascore = rezerwy — tylko tutaj, klucze cache i `team_levels` bez
+zmian; **nigdy** seniorzy ↔ rezerwy / młodzież; obie strony niesenioralne muszą
+przesunąć się tak samo, strona senioralna musi zostać senioralna), w kolejności
+Superbetu (F25), płci tablicy, nie przełożony; dwa takie mecze = odmowa. **Weto**:
+drużyna, którą nazywa własne wyszukanie przeciwnika (lub jego zweryfikowana
+encja), gra w tym czasie INNY mecz (`squad_alias_veto`; jedno wyszukanie i do 3
+listingów, tylko gdy mecz już znaleziono). Mecz dostaje `identity: FUZZY` i
+`match_rule: "SQUAD_LEVEL_ALIAS:<poziom Superbetu>-><poziom Sofascore>"`; nazwa
+nie trafia do cache jako zweryfikowana; pudło sprzed przełącznika nie blokuje.
+Pomiar (`measure_squad_level_alias.py`) na 6 534 zmostkowanych meczach
+10-05..10-20: z prawdziwym przeciwnikiem 0 błędnych wyborów (bez zmian 1 698,
+poziom tablicy przesunięty po obu stronach 3 429, jednostronnie 2 509 trafnych;
+przesunięcie jednej z dwóch stron — 0 przyjętych); przeciwnik-wabik (inna strona
+tego samego turnieju i dnia) przyjęty 10 razy na 9 022 (3 mecze: nazwa
+przeciwnika zawarta w nazwie innego klubu — Zurich / Grasshopper Club Zürich),
+zwykła bramka nazw na tych samych wabikach 20 na 2 848; z 23 pozycji F2
+rozpoznane 18, odrzucone Pisa – Ascoli i Modena – Cremonese (poziom różny po
+jednej stronie — zgodność pary), Mechelen B (Sofascore nazywa ją jak pierwszą
+drużynę), Union SG B, Leuven B – KRC Harelbeke (przeciwnik 81,8). Raport:
+`docs/sofa/history/RAPORT_RESOLVE_POZIOM_2026-10-21.md`.
+
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).
 **Zdrowy wskaźnik dopasowania: 72–90%.**

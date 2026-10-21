@@ -810,6 +810,212 @@ def searched_anchor_agreement(
     return None
 
 
+# epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC: Superbet and Sofascore write one
+# squad's level apart - Superbet's "Cosenza U19 - Frosinone U19" is
+# Sofascore's "Cosenza U20 - Frosinone U20" (Italy's Primavera 2), "Kenkre FC
+# II" an "U19", "CD Fas (R)" an "U20", MLS Next Pro's "Houston Dynamo II" a
+# "Houston Dynamo 2". Measured 2026-10-21 (scripts/sofa/measure_squad_level_alias.py,
+# docs/sofa/history/RAPORT_RESOLVE_POZIOM_2026-10-21.md).
+#
+# A reserve side's age band: "(R)" / "II" / "B" may be Sofascore's U19..U23.
+SQUAD_ALIAS_RESERVE_AGES = frozenset({19, 20, 21, 22, 23})
+_YOUTH_LEVEL = re.compile(r"^U(\d\d)$")
+# Level words `level_free_name` removes before the names are compared.
+_LEVEL_WORDS = re.compile(
+    r"\bu ?-?(?:1[0-9]|2[0-3])\b|\(r\)|\breserves?\b|\bii\b|(?<=\s)2(?=\s*(?:\(w\))?$)")
+_TRAILING_TWO = re.compile(r"\s2(?=(?:\s*\(w\))?$)")
+
+
+def football_squad_levels(norm: str) -> frozenset[str]:
+    """`names.team_levels` plus Sofascore's trailing "2" read as a reserve
+    side. Sofascore names a second team "Houston Dynamo 2", "Caen 2", "Skeid
+    2" (211 such football names 10-02..10-23, every one a club's second
+    team); `normalize_name` does not mark it, so against Superbet's "II" the
+    pair read reserve vs senior. The squad-level alias only - every other
+    reader keeps `team_levels`."""
+    levels = team_levels(norm)
+    if levels == frozenset({"S"}) and _TRAILING_TWO.search(norm):
+        return frozenset({"R"})
+    return levels
+
+
+def squad_level_alias(board_level: str, event_level: str) -> bool:
+    """May Superbet's level name Sofascore's for one squad? The same
+    non-senior level; two youth bands one year apart (U19 / U20); a reserve
+    side and a U19..U23 band. Never the senior squad, either way."""
+    if "S" in (board_level, event_level):
+        return False
+    if board_level == event_level:
+        return True
+    a, b = _YOUTH_LEVEL.match(board_level), _YOUTH_LEVEL.match(event_level)
+    if a and b:
+        return abs(int(a.group(1)) - int(b.group(1))) == 1
+    youth = a or b
+    if youth and "R" in (board_level, event_level):
+        return int(youth.group(1)) in SQUAD_ALIAS_RESERVE_AGES
+    return False
+
+
+def _alias_pairs(board: frozenset[str], event: frozenset[str]) -> set[tuple[str, str]]:
+    return {(x, y) for x in board for y in event if squad_level_alias(x, y)}
+
+
+def squad_level_shift(
+    norm_side: str, own: str, norm_opp: str, other: str
+) -> str | None:
+    """The one level shift both sides of the pair share ("U19->U20"), or None.
+
+    Pair-consistent: when both board sides are below the senior squad, one
+    (board level, Sofascore level) pair must hold for BOTH sides - "Pisa U19 -
+    Ascoli U19" against Sofascore's "Pisa U19 - Ascoli U20" is refused. A
+    senior board side must be a senior Sofascore side ("Leuven B - KRC
+    Harelbeke": the reserve side shifts alone). Two senior board sides never
+    shift (the ordinary match covers them)."""
+    bs, es = football_squad_levels(norm_side), football_squad_levels(own)
+    bo, eo = football_squad_levels(norm_opp), football_squad_levels(other)
+    senior = frozenset({"S"})
+    if bs == senior and bo == senior:
+        return None
+    if bo == senior or bs == senior:
+        moving, fixed = ((bs, es), (bo, eo)) if bo == senior else ((bo, eo), (bs, es))
+        if fixed[1] != senior:
+            return None
+        pairs = _alias_pairs(*moving)
+    else:
+        pairs = _alias_pairs(bs, es) & _alias_pairs(bo, eo)
+    if not pairs:
+        return None
+    x, y = sorted(pairs)[0]
+    return f"{x}->{y}"
+
+
+def level_free_name(norm: str) -> str:
+    """A normalised name without its squad level words ("cosenza u20" ->
+    "cosenza", "houston dynamo 2" -> "houston dynamo"); the women's marker
+    stays. The names are compared on this, the levels apart
+    (`squad_level_shift`)."""
+    return re.sub(r"\s+", " ", _LEVEL_WORDS.sub(" ", norm)).strip()
+
+
+# The searched side's own name against its side of the game, level words
+# removed: 82 let "Independiente Rivadavia" stand for "CA Independiente"
+# (89.7) in the decoy backtest; as SEARCHED_ANCHOR_OWN_SCORE.
+SQUAD_ALIAS_OWN_SCORE = 90.0
+
+
+def squad_alias_veto(
+    event: dict[str, Any],
+    kickoff_utc: datetime,
+    opponent_listings: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+) -> bool:
+    """Refuse the alias game when a team the board's opponent's own search
+    names (its fitting / alias candidates, or its verified entity) is not the
+    game's side and plays ANOTHER game within FOOTBALL_ANCHOR_WINDOW_S:
+    Superbet's opponent is then a team Sofascore knows, playing elsewhere
+    ("Zurich II" is FC Zürich II, not Grasshopper Club Zürich U19). A
+    namesake with no game at that time ("Vicenza U19" beside L.R. Vicenza
+    U20) does not veto."""
+    from bet.sofa.fixture_status import NOT_AS_SCHEDULED
+
+    in_game = {_team_id(event, "homeTeam"), _team_id(event, "awayTeam")}
+    for oc, events in opponent_listings:
+        oc_id = oc.get("id")
+        if not isinstance(oc_id, int) or oc_id in in_game:
+            continue
+        for e in events:
+            ts = e.get("startTimestamp")
+            if (not isinstance(ts, int) or e.get("id") == event.get("id")
+                    or abs(ts - kickoff_utc.timestamp()) > FOOTBALL_ANCHOR_WINDOW_S
+                    or str((e.get("status") or {}).get("type") or "")
+                    in NOT_AS_SCHEDULED):
+                continue
+            if oc_id in (_team_id(e, "homeTeam"), _team_id(e, "awayTeam")):
+                return True
+    return False
+
+
+def squad_alias_candidate(norm_side: str, entity: dict[str, Any]) -> bool:
+    """Is this football search result a squad the side may name under the
+    alias: board gender, not simulated, a non-senior level the side's level
+    may name, and the same club by name (`part_score` of the level-free names
+    > NAME_MATCH_THRESHOLD)?"""
+    name = normalize_name(str(entity.get("name") or ""))
+    gender = entity_gender(entity)
+    if gender is not None and gender != superbet_gender(norm_side):
+        return False
+    if _VIRTUAL_NAME.search(str(entity.get("name") or "")):
+        return False
+    if not _alias_pairs(football_squad_levels(norm_side), football_squad_levels(name)):
+        return False
+    return part_score(level_free_name(norm_side), level_free_name(name)) \
+        > NAME_MATCH_THRESHOLD
+
+
+def squad_level_alias_event(
+    candidates: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+    kickoff_utc: datetime,
+    side: str,
+    opponent: str,
+    board_side_a: str,
+    board_side_b: str,
+) -> tuple[dict[str, Any], dict[str, Any], str] | None:
+    """(candidate, event, shift): the one football game within
+    FOOTBALL_ANCHOR_WINDOW_S of Superbet's start, among the searched
+    candidates' listings, whose two sides are the board's two sides by name
+    once the level words are removed (`level_free_name`; the searched side
+    `part_score` >= SQUAD_ALIAS_OWN_SCORE, the opponent >
+    NAME_MATCH_THRESHOLD) and by a pair-consistent level shift
+    (`squad_level_shift`); the board's gender, not postponed, not simulated,
+    read the way Superbet orders the sides (F25). Two such games refuse."""
+    from bet.sofa.fixture_status import NOT_AS_SCHEDULED
+
+    norm_side, norm_opp = normalize_name(side), normalize_name(opponent)
+    if (football_squad_levels(norm_side) == frozenset({"S"})
+            and football_squad_levels(norm_opp) == frozenset({"S"})):
+        return None
+    free_side, free_opp = level_free_name(norm_side), level_free_name(norm_opp)
+    expected = ("W" if "W" in (superbet_gender(board_side_a),
+                               superbet_gender(board_side_b)) else "M")
+    near: dict[int, tuple[dict[str, Any], dict[str, Any], str]] = {}
+    for cand, events in candidates:
+        cand_id = cand.get("id")
+        if not isinstance(cand_id, int):
+            continue
+        for e in events:
+            ts = e.get("startTimestamp")
+            if not isinstance(ts, int) or not isinstance(e.get("id"), int):
+                continue
+            if abs(ts - kickoff_utc.timestamp()) > FOOTBALL_ANCHOR_WINDOW_S:
+                continue
+            if str((e.get("status") or {}).get("type") or "") in NOT_AS_SCHEDULED:
+                continue
+            if _team_id(e, "homeTeam") == cand_id:
+                own_key, other_key = "homeTeam", "awayTeam"
+            elif _team_id(e, "awayTeam") == cand_id:
+                own_key, other_key = "awayTeam", "homeTeam"
+            else:
+                continue
+            if sofascore_gender(e) != expected or is_virtual_event(e):
+                continue
+            own = normalize_name(str((e.get(own_key) or {}).get("name") or ""))
+            other = normalize_name(str((e.get(other_key) or {}).get("name") or ""))
+            shift = squad_level_shift(norm_side, own, norm_opp, other)
+            if shift is None:
+                continue
+            if (part_score(free_side, level_free_name(own)) < SQUAD_ALIAS_OWN_SCORE
+                    or part_score(free_opp, level_free_name(other))
+                    <= NAME_MATCH_THRESHOLD):
+                continue
+            near.setdefault(int(e["id"]), (cand, e, shift))
+    if len(near) != 1:
+        return None
+    cand, e, shift = next(iter(near.values()))
+    side_is_a = norm_side == normalize_name(board_side_a)
+    if (_team_id(e, "homeTeam") == cand["id"]) != side_is_a:
+        return None
+    return cand, e, shift
+
+
 def split_match_name(match_name: str) -> tuple[str, str]:
     parts = match_name.split("·")
     if len(parts) == 2:
@@ -1219,6 +1425,12 @@ class SofaResolver:
         # (epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC) was judged without it.
         if searched_anchor and epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC is not None:
             bounds.append(epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC)
+        # And a miss recorded before the squad-level alias
+        # (epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC).
+        level_alias = (sport == "football" and record_miss
+                       and epochs.football_squad_level_alias(day))
+        if level_alias and epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC is not None:
+            bounds.append(epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC)
         if epochs.entity_miss_per_day(day):
             day_start = kickoff_utc.astimezone(UTC).replace(
                 hour=0, minute=0, second=0, microsecond=0)
@@ -1264,9 +1476,13 @@ class SofaResolver:
             # the cached listing is never written into.
             return {**e, "_match_method": method} if scoped else e
 
+        verified_listing: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
         if cached and verified:
             # Just verify event exists
             events = self._fetch_events(cached["sofascore_id"], sport)
+            verified_listing.append((
+                {"id": int(cached["sofascore_id"]),
+                 "name": cached.get("sofascore_name") or ""}, events))
             for e in events:
                 method = method_of(e, cached["sofascore_id"])
                 if method is not None:
@@ -1304,6 +1520,7 @@ class SofaResolver:
 
         # Miss -> search/all
         search_data = search(search_query(norm_side))
+        payloads: list[Any] = [search_data]
         if (not search_data or "results" not in search_data) and not retry_queries:
             if record_miss and not verified:
                 self.cache.save_entity_miss(sport, norm_side)
@@ -1334,7 +1551,8 @@ class SofaResolver:
                 and not any(squad_level_candidate(norm_side, c) for c in candidates)):
             tried = {c.get("id") for c in candidates}
             for q in retry_queries:
-                extra = fitting(search(q), lambda e: e.get("id") not in tried
+                payloads.append(search(q))
+                extra = fitting(payloads[-1], lambda e: e.get("id") not in tried
                                 and squad_level_candidate(norm_side, e))
                 tried.update(c.get("id") for c in extra)
                 try_candidates(extra)
@@ -1380,6 +1598,16 @@ class SofaResolver:
             if found_by_anchor is not None:
                 return found_by_anchor
 
+        # Last: the squad-level alias only adds a pair every rule above
+        # refused - a fixture they bridge is never changed.
+        if level_alias:
+            found_by_alias = self._squad_level_alias(
+                [*verified_listing, *listings], payloads, sport, side,
+                expected_opponent, kickoff_utc, board_side_a or side,
+                board_side_b or expected_opponent, search)
+            if found_by_alias is not None:
+                return found_by_alias
+
         # Nothing matched. Note this is only reached when the fixture was not
         # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
         # as a miss would suppress a resolution that is still possible. A
@@ -1388,6 +1616,73 @@ class SofaResolver:
         if record_miss and not verified:
             self.cache.save_entity_miss(sport, norm_side)
         return None, None, False
+
+    def _squad_level_alias(
+        self,
+        listings: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+        payloads: list[Any],
+        sport: str,
+        side: str,
+        opponent: str,
+        kickoff_utc: datetime,
+        board_side_a: str,
+        board_side_b: str,
+        search: Any,
+    ) -> tuple[int, dict[str, Any], bool] | None:
+        """epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC: the listings already
+        read plus up to 3 search results of a level the side's level may name
+        (`squad_alias_candidate`: "Cosenza U20" for "Cosenza U19", which
+        `candidate_fits` keeps out) are read for the one game both board sides
+        name under a pair-consistent level shift (`squad_level_alias_event`),
+        unless the opponent's own search names a team playing elsewhere then
+        (`squad_alias_veto`, one search and up to 3 listings).
+        The event carries `_match_rule` ("SQUAD_LEVEL_ALIAS:<shift>", onto
+        Fixture.match_rule); nothing is cached as a verified name."""
+        norm_side = normalize_name(side)
+        tried = {c.get("id") for c, _ in listings}
+        extra: list[dict[str, Any]] = []
+        for data in payloads:
+            for r in (data or {}).get("results") or []:
+                ent = r.get("entity") or {}
+                if (len(extra) < 3 and r.get("type") == "team"
+                        and (ent.get("sport") or {}).get("slug") == sport
+                        and ent.get("id") not in tried
+                        and squad_alias_candidate(norm_side, ent)):
+                    extra.append(ent)
+                    tried.add(ent.get("id"))
+        pool = [*listings, *((c, self._fetch_events(c["id"], sport)) for c in extra)]
+        got = squad_level_alias_event(pool, kickoff_utc, side, opponent,
+                                      board_side_a, board_side_b)
+        if got is None:
+            return None
+        cand, event, shift = got
+        # The opponent's own search, asked only once a game is found: a team
+        # it names that plays elsewhere at that time refuses the game.
+        norm_opp = normalize_name(opponent)
+        opp_cands: list[dict[str, Any]] = []
+        cached = self.cache.get_entity(sport, norm_opp)
+        if cached and cached["status"] == "verified":
+            opp_cands.append({"id": int(cached["sofascore_id"]),
+                              "name": cached.get("sofascore_name") or ""})
+        found = 0
+        for r in (search(search_query(norm_opp)) or {}).get("results") or []:
+            ent = r.get("entity") or {}
+            if (found < 3 and r.get("type") == "team"
+                    and (ent.get("sport") or {}).get("slug") == sport
+                    and (candidate_fits(norm_opp, ent, sport)
+                         or squad_alias_candidate(norm_opp, ent))):
+                opp_cands.append(ent)
+                found += 1
+        opp_listings = [(c, self._fetch_events(int(c["id"]), sport))
+                        for c in opp_cands if isinstance(c.get("id"), int)]
+        if squad_alias_veto(event, kickoff_utc, opp_listings):
+            logger.info("RESOLVE squad-level alias vetoed: %s v %s -> %s", side,
+                        opponent, event.get("id"))
+            return None
+        logger.info("RESOLVE squad-level alias: %s v %s -> %s (%s)", side, opponent,
+                    event.get("id"), shift)
+        tagged = {**event, "_match_rule": f"SQUAD_LEVEL_ALIAS:{shift}"}
+        return int(cand["id"]), tagged, False
 
     def _searched_anchor(
         self,
