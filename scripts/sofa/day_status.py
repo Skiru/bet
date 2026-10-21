@@ -116,20 +116,29 @@ def _json(path: Path) -> Any:
 
 def last_jsonl_record(path: Path, chunk: int = 1 << 16) -> dict[str, Any] | None:
     """The last complete JSON line of a (possibly large, possibly torn)
-    jsonl file, read from its end."""
+    jsonl file, read from its end. The window doubles until it holds a
+    complete record: a basketball snapshot line reached 88 KB on 2026-10-21
+    and a fixed 64 KB tail read as "no readable record"."""
     with path.open("rb") as fh:
         fh.seek(0, os.SEEK_END)
         size = fh.tell()
-        fh.seek(max(0, size - chunk))
-        tail = fh.read().decode("utf-8", errors="replace")
-    for line in reversed(tail.splitlines()):
-        try:
-            rec = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(rec, dict):
-            return rec
-    return None
+        while True:
+            start = max(0, size - chunk)
+            fh.seek(start)
+            tail = fh.read().decode("utf-8", errors="replace")
+            lines = tail.splitlines()
+            if start > 0:
+                lines = lines[1:]  # the first line of a window may be cut
+            for line in reversed(lines):
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(rec, dict):
+                    return rec
+            if start == 0:
+                return None
+            chunk *= 2
 
 
 def offer_check(run: Path, now: datetime) -> Check:
