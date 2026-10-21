@@ -385,8 +385,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d>   # the ledger by epoch group
 ```
 
-The loops (`shadow_daily.py`, `cs2_daily.py`) start `capture_closing.py` for
-their date; `day_status.py` WARNs `loop:capture_closing` when it is missing. A
+The loops (`shadow_daily.py`, `cs2_daily.py`) run `ensure_bridge.py` before
+every SPORT_IDENTITY (`cs2_daily.identity_steps`; 10-20 lost 10 h of
+identities to a dead bridge) and start `capture_closing.py` for their date; `day_status.py` WARNs `loop:capture_closing` when it is missing. A
 loop step past `cs2_daily.STEP_TIMEOUT_S` (6 h) is killed with its process
 group (`STEP_FAILED TIMEOUT`). `day_status.py` also WARNs on sport identity
 (any BRIDGE_ABORTED, or below hockey 85% / basketball 75% / CS2 45% /

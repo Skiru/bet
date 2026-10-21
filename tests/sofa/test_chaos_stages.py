@@ -1035,6 +1035,8 @@ def test_daily_loop_runs_sport_identity_after_every_snapshot_and_ignores_its_exi
     steps = cs2_daily.identity_steps("2026-09-29", ["hockey", "volleyball"])
     flags = ["--sport", "hockey", "--sport", "volleyball"]
     assert steps == [
+        # 2026-10-21: the bridge brought back first (10-20: 10 h of 504s).
+        ["scripts/sofa/ensure_bridge.py"],
         ["scripts/sofa/run_sport_identity.py", "--date", "2026-09-29", *flags],
         # D+1 has no snapshot most of the day: NOTHING_TO_DO, not FAILED.
         ["scripts/sofa/run_sport_identity.py", "--date", "2026-09-30", *flags,
@@ -1053,5 +1055,7 @@ def test_daily_loop_runs_sport_identity_after_every_snapshot_and_ignores_its_exi
         clock=clock.now, sleep=clock.sleep, runner=runner,
         each_snapshot=steps)
     assert code == 0
-    assert calls[:3] == ["snap", "volleyball", "volleyball"]
+    assert calls[:4] == ["snap", "scripts/sofa/ensure_bridge.py",
+                         "volleyball", "volleyball"]
     assert calls.count("snap") == 3 and calls.count("volleyball") == 6
+    assert calls.count("scripts/sofa/ensure_bridge.py") == 3

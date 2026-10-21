@@ -49,8 +49,10 @@ def test_a_day_runs_snapshots_then_the_morning_steps_in_order() -> None:
     # SPORT_IDENTITY for D and D+1 after each of the 4 snapshots
     assert len(identity) == 8 and {c[2] for c in identity} == {
         "2026-09-29", "2026-09-30"}
+    bridge = [c for _, c in calls if c[0].endswith("ensure_bridge.py")]
+    assert len(bridge) == 4  # before each snapshot's identity runs
     morning = [(t, c) for t, c in calls
-               if c[-1] != "CS2" and c not in identity]
+               if c[-1] != "CS2" and c not in identity and c not in bridge]
     assert morning[0][0] == settle_at and morning[0][1][-1] == "CS2_SETTLE"
     assert morning[0][1][2] == "2026-09-29"
     # the day before again: its STATS_PENDING series and night series

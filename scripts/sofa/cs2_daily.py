@@ -266,10 +266,20 @@ def identity_steps(date: str, sports: Sequence[str]) -> list[list[str]]:
     lost to NOT_IDENTIFIED before the day's coupon was built. A snapshot
     writes a next-day game into its own day's file, so D+1 is asked too. An
     IDENTIFIED record is pinned and never asked again; bridge needed (none:
-    the run fails, the loop goes on)."""
+    the run fails, the loop goes on).
+
+    ensure_bridge.py first (2026-10-21): on 10-20 every D run of both loops
+    from 11:32Z to ~21:30Z aborted on its first listing with "bridge HTTP 504:
+    bridge timeout" and nothing brought the bridge back, so every game of
+    those hours stayed BRIDGE_ABORTED and was frozen at its start (CS2 16 of
+    the day's events, hockey / basketball / volleyball too). It never touches
+    a bridge that works (server, then the flagged Chrome, then check_bridge),
+    never quits the operator's browser, and its exit is ignored like the
+    identity runs' own."""
     flags = [x for sp in sports for x in ("--sport", sp)]
     # D+1 usually has no snapshot yet: NOTHING_TO_DO, not FAILED (2026-10-12).
-    return [["scripts/sofa/run_sport_identity.py", "--date", date, *flags],
+    return [["scripts/sofa/ensure_bridge.py"],
+            ["scripts/sofa/run_sport_identity.py", "--date", date, *flags],
             ["scripts/sofa/run_sport_identity.py", "--date", next_day(date),
              *flags, "--if-snapshot"]]
 
