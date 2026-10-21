@@ -281,6 +281,46 @@ i zdjęła wszystkie 168 wycenionych szczebli. Prawdziwa północ istnieje
 (piłka południowoamerykańska), więc 00:00Z to zaślepka tylko obok innego
 listingu tego samego meczu.
 
+### 4.1 Późny RESOLVE (od 2026-10-21 08:48Z, `epochs.LATE_RESOLVE_FROM_UTC`)
+
+RESOLVE biegnie raz, rano. Mecz ITF, który Sofascore założy po tym
+przebiegu (albo mecz piłkarski wystawiony później), nie dostawał fixture'a
+i żadna jego noga nie mogła się wydrukować. Pomiar 2026-10-21: 65 wpisów
+tenisowych z 10-07..10-20 nigdy nie zmostkowanych, choć mecz później był w
+listingu znanego zawodnika; 39 z nich ma id Sofascore większe od każdego id
+zmostkowanego tego dnia (mecz założony po porannym RESOLVE; piłka: 4).
+
+`scripts/sofa/run_late_resolve.py --date <d>` (logika: `bet.sofa.late_resolve`):
+
+1. kandydaci: wpisy `01_board.json`, których `superbet_event_id` nie ma w
+   żadnym fixture, ze startem tablicy > 20 min od teraz; zaślepka 00:00Z
+   jest pomijana (liczona);
+2. ten sam `_resolve_one` co RESOLVE, z listingami czytanymi świeżo
+   (`LATE_LISTING_TTL_MIN` 30 min zamiast 6 h listingu / 12 h 404 — poranna
+   kopia to właśnie ta, w której meczu nie było); **miss encji zostaje
+   bez zmian**: zweryfikowana nazwa go ignoruje, niezweryfikowana go
+   honoruje, nic nie jest kasowane; otwarty bezpiecznik kończy przebieg;
+3. zdarzenie Sofascore, które dzień już ma, zostaje nietknięte (nawet drugi
+   superbet id nie jest dopisywany); nowe trafia do `02_fixtures.json`
+   (dopisane na koniec) tylko, gdy każdy jego zegar jest > 20 min przed nami;
+4. `run_offer.py` / `run_samples.py` / `run_sheet.py --event-ids <nowe id>`:
+   każdy etap liczy tylko te mecze i dokleja je do 04 / 03 / 05
+   (`late_resolve.merge_by_event`); wiersze pozostałych meczów zostają takie,
+   jakie były (SHEET nadal czyta kontekst dnia — obserwacje lig, ratingi —
+   ze wszystkich meczów, ale wycenia tylko nowe);
+5. `late_resolve.json`: każdy przebieg (co zapytano, co dodano, kody etapów)
+   i każde dodane zdarzenie z czasem SHEET; przebieg przerwany w połowie
+   (etap z kodem 2, błąd dostawcy w SAMPLES) zostawia zdarzenia „w toku" i
+   następny je dokończa.
+
+Uruchamia go `rebuild_day.py` (krok 0 planu, po `ensure_bridge`), tylko gdy
+przełącznik jest włączony i istnieje niezmostkowany wpis, który jeszcze się
+nie zaczął (albo zdarzenie w toku). Krok jest miękki: jego porażka robi z
+przebudowy PARTIAL, nie zatrzymuje jej. Nowe nogi przechodzą wszystkie
+bramki jak każde inne; nogi wydrukowane wcześniej zostają zablokowane.
+Nowe nogi z pierwszych 30 meczów wg wartości trzeba przeczytać
+(`read_set.py --unread`, audyt C3).
+
 ---
 
 ## 5. OFFER — co w ogóle ma cenę

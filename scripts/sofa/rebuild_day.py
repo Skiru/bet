@@ -35,7 +35,11 @@ PARTIAL. --dry-run prints the plan
 and runs nothing.
 
 Refuses SOFA_NOW (a frozen replay clock), like run_pipeline. Honours
-SOFA_RUNS_DIR. Never runs SAMPLES, RESOLVE or a fit.
+SOFA_RUNS_DIR. Never runs a fit, nor RESOLVE / SAMPLES over the day - the one
+exception is step 0 while epochs.LATE_RESOLVE_FROM_UTC is on: ensure_bridge +
+run_late_resolve.py (soft) when an unbridged board entry has not started; it
+adds only the NEW fixtures through OFFER / SAMPLES / SHEET --event-ids, every
+existing fixture, sample and sheet row kept (bet.sofa.late_resolve).
 
 Exit: 0 OK, 1 PARTIAL, 2 FAILED.
 """

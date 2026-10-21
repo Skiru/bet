@@ -285,6 +285,12 @@ FIXTURE_CHECK's `/event`).
 |---|---|---|
 | `SQUAD_SEARCH_RETRY_FROM_UTC` | `resolve.search_query` strips our "(r)", so "Atlas U21" was searched as "atlas" and Atlas FC U21 (1111909) never reached the candidates. On: a side below the senior squad whose marker-free search matched nothing and held no candidate of its level is searched again with Superbet's name (`resolve.squad_retry_queries`: bracketed markers dropped, a name marked only "(R)" + " Reserve") and only candidates of its own level are tried (`resolve.squad_level_candidate`; the senior club never again); opponent / kickoff / orientation gates unchanged. A miss recorded before the switch does not block such a name (`SofaCache.get_entity_miss(recorded_after=)`). SHADOW_SETTLE (`record_miss=False`) reads it at once (grades only the pinned id). Measured live 2026-10-21 on the 168 distinct squad sides of the 138 football board entries RESOLVE lost 10-07..10-21 (of 1,100 with a squad side): plain search held a candidate of the side's level for 71, the retry for 25 more; RESOLVE replayed on a slim DB copy, retry off vs on: +6 fixtures, all right by eye (Reserves / U21 competitions), 0 changed, 0 lost. Not this fix: "U19" sides with no U19 result (29, 23 Italian), MLS "2" sides, "B" in the middle ("Žalgiris B Vilnius") | `scripts/sofa/measure_squad_search.py`, `docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md` |
 
+### RESOLVE late pass (2026-10-21 08:48Z into the built day; operator "Włączaj od razu!"; ledger group "10-21 mieszany")
+
+| constant | what | evidence |
+|---|---|---|
+| `LATE_RESOLVE_FROM_UTC` | a rebuild while the day is live (`rebuild_plan` step 0, after ensure_bridge, soft) re-asks RESOLVE for the board entries no fixture bridges whose board start is > 20 min ahead (`bet.sofa.late_resolve.candidates`; 00:00Z placeholders skipped) with `run_resolve._resolve_one`, listings read fresh (`LATE_LISTING_TTL_MIN` 30), entity misses honoured as in RESOLVE; an event the day already holds is never touched; a new open fixture is appended to 02 and only it goes through `run_offer` / `run_samples` / `run_sheet --event-ids` (merged, every other row kept, `late_resolve.merge_by_event`); `late_resolve.json` records passes and carries a half-done event on. Measured 2026-10-21 (read-only): 65 tennis entries never bridged 10-07..10-20 while their game later sat in a known player's listing, 39 with an id above every id their day's RESOLVE bridged (football 4); live replay 08:40Z: 2 of the day's open unbridged tennis entries resolve with today's code and no alias; a lost event ~1.2 printed legs (tennis), ~8.6 (football). Adds fixtures, changes no p | `docs/sofa/history/RAPORT_POZNY_RESOLVE_2026-10-21.md` |
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -608,7 +614,8 @@ Groups are never pooled.
 | "od 10-18" | none | holds no day |
 | "10-18 mieszany" | 10-18 | LINE_CURVES 12:48Z into it |
 | "od 10-19" | 10-19 .. 10-20 | LINE_CURVES from 00:00Z |
-| "od 10-21" | 10-21 | CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) |
+| "od 10-21" | none | holds no day (CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) - all in "10-21 mieszany") |
+| "10-21 mieszany" | 10-21 | the "od 10-21" switches 00:00Z, then LATE_RESOLVE 08:48Z into the built day (late fixtures reach the coupon after the first print) |
 | "od 10-22" | 10-22 .. | current; SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

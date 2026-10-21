@@ -13,6 +13,7 @@ from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture
+from bet.sofa.late_resolve import parse_event_ids
 from bet.sofa.locked_print import starts_after
 from bet.sofa.offer import OfferFetcher, day_flags
 from bet.sofa.stage import set_stage
@@ -101,7 +102,17 @@ def main() -> int:
             "were still open."
         ),
     )
+    parser.add_argument(
+        "--event-ids",
+        default=None,
+        help=(
+            "Comma-separated Sofascore event ids: price only these fixtures and "
+            "merge them into 04_offer.json, every other entry kept as it was "
+            "(the late RESOLVE pass, bet.sofa.late_resolve)."
+        ),
+    )
     args = parser.parse_args()
+    only_ids = parse_event_ids(args.event_ids)
 
     config = SofaConfig.from_env()
     _frozen = frozen_clock_refusal(config.runs_dir)
@@ -133,6 +144,8 @@ def main() -> int:
     fixtures = RootModel[list[Fixture]].model_validate_json(fixtures_data).root
 
     # Filter before the fetch, not after: the point is the requests not made.
+    if only_ids is not None:
+        fixtures = [fx for fx in fixtures if fx.sofascore_event_id in only_ids]
     skipped_kicked_off = 0
     if args.min_minutes_to_kickoff is not None:
         cutoff = timeutil.now() + timedelta(minutes=args.min_minutes_to_kickoff)
@@ -170,7 +183,7 @@ def main() -> int:
     if out_path.exists():
         with open(out_path, encoding="utf-8") as f:
             previous = json.load(f)
-    if args.min_minutes_to_kickoff is not None and previous:
+    if (args.min_minutes_to_kickoff is not None or only_ids is not None) and previous:
         dumped, carried_forward = merge_with_previous(dumped, previous)
     # Fixtures Superbet's open breaker kept this run from asking (F6.1): what
     # the previous file knew about them stays - "not asked" is not "no price".
@@ -238,7 +251,9 @@ def main() -> int:
     # Fixtures on the board with no priced rung at all, and market names we
     # could not classify, are both diagnostics the operator has to see — a
     # market Superbet added should surface as unmapped, not vanish (T16).
-    if fixtures and empty_offers == len(offers):
+    if only_ids is not None and not fixtures:
+        verdict = "OK"  # nothing asked, the file untouched but rewritten as is
+    elif fixtures and empty_offers == len(offers):
         verdict = "FAILED"
     elif (empty_offers or total_unmapped or total_collisions or fetcher.errors
           or not_reached):

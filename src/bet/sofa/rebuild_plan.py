@@ -12,6 +12,9 @@ event already on file and starting beyond the horizon is not fetched again),
 so its leg went STALE_PRICE too. The plan refreshes a price BEFORE the gate
 that would refuse it, with a margin for the rebuild's own duration:
 
+0. epochs.LATE_RESOLVE (while on and an unbridged board entry has not
+   started): ensure_bridge + run_late_resolve.py, the new fixtures only
+   (bet.sofa.late_resolve);
 1. freshness, only while the day is live - OFFER when the oldest rung of a
    fixture that can still be bet is older than the CONFIDENCE limit minus
    OFFER_REFRESH_MARGIN; SHADOW (with a horizon to the farthest open start)
@@ -44,6 +47,7 @@ from typing import Any
 
 from bet.sofa import epochs, sheet_config, sport_day
 from bet.sofa import fixture_status as fs
+from bet.sofa import late_resolve as lr
 from bet.sofa import referees as referee_terms
 from bet.sofa import sport_identity as si
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
@@ -162,6 +166,10 @@ class DayState:
     # whose cards / fouls rows say NO_REFEREE while the DB now names their
     # referee (a label, or the /event RESOLVE / FIXTURE_CHECK cached)
     referee_now_known: tuple[int, ...] = ()
+    # epochs.LATE_RESOLVE: board entries no fixture bridges whose start is
+    # ahead, and fixtures an earlier late pass left half-way (late_resolve)
+    late_candidates: int = 0
+    late_pending: int = 0
 
 
 @dataclass(frozen=True)
@@ -541,7 +549,16 @@ def observe(runs_dir: str, date: str, now: datetime,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
         coupon06_stale=coupon06_stale,
         referee_now_known=referee_now_known(runs_dir, date, now, db_path),
+        **_late_work(runs_dir, date, now),
     )
+
+
+def _late_work(runs_dir: str, date: str, now: datetime) -> dict[str, int]:
+    """epochs.LATE_RESOLVE's work, read only while the switch is on."""
+    if not epochs.late_resolve(date, now):
+        return {}
+    candidates, pending = lr.observe_work(runs_dir, date, now)
+    return {"late_candidates": candidates, "late_pending": pending}
 
 
 # --- the plan ----------------------------------------------------------------
@@ -575,6 +592,25 @@ def build_plan(state: DayState, run_id: str = "rebuild",
         plan.refusal = ("05_sheet.json missing: nothing to rebuild - the day "
                         "needs /sofa-day")
         return plan
+
+    # 0. epochs.LATE_RESOLVE: the board entries the morning RESOLVE could
+    # not bridge, re-asked while they can still be bet; only the new
+    # fixtures go through OFFER / SAMPLES / SHEET (merged, old rows kept)
+    bridge_planned = False
+    if epochs.late_resolve(d, now) and (state.late_candidates
+                                        or state.late_pending):
+        plan.steps.append(Step(
+            "BRIDGE", (PY, "scripts/sofa/ensure_bridge.py"),
+            "LATE_RESOLVE asks Sofascore", soft=True))
+        bridge_planned = True
+        plan.steps.append(Step(
+            "LATE_RESOLVE", (PY, "scripts/sofa/run_late_resolve.py", "--date", d),
+            f"{state.late_candidates} board entries with no fixture start more "
+            f"than {lr.MIN_MINUTES_TO_KICKOFF} min ahead"
+            + (f", {state.late_pending} fixtures of an earlier late pass "
+               "without their rows" if state.late_pending else "")
+            + " (epochs.late_resolve): new fixtures only, through OFFER / "
+            "SAMPLES / SHEET --event-ids", soft=True))
 
     # 1a. the football / tennis price
     limit = state.price_max_age
@@ -637,7 +673,6 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                 f"{trigger.total_seconds() / 60:.0f} min")
 
     # 1b. the measured sports' prices and identities
-    bridge_planned = False
     if on_coupon:
         refreshed = False
         shadow = [state.sports.get(s, SportState(s)) for s in SHADOW_SPORTS]
@@ -799,7 +834,8 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                "SHEET kept: an install never goes into a built day unless "
                "the operator says so; then run_pipeline.py --only SHEET by "
                "hand before the rebuild"))
-    if not skip_audits and (sheet_rebuilt or state.coupon06_stale):
+    if not skip_audits and (sheet_rebuilt or state.coupon06_stale
+                            or "LATE_RESOLVE" in plan.names()):
         plan.steps.append(Step(
             "COUPON", _pipeline(d, "COUPON", run_id),
             "06_coupon.json older than the sheet / vetoes / reads: keeps "
@@ -857,6 +893,8 @@ def state_summary(state: DayState) -> dict[str, Any]:
         "sheet_epoch": state.sheet_epoch,
         "sheet_config_sha": state.sheet_config_sha,
         "config_sha": state.config_sha,
+        "late_candidates": state.late_candidates,
+        "late_pending": state.late_pending,
         "sports": {
             k: {"events": s.events, "open": s.open_events,
                 "oldest_open_price": _z(s.oldest_open_price),

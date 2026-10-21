@@ -24,6 +24,7 @@ BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
    SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE ────────────────┤
                                    COUPON_ASSEMBLY (11_coupon.json) → PDF   ★ the product
    in a rebuild, before CONFIDENCE: FIXTURE_CHECK
+   in a live rebuild, first:        LATE_RESOLVE (new fixtures only → OFFER/SAMPLES/SHEET --event-ids)
    deliberately separate:           SETTLE → FIT
 ```
 
@@ -50,6 +51,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts, vetoes, the operator's extra positions |
 | `read_set/read_set_<sport>[_<i>].json` | C3's read set as compact legs (`read_set.py`) |
 | `dossier/<sport>_<event id>.json` | the analysts' match fact sheet (`bet.sofa.dossier`, offline, written by `read_set.py` / `build_slip.py`, path on each leg's `dossier`): form with periods, rest, rebuilt table, h2h, venue city / local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, the web checklist - **display only**, never a gate |
+| `late_resolve.json` | the late RESOLVE passes (`epochs.LATE_RESOLVE_FROM_UTC`, `bet.sofa.late_resolve`): board entries the morning could not bridge re-asked while open; only new fixtures added, every old row kept |
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; pinned Sofascore ids of sport games |
 | `unmapped_prices/<ts>.jsonl.gz` | prices of markets OFFER does not read - a record, read by nothing |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** |

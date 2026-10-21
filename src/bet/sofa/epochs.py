@@ -2625,7 +2625,8 @@ def football_card_halves_terms(date: str, build_at: datetime | None = None) -> b
 # distinct squad sides of 138 football board entries RESOLVE lost 10-07..10-21:
 # the plain search held a candidate of the side's level for 71, the retry for
 # 25 more; RESOLVE replayed on a DB copy, retry off vs on: +6 fixtures, each
-# right by eye, 0 changed, 0 lost. Adds fixtures (and what prints), so from the next day's 00:00Z;
+# right by eye, 0 changed, 0 lost. Adds fixtures (and what prints), so from the
+# next day's 00:00Z;
 # SHADOW_SETTLE (resolve_entity with record_miss=False) reads it at once - a
 # settle grades only the pinned id. Evidence:
 # docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md.
@@ -2640,3 +2641,33 @@ def squad_search_retry(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= SQUAD_SEARCH_RETRY_FROM_UTC.strftime("%Y-%m-%d")
             and at >= SQUAD_SEARCH_RETRY_FROM_UTC)
+
+
+# --- RESOLVE: a late pass for the board entries the morning could not bridge
+# (2026-10-21) ---------------------------------------------------------------
+# RESOLVE runs once, in the morning; an ITF match Sofascore creates after it
+# never reached a fixture. Measured 2026-10-21 (main session, read-only):
+# 65 tennis board entries 10-07..10-20 never bridged while their game later
+# sat in a known player's listing, 39 of them with a Sofascore id above every
+# id that day's RESOLVE bridged (created after the run; football 4); a live
+# replay at 08:40Z resolved 2 of the day's not-started unbridged tennis
+# entries with today's code and no alias. On: a rebuild while the day is live
+# re-asks RESOLVE for the board entries with no fixture whose start is ahead
+# (bet.sofa.late_resolve, scripts/sofa/run_late_resolve.py) - listings read
+# fresh, an unverified name's miss still honoured - and carries only the NEW
+# fixtures through OFFER -> SAMPLES -> SHEET (merged, old rows untouched).
+# Adds fixtures (and what prints). Moved on by the operator into the built
+# day 2026-10-21 ("Włączaj od razu!") at the minute below: 10-21 is mixed
+# (audit_ledger "10-21 mieszany"); legs printed before stay locked.
+# Evidence: docs/sofa/history/RAPORT_POZNY_RESOLVE_2026-10-21.md.
+LATE_RESOLVE_FROM_UTC: datetime | None = datetime(2026, 10, 21, 8, 48, tzinfo=UTC)
+
+
+def late_resolve(date: str, build_at: datetime | None = None) -> bool:
+    """Does a rebuild re-ask RESOLVE for the day's unbridged board entries
+    that have not started (LATE_RESOLVE_FROM_UTC)?"""
+    if LATE_RESOLVE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= LATE_RESOLVE_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= LATE_RESOLVE_FROM_UTC)

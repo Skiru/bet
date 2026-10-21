@@ -394,6 +394,17 @@ okna nie mają ceny zamknięcia. `day_status.py` daje WARN
 
 Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
 
+- **LATE_RESOLVE** (od 2026-10-21 08:48Z, `epochs.LATE_RESOLVE_FROM_UTC`;
+  poprzedzony `ensure_bridge.py`), gdy dzień ma wpis tablicy bez fixture'a,
+  który startuje za więcej niż 20 min (albo zdarzenie, którego poprzedni
+  późny przebieg nie doprowadził do SHEET): `run_late_resolve.py` pyta
+  RESOLVE jeszcze raz tylko o te wpisy i przeprowadza **wyłącznie nowe**
+  mecze przez OFFER / SAMPLES / SHEET (`--event-ids`, doklejane do 04 / 03 /
+  05; stare wiersze nietknięte). Krok miękki. Ręcznie: najpierw
+  `ensure_bridge.py`, potem `run_late_resolve.py --date <d> [--dry-run]`;
+  zapis przebiegów w `runs/sofa/<d>/late_resolve.json`. Nowe nogi z
+  pierwszych 30 meczów wg wartości wymagają odczytu (`read_set.py --unread`).
+
 - **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza
   cena meczu, który jeszcze można zagrać, jest starsza niż limit CONFIDENCE
   (`SOFA_PRICE_MAX_AGE_MIN`, 45 min) minus 15 min zapasu — przebudowa trwa

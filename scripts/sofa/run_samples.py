@@ -36,6 +36,7 @@ from bet.sofa.epochs import (
     player_starts_only,
     shot_detail_markets,
 )
+from bet.sofa.late_resolve import merge_by_event, parse_event_ids
 from bet.sofa.samples import (
     FRIENDLY_COMPETITION_IDS,
     compute_readiness,
@@ -230,7 +231,13 @@ def main() -> int:
     set_stage("SAMPLES")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", default=now().strftime("%Y-%m-%d"), help="YYYY-MM-DD")
+    parser.add_argument(
+        "--event-ids", default=None,
+        help="comma-separated Sofascore event ids: sample only these fixtures and "
+        "merge them into 03_samples.json, every other fixture's entry kept as it "
+        "was (the late RESOLVE pass, bet.sofa.late_resolve)")
     args = parser.parse_args()
+    only_ids = parse_event_ids(args.event_ids)
 
     config = SofaConfig.from_env()
     client = SofascoreClient(config)
@@ -249,6 +256,8 @@ def main() -> int:
     fixtures = (
         RootModel[list[Fixture]].model_validate_json(fixtures_path.read_bytes()).root
     )
+    if only_ids is not None:
+        fixtures = [f for f in fixtures if f.sofascore_event_id in only_ids]
 
     cache_hits = 0
     network_requests = 0
@@ -361,10 +370,18 @@ def main() -> int:
 
     run_dir.mkdir(parents=True, exist_ok=True)
     out_path = run_dir / "03_samples.json"
+    dumped = [s.model_dump(mode="json") for s in all_samples]
+    replaced_previous = 0
+    if only_ids is not None:
+        # the late RESOLVE pass: the other fixtures' entries as they were
+        previous_raw = (json.loads(out_path.read_text(encoding="utf-8"))
+                        if out_path.exists() else [])
+        dumped, replaced_previous = merge_by_event(
+            previous_raw, dumped, {f.sofascore_event_id for f in fixtures})
     write_atomic(
         out_path,
         json.dumps(
-            [s.model_dump(mode="json") for s in all_samples],
+            dumped,
             indent=2,
             ensure_ascii=False,
         ),
@@ -399,6 +416,10 @@ def main() -> int:
         provider_faulted=provider_faulted,
         carried_over=carried_over,
     )
+    if only_ids is not None and verdict == "FAILED" and fixtures:
+        # a late pass's handful of fixtures with nothing READY is a thin
+        # addition, not a broken stage: the entries are written (BLOCKED)
+        verdict = "PARTIAL"
 
     summary = {
         "stage": "SAMPLES",
@@ -406,6 +427,10 @@ def main() -> int:
         "metrics": {
             "input_fixtures": len(fixtures),
             "output_samples": len(all_samples),
+            **({"event_ids_only": len(only_ids),
+                "replaced_previous_entries": replaced_previous,
+                "entries_written": len(dumped)}
+               if only_ids is not None else {}),
             "carried_over_on_provider_fault": carried_over,
             "provider_fault_fixtures": provider_faulted,
             # The breaker ended the stage open (F6.1): every fixture after it

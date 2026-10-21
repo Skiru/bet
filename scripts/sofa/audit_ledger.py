@@ -148,7 +148,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
-                "od 10-21", "od 10-22")
+                "od 10-21", "10-21 mieszany", "od 10-22")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -196,12 +196,20 @@ CS2_PLAYER_SHARE_EPOCH_FROM_DATE = "2026-10-21"
 # RESOLVE's reserve / youth retry (epochs.SQUAD_SEARCH_RETRY_FROM_UTC,
 # 2026-10-22 00:00Z): more reserve fixtures reach the coupon.
 SQUAD_SEARCH_EPOCH_FROM_DATE = "2026-10-22"
+# The late RESOLVE pass (epochs.LATE_RESOLVE_FROM_UTC), moved by the operator
+# into the built day 2026-10-21 ("Włączaj od razu!"): fixtures RESOLVE missed
+# in the morning reach that day's coupon after its first print, so 10-21 is
+# mixed - its own group, summed with neither "od 10-21" (which therefore
+# holds no day) nor "od 10-22".
+LATE_RESOLVE_1021_MIXED_DATE = "2026-10-21"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
         if str(row.get("date", "")) >= SQUAD_SEARCH_EPOCH_FROM_DATE:
             return "od 10-22"
+        if str(row.get("date", "")) == LATE_RESOLVE_1021_MIXED_DATE:
+            return "10-21 mieszany"
         if str(row.get("date", "")) >= CS2_PLAYER_SHARE_EPOCH_FROM_DATE:
             return "od 10-21"
         if str(row.get("date", "")) >= LINE_CURVES_EPOCH_FROM_DATE:

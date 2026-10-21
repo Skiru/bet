@@ -155,6 +155,7 @@ from bet.sofa.goals_stretch import (
     stretch_supremacy,
 )
 from bet.sofa.goals_stretch import load_table as load_goals_stretch_table
+from bet.sofa.late_resolve import merge_by_event, parse_event_ids
 from bet.sofa.market_mapper import (
     derived_base,
     derived_side_metric,
@@ -3469,7 +3470,14 @@ def _main() -> int:
     set_stage("SHEET")
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD", default=now().strftime("%Y-%m-%d"))
+    parser.add_argument(
+        "--event-ids", default=None,
+        help="comma-separated Sofascore event ids: price only these fixtures and "
+        "merge their rows into 05_sheet.json, every other fixture's rows kept as "
+        "they were (the late RESOLVE pass, bet.sofa.late_resolve); the day's "
+        "context (league observations, ratings) still reads every fixture")
     args = parser.parse_args()
+    only_ids = parse_event_ids(args.event_ids)
 
     config = SofaConfig.from_env()
     _frozen = frozen_clock_refusal(config.runs_dir)
@@ -3733,6 +3741,8 @@ def _main() -> int:
         for offer in offers:
             if offer.status == "NO_PRICE":
                 continue
+            if only_ids is not None and offer.sofascore_event_id not in only_ids:
+                continue
 
             fixture = fixtures_by_id.get(offer.sofascore_event_id)
             fixture_samples = samples_by_id.get(offer.sofascore_event_id)
@@ -3902,10 +3912,18 @@ def _main() -> int:
         all_rows = [r.model_copy(update={"config_sha": config_sha})
                     for r in all_rows]
 
+        written = [sheet_row_json(r) for r in all_rows]
+        replaced_previous = 0
+        if only_ids is not None:
+            # the late RESOLVE pass: every other fixture's rows as they were
+            previous_rows = (json.loads(sheet_path.read_text(encoding="utf-8"))
+                             if sheet_path.exists() else [])
+            written, replaced_previous = merge_by_event(
+                previous_rows, written, only_ids)
         write_atomic(
             sheet_path,
             json.dumps(
-                [sheet_row_json(r) for r in all_rows],
+                written,
                 indent=2,
                 ensure_ascii=False,
             ),
@@ -3925,6 +3943,10 @@ def _main() -> int:
         "verdict": "OK",
         "metrics": {
             "rows_generated": len(all_rows),
+            **({"event_ids_only": len(only_ids),
+                "replaced_previous_rows": replaced_previous,
+                "rows_written": len(written)}
+               if only_ids is not None else {}),
             "epoch": STATS_ONLY if stats_only else "old",
             "link_rule": epochs.LINK_SHARED_LEAGUE if link_shared else "old",
             "dispersion_rule": (
