@@ -25,6 +25,7 @@ BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
                                    COUPON_ASSEMBLY (11_coupon.json) → PDF   ★ the product
    in a rebuild, before CONFIDENCE: FIXTURE_CHECK
    in a live rebuild, first:        LATE_RESOLVE (new fixtures only → OFFER/SAMPLES/SHEET --event-ids)
+   in a rebuild, on a sample switch: SAMPLES/SHEET --event-ids for open fixtures (rebuild_plan 1c)
    deliberately separate:           SETTLE → FIT
 ```
 
@@ -62,6 +63,26 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 the bet and may only lower a confidence.** Yardstick (operator): the statistics
 must tell a good 1.20 from a bad 1.20, in every sport alike, and nothing that
 could win is cut by name.
+
+### Fixtures (RESOLVE)
+
+A board entry becomes a fixture only when both sides agree with one Sofascore
+game (name, opponent, start within the window, Superbet's side order F25,
+gender, squad level - never reserves / youth for the first team). For a pair
+nothing matched by name, football falls back, in order, to (all from 10-21,
+each measured with 0 wrong picks against the real opponent; model-state.md
+"RESOLVE ..." sections; fixture `identity: FUZZY` + `match_rule`, never cached
+as a verified name): the **reserve / youth retry** with Superbet's own name
+(`SQUAD_SEARCH_RETRY`, 09:20Z); the **searched anchor** - the searched side's
+one game at Superbet's start, the opponent agreeing weakly, vetoed when its own
+search names another team (`FOOTBALL_SEARCHED_ANCHOR`, 10:00Z); the
+**squad-level alias** - U19 / U20, reserves / U19..U23, Sofascore's trailing
+"2", each side on its own from 11:30Z (`FOOTBALL_SQUAD_LEVEL_ALIAS[_LOOSE]`,
+10:30Z); the **short-name search** - both sides searched by their longest
+words must land on the same game (`FOOTBALL_SHORT_NAME_SEARCH`, 11:00Z). An
+entity miss blocks a name only on its own kickoff day
+(`ENTITY_MISS_PER_DAY`, 09:20Z; the late pass re-asks a miss older than 30 min),
+and a miss recorded before a rule's switch never blocks that rule.
 
 ### Confidence
 
@@ -116,6 +137,13 @@ could win is cut by name.
   fouls drawn on a player, card points by half, side / half reds and
   penalties, both-over throw-ins / goal kicks / tackles, shots handicaps.
   Neither the referee nor the share is replayed by a refit yet.
+- **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a
+  past match whose payload contradicts itself loses only the metrics that read
+  the contradiction (`metrics.identity_gap_for_metric`: shots identity -> shot
+  metrics; goal incidents vs score -> card points / reds / penalties; home
+  period sum -> goals and the incident metrics on the 90-minute score);
+  tennis `gamesWon` nonsense still drops the whole match. Before it one bad
+  shot count dropped the match from every sample (Roma 3-4 Real, 10-14).
 - What each estimator does today (ratings, dispersion, stretches, cup strength,
   opponent correction, new markets...) and when it switched on: model-state.md.
 

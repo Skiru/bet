@@ -65,6 +65,15 @@ Source of truth: `DEFAULT_SEQUENCE` and `STAGE_MODULES` in
 | SHADOW_SETTLE / CS2_SETTLE | `--only` | yes | the sport's `settled.json` |
 | FIT | separate, on a DB copy, operator's go | no | `config/sofa_*.json` |
 
+A football fixture with `match_rule` set in `02_fixtures.json` (identity FUZZY)
+came from a fallback rule switched on 2026-10-21 - `SEARCHED_ANCHOR:*`,
+`SQUAD_LEVEL_ALIAS:*`, `SHORT_NAME:*` - and is never a cached verified name:
+check its game by both names before trusting a leg. A rebuild may itself run
+LATE_RESOLVE (new fixtures only) and SAMPLES / SHEET `--event-ids` (open
+fixtures under a sample switch); never run those stages by hand. In
+`03_samples.json`, an entry with `identity_gate: "per_family"` lost only the
+metric family a contradictory payload touches, not the whole past match.
+
 Exit codes everywhere: **0 OK, 1 PARTIAL, 2 FAILED**. PARTIAL on RESOLVE /
 OFFER / SAMPLES (fixture gaps) or SPORT_CONFIDENCE (a sport `NOT_CALIBRATED`)
 is the normal shape of a healthy run; only FAILED stops you, and a FAILED

@@ -1,5 +1,5 @@
 ---
-description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (30 best-value matches, printed builder legs, the operator's 'dodatkowo' positions) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES."
+description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (30 best-value matches, printed builder legs, the operator's 'dodatkowo' positions) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES by hand."
 argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD [dodatkowo: <pozycje>]"
 ---
 
