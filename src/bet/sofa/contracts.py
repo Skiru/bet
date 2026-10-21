@@ -154,7 +154,10 @@ class Fixture(BaseModel):
     # epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC; identity is then FUZZY), or
     # "SQUAD_LEVEL_ALIAS:<board level>-><Sofascore level>"
     # (resolve.squad_level_alias_event, epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC;
-    # FUZZY). None for every other fixture.
+    # FUZZY), or "SHORT_NAME:<BOTH|A|B>" (bet.sofa.short_name_search,
+    # epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC; FUZZY). None for every other
+    # fixture. Added 2026-10-21 under extra="forbid": a long-lived reader started
+    # before it (capture_closing --loop) must be restarted.
     match_rule: str | None = None
 
 

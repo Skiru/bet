@@ -290,7 +290,9 @@ def resolve_short_name_pair(
     key = short_miss_key(norm_a, norm_b)
     day_start = kickoff_utc.astimezone(UTC).replace(
         hour=0, minute=0, second=0, microsecond=0)
-    bounds = [day_start]
+    # A miss this run records blocks the rest of it, even before the kickoff day.
+    started = getattr(resolver, "run_started_at", None) or now()
+    bounds = [min(day_start, started)]
     if epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC is not None:
         bounds.append(epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC)
     fresh = getattr(resolver, "miss_fresh_min", None)
@@ -325,8 +327,8 @@ def resolve_short_name_pair(
                 got += 1
                 if isinstance(ent.get("id"), int):
                     short_ids[i].add(ent["id"])
-                if ent.get("id") not in seen:
-                    seen.add(ent.get("id"))
+                if isinstance(ent.get("id"), int) and ent["id"] not in seen:
+                    seen.add(ent["id"])
                     listings.append((ent, resolver._fetch_events(ent["id"], SPORT)))
                 if got == SHORT_NAME_RESULTS:
                     break

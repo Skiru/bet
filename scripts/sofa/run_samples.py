@@ -91,6 +91,10 @@ def carry_over_on_provider_fault(
             update={
                 "metrics": previous.metrics,
                 "readiness": previous.readiness,
+                # The carried metrics were sampled under the previous run's
+                # identity gate, not this run's (rebuild_plan step 1c
+                # re-tries such an entry).
+                "identity_gate": previous.identity_gate,
                 "gaps": [
                     *fresh.gaps,
                     GapEntry(

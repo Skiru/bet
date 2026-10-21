@@ -106,3 +106,16 @@ def test_switch_off_keeps_the_week(
     resolver, client = _resolver(tmp_path, _day_start(KICKOFF) - timedelta(days=2))
     assert _resolve(resolver) is None
     assert client.queries == []
+
+
+def test_a_miss_recorded_before_the_kickoff_day_still_blocks(tmp_path: Any) -> None:
+    """Review 2026-10-21: RESOLVE run before the kickoff day put the per-day
+    bound in the future, so a miss it had just recorded never blocked."""
+    later = KICKOFF + timedelta(days=2)
+    resolver, client = _resolver(tmp_path, NOW - timedelta(minutes=1))
+    resolver.run_started_at = NOW - timedelta(minutes=5)  # recorded in this run
+    got = resolver.resolve_entity(
+        "football", "Tripoli SC", later, "Al Akhaa Ahli Aley",
+        board_side_a="Tripoli SC", board_side_b="Al Akhaa Ahli Aley")[0]
+    assert got is None
+    assert client.queries == []

@@ -455,7 +455,10 @@ def identity_unsampled(runs_dir: str, date: str,
         if (eid is None or fx is None or fx.get("sport") != "football"
                 or entry.get("identity_gate") == epochs.IDENTITY_GATE_MARKER):
             continue
+        # An entry whose sample was carried over on a provider fault holds the
+        # previous run's metrics but not its gaps: try it again too.
         if not any(g.get("reason") == "INTERNAL_INCONSISTENT"
+                   or (g.get("reason") == "PROVIDER_ERROR" and g.get("metric") == "all")
                    for g in entry.get("gaps") or []):
             continue
         if not starts_after(fx, None, status.get(eid), now):

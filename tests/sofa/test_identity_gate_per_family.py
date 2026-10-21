@@ -285,3 +285,29 @@ def test_no_identity_work_no_samples_step(monkeypatch: pytest.MonkeyPatch) -> No
     assert "SAMPLES" not in _plan({}).names()
     monkeypatch.setattr(epochs, "IDENTITY_GATE_PER_FAMILY_FROM_UTC", None)
     assert "SAMPLES" not in _plan({"identity_unsampled": (1,)}).names()
+
+
+def test_a_carried_over_sample_keeps_its_old_marker_and_is_tried_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review 2026-10-21: a provider fault in step 1c carried the old,
+    whole-match sample over under the fresh entry's per_family marker, so no
+    later rebuild re-tried it."""
+    from bet.sofa.contracts import GapEntry, GapReason
+    from scripts.sofa.run_samples import carry_over_on_provider_fault
+
+    previous = FixtureSamples.model_validate_json(json.dumps(
+        {"sofascore_event_id": 4, "readiness": "READY",
+         "metrics": {"corners_for": {"metric": "corners_for", "side_a": [],
+                                     "side_b": [], "h2h": []}},
+         "gaps": [{"reason": "INTERNAL_INCONSISTENT", "metric": "corners_for",
+                   "detail": "x"}]}))
+    fresh = FixtureSamples(
+        sofascore_event_id=4, readiness=previous.readiness, metrics={},
+        gaps=[GapEntry(reason=GapReason.CIRCUIT_OPEN, metric="all", detail="open")],
+        identity_gate=epochs.IDENTITY_GATE_MARKER)
+    carried, did = carry_over_on_provider_fault(fresh, previous)
+    assert did and carried.identity_gate is None
+    _write_day(tmp_path, [carried.model_dump(mode="json")])
+    monkeypatch.setattr(epochs, "IDENTITY_GATE_PER_FAMILY_FROM_UTC", SWITCH)
+    assert rp.identity_unsampled(str(tmp_path), DATE, NOW) == (4,)

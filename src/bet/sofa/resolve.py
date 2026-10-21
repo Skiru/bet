@@ -1043,6 +1043,8 @@ class SofaResolver:
         # epochs.ENTITY_MISS_PER_DAY: the late RESOLVE pass re-asks names whose
         # miss is older than this many minutes (run_late_resolve sets it).
         self.miss_fresh_min: int | None = None
+        # When this run started: the per-day miss bound never lies past it.
+        self.run_started_at = now()
         # epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC: the fitting candidates
         # (with listings) of a football side nothing matched, by (sport,
         # name, kickoff), for the pair step (bet.sofa.short_name_search).
@@ -1455,7 +1457,9 @@ class SofaResolver:
         if epochs.entity_miss_per_day(day):
             day_start = kickoff_utc.astimezone(UTC).replace(
                 hour=0, minute=0, second=0, microsecond=0)
-            bounds.append(day_start)
+            # A miss this run records blocks the rest of it, even when the
+            # kickoff day is still ahead.
+            bounds.append(min(day_start, self.run_started_at))
             if self.miss_fresh_min is not None:
                 bounds.append(now() - timedelta(minutes=self.miss_fresh_min))
         if not verified and (
@@ -1669,6 +1673,7 @@ class SofaResolver:
             for r in (data or {}).get("results") or []:
                 ent = r.get("entity") or {}
                 if (len(extra) < 3 and r.get("type") == "team"
+                        and isinstance(ent.get("id"), int)
                         and (ent.get("sport") or {}).get("slug") == sport
                         and ent.get("id") not in tried
                         and squad_alias_candidate(norm_side, ent)):

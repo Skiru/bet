@@ -1,10 +1,10 @@
 ---
-description: "Rebuild one sofa day's coupon (11_coupon.json) and PDF from the artifacts on disk with the one command scripts/sofa/rebuild_day.py - stale prices first, then FIXTURE_CHECK .. PDF and the audits; RESOLVE / SAMPLES only as the plan's own --event-ids steps (late RESOLVE, a sample switch), never by hand. Use after a code change, new vetoes / reads / read requests, or a stale offer."
+description: "Rebuild one sofa day's coupon (11_coupon.json) and PDF from the artifacts on disk with the one command scripts/sofa/rebuild_day.py - stale prices first, then FIXTURE_CHECK .. PDF and the audits; RESOLVE / SAMPLES only as the plan's own additive steps (late RESOLVE, a sample switch), never by hand. Use after a code change, new vetoes / reads / read requests, or a stale offer."
 argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD"
 ---
 
 Rebuild `KUPON_<date>.pdf` from artifacts that already exist. RESOLVE and SAMPLES are
-never run by hand here; `rebuild_plan` runs them itself only as additive `--event-ids`
+never run by hand here; `rebuild_plan` runs them itself only as additive per-event
 steps: LATE_RESOLVE (a live day's board entries with no fixture, new fixtures only, then
 OFFER / SAMPLES / SHEET for them; `epochs.LATE_RESOLVE_FROM_UTC`) and step 1c (open
 football fixtures sampled before `epochs.IDENTITY_GATE_PER_FAMILY_FROM_UTC`, re-sampled
@@ -119,4 +119,4 @@ ZMIANA:   <co się ruszyło i dlaczego — kod, weta, odczyty, cena>
 
 - `11_coupon.json` / the PDF is the coupon; `06_coupon.json` and `08_confidence.json` are not.
 - Never invent a price; never run SAMPLES / RESOLVE by hand here (only the plan's own
-  `--event-ids` steps); never print a combined / builder price.
+  per-event steps); never print a combined / builder price.
