@@ -139,6 +139,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start-from", default=None, help="HH:MM local (Europe/Warsaw)")
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
     ap.add_argument("--reserve", type=int, default=0)
+    ap.add_argument(
+        "--competition",
+        action="append",
+        default=[],
+        help="keep only legs whose competition contains this (repeatable)",
+    )
     ap.add_argument("--read-set-dir", default=None)
     ap.add_argument("--db-path", default=None, help="dossier source")
     ap.add_argument("--no-dossier", action="store_true")
@@ -194,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
         vetoes=load_vetoes(run / "vetoes.json") + load_vetoes(run / SLIP_VETOES),
         reserve=args.reserve,
         built_at=coupon.get("created_at_utc"),
+        competitions=args.competition,
     )
     text = sb.render(
         result,

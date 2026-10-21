@@ -295,11 +295,14 @@ def candidates(
     vetoes: Sequence[Any] = (),
     built_at: str | None = None,
     slip_reads: Sequence[Any] = (),
+    competitions: Sequence[str] = (),
 ) -> tuple[list[Leg], dict[str, int]]:
     """The legs a slip may take, and the count of every refusal. A football
     / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
     and refuses one older than its limit), so its price is at least as old as
-    the coupon's build (`built_at`)."""
+    the coupon's build (`built_at`). `competitions`, when given, keeps only
+    legs whose competition contains one of them (case-insensitive)."""
+    wanted = [c.casefold() for c in competitions]
     fam, sport = shortfalls(record)
     plus = frozenset(
         k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e)
@@ -344,6 +347,11 @@ def candidates(
             continue
         if window is not None and not window[0] <= start < window[1]:
             refused["start poza oknem"] += 1
+            continue
+        if wanted and not any(
+            w in str(s.get("competition") or "").casefold() for w in wanted
+        ):
+            refused["poza wybranymi rozgrywkami"] += 1
             continue
         if not min_odds <= float(odds) <= max_odds:
             refused["kurs poza przedziałem"] += 1
@@ -482,6 +490,7 @@ def build(
     reserve: int = 0,
     built_at: str | None = None,
     slip_reads: Sequence[Any] = (),
+    competitions: Sequence[str] = (),
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice). Supported slips use only
     legs of families on the plus; with `allow_rest` the shortfall is filled
@@ -499,6 +508,7 @@ def build(
         vetoes=vetoes,
         built_at=built_at,
         slip_reads=slip_reads,
+        competitions=competitions,
     )
     counts: dict[int, int] = defaultdict(int)
     for x in pool:

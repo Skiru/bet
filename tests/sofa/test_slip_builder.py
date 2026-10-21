@@ -266,6 +266,20 @@ def test_kickoff_window_is_local_time_and_half_open() -> None:
     assert refused == {"start poza oknem": 1}
 
 
+def test_competition_filter_keeps_only_named_competitions() -> None:
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    legs = [
+        _leg(1, 1.5, 0.7, competition="UEFA Champions League"),
+        _leg(2, 1.5, 0.7, competition="League One"),
+        _leg(3, 1.5, 0.7),
+    ]
+    pool, refused = sb.candidates(legs, rec, NOW, competitions=["champions league"])
+    assert [x.leg["sofascore_event_id"] for x in pool] == [1]
+    assert refused == {"poza wybranymi rozgrywkami": 2}
+    pool, _ = sb.candidates(legs, rec, NOW)
+    assert len(pool) == 3
+
+
 def test_search_is_exact_against_brute_force() -> None:
     import itertools
     import random
