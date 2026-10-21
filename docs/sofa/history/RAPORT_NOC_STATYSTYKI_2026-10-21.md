@@ -106,3 +106,13 @@ krzywe na linię goli w połowach i obron oraz 10 krzywych kobiet zainstalowane
   line evidence. Pliki prawdziwego kuponu 10-20 nietknięte (md5).
 - Fałszywy alarm po drodze: moje E2E uruchomiło ramię "on2" z wyłączonymi przełącznikami (błąd
   skryptu testowego, nie potoku).
+- **Krzywe pozostałych rynków łączonych** (zainstalowane rano, przed budową 10-21; kopia
+  `config/backup_2026-10-21_joint_curves_g3`): 130 krzywych na linię (faule i połowy, strzały i
+  połowy, spalone, rzuty z autu, wybicia od bramki, odbiory, rożne w połowach; ich handicapy) + 12
+  krzywych kobiet. Bramka odrzuciła linie, które przeszacowują > 2 pp (obie powyżej strzałów "nie"
+  10.5-14.5, połowy 6.5 / 7.5, handicap strzałów 1. połowy 2.5) - te linie nie mają krzywej.
+  "Najwięcej" fauli / spalonych / autów / wybić / odbiorów / strzałów w połowach i rożnych w połowach
+  nie osiąga 0,70 na historii - nie drukuje się, widać je w zakładce "Wszystkie wyceny".
+- **E2E 10-20 po instalacji**: +1 noga ("2. połowa - rzuty rożne - handicap"), 0 utraconych / zmienionych.
+  Tego dnia Superbet wystawiał przy faulach / strzałach / spalonych "każda z drużyn" tylko stronę
+  "tak" (krzywe przeszły głównie dla "nie"); auty / wybicia / odbiory OFFER czyta dopiero od 10-21.
