@@ -129,3 +129,14 @@ nazwa własna ≥ 90, weto, filtr kandydata, przełącznik on/off w `resolve_ent
 z `match_rule` i bez zapisu do cache, pudło sprzed przełącznika).
 `test_resolve_golden`, `test_resolve_club_affixes`, `test_resolve_squad_search`,
 `test_resolve_searched_anchor` bez zmian, zielone.
+
+## Wariant bez zgodności pary — włączony 2026-10-21 11:30Z
+
+Operator: „Włącz!” (po pytaniu o wariant luźny). Przełącznik
+`epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC` = 2026-10-21 11:30Z
+(10-21 mieszany, grupa „10-21 mieszany”): `resolve.squad_level_shift(...,
+loose=True)` pozwala każdej z dwóch stron niesenioralnych przesunąć poziom
+osobno. Pomiar `measure_squad_level_alias.py --loose` (ten sam zbiór): z
+prawdziwym przeciwnikiem 0 błędnych wyborów, wabiki te same 10 z 9 022; F2
+20 z 23 (dochodzą Pisa U19 – Ascoli U19 i Modena U19 – Cremonese U20). Test:
+`test_the_loose_shift_lets_each_side_shift_alone`.

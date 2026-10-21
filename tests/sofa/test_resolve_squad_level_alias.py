@@ -230,3 +230,18 @@ def test_resolve_entity_switch_on_and_off(tmp_path: Any,
     monkeypatch.setattr(epochs.timeutil, "now",
                         lambda: datetime.now(UTC) + timedelta(seconds=5))
     assert run(r2)[0] == COSENZA[0]
+
+
+def test_the_loose_shift_lets_each_side_shift_alone() -> None:
+    """epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC: the two mixed pairs the
+    pair-consistent rule refuses; still never the senior squad."""
+    assert squad_level_shift(N("Pisa U19"), N("Pisa U19"), N("Ascoli U19"),
+                             N("Ascoli U20"), loose=True) == "U19->U19,U19->U20"
+    assert squad_level_shift(N("Modena U19"), N("Modena U20"), N("Cremonese U20"),
+                             N("Cremonese U20"), loose=True) == "U19->U20,U20->U20"
+    assert squad_level_shift(N("Cosenza U19"), N("Cosenza U20"), N("Frosinone U19"),
+                             N("Frosinone U20"), loose=True) == "U19->U20"
+    assert squad_level_shift(N("Pisa U19"), N("Pisa"), N("Ascoli U19"),
+                             N("Ascoli U20"), loose=True) is None
+    assert squad_level_shift(N("Pisa U19"), N("Pisa U17"), N("Ascoli U19"),
+                             N("Ascoli U20"), loose=True) is None

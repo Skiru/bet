@@ -329,6 +329,11 @@ rozpoznane 18, odrzucone Pisa – Ascoli i Modena – Cremonese (poziom różny 
 jednej stronie — zgodność pary), Mechelen B (Sofascore nazywa ją jak pierwszą
 drużynę), Union SG B, Leuven B – KRC Harelbeke (przeciwnik 81,8). Raport:
 `docs/sofa/history/RAPORT_RESOLVE_POZIOM_2026-10-21.md`.
+Od 2026-10-21 11:30Z (`epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC`,
+operator: „Włącz!”, 10-21 mieszany) zgodność pary jest zdjęta: każda z dwóch
+stron niesenioralnych może przesunąć poziom osobno (Pisa U19 – Ascoli U19 jako
+Pisa U19 – Ascoli U20); nadal nigdy seniorzy. Pomiar `--loose`: 0 błędnych
+wyborów z prawdziwym przeciwnikiem, te same 10 wabików, F2 20 z 23.
 
 **Krótka nazwa — piłka** (`epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC`;
 od 2026-10-21 11:00Z, 10-21 mieszany). Wyszukiwarka Sofascore nie zwraca nic

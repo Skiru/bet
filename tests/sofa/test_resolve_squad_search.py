@@ -101,6 +101,12 @@ def _resolve(resolver: SofaResolver, kickoff: datetime,
 @pytest.fixture(autouse=True)
 def _switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(epochs, "SQUAD_SEARCH_RETRY_FROM_UTC", NOW - timedelta(hours=1))
+    # The other RESOLVE miss bounds (on from 2026-10-21) stay out of this test.
+    for name in ("ENTITY_MISS_PER_DAY_FROM_UTC", "FOOTBALL_SEARCHED_ANCHOR_FROM_UTC",
+                 "FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC",
+                 "FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC",
+                 "FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC"):
+        monkeypatch.setattr(epochs, name, None)
 
 
 def _switch_tomorrow(monkeypatch: pytest.MonkeyPatch) -> None:

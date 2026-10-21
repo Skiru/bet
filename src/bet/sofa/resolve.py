@@ -861,7 +861,7 @@ def _alias_pairs(board: frozenset[str], event: frozenset[str]) -> set[tuple[str,
 
 
 def squad_level_shift(
-    norm_side: str, own: str, norm_opp: str, other: str
+    norm_side: str, own: str, norm_opp: str, other: str, loose: bool = False
 ) -> str | None:
     """The one level shift both sides of the pair share ("U19->U20"), or None.
 
@@ -870,12 +870,23 @@ def squad_level_shift(
     Ascoli U19" against Sofascore's "Pisa U19 - Ascoli U20" is refused. A
     senior board side must be a senior Sofascore side ("Leuven B - KRC
     Harelbeke": the reserve side shifts alone). Two senior board sides never
-    shift (the ordinary match covers them)."""
+    shift (the ordinary match covers them).
+
+    `loose` (epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC): two non-senior
+    board sides may each shift on their own ("Pisa U19 - Ascoli U19" as
+    Sofascore's "Pisa U19 - Ascoli U20"); measured with the same 0 wrong picks
+    on the real opponent and the same 10 decoys, F2 recall 20 of 23."""
     bs, es = football_squad_levels(norm_side), football_squad_levels(own)
     bo, eo = football_squad_levels(norm_opp), football_squad_levels(other)
     senior = frozenset({"S"})
     if bs == senior and bo == senior:
         return None
+    if loose and bs != senior and bo != senior:
+        own_pairs, opp_pairs = _alias_pairs(bs, es), _alias_pairs(bo, eo)
+        if not own_pairs or not opp_pairs:
+            return None
+        (x, y), (u, v) = sorted(own_pairs)[0], sorted(opp_pairs)[0]
+        return f"{x}->{y}" if (x, y) == (u, v) else f"{x}->{y},{u}->{v}"
     if bo == senior or bs == senior:
         moving, fixed = ((bs, es), (bo, eo)) if bo == senior else ((bo, eo), (bs, es))
         if fixed[1] != senior:
@@ -958,6 +969,7 @@ def squad_level_alias_event(
     opponent: str,
     board_side_a: str,
     board_side_b: str,
+    loose: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any], str] | None:
     """(candidate, event, shift): the one football game within
     FOOTBALL_ANCHOR_WINDOW_S of Superbet's start, among the searched
@@ -999,7 +1011,7 @@ def squad_level_alias_event(
                 continue
             own = normalize_name(str((e.get(own_key) or {}).get("name") or ""))
             other = normalize_name(str((e.get(other_key) or {}).get("name") or ""))
-            shift = squad_level_shift(norm_side, own, norm_opp, other)
+            shift = squad_level_shift(norm_side, own, norm_opp, other, loose)
             if shift is None:
                 continue
             if (part_score(free_side, level_free_name(own)) < SQUAD_ALIAS_OWN_SCORE
@@ -1437,6 +1449,9 @@ class SofaResolver:
                        and epochs.football_squad_level_alias(day))
         if level_alias and epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC is not None:
             bounds.append(epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC)
+        if (level_alias and epochs.football_squad_level_alias_loose(day)
+                and epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC is not None):
+            bounds.append(epochs.FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC)
         if epochs.entity_miss_per_day(day):
             day_start = kickoff_utc.astimezone(UTC).replace(
                 hour=0, minute=0, second=0, microsecond=0)
@@ -1660,8 +1675,12 @@ class SofaResolver:
                     extra.append(ent)
                     tried.add(ent.get("id"))
         pool = [*listings, *((c, self._fetch_events(c["id"], sport)) for c in extra)]
-        got = squad_level_alias_event(pool, kickoff_utc, side, opponent,
-                                      board_side_a, board_side_b)
+        from bet.sofa import epochs
+
+        day = kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")
+        got = squad_level_alias_event(
+            pool, kickoff_utc, side, opponent, board_side_a, board_side_b,
+            loose=epochs.football_squad_level_alias_loose(day))
         if got is None:
             return None
         cand, event, shift = got
