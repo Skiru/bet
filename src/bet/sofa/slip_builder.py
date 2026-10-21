@@ -499,7 +499,9 @@ def build(
     legs of families on the plus; with `allow_rest` the shortfall is filled
     from the rest of the coupon, each such slip marked unsupported. `reserve`
     more disjoint slips on the same terms are the analysts' buffer: their legs
-    replace a slip leg a read refuses, so one read round covers them."""
+    replace a slip leg a read refuses, so one read round covers them. Each
+    slip is searched first over the legs with the slip's own fresh KEEP, then
+    over every leg only when those cannot reach the target."""
     pool, refused = candidates(
         singles,
         record,
@@ -526,7 +528,11 @@ def build(
             break
         while len(out) < slips + reserve:
             legs = [x for x in pool if x.tier in allowed and x.match_key not in used]
-            s = best_slip(legs, target, max_legs)
+            # legs the slip's own fresh read keeps come first; a leg still to
+            # read enters only when they cannot reach the target (operator
+            # 2026-10-21: each round swapped read legs for unread ones)
+            kept = [x for x in legs if x.read == READ_KEEP]
+            s = best_slip(kept, target, max_legs) or best_slip(legs, target, max_legs)
             if s is None:
                 break
             out.append(s)

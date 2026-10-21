@@ -101,8 +101,9 @@ local time, so a second slip of the day never collides with the first):
    to no leg or a leg without a read: send that analyst the listed legs again
    (same round).
 4. Back to 1. A refused leg is gone, and so are its harder rungs (a WATCH on
-   OVER 7.5 also drops OVER 8.5); the knapsack takes the next best slip and
-   lists its unread legs. After round 3, name every leg still unread as
+   OVER 7.5 also drops OVER 8.5); the knapsack searches first over the legs
+   this slip's read kept, and takes a leg still to read only when those
+   cannot reach the target (operator 2026-10-21), then lists its unread legs. After round 3, name every leg still unread as
    unread; never present one as read.
 
 **Relay** (Polish): line 1 = the script's first line (the "say no first"

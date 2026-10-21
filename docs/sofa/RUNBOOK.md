@@ -527,7 +527,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   WATCH / NO_BET) — oba możliwe, że sprzed składów, więc żaden nie zwalnia
   nogi z odczytu: skrypt daje je analitykom jak nieczytane (operator
   2026-10-21: poranne KEEP kuponu 16-18 nie widziały rezerwowego bramkarza i
-  ściany 12 gemów). Przy remisie (różnica szansy < 0,25% na nogę)
+  ściany 12 gemów). Wyszukiwanie najpierw składa kupon z nóg ze świeżym KEEP tego kuponu;
+  nieczytaną nogę bierze tylko wtedy, gdy z nich nie da się dojść do celu
+  (operator 2026-10-21: każda runda wymieniała przeczytane nogi na nowe). Przy
+  remisie (różnica szansy < 0,25% na nogę)
   wyszukiwanie woli nogi z świeżym KEEP tego kuponu, żeby pętla
   nie wymieniała ich na nieczytane.
 - **Jedna rodzina**: kupon z ≥ 3 nogami jednej rodziny (albo cały z jednej)

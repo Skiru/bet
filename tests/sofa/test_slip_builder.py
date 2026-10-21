@@ -621,6 +621,19 @@ def _read(eid: int, line: float, verdict: str, direction: str = "OVER") -> Any:
     )
 
 
+def test_kept_legs_reach_the_target_before_an_unread_leg_enters() -> None:
+    # operator 2026-10-21: each round swapped read legs for unread ones
+    rec = _record({PLUS: _fam(300, 0.82, 0.80)})
+    legs = [_leg(1, 1.5, 0.70), _leg(2, 1.5, 0.70), _leg(3, 1.6, 0.74)]
+    first = sb.build(legs, rec, NOW, target=2.2)
+    assert {x.leg["sofascore_event_id"] for x in first.slips[0].legs} == {1, 2}
+    keep = [_read(1, 7.5, "KEEP"), _read(3, 7.5, "KEEP")]
+    kept = sb.build(legs, rec, NOW, target=2.2, slip_reads=keep)
+    assert {x.leg["sofascore_event_id"] for x in kept.slips[0].legs} == {1, 3}
+    short = sb.build(legs, rec, NOW, target=3.0, slip_reads=keep)
+    assert {x.leg["sofascore_event_id"] for x in short.slips[0].legs} == {1, 2, 3}
+
+
 def test_a_refused_rung_refuses_its_harder_rungs_not_the_easier() -> None:
     watch = [_read(1, 7.5, "WATCH")]
     assert sb.read_status(_leg(1, 1.5, 0.7, line=8.5), watch) is None
