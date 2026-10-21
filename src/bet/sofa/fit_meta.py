@@ -143,6 +143,24 @@ def carry_separately_fitted_curves(
     carried: list[str] = []
     for key, entry in (prior.get("new_market_curves_fitted_from") or {}).items():
         klass, _, mk = str(key).rpartition(":")
+        # "<market>|<DIR>@<line>"; a score-market slice key
+        # ("result_or_over@1@0.5|OVER") has its "@" before the "|"
+        market_part, bar, rest = mk.partition("|")
+        direction, at, line = rest.partition("@")
+        dkey = f"{market_part}{bar}{direction}"
+        if at and not klass:
+            # a per-line curve "<market>|<DIR>@<line>" (by_market_direction_
+            # line, scripts/sofa/fit_joint_curves.py): fit_confidence writes
+            # that section only for config/sofa_line_curves.json's keys
+            lsrc = (prior.get("by_market_direction_line") or {}).get(dkey) or {}
+            if line not in lsrc:
+                continue
+            ldst = new.setdefault("by_market_direction_line", {}).setdefault(
+                dkey, {})
+            if line not in ldst or prior_curve_wins(entry):
+                ldst[line] = lsrc[line]
+                carried.append(str(key))
+            continue
         src = _get(prior, klass, "by_market_direction")
         if src is None or mk not in src:
             continue

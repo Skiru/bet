@@ -558,6 +558,7 @@ def load_cache(
     until_ts: int | None = None,
     tennis_serve: bool = False,
     sports: tuple[str, ...] = (),
+    read_only: bool = False,
 ) -> list[Played]:
     """Every finished cached match, one listing per match.
 
@@ -581,8 +582,13 @@ def load_cache(
     `since_ts` / `until_ts` (a smoke run's --history-from / --to): only the
     matches kicking off inside them are held - a light replay whose samples
     are cut at since_ts, never a rebuild.
+
+    `read_only` (a measurement on a live or kept replay DB): the file is
+    opened `mode=ro`, so nothing - not even an empty file at a wrong path -
+    is written.
     """
-    conn = sqlite3.connect(str(db_path))
+    conn = (sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) if read_only
+            else sqlite3.connect(str(db_path)))
     try:
         # The first *finished* copy of each event on any cached page, then the
         # listed-event index (listing_index.py), whose newer finished copy

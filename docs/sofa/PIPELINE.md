@@ -360,6 +360,27 @@ Przy `None` OFFER, SAMPLES, SHEET, CONFIDENCE bajt w bajt jak przed zmianą
 1. połowa), przedziały rzutów rożnych (mecz, 1. połowa, drużyna) i dokładna
 liczba kartek (`scripts/sofa/measure_stat_variant_distributions.py`).
 
+**Krzywe historii łącznych rynków piłkarskich z surowych próbek** (2026-10-21,
+`scripts/sofa/fit_joint_curves.py`, dowody:
+`docs/sofa/evidence/joint_curves_2026-10-21.md`). `both_over_` / `handicap_` /
+`most_` baz spoza `DERIVED_MARGINAL_CENTRES_METRICS` (gole i rzuty rożne
+połów, obrony, faule, strzały, spalone, auty, wybicia, odbiory...) SHEET
+wycenia z surowych próbek stron i do dziś nie miały krzywej (czytała je
+wyłącznie ewidencja linii). Skrypt odtwarza replay `calibrate_from_cache`
+tylko dla tych wierszy (ta sama próbka `recent_for`, `football_joint_rows` bez
+środków brzegowych, korelacja stron z `config/sofa_side_correlations.json`)
+i stawia krzywe **per linia** (`by_market_direction_line`, klucz bramki
+`<rynek>|<KIER>@<linia>`): krzywa wspólna linii ukrywała linie różniące się o
+5-10 pp, więc noga mężczyzn czyta wyłącznie krzywą swojej linii, a krzywej
+wspólnej się nie instaluje. Nogi kobiet: krzywe klasy `women` (bramka na
+meczach kobiet, bez wycinka linii z n >= 300 zawyżającego o > 2 pp); także dla
+łącznych rynków goli / rożnych / kartek / celnych z zainstalowanego replayu
+(`--stored-rows`). Bramka jednostronna `new_market_gate`; instalacja grupą
+`joint_curves` (`install_new_market_curves.py`, także sekcja per linia; refit
+przenosi klucze `@linia`, `fit_meta.carry_separately_fitted_curves`). Krzywe
+działają dopiero z `DERIVED_CURVES_FROM_UTC`, a noga łączna wciąż odpada na
+`THIN_SAMPLE_FOR_BUILDER` (próbka czytana pod rynkiem łącznym jest pusta).
+
 **Zwycięzca meczu w tenisie za przełącznikiem `TENNIS_MATCH_WINNER_FROM_UTC`**
 (`bet.sofa.epochs`, audyt 2026-10-13 D2; **włączony od 2026-10-14 00:00Z**,
 decyzja operatora; umiejętność -0,1263 [-0,1303; -0,1228] log-loss wobec bazy

@@ -75,6 +75,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa.confidence import AWAITING_OWN_CURVE, TENNIS_PER_SET
+from bet.sofa.line_curves import SECTION as LINE_SECTION
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -93,7 +94,11 @@ GROUPS = ("shot_detail", "double_chance", "football_incidents", "tennis_sets",
           # side / half reds and penalties, staged by
           # scripts/sofa/fit_incident_set_curves.py (docs/sofa/evidence/
           # football_card_halves_2026-10-21.md)
-          "card_halves")
+          "card_halves",
+          # the raw-sample football joints (both_over_ / handicap_ / most_
+          # of fouls, shots, saves, halves ...) and women's joint curves,
+          # staged by scripts/sofa/fit_joint_curves.py (2026-10-21)
+          "joint_curves")
 FOOTBALL_TARGET = "sofa_confidence_calibration.json"
 SPORT_TARGET = "sofa_sport_confidence_calibration.json"
 DEFAULT_TARGET = {g: FOOTBALL_TARGET for g in GROUPS} | {
@@ -165,6 +170,16 @@ def plan_group(group: str, doc: Mapping[str, Any], plan: Plan) -> None:
                 continue
             adds.append((group, key, ("by_market_direction", key),
                          _check_curve(f"{group}:{key}", curve)))
+        # per-line curves (bet.sofa.line_curves: a men's football leg reads
+        # its own line's bucket first), gate key "<market>|<DIR>@<line>"
+        for key, per_line in sorted((doc.get(LINE_SECTION) or {}).items()):
+            for line, curve in sorted((per_line or {}).items()):
+                gk = f"{key}@{line}"
+                if not _passes(gate, gk):
+                    plan.skipped.append(f"{group}: {gk} (gate not passed)")
+                    continue
+                adds.append((group, gk, (LINE_SECTION, key, line),
+                             _check_curve(f"{group}:{gk}", curve)))
         for klass, section in sorted((doc.get("by_class") or {}).items()):
             for key, curve in sorted((section.get("by_market_direction")
                                       or {}).items()):
@@ -302,6 +317,8 @@ def conflicts(target_doc: Mapping[str, Any], target: str,
             continue
         if _get(target_doc, path) is not None:
             out.append(f"{target}: {gk} already has a curve")
+        if path[0] == LINE_SECTION:
+            continue  # a line curve sits beside a market's other curves
         if target == FOOTBALL_TARGET:
             market = path[-1].split("|")[0]
             market_path = (*path[:-2], "by_market", market)
