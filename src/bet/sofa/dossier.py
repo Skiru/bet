@@ -7,7 +7,11 @@ what no statistic holds (news, conditions, morale, opinions). This module
 gathers the first half **offline** (data/sofa.db read-only and the day's
 artifacts; no request) into `runs/sofa/<d>/dossier/<sport>_<event id>.json`,
 one file per match, and names the second half as a web checklist with the
-match's own city, local hour and names filled in.
+match's own city, local hour and names filled in. Head-to-head is the one
+block asked of Sofascore beforehand: the read-set writers fetch it into
+`runs/sofa/<d>/h2h.json` (`bet.sofa.h2h`, operator 2026-10-21 - the cached
+listings alone missed Real Madrid - RB Leipzig's four meetings); a match whose
+h2h was not answered says so and the web checklist asks for it.
 
 Display only: nothing here feeds a confidence, a gate or the coupon. Every
 block says what it was built from; a block the cache cannot fill says so
@@ -29,8 +33,17 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from bet.sofa import h2h as h2h_fetch
 from bet.sofa.comparability import is_friendly_event
+from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import entity_indexed_events, has_index
+from bet.sofa.metrics import (
+    CARD_INCIDENT_SCOPES,
+    FOOTBALL_METRICS,
+    TENNIS_METRICS,
+    extract_flat_statistics,
+    extract_metric,
+)
 from bet.sofa.settle import venue_timezone
 
 SCHEMA_VERSION = 1
@@ -259,15 +272,108 @@ def side_summary(
 
 
 def head_to_head(
-    con: sqlite3.Connection, a: int, b: int, before_ts: int
+    con: sqlite3.Connection,
+    a: int,
+    b: int,
+    before_ts: int,
+    fetched: Sequence[Mapping[str, Any]] = (),
+    metrics: Sequence[str] = (),
+    sport: str = "football",
 ) -> list[dict[str, Any]]:
-    games = [
-        g
+    """The newest meetings from `a`'s view: the cached listings' and those
+    Sofascore's h2h route returned (`bet.sofa.h2h`, `fetched`), one row per
+    game; with `metrics`, each row carries the legs' metrics read off the
+    meeting's cached statistics (a `_for` metric as [a, b])."""
+    games: dict[int, Mapping[str, Any]] = {
+        int(g["id"]): g
         for g in team_games(con, a, before_ts, H2H_SCAN)
         if b
         in ((g.get("homeTeam") or {}).get("id"), (g.get("awayTeam") or {}).get("id"))
-    ]
-    return [game_row(g, a) for g in games[:H2H_N]]
+    }
+    for g in fetched:
+        start = g.get("startTimestamp")
+        if isinstance(g.get("id"), int) and isinstance(start, int) \
+                and start < before_ts:
+            games.setdefault(int(g["id"]), g)
+    ordered = sorted(games.values(), key=lambda g: -int(g["startTimestamp"]))
+    rows = []
+    for g in ordered[:H2H_N]:
+        row = game_row(g, a)
+        values = meeting_metrics(con, g, a, metrics, sport)
+        if values:
+            row["metrics"] = values
+        rows.append(row)
+    return rows
+
+
+def meeting_metrics(
+    con: sqlite3.Connection,
+    event: Mapping[str, Any],
+    a: int,
+    metrics: Sequence[str],
+    sport: str,
+) -> dict[str, Any]:
+    """{metric: value} of one meeting off its cached statistics, as SAMPLES
+    reads them (`metrics.extract_metric`); a value it refuses is its gap
+    reason, a meeting never fetched has no `metrics`."""
+    if not metrics:
+        return {}
+    try:
+        row = con.execute(
+            "SELECT statistics_json, incidents_json FROM sofa_event_stats "
+            "WHERE sofascore_event_id = ?",
+            (event.get("id"),),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return {}
+    if not row:
+        return {}
+    try:
+        statistics = json.loads(row[0]) if row[0] else None
+        incidents = json.loads(row[1]) if row[1] else None
+    except (TypeError, ValueError):
+        return {}
+    flat = extract_flat_statistics(statistics)
+    a_home = (event.get("homeTeam") or {}).get("id") == a
+    listing = dict(event)
+    out: dict[str, Any] = {}
+    for metric in metrics:
+        sides = (a_home, not a_home) if metric.endswith("_for") else (True,)
+        values = [
+            _metric_value(extract_metric(
+                metric, sport, flat, incidents or None, listing, is_home))
+            for is_home in sides
+        ]
+        out[metric] = values if len(values) > 1 else values[0]
+    return out
+
+
+def _metric_value(value: float | GapReason) -> Any:
+    if isinstance(value, GapReason):
+        return str(value)
+    return int(value) if float(value).is_integer() else round(value, 2)
+
+
+def h2h_metrics(sport: str, legs: Sequence[Mapping[str, Any]]) -> list[str]:
+    """The legs' markets that are a metric of a past match, in leg order."""
+    if sport == "football":
+        known = set(FOOTBALL_METRICS) | set(CARD_INCIDENT_SCOPES)
+    elif sport == "tennis":
+        known = set(TENNIS_METRICS)
+    else:
+        return []
+    return [m for m in dict.fromkeys(str(x.get("market")) for x in legs) if m in known]
+
+
+def cache_listings_from(
+    con: sqlite3.Connection, team_id: int, before_ts: int
+) -> str | None:
+    """The oldest cached game of a side (H2H_SCAN deep): how far back the
+    cache's own h2h search reached."""
+    games = team_games(con, team_id, before_ts, H2H_SCAN)
+    starts = [int(g["startTimestamp"]) for g in games]
+    first = _iso(min(starts)) if starts else None
+    return first[:10] if first else None
 
 
 def _competition_key(event: Mapping[str, Any]) -> tuple[int | None, int | None]:
@@ -720,6 +826,7 @@ def build(
     status: Mapping[str, Any],
     offer: Sequence[Mapping[str, Any]] | None,
     now: datetime | None = None,
+    h2h_entries: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """One match's dossier (a dict ready for JSON)."""
     detail = event_detail(con, event_id) or {}
@@ -843,14 +950,27 @@ def build(
     doc: dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "built_at_utc": (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source": "data/sofa.db (tylko odczyt) + artefakty dnia; bez zapytań",
+        "source": "data/sofa.db (tylko odczyt) + artefakty dnia (h2h.json: odpowiedź "
+        "Sofascore pobrana przez read_set / build_slip); bez zapytań",
         "use": "kontekst do odczytu - nie zmienia pewności ani bramek",
         "header": header,
         "legs": leg_rows(legs),
         "sides": sides,
     }
+    h2h_asked = (h2h_entries or {}).get(str(event_id)) or {}
     if isinstance(home_id, int) and isinstance(away_id, int):
-        doc["head_to_head"] = head_to_head(con, home_id, away_id, kickoff_ts)
+        doc["head_to_head"] = head_to_head(
+            con, home_id, away_id, kickoff_ts, h2h_asked.get("meetings") or (),
+            h2h_metrics(sport, legs), sport)
+        doc["head_to_head_source"] = {
+            "sofascore_h2h": h2h_asked.get("status") or "NOT_ASKED",
+            "fetched_at_utc": h2h_asked.get("fetched_at_utc"),
+            "meetings_returned": len(h2h_asked.get("meetings") or []),
+            "cache_listings_from": {
+                "home": cache_listings_from(con, home_id, kickoff_ts),
+                "away": cache_listings_from(con, away_id, kickoff_ts),
+            },
+        }
         if sport in TEAM_SPORTS and detail:
             doc["table"] = league_table(con, detail, sport, kickoff_ts)
         if sport == "cs2":
@@ -859,6 +979,12 @@ def build(
         doc["samples"] = samples_block(samples.get(event_id), legs)
     doc["market"] = market_block(run, sport, legs, offer, event_id)
     doc["web_checklist"] = web_checklist(sport, header, side_names)
+    if h2h_asked.get("status") != h2h_fetch.OK:
+        asked = h2h_asked.get("status") or "NOT_ASKED"
+        doc["web_checklist"].append(
+            f"h2h: Sofascore nie odpowiedział ({asked})"
+            f" - ostatnie spotkania {side_names['home'] or '?'} - "
+            f"{side_names['away'] or '?'} i statystyki rynków nóg z sieci")
     return doc
 
 
@@ -909,6 +1035,7 @@ def write_for_legs(
     }
     status = (_load(run / "fixture_status.json") or {}).get("events") or {}
     offer = _load(run / "04_offer.json")
+    h2h_entries = h2h_fetch.load(run)
     written: dict[int, str] = {}
     con = connect(db_path)
     try:
@@ -927,6 +1054,7 @@ def write_for_legs(
                 status=status,
                 offer=offer,
                 now=now,
+                h2h_entries=h2h_entries,
             )
             path = dossier_path(run, sport, event_id)
             path.parent.mkdir(parents=True, exist_ok=True)

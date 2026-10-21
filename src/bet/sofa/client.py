@@ -407,6 +407,14 @@ class SofascoreClient:
                f"{unique_tournament_id}/scheduled-events/{day}")
         return self._execute(url)
 
+    def event_h2h_events(self, custom_id: str) -> Any | None:
+        """Every meeting of the fixture's two sides, any season, the fixture
+        itself included (`bet.sofa.h2h`). Keyed by the event's `customId`,
+        not its id (probed live 2026-10-21: Real Madrid - RB Leipzig, 4
+        Champions League meetings 2022-2024 the cached listings did not reach)."""
+        return self._execute("https://api.sofascore.com/api/v1/event/"
+                             f"{quote(custom_id, safe='')}/h2h/events")
+
     def event_statistics(self, id: int) -> Any | None:
         url = f"https://api.sofascore.com/api/v1/event/{id}/statistics"
         return self._execute(url)

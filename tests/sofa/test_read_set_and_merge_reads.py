@@ -80,7 +80,7 @@ def test_read_set_cli_writes_one_file_per_sport_and_clears_stale_ones(
     out.mkdir()
     (out / "read_set_cs2.json").write_text("[]")
     assert read_set.main(["--date", run.name, "--runs-dir", str(tmp_path),
-                          "--out-dir", str(out)]) == 0
+                          "--out-dir", str(out), "--no-h2h"]) == 0
     assert sorted(p.name for p in out.iterdir()) == [
         "read_set_football.json", "read_set_tennis.json"]
     assert "football: 1 legs, 1 matches" in capsys.readouterr().out

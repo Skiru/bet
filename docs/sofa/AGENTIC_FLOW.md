@@ -212,7 +212,11 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   `bet.sofa.dossier`, offline, pisane przez `read_set.py` i `build_slip.py`,
   ścieżka w polu nogi `dossier`): forma z okresami / mapami, odpoczynek i
   mecze w 7 / 14 dni, tabela odtworzona z listingów (mówi, ile meczów
-  policzyła), H2H, stadion z miastem i godziną lokalną, sędzia, ranking,
+  policzyła), H2H (spotkania z cache i z odpowiedzi Sofascore `h2h.json`,
+  pobieranej przez `read_set.py` / `build_slip.py` dla każdego meczu przed
+  dossier - operator 2026-10-21: zawsze; przy każdym spotkaniu metryki nóg
+  meczu; `head_to_head_source` mówi, czy Sofascore odpowiedział i od kiedy
+  sięga cache; brak odpowiedzi = linia h2h na liście kontrolnej webu), stadion z miastem i godziną lokalną, sędzia, ranking,
   CS2: skład i nowe nazwisko, pula map, forma graczy; ruch linii Superbetu
   przez dzień; lista kontrolna webu z wpisanymi nazwami — tylko podgląd,
   nigdy bramka; KEEP podaje oczekiwanie w jednostkach rynku, fakt z dossier
