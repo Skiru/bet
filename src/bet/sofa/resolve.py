@@ -1031,6 +1031,12 @@ class SofaResolver:
         # epochs.ENTITY_MISS_PER_DAY: the late RESOLVE pass re-asks names whose
         # miss is older than this many minutes (run_late_resolve sets it).
         self.miss_fresh_min: int | None = None
+        # epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC: the fitting candidates
+        # (with listings) of a football side nothing matched, by (sport,
+        # name, kickoff), for the pair step (bet.sofa.short_name_search).
+        self.searched_listings: dict[
+            tuple[str, str, int], list[tuple[dict[str, Any], list[dict[str, Any]]]]
+        ] = {}
 
     def _fetch_events(
         self, entity_id: int, sport: str = "football"
@@ -1608,6 +1614,9 @@ class SofaResolver:
             if found_by_alias is not None:
                 return found_by_alias
 
+        if sport == "football":
+            self.searched_listings[
+                (sport, norm_side, int(kickoff_utc.timestamp()))] = listings
         # Nothing matched. Note this is only reached when the fixture was not
         # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
         # as a miss would suppress a resolution that is still possible. A

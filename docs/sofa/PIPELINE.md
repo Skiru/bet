@@ -330,6 +330,33 @@ jednej stronie — zgodność pary), Mechelen B (Sofascore nazywa ją jak pierws
 drużynę), Union SG B, Leuven B – KRC Harelbeke (przeciwnik 81,8). Raport:
 `docs/sofa/history/RAPORT_RESOLVE_POZIOM_2026-10-21.md`.
 
+**Krótka nazwa — piłka** (`epochs.FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC`;
+od 2026-10-21 11:00Z, 10-21 mieszany). Wyszukiwarka Sofascore nie zwraca nic
+pasującego dla części pełnych nazw Superbetu, choć jedno słowo nazwy znajduje
+drużynę („Calcio Avola 1949” → „avola”, „Menemenspor” → „menemen”, „Muang Loei
+Utd” → „loei”). Gdy obie strony przepadły (zwykłe wyszukanie, ponowienie
+rezerw, kotwica wyszukana), `bet.sofa.short_name_search` pyta o każdą stronę
+jej dwoma najdłuższymi słowami (≥ 4 litery, bez słów ogólnych i cyfr; słowo
+„…spor” także bez „spor”), do 5 pasujących wyników na zapytanie; wynik liczy
+się tylko, gdy zawiera zapytanie jako całe słowo, ma płeć / poziom / nieoznaczone
+„2 / C” strony, a zapytanie nie jest słowem drugiej strony. Mecz jest przyjęty
+**tylko gdy obie strony w niego trafiają**: kandydaci strony A (zweryfikowana
+encja, inaczej zwykłe wyszukanie + krótkie) mają gospodarza, kandydaci strony B
+gościa (kolejność Superbetu, F25), ±60 min, płeć, poziomy, nie przełożony,
+żadna nazwa nie jest sprzeczna (każda ma słowo ≥ 4 liter, którego druga nie ma:
+Cheltenham / Swindon Town, Real / Atletico Madrid B), żaden kandydat o własnej
+nazwie strony (`part_score` > 82) nie gra w tym oknie innego meczu (Dundee FC
+obok Dundee United), to **jedyny** taki mecz i co najmniej jedna strona przyszła
+z krótkiego zapytania. Nigdy z jednej strony. Mecz dostaje `identity: FUZZY` i
+`match_rule: "SHORT_NAME:<BOTH|A|B>"`; nic nie trafia do cache jako
+zweryfikowane; para bez wyniku to pudło na jej dzień. Pomiar
+(`measure_short_name_search.py`) na 6 534 zmostkowanych meczach 10-05..10-20:
+z prawdziwą parą 5 193 dobrze, 0 źle; po ukryciu prawdziwej drużyny jednej lub
+obu stron 0 przyjętych; z przeciwnikiem podmienionym na inną drużynę tego
+samego turnieju i dnia 17 z 17 504; na 22 pozycjach F3 (odtworzenie na kopii
+bazy) 8 dobrze, 0 źle. Koszt: ~2,5 wyszukania na zgubioną parę, ~80 dziennie.
+Raport: `docs/sofa/history/RAPORT_RESOLVE_KROTKA_NAZWA_2026-10-21.md`.
+
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).
 **Zdrowy wskaźnik dopasowania: 72–90%.**

@@ -4,12 +4,13 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, NamedTuple
 
 from pydantic import RootModel
 
+from bet.sofa import epochs
 from bet.sofa.artifact_guard import clear_incomplete, mark_incomplete
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
@@ -25,6 +26,7 @@ from bet.sofa.resolve import (
     parse_fixture,
     split_match_name,
 )
+from bet.sofa.short_name_search import resolve_short_name_pair
 from bet.sofa.stage import current_stage, set_stage
 from bet.sofa.timeutil import now
 
@@ -101,6 +103,15 @@ def _resolve_one(
             if is_ambig:
                 return ResolveOutcome(bf, gap=GapReason.AMBIGUOUS_ENTITY)
 
+        short_name = False
+        if not event and bf.sport == "football" and epochs.football_short_name_search(
+                bf.kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")):
+            # A pair nothing above found: both sides searched by their
+            # short names, one game both land on (bet.sofa.short_name_search).
+            event = resolve_short_name_pair(resolver, side_a, side_b, bf.kickoff_utc)
+            opponent = side_b
+            short_name = event is not None
+
         if not event:
             return ResolveOutcome(bf, gap=GapReason.NO_MATCHING_EVENT)
 
@@ -118,6 +129,7 @@ def _resolve_one(
         identity: Literal["CONFIRMED", "FUZZY"] = (
             "CONFIRMED"
             if quality is not None and quality >= NAME_EXACT_THRESHOLD
+            and not short_name
             else "FUZZY"
         )
         # Parsed here, in the worker, even for a board entry that the merge

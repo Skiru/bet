@@ -2776,3 +2776,27 @@ def football_squad_level_alias(date: str, build_at: datetime | None = None) -> b
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_SQUAD_LEVEL_ALIAS_FROM_UTC)
+
+
+# RESOLVE's short-name search (bet.sofa.short_name_search): a football pair
+# that the normal search, the reserve retry and the searched anchor left
+# without a fixture is searched again by its sides' longest words ("Calcio
+# Avola 1949" -> "avola"), and a game is accepted only when BOTH sides land on
+# it - side A's candidates hold its home team, side B's its away team, within
+# 60 min of Superbet's start, gender, squad levels, the one such game. Adds
+# fixtures (FUZZY, Fixture.match_rule "SHORT_NAME:<how>"), so it changes what
+# prints; on at 2026-10-21 11:00Z by the operator's "on at once" (10-21
+# mixed). Evidence:
+# docs/sofa/history/RAPORT_RESOLVE_KROTKA_NAZWA_2026-10-21.md.
+FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 11, 0, tzinfo=UTC)
+
+
+def football_short_name_search(date: str, build_at: datetime | None = None) -> bool:
+    """Does RESOLVE search a lost football pair by its short names
+    (FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC)?"""
+    if FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_SHORT_NAME_SEARCH_FROM_UTC)
