@@ -524,8 +524,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   nazwana). „KEEP (kupon dnia)” = poranny odczyt kuponu dnia, „KEEP (10:42)”
   = odczyt kuponu z czatu starszy niż 3 h (merge `--slip` stempluje
   `read_at_utc`, nowszy odczyt tej samej nogi zastępuje starszy KEEP, nigdy
-  WATCH / NO_BET) — oba możliwe, że sprzed składów. Przy remisie (różnica
-  szansy < 0,25% na nogę) wyszukiwanie woli nogi już przeczytane, żeby pętla
+  WATCH / NO_BET) — oba możliwe, że sprzed składów, więc żaden nie zwalnia
+  nogi z odczytu: skrypt daje je analitykom jak nieczytane (operator
+  2026-10-21: poranne KEEP kuponu 16-18 nie widziały rezerwowego bramkarza i
+  ściany 12 gemów). Przy remisie (różnica szansy < 0,25% na nogę)
+  wyszukiwanie woli nogi z świeżym KEEP tego kuponu, żeby pętla
   nie wymieniała ich na nieczytane.
 - **Jedna rodzina**: kupon z ≥ 3 nogami jednej rodziny (albo cały z jednej)
   dostaje linię „Uwaga: N z M nóg z jednej rodziny” — ostrzeżenie, nie

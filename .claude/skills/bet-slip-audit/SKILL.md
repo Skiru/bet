@@ -80,7 +80,9 @@ local time, so a second slip of the day never collides with the first):
    ```
    (`--reserve 1` also reads the next disjoint slip ahead; off by default -
    the knapsack re-optimises globally, so a replacement rarely comes from it.)
-2. **Done** when it prints "Każda noga kuponów ma KEEP analityka" - go to the
+2. **Done** when it prints "Każda noga kuponów ma KEEP analityka" (every
+   leg kept by this slip's own read within 3 h; a morning or older KEEP is
+   listed to read again) - go to the
    answer. No slip at all ("do przeczytania: nic - brak kuponu"): answer with
    the first line and stop. Otherwise, for each `read_set_slip_<sport>.json`
    it lists, spawn that sport's analyst (`sofa-analyst-football` /
@@ -109,7 +111,8 @@ answer about families on the plus); line 2 = a warning when the window starts
 words, start in local time, measured chance beside 1/odds, the read
 ("KEEP" = read for this slip within 3 h; "KEEP (10:42)" = a slip read of an
 earlier request at that time; "KEEP (kupon dnia)" = the day's morning read -
-both possibly before lineups, say so), price age, "poza poparciem" and the
+both possibly before lineups, so neither counts as read: the script hands both
+to the analysts like an unread leg, operator 2026-10-21), price age, "poza poparciem" and the
 "Uwaga: N z M nóg z jednej rodziny" line where printed (a warning, never a
 reason to swap a leg by hand) - the stale-price line when printed (the screen's price decides; the day's
 coupon is never rebuilt for a chat slip), and which legs fell out on which

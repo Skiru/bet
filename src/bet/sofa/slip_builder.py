@@ -55,7 +55,9 @@ READ_KEEP = "KEEP"  # the slip's own read (reads_slip.json)
 READ_KEEP_DAY = "KEEP (kupon dnia)"  # the day's C3 read - may be hours old
 READ_NONE = "nie"
 # a slip read older than this (an earlier request's, maybe before lineups) is
-# shown with its local time, "KEEP (10:42)"; it still counts as read
+# shown with its local time, "KEEP (10:42)"; like the day's read it does not
+# count as read for the slip (operator 2026-10-21: the morning KEEPs of a
+# 16-18 slip missed a reserve goalie and a 12-games wall) - unread_legs
 SLIP_READ_FRESH = datetime.timedelta(hours=3)
 # the search's tie-break for a read leg: +0.25% relative chance (review 5: a
 # slip of two KEEP legs at 0.2385 lost to two unread legs at 0.2388)
@@ -438,10 +440,11 @@ def best_slip(
 
 
 def _search_score(x: Leg) -> float:
-    """A leg's log chance in the search: a read leg gains READ_TIE, so a
-    slip of read legs is not swapped for unread ones over a hair of chance
-    (each swap costs a round of reads). The printed chance is never touched."""
-    return math.log(x.chance) + (READ_TIE if x.read != READ_NONE else 0.0)
+    """A leg's log chance in the search: a leg the slip's own fresh read
+    keeps gains READ_TIE, so a slip of read legs is not swapped for legs still
+    to read over a hair of chance (each swap costs a round of reads). The
+    printed chance is never touched."""
+    return math.log(x.chance) + (READ_TIE if x.read == READ_KEEP else 0.0)
 
 
 def _finite(value: Any) -> bool:
@@ -556,7 +559,11 @@ def concentration(slip: Slip) -> tuple[str, int] | None:
 
 
 def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
-    return [x for s in slips for x in s.legs if x.read == READ_NONE]
+    """Legs the slip's analysts must still read: every leg without the slip's
+    own KEEP within SLIP_READ_FRESH - the day's morning read ("KEEP (kupon
+    dnia)") and an older slip read ("KEEP (10:42)") included, both possibly
+    before lineups."""
+    return [x for s in slips for x in s.legs if x.read != READ_KEEP]
 
 
 def legs_pl(n: int) -> str:
@@ -679,7 +686,8 @@ def render(
     if result.slips:
         lines.append(
             f"**Nieczytane nogi w kuponach: {len(unread)}** - kupon jest gotowy "
-            "dopiero, gdy każda noga ma KEEP analityka; odrzucona wypada i kupon "
+            "dopiero, gdy każda noga ma KEEP analityka dla tego kuponu (ostatnie 3 h; "
+            "poranny odczyt kuponu dnia się nie liczy); odrzucona wypada i kupon "
             "liczy się od nowa."
             if unread
             else "Każda noga kuponów ma KEEP analityka."

@@ -638,8 +638,11 @@ def test_the_days_read_is_labelled_apart_from_the_slips_own() -> None:
     leg = _leg(1, 1.5, 0.7)
     assert sb.read_status(leg, reads=keep) == sb.READ_KEEP_DAY
     assert sb.read_status(leg, slip_reads=keep) == sb.READ_KEEP
-    slip = sb.Slip([sb.Leg(leg, 1.5, 0.6, "t", 3, sb.READ_KEEP_DAY)])
-    assert sb.unread_legs([slip]) == []
+    day = sb.Leg(leg, 1.5, 0.6, "t", 3, sb.READ_KEEP_DAY)
+    old = sb.Leg(_leg(2, 1.5, 0.7), 1.5, 0.6, "t", 3, f"{sb.READ_KEEP} (10:42)")
+    fresh = sb.Leg(_leg(3, 1.5, 0.7), 1.5, 0.6, "t", 3, sb.READ_KEEP)
+    # operator 2026-10-21: a morning or an earlier slip's KEEP is read again
+    assert sb.unread_legs([sb.Slip([day, old, fresh])]) == [day, old]
 
 
 def test_merge_reads_checks_the_slip_read_set(
