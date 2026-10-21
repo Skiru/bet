@@ -1,8 +1,8 @@
 # RESOLVE: rezerwy i młodzież — drugie wyszukanie (2026-10-21)
 
-Przełącznik `epochs.SQUAD_SEARCH_RETRY_FROM_UTC` = **2026-10-22 00:00Z**
-(zbudowany dzień 10-21 nietknięty). SHADOW_SETTLE czyta regułę od razu.
-Grupa ledgera „od 10-22”.
+Przełącznik `epochs.SQUAD_SEARCH_RETRY_FROM_UTC` = **2026-10-21 09:20Z** (pierwotnie 2026-10-22 00:00Z; przesunięty przez operatora, 10-21 mieszany)
+SHADOW_SETTLE czyta regułę od razu. Grupa ledgera „10-21 mieszany”; regułę
+czyta też późne przejście RESOLVE (`run_late_resolve.py`).
 
 ## Przyczyna
 

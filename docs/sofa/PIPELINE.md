@@ -237,7 +237,8 @@ jako pierwsze blokowało pytanie o znane id na siedem dni — 2026-10-01 ok. 26
 nierozpoczętych meczów tenisowych (Tien–Hurkacz), w piłce Croatia U19 i Jerash.
 
 **Rezerwy i młodzież — drugie wyszukanie** (`epochs.SQUAD_SEARCH_RETRY_FROM_UTC`,
-od 2026-10-22 00:00Z; SHADOW_SETTLE od razu). `search_query` usuwa nasz znacznik
+od 2026-10-21 09:20Z — przesunięte przez operatora z 10-22 00:00Z, 10-21 mieszany;
+SHADOW_SETTLE od razu). `search_query` usuwa nasz znacznik
 „(r)”, więc „Atlas U21” szło do Sofascore jako „atlas”: kandydatami zostawała
 pierwsza drużyna (Atlas FC), a „Atlas FC U21” (1111909) nie było w wynikach
 wcale. Teraz strona poniżej seniorów, której wyszukanie bez znacznika nic nie
@@ -254,6 +255,15 @@ kolejnych; powtórka RESOLVE na kopii bazy: +6 meczów, wszystkie poprawne,
 Ethiopia Bunna; tu aliasy) ani stron „U19”, dla których Sofascore nie zwraca
 drużyny U19 (osobny problem). Raport:
 `docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md`.
+
+**Pudło liczy się tylko w swoim dniu** (`epochs.ENTITY_MISS_PER_DAY_FROM_UTC`,
+od 2026-10-21 09:20Z, 10-21 mieszany). Nazwa, której RESOLVE nie znalazł, nie
+była szukana przez 7 dni; teraz pudło blokuje tylko w dniu (UTC) startu meczu,
+a późne przejście RESOLVE pyta ponownie o pudło starsze niż 30 min. Pomiar
+2026-10-21: 11 ze 127 zgubionych meczów piłki 10-13..10-20 (żadna strona
+nieznana) to nazwy zablokowane starszym pudłem, choć Sofascore miał mecz; oba
+mecze ITF z dowodów późnego przejścia (pudła z 10-20) też. Raport:
+`docs/sofa/history/RAPORT_RESOLVE_PUDLA_2026-10-21.md`.
 
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).

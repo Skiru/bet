@@ -2,7 +2,7 @@ import functools
 import json
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from rapidfuzz import fuzz
@@ -12,6 +12,7 @@ from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig, config_path
 from bet.sofa.contracts import Fixture, RefereeRecord, Sport
 from bet.sofa.names import levels_compatible, normalize_name, team_levels
+from bet.sofa.timeutil import now
 
 logger = logging.getLogger(__name__)
 
@@ -695,6 +696,9 @@ class SofaResolver:
         self.config = config
         self.client = client
         self.cache = cache
+        # epochs.ENTITY_MISS_PER_DAY: the late RESOLVE pass re-asks names whose
+        # miss is older than this many minutes (run_late_resolve sets it).
+        self.miss_fresh_min: int | None = None
 
     def _fetch_events(
         self, entity_id: int, sport: str = "football"
@@ -1071,10 +1075,26 @@ class SofaResolver:
         #
         # A miss the marker-free search recorded before the squad retry
         # existed is evidence about the old search, not about the name.
+        #
+        # epochs.ENTITY_MISS_PER_DAY: a miss is a fact about the day it was
+        # recorded, not about the next week - measured 2026-10-21 on the
+        # football gaps of 10-13..10-20 with neither side known, 11 of 127
+        # were names whose miss from an earlier fixture (up to 7 days old)
+        # stopped the search while Sofascore had the game; the late pass also
+        # re-asks a miss older than its own freshness (the ITF match the
+        # morning could not see).
+        bounds: list[datetime] = []
+        if retry_queries and epochs.SQUAD_SEARCH_RETRY_FROM_UTC is not None:
+            bounds.append(epochs.SQUAD_SEARCH_RETRY_FROM_UTC)
+        if epochs.entity_miss_per_day(kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")):
+            day = kickoff_utc.astimezone(UTC).replace(hour=0, minute=0, second=0,
+                                                      microsecond=0)
+            bounds.append(day)
+            if self.miss_fresh_min is not None:
+                bounds.append(now() - timedelta(minutes=self.miss_fresh_min))
         if not verified and (
-            self.cache.get_entity_miss(sport, norm_side,
-                                       recorded_after=epochs.SQUAD_SEARCH_RETRY_FROM_UTC)
-            if retry_queries else self.cache.get_entity_miss(sport, norm_side)
+            self.cache.get_entity_miss(sport, norm_side, recorded_after=max(bounds))
+            if bounds else self.cache.get_entity_miss(sport, norm_side)
         ):
             return None, None, False
 

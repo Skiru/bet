@@ -2630,7 +2630,11 @@ def football_card_halves_terms(date: str, build_at: datetime | None = None) -> b
 # SHADOW_SETTLE (resolve_entity with record_miss=False) reads it at once - a
 # settle grades only the pinned id. Evidence:
 # docs/sofa/history/RAPORT_RESOLVE_REZERWY_2026-10-21.md.
-SQUAD_SEARCH_RETRY_FROM_UTC: datetime | None = datetime(2026, 10, 22, tzinfo=UTC)
+# Moved by the operator ("rob wszystko zeby zaczelo dzialac od dzisiaj",
+# 2026-10-21) from 2026-10-22 00:00Z to 2026-10-21 09:20Z: 10-21 is mixed
+# (ledger group "10-21 mieszany"); the late RESOLVE pass reads it.
+SQUAD_SEARCH_RETRY_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 9, 20, tzinfo=UTC)
 
 
 def squad_search_retry(date: str, build_at: datetime | None = None) -> bool:
@@ -2671,3 +2675,31 @@ def late_resolve(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= LATE_RESOLVE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= LATE_RESOLVE_FROM_UTC)
+
+
+# --- RESOLVE: an entity miss counts for its own day only (2026-10-21) --------
+# A name RESOLVE failed to find was not searched again for 7 days
+# (entity_miss_ttl_min). Measured 2026-10-21 on the football board entries of
+# 10-13..10-20 RESOLVE never bridged with neither side known (127): 11 were
+# names a miss from an earlier fixture blocked while Sofascore had the game
+# (Tripoli SC - Al Akhaa Ahli Aley 17182512, CS Hammam-Lif - JS Omrane
+# 17314079, FK Istiklol - Al Arabi 16875760); and the late RESOLVE pass could
+# not re-ask the ITF matches Sofascore listed after the morning (Ravasio -
+# Bouchelaghem, Sharma - Aggarwal: misses of 10-20 05:40Z). On: a miss counts
+# only when recorded on the fixture's kickoff day (UTC); in the late pass
+# only when younger than late_resolve.LATE_LISTING_TTL_MIN. Costs a search per
+# unbridged name per day (the gap list, ~30 names). Ordered on at once by the
+# operator 2026-10-21; 10-21 is mixed. Evidence:
+# docs/sofa/history/RAPORT_RESOLVE_PUDLA_2026-10-21.md.
+ENTITY_MISS_PER_DAY_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 9, 20, tzinfo=UTC)
+
+
+def entity_miss_per_day(date: str, build_at: datetime | None = None) -> bool:
+    """Does an entity miss count for its own day only
+    (ENTITY_MISS_PER_DAY_FROM_UTC)?"""
+    if ENTITY_MISS_PER_DAY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= ENTITY_MISS_PER_DAY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= ENTITY_MISS_PER_DAY_FROM_UTC)

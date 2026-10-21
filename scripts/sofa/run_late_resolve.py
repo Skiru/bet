@@ -187,6 +187,10 @@ def main() -> int:
         client = SofascoreClient(fresh_config)
         cache = SofaCache(fresh_config)
         resolver = SofaResolver(fresh_config, client, cache)
+        # epochs.ENTITY_MISS_PER_DAY: a miss older than the listings' own
+        # freshness does not stop the late pass (the morning's miss is what
+        # the pass is for).
+        resolver.miss_fresh_min = lr.LATE_LISTING_TTL_MIN
         boards = [BoardFixture.model_validate_json(json.dumps(e))
                   for e in found.entries]
         known = {int(f["sofascore_event_id"]) for f in fixtures}

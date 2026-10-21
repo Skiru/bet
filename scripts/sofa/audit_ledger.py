@@ -193,8 +193,10 @@ LINE_CURVES_EPOCH_FROM_DATE = "2026-10-19"
 # The CS2 player share (epochs.CS2_PLAYER_SHARE_FROM_UTC, 2026-10-21 00:00Z):
 # 40-map share, per-stat shrinkage, headshots from the exposure.
 CS2_PLAYER_SHARE_EPOCH_FROM_DATE = "2026-10-21"
-# RESOLVE's reserve / youth retry (epochs.SQUAD_SEARCH_RETRY_FROM_UTC,
-# 2026-10-22 00:00Z): more reserve fixtures reach the coupon.
+# RESOLVE's reserve / youth retry (epochs.SQUAD_SEARCH_RETRY_FROM_UTC) was
+# planned for 2026-10-22 00:00Z and moved by the operator into 10-21 09:20Z
+# with ENTITY_MISS_PER_DAY (10-21 mixed); "od 10-22" is the first day with
+# every switch of 10-21 on from its 00:00Z.
 SQUAD_SEARCH_EPOCH_FROM_DATE = "2026-10-22"
 # The late RESOLVE pass (epochs.LATE_RESOLVE_FROM_UTC), moved by the operator
 # into the built day 2026-10-21 ("Włączaj od razu!"): fixtures RESOLVE missed
