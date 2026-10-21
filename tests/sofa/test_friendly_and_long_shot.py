@@ -90,5 +90,5 @@ def test_the_long_shot_floor_is_strict() -> None:
 
 def test_confidence_refuses_a_friendly_fixture_too() -> None:
     src = (REPO / "scripts/sofa/run_confidence.py").read_text(encoding="utf-8")
-    assert 'refused["FRIENDLY_FIXTURE"]' in src
+    assert 'rec.refuse("FRIENDLY_FIXTURE")' in src
     assert "is_friendly_fixture(" in src

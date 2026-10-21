@@ -345,8 +345,8 @@ def test_confidence_says_when_the_list_is_not_fitted(
 def test_confidence_refuses_after_the_operator_and_before_the_curve() -> None:
     source = (Path(__file__).resolve().parents[2]
               / "scripts/sofa/run_confidence.py").read_text()
-    i = source.index("refused[NOT_SETTLEABLE] += 1")
-    assert source.index('refused["OPERATOR_REFUSED"]') < i
+    i = source.index("rec.refuse(NOT_SETTLEABLE)")
+    assert source.index('rec.refuse("OPERATOR_REFUSED")') < i
     assert i < source.index("else cal.realised(")
 
 

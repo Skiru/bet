@@ -29,6 +29,7 @@ from bet.sofa import confidence as cf
 from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
 from bet.sofa import family_record as fr
+from bet.sofa import priced_view
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
@@ -277,11 +278,17 @@ def build_view(
     }
 
 
-def render_html(date: str, view: Mapping[str, Any]) -> str:
+def render_html(date: str, view: Mapping[str, Any],
+                priced: Mapping[str, Any] | None = None) -> str:
+    """`priced`: the "Wszystkie wyceny" tab's payload (bet.sofa.priced_view;
+    None: the page has no such tab)."""
     data = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
     # a JSON string inside <script>: nothing in it may close the element
     data = data.replace("</", "<\\/").replace("<!--", "<\\!--")
-    return _TEMPLATE.replace("__DATE__", date).replace("__DATA__", data)
+    # base64 holds no "<": safe inside its element as it is
+    blob = priced_view.encode(priced) if priced is not None else ""
+    return (_TEMPLATE.replace("__DATE__", date).replace("__PRICED__", blob)
+            .replace("__DATA__", data))
 
 
 def write_html(run: Path, doc: Mapping[str, Any], day: str,
@@ -295,13 +302,17 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str,
     families = fr.load(run, day)
     # named in Superbet's words on a copy: the caller's artifact is not edited
     named: dict[str, Any] = copy.deepcopy(dict(doc))
-    name_on_superbet(named, board_sides(run))
+    sides = board_sides(run)
+    name_on_superbet(named, sides)
     out = run / f"KUPON_{day}.html"
     tmp = tmp_path(out)
     # `results` only from a results render (build_coupon_pdf.py
     # --with-results): a normal page never carries them
+    # every row the day priced, printed or not (a view, never the coupon)
+    priced = priced_view.build(run, named, day, sides, to_local,
+                               minutes_of_day)
     tmp.write_text(render_html(day, build_view(named, day, status, families,
-                                               results)),
+                                               results), priced),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

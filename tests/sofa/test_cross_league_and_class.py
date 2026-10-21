@@ -190,10 +190,10 @@ def test_confidence_refuses_an_unlinked_leg():
     assert not has_cross_league_unlinked_note(None)
     repo = Path(__file__).resolve().parents[2]
     src = (repo / "scripts/sofa/run_confidence.py").read_text()
-    assert 'refused["CROSS_LEAGUE_UNLINKED"]' in src
+    assert 'rec.refuse("CROSS_LEAGUE_UNLINKED")' in src
     assert "match_class(" in src
     # NO_CLASS_CURVE counts only legs the unclassed curves would have served
-    assert 'refused["NO_CLASS_CURVE"]' in src
+    assert 'rec.refuse("NO_CLASS_CURVE")' in src
     assert "hit is None and klass is not None and cal.realised(" in src
 
 

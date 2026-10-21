@@ -2858,6 +2858,35 @@ reszta kuponu -4,5%; lepsza od reszty w 6 z 6 dni, ale łącznie +4,0 pp
 `scripts/sofa/measure_selection_walk_forward.py`, sprawdzian
 `T-FAMILY-SELECTION`). Kupon (PDF) bez zmian. Test: `tests/sofa/test_family_record.py`.
 
+**Zakładka „Wszystkie wyceny” (od 2026-10-21).** Operator: „liczycie rynki,
+a ich nie pokazujecie”. Druga zakładka strony pokazuje **każdy wiersz, który
+dzień wycenił** - piłka i tenis: każdy wiersz `05_sheet.json`; hokej / kosz /
+siatkówka / CS2: każda strona rynku Superbetu przeczytana przez
+SPORT_CONFIDENCE (rynki, których etap w ogóle nie czyta, `MARKET_NOT_ALLOWED`,
+zostają tylko licznikiem). Kolumny: godzina, mecz, sport, rynek w słowach
+Superbetu (`bet.sofa.superbet_names`; bez nazwy - stara etykieta), linia,
+kierunek, kurs, p statystyk (`p_central` / p modelu sportu), pewność (tylko
+gdy etap do niej doszedł), druk (pojedyncza / noga buildera / nie, z
+`11_coupon.json`) i powód. Filtry: sport, mecz, rodzina rynku, druk, powód,
+tekst; 200 wierszy na stronę, dane wpisane w plik jako gzip + base64 i
+rozpakowane (DecompressionStream) dopiero przy otwarciu zakładki. Nagłówek
+mówi wprost: „To nie kupon - podgląd wszystkich wycen”; bez x, stawek i
+kursów łączonych.
+
+Powód na wiersz zapisują etapy pewności (`bet.sofa.priced_rows`):
+CONFIDENCE pisze `08_refusals.json`, SPORT_CONFIDENCE `08_refusals_sports.json`
+(zdarzenia + wiersze w kolumnach `event, market, market_id, period, subject,
+line, direction, odds, p, confidence, reason`; `reason` null = wiersz przeszedł
+wszystkie bramki etapu; `MARGIN_TOO_HIGH` / `ONE_SIDED_NOT_ADMITTED` = noga
+etapu, której drabinka nie pozwala na pojedynczą). Jedno wywołanie
+`rec.refuse(...)` liczy `refused` i zapisuje wiersz, więc licznik i zapis się
+nie rozjeżdżają. **Tylko do wyświetlenia** - żadna bramka, etap ani rozliczenie
+go nie czyta. Strona dopisuje `NOT_ON_COUPON` (przeszedł etap, nie ma go na
+kuponie) i `REMOVED_BY_READ`; dzień sprzed zapisu odmów czyta `05_sheet.json`
+i nogi `08_confidence_sports.json` z powodem „?”. E2E 2026-10-20 (kopia,
+`SOFA_NOW` builda): `08_confidence.json` i `.md` bajt w bajt jak przed zmianą,
+50 261 wierszy, liczniki powodów = `refused`. Test: `tests/sofa/test_priced_rows.py`.
+
 ## Wyniki na kuponie po rozliczeniu (od 2026-10-18)
 
 Gdy dzień jest rozliczony, `record_results.py` (dla każdej zapisanej daty)

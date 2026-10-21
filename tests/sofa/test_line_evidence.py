@@ -161,7 +161,7 @@ def test_confidence_drops_the_by_name_gates_only_under_the_evidence() -> None:
                  "cal.tennis_set_market_not_admitted(row[\"market\"])",
                  "cal.refused_by_operator("):
         assert f"if evidence is None and {gate}" in source, gate
-    assert "refused[NO_LINE_EVIDENCE] += 1" in source
+    assert "rec.refuse(NO_LINE_EVIDENCE)" in source
 
 
 def _banded(cells: dict, star: dict | None = None) -> le.LineEvidence:

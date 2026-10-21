@@ -24,6 +24,12 @@ h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;b
 tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
 .rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}.res{font-size:11.5px;white-space:nowrap}
 #summary{margin:0 16px 24px;overflow-x:auto}
+.tabs{display:flex;gap:4px;padding:8px 16px 0;background:#fff;border-bottom:1px solid var(--line)}
+.tabs button{border-bottom:none;border-radius:5px 5px 0 0;background:#f1f3f6;color:var(--mut)}.tabs button.on{background:#fff;color:var(--ink);font-weight:600;border-color:var(--acc)}
+.viewonly{margin:10px 16px;padding:10px 12px;border:2px solid var(--warn);border-radius:6px;background:#fff8ec;color:var(--ink)}
+.viewonly b{color:var(--warn)}.viewonly b.big{font-size:15px}
+#apager{display:flex;gap:8px;align-items:center;padding:8px 16px;color:var(--mut)}#acount{padding:8px 16px;color:var(--mut)}
+td.why{font-size:11.5px;color:var(--mut)}td.pr{font-weight:600;color:#1b7f4b}tr.ap td{background:#eef7f1}
 /* a phone: the wide table scrolls in its own box, the page never sideways
    (the sticky header holds only where the page itself scrolls) */
 @media (max-width:900px){.tw{overflow-x:auto}.bar{position:static}th{position:static}body{overflow-x:hidden}}#summary table{width:auto}#summary td,#summary th{position:static;cursor:default}#summary tr:last-child td{font-weight:700}
@@ -33,6 +39,8 @@ tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unk
 Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (builder: kursy nóg z Superbetu, kurs buildera sprawdź na ekranie).</div>
 <div class="note" id="meta"></div>
 <div class="note" id="famnote"></div></header>
+<nav class="tabs" id="tabs"><button id="tabK" class="on">Kupon (wydrukowane nogi)</button><button id="tabA">Wszystkie wyceny</button></nav>
+<div id="paneK">
 <div class="bar" id="bar">
 <label>od godziny<input type="time" id="t0"></label>
 <label>do godziny<input type="time" id="t1"></label>
@@ -57,6 +65,24 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <div class="tw"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
 <h2 id="bh">Bet Buildery</h2><div id="builders"></div>
 <h2 id="sh">Podsumowanie wyników</h2><div id="summary"></div>
+</div>
+<div id="paneA" hidden>
+<div class="viewonly"><b class="big">To nie kupon - podgląd wszystkich wycen.</b> Każdy wiersz, który pipeline tego dnia wycenił: piłka nożna i tenis z <code>05_sheet.json</code>, hokej / koszykówka / siatkówka / CS2 - każda strona rynku Superbetu, którą przeczytał SPORT_CONFIDENCE.
+Kolumna <b>druk</b> mówi, czy wiersz jest na kuponie (<code>11_coupon.json</code>); <b>powód</b> - na której bramce etap pewności go zatrzymał (<code>08_refusals.json</code>, <code>08_refusals_sports.json</code>). Kuponem jest wyłącznie <b>KUPON___DATE__.pdf</b>: tu nic się nie drukuje, nie ma stawek ani kursów łączonych, a <b>p</b> (statystyki, bez ceny) i <b>pewność</b> (krzywa kalibracji) to dwie różne liczby - pewność jest tylko tam, gdzie etap do niej doszedł.</div>
+<div class="bar" id="abar">
+<label>sport<select id="asport"><option value="">wszystkie</option></select></label>
+<label>mecz<select id="amatch"><option value="">wszystkie</option></select></label>
+<label>rynek (rodzina)<select id="afam"><option value="">wszystkie</option></select></label>
+<label>druk<select id="aprinted"><option value="">wszystkie</option><option value="1">wydrukowane</option><option value="0">niewydrukowane</option></select></label>
+<label>powód<select id="areason"><option value="">wszystkie</option></select></label>
+<label>szukaj<input type="search" id="aq" placeholder="mecz, rynek, zawodnik"></label>
+<button id="areset">wyczyść filtry</button>
+</div>
+<div id="acount"></div>
+<div class="tw"><table><thead><tr id="ahead"></tr></thead><tbody id="abody"></tbody></table></div>
+<div id="apager"><button id="aprev">‹ poprzednia</button><span id="apage"></span><button id="anext">następna ›</button></div>
+</div>
+<script id="priced" type="text/plain">__PRICED__</script>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 "use strict";
@@ -170,4 +196,76 @@ $("reset").onclick=()=>{document.querySelectorAll("#bar input[type=time],#bar in
 $("best").onclick=()=>{$("xmin").value="1.00";$("famplus").checked=true;render()};
 const setBar=()=>document.documentElement.style.setProperty("--bh",$("bar").offsetHeight+"px");
 window.addEventListener("resize",setBar);setBar();render();
+</script>
+<script>
+"use strict";
+// "Wszystkie wyceny" (bet.sofa.priced_view): every priced row, a page at a
+// time; the data is gzip + base64 and unpacked when the tab is first opened
+(function(){
+const $=id=>document.getElementById(id),blob=$("priced").textContent.trim();
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+if(!blob){$("tabs").style.display="none";return}
+const PER=200,GLOSS={BELOW_CONFIDENCE_FLOOR:"pewność poniżej 0.70",BELOW_FLOOR:"pewność poniżej 0.70",NEGATIVE_LEG_EV:"pewność × kurs poniżej 0.90",
+ BELOW_MIN_X:"pewność × kurs poniżej 0.90",MARGIN_TOO_HIGH:"marża drabinki powyżej 15%",ODDS_TOO_LOW:"kurs za niski",KICKED_OFF:"mecz rozpoczęty albo za blisko startu",
+ STALE_PRICE:"cena nieświeża",NO_LINE_EVIDENCE:"brak krzywej i za mało rozliczonych linii",NOT_CALIBRATED:"brak krzywej dla tego p",NO_CLASS_CURVE:"brak krzywej klasy (kobiety / puchary drużynowe)",
+ CROSS_LEAGUE_UNLINKED:"drużyny z niepołączonych lig",NOT_SETTLEABLE:"rynek nierozliczalny w tych rozgrywkach",SAMPLE_CROSSES_SEASON:"próbka starsza niż 180 dni",
+ MODEL_ABOVE_OWN_SAMPLE:"model ponad własną próbkę (automatyczny WATCH)",WATCHED:"WATCH analityka",READ_NO_BET:"NO_BET analityka",VETOED:"weto",
+ REMOVED_BY_READ:"usunięta przez odczyt analityka",NOT_ON_COUPON:"przeszła etap pewności, nie ma jej na kuponie",ONE_SIDED_NOT_ADMITTED:"rynek jednostronny bez własnej krzywej (n ≥ 300)",
+ NO_MODEL_P:"brak p modelu",NOT_IDENTIFIED:"mecz nie zidentyfikowany na Sofascore",FIXTURE_NOT_AS_SCHEDULED:"mecz przełożony / odwołany",NO_LEAGUE_RATE:"rozgrywki poniżej 30 meczów",
+ FRIENDLY_FIXTURE:"mecz towarzyski",TOURNAMENT_NEVER_SETTLED:"turniej bez rozliczonego meczu w 14 dniach",LINE_OUTSIDE_FIT:"linia poza zakresem dopasowania",
+ CATCH_ALL_BUCKET:"p w zbiorczym koszyku 0-0.60",LINE_BEYOND_SAMPLE:"linia poza próbką",MODE_LOSES:"najczęstszy wynik przegrywa",NO_FIXTURE:"brak meczu w RESOLVE",
+ NO_PRICE:"brak ceny","?":"powód nieznany (dzień sprzed zapisu odmów)"};
+const PR=["nie","pojedyncza","noga buildera"];
+const COLS=[["kmin","godzina"],["match","mecz"],["sport","sport"],["market","rynek (słowa Superbetu)"],["line_n","linia"],["dir","kier."],
+ ["odds","kurs","n"],["p","p","n"],["conf","pewność","n"],["pr","druk"],["reason","powód"]];
+let A=null,page=0,sortK="kmin",sortD=1,loading=false;
+function show(on){$("paneK").hidden=on;$("paneA").hidden=!on;$("tabK").classList.toggle("on",!on);$("tabA").classList.toggle("on",on);
+ if(on&&!A&&!loading)load()}
+$("tabK").onclick=()=>show(false);$("tabA").onclick=()=>show(true);
+async function load(){loading=true;$("acount").textContent="Rozpakowuję wyceny…";
+ if(typeof DecompressionStream==="undefined"){$("acount").textContent="Ta przeglądarka nie rozpakuje danych (brak DecompressionStream) - otwórz stronę w aktualnym Chrome, Safari lub Firefoksie.";return}
+ const bin=Uint8Array.from(atob(blob),c=>c.charCodeAt(0));
+ const P=JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+ const S=P.strs,E=P.events;
+ A=P.rows.map((r,i)=>{const e=E[r[0]],ln=S[r[3]];return{id:i,ev:r[0],sport:S[e[0]],match:e[1],comp:e[2],ko:e[3],kmin:e[4],market:S[r[1]],fam:S[r[2]],
+  line:ln,line_n:ln===""?null:parseFloat(ln),dir:S[r[4]],odds:r[5],p:r[6],conf:r[7],pr:r[8],reason:S[r[9]]}});
+ const cnt=k=>{const m=new Map();A.forEach(r=>m.set(r[k],(m.get(r[k])||0)+1));return m};
+ const opt=(id,pairs)=>{const s=$(id);pairs.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;s.appendChild(o)})};
+ const byN=m=>[...m.entries()].sort((a,b)=>b[1]-a[1]);
+ opt("asport",byN(cnt("sport")).map(([v,n])=>[v,v+" ("+n+")"]));
+ opt("afam",[...cnt("fam").entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([v,n])=>[v,v+" ("+n+")"]));
+ opt("areason",byN(cnt("reason")).map(([v,n])=>[v||"-",(v||"— (na kuponie)")+(GLOSS[v]?" - "+GLOSS[v]:"")+" ("+n+")"]));
+ const evs=new Map();A.forEach(r=>{if(!evs.has(r.ev))evs.set(r.ev,r)});
+ opt("amatch",[...evs.values()].sort((a,b)=>a.kmin-b.kmin||a.match.localeCompare(b.match)).map(r=>[String(r.ev),r.ko.slice(11)+" "+r.match+" ("+r.sport+")"]));
+ $("ahead").innerHTML=COLS.map(c=>'<th class="'+(c[2]||"")+'" data-k="'+c[0]+'">'+c[1]+'</th>').join("");
+ render()}
+function pass(r){const v=id=>$(id).value;
+ if(v("asport")&&r.sport!==v("asport"))return false;
+ if(v("amatch")&&String(r.ev)!==v("amatch"))return false;
+ if(v("afam")&&r.fam!==v("afam"))return false;
+ if(v("aprinted")&&(r.pr>0?"1":"0")!==v("aprinted"))return false;
+ if(v("areason")&&(r.reason||"-")!==v("areason"))return false;
+ const q=v("aq").trim().toLowerCase();
+ if(q&&!(r.match+" "+r.comp+" "+r.market+" "+r.fam).toLowerCase().includes(q))return false;
+ return true}
+function cmp(a,b){const x=a[sortK],y=b[sortK];if(x==null&&y==null)return a.id-b.id;if(x==null)return 1;if(y==null)return -1;
+ const d=typeof x==="number"?x-y:String(x).localeCompare(String(y));return d?d*sortD:a.id-b.id}
+const f=(v,n)=>v==null?"—":v.toFixed(n);
+function render(){if(!A)return;const rows=A.filter(pass).sort(cmp),pages=Math.max(1,Math.ceil(rows.length/PER));
+ if(page>=pages)page=pages-1;const sl=rows.slice(page*PER,page*PER+PER);
+ $("abody").innerHTML=sl.map(r=>'<tr'+(r.pr?' class="ap"':'')+' data-id="'+r.id+'"><td>'+esc(r.ko.slice(11))+(r.ko&&r.ko.slice(0,10)!=="__DATE__"?" ("+esc(r.ko.slice(5,10))+")":"")+'</td><td>'+esc(r.match)+
+  '<br><span class="note">'+esc(r.comp)+'</span></td><td>'+esc(r.sport)+'</td><td>'+esc(r.market)+'</td><td>'+esc(r.line)+'</td><td>'+esc(r.dir)+
+  '</td><td class="n">'+(r.odds==null?"—":r.odds)+'</td><td class="n">'+f(r.p,3)+'</td><td class="n">'+f(r.conf,3)+'</td><td'+(r.pr?' class="pr"':'')+'>'+PR[r.pr]+
+  '</td><td class="why"'+(GLOSS[r.reason]?' title="'+esc(GLOSS[r.reason])+'"':'')+'>'+esc(r.reason)+'</td></tr>').join("")||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
+ const np=rows.filter(r=>r.pr).length;
+ $("acount").textContent=rows.length+" z "+A.length+" wycen, w tym "+np+" na kuponie • "+new Set(rows.map(r=>r.ev)).size+" meczów • po "+PER+" na stronę";
+ $("apage").textContent="strona "+(page+1)+" z "+pages;$("aprev").disabled=page===0;$("anext").disabled=page>=pages-1}
+document.querySelectorAll("#abar input,#abar select").forEach(el=>el.addEventListener("input",()=>{page=0;render()}));
+$("aprev").onclick=()=>{page--;render()};$("anext").onclick=()=>{page++;render()};
+$("ahead").onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
+ if(sortK===k)sortD=-sortD;else{sortK=k;sortD=(k==="conf"||k==="p"||k==="odds"||k==="pr")?-1:1}page=0;render()};
+$("areset").onclick=()=>{document.querySelectorAll("#abar select,#abar input").forEach(e=>e.value="");sortK="kmin";sortD=1;page=0;render()};
+window.pricedTab={show,load,ready:()=>A!==null,rows:()=>A,pass,render};
+if(location.hash==="#wyceny")show(true);
+})();
 </script></body></html>

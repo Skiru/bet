@@ -36,7 +36,7 @@ def test_a_direction_or_a_whole_market_is_refused_by_name(tmp_path: Path) -> Non
 def test_run_confidence_refuses_before_the_curve_lookup() -> None:
     source = (REPO / "scripts/sofa/run_confidence.py").read_text()
     i = source.index('cal.refused_by_operator(\n            row["market"], row.get("direction")\n        )')
-    assert 'refused["OPERATOR_REFUSED"]' in source[i:i + 200]
+    assert 'rec.refuse("OPERATOR_REFUSED")' in source[i:i + 200]
     assert i < source.index("else cal.realised(")
     # from epochs.LINE_EVIDENCE_FROM_UTC the line evidence replaces the refusal
     assert "if evidence is None and cal.refused_by_operator(" in source

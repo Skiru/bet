@@ -227,7 +227,7 @@ def test_the_operator_admits_a_tennis_set_market_by_name(tmp_path: Path) -> None
 def test_run_confidence_refuses_an_unadmitted_set_market() -> None:
     source = (REPO / "scripts/sofa/run_confidence.py").read_text()
     i = source.index('cal.tennis_set_market_not_admitted(row["market"])')
-    assert 'refused["TENNIS_SET_MARKET_NOT_ADMITTED"]' in source[i:i + 200]
+    assert 'rec.refuse("TENNIS_SET_MARKET_NOT_ADMITTED")' in source[i:i + 200]
     # Before the curve lookup, like the player-prop admission.
     assert i < source.index("else cal.realised(")
 

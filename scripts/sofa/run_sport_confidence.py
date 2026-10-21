@@ -59,6 +59,7 @@ from bet.sofa import (  # noqa: E402
     cs2_engine,
     curve_status,
     epochs,
+    priced_rows,  # noqa: E402
     shadow,
     sport_day,
 )
@@ -74,6 +75,7 @@ from bet.sofa.line_evidence import (  # noqa: E402
     NO_LINE_EVIDENCE,
     LineEvidence,
 )
+from bet.sofa.priced_rows import RefusalRecord  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 ARTIFACT = "08_confidence_sports.json"
@@ -377,6 +379,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 forecaster: Forecaster, at: datetime,
                 fixture_status: Mapping[int, Mapping[str, Any]] | None = None,
                 evidence: LineEvidence | None = None,
+                record: RefusalRecord | None = None,
                 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """`fixture_status` (fixture_status.json by Sofascore id, FIXTURE_CHECK):
     a pinned game postponed / cancelled / interrupted ... is refused
@@ -385,7 +388,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
     Sofascore start replaces SPORT_IDENTITY's pinned one in the kickoff gate
     (K12). None / no entry: exactly as before (UNVERIFIED refuses nothing).
     `evidence` (epochs.line_evidence; None = the admission rule as before):
-    every fitted key's curve, read through bet.sofa.line_evidence."""
+    every fitted key's curve, read through bet.sofa.line_evidence.
+    `record` (bet.sofa.priced_rows, display only): each priced side's
+    reason is added to it; the counts are the same either way."""
+    rec = record if record is not None else RefusalRecord()
     status = sport_status(sport, fixtures_doc, calibration, evidence)
     league_rule = epochs.league_rate_rule(date, at)
     # epochs.SPORT_DERIVED_MARKETS: the derived markets' lines are allowed
@@ -424,6 +430,31 @@ def build_sport(sport: str, date: str, runs_dir: str,
         n_sides = sum(1 for ln in allowed.values()
                       if sport == "cs2" or not shadow.is_pair_partner(ln))
         fixture = fixtures.get((sport, str(ev.superbet_event_id)))
+        ev_idx = rec.event((sport, str(ev.superbet_event_id)), {
+            "sport": sport,
+            "sofascore_event_id": (
+                int(fixture["sofascore_event_id"])
+                if fixture is not None and fixture.get("status") == si.IDENTIFIED
+                else None),
+            "superbet_event_id": str(ev.superbet_event_id),
+            "match": f"{ev.team1} - {ev.team2}",
+            "competition": ev.tournament,
+            "kickoff_utc": ev.kickoff_utc,
+        })
+
+        def open_side(ln: Any, p: float | None = None) -> None:
+            fam = _allowed(sport, ln, evidence is not None, derived, series_rounds)
+            rec.start(ev_idx, str(fam), None if sport == "cs2" else int(ln.market_id),
+                      int(ln.map_nr if sport == "cs2" else ln.period), ln.subject,
+                      ln.line, ln.side, ln.odds, p)
+
+        def refuse_event(reason: str) -> None:
+            _bump(refused, reason, n_sides)
+            for _, side_ln in sorted(allowed.items(), key=lambda kv: repr(kv[0])):
+                if sport == "cs2" or not shadow.is_pair_partner(side_ln):
+                    open_side(side_ln)
+                    rec.refuse(reason)
+
         # A game Superbet itself has started is KICKED_OFF whatever its
         # identity: Sofascore's events/next never lists a started game, so
         # SPORT_IDENTITY cannot pin it, and on 2026-10-05 339 of the legs
@@ -431,20 +462,19 @@ def build_sport(sport: str, date: str, runs_dir: str,
         # that sent the diagnosis the wrong way.
         if (fixture is None or fixture.get("status") != si.IDENTIFIED) \
                 and sb_kickoff - at < sport_day.KICKOFF_MARGIN:
-            _bump(refused, "KICKED_OFF", n_sides)
+            refuse_event("KICKED_OFF")
             continue
         if status == NOT_IDENTIFIED or fixture is None:
-            _bump(refused, NOT_IDENTIFIED, n_sides)
+            refuse_event(NOT_IDENTIFIED)
             continue
         if fixture.get("status") != si.IDENTIFIED:
             state = str(fixture.get("status"))
-            _bump(refused, NOT_IDENTIFIED if state == si.NOT_IDENTIFIED else state,
-                  n_sides)
+            refuse_event(NOT_IDENTIFIED if state == si.NOT_IDENTIFIED else state)
             continue
         entry = fixture_status.get(int(fixture["sofascore_event_id"]))
         off_schedule = fs.not_as_scheduled(entry)
         if off_schedule is not None:
-            _bump(refused, FIXTURE_NOT_AS_SCHEDULED, n_sides)
+            refuse_event(FIXTURE_NOT_AS_SCHEDULED)
             not_scheduled.append({
                 "sofascore_event_id": int(fixture["sofascore_event_id"]),
                 "superbet_event_id": str(ev.superbet_event_id),
@@ -455,16 +485,16 @@ def build_sport(sport: str, date: str, runs_dir: str,
         if sofa_start:
             kickoff = min(kickoff, _utc(str(sofa_start)))
         if kickoff - at < sport_day.KICKOFF_MARGIN:
-            _bump(refused, "KICKED_OFF", n_sides)
+            refuse_event("KICKED_OFF")
             continue
         if at - _utc(newest) > sport_day.MAX_PRICE_AGE:
-            _bump(refused, "STALE_PRICE", n_sides)
+            refuse_event("STALE_PRICE")
             continue
         if settled_tournaments is not None and ev.tournament not in settled_tournaments:
-            _bump(refused, "TOURNAMENT_NEVER_SETTLED", n_sides)
+            refuse_event("TOURNAMENT_NEVER_SETTLED")
             continue
         if status == NOT_CALIBRATED:
-            _bump(refused, NOT_CALIBRATED, n_sides)
+            refuse_event(NOT_CALIBRATED)
             continue
         # epochs.LEAGUE_RATE_RULE (audit 2026-10-13 A2, operator O1): a
         # friendly / pre-season game is not a fixture to price - football's
@@ -472,12 +502,12 @@ def build_sport(sport: str, date: str, runs_dir: str,
         # in a competition with no rate of its own is NO_LEAGUE_RATE.
         if league_rule and sport in SCORE_MODEL_SPORTS:
             if is_friendly_fixture_entry(sport, fixture):
-                _bump(refused, FRIENDLY_FIXTURE, n_sides)
+                refuse_event(FRIENDLY_FIXTURE)
                 continue
             refusal = getattr(forecaster, "refusal", None)
             why_league = refusal(sport, fixture) if refusal is not None else None
             if why_league is not None:
-                _bump(refused, why_league, n_sides)
+                refuse_event(why_league)
                 continue
         assert calibration is not None
         groups: dict[tuple[Any, ...], dict[str, float]] = defaultdict(dict)
@@ -487,35 +517,46 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if sport != "cs2" and shadow.is_pair_partner(ln):
                 continue
             group_odds = groups[_group_key(sport, key)]
+            open_side(ln)
             if cs2.group_fair(group_odds, _shape(sport, ln)) is None:  # type: ignore[arg-type]
                 _bump(refused, "INCOMPLETE_GROUP")
+                rec.refuse("INCOMPLETE_GROUP")
                 continue
             family = _allowed(sport, ln, evidence is not None, derived,
                               series_rounds)
             assert family is not None
             p = forecaster.probability(sport, fixture, ev, ln)
+            open_side(ln, p)
             if p is None:
                 _bump(refused, "NO_MODEL_P")
+                rec.refuse("NO_MODEL_P")
                 continue
             if not scf.line_in_fit(sport, family, ln.line):
                 _bump(refused, scf.LINE_OUTSIDE_FIT)
+                rec.refuse(scf.LINE_OUTSIDE_FIT)
                 continue
             conf, offset, band_cap, why_not = read_confidence(
                 calibration, evidence, sport, family, ln.side, p, ln.odds)
+            if conf is not None:
+                rec.confidence = conf.value
             if conf is None:
                 _bump(refused, why_not or NOT_CALIBRATED)
+                rec.refuse(why_not or NOT_CALIBRATED)
                 continue
             if failed_curves.refuses(conf.calibrated_on, date):
                 _bump(refused, curve_status.CURVE_FAILED_CALIBRATION)
+                rec.refuse(curve_status.CURVE_FAILED_CALIBRATION)
                 continue
             margin = cs2.group_overround(group_odds)
             why = price_filter(conf.value, ln.odds, margin)
             if why is not None:
                 _bump(refused, why)
+                rec.refuse(why)
                 continue
             k, n = forecaster.sample(sport, fixture, ev, ln)
             legs.append(leg_dict(sport, ev, fixture, ln, family, conf, p, k, n,
                                  margin, kickoff, newest))
+            rec.passed()
             if offset:
                 legs[-1]["line_offset"] = offset
             if band_cap is not None:
@@ -663,9 +704,10 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
         doc["line_evidence_fitted_from"] = evidence.doc.get("fitted_from")
     if calibration_path.name == scf.NEXT_CALIBRATION_FILE:
         doc["calibration_file"] = calibration_path.name  # a staged refit
+    record = RefusalRecord()
     for sport in sports:
         entry, legs = build_sport(sport, date, runs_dir, fixtures_doc, calibration,
-                                  forecaster, at, fixture_status, evidence)
+                                  forecaster, at, fixture_status, evidence, record)
         doc["sports"][sport] = entry
         doc["legs"] += legs
     doc["legs"].sort(key=lambda g: (-g["confidence"], g["kickoff_utc"],
@@ -673,6 +715,9 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
                                     g["side"]))
     write_atomic(Path(runs_dir) / date / ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
+    # display only (bet.sofa.priced_rows): every priced side and its reason
+    write_atomic(Path(runs_dir) / date / priced_rows.SPORTS_FILE, priced_rows.dumps(
+        record.doc(date, doc["created_at_utc"], "SPORT_CONFIDENCE")))
     code = 0 if all(s["status"] == OK for s in doc["sports"].values()) else 1
     return doc, code
 

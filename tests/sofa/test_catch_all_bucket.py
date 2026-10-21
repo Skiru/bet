@@ -74,10 +74,10 @@ def test_the_bucket_top_sits_below_the_floor() -> None:
 
 def test_confidence_and_the_disagreement_replay_apply_it() -> None:
     src = (REPO / "scripts/sofa/run_confidence.py").read_text(encoding="utf-8")
-    assert 'refused["CATCH_ALL_BUCKET"]' in src
-    assert src.index('refused["BELOW_CONFIDENCE_FLOOR"]') < src.index(
-        'refused["CATCH_ALL_BUCKET"]'
-    ) < src.index('refused["NEGATIVE_LEG_EV"]')
+    assert 'rec.refuse("CATCH_ALL_BUCKET")' in src
+    assert src.index('rec.refuse("BELOW_CONFIDENCE_FLOOR")') < src.index(
+        'rec.refuse("CATCH_ALL_BUCKET")'
+    ) < src.index('rec.refuse("NEGATIVE_LEG_EV")')
     replay = (REPO / "scripts/sofa/measure_disagreement.py").read_text(
         encoding="utf-8"
     )

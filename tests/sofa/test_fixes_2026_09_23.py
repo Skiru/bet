@@ -225,7 +225,7 @@ def test_the_gate_is_wired_into_the_stage():
 
     src = inspect.getsource(mod)
     assert "has_unreachable_bar_note(row.get(\"notes\"))" in src
-    assert 'refused["UNREACHABLE_BAR"]' in src
+    assert 'rec.refuse("UNREACHABLE_BAR")' in src
 
 
 # ---------------------------------------------------------------------------

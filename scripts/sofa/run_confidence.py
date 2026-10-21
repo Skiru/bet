@@ -35,7 +35,12 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from pydantic import RootModel  # noqa: E402
 
-from bet.sofa import curve_status, epochs, timeutil  # noqa: E402
+from bet.sofa import (  # noqa: E402
+    curve_status,
+    epochs,
+    priced_rows,  # noqa: E402
+    timeutil,
+)
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -134,6 +139,7 @@ from bet.sofa.players import (  # noqa: E402
     is_player_metric,
     player_observations,
 )
+from bet.sofa.priced_rows import RefusalRecord  # noqa: E402
 from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.schedule import FixtureSchedule  # noqa: E402
 from bet.sofa.settleability import REFUSAL_CODE as NOT_SETTLEABLE  # noqa: E402
@@ -514,17 +520,34 @@ def main() -> int:
     # K12/K14: run_fixture_check.py's read of /event/{id}; none is no check.
     fixture_status = fs.load(run_dir) if so else {}
     not_scheduled: dict[int, str] = {}
+    # bet.sofa.priced_rows: each row's reason (08_refusals.json, display
+    # only); `rec.refuse` is also the one place `refused` is counted
+    rec = RefusalRecord(refused)
     for row in sheet:
         odds = row.get("offered_odds")
+        fx_rec = fixtures.get(row["sofascore_event_id"]) or {}
+        rec.start(
+            rec.event((row["sofascore_event_id"],), {
+                "sport": row.get("sport"),
+                "sofascore_event_id": row["sofascore_event_id"],
+                "superbet_event_id": next(
+                    iter(fx_rec.get("superbet_event_ids") or []), None),
+                "match": (f"{fx_rec['home_name']} - {fx_rec['away_name']}"
+                          if fx_rec else ""),
+                "competition": fx_rec.get("competition_name"),
+                "kickoff_utc": fx_rec.get("kickoff_utc"),
+            }),
+            row["market"], None, None, row.get("subject") or "", row["line"],
+            row["direction"], odds, row.get("p_central"))
         if odds is None:
-            refused["NO_PRICE"] += 1
+            rec.refuse("NO_PRICE")
             continue
         if odds < MIN_ODDS:
-            refused["ODDS_TOO_LOW"] += 1
+            rec.refuse("ODDS_TOO_LOW")
             continue
         fx = fixtures.get(row["sofascore_event_id"])
         if fx is None:
-            refused["NO_FIXTURE"] += 1
+            rec.refuse("NO_FIXTURE")
             continue
         if any(
             veto_matches(
@@ -537,7 +560,7 @@ def main() -> int:
             )
             for v in vetoes
         ):
-            refused["VETOED"] += 1
+            rec.refuse("VETOED")
             vetoed_keys.add(
                 (
                     row["sofascore_event_id"],
@@ -570,7 +593,7 @@ def main() -> int:
         # Stats-only: the read is applied at the END of the chain (K6), so a
         # leg it removes is known to have passed everything else.
         if read_refused is not None and not so:
-            refused[read_refused] += 1
+            rec.refuse(read_refused)
             continue
         # The EARLIER of the two clocks, as coupon.py has done since F26 —
         # this stage read only Sofascore's, which is the later one for ITF.
@@ -587,7 +610,7 @@ def main() -> int:
         # RESOLVE (fixture_status.json, else RESOLVE's own status).
         status_entry = fixture_status.get(int(row["sofascore_event_id"]))
         if so and fs.not_as_scheduled(status_entry, fx.get("sofascore_status")):
-            refused["FIXTURE_NOT_AS_SCHEDULED"] += 1
+            rec.refuse("FIXTURE_NOT_AS_SCHEDULED")
             not_scheduled[int(row["sofascore_event_id"])] = str(
                 fs.not_as_scheduled(status_entry, fx.get("sofascore_status")))
             continue
@@ -602,7 +625,7 @@ def main() -> int:
             now,
             refreshed,
         ):
-            refused["KICKED_OFF"] += 1
+            rec.refuse("KICKED_OFF")
             continue
         # The leg is GATED on the earlier clock, so it must be PRINTED on the
         # earlier clock too. Until 2026-09-23 the leg carried Sofascore's,
@@ -617,10 +640,10 @@ def main() -> int:
         ts = fetched.get(key)
         rung_overround = margins.get(key)
         if ts is None:
-            refused["NO_FETCHED_AT"] += 1
+            rec.refuse("NO_FETCHED_AT")
             continue
         if now - datetime.fromisoformat(ts.replace("Z", "+00:00")) > max_price_age:
-            refused["STALE_PRICE"] += 1
+            rec.refuse("STALE_PRICE")
             continue
         # Refused, not re-priced: market_p, p_central (tennis blends the price
         # in) and required_odds were all computed from the sheet's price, so
@@ -629,13 +652,14 @@ def main() -> int:
         sheet_odds: float | None = None
         if not math.isclose(fresh_odds[key], odds, abs_tol=1e-9):
             if not so:
-                refused["PRICE_MOVED_SINCE_SHEET"] += 1
+                rec.refuse("PRICE_MOVED_SINCE_SHEET")
                 continue
             # K2: in the stats-only epoch no probability read the price, so
             # the leg is judged at the fresh price (x, margin, ODDS_TOO_LOW).
             sheet_odds, odds = odds, fresh_odds[key]
+            rec.odds = odds
             if odds < MIN_ODDS:
-                refused["ODDS_TOO_LOW"] += 1
+                rec.refuse("ODDS_TOO_LOW")
                 continue
 
         # A metric with no model at all is refused. Empirical-frequency
@@ -660,7 +684,7 @@ def main() -> int:
         # `tiebreaks_total` is neither, and has a model all the same — see
         # NORMAL_NON_COUNT_METRICS. It was refused here on every row.
         if not has_calibratable_model(row["market"]):
-            refused["NOT_IN_CALIBRATION_FIT"] += 1
+            rec.refuse("NOT_IN_CALIBRATION_FIT")
             continue
         # "This row missed the bar" and "no sample could have cleared it at
         # this price" are different statements, and only the second one is a
@@ -681,17 +705,17 @@ def main() -> int:
         # came from here, and 29 of the 30 printed singles carried this note.
         # Not in the stats-only epoch (D1): it is a statement about the price.
         if not so and has_unreachable_bar_note(row.get("notes")):
-            refused["UNREACHABLE_BAR"] += 1
+            rec.refuse("UNREACHABLE_BAR")
             continue
         # See has_cross_league_unlinked_note: two football sides that share
         # no league and whose leagues' strengths are unmeasured.
         if has_cross_league_unlinked_note(row.get("notes")):
-            refused["CROSS_LEAGUE_UNLINKED"] += 1
+            rec.refuse("CROSS_LEAGUE_UNLINKED")
             continue
         # A friendly is not a fixture to price (samples.is_friendly_fixture).
         fx_row = fixtures.get(row["sofascore_event_id"]) or {}
         if is_friendly_fixture(str(fx_row.get("sport")), fx_row.get("competition_id")):
-            refused["FRIENDLY_FIXTURE"] += 1
+            rec.refuse("FRIENDLY_FIXTURE")
             continue
         # See DERIVED_PREFIXES. A joint of two sides is not a count of one
         # thing, has 2-252 settled rows of its own, and no sample in the
@@ -700,28 +724,28 @@ def main() -> int:
         # the market's settled Superbet lines correct or stand in for its
         # curve (bet.sofa.line_evidence) - a derived joint reads ONLY them.
         if evidence is None and is_derived(row["market"]):
-            refused["DERIVED_NOT_CALIBRATABLE"] += 1
+            rec.refuse("DERIVED_NOT_CALIBRATABLE")
             continue
 
         # See Calibration.admitted_player_markets: a curve is not an admission.
         if evidence is None and cal.player_prop_not_admitted(row["market"]):
-            refused["PLAYER_PROP_NOT_ADMITTED"] += 1
+            rec.refuse("PLAYER_PROP_NOT_ADMITTED")
             continue
         # See Calibration.admitted_tennis_set_markets (TENNIS_SET_GAMES).
         if evidence is None and cal.tennis_set_market_not_admitted(row["market"]):
-            refused["TENNIS_SET_MARKET_NOT_ADMITTED"] += 1
+            rec.refuse("TENNIS_SET_MARKET_NOT_ADMITTED")
             continue
         # See Calibration.refused_markets: the operator's own refusals.
         if evidence is None and cal.refused_by_operator(
             row["market"], row.get("direction")
         ):
-            refused["OPERATOR_REFUSED"] += 1
+            rec.refuse("OPERATOR_REFUSED")
             continue
         # A leg nobody can grade is a tip nobody can check (F0.6).
         if settle_gate is not None and settle_gate.refuses(
             fx.get("competition_id"), row["market"]
         ):
-            refused[NOT_SETTLEABLE] += 1
+            rec.refuse(NOT_SETTLEABLE)
             continue
 
         sides = next(
@@ -759,7 +783,7 @@ def main() -> int:
                 float(row["p_central"]), hit, float(odds),
             )
             if read is None:
-                refused[NO_LINE_EVIDENCE] += 1
+                rec.refuse(NO_LINE_EVIDENCE)
                 continue
             hit = (read.value, read.source, read.n)
             line_offset = read.offset
@@ -771,16 +795,17 @@ def main() -> int:
             # have served it (Calibration.realised). A class leg nothing would
             # have served falls through to NOT_CALIBRATED like any other -
             # on the 10-01 verification run 757 of 777 were that.
-            refused["NO_CLASS_CURVE"] += 1
+            rec.refuse("NO_CLASS_CURVE")
             continue
         if hit is None:
             # No measurement for this bucket. The model's own number is not a
             # substitute for one, so the leg is refused rather than guessed.
-            refused["NOT_CALIBRATED"] += 1
+            rec.refuse("NOT_CALIBRATED")
             continue
         realised_lo, source, n_cal = hit
+        rec.confidence = realised_lo
         if failed_curves.refuses(source, args.date):
-            refused[curve_status.CURVE_FAILED_CALIBRATION] += 1
+            rec.refuse(curve_status.CURVE_FAILED_CALIBRATION)
             continue
         # See Calibration.shrink_for_gap: off (k = 0) unless the operator put
         # gap_shrink_k into the calibration file. Applied before the floor and
@@ -789,13 +814,14 @@ def main() -> int:
         realised_lo = cal.shrink_for_gap(
             realised_lo, row["p_central"], row.get("market_p")
         )
+        rec.confidence = realised_lo
         if realised_lo < floor:
-            refused["BELOW_CONFIDENCE_FLOOR"] += 1
+            rec.refuse("BELOW_CONFIDENCE_FLOOR")
             continue
         # See CATCH_ALL_BUCKET_TOP: the bottom bucket's lower bound is an
         # average over claims from 0.00 to 0.60 and cannot vouch for one.
         if reads_catch_all_bucket(row["p_central"]):
-            refused["CATCH_ALL_BUCKET"] += 1
+            rec.refuse("CATCH_ALL_BUCKET")
             continue
         # See MAX_DISAGREEMENT. Shading means the book pays us less than the
         # event is worth; this is the opposite case, where we claim far more
@@ -809,7 +835,7 @@ def main() -> int:
             odds,
             row.get("sample_frequency"),
         ):
-            refused["DISAGREES_WITH_PRICE"] += 1
+            rec.refuse("DISAGREES_WITH_PRICE")
             continue
         # The leg has to clear its own price using its own number. Without
         # this the builder reported an EV it was simultaneously destroying:
@@ -817,7 +843,7 @@ def main() -> int:
         # whose own product is below 1 drags every slip it joins.
         # Since 2026-10-05 relaxed by ConfidenceProfile.min_ev (x >= 0.90).
         if not profile.clears_price(realised_lo, odds):
-            refused["NEGATIVE_LEG_EV"] += 1
+            rec.refuse("NEGATIVE_LEG_EV")
             continue
 
         derived_sides = derived_side_observations(row)
@@ -876,11 +902,11 @@ def main() -> int:
                 if len(values) < PLAYER_MIN_SAMPLE:
                     # under the rule only its own floor refuses (SHEET
                     # already holds min_sample, so practically unreachable)
-                    refused["THIN_SAMPLE_FOR_BUILDER"] += 1
+                    rec.refuse("THIN_SAMPLE_FOR_BUILDER")
                     continue
                 lifted = gate
             elif gate is not None:
-                refused[gate] += 1
+                rec.refuse(gate)
                 continue
         national_age: list[str] = []
         if oldest_days is not None and oldest_days > MAX_BUILDER_SAMPLE_AGE_DAYS:
@@ -891,7 +917,7 @@ def main() -> int:
             if national_by_count and fx_nat is not None and fx_nat.national_teams:
                 national_age.append(f"NATIONAL_SAMPLE_AGE(oldest {oldest_days} d)")
             else:
-                refused["SAMPLE_CROSSES_SEASON"] += 1
+                rec.refuse("SAMPLE_CROSSES_SEASON")
                 continue
         # How far BACK a sample reaches and whether it is still CURRENT are
         # two questions, and until 2026-09-21 this stage only asked the first.
@@ -900,7 +926,7 @@ def main() -> int:
         # path was the more permissive one. Same constant in both places, so
         # they cannot drift apart again.
         if newest_days is not None and newest_days > MAX_SAMPLE_AGE_DAYS:
-            refused["STALE_SAMPLE"] += 1
+            rec.refuse("STALE_SAMPLE")
             continue
         # An automatic WATCH (confidence.MAX_OWN_SAMPLE_GAP).
         own_gap = model_above_own_sample(
@@ -911,7 +937,7 @@ def main() -> int:
         removal: tuple[str, str] | None = None
         if own_gap is not None:
             if not so:
-                refused["MODEL_ABOVE_OWN_SAMPLE"] += 1
+                rec.refuse("MODEL_ABOVE_OWN_SAMPLE")
                 continue
             removal = ("MODEL_ABOVE_OWN_SAMPLE", "auto")
             auto_watch.append(f"MODEL_ABOVE_OWN_SAMPLE(+{own_gap:.2f})")
@@ -1032,7 +1058,7 @@ def main() -> int:
             }
         )
         if removal is not None:
-            refused[removal[0]] += 1
+            rec.refuse(removal[0])
             # Only a leg the page would have printed as a single is "removed
             # from the coupon"; the rest was never on it.
             if prints_as_single(leg):
@@ -1043,6 +1069,10 @@ def main() -> int:
                 })
             continue
         legs.append(leg)
+        # a leg is not yet a single: its ladder must be cheap enough
+        rec.passed(None if prints_as_single(leg) else (
+            "ONE_SIDED_NOT_ADMITTED" if leg.get("overround") is None
+            else "MARGIN_TOO_HIGH"))
 
     # Legs the previous build printed and whose match has
     # started (or is inside the kickoff margin) by now: kept exactly as
@@ -1428,6 +1458,8 @@ def main() -> int:
     write_atomic(
         run_dir / artifact, json.dumps(out, indent=1, ensure_ascii=False) + "\n"
     )
+    write_atomic(run_dir / priced_rows.FILE, priced_rows.dumps(
+        rec.doc(args.date, out["created_at_utc"], "CONFIDENCE")))
 
     lines = [
         f"# Confidence view — {args.date}",
