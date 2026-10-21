@@ -47,7 +47,9 @@ from bet.sofa import fixture_status as fs
 from bet.sofa.atomic import write_atomic
 from bet.sofa.confidence import printed_builders, printed_singles, too_close_to_kickoff
 
-LegKey = tuple[int, str, str, float, str]
+# (event id, market, subject, line, direction), plus the period / map number
+# when the leg has one (leg_key): five items on every football / tennis leg.
+LegKey = tuple[Any, ...]
 
 # The dials a printed leg was selected under; carried with it so an auditor
 # checks a locked leg against its own build's rule, not the rebuild's (the
@@ -60,10 +62,17 @@ def _utc(raw: str) -> datetime:
 
 
 def leg_key(leg: Mapping[str, Any], event_id: Any = None) -> LegKey:
-    """One rung and side of one fixture - the key every grader uses."""
+    """One rung and side of one fixture - the key every grader uses.
+
+    A leg with a period / map (a measured sport's hockey period, basketball
+    quarter, volleyball set, CS2 map: `period`, else `map_nr`) adds it as a
+    sixth item - 2026-10-21 printed one CS2 map handicap on map 2 and on
+    map 3, which five items made one key. A leg without one (every football
+    / tennis leg: halves live in the market name) keeps its five items, so
+    every stored key (printed/<ts>.json, printed_after_start) still reads."""
     eid = leg.get("sofascore_event_id", event_id)
     line = leg.get("line")
-    return (
+    base = (
         int(eid),
         str(leg["market"]),
         str(leg.get("subject") or ""),
@@ -72,6 +81,8 @@ def leg_key(leg: Mapping[str, Any], event_id: Any = None) -> LegKey:
         float(line) if line is not None else cast(float, None),
         str(leg["direction"]),
     )
+    period = int(leg.get("period") or 0) or int(leg.get("map_nr") or 0)
+    return (*base, period) if period else base
 
 
 def kickoff_clocks(

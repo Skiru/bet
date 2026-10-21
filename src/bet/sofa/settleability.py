@@ -169,7 +169,7 @@ class PrintedLeg:
 
     @property
     def market(self) -> str:
-        return self.key[1]
+        return str(self.key[1])
 
     @property
     def family(self) -> str:
