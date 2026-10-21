@@ -265,6 +265,34 @@ nieznana) to nazwy zablokowane starszym pudłem, choć Sofascore miał mecz; oba
 mecze ITF z dowodów późnego przejścia (pudła z 10-20) też. Raport:
 `docs/sofa/history/RAPORT_RESOLVE_PUDLA_2026-10-21.md`.
 
+**Kotwica wyszukana — piłka** (`epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC`;
+od 2026-10-21 10:00Z, 10-21 mieszany). Kotwica dnia K8 działa tylko dla strony
+zweryfikowanej; para, której żadna strona nie jest zweryfikowana, przepadała,
+gdy jedyny mecz wyszukanej drużyny stał dokładnie o godzinie Superbetu, ale
+nazwa przeciwnika dawała < 82 (Bunyodkor – Sogdiyona Jizzax jako FC Bunyodkor –
+FC Sogdiana Jizzakh, 74; 28 pozycji 10-13..10-20). Teraz, gdy zwykłe dopasowanie
+nic nie dało: kandydat z wyszukania, którego własna nazwa to nazwa strony
+(`part_score` ≥ 90, ten sam poziom drużyny i to samo nieoznaczone „2 / C”), ma
+**jedyny** mecz w ±60 min od startu Superbetu (dwa mecze dwóch kandydatów =
+odmowa), w kolejności Superbetu (F25), płci tablicy, nie przełożony, a druga
+strona meczu ma poziom przeciwnika (`resolve.searched_anchor_event`). Przeciwnik
+musi się zgodzić słabo (`resolve.searched_anchor_agreement`): jego własne
+wyszukanie trafia w drugą stronę meczu (`MUTUAL`), albo `part_score` ≥ 65
+(`NAME`), albo wspólne słowo wyróżniające przy zegarach zgodnych do 15 min
+(`SHARED_WORD`) — i **weto**: jeśli jego wyszukanie (albo zweryfikowana encja)
+mocno nazywa INNĄ drużynę niż ta w meczu, mecz jest odrzucany (Sutton Coldfield
+Town wobec Sutton United – WBA U21, Imigresen FC wobec Kelantan Red Warrior –
+Star City FC). Kosztuje jedno wyszukanie przeciwnika, tylko gdy mecz już
+zakotwiczono. Mecz dostaje `identity: FUZZY` i `match_rule:
+"SEARCHED_ANCHOR:<MUTUAL|NAME|SHARED_WORD>"`; nazwa nie trafia do cache jako
+zweryfikowana; pudło zapisane przed przełącznikiem nie blokuje nazwy. Pomiar
+(`measure_searched_anchor.py`) na 6 534 zmostkowanych meczach 10-05..10-20, każda
+strona po kolei jako wyszukana: z prawdziwym przeciwnikiem 0 błędnych wyborów;
+z przeciwnikiem podmienionym na inną drużynę tego samego turnieju i dnia
+przyjęte 16 z 29 109 (sobowtóry nazw: Olympique Marsylia za Olympique Lyon);
+na 28 pozycjach F1 rozpoznane 20, cztery „inny przeciwnik” odrzucone. Raport:
+`docs/sofa/history/RAPORT_RESOLVE_KOTWICA_WYSZUKANA_2026-10-21.md`.
+
 Wynik na mecz: `identity: CONFIRMED | FUZZY` albo luka
 (`NO_ENTITY_FOUND`, `AMBIGUOUS_ENTITY`, `NO_MATCHING_EVENT`).
 **Zdrowy wskaźnik dopasowania: 72–90%.**

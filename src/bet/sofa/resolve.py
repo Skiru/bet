@@ -684,6 +684,132 @@ def football_day_anchor_event(
     return e
 
 
+# epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC: the K8 anchor for a SEARCHED
+# (unverified) side. The opponent's name only has to agree weakly - this score
+# on `part_score`, or `shadow_opponent_agrees` - and the opponent's own search
+# may veto. Measured 2026-10-21 (scripts/sofa/measure_searched_anchor.py,
+# docs/sofa/history/RAPORT_RESOLVE_KOTWICA_WYSZUKANA_2026-10-21.md).
+SEARCHED_ANCHOR_OPPONENT_SCORE = 65.0
+# A searched candidate anchors only when its own name is the side's at this
+# `part_score` - 82 let "Worcester City" (82.8) stand for Gloucester City and
+# "Los Angeles FC" (88.0) for Los Angeles Galaxy in the backtest.
+SEARCHED_ANCHOR_OWN_SCORE = 90.0
+# Trailing squad words `normalize_name` leaves unmarked ("inter turku 2",
+# "slavia praha c"): the side and the candidate must carry the same one.
+_UNMARKED_SQUAD_TOKENS = frozenset({"2", "3", "4", "c", "d", "iii"})
+
+
+def _unmarked_squad_token(norm: str) -> str:
+    parts = norm.split()
+    return parts[-1] if parts and parts[-1] in _UNMARKED_SQUAD_TOKENS else ""
+
+
+def searched_anchor_event(
+    candidates: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+    kickoff_utc: datetime,
+    side: str,
+    opponent: str,
+    board_side_a: str,
+    board_side_b: str,
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """(candidate, event): the one football game within
+    FOOTBALL_ANCHOR_WINDOW_S of Superbet's start that any searched candidate
+    plays - a candidate (`candidates`: the side's fitting search results with
+    their listings) counts only when its own name is the side's
+    (`part_score` >= SEARCHED_ANCHOR_OWN_SCORE, the same squad level and
+    unmarked squad word: never the senior club for "St. Pauli II"). Two
+    games of two candidates in the window refuse, like two of one. The game
+    must read the
+    way Superbet orders the sides (F25), carry the board's gender, not be
+    postponed / cancelled, and its other side must be of the opponent's squad
+    level. The opponent's name is judged apart (`searched_anchor_agreement`).
+    """
+    from bet.sofa.fixture_status import NOT_AS_SCHEDULED
+
+    norm_side, norm_opp = normalize_name(side), normalize_name(opponent)
+    expected = ("W" if "W" in (superbet_gender(board_side_a),
+                               superbet_gender(board_side_b)) else "M")
+    near: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
+    for cand, events in candidates:
+        cand_id = cand.get("id")
+        if not isinstance(cand_id, int):
+            continue
+        cand_norm = normalize_name(cand.get("name") or "")
+        if (part_score(norm_side, cand_norm) < SEARCHED_ANCHOR_OWN_SCORE
+                or not levels_compatible(norm_side, cand_norm)
+                or _unmarked_squad_token(norm_side)
+                != _unmarked_squad_token(cand_norm)):
+            continue
+        for e in events:
+            ts = e.get("startTimestamp")
+            if not isinstance(ts, int) or not isinstance(e.get("id"), int):
+                continue
+            if abs(ts - kickoff_utc.timestamp()) > FOOTBALL_ANCHOR_WINDOW_S:
+                continue
+            if str((e.get("status") or {}).get("type") or "") in NOT_AS_SCHEDULED:
+                continue
+            if cand_id not in (_team_id(e, "homeTeam"), _team_id(e, "awayTeam")):
+                continue
+            if sofascore_gender(e) != expected or is_virtual_event(e):
+                continue
+            near.setdefault(int(e["id"]), (cand, e))
+    if len(near) != 1:
+        return None
+    cand, e = next(iter(near.values()))
+    side_is_a = norm_side == normalize_name(board_side_a)
+    if (_team_id(e, "homeTeam") == cand["id"]) != side_is_a:
+        return None
+    other_key = "awayTeam" if _team_id(e, "homeTeam") == cand["id"] else "homeTeam"
+    other = normalize_name((e.get(other_key) or {}).get("name") or "")
+    if not levels_compatible(norm_opp, other):
+        return None
+    return cand, e
+
+
+def searched_anchor_agreement(
+    event: dict[str, Any],
+    cand: dict[str, Any],
+    kickoff_utc: datetime,
+    side: str,
+    opponent: str,
+    opponent_candidates: list[dict[str, Any]],
+) -> str | None:
+    """How the board's opponent agrees with the anchored game's other side, or
+    None (refused).
+
+    - refused when one of the opponent's own fitting search results (or its
+      verified entity, passed in the same list) names it strongly
+      (`part_score` > NAME_MATCH_THRESHOLD, or verified) and is NOT the
+      game's other side: Superbet's opponent is a team Sofascore knows, and
+      the searched side plays someone else (Kelantan Red Warrior - Star City
+      FC for Imigresen FC, 10-16; Sutton United - WBA U21 for Sutton Coldfield
+      Town, 10-13);
+    - "MUTUAL": one of those results IS the other side;
+    - "NAME": `part_score` >= SEARCHED_ANCHOR_OPPONENT_SCORE;
+    - "SHARED_WORD": `shadow_opponent_agrees` (a shared distinctive word when
+      the clocks agree within 15 minutes)."""
+    norm_side, norm_opp = normalize_name(side), normalize_name(opponent)
+    home = _team_id(event, "homeTeam")
+    other_key = "awayTeam" if home == cand.get("id") else "homeTeam"
+    other_id = _team_id(event, other_key)
+    other = normalize_name((event.get(other_key) or {}).get("name") or "")
+    own = normalize_name(
+        (event.get("homeTeam" if other_key == "awayTeam" else "awayTeam") or {})
+        .get("name") or "")
+    for oc in opponent_candidates:
+        if oc.get("id") != other_id and (oc.get("verified") or part_score(
+                norm_opp, normalize_name(oc.get("name") or "")) > NAME_MATCH_THRESHOLD):
+            return None
+    if any(oc.get("id") == other_id for oc in opponent_candidates):
+        return "MUTUAL"
+    if part_score(norm_opp, other) >= SEARCHED_ANCHOR_OPPONENT_SCORE:
+        return "NAME"
+    gap = abs(int(event.get("startTimestamp") or 0) - kickoff_utc.timestamp())
+    if shadow_opponent_agrees(norm_opp, other, gap, norm_side, own):
+        return "SHARED_WORD"
+    return None
+
+
 def split_match_name(match_name: str) -> tuple[str, str]:
     parts = match_name.split("·")
     if len(parts) == 2:
@@ -1083,13 +1209,20 @@ class SofaResolver:
         # stopped the search while Sofascore had the game; the late pass also
         # re-asks a miss older than its own freshness (the ITF match the
         # morning could not see).
+        day = kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")
+        searched_anchor = (sport == "football" and record_miss
+                           and epochs.football_searched_anchor(day))
         bounds: list[datetime] = []
         if retry_queries and epochs.SQUAD_SEARCH_RETRY_FROM_UTC is not None:
             bounds.append(epochs.SQUAD_SEARCH_RETRY_FROM_UTC)
-        if epochs.entity_miss_per_day(kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")):
-            day = kickoff_utc.astimezone(UTC).replace(hour=0, minute=0, second=0,
-                                                      microsecond=0)
-            bounds.append(day)
+        # Likewise a miss recorded before the searched anchor
+        # (epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC) was judged without it.
+        if searched_anchor and epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC is not None:
+            bounds.append(epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC)
+        if epochs.entity_miss_per_day(day):
+            day_start = kickoff_utc.astimezone(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0)
+            bounds.append(day_start)
             if self.miss_fresh_min is not None:
                 bounds.append(now() - timedelta(minutes=self.miss_fresh_min))
         if not verified and (
@@ -1180,9 +1313,12 @@ class SofaResolver:
 
         matching_events: list[tuple[dict[str, Any], dict[str, Any], str]] = []
 
+        listings: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+
         def try_candidates(cands: list[dict[str, Any]]) -> None:
             for cand in cands:
                 events = self._fetch_events(cand["id"], sport)
+                listings.append((cand, events))
                 for e in events:
                     method = method_of(e, cand.get("id"))
                     if method is not None:
@@ -1237,6 +1373,13 @@ class SofaResolver:
                 return cand["id"], tagged(evt, method), False
             return None, None, True
 
+        if searched_anchor:
+            found_by_anchor = self._searched_anchor(
+                listings, sport, side, expected_opponent, kickoff_utc,
+                board_side_a or side, board_side_b or expected_opponent, search)
+            if found_by_anchor is not None:
+                return found_by_anchor
+
         # Nothing matched. Note this is only reached when the fixture was not
         # ambiguous: an ambiguous name may disambiguate tomorrow, so caching it
         # as a miss would suppress a resolution that is still possible. A
@@ -1245,6 +1388,53 @@ class SofaResolver:
         if record_miss and not verified:
             self.cache.save_entity_miss(sport, norm_side)
         return None, None, False
+
+    def _searched_anchor(
+        self,
+        listings: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+        sport: str,
+        side: str,
+        opponent: str,
+        kickoff_utc: datetime,
+        board_side_a: str,
+        board_side_b: str,
+        search: Any,
+    ) -> tuple[int, dict[str, Any], bool] | None:
+        """epochs.FOOTBALL_SEARCHED_ANCHOR_FROM_UTC: the searched side's one
+        game at Superbet's start (`searched_anchor_event`), confirmed by the
+        opponent (`searched_anchor_agreement`) - which costs the opponent's
+        own search, asked only once a single game is anchored. The event
+        carries `_match_rule` ("SEARCHED_ANCHOR:<how>", onto
+        Fixture.match_rule); nothing is cached as a verified name."""
+        got = searched_anchor_event(listings, kickoff_utc, side, opponent,
+                                    board_side_a, board_side_b)
+        if got is None:
+            return None
+        cand, event = got
+        norm_opp = normalize_name(opponent)
+        opp_cands: list[dict[str, Any]] = []
+        cached = self.cache.get_entity(sport, norm_opp)
+        if cached and cached["status"] == "verified":
+            opp_cands.append({"id": int(cached["sofascore_id"]),
+                              "name": cached["sofascore_name"], "verified": True})
+        found = 0
+        for r in (search(search_query(norm_opp)) or {}).get("results") or []:
+            ent = r.get("entity") or {}
+            if (r.get("type") == "team"
+                    and (ent.get("sport") or {}).get("slug") == sport
+                    and candidate_fits(norm_opp, ent, sport)):
+                opp_cands.append(ent)
+                found += 1
+                if found == 3:
+                    break
+        how = searched_anchor_agreement(event, cand, kickoff_utc, side, opponent,
+                                        opp_cands)
+        if how is None:
+            return None
+        logger.info("RESOLVE searched anchor: %s v %s -> %s (%s)", side, opponent,
+                    event.get("id"), how)
+        tagged = {**event, "_match_rule": f"SEARCHED_ANCHOR:{how}"}
+        return int(cand["id"]), tagged, False
 
 
 def kickoff_gap_h(
@@ -1276,6 +1466,7 @@ def parse_fixture(
     # of a whole RESOLVE stage's requests. A finished match's payload is kept
     # permanently; an unplayed one expires, because the referee is announced
     # late and a frozen empty referee is worse than the requests it saves.
+    match_rule = event.get("_match_rule")
     details = cache.get_event_detail(event["id"]) if cache else None
     if details is None:
         details = client.event(event["id"])
@@ -1337,6 +1528,7 @@ def parse_fixture(
         kickoff_disagreement_h=kickoff_gap_h(kickoff_utc, superbet_kickoff_utc),
         sofascore_status=(event.get("status") or {}).get("type"),
         national_teams=national_teams(event),
+        match_rule=match_rule if isinstance(match_rule, str) else None,
     )
 
 

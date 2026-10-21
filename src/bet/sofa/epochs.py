@@ -2703,3 +2703,37 @@ def entity_miss_per_day(date: str, build_at: datetime | None = None) -> bool:
     at = build_at if build_at is not None else timeutil.now()
     return (date >= ENTITY_MISS_PER_DAY_FROM_UTC.strftime("%Y-%m-%d")
             and at >= ENTITY_MISS_PER_DAY_FROM_UTC)
+
+
+# --- RESOLVE: the searched anchor (2026-10-21) --------------------------------
+# A football pair neither of whose sides is a verified entity was lost when the
+# searched side's only game sat at Superbet's start but the opponent's name
+# scored under 82 (Gabala - Sabah Baku as Qebele FK - Sabah FK, FK Jonava -
+# Baltijos Futbolo Akademija; 28 board entries 10-13..10-20). On: the K8 day
+# anchor for a SEARCHED side (resolve.searched_anchor_event: a candidate named
+# as the side at part_score >= 90, same squad level, its one game within 60 min,
+# F25 orientation, gender, not postponed) when the opponent agrees weakly
+# (resolve.searched_anchor_agreement: its own search lands on the other side,
+# or part_score >= 65, or a shared distinctive word within 15 min) and its own
+# search names no OTHER team strongly (veto: Sutton Coldfield Town, Imigresen).
+# Measured 2026-10-21 (scripts/sofa/measure_searched_anchor.py) on RESOLVE's
+# bridged football fixtures 10-05..10-20, each side in turn as the searched
+# one: with the board's own opponent 0 wrong picks; with a decoy opponent of
+# the same tournament / day 16 of 29,109 accepted (namesakes: Olympique
+# Marsylia for Olympique Lyon); on the 28 F1 entries 20 identified, the 4
+# opponent-differs hazards refused. Adds fixtures (FUZZY,
+# Fixture.match_rule "SEARCHED_ANCHOR:<how>"), so it changes what prints; on at
+# 2026-10-21 10:00Z by the operator's "on at once" (10-21 mixed). Evidence:
+# docs/sofa/history/RAPORT_RESOLVE_KOTWICA_WYSZUKANA_2026-10-21.md.
+FOOTBALL_SEARCHED_ANCHOR_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 10, 0, tzinfo=UTC)
+
+
+def football_searched_anchor(date: str, build_at: datetime | None = None) -> bool:
+    """Does RESOLVE accept the searched anchor for a football pair
+    (FOOTBALL_SEARCHED_ANCHOR_FROM_UTC)?"""
+    if FOOTBALL_SEARCHED_ANCHOR_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= FOOTBALL_SEARCHED_ANCHOR_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= FOOTBALL_SEARCHED_ANCHOR_FROM_UTC)
