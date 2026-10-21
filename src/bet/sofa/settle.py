@@ -38,6 +38,8 @@ from bet.sofa.metrics import (
     check_identities,
     extract_flat_statistics,
     extract_metric,
+    identity_failures,
+    identity_gap_for_metric,
 )
 
 Outcome = Literal["WIN", "LOSS", "PUSH"]
@@ -382,8 +384,13 @@ def historical_sample(
     excluded_competition_ids: frozenset[int] = frozenset(),
     ground_type: str | None = None,
     best_of: int | None = None,
+    per_family_identity: bool = False,
 ) -> list[tuple[int, float]]:
     """``(event_id, value)`` for events strictly before ``before_utc``.
+
+    ``per_family_identity`` (epochs.IDENTITY_GATE_PER_FAMILY): a past match
+    whose payload fails an internal identity is dropped only from the metrics
+    of that identity's family (metrics.identity_gap_for_metric), as SAMPLES.
 
     The event id travels with the value so the caller can enforce "one
     historical match, one observation" when pooling two teams' histories (L13).
@@ -436,7 +443,11 @@ def historical_sample(
         stats = metrics_by_event.get(int(event_id))
         incidents = incidents_by_event.get(int(event_id))
         flat = extract_flat_statistics(stats)
-        if check_identities(flat, incidents, event, sport) is not None:
+        if per_family_identity:
+            if identity_gap_for_metric(metric, sport, identity_failures(
+                    flat, incidents, event, sport)) is not None:
+                continue
+        elif check_identities(flat, incidents, event, sport) is not None:
             continue
 
         value = extract_metric(

@@ -276,6 +276,10 @@ class FixtureSamples(BaseModel):
     # bet.sofa.schedule (2026-10-04): make-up fixture, rest, congestion.
     # Absent on a fixture sampled before that day.
     schedule: FixtureSchedule | None = None
+    # epochs.IDENTITY_GATE_MARKER when sampled with each internal identity
+    # blocking only its own family (epochs.IDENTITY_GATE_PER_FAMILY); absent
+    # (None) before - a rebuild re-samples such an open football fixture.
+    identity_gate: str | None = None
 
 
 class PricedRung(BaseModel):

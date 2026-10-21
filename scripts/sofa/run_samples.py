@@ -30,6 +30,7 @@ from bet.sofa.contracts import (
 from bet.sofa.coverage import check_coverage_floor
 from bet.sofa.epochs import (
     football_player_coverage,
+    identity_gate_per_family,
     men_friendly_sample_window,
     player_name_surname,
     player_name_tokens,
@@ -158,6 +159,7 @@ def sample_fixtures_concurrently(
     surname_fallback: bool = False,
     shot_detail: bool = False,
     player_coverage: bool = False,
+    per_family_identity: bool = False,
 ) -> list[FixtureSamples]:
     """One FixtureSamples per fixture, in the input's order.
 
@@ -195,6 +197,7 @@ def sample_fixtures_concurrently(
                 surname_fallback=surname_fallback,
                 shot_detail=shot_detail,
                 player_coverage=player_coverage,
+                per_family_identity=per_family_identity,
             )
             for fixture in fixtures
         ]
@@ -220,6 +223,7 @@ def sample_fixtures_concurrently(
             surname_fallback=surname_fallback,
             shot_detail=shot_detail,
             player_coverage=player_coverage,
+            per_family_identity=per_family_identity,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -339,6 +343,9 @@ def main() -> int:
         shot_detail=shot_detail_markets(args.date),
         # epochs.FOOTBALL_PLAYER_COVERAGE (off: byte-identical)
         player_coverage=football_player_coverage(args.date),
+        # epochs.IDENTITY_GATE_PER_FAMILY (off: byte-identical - an unset
+        # identity_gate is not written)
+        per_family_identity=identity_gate_per_family(args.date),
     )
 
     for fixture, samples in zip(fixtures, sampled, strict=True):
@@ -370,7 +377,8 @@ def main() -> int:
 
     run_dir.mkdir(parents=True, exist_ok=True)
     out_path = run_dir / "03_samples.json"
-    dumped = [s.model_dump(mode="json") for s in all_samples]
+    dumped = [s.model_dump(mode="json", exclude=None if s.identity_gate
+                           else {"identity_gate"}) for s in all_samples]
     replaced_previous = 0
     if only_ids is not None:
         # the late RESOLVE pass: the other fixtures' entries as they were

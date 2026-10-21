@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from bet.sofa.contracts import GapReason
@@ -1249,18 +1250,37 @@ def check_halves_identity(
     return divergences
 
 
-def check_identities(
+# The families check_identities' four identities guard (epochs.
+# IDENTITY_GATE_PER_FAMILY, 2026-10-21). One verdict for the whole match threw
+# away a match's corners, cards and goals because its shot categories did not
+# add up (Roma - Real Madrid 16938872: away shots 16 vs 8 + 8 + 1, all 52
+# metrics of Real's side dropped). Each identity now names what it reads:
+IDENTITY_SHOTS = "shots"  # totalShotsOnGoal vs on + off + blocked (+ woodwork)
+IDENTITY_GOAL_INCIDENTS = "goal_incidents"  # football goal incidents vs score
+IDENTITY_SCORE_PERIODS = "score_periods"  # home period1 + period2 vs normaltime
+IDENTITY_WHOLE_MATCH = "whole_match"  # tennis gamesWon vs the set score
+# The /statistics keys the shot identity compares; a metric reading one of
+# them is the shot identity's.
+SHOT_IDENTITY_KEYS = frozenset({
+    "totalShotsOnGoal", "shotsOnGoal", "shotsOffGoal", "blockedScoringAttempt",
+    "hitWoodwork",
+})
+
+
+def identity_failures(
     flat_stats: dict[str, dict[str, tuple[float, float]]],
     incidents: dict[str, Any] | None,
     listing_event: dict[str, Any],
     sport: str,
-) -> GapReason | None:
-    """The four blocking internal identities of PLAN §5.5.
+) -> dict[str, GapReason]:
+    """Every blocking internal identity of PLAN §5.5 the payload fails, by
+    family (IDENTITY_*). Empty: the payload agrees with itself.
 
     With one provider there is nobody to disagree with, so the payload has to
     disagree with itself. A divergence here is a transcription signal, not
     noise: the observation is rejected, never averaged.
     """
+    failed: dict[str, GapReason] = {}
     if "ALL" in flat_stats:
         stats = flat_stats["ALL"]
         if (
@@ -1293,7 +1313,7 @@ def check_identities(
                 s_blk = stats["blockedScoringAttempt"][side]
                 s_tot = stats["totalShotsOnGoal"][side]
                 if abs(s_tot - (s_on + s_off + s_blk)) > woodwork[side]:
-                    return GapReason.INTERNAL_INCONSISTENT
+                    failed[IDENTITY_SHOTS] = GapReason.INTERNAL_INCONSISTENT
 
     # {} ("asked, got 404") checks nothing: as a payload it read as zero goals
     # and failed every match with a goal.
@@ -1314,13 +1334,14 @@ def check_identities(
             # In regular matches without ET, current = normaltime.
             if hs.get("normaltime") is not None and hs.get("normaltime") == c_h:
                 if goal_incs != c_h + c_a:
-                    return GapReason.INTERNAL_INCONSISTENT
+                    failed[IDENTITY_GOAL_INCIDENTS] = (
+                        GapReason.INTERNAL_INCONSISTENT)
 
     if sport == "football":
         hs = listing_event.get("homeScore", {})
         if "period1" in hs and "period2" in hs and "normaltime" in hs:
             if hs["period1"] + hs["period2"] != hs["normaltime"]:
-                return GapReason.INTERNAL_INCONSISTENT
+                failed[IDENTITY_SCORE_PERIODS] = GapReason.INTERNAL_INCONSISTENT
 
     if sport == "tennis":
         if "ALL" in flat_stats and "gamesWon" in flat_stats["ALL"]:
@@ -1333,7 +1354,8 @@ def check_identities(
             # checked in gamesWon's own convention, the tiebreak set left out.
             games = set_games(hs, as_)
             if games is None:
-                return GapReason.INTERNAL_INCONSISTENT
+                failed[IDENTITY_WHOLE_MATCH] = GapReason.INTERNAL_INCONSISTENT
+                return failed
             tiebreaks = match_tiebreak_sets(hs, as_)
             counted = [g for i, g in enumerate(games, 1) if i not in tiebreaks]
             home_sets = sum(h for h, _ in counted)
@@ -1347,8 +1369,88 @@ def check_identities(
             home_stat = flat_stats["ALL"]["gamesWon"][0]
             away_stat = flat_stats["ALL"]["gamesWon"][1]
             if home_sets != home_stat or away_sets != away_stat:
-                return GapReason.INTERNAL_INCONSISTENT
+                failed[IDENTITY_WHOLE_MATCH] = GapReason.INTERNAL_INCONSISTENT
 
+    return failed
+
+
+
+
+def check_identities(
+    flat_stats: dict[str, dict[str, tuple[float, float]]],
+    incidents: dict[str, Any] | None,
+    listing_event: dict[str, Any],
+    sport: str,
+) -> GapReason | None:
+    """The four blocking internal identities of PLAN §5.5 as ONE verdict for
+    the whole match - the gate before epochs.IDENTITY_GATE_PER_FAMILY (and
+    the one tennis keeps). Per family: identity_gap_for_metric."""
+    if identity_failures(flat_stats, incidents, listing_event, sport):
+        return GapReason.INTERNAL_INCONSISTENT
+    return None
+
+
+def _metric_reads(metric_name: str, sport: str) -> tuple[str, ...] | None:
+    """The families a metric reads (IDENTITY_*), None for a metric this module
+    does not define as football (gated as a whole match: nothing is known it
+    does not read)."""
+    if sport != "football":
+        return None
+    scoped = CARD_INCIDENT_SCOPES.get(metric_name)
+    if scoped is not None:
+        # card points by half read the incidents; red cards / penalties the
+        # incidents and the 90-minute score (card_incident_value)
+        if scoped[0] == "cards_points":
+            return (IDENTITY_GOAL_INCIDENTS,)
+        return (IDENTITY_GOAL_INCIDENTS, IDENTITY_SCORE_PERIODS)
+    config = FOOTBALL_METRICS.get(metric_name)
+    if config is None:
+        return None
+    key = str(config["sofascore"])
+    if key == "cards_points_from_incidents":
+        return (IDENTITY_GOAL_INCIDENTS,)
+    if key.startswith("goals"):
+        return (IDENTITY_SCORE_PERIODS,)
+    if key in SHOT_IDENTITY_KEYS:
+        return (IDENTITY_SHOTS,)
+    return ()
+
+
+def identity_gap_for_metric(
+    metric_name: str, sport: str, failed: Mapping[str, GapReason],
+) -> GapReason | None:
+    """The identity gap that blocks ``metric_name`` (epochs.
+    IDENTITY_GATE_PER_FAMILY), None when every identity it reads holds.
+
+    - shots (a side's total shots differ from on + off + blocked by more than
+      its woodwork): only the metrics reading those keys - total shots and
+      shots on target, full match and halves, and through them the shot
+      handicaps / both-over joints SHEET builds from shots_for. Player shots
+      come from the lineups' own player statistics and were never gated here.
+    - goal incidents (football goal incidents != the score, mostly a
+      placeholder feed whose list holds only period entries): the metrics read
+      off /incidents - card points (full match, by half), red cards,
+      penalties. A goal count is read off the score, which this identity does
+      not doubt; the score's own contradictions are goal_score_inconsistent's,
+      checked by every goal read.
+    - home period sum (period1 + period2 != normaltime): the metrics read off
+      the score - goals (full match, halves) and the incident metrics that
+      read the 90-minute score (red cards, penalties). It is a subset of
+      goal_score_inconsistent, kept so no goal read loses a refusal.
+    - tennis (gamesWon against the set score): the whole match, as before -
+      a gamesWon that cannot be the score says the payload is not this match.
+    A metric this module does not define is gated by any failure.
+    """
+    if not failed:
+        return None
+    if IDENTITY_WHOLE_MATCH in failed:
+        return failed[IDENTITY_WHOLE_MATCH]
+    reads = _metric_reads(metric_name, sport)
+    if reads is None:
+        return next(iter(failed.values()))
+    for family in reads:
+        if family in failed:
+            return failed[family]
     return None
 
 

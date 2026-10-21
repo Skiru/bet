@@ -27,11 +27,14 @@ from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.config import SofaConfig
 from bet.sofa.db import get_connection, migrate
+from bet.sofa.epochs import identity_gate_per_family
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.metrics import (
     check_identities,
     extract_flat_statistics,
     extract_metric,
+    identity_failures,
+    identity_gap_for_metric,
 )
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 from bet.sofa.settle import (
@@ -42,6 +45,7 @@ from bet.sofa.settle import (
     settle_metric,
 )
 from bet.sofa.stage import set_stage
+from bet.sofa.timeutil import now
 
 # Markets worth settling backwards: the counting markets Superbet actually
 # prices. Props are excluded on purpose (L30).
@@ -125,8 +129,13 @@ def backfill_event(
     config: SofaConfig,
     k_centre: float,
     k_price: float,
+    per_family_identity: bool = False,
 ) -> list[SettledRow]:
-    """Settle one historical match against a sample built from before its kickoff."""
+    """Settle one historical match against a sample built from before its kickoff.
+
+    ``per_family_identity`` (epochs.IDENTITY_GATE_PER_FAMILY): an identity the
+    match (or a past match of its sample) fails drops only the metrics of its
+    family (metrics.identity_gap_for_metric); off, the whole match."""
     if not is_completed_event(event):
         return []
 
@@ -146,7 +155,9 @@ def backfill_event(
         client, cache, int(event["id"]), want_incidents
     )
     actual_flat = extract_flat_statistics(actual_stats)
-    if check_identities(actual_flat, actual_incidents, event, sport) is not None:
+    actual_failed = identity_failures(actual_flat, actual_incidents, event, sport)
+    if not per_family_identity and check_identities(
+            actual_flat, actual_incidents, event, sport) is not None:
         return []
 
     history = team_history(client, cache, int(home_id)) + team_history(
@@ -173,6 +184,9 @@ def backfill_event(
 
     rows: list[SettledRow] = []
     for metric in metrics:
+        if per_family_identity and identity_gap_for_metric(
+                metric, sport, actual_failed) is not None:
+            continue
         actual = extract_metric(
             metric, sport, actual_flat, actual_incidents, event, is_home=True
         )
@@ -193,6 +207,7 @@ def backfill_event(
             excluded_competition_ids=FRIENDLY_COMPETITION_IDS,
             ground_type=event.get("groundType"),
             best_of=event.get("defaultPeriodCount"),
+            per_family_identity=per_family_identity,
         ) + historical_sample(
             history,
             before_utc=kickoff,
@@ -205,6 +220,7 @@ def backfill_event(
             excluded_competition_ids=FRIENDLY_COMPETITION_IDS,
             ground_type=event.get("groundType"),
             best_of=event.get("defaultPeriodCount"),
+            per_family_identity=per_family_identity,
         )
         seen_ids: set[int] = set()
         values: list[float] = []
@@ -348,6 +364,9 @@ def main() -> int:
                     config,
                     k_centre=10.0,
                     k_price=10.0,
+                    # a replay reads today's estimator (switch as of now)
+                    per_family_identity=identity_gate_per_family(
+                        now().strftime("%Y-%m-%d")),
                 )
             except (ProviderError, CircuitOpenError) as exc:
                 failures += 1

@@ -34,6 +34,7 @@ from bet.sofa.contracts import (
     PlayerSample,
     Readiness,
 )
+from bet.sofa.epochs import IDENTITY_GATE_MARKER
 from bet.sofa.errors import CircuitOpenError, ProviderError
 from bet.sofa.market_mapper import (
     classify_market,
@@ -49,9 +50,10 @@ from bet.sofa.men_friendly import (
 from bet.sofa.metrics import (
     FOOTBALL_METRICS,
     check_halves_identity,
-    check_identities,
     extract_flat_statistics,
     extract_metric,
+    identity_failures,
+    identity_gap_for_metric,
     infer_best_of,
     zero_pair_not_recorded,
 )
@@ -922,7 +924,14 @@ def process_historical_event(
     fixture: Fixture,
     want_lineups: bool = False,
     want_shotmap: bool = False,
+    per_family_identity: bool = False,
 ) -> dict[str, Any]:
+    """One historical match's observations for ``metrics_to_collect``.
+
+    ``per_family_identity`` (epochs.IDENTITY_GATE_PER_FAMILY): an internal
+    identity the payload fails blocks only the metrics of its family
+    (metrics.identity_gap_for_metric); off, any failure blocks every metric.
+    """
     event_id = event["id"]
 
     # With the kick-off, an early cards-only snapshot is asked again once the
@@ -990,7 +999,9 @@ def process_historical_event(
     if not incidents_json:
         incidents_json = None
     flat_stats = extract_flat_statistics(statistics_json)
-    ident_gap = check_identities(flat_stats, incidents_json, event, sport)
+    failed_identities = identity_failures(flat_stats, incidents_json, event, sport)
+    # the whole-match verdict (metrics.check_identities) the switch replaces
+    ident_gap = GapReason.INTERNAL_INCONSISTENT if failed_identities else None
     # Reported, not blocking (PLAN §5.5, last row).
     halves_divergences = check_halves_identity(flat_stats)
 
@@ -1011,8 +1022,11 @@ def process_historical_event(
     # Why a 0-0 was refused, per metric, for the gap entry (2026-10-03).
     zero_notes: dict[str, str] = {}
     for metric in metrics_to_collect:
-        if ident_gap:
-            collected[metric] = ident_gap
+        metric_gap = (
+            identity_gap_for_metric(metric, sport, failed_identities)
+            if per_family_identity else ident_gap)
+        if metric_gap:
+            collected[metric] = metric_gap
             continue
 
         val = extract_metric(metric, sport, flat_stats, incidents_json, event, is_home)
@@ -1122,6 +1136,7 @@ def goal_observations(
     entity_id: int,
     metrics: set[str],
     fixture: Fixture,
+    per_family_identity: bool = False,
 ) -> dict[str, Any]:
     """process_historical_event for goal metrics only, and never a request.
 
@@ -1137,7 +1152,8 @@ def goal_observations(
         event["id"], kickoff_ts=int(start) if isinstance(start, (int, float)) else None
     ) is not None:
         return process_historical_event(
-            client, cache, event, entity_id, "football", metrics, fixture
+            client, cache, event, entity_id, "football", metrics, fixture,
+            per_family_identity=per_family_identity,
         )
     home_team = event.get("homeTeam", {})
     away_team = event.get("awayTeam", {})
@@ -1550,6 +1566,7 @@ def process_fixture_samples(
     surname_fallback: bool = False,
     shot_detail: bool = False,
     player_coverage: bool = False,
+    per_family_identity: bool = False,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1559,18 +1576,25 @@ def process_fixture_samples(
     that stops a genuinely dead provider; a single error is not that.
     """
     try:
-        return _process_fixture_samples(
+        result = _process_fixture_samples(
             fixture, client, cache, superbet_client, config, offer,
             token_fallback=token_fallback, starts_only=starts_only,
             men_friendly_window=men_friendly_window,
             surname_fallback=surname_fallback,
             shot_detail=shot_detail,
             player_coverage=player_coverage,
+            per_family_identity=per_family_identity,
         )
     except CircuitOpenError as exc:
-        return _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
+        result = _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
     except ProviderError as exc:
-        return _blocked(fixture, GapReason.PROVIDER_ERROR, str(exc))
+        result = _blocked(fixture, GapReason.PROVIDER_ERROR, str(exc))
+    if per_family_identity:
+        # epochs.IDENTITY_GATE_MARKER: what rebuild_plan reads to know this
+        # fixture was sampled under the switch (a provider-fault entry that
+        # run_samples carries over from an earlier run loses it again)
+        result = result.model_copy(update={"identity_gate": IDENTITY_GATE_MARKER})
+    return result
 
 
 def _blocked(fixture: Fixture, reason: GapReason, detail: str) -> FixtureSamples:
@@ -1596,6 +1620,7 @@ def _process_fixture_samples(
     surname_fallback: bool = False,
     shot_detail: bool = False,
     player_coverage: bool = False,
+    per_family_identity: bool = False,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1685,6 +1710,7 @@ def _process_fixture_samples(
             fixture,
             want_lineups,
             want_shotmap,
+            per_family_identity,
         )
         for e in side_a_events
     ]
@@ -1699,6 +1725,7 @@ def _process_fixture_samples(
             fixture,
             want_lineups,
             want_shotmap,
+            per_family_identity,
         )
         for e in side_b_events
     ]
@@ -1740,7 +1767,8 @@ def _process_fixture_samples(
             if not window:
                 continue
             goal_results[label] = [
-                goal_observations(client, cache, e, entity, goal_metrics, fixture)
+                goal_observations(client, cache, e, entity, goal_metrics, fixture,
+                                  per_family_identity)
                 for e in window
             ]
     elif (
@@ -1759,7 +1787,8 @@ def _process_fixture_samples(
             if picked is None:
                 continue
             goal_results[label] = [
-                goal_observations(client, cache, e, entity, goal_metrics, fixture)
+                goal_observations(client, cache, e, entity, goal_metrics, fixture,
+                                  per_family_identity)
                 for e in picked
             ]
 

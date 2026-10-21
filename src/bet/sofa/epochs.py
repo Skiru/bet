@@ -2826,3 +2826,35 @@ def football_squad_level_alias_loose(
     at = build_at if build_at is not None else timeutil.now()
     return (date >= FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC.strftime("%Y-%m-%d")
             and at >= FOOTBALL_SQUAD_LEVEL_ALIAS_LOOSE_FROM_UTC)
+
+
+# --- SAMPLES: the identity gate per family (2026-10-21) ----------------------
+# metrics.check_identities returned one verdict for the whole match and SAMPLES
+# applied it to every metric: a match whose shot categories did not add up
+# (Roma - Real Madrid 16938872 of 10-14: away shots 16 vs on 8 + off 8 +
+# blocked 1, no woodwork) left every sample - corners, cards, goals - with
+# INTERNAL_INCONSISTENT. On: each identity blocks only the metrics that read
+# what it compares (metrics.identity_gap_for_metric): shots -> shot metrics;
+# goal incidents vs score -> incident metrics (card points, reds, penalties);
+# home period sum -> goals and the incident metrics reading the 90-minute
+# score; tennis gamesWon vs the set score -> the whole match, as before.
+# Read-only measurement: scripts/sofa/measure_identity_gate.py; evidence:
+# docs/sofa/history/RAPORT_BRAMKA_TOZSAMOSCI_2026-10-21.md. Wider samples
+# change what prints. The operator moved it into the built day 2026-10-21:
+# on at 10:50Z (10-21 mixed, audit_ledger "10-21 mieszany"); a rebuild re-runs
+# SAMPLES / SHEET --event-ids for the open football fixtures whose samples
+# lack IDENTITY_GATE_MARKER (bet.sofa.rebuild_plan).
+IDENTITY_GATE_PER_FAMILY_FROM_UTC: datetime | None = datetime(
+    2026, 10, 21, 10, 50, tzinfo=UTC)
+# FixtureSamples.identity_gate of a fixture sampled under the switch
+IDENTITY_GATE_MARKER = "per_family"
+
+
+def identity_gate_per_family(date: str, build_at: datetime | None = None) -> bool:
+    """Does each internal identity block only the metrics of its family
+    (IDENTITY_GATE_PER_FAMILY_FROM_UTC)?"""
+    if IDENTITY_GATE_PER_FAMILY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= IDENTITY_GATE_PER_FAMILY_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= IDENTITY_GATE_PER_FAMILY_FROM_UTC)

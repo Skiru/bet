@@ -22,6 +22,9 @@ that would refuse it, with a margin for the rebuild's own duration:
    sport_day.MAX_PRICE_AGE minus SPORT_REFRESH_MARGIN, or a SHADOW event
    lagged the latest snapshot because it started beyond the horizon; then
    SPORT_IDENTITY (bridge) after a fresh snapshot;
+1c. SAMPLES --event-ids (bridge) for the open football fixtures sampled
+   before epochs.IDENTITY_GATE_PER_FAMILY with an INTERNAL_INCONSISTENT gap,
+   then SHEET --event-ids for them (unless the whole sheet re-runs);
 2. SHEET only when CONFIDENCE would refuse the sheet (a stats-only build of a
    sheet not built under that rule: bet.sofa.epochs.sheet_epoch); COUPON
    (06_coupon.json, the priced selector audit_coupon checks - not the
@@ -170,6 +173,10 @@ class DayState:
     # ahead, and fixtures an earlier late pass left half-way (late_resolve)
     late_candidates: int = 0
     late_pending: int = 0
+    # epochs.IDENTITY_GATE_PER_FAMILY: open football fixtures whose
+    # 03_samples.json entry lacks epochs.IDENTITY_GATE_MARKER and holds an
+    # INTERNAL_INCONSISTENT gap (only those can gain observations)
+    identity_unsampled: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -425,6 +432,38 @@ def referee_sheet_step(date: str, events: tuple[int, ...], run_id: str,
         "centres read the referee term")
 
 
+def identity_unsampled(runs_dir: str, date: str,
+                       now: datetime) -> tuple[int, ...]:
+    """Football fixtures not yet started whose 03_samples.json entry was
+    sampled before epochs.IDENTITY_GATE_PER_FAMILY (no identity_gate marker)
+    and holds an INTERNAL_INCONSISTENT gap - the only entries the per-family
+    gate can widen. Nothing while the switch is off or with no samples. A
+    started fixture is never re-sampled: its legs are locked or gone."""
+    if not epochs.identity_gate_per_family(date, now):
+        return ()
+    run = Path(runs_dir) / date
+    samples_path, fixtures_path = run / "03_samples.json", run / "02_fixtures.json"
+    if not samples_path.exists() or not fixtures_path.exists():
+        return ()
+    fixtures = {f.get("sofascore_event_id"): f
+                for f in _load_json(fixtures_path) or []}
+    status = fs.load(run)
+    out: list[int] = []
+    for entry in _load_json(samples_path) or []:
+        eid = entry.get("sofascore_event_id")
+        fx = fixtures.get(eid)
+        if (eid is None or fx is None or fx.get("sport") != "football"
+                or entry.get("identity_gate") == epochs.IDENTITY_GATE_MARKER):
+            continue
+        if not any(g.get("reason") == "INTERNAL_INCONSISTENT"
+                   for g in entry.get("gaps") or []):
+            continue
+        if not starts_after(fx, None, status.get(eid), now):
+            continue
+        out.append(int(eid))
+    return tuple(sorted(out))
+
+
 def after_fixture_check(runs_dir: str, date: str, now: datetime,
                         db_path: str | Path | None,
                         run_id: str = "rebuild") -> list[Step]:
@@ -549,6 +588,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         has_sport_fixtures=(run / si.FIXTURES_FILE).exists(),
         coupon06_stale=coupon06_stale,
         referee_now_known=referee_now_known(runs_dir, date, now, db_path),
+        identity_unsampled=identity_unsampled(runs_dir, date, now),
         **_late_work(runs_dir, date, now),
     )
 
@@ -728,6 +768,28 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                 "a fresh sport snapshot: pin the new events' Sofascore ids"
                 if refreshed else "sport_fixtures.json missing", soft=True))
 
+    # 1c. epochs.IDENTITY_GATE_PER_FAMILY switched on after SAMPLES read the
+    # day: the open football fixtures that lost observations to a whole-match
+    # identity drop are sampled again (merged, every other entry kept) and
+    # re-priced (SHEET --event-ids below, unless the whole sheet re-runs)
+    identity_ids = (state.identity_unsampled
+                    if epochs.identity_gate_per_family(d, now) else ())
+    if identity_ids:
+        ids_arg = ",".join(str(i) for i in identity_ids)
+        if not bridge_planned:
+            plan.steps.append(Step(
+                "BRIDGE", (PY, "scripts/sofa/ensure_bridge.py"),
+                "SAMPLES may ask Sofascore (uncached statistics / listings)",
+                soft=True))
+            bridge_planned = True
+        plan.steps.append(Step(
+            "SAMPLES", (PY, "scripts/sofa/run_samples.py", "--date", d,
+                        "--event-ids", ids_arg),
+            f"{len(identity_ids)} open football fixtures sampled under the "
+            "whole-match identity gate with an INTERNAL_INCONSISTENT gap "
+            "(epochs.identity_gate_per_family): each identity now blocks only "
+            "its own family", soft=True))
+
     # 2. SHEET only when CONFIDENCE would refuse it, or when the rating's
     # link rule of this build is not the one the sheet was rated under
     epoch_stale = stats_only and state.sheet_epoch != epochs.STATS_ONLY
@@ -821,6 +883,13 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     elif referee_stale:
         plan.steps.append(referee_sheet_step(
             d, state.referee_now_known, run_id, "on the DB"))
+    elif identity_ids:
+        plan.steps.append(Step(
+            "SHEET", (PY, "scripts/sofa/run_sheet.py", "--date", d,
+                      "--event-ids", ",".join(str(i) for i in identity_ids)),
+            f"{len(identity_ids)} football fixtures re-sampled under the "
+            "per-family identity gate: their rows re-priced (merged, every "
+            "other row kept)"))
     else:
         plan.notes.append(f"SHEET kept: built under {state.sheet_epoch!r}")
     if (state.sheet_config_sha is not None and state.config_sha is not None
@@ -835,6 +904,7 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                "the operator says so; then run_pipeline.py --only SHEET by "
                "hand before the rebuild"))
     if not skip_audits and (sheet_rebuilt or state.coupon06_stale
+                            or bool(identity_ids)
                             or "LATE_RESOLVE" in plan.names()):
         plan.steps.append(Step(
             "COUPON", _pipeline(d, "COUPON", run_id),
@@ -895,6 +965,7 @@ def state_summary(state: DayState) -> dict[str, Any]:
         "config_sha": state.config_sha,
         "late_candidates": state.late_candidates,
         "late_pending": state.late_pending,
+        "identity_unsampled": len(state.identity_unsampled),
         "sports": {
             k: {"events": s.events, "open": s.open_events,
                 "oldest_open_price": _z(s.oldest_open_price),

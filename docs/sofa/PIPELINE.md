@@ -909,6 +909,36 @@ potrzebuje; 404 zapisuje się jako `{}` (fakt, za który się już nie płaci)
 i jest czytane jako „brak incydentów”. Awaria przy tym pytaniu kosztuje tylko
 metryki kartek (`NO_INCIDENTS`), nigdy cały mecz.
 
+**Bramka tożsamości per rodzina (`epochs.IDENTITY_GATE_PER_FAMILY_FROM_UTC`,
+od 2026-10-21 10:50Z, 10-21 mieszany).** `metrics.check_identities`
+sprawdza cztery tożsamości payloadu (strzały: total vs celne + niecelne +
+zablokowane w granicy słupka; gole w incydentach vs wynik; suma połów
+gospodarza vs `normaltime`; tenis: `gamesWon` vs wynik setowy). Do
+przełącznika jeden werdykt odrzucał **cały mecz** dla każdej metryki: Roma -
+Real (16938872, 10-14) wypadł z 52 metryk Realu (rzuty rożne, kartki, gole),
+bo strzały Realu dawały 16 wobec 8 + 8 + 1. Od przełącznika
+(`metrics.identity_failures` + `identity_gap_for_metric`) każda tożsamość
+blokuje tylko swoją rodzinę:
+
+| tożsamość | blokuje |
+|---|---|
+| strzały | metryki z kluczy strzałów: `shots_*`, `shots_on_target_*` (mecz, połowy; przez nie handicapy / oba-powyżej strzałów); strzały zawodnika idą z lineups i nigdy nie były tu bramkowane |
+| gole w incydentach != wynik | metryki z `/incidents`: punkty kartek (mecz, połowy), czerwone, karne |
+| suma połów gospodarza | metryki z wyniku: gole (mecz, połowy) oraz czerwone / karne (czytają wynik 90 min); to podzbiór `goal_score_inconsistent`, który i tak sprawdza każdy odczyt goli |
+| tenis `gamesWon` | cały mecz, jak dotąd |
+
+Metryka spoza `FOOTBALL_METRICS` / `CARD_INCIDENT_SCOPES` jest blokowana
+każdą porażką. Ta sama reguła w `settle.historical_sample` i
+`scripts/sofa/run_backfill.py` (replay backfillu; SETTLE nie ocenia przez tę
+bramkę). Każdy wpis `03_samples.json` liczony pod przełącznikiem ma
+`identity_gate: "per_family"`; rebuild (`rebuild_plan.identity_unsampled`)
+dla otwartych meczów piłki bez tego znacznika, a z luką
+`INTERNAL_INCONSISTENT`, puszcza `run_samples.py --event-ids` (po
+`ensure_bridge`, miękko) i `run_sheet.py --event-ids` (gdy cały SHEET nie
+idzie i tak). Mecz rozpoczęty nigdy nie jest liczony od nowa. Pomiar:
+`scripts/sofa/measure_identity_gate.py`; raport
+`docs/sofa/history/RAPORT_BRAMKA_TOZSAMOSCI_2026-10-21.md`.
+
 **`coverage_floor` (`src/bet/sofa/coverage.py`) jest ślepy na dzień tygodnia.**
 Porównuje z medianą ostatnich 10 przebiegów (`MAX_DROP = 0.40`), więc
 poniedziałek — 102 mecze wobec niedzielnych 1040 — zawsze woła „matching

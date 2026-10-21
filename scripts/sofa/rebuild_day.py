@@ -39,7 +39,10 @@ SOFA_RUNS_DIR. Never runs a fit, nor RESOLVE / SAMPLES over the day - the one
 exception is step 0 while epochs.LATE_RESOLVE_FROM_UTC is on: ensure_bridge +
 run_late_resolve.py (soft) when an unbridged board entry has not started; it
 adds only the NEW fixtures through OFFER / SAMPLES / SHEET --event-ids, every
-existing fixture, sample and sheet row kept (bet.sofa.late_resolve).
+existing fixture, sample and sheet row kept (bet.sofa.late_resolve); and
+step 1c while epochs.IDENTITY_GATE_PER_FAMILY is on: SAMPLES / SHEET
+--event-ids for the open football fixtures sampled before it with an
+INTERNAL_INCONSISTENT gap (rebuild_plan.identity_unsampled).
 
 Exit: 0 OK, 1 PARTIAL, 2 FAILED.
 """
