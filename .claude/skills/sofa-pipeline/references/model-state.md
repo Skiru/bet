@@ -535,6 +535,21 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- a goals_for dispersion fix and a refitted double-chance r (2026-10-22,
+  pre-registered, history replay with today's centre - rating weight, goals
+  stretch v2, season phase, cup strength - TRAIN 2025-07..2026-03, TEST
+  2026-04-01..10-21, 164,251 matches): SHEET's goals_for NB is too WIDE, not
+  too narrow (variance ratio 0.888 [0.880, 0.897], PIT tail mass 0.191);
+  alpha + d (d -0.065) ladder log loss -1.39e-4 [-1.93, -0.86] raw but
+  +0.38e-4 [+0.16, +0.64] after a calibration map, second test half +1.39,
+  1X2 +1.53e-4 worse; DC r 21.4 -0.76e-4 [-1.69, +0.18], btts +25.7e-4
+  worse. DC p on history realises ABOVE p at >= 0.70 (+0.5..+1.2 pp);
+  goals_for after a map within ~1 pp (UNDER -0.81 pp). The live
+  goals_for / double_chance gaps (DIAGNOZA 2026-10-22) are not the
+  distribution's shape. Open suspicion: the goals_for centre under-shrinks
+  (low centre sides +0.11 goals, high -0.05). Not installed, no switch
+  (`docs/sofa/history/POMIAR_GOLE_DRUZYNY_2026-10-22.md`);
+
 - the basketball curve refitted on the season-restart rule (2026-10-22,
   operator's go ~19:40Z with "install only if not worse"; `fit_sport_confidence.py
   --sport basketball --before 2026-10-23 --bb-freshness on --league-rate-rule
