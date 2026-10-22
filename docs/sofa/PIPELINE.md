@@ -1142,6 +1142,19 @@ nie jest „gotowa” i jest pobierana od pierwszej przerwanej strony
 24 h). `--dry-run` podaje `gapped` i `gapped_on_board` i czyta bazę tylko do
 odczytu.
 
+Rywale trafiają do kolejki tylko ze stron pobranych przed **seedem** sportu
+(`runs/sofa/backfill/listings_seed.json`) - inaczej strony samego backfillu
+dokładałyby nowych rywali bez końca (19 866 -> 20 079 encji 2026-09-30).
+Cache nie zapisuje, kto pobrał stronę, więc od 2026-10-22 seed przesuwa się
+na **start przebiegu, który przeszedł całą kolejkę** (nie ucięty przez
+`--limit`, `--max-minutes` ani bezpiecznik), a od razu - gdy kolejka przy
+zapisanym seedzie jest pusta. Kolejka rośnie więc o co najwyżej jeden skok na
+ukończony przebieg. Wcześniej seed stał na pierwszym przebiegu (wszystkie
+pięć na 2026-09-30): przy seedzie „teraz” 2026-10-22 do pogłębienia było
+hokej 0 -> 77, piłka 0 -> 2 598, tenis 266 -> 1 739, siatkówka 0 -> 151.
+`--dry-run` pokazuje `seed_advanced` i niczego nie zapisuje; `--seed-before`
+nadpisuje seed ręcznie.
+
 Statystyki meczów, które cache już zna, dociąga
 `scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days N`;
 `--board-days N` (od 2026-10-01) zawęża to do meczów drużyn / zawodników

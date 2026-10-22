@@ -92,6 +92,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/find_friendly_competitions.py --o
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_listings.py --sport {football|tennis|hockey|basketball|volleyball} --days 730 --max-minutes 7   # listings history
+# Opponents are queued only from pages cached before the sport's seed (runs/sofa/backfill/listings_seed.json): one hop at a time.
+# The seed moves to a run's start when that run walks its whole queue (not cut by --limit / --max-minutes / the breaker),
+# or at once when the queue at the recorded seed is empty (dry-run prints "seed_advanced", writes nothing). --seed-before overrides.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days 365 [--board-days 7] --max-minutes 7   # event statistics
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_football_lineups.py --days 365 --max-minutes 7   # football lineups
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180       # CS2 history

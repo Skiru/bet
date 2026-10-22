@@ -138,3 +138,86 @@ def test_the_seed_time_is_recorded_once_and_reused(tmp_path):
     assert seed_cut(path, "football", "T1") == "T1"
     assert seed_cut(path, "football", "T2") == "T1"
     assert seed_cut(path, "tennis", "T3") == "T3"
+
+
+def test_the_seed_advances_to_a_completed_runs_start_and_never_back(tmp_path):
+    """2026-10-22: every seed sat at 2026-09-30, so entities first cached
+    since were never queued (football 0 -> 2,598 with the seed at now)."""
+    from scripts.sofa.backfill_listings import (
+        advance_seed,
+        recorded_seed,
+        seed_cut,
+    )
+
+    path = tmp_path / "seed.json"
+    path.write_text(json.dumps({"football": "2026-09-30T17:29:57+00:00",
+                                "tennis": "2026-09-30T19:42:00+00:00"}))
+    assert advance_seed(path, "football", "2026-10-22T08:00:00+00:00", "r1")
+    assert recorded_seed(path, "football") == "2026-10-22T08:00:00+00:00"
+    assert seed_cut(path, "football", "X") == "2026-10-22T08:00:00+00:00"
+    # the old plain-string entries stay readable and untouched
+    assert recorded_seed(path, "tennis") == "2026-09-30T19:42:00+00:00"
+    assert not advance_seed(path, "football", "2026-10-01T00:00:00+00:00", "r0")
+    assert recorded_seed(path, "football") == "2026-10-22T08:00:00+00:00"
+
+
+def test_only_a_run_that_walked_its_whole_queue_completes_a_hop():
+    from scripts.sofa.backfill_listings import hop_completed
+
+    assert hop_completed(10, None, False, False)
+    assert not hop_completed(10, None, False, True)   # --max-minutes
+    assert not hop_completed(10, None, True, False)   # breaker
+    assert not hop_completed(10, 10, False, False)    # --limit cut it
+    assert hop_completed(3, 10, False, False)
+
+
+def _main(monkeypatch, tmp_path, rows, argv):
+    import types
+
+    import scripts.sofa.backfill_listings as bl
+
+    config = types.SimpleNamespace(run_id="t", db_path="unused",
+                                   runs_dir=str(tmp_path), max_concurrency=1)
+    monkeypatch.setattr(bl.SofaConfig, "from_env", staticmethod(lambda: config))
+    monkeypatch.setattr(bl, "_rows", lambda db: rows)
+
+    class NoIndex:
+        available = False
+
+        def __init__(self, db):
+            pass
+
+    monkeypatch.setattr(bl, "IndexCounter", NoIndex)
+    seed = tmp_path / "seed.json"
+    monkeypatch.setattr("sys.argv", ["backfill_listings.py", "--seed-file",
+                                     str(seed), *argv])
+    return bl.main(), seed
+
+
+def test_an_empty_hop_moves_the_seed_to_now_and_a_dry_run_writes_nothing(
+        monkeypatch, tmp_path, capsys):
+    import time
+
+    now = int(time.time())
+    old = "2026-09-30T17:29:57+00:00"
+    # entity 1 is done (no next page); its page fetched after the old seed
+    # names a new opponent, 2, that the frozen seed never queued.
+    rows = [(1, 0, _page([_event(11, now - DAY, 1, 2)], has_next=False),
+             "2026-10-20T00:00:00+00:00")]
+    rc, seed = _main(monkeypatch, tmp_path, rows, ["--dry-run"])
+    assert rc == 0 and not seed.exists()
+    capsys.readouterr()
+    seed.write_text(json.dumps({"football": old}))
+    rc, _ = _main(monkeypatch, tmp_path, rows, ["--dry-run"])
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["seed_advanced"] and out["entities_to_deepen"] == 1
+    assert json.loads(seed.read_text()) == {"football": old}  # dry: untouched
+    # an override is used as given, never advanced past
+    _main(monkeypatch, tmp_path, rows, ["--dry-run", "--seed-before", old])
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert not out["seed_advanced"] and out["entities_to_deepen"] == 0
+    # a real run with the hop walked records the new seed before deepening
+    monkeypatch.setattr("scripts.sofa.backfill_listings.plan",
+                        lambda *a: [])
+    rc, _ = _main(monkeypatch, tmp_path, rows, [])
+    assert rc == 0 and json.loads(seed.read_text())["football"]["seed_before"] > old

@@ -446,26 +446,71 @@ def _rows(db_path: str) -> list[tuple[int, int, str, str]]:
         conn.close()
 
 
+def _seed_doc(path: Path) -> dict[str, Any]:
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def recorded_seed(path: Path, sport: str) -> str | None:
+    """The sport's recorded seed time: a plain ISO string (the file as
+    written up to 2026-10-22) or {"seed_before": ISO, ...}."""
+    entry = _seed_doc(path).get(sport)
+    if isinstance(entry, str):
+        return entry
+    if isinstance(entry, dict) and isinstance(entry.get("seed_before"), str):
+        return str(entry["seed_before"])
+    return None
+
+
 def seed_cut(path: Path, sport: str, default: str, record: bool = True) -> str:
     """The seed time for this sport's backfill: read if recorded, else
     recorded now (unless `record` is False - a dry run writes nothing).
-    Every chunk of one backfill shares it."""
-    doc: dict[str, Any] = {}
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            doc = loaded
-        cut = doc.get(sport)
-        if isinstance(cut, str):
-            return cut
-    except (OSError, ValueError):
-        doc = {}
-    if not record:
-        return default
-    doc[sport] = default
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    Every chunk of one hop shares it; advance_seed moves it on."""
+    cut = recorded_seed(path, sport)
+    if cut is not None:
+        return cut
+    if record:
+        advance_seed(path, sport, default, None)
     return default
+
+
+def advance_seed(path: Path, sport: str, started_at: str,
+                 run_id: str | None) -> bool:
+    """Move the sport's seed to `started_at`, the start of a run that walked
+    its whole queue (or found it empty). Never moves it back.
+
+    Why the start of a run and not its end. The cache does not say who
+    fetched a page (sofa_entity_events keeps only fetched_at), so the
+    backfill's own pages cannot be told from the pipeline's. Everything
+    fetched before the run started is the pipeline's plus earlier hops'
+    pages; the next hop takes opponents from those, never from the pages
+    this run fetched. So the queue grows by at most one hop per completed
+    run - the 2026-09-30 guard - and no longer freezes at the first run
+    (all five seeds sat at 2026-09-30 until 2026-10-22; with the seed at
+    now the football queue was 2,598 entities, not 0)."""
+    current = recorded_seed(path, sport)
+    if current is not None and started_at <= current:
+        return False
+    doc = _seed_doc(path)
+    doc[sport] = {"seed_before": started_at, "run_id": run_id,
+                  "advanced_at": datetime.now(UTC).isoformat()}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return True
+
+
+def hop_completed(todo: int, limit: int | None, stopped: bool,
+                  timed_out: bool) -> bool:
+    """A run walked its whole queue: not cut by --limit, the breaker or
+    --max-minutes. Per-entity errors leave those entities queued, so they do
+    not hold the seed back."""
+    truncated = limit is not None and todo >= limit
+    return not (truncated or stopped or timed_out)
 
 
 def main() -> int:
@@ -481,9 +526,11 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--seed-file", default="runs/sofa/backfill/listings_seed.json",
                     help="per-sport seed time; opponents come only from pages "
-                    "cached before it")
+                    "cached before it; moved to a run's start when the run "
+                    "walks its whole queue (one hop per completed run)")
     ap.add_argument("--seed-before", default=None,
-                    help="override the recorded seed time (ISO, UTC)")
+                    help="override the recorded seed time (ISO, UTC); a "
+                    "completed run still advances the recorded one")
     args = ap.parse_args()
 
     config = SofaConfig.from_env()
@@ -492,22 +539,33 @@ def main() -> int:
             config, run_id="backfill-listings-"
             + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
     now = int(time.time())
+    started_at = datetime.now(UTC).isoformat()
     since, recent = now - args.days * 86400, now - args.recent_days * 86400
+    seed_path = Path(args.seed_file)
+    rows = _rows(config.db_path)
+    board = board_entities(config.runs_dir, args.sport)
     seed = args.seed_before or seed_cut(
-        Path(args.seed_file), args.sport, datetime.now(UTC).isoformat(),
-        record=not args.dry_run)
-    states = scan(_rows(config.db_path), SPORT_SLUGS[args.sport], recent, seed)
+        seed_path, args.sport, started_at, record=not args.dry_run)
+    states = scan(rows, SPORT_SLUGS[args.sport], recent, seed)
+    seed_advanced = False
+    if args.seed_before is None and seed < started_at and not plan(
+            states, board, since, recent):
+        # The recorded hop is walked: the next one starts now (a dry run
+        # shows it and writes nothing).
+        seed, seed_advanced = started_at, True
+        if not args.dry_run:
+            advance_seed(seed_path, args.sport, started_at, config.run_id)
+        states = scan(rows, SPORT_SLUGS[args.sport], recent, seed)
     counter = IndexCounter(config.db_path)
     if counter.available:
         for s in states.values():
             s.indexed = counter
-    board = board_entities(config.runs_dir, args.sport)
     todo = plan(states, board, since, recent)
     if args.limit is not None:
         todo = todo[: args.limit]
     print(json.dumps({
         "run_id": config.run_id, "sport": args.sport, "days": args.days,
-        "seed_before": seed,
+        "seed_before": seed, "seed_advanced": seed_advanced,
         "entities_known": len(states), "entities_to_deepen": len(todo),
         "on_board": sum(s.on_board for s in todo),
         "never_listed": sum(s.deepest_page < 0 for s in todo),
@@ -528,6 +586,9 @@ def main() -> int:
     print(json.dumps({"final": True, "circuit_open": runner.stop.is_set(),
                       "timed_out": runner.timed_out.is_set(),
                       "to_deepen": len(todo), **runner.counts}), flush=True)
+    if hop_completed(len(todo), args.limit, runner.stop.is_set(),
+                     runner.timed_out.is_set()):
+        advance_seed(seed_path, args.sport, started_at, config.run_id)
     if runner.stop.is_set():
         return 2
     partial = (runner.counts["errors"] or runner.counts["db_locked"]
