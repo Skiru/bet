@@ -41,15 +41,24 @@ Przed działaniem sprawdź go komendami poniżej.
 ## 3. Otwarte, czeka na decyzję operatora
 
 1. **Refit krzywej koszykówki** z `--league-season-restart`: niekonieczny, porządkowy, wymaga zgody.
-2. **Rozrzut kwart NBA** (model za pewny o ~2 pp na kwartach): pomiar przerwany w połowie.
-   - wyniki częściowe: `data/refit_2026-10-22/comp_spread/PARTIAL_RESULTS.md`; kod WIP na gałęzi `worktree-agent-a370bc755953d693f` (commit `1bf8a466`, NIE na main).
-   - NBA: kwarty -0.0028 [-0.0034, -0.0023], kalibracja kwart -2.1 -> -0.2 pp; **ale handicap gorzej +0.0027 [+0.0013, +0.0041]**. W tej postaci kryterium nie przechodzi.
-   - inne ligi niezmierzone.
+2. **Rozrzut kwart NBA** (model za pewny o ~2 pp na kwartach): wariant zarejestrowany zmierzony, wariant post-hoc przerwany.
+   - szczegóły: `data/refit_2026-10-22/comp_spread/PARTIAL_RESULTS.md`.
+   - kod WIP: gałąź `worktree-agent-a370bc755953d693f`, commit `1bf8a466`, NIE na main; worktree `.claude/worktrees/agent-a370bc755953d693f` trzyma surowe wyniki - nie usuwać przed decyzją.
+   - NBA, cały okres: ALL -0.0019 [-0.0024, -0.0014], kwarty -0.0028, kalibracja kwart -2.3 -> -0.1 pp.
+   - **handicap gorzej**: NBA +0.0027 [+0.0013, +0.0041], kosz razem +0.0008 [+0.0001, +0.0015]. W tej postaci kryterium "nie gorzej gdzie indziej" nie przechodzi.
+   - inne ligi bez zmian (ALL -0.0001 [-0.0004, +0.0001]). Replay 10-21/10-22: 14 -> 8 nóg NBA.
+   - niedokończone: wariant `--qonly` (poszerza tylko szum kwartowy, nie powinien ruszać handicapu) przerwany w połowie. Wybrany PO zobaczeniu wyniku handicapu, więc to pomiar post-hoc.
    - przełącznik i tak wymaga zgody operatora (proponowany od 10-24).
 3. Propsy zawodników NBA: nic się nie drukuje, dopóki kubełek nie ma 50 rozliczonych linii (najwięcej 32). Czekać, nie poprawiać.
 4. Zawodnicy po zmianie klubu (`PLAYER_TEAM_FROM_SIDE`) czekają na 5 meczów w nowej drużynie: reguła modelu, K7 w model-state.
 
-## 4. Wieczór 10-23
+## 4. Do sprawdzenia na danych 10-23
+
+- Charlotte: czy Ball / Miller / Bridges / Diabate mają `p` w `player_model.jsonl` SHADOW 10-23. Wcześniej nie miały, bo w historii było 5 meczów.
+- `BASKETBALL_PLAYER_V2`: czy SHADOW 10-23 zapisuje nowe rynki zawodników NBA (`player_v2_rule`).
+- Kopie DB pomiarów w `data/refit_2026-10-22/` (`comp_spread/bb.db` 3,5 GB, `league_season/hk.db`, `vb.db`): usunąć po decyzjach z sekcji 3.
+
+## 5. Wieczór 10-23
 
 Z `SPORT_LATE_WINDOW` nocne NBA i NHL dnia D drukują się tylko przez ręczny wieczorny rebuild:
 `rebuild_day.py --date 2026-10-23` około 20:00-21:00Z (RUNBOOK).
