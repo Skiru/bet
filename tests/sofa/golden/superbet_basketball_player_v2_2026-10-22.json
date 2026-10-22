@@ -1,0 +1,1657 @@
+{
+ "source": "Superbet /events/{id}, fetched 2026-10-22 ~10:30Z (pre-match, NBA); trimmed to three players (Simons, Mitchell, Mobley) and markets 231804-231811 200985 (read from BASKETBALL_PLAYER_V2) and 233565 233568 240717 233573 235311 (read before / never read); uuid / marketUuid / extra dropped",
+ "events": [
+  {
+   "eventId": 14486087,
+   "matchName": "Philadelphia 76ers·Cleveland Cavaliers",
+   "sportId": 4,
+   "utcDate": "2026-10-22T23:00:00Z",
+   "odds": [
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1,
+     "specialBetValue": "5-Mobley, Evan",
+     "status": "block",
+     "specifiers": {
+      "milestone": "5",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 5+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 5 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.11,
+     "specialBetValue": "5-Simons, Anfernee",
+     "status": "active",
+     "specifiers": {
+      "milestone": "5",
+      "player": "Simons, Anfernee"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Simons, Anfernee 5+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 5 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1,
+     "specialBetValue": "10-Mitchell, Donovan",
+     "status": "block",
+     "specifiers": {
+      "milestone": "10",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 10+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 10 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.06,
+     "specialBetValue": "10-Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "10",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 10+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 10 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.92,
+     "specialBetValue": "10-Simons, Anfernee",
+     "status": "active",
+     "specifiers": {
+      "milestone": "10",
+      "player": "Simons, Anfernee"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Simons, Anfernee 10+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 10 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.04,
+     "specialBetValue": "15-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "15",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 15+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 15 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.37,
+     "specialBetValue": "15-Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "15",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 15+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 15 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 4.9,
+     "specialBetValue": "15-Simons, Anfernee",
+     "status": "active",
+     "specifiers": {
+      "milestone": "15",
+      "player": "Simons, Anfernee"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Simons, Anfernee 15+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 15 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.24,
+     "specialBetValue": "20-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "20",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 20+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 20 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 2.25,
+     "specialBetValue": "20-Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "20",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 20+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 20 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 13,
+     "specialBetValue": "20-Simons, Anfernee",
+     "status": "active",
+     "specifiers": {
+      "milestone": "20",
+      "player": "Simons, Anfernee"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Simons, Anfernee 20+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 20 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 1.69,
+     "specialBetValue": "25-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "25",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 25+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 25 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 4.4,
+     "specialBetValue": "25-Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "25",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 25+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 25 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 2.62,
+     "specialBetValue": "30-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "30",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 30+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 30 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 9.4,
+     "specialBetValue": "30-Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "30",
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan 30+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 30 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 4.75,
+     "specialBetValue": "35-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "35",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 35+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 35 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 235311,
+     "outcomeId": 7286,
+     "price": 8.5,
+     "specialBetValue": "40-Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "milestone": "40",
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 2052167,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan 40+",
+     "marketName": "Punkty zawodnika (z dogrywką)",
+     "info": "zdobędzie 40 lub więcej punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5787,
+     "price": 1.9,
+     "specialBetValue": "Mitchell, Donovan-25.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "total": "25.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan - poniżej 25.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "poniżej 25.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5788,
+     "price": 1.82,
+     "specialBetValue": "Mitchell, Donovan-25.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "total": "25.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mitchell, Donovan - powyżej 25.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "powyżej 25.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5787,
+     "price": 1.95,
+     "specialBetValue": "Mobley, Evan-17.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "total": "17.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mobley, Evan - poniżej 17.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "poniżej 17.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5788,
+     "price": 1.78,
+     "specialBetValue": "Mobley, Evan-17.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "total": "17.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mobley, Evan - powyżej 17.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "powyżej 17.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5787,
+     "price": 1.8,
+     "specialBetValue": "Simons, Anfernee-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Simons, Anfernee",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Simons, Anfernee - poniżej 9.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "poniżej 9.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 233565,
+     "outcomeId": 5788,
+     "price": 1.92,
+     "specialBetValue": "Simons, Anfernee-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Simons, Anfernee",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 2152257,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Simons, Anfernee - powyżej 9.5",
+     "marketName": "Zawodnik - liczba punktów (z dogrywką)",
+     "info": "powyżej 9.5 punktów (z dogrywką)"
+    },
+    {
+     "marketId": 240717,
+     "outcomeId": 19710,
+     "price": 1.76,
+     "specialBetValue": "Mitchell, Donovan-1-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "quarternr": "1",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 2402481,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan - poniżej 6.5",
+     "marketName": "1. kwarta - zawodnik - liczba punktów",
+     "info": "Mitchell, Donovan poniżej 6.5 punktów w 1. kwarcie"
+    },
+    {
+     "marketId": 240717,
+     "outcomeId": 19711,
+     "price": 1.92,
+     "specialBetValue": "Mitchell, Donovan-1-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "quarternr": "1",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 2402481,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan - powyżej 6.5",
+     "marketName": "1. kwarta - zawodnik - liczba punktów",
+     "info": "Mitchell, Donovan powyżej 6.5 punktów w 1. kwarcie"
+    },
+    {
+     "marketId": 240717,
+     "outcomeId": 19710,
+     "price": 1.68,
+     "specialBetValue": "Mobley, Evan-1-4.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "quarternr": "1",
+      "total": "4.5"
+     },
+     "marketGroupOrder": 2402481,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan - poniżej 4.5",
+     "marketName": "1. kwarta - zawodnik - liczba punktów",
+     "info": "Mobley, Evan poniżej 4.5 punktów w 1. kwarcie"
+    },
+    {
+     "marketId": 240717,
+     "outcomeId": 19711,
+     "price": 2.05,
+     "specialBetValue": "Mobley, Evan-1-4.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "quarternr": "1",
+      "total": "4.5"
+     },
+     "marketGroupOrder": 2402481,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Mobley, Evan - powyżej 4.5",
+     "marketName": "1. kwarta - zawodnik - liczba punktów",
+     "info": "Mobley, Evan powyżej 4.5 punktów w 1. kwarcie"
+    },
+    {
+     "marketId": 233573,
+     "outcomeId": 5803,
+     "price": 7.9,
+     "specialBetValue": "Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 24021487,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan - Tak",
+     "marketName": "Zawodnik - double double (z dogrywką)",
+     "info": "zdobędzie double double (z dogrywką)"
+    },
+    {
+     "marketId": 233573,
+     "outcomeId": 5804,
+     "price": 1.04,
+     "specialBetValue": "Mitchell, Donovan",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan"
+     },
+     "marketGroupOrder": 24021487,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mitchell, Donovan - Nie",
+     "marketName": "Zawodnik - double double (z dogrywką)",
+     "info": "nie zdobędzie double double (z dogrywką)"
+    },
+    {
+     "marketId": 233573,
+     "outcomeId": 5803,
+     "price": 2.17,
+     "specialBetValue": "Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 24021487,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mobley, Evan - Tak",
+     "marketName": "Zawodnik - double double (z dogrywką)",
+     "info": "zdobędzie double double (z dogrywką)"
+    },
+    {
+     "marketId": 233573,
+     "outcomeId": 5804,
+     "price": 1.6,
+     "specialBetValue": "Mobley, Evan",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan"
+     },
+     "marketGroupOrder": 24021487,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mobley, Evan - Nie",
+     "marketName": "Zawodnik - double double (z dogrywką)",
+     "info": "nie zdobędzie double double (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5793,
+     "price": 2.2,
+     "specialBetValue": "Mitchell, Donovan-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mitchell, Donovan - poniżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 2.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5794,
+     "price": 1.61,
+     "specialBetValue": "Mitchell, Donovan-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mitchell, Donovan",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mitchell, Donovan - powyżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 2.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5793,
+     "price": 1.56,
+     "specialBetValue": "Mobley, Evan-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Mobley, Evan - poniżej 1.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 1.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5794,
+     "price": 2.3,
+     "specialBetValue": "Mobley, Evan-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Mobley, Evan",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Mobley, Evan - powyżej 1.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 1.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5793,
+     "price": 1.53,
+     "specialBetValue": "Simons, Anfernee-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Simons, Anfernee",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,pm_boostable_market,Risk Product - Players,v2",
+     "name": "Simons, Anfernee - poniżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 2.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 233568,
+     "outcomeId": 5794,
+     "price": 2.37,
+     "specialBetValue": "Simons, Anfernee-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Simons, Anfernee",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 38434126,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,pm_boostable_market,v2",
+     "name": "Simons, Anfernee - powyżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 2.5 trafionych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208153,
+     "price": 1.6,
+     "specialBetValue": "Anfernee Simons-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 5.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 5.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208154,
+     "price": 2.12,
+     "specialBetValue": "Anfernee Simons-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 5.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 5.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208153,
+     "price": 1.95,
+     "specialBetValue": "Donovan Mitchell-7.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "7.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 7.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 7.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208154,
+     "price": 1.71,
+     "specialBetValue": "Donovan Mitchell-7.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "7.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 7.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 7.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208153,
+     "price": 1.92,
+     "specialBetValue": "Evan Mobley-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 2.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "poniżej 2.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231810,
+     "outcomeId": 4208154,
+     "price": 1.73,
+     "specialBetValue": "Evan Mobley-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 52846765,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 2.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 3pkt (z dogrywką)",
+     "info": "powyżej 2.5 oddanych rzutów za 3pkt (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153458,
+     "price": 2.37,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "31-",
+     "name": "Anfernee Simons - poniżej 0.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "poniżej 0.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153459,
+     "price": 1.51,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "32+",
+     "name": "Anfernee Simons - powyżej 0.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "powyżej 0.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153458,
+     "price": 1.87,
+     "specialBetValue": "Donovan Mitchell-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "31-",
+     "name": "Donovan Mitchell - poniżej 2.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "poniżej 2.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153459,
+     "price": 1.82,
+     "specialBetValue": "Donovan Mitchell-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "32+",
+     "name": "Donovan Mitchell - powyżej 2.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "powyżej 2.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153458,
+     "price": 2.42,
+     "specialBetValue": "Evan Mobley-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "31-",
+     "name": "Evan Mobley - poniżej 1.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "poniżej 1.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 200985,
+     "outcomeId": 153459,
+     "price": 1.49,
+     "specialBetValue": "Evan Mobley-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 235406860,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "code": "32+",
+     "name": "Evan Mobley - powyżej 1.5",
+     "marketName": "Zawodnik - liczba strat (z dogrywką)",
+     "info": "powyżej 1.5 strat (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208147,
+     "price": 1.92,
+     "specialBetValue": "Anfernee Simons-7.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "7.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 7.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "poniżej 7.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208148,
+     "price": 1.75,
+     "specialBetValue": "Anfernee Simons-7.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "7.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 7.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "powyżej 7.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208147,
+     "price": 1.87,
+     "specialBetValue": "Donovan Mitchell-19.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "19.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 19.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "poniżej 19.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208148,
+     "price": 1.78,
+     "specialBetValue": "Donovan Mitchell-19.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "19.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 19.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "powyżej 19.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208147,
+     "price": 1.75,
+     "specialBetValue": "Evan Mobley-12.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "12.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 12.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "poniżej 12.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231807,
+     "outcomeId": 4208148,
+     "price": 1.92,
+     "specialBetValue": "Evan Mobley-12.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "12.5"
+     },
+     "marketGroupOrder": 293057416,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 12.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów rzutów z gry (z dogrywką)",
+     "info": "powyżej 12.5 oddanych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208145,
+     "price": 1.73,
+     "specialBetValue": "Anfernee Simons-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 3.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "poniżej 3.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208146,
+     "price": 1.97,
+     "specialBetValue": "Anfernee Simons-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 3.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "powyżej 3.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208145,
+     "price": 1.65,
+     "specialBetValue": "Donovan Mitchell-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 9.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "poniżej 9.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208146,
+     "price": 2.07,
+     "specialBetValue": "Donovan Mitchell-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 9.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "powyżej 9.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208145,
+     "price": 1.92,
+     "specialBetValue": "Evan Mobley-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 6.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "poniżej 6.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231806,
+     "outcomeId": 4208146,
+     "price": 1.78,
+     "specialBetValue": "Evan Mobley-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 297861629,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 6.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów z gry (z dogrywką)",
+     "info": "powyżej 6.5 trafionych rzutów z gry (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208143,
+     "price": 1.8,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 0.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "poniżej 0.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208144,
+     "price": 1.85,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 0.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "powyżej 0.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208143,
+     "price": 1.92,
+     "specialBetValue": "Donovan Mitchell-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 5.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "poniżej 5.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208144,
+     "price": 1.75,
+     "specialBetValue": "Donovan Mitchell-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 5.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "powyżej 5.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208143,
+     "price": 2.15,
+     "specialBetValue": "Evan Mobley-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 3.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "poniżej 3.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231805,
+     "outcomeId": 4208144,
+     "price": 1.59,
+     "specialBetValue": "Evan Mobley-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 302665842,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 3.5",
+     "marketName": "Zawodnik - liczba rzutów wolnych (z dogrywką)",
+     "info": "powyżej 3.5 rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208141,
+     "price": 1.78,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 0.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "poniżej 0.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208142,
+     "price": 1.92,
+     "specialBetValue": "Anfernee Simons-0.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "0.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 0.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "powyżej 0.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208141,
+     "price": 2,
+     "specialBetValue": "Donovan Mitchell-4.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "4.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 4.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "poniżej 4.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208142,
+     "price": 1.71,
+     "specialBetValue": "Donovan Mitchell-4.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "4.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 4.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "powyżej 4.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208141,
+     "price": 1.67,
+     "specialBetValue": "Evan Mobley-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "poniżej 2.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231804,
+     "outcomeId": 4208142,
+     "price": 2.05,
+     "specialBetValue": "Evan Mobley-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 307470056,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 2.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów wolnych (z dogrywką)",
+     "info": "powyżej 2.5 trafionych rzutów wolnych (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208151,
+     "price": 1.77,
+     "specialBetValue": "Anfernee Simons-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 2.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 2.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208152,
+     "price": 1.88,
+     "specialBetValue": "Anfernee Simons-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 2.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 2.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208151,
+     "price": 1.87,
+     "specialBetValue": "Donovan Mitchell-11.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "11.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 11.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 11.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208152,
+     "price": 1.78,
+     "specialBetValue": "Donovan Mitchell-11.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "11.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 11.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 11.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208151,
+     "price": 1.72,
+     "specialBetValue": "Evan Mobley-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 9.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 9.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231809,
+     "outcomeId": 4208152,
+     "price": 1.95,
+     "specialBetValue": "Evan Mobley-9.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "9.5"
+     },
+     "marketGroupOrder": 312274269,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 9.5",
+     "marketName": "Zawodnik - liczba oddanych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 9.5 oddanych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208149,
+     "price": 1.49,
+     "specialBetValue": "Anfernee Simons-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 1.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 1.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208150,
+     "price": 2.42,
+     "specialBetValue": "Anfernee Simons-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 1.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 1.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208149,
+     "price": 1.69,
+     "specialBetValue": "Donovan Mitchell-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 6.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 6.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208150,
+     "price": 2.02,
+     "specialBetValue": "Donovan Mitchell-6.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "6.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 6.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 6.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208149,
+     "price": 1.92,
+     "specialBetValue": "Evan Mobley-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 5.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "poniżej 5.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231808,
+     "outcomeId": 4208150,
+     "price": 1.78,
+     "specialBetValue": "Evan Mobley-5.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "5.5"
+     },
+     "marketGroupOrder": 317078482,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 5.5",
+     "marketName": "Zawodnik - liczba trafionych rzutów za 2pkt (z dogrywką)",
+     "info": "powyżej 5.5 trafionych rzutów za 2pkt (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208155,
+     "price": 2.27,
+     "specialBetValue": "Anfernee Simons-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - poniżej 1.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "poniżej 1.5 fauli osobistych (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208156,
+     "price": 1.54,
+     "specialBetValue": "Anfernee Simons-1.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Anfernee Simons",
+      "total": "1.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Anfernee Simons - powyżej 1.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "powyżej 1.5 fauli osobistych (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208155,
+     "price": 2.32,
+     "specialBetValue": "Donovan Mitchell-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - poniżej 2.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "poniżej 2.5 fauli osobistych (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208156,
+     "price": 1.53,
+     "specialBetValue": "Donovan Mitchell-2.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Donovan Mitchell",
+      "total": "2.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Donovan Mitchell - powyżej 2.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "powyżej 2.5 fauli osobistych (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208155,
+     "price": 1.66,
+     "specialBetValue": "Evan Mobley-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - poniżej 3.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "poniżej 3.5 fauli osobistych (z dogrywką)"
+    },
+    {
+     "marketId": 231811,
+     "outcomeId": 4208156,
+     "price": 2.07,
+     "specialBetValue": "Evan Mobley-3.5",
+     "status": "active",
+     "specifiers": {
+      "player": "Evan Mobley",
+      "total": "3.5"
+     },
+     "marketGroupOrder": 413162742,
+     "offerStateId": 1,
+     "showSpecialBetValue": "0",
+     "tags": "Player Props,Risk Product - Players,v2",
+     "name": "Evan Mobley - powyżej 3.5",
+     "marketName": "Zawodnik - liczba fauli osobistych (z dogrywką)",
+     "info": "powyżej 3.5 fauli osobistych (z dogrywką)"
+    }
+   ]
+  }
+ ]
+}

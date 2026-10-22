@@ -574,6 +574,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.DC_PAIR_MARKETS.get(sport, {}):  # type: ignore[call-overload]
                 legs[-1]["dc_pair_rule"] = epochs.BASKETBALL_DC_PAIR
+            if sport != "cs2" and int(ln.market_id) in \
+                    shadow.PLAYER_V2_MARKETS.get(sport, frozenset()):  # type: ignore[call-overload]
+                legs[-1]["player_v2_rule"] = epochs.BASKETBALL_PLAYER_V2
     entry_out: dict[str, Any] = {"status": status,
                                  "refused": dict(sorted(refused.items())),
                                  "legs": len(legs)}

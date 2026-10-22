@@ -428,6 +428,21 @@
           "quote": "238 linii / 77 serii, -18,6 pp [-27,1; -10,1]"
         }
       ]
+    },
+    {
+      "id": "T-BB-PLAYER-V2-calibration",
+      "registered_on": "2026-10-22",
+      "status": "REGISTERED",
+      "hypothesis": "player_model's pre-game p (player_rate_v3, constants fitted without these families) on the nine basketball player families SHADOW reads from epochs.BASKETBALL_PLAYER_V2_FROM_UTC (free throws made / attempted, field goals made / attempted, two-pointers made / attempted, threes attempted, personal fouls, turnovers) is calibrated on Superbet's settled lines: realised minus mean p within 3 pp in the band p >= 0.70, per family.",
+      "rule": "SHADOW_SETTLE's graded player rows (runs/sofa/shadow/basketball/<d>/settled.json, WIN / LOSS) of the nine families joined to the last pre-game forecast (player_model.jsonl, model_p), the side with p >= 0.70; realised minus mean p per family and pooled; the same rows' devigged Superbet price beside it.",
+      "population": "Basketball player lines of market ids 231804-231811 and 200985 snapshotted by SHADOW on days from 2026-10-23, graded WIN / LOSS; VOID / DNP / UNMATCHED excluded.",
+      "data_window": {"from": "2026-10-23", "to": "2027-01-31"},
+      "required_n": {"lines": 300, "games_min": 40, "basis": "per family in the p >= 0.70 band; ~14 lines a game per family on the NBA board (live probe 2026-10-22), so ~40 NBA games give ~300 lines on both sides, of which the band holds a part."},
+      "evaluation": "scripts/sofa/measure_player_props.py (scores model_p against the devigged price on SHADOW_SETTLE's rows) restricted to the nine families; 95% interval from resampling games.",
+      "stop_criterion": "PASSED when the interval of realised minus mean p includes 0 and lies within [-3, +3] pp for a family at the required n; FAILED for a family whose upper bound is below -3 pp (the model over-claims; its legs then print only through their own lines' Wilson bound, which already lowers them - the family is reported to the operator).",
+      "evidence": [
+        {"source": "tests/sofa/test_basketball_player_v2.py", "line": 1, "quote": "Nine more basketball player lines (shadow.PLAYER_V2_MARKETS)"}
+      ]
     }
   ]
 }

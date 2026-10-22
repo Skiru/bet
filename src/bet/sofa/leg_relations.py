@@ -231,9 +231,38 @@ _SCORE_STAT = {"hockey": "goals", "basketball": "points", "volleyball": "points"
 _PLAYER_FEEDS_SCORE = {
     "hockey": frozenset({"points", "assists", "shots", "powerPlayPoints",
                          "plusMinus", "saves"}),
-    "basketball": frozenset({"points", "threePointsMade", "assists"}),
+    "basketball": frozenset({"points", "threePointsMade", "assists",
+                             "freeThrowsMade", "twoPointsMade", "fieldGoalsMade"}),
     "volleyball": frozenset(),
 }
+
+# A basketball player statistic -> the shots it is made of, so two of his
+# lines share a component when they count the same shots (shadow.
+# PLAYER_V2_MARKETS, 2026-10-22): points = 2 x two-pointers + 3 x threes +
+# free throws made, field goals = two- plus three-pointers, a made count is
+# inside its attempts. A key not listed is its own component.
+_PLAYER_COMPONENTS: dict[str, frozenset[str]] = {
+    "points": frozenset({"ft", "fg2", "fg3"}),
+    "freeThrowsMade": frozenset({"ft"}),
+    "freeThrowAttempts": frozenset({"ft"}),
+    "twoPointsMade": frozenset({"fg2"}),
+    "twoPointAttempts": frozenset({"fg2"}),
+    "threePointsMade": frozenset({"fg3"}),
+    "threePointAttempts": frozenset({"fg3"}),
+    "fieldGoalsMade": frozenset({"fg2", "fg3"}),
+    "fieldGoalAttempts": frozenset({"fg2", "fg3"}),
+}
+
+
+def _player_components(sport: str, stat: str) -> set[str]:
+    """The components of a player quantity's keys (basketball's shots
+    expanded by _PLAYER_COMPONENTS; every key is also its own)."""
+    keys = stat.removeprefix("player:").split("+")
+    out = set(keys)
+    if sport == "basketball":
+        for k in keys:
+            out |= _PLAYER_COMPONENTS.get(k, frozenset())
+    return out
 
 # CS2: every statistic is counted over the rounds played - maps are won in
 # rounds, kills / deaths / headshots / assists happen in rounds.
@@ -654,8 +683,8 @@ def _link(qa: Quantity, qb: Quantity) -> str | None:
                 if set(ps.removeprefix("player:").split("+")) & feeds:
                     return "a player's count feeds the score"
         if sa.startswith("player:") and sb.startswith("player:"):
-            ka = set(sa.removeprefix("player:").split("+"))
-            kb = set(sb.removeprefix("player:").split("+"))
+            ka = _player_components(qa.sport, sa)
+            kb = _player_components(qa.sport, sb)
             if ka & kb:
                 return "player statistics sharing a component"
         return None

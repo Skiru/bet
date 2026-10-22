@@ -60,7 +60,12 @@ Not read, each for a reason (measured on the live board 2026-09-30):
 - basketball milestone props ("Punkty zawodnika" 5+, 235311-235315,
   238440-238446): one-sided, nothing to devig against;
 - double-double (233573): two-way, but needs five box-score keys not yet
-  checked against the team totals;
+  checked against the team totals; triple-double (233574) the same;
+- basketball first-quarter player lines (240717 / 240719 / 240720): the
+  stored box has no player statistics per quarter; "most points / rebounds /
+  assists" (235219-235221): one player against the whole field; first points
+  / rebound / assist (230014, 236974, 236973): the order of play, not stored
+  (NBA probe 2026-10-22);
 - combinations (a ";" in the name, 2312xx / 2397xx): a Bet Builder price;
 - hockey 613 / 617 / 621 / 653: the overtime-inclusive ("z dogrywka")
   families, not mapped - the hockey totals read above (623, 658, 652, 604)
@@ -550,8 +555,45 @@ PLAYER_MARKETS: dict[SportKey, dict[int, PlayerSpec]] = {
         },
         235217: _p("player_blocks", _B + "bloków" + _Z, "blocks"),
         235218: _p("player_steals", _B + "przechwytów" + _Z, "steals"),
+        # epochs.BASKETBALL_PLAYER_V2_FROM_UTC (PLAYER_V2_MARKETS below).
+        231804: _p("player_ft_made", _B + "trafionych rzutów wolnych" + _Z,
+                   "freeThrowsMade"),
+        231805: _p("player_ft_attempts", _B + "rzutów wolnych" + _Z,
+                   "freeThrowAttempts"),
+        231806: _p("player_fg_made", _B + "trafionych rzutów z gry" + _Z,
+                   "fieldGoalsMade"),
+        # Superbet's own wording, "rzutów" twice.
+        231807: _p("player_fg_attempts", _B + "oddanych rzutów rzutów z gry" + _Z,
+                   "fieldGoalAttempts"),
+        231808: _p("player_twos_made", _B + "trafionych rzutów za 2pkt" + _Z,
+                   "twoPointsMade"),
+        231809: _p("player_twos_attempts", _B + "oddanych rzutów za 2pkt" + _Z,
+                   "twoPointAttempts"),
+        231810: _p("player_threes_attempts", _B + "oddanych rzutów za 3pkt" + _Z,
+                   "threePointAttempts"),
+        231811: _p("player_fouls", _B + "fauli osobistych" + _Z, "personalFouls"),
+        200985: _p("player_turnovers", _B + "strat" + _Z, "turnovers"),
     },
     "volleyball": {},
+}
+
+# The basketball player lines SHADOW reads only from
+# epochs.BASKETBALL_PLAYER_V2_FROM_UTC (by the record's day and clock; off, a
+# snapshot is byte for byte what it was). Measured live 2026-10-22 on the NBA
+# board (14486087 Philadelphia - Cleveland, 14486088 Oklahoma City - Denver:
+# each of the nine a two-way line on ~14 players a game, both sides quoted;
+# none on the EuroLeague / EuroCup / ABA / ACB events probed). Each reads one
+# key of the player's /lineups statistics; on 2,048 stored basketball boxes
+# (39,088 appearances) every key is present on 99.96% of them, and points =
+# 2 x twoPointsMade + 3 x threePointsMade + freeThrowsMade, field goals = the
+# two- plus the three-point ones and made <= attempts held on every one. A
+# made line sat at or below the same player's attempted line on every pair.
+PLAYER_V2_MARKETS: dict[SportKey, frozenset[int]] = {
+    "hockey": frozenset(),
+    "basketball": frozenset(
+        {231804, 231805, 231806, 231807, 231808, 231809, 231810, 231811, 200985}
+    ),
+    "volleyball": frozenset(),
 }
 
 
@@ -628,7 +670,7 @@ _CODE_SIDE = {"+": "OVER", "-": "UNDER", "1": "T1", "2": "T2"}
 
 def parse_line(
     item: dict[str, Any], sport: SportKey, event_id: str, team1: str, team2: str,
-    derived: bool = False,
+    derived: bool = False, player_v2: bool = False,
 ) -> ShadowLine | None:
     """One Superbet odds item as a gradeable line, or None if it is not one.
 
@@ -636,6 +678,7 @@ def parse_line(
     outcome's text - and the line is dropped when the two disagree, or when
     the only reading is the one that could be wrong. `derived`
     (epochs.sport_derived_markets): DERIVED_MARKETS are read too.
+    `player_v2` (epochs.basketball_player_v2): PLAYER_V2_MARKETS are read too.
     """
     try:
         market_id = int(item.get("marketId") or 0)
@@ -647,6 +690,8 @@ def parse_line(
         if player_spec is None:
             if derived:
                 return _parse_derived(item, sport, event_id, team1, team2)
+            return None
+        if market_id in PLAYER_V2_MARKETS[sport] and not player_v2:
             return None
         return _parse_player_line(item, player_spec, event_id, market_id)
     market = str(item.get("marketName") or "")
@@ -795,14 +840,16 @@ def parse_event(
     team2: str,
     derived: bool = False,
     dc_pair: bool = False,
+    player_v2: bool = False,
 ) -> list[ShadowLine]:
     """Every gradeable line whose two sides are both quoted exactly once.
     `derived` (epochs.sport_derived_markets): DERIVED_MARKETS too. `dc_pair`
     (epochs.basketball_dc_pair, with `derived`): a basketball double chance
-    quoted without its whole group is read as pairs (DC_PAIR_MARKETS)."""
+    quoted without its whole group is read as pairs (DC_PAIR_MARKETS).
+    `player_v2` (epochs.basketball_player_v2): PLAYER_V2_MARKETS too."""
     by_key: dict[tuple[int, int, str, float | None], dict[str, list[ShadowLine]]] = {}
     for item in items:
-        parsed = parse_line(item, sport, event_id, team1, team2, derived)
+        parsed = parse_line(item, sport, event_id, team1, team2, derived, player_v2)
         if parsed is not None:
             by_key.setdefault(parsed.key(), {}).setdefault(parsed.side, []).append(
                 parsed

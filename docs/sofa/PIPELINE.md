@@ -2177,6 +2177,46 @@ migawki bajt w bajt (`tests/sofa/test_basketball_dc_pair.py`). Odczyt
 analityka może nazwać stronę 1X / X2 / 12 (`contracts.READ_SIDES`, od
 2026-10-15).
 
+**Dziewięć nowych linii zawodników koszykówki
+(`epochs.BASKETBALL_PLAYER_V2_FROM_UTC`, od 2026-10-23 00:00Z; znacznik
+`player_v2_rule` = `basketball_player_v2`).** Operator zagrał 10-21
+„Beringer - liczba trafionych rzutów wolnych: powyżej 0.5” - rynek, którego
+SHADOW w ogóle nie czytał. Próba na żywo 2026-10-22 (NBA: 14486087
+Philadelphia - Cleveland, 14486088 Oklahoma City - Denver) znalazła
+dwustronne linie (obie strony wystawione) „Zawodnik - liczba …
+(z dogrywką)”: trafionych rzutów wolnych 231804, rzutów wolnych 231805,
+trafionych rzutów z gry 231806, oddanych rzutów z gry 231807 (Superbet pisze
+„oddanych rzutów rzutów z gry”), trafionych / oddanych rzutów za 2pkt 231808
+/ 231809, oddanych rzutów za 3pkt 231810, fauli osobistych 231811, strat
+200985 - po ~14 zawodników na mecz w każdej rodzinie, tylko NBA (Euroliga,
+EuroCup, ABA, ACB: brak). Każda czyta jeden klucz statystyk zawodnika z
+`/lineups` (`freeThrowsMade`, `freeThrowAttempts`, `fieldGoalsMade`,
+`fieldGoalAttempts`, `twoPointsMade`, `twoPointAttempts`,
+`threePointAttempts`, `personalFouls`, `turnovers`); na 2 048 zapisanych
+meczach (39 088 występów) klucze są w 99,96% występów, a punkty = 2 x za 2 +
+3 x za 3 + wolne, z gry = za 2 + za 3 i trafione <= oddane zgadzają się
+w każdym. `shadow.PLAYER_V2_MARKETS` czyta je od przełącznika (dzień
+i zegar migawki); `p` daje `player_model` (model liczby `player_rate_v3`,
+jak każda rodzina zawodnika koszykówki, stałe niedopasowane do tych rodzin),
+SHADOW_SETTLE rozlicza z wiersza samego zawodnika, SPORT_CONFIDENCE bierze
+je jak każdą linię zawodnika: krzywej nie ma, a `line_evidence.read` bez
+krzywej nie stosuje offsetu puli, więc do >= 50 linii / 15 meczów w kubełku
+`p` rodziny `NO_LINE_EVIDENCE` - pierwszego dnia nic nie drukuje.
+Nieczytane: linie zawodnika 1. kwarty (240717 / 240719 / 240720 - brak
+statystyk zawodnika per kwarta), progi „N+” (235311-235315, 238440-238446 -
+jednostronne), „najwięcej punktów / zbiórek / asyst”, „pierwsze punkty /
+zbiórka / asysta”, double / triple double. Relacje nóg (`leg_relations`):
+rzuty jednego rodzaju łączą się (wolne trafione z oddanymi i z punktami,
+za 3 z rzutami z gry), trafione rzuty zasilają wynik. Wyłączony - migawki
+bajt w bajt (`tests/sofa/test_basketball_player_v2.py`); test w rejestrze
+`T-BB-PLAYER-V2-calibration`.
+Odtworzenie zainstalowanego modelu na historii (mecze od 2026-07-01, ~47
+tys. występów na rodzinę, linia = połówka mediany próbki, nie linia
+Superbetu): w paśmie 0,7-0,8 deklarowane / trafione np. wolne trafione
+0,742 / 0,753, faule 0,738 / 0,747, straty 0,742 / 0,743, z gry trafione
+0,735 / 0,723 (stare punkty 0,740 / 0,705); powyżej 0,8 rodziny rzutów
+z gry zawyżają (z gry trafione 0,838 / 0,682 na 768).
+
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 
 `scripts/sofa/build_coupon.py --date <d>` (albo `run_pipeline.py --only

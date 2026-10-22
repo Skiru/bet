@@ -267,7 +267,12 @@ measurement of Superbet's price and feed nothing else.
   SHADOW's `player_model.jsonl`; no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from SHADOW_SETTLE's
   own player row (football's token / surname rules, then tokens without Jr /
-  Sr / II; a nickname is never guessed).
+  Sr / II; a nickname is never guessed). From `BASKETBALL_PLAYER_V2`
+  (10-23 00:00Z) SHADOW also reads the NBA's free throws made / attempted,
+  field goals made / attempted, two-pointers made / attempted, threes
+  attempted, personal fouls and turnovers (`shadow.PLAYER_V2_MARKETS`, one
+  box key each; `player_v2_rule`); not read: first-quarter player lines,
+  "N+" milestones, most / first, double / triple double.
 - Basketball second half / Q4 grade on regulation periods (overtime does not
   count); full-game basketball markets include it.
 - A hockey / basketball game with no periods is graded from its final score

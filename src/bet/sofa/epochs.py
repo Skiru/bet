@@ -2070,6 +2070,40 @@ def basketball_dc_pair(date: str, build_at: datetime | None = None) -> bool:
             and at >= BASKETBALL_DC_PAIR_FROM_UTC)
 
 
+# Nine more basketball player lines (shadow.PLAYER_V2_MARKETS; the operator
+# staked "Beringer - liczba trafionych rzutów wolnych: powyżej 0.5" on 10-21,
+# a market SHADOW never read): a player's free throws made / attempted, field
+# goals made / attempted, two-pointers made / attempted, three-pointers
+# attempted, personal fouls and turnovers - each one key of the /lineups box
+# SHADOW_SETTLE already reads (shadow.player_stat_value). Posted on the NBA
+# only (live probe 2026-10-22: ~14 players a game each; none on the European
+# events probed). SHADOW reads them into the snapshots (records marked
+# `player_v2_rule`), player_model prices them pre-game with the count model
+# of every basketball player family (player_rate_v3, its installed constants
+# - not fitted on these families), SHADOW_SETTLE grades them from the
+# player's own row, SPORT_CONFIDENCE takes them as any player line: no
+# history curve, so NO_LINE_EVIDENCE until a family's p bucket holds
+# MIN_EVIDENCE_BUCKET settled pre-game lines of MIN_EVIDENCE_GAMES games
+# (line_evidence.read reads no pooled offset without a curve) - nothing
+# prints at first. Adds snapshot lines and SPORT_CONFIDENCE rows, so a day
+# >= the date read at or after the moment. Off (None): SHADOW snapshots,
+# SHADOW_SETTLE and SPORT_CONFIDENCE byte-identical. Not an epoch group of
+# audit_ledger: no leg of the new families can print on its first day.
+BASKETBALL_PLAYER_V2 = "basketball_player_v2"
+BASKETBALL_PLAYER_V2_FROM_UTC: datetime | None = datetime(
+    2026, 10, 23, 0, 0, 0, tzinfo=UTC)
+
+
+def basketball_player_v2(date: str, build_at: datetime | None = None) -> bool:
+    """Does SHADOW read the basketball player lines of
+    shadow.PLAYER_V2_MARKETS (BASKETBALL_PLAYER_V2_FROM_UTC)?"""
+    if BASKETBALL_PLAYER_V2_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= BASKETBALL_PLAYER_V2_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= BASKETBALL_PLAYER_V2_FROM_UTC)
+
+
 # Football markets read off the incident list (bet.sofa.football_incidents):
 # "1. gol" (which side scores first / nikt) as first_goal (subject "1" / "2" /
 # "nikt", line 0.5, OVER only - one-sided), "Liczba czerwonych kartek" and
