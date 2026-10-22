@@ -333,7 +333,7 @@ FIXTURE_CHECK's `/event`).
 
 | constant | what | evidence |
 |---|---|---|
-| `LEAGUE_SEASON_RESTART_FROM_UTC` (2026-10-23 00:00Z), `LEAGUE_SEASON_RESTART_SPORTS` {basketball}; `football_rating.SEASON_GAP_S` 45 d, `SEASON_PRIOR_MATCHES` 10, `SEASON_RESTART_LEVEL_ONLY` True | The score model's league rate (`_League`, `ALPHA_LEAGUE` 0.02, ~ the last 50 games) carried a season's end into the next: the NBA (132) read 218.1 points on 10-21 (its May / June 2026 playoffs 215 / 206) against 228.6 for October's first 14 games; the model sat 13.2 points under Superbet's main total on 13 games and a replay printed 42 NBA legs on 10-21 / 10-22, 36 UNDERs on halves / quarters. On (`RatingBook.season_restart`, set only by `score_model.build_model(season_restart=...)`; football never): a league whose next game comes >= 45 days after its last reads the plain mean of the ended season (playoffs included; `_League.season_mean`, needs >= `MIN_LEAGUE_MATCHES` of it), and from its first new game its LEVEL (home + away) restarts from that mean worth 10 games (step 1/(w+1) down to `ALPHA_LEAGUE`), the home share at `ALPHA_LEAGUE`. The match count `n` (the 30-game gate) is never reset. Read by SPORT_CONFIDENCE (`DbForecaster`), `settled_shadow_rows` (day's rule), `walk_forward_rows(season_restart=)`, `fit_sport_confidence` (`--league-season-restart`, else the `--before` day's rule; `fitted_from.league_season_restart`), `fit_sport_derived` (`estimator_switches`). The installed basketball curve (`.next.json`, fitted 2026-10-14 on the old rule) is NOT refitted | Walk-forward A/B on copies of the DB (`data/refit_2026-10-22/league_season/`, `measure_restart.py`; as `walk_forward_rows`: rebuild every 30 days, book updated game by game, live switches; both arms scored on the union of their synthetic lines of every coupon game-line family; 1,000 sims; game bootstrap), 2024-09..2026-10-22, log loss per line new - old: **NBA** 2,644 games -0.0006 [-0.0010, -0.0001], first 30 days of a season (448 games) -0.0030 [-0.0050, -0.0012] (totals -0.0125, team totals -0.0079, halves -0.0034, quarters -0.0014; winner / handicap ~0); level actual - model at season starts 2024 +2.3 -> +1.4, 2025 +1.1 -> +0.6, 2026 (14 games) +10.3 -> +0.6; squared total error -2.84 [-4.60, -1.08] per game. **Other basketball** (1 in 20, 2026-09.. 1 in 4) 4,243 games -0.0001 [-0.0005, +0.0003], no family's interval above 0. Pooled (NBA + thinned other, 6,887 games) -0.0003 [-0.0006, +0.00004] - touches 0; pooled season starts -0.0009 [-0.0018, -0.0001]. Printable rows (curve >= 0.70) realised - confidence unchanged (NBA -2.0 pp both arms; other +1.3 / +1.2). The level-only form was chosen AFTER the pre-registered both-sides form (K 10) measured winner +0.0018 [+0.0003, +0.0031] / handicap +0.0013 [+0.0001, +0.0025] worse outside the NBA (NBA -0.0005 [-0.0010, -0.0001]) - on the same windows, so its margin over that form is in-sample. Replay of 10-21 / 10-22 (`replay_1021.py`, model cut 20 min before each kick-off): 42 NBA legs (36 UNDER, 3 handicap T2, 3 winner / 1X2 T1) -> 14 (6 UNDER, 1 OVER, 3 handicap T2, 4 winner / 1X2 T1); model minus Superbet's main total -13.2 -> -3.8 points. Report `docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md`; `tests/sofa/test_league_season_restart.py`; registered `T-BB-SEASON-RESTART-superbet` |
+| `LEAGUE_SEASON_RESTART_FROM_UTC` (2026-10-23 00:00Z), `LEAGUE_SEASON_RESTART_SPORTS` {basketball}; `football_rating.SEASON_GAP_S` 45 d, `SEASON_PRIOR_MATCHES` 10, `SEASON_RESTART_LEVEL_ONLY` True | The score model's league rate (`_League`, `ALPHA_LEAGUE` 0.02, ~ the last 50 games) carried a season's end into the next: the NBA (132) read 218.1 points on 10-21 (its May / June 2026 playoffs 215 / 206) against 228.6 for October's first 14 games; the model sat 13.2 points under Superbet's main total on 13 games and a replay printed 42 NBA legs on 10-21 / 10-22, 36 UNDERs on halves / quarters. On (`RatingBook.season_restart`, set only by `score_model.build_model(season_restart=...)`; football never): a league whose next game comes >= 45 days after its last reads the plain mean of the ended season (playoffs included; `_League.season_mean`, needs >= `MIN_LEAGUE_MATCHES` of it), and from its first new game its LEVEL (home + away) restarts from that mean worth 10 games (step 1/(w+1) down to `ALPHA_LEAGUE`), the home share at `ALPHA_LEAGUE`. The match count `n` (the 30-game gate) is never reset. Read by SPORT_CONFIDENCE (`DbForecaster`), `settled_shadow_rows` (day's rule), `walk_forward_rows(season_restart=)`, `fit_sport_confidence` (`--league-season-restart`, else the `--before` day's rule; `fitted_from.league_season_restart`), `fit_sport_derived` (`estimator_switches`). The installed basketball curve (`.next.json`, fitted 2026-10-14 on the old rule) is NOT refitted: a refit on the rule was measured worse on settled Superbet lines and not installed (2026-10-22, section (d), `REFIT_KOSZ_SEZON_2026-10-22.md`) | Walk-forward A/B on copies of the DB (`data/refit_2026-10-22/league_season/`, `measure_restart.py`; as `walk_forward_rows`: rebuild every 30 days, book updated game by game, live switches; both arms scored on the union of their synthetic lines of every coupon game-line family; 1,000 sims; game bootstrap), 2024-09..2026-10-22, log loss per line new - old: **NBA** 2,644 games -0.0006 [-0.0010, -0.0001], first 30 days of a season (448 games) -0.0030 [-0.0050, -0.0012] (totals -0.0125, team totals -0.0079, halves -0.0034, quarters -0.0014; winner / handicap ~0); level actual - model at season starts 2024 +2.3 -> +1.4, 2025 +1.1 -> +0.6, 2026 (14 games) +10.3 -> +0.6; squared total error -2.84 [-4.60, -1.08] per game. **Other basketball** (1 in 20, 2026-09.. 1 in 4) 4,243 games -0.0001 [-0.0005, +0.0003], no family's interval above 0. Pooled (NBA + thinned other, 6,887 games) -0.0003 [-0.0006, +0.00004] - touches 0; pooled season starts -0.0009 [-0.0018, -0.0001]. Printable rows (curve >= 0.70) realised - confidence unchanged (NBA -2.0 pp both arms; other +1.3 / +1.2). The level-only form was chosen AFTER the pre-registered both-sides form (K 10) measured winner +0.0018 [+0.0003, +0.0031] / handicap +0.0013 [+0.0001, +0.0025] worse outside the NBA (NBA -0.0005 [-0.0010, -0.0001]) - on the same windows, so its margin over that form is in-sample. Replay of 10-21 / 10-22 (`replay_1021.py`, model cut 20 min before each kick-off): 42 NBA legs (36 UNDER, 3 handicap T2, 3 winner / 1X2 T1) -> 14 (6 UNDER, 1 OVER, 3 handicap T2, 4 winner / 1X2 T1); model minus Superbet's main total -13.2 -> -3.8 points. Report `docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md`; `tests/sofa/test_league_season_restart.py`; registered `T-BB-SEASON-RESTART-superbet` |
 
 ### Measured sports - other live facts
 
@@ -535,6 +535,24 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- the basketball curve refitted on the season-restart rule (2026-10-22,
+  operator's go ~19:40Z with "install only if not worse"; `fit_sport_confidence.py
+  --sport basketball --before 2026-10-23 --bb-freshness on --league-rate-rule
+  --league-season-restart --market-lines data/a7_odds/basketball.jsonl` on the
+  copy `data/refit_2026-10-22b/bb_refit.db`; fit 2025-09-23..2026-09-23): on
+  settled Superbet lines 09-29..10-21 (152,276 / 2,229 games, p with the
+  restart for both curves, both out of sample) log loss new - installed
+  +0.00078 [+0.00065, +0.00093] (NBA, 8 games, +0.00075 [+0.00019, +0.00132];
+  other +0.00078 [+0.00064, +0.00092]; h1_total +0.0068, h1_team_total
+  +0.0043 worse, quarter_handicap -0.0012, h2_handicap -0.0010, total -0.0003
+  better); confidence >= 0.70 -11.8 pp [-15.2, -8.2] -> -11.9 pp [-15.3, -8.4]
+  (NBA +2.4 -> +2.0 pp, 139 lines); history holdout 09-23..10-23 -0.00008
+  [-0.00011, -0.00005] (NBA 14 games -0.00001 [-0.0005, +0.0006]). Same
+  picture as the 10-16 full-cache refit: a newer window worsens the half /
+  team-total families. Not installed, no epoch; a key-subset hybrid would be
+  chosen after the result (`docs/sofa/history/REFIT_KOSZ_SEZON_2026-10-22.md`).
+  Installing a sport curve from a later day needs the `.next.json` promoted
+  first (one staged file, one `effective_from`);
 - the league-rate season restart for hockey and volleyball (2026-10-22, both
   sides at the fast step, K 10, the basketball walk-forward's method): hockey
   +0.0005 [+0.0002, +0.0009] log loss per line on 6,169 games (2026-09.. start
@@ -615,11 +633,9 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   declined 2026-10-03 on pooled windows; a per-level or per-pace spread
   needs its own measurement and switch
   (`data/refit_2026-10-22/nba_measure/nba_measure.md` section 2).
-- A basketball refit on the season-restart rule (`fit_sport_confidence.py
-  --sport basketball --league-season-restart`): the installed curve was
-  fitted without it; the printable rows' calibration did not move in the
-  walk-forward, so the curve stays consistent enough - a refit needs the
-  operator's go.
+- A basketball refit on the season-restart rule: done with the operator's go
+  2026-10-22 and NOT installed (section (d)); the installed curve (10-14 A7 +
+  10-15 hybrid) stays, p moves by the rule from 10-23.
 - Superbet's game count of a tennis match tiebreak.
 - Line-evidence offsets of repriced families moved <= 1.3 pp a day over
   10-09..10-12 (stable); tennis `games_won_for` OVER offsets (-8.5 men, -12.1

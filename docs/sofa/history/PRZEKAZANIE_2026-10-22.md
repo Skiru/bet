@@ -40,7 +40,7 @@ Przed działaniem sprawdź go komendami poniżej.
 
 ## 3. Otwarte, czeka na decyzję operatora
 
-1. **Refit krzywej koszykówki** z `--league-season-restart`: niekonieczny, porządkowy, wymaga zgody.
+1. ~~**Refit krzywej koszykówki** z `--league-season-restart`~~: zgoda operatora ~19:40Z, zrobiony i **NIE zainstalowany** (gorszy na liniach Superbetu: +0.00078 [+0.00065, +0.00093]); `REFIT_KOSZ_SEZON_2026-10-22.md`. Kopia `data/refit_2026-10-22b/bb_refit.db` (50,6 GB) do usunięcia.
 2. **Rozrzut kwart NBA** (model za pewny o ~2 pp na kwartach): wariant zarejestrowany zmierzony, wariant post-hoc przerwany.
    - szczegóły: `data/refit_2026-10-22/comp_spread/PARTIAL_RESULTS.md`.
    - kod WIP: gałąź `worktree-agent-a370bc755953d693f`, commit `1bf8a466`, NIE na main; worktree `.claude/worktrees/agent-a370bc755953d693f` trzyma surowe wyniki - nie usuwać przed decyzją.
