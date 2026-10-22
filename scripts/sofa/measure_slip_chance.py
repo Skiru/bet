@@ -143,12 +143,14 @@ class Boot:
 
 
 def brier(p: np.ndarray, y: np.ndarray) -> np.ndarray:
-    return (p - y) ** 2
+    out: np.ndarray = (p - y) ** 2
+    return out
 
 
 def logloss(p: np.ndarray, y: np.ndarray) -> np.ndarray:
     q = np.clip(p, EPS, 1 - EPS)
-    return -(y * np.log(q) + (1 - y) * np.log(1 - q))
+    out: np.ndarray = -(y * np.log(q) + (1 - y) * np.log(1 - q))
+    return out
 
 
 def arr(rows: list[dict[str, Any]], k: str) -> np.ndarray:

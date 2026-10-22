@@ -101,6 +101,19 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180       
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_extra.py --kind {shotmap|point_by_point|incidents} --sport {football|tennis|hockey|basketball|volleyball} --days 120 --max-minutes 7   # sofa_event_extra
 ```
 
+A long backfill runs through the driver, never a shell loop (data only - it never rebuilds, refits or changes what prints):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_driver.py --preset {listings|stats|night} --log runs/sofa/backfill/<name>.log [--yield-to-build] [--dry-run]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_driver.py --plan <plan.json> --log <log>   # {"chunk_minutes": 7, "stages": [{"name", "args": ["scripts/sofa/backfill_*.py", ...], "left_key"?, "max_hops"?}]}
+# Chunks of --chunk-minutes (7); a stage ends at 0 left, after --max-hops (2) seed hops (listings: the seed moves after every
+# completed run), after 3 chunks without progress, or SKIPPED after 3 crashes. Waits while rebuild / settle / record /
+# line-evidence / regrade runs; --yield-to-build also while today's run_pipeline.py BOARD..SHEET runs.
+# Circuit open: retry after 15 min; 3 in a row (a 403 "challenge" on 2026-10-22) -> probe the bridge (one live request)
+# every --probe-every-min 15 for up to --recover-hours 6, resume on 200; only then "STOP:" and exit 2.
+# <log>.lock refuses a second driver; --after-log <log> waits for "driver end" there; --start-at <stage> resumes.
+# day_status.py WARNs `backfill` when a driver log's last start / STOP line is a STOP of the last 12 h.
+
 ## Measurement (read-only evidence, never a gate)
 
 ```bash

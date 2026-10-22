@@ -28,6 +28,9 @@ named, never shown as passed:
     identity      sport_fixtures.json: any BRIDGE_ABORTED refusal, or a
                   sport's identified share under its measured floor
                   (IDENTITY_MIN_SHARE, from IDENTITY_MIN_EVENTS events)
+    backfill      a backfill driver log (runs/sofa/backfill/*.log) whose last
+                  start / STOP line is a STOP of the last 12 h
+                  (backfill_driver.py gave up on the bridge; WARN)
 
 Exit 0 all OK, 1 a WARN, 2 a BROKEN.
 """
@@ -82,6 +85,11 @@ SPORT_SNAPSHOT_MAX_AGE = timedelta(hours=3)
 LOOP_LOG_MAX_AGE = timedelta(hours=1)
 MEASURED = ("hockey", "basketball", "volleyball")
 _STEP_TS = re.compile(r"^\[(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[^\]]*)\]")
+# backfill_driver.py's log lines: "<ISO Z> <message>"; a STOP is the driver
+# giving up (circuit open and the bridge silent past --recover-hours).
+_DRIVER_LINE = re.compile(
+    r"^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ) ((?:STOP|driver start)\b.*)$")
+BACKFILL_STOP_WINDOW = timedelta(hours=12)
 
 
 @dataclass(frozen=True)
@@ -286,6 +294,41 @@ def bridge_check(run: Path) -> Check:
                  f"writes none) - {seen}")
 
 
+def backfill_check(runs: Path, now: datetime,
+                   chunk: int = 1 << 16) -> Check:
+    """A backfill driver that logged STOP in the last 12 h and was not
+    started again in that log since (tail of each runs/sofa/backfill/*.log)."""
+    stops: list[tuple[datetime, str, str]] = []
+    restarted = 0
+    for path in sorted((runs / "backfill").glob("*.log")):
+        try:
+            with path.open("rb") as f:
+                f.seek(max(0, path.stat().st_size - chunk))
+                tail = f.read().decode("utf-8", errors="replace")
+        except OSError:
+            continue
+        last: tuple[datetime, str, str] | None = None
+        for line in tail.splitlines():
+            m = _DRIVER_LINE.match(line)
+            if not m:
+                continue
+            t = _utc(m.group(1))
+            if m.group(2).startswith("driver start"):
+                restarted += last is not None
+                last = None
+            elif timedelta(0) <= now - t <= BACKFILL_STOP_WINDOW:
+                last = (t, path.name, m.group(2))
+        if last is not None:
+            stops.append(last)
+    if not stops:
+        return Check("backfill", OK, "no driver left stopped by a STOP in the "
+                     "last 12 h" + (f" ({restarted} restarted)" if restarted else ""))
+    t, name, msg = max(stops)
+    return Check("backfill", WARN,
+                 f"{len(stops)} driver log(s) end in a STOP; last {name} {_z(t)} "
+                 f"({_age(now, t)} ago): {msg[:160]}")
+
+
 def ledger_check(runs: Path, date: str) -> Check:
     path = runs / "ledger" / "results.jsonl"
     if not path.exists():
@@ -484,6 +527,7 @@ def checks(runs: Path, date: str, now: datetime,
         *sport_checks(runs, date, now),
         *loop_checks(runs, date, now, command_of),
         bridge_check(run),
+        backfill_check(runs, now),
         ledger_check(runs, date),
         clv_check(runs, date, now),
         coupon_check(run, now),

@@ -195,9 +195,12 @@ class Iso:
         self.blocks = len(blocks)
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
+        y: np.ndarray
         if len(self.xs) == 1:
-            return np.clip(np.full_like(x, self.ys[0]), 0.01, 0.99)
-        return np.clip(np.interp(x, self.xs, self.ys), 0.01, 0.99)
+            y = np.clip(np.full_like(x, self.ys[0]), 0.01, 0.99)
+        else:
+            y = np.clip(np.interp(x, self.xs, self.ys), 0.01, 0.99)
+        return y
 
 
 def add_calibrated(test: list[dict[str, Any]], hist: list[dict[str, Any]], notes: list[str]) -> None:
@@ -457,8 +460,8 @@ def slip_tables(sl: list[dict[str, Any]], reps: int, seed: int, lines: list[str]
         lines.append("| para | cel | par | inne | Δ zrealizowana (wygrany kupon) [95%] | Δ śr. (trafienie − 1/k) na nogę [95%] | Δ przewidywana wg b |")
         lines.append("|---|---|---|---|---|---|---|")
         for u in ("H1", "H2", "A"):
-            for t in (*TARGETS, None):
-                pr = [p for p in paired(ks, kind, u, "B") if t is None or p[2] == t]
+            for tgt in (*TARGETS, None):
+                pr = [p for p in paired(ks, kind, u, "B") if tgt is None or p[2] == tgt]
                 if not pr:
                     continue
                 units = [d if cl == "day" else f"{d}|{w}" for d, w, _, _, _ in pr]
@@ -468,11 +471,19 @@ def slip_tables(sl: list[dict[str, Any]], reps: int, seed: int, lines: list[str]
                 diff = float(np.mean([a["legs"] != b["legs"] for *_, a, b in pr]))
                 bw = boot_units(units, dw, reps, seed)
                 be = boot_units(units, de, reps, seed)
-                res[f"{u}-B|{t}"] = {"n": len(pr), "differ": diff, "won": bw, "ex": be, "sd_won": float(dw.std(ddof=1)) if len(dw) > 1 else None,
+                res[f"{u}-B|{tgt}"] = {"n": len(pr), "differ": diff, "won": bw, "ex": be, "sd_won": float(dw.std(ddof=1)) if len(dw) > 1 else None,
                                      "sd_ex": float(de.std(ddof=1)) if len(de) > 1 else None}
-                lab = "wszystkie" if t is None else f"{t:g}"
+                lab = "wszystkie" if tgt is None else f"{tgt:g}"
                 lines.append(f"| {u} − B | {lab} | {len(pr)} | {diff:.0%} | {fmt(bw, 3)} | {fmt(be, 1, 100)} pp | {dpb.mean():+.4f} |")
         out[kind] = res
+
+
+def _delta_won(a: dict[str, Any], b: dict[str, Any]) -> float:
+    return float(a["won"] - b["won"])
+
+
+def _delta_ex_pp(a: dict[str, Any], b: dict[str, Any]) -> float:
+    return float(100 * (a["ex_mean"] - b["ex_mean"]))
 
 
 def slip_lodo(sl: list[dict[str, Any]], lines: list[str], out: dict[str, Any]) -> None:
@@ -482,7 +493,7 @@ def slip_lodo(sl: list[dict[str, Any]], lines: list[str], out: dict[str, Any]) -
     for kind in ("block", "slide"):
         for u in ("H1", "H2", "A"):
             pr = paired(sl, kind, u, "B")
-            for name, f in (("Δ wygrany", lambda a, b: a["won"] - b["won"]), ("Δ (trafienie − 1/k) pp", lambda a, b: 100 * (a["ex_mean"] - b["ex_mean"]))):
+            for name, f in (("Δ wygrany", _delta_won), ("Δ (trafienie − 1/k) pp", _delta_ex_pp)):
                 vals = [(d, f(a, b)) for d, _, _, a, b in pr]
                 tot = float(np.mean([v for _, v in vals]))
                 per = [float(np.mean([v for d, v in vals if d == x])) if any(d == x for d, _ in vals) else float("nan") for x in ds]

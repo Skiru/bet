@@ -143,7 +143,8 @@ def history(db: str, start: str, end: str) -> dict[str, Any]:
                             d = ll(pr, y) - ll(pb, y)
                             d_ll[game].append(d)
                             d_br[game].append((pr - y) ** 2 - (pb - y) ** 2)
-                            d_line[f"{line}|{'OVER' if over else 'UNDER'}"][game].append(d)
+                            side = "OVER" if over else "UNDER"
+                            d_line[f"{line}|{side}"][game].append(d)
                             d_fav[band][game].append(d)
                             for k, p in (("base", pb), ("race", pr)):
                                 if p >= 0.70:
@@ -176,12 +177,14 @@ def superbet(db: str, runs_dir: str) -> dict[str, Any]:
                                                 "race": defaultdict(list)}
     printable: dict[str, list[tuple[str, float, int, float]]] = defaultdict(list)
     cal: dict[str, list[tuple[str, float, int]]] = {"base": [], "race": []}
-    days = sorted(p.parent.name for p in Path(runs_dir, "cs2").glob("2026-*/settled.json"))
+    days = sorted(p.parent.name
+                  for p in Path(runs_dir, "cs2").glob("2026-*/settled.json"))
     for day in days:
         doc = json.loads(Path(runs_dir, "cs2", day, "settled.json").read_text("utf-8"))
         evs = [e for e in (doc.get("events") or {}).values()
                if e.get("state") == "SETTLED" and any(
-                   g.get("family") == "map_rounds_total" for g in e.get("graded") or [])]
+                   g.get("family") == "map_rounds_total"
+                   for g in e.get("graded") or [])]
         if not evs:
             continue
         maps, _ = scf.load_cs2(db, scf.day_ts(day))
