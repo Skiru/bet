@@ -1057,7 +1057,12 @@ Po weryfikacji na żywo 10-01 (sofa-verifier) doszły jeszcze trzy rzeczy:
   a dopiero potem średnią wykładniczą (`LEAGUE_RUNNING_MEAN`). Wcześniej
   pierwszy mecz w cache ważył 32% po 57 meczach: Puchar Ligi ZEA miał
   2,1 gola na mecz zamiast 3,1 i dał dwa fałszywe „poniżej". Gole poza
-  próbą −1,7%;
+  próbą −1,7%. W koszykówce od `epochs.LEAGUE_SEASON_RESTART_FROM_UTC`
+  (2026-10-23 00:00Z) liga wracająca po przerwie >= 45 dni czyta zwykłą
+  średnią zakończonego sezonu, a jej poziom (gospodarz + gość) startuje od
+  niej jak po 10 meczach (udział gospodarza wolnym krokiem) - NBA niosła
+  play-offy w październik (218 zamiast 229 pkt;
+  `docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md`). Piłka nigdy;
 - **stosunki drużyny spoza ligi rywala** są ściągane ku 1 potęgą
   `CROSS_RATIO_POWER = 0.6` — zdobyte przeciw własnej lidze, przenoszą się
   tylko częściowo (Baio & Blangiardo 2010). Minimum płaskie 0,5–0,7;

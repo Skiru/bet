@@ -208,6 +208,9 @@ LATE_RESOLVE_1021_MIXED_DATE = "2026-10-21"
 # 2026-10-23 00:00Z, operator 2026-10-22): from 10-23 a day's coupon holds its
 # sport games up to D+1 05:00Z (the evening rebuild's), so the coupon's scope
 # changes - a new epoch, not a mixed day (the switch is at the day's 00:00Z).
+# The same group holds epochs.LEAGUE_SEASON_RESTART_FROM_UTC (2026-10-23
+# 00:00Z): basketball's league rate restarts after an off-season, which moves
+# basketball p and so what prints.
 SPORT_LATE_WINDOW_EPOCH_FROM_DATE = "2026-10-23"
 
 

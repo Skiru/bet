@@ -150,6 +150,24 @@ VENUE_PRIOR_MARKETS: frozenset[str] = frozenset(
     {"corners_1h_for", "corners_2h_for"})
 # Smoothing of a league's own rate and home ratio.
 ALPHA_LEAGUE = 0.02
+# epochs.LEAGUE_SEASON_RESTART_FROM_UTC (the score model's sports; football
+# never sets it): a league whose next match comes SEASON_GAP_S or more after
+# its last one has had an off-season. Its rate is then read as the plain mean
+# of the season that ended (playoffs included, every match one weight) and,
+# from the first match of the new season, its LEVEL (home + away) restarts
+# from that mean as if it were SEASON_PRIOR_MATCHES matches old - a running
+# mean again until the step falls to ALPHA_LEAGUE - while the home side's
+# share keeps the slow ALPHA_LEAGUE step. Without it the NBA rate, ~ the last
+# 50 matches, carried the playoffs (215 / 206 points in May / June 2026) into
+# October: 218.1 against the 228.6 its first 14 matches averaged
+# (docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md).
+# SEASON_RESTART_LEVEL_ONLY False (measured, not used): home and away both at
+# the fast step - the ten-match home advantage made basketball's winner /
+# handicap lines outside the NBA worse (+0.0018 [+0.0003, +0.0031] /
+# +0.0013 [+0.0001, +0.0025] log loss per line, 4,243 games).
+SEASON_GAP_S = 45 * 86400
+SEASON_PRIOR_MATCHES = 10
+SEASON_RESTART_LEVEL_ONLY = True
 # A league or a team with fewer matches than this is not rated from itself.
 MIN_LEAGUE_MATCHES = 30
 MIN_TEAM_MATCHES = 5
@@ -638,17 +656,62 @@ class _League:
     home_mean: float = 0.0
     away_mean: float = 0.0
     n: int = 0
+    # RatingBook.season_restart (epochs.LEAGUE_SEASON_RESTART_FROM_UTC): the
+    # start of the league's latest match, the weight the mean's step reads
+    # (n until a restart) and the sums of the current season's matches
+    last_ts: int | None = None
+    weight: int | None = None
+    season_home: float = 0.0
+    season_away: float = 0.0
+    season_n: int = 0
 
-    def update(self, home: float, away: float) -> None:
+    def season_mean(self) -> tuple[float, float] | None:
+        """The plain mean of the season since the league's last off-season
+        gap, or None below MIN_LEAGUE_MATCHES of it."""
+        if self.season_n < MIN_LEAGUE_MATCHES:
+            return None
+        return self.season_home / self.season_n, self.season_away / self.season_n
+
+    def update(self, home: float, away: float, ts: int | None = None,
+               restart: bool = False) -> None:
         # A plain running mean until 1/(n+1) falls to ALPHA_LEAGUE, then
         # exponential smoothing. Starting the smoothing at the first match
         # left it 32% of the weight after 57: the UAE League Cup's first
         # cached match was 0-0, and its rate read 2.13 goals a match against
         # the 3.12 its 57 matches average (sofa-verifier, 2026-10-01).
-        step = max(ALPHA_LEAGUE, 1.0 / (self.n + 1))
-        self.home_mean += step * (home - self.home_mean)
-        self.away_mean += step * (away - self.away_mean)
+        if (restart and ts is not None and self.last_ts is not None
+                and ts - self.last_ts >= SEASON_GAP_S):
+            # An off-season: the rate restarts from the season just ended,
+            # worth SEASON_PRIOR_MATCHES matches of the new one.
+            ended = self.season_mean()
+            if ended is not None:
+                self.home_mean, self.away_mean = ended
+            self.weight = min(self.n if self.weight is None else self.weight,
+                              SEASON_PRIOR_MATCHES)
+            self.season_home = self.season_away = 0.0
+            self.season_n = 0
+        w = self.n if self.weight is None else self.weight
+        step = max(ALPHA_LEAGUE, 1.0 / (w + 1))
+        total = self.home_mean + self.away_mean
+        if (SEASON_RESTART_LEVEL_ONLY and self.weight is not None
+                and step > ALPHA_LEAGUE and total > 0 and home + away > 0):
+            # after a restart only the level moves fast; the home side's
+            # share keeps the slow step (ten matches do not tell it)
+            share = self.home_mean / total
+            total += step * (home + away - total)
+            share += ALPHA_LEAGUE * (home / (home + away) - share)
+            self.home_mean, self.away_mean = total * share, total * (1 - share)
+        else:
+            self.home_mean += step * (home - self.home_mean)
+            self.away_mean += step * (away - self.away_mean)
         self.n += 1
+        if self.weight is not None:
+            self.weight += 1
+        if restart and ts is not None:
+            self.last_ts = ts if self.last_ts is None else max(self.last_ts, ts)
+            self.season_home += home
+            self.season_away += away
+            self.season_n += 1
 
 
 @dataclass
@@ -714,6 +777,10 @@ class RatingBook:
     cup_eta: Mapping[str, float] = field(default_factory=dict)
     cup_delta: dict[tuple[int, str], _Strength] = field(
         default_factory=lambda: defaultdict(_Strength))
+    # epochs.LEAGUE_SEASON_RESTART_FROM_UTC (score_model.build_model only): a
+    # league's rate restarts after an off-season gap (SEASON_GAP_S,
+    # _League.update) and reads the ended season's mean until it does
+    season_restart: bool = False
 
     @staticmethod
     def _global_key(metric: str, women: bool) -> str:
@@ -859,6 +926,13 @@ class RatingBook:
         82.8 points a side, the all-league mean, against NBA's 118 / 112)."""
         league = self.leagues.get((competition, metric))
         if league is not None and league.n >= MIN_LEAGUE_MATCHES:
+            if (self.season_restart and league.last_ts is not None
+                    and self.last_ts - league.last_ts >= SEASON_GAP_S):
+                # the first match after an off-season: the ended season's
+                # mean, which its own update restarts from
+                ended = league.season_mean()
+                if ended is not None:
+                    return ended
             return league.home_mean, league.away_mean
         if strict:
             return None
@@ -902,7 +976,8 @@ class RatingBook:
         away_reserve = bool(getattr(r, "away_reserve", False))
         if home_reserve or away_reserve:
             for metric, (vh, va) in r.values.items():
-                self.leagues[(r.competition_id, metric)].update(vh, va)
+                self.leagues[(r.competition_id, metric)].update(
+                    vh, va, r.ts, self.season_restart)
                 self.global_league[self._global_key(metric, women)].update(vh, va)
             if not home_reserve:
                 self.team_comps[r.home_id].append((r.ts, r.competition_id))
@@ -980,7 +1055,8 @@ class RatingBook:
                 ta.attack, ta.defence = ta_attack, ta_defence
                 th.n += 1
                 ta.n += 1
-            self.leagues[(r.competition_id, metric)].update(vh, va)
+            self.leagues[(r.competition_id, metric)].update(
+                vh, va, r.ts, self.season_restart)
             self.global_league[self._global_key(metric, women)].update(vh, va)
         # The league unit, not the competition: a regional group of one
         # competition is a league of its own (assign_league_units).

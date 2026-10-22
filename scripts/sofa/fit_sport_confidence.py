@@ -137,6 +137,10 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
     overtime = args.bb_overtime or epochs.bb_overtime(before, first)
     strict = args.league_rate_rule or epochs.league_rate_rule(before, first)
+    # the league rate restarts after an off-season gap (LEAGUE_SEASON_RESTART)
+    restart = sport != "cs2" and (
+        args.league_season_restart
+        or epochs.league_season_restart(sport, before, first))
     # audit 2026-10-13 B7: basketball's centre from pace x efficiency
     pace = sport == "basketball" and (
         args.bb_pace or epochs.bb_pace(before, first))
@@ -199,11 +203,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
             "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en,
-            vb_length, vb_sets, market)
+            vb_length, vb_sets, market, season_restart=restart)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
-            pace, level, hk_shots, hk_en, vb_length, vb_sets, market)
+            pace, level, hk_shots, hk_en, vb_length, vb_sets, market,
+            season_restart=restart)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -214,7 +219,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             pace_level=True if args.bb_pace_level else None,
             hk_shots=args.hk_shots,
             hk_empty_net=True if args.hk_empty_net else None,
-            set_length=True if args.vb_set_length else None)
+            set_length=True if args.vb_set_length else None,
+            season_restart=True if args.league_season_restart else None)
         only = scf.settled_only_families(sport, vb_sets)
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -255,6 +261,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_freshness": fresh,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
+            **({"league_season_restart": True} if restart else {}),
             **({"bb_pace": True} if pace else {}),
             **({"bb_pace_level": True} if level else {}),
             **({"hk_shots": hk_shots} if hk_shots else {}),
@@ -363,6 +370,10 @@ def main() -> int:
     ap.add_argument("--league-rate-rule", action="store_true",
                     help="replay with no all-league rate for a thin competition "
                     "(audit A2; default: the --before day's rule)")
+    ap.add_argument("--league-season-restart", action="store_true",
+                    help="replay with the league rate restarted after an "
+                    "off-season gap (LEAGUE_SEASON_RESTART; default: the "
+                    "--before day's rule)")
     ap.add_argument("--bb-pace", action="store_true",
                     help="replay basketball's centre as pace x efficiency from "
                     "the box scores (audit B7; default: the --before day's rule)")

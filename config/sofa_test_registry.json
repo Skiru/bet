@@ -469,6 +469,21 @@
           "quote": "SPORT_LATE_WINDOW_FROM_UTC: datetime | None = datetime(2026, 10, 23, tzinfo=UTC)"
         }
       ]
+    },
+    {
+      "id": "T-BB-SEASON-RESTART-superbet",
+      "registered_on": "2026-10-22",
+      "status": "REGISTERED",
+      "hypothesis": "Under epochs.LEAGUE_SEASON_RESTART_FROM_UTC (basketball's league rate restarted after an off-season gap from the ended season's mean) the score model's NBA level is not below Superbet's main total line by more than 4 points, and the printed basketball legs realise at their confidence.",
+      "rule": "(1) Level: on every NBA game (unique tournament 132) identified by SPORT_IDENTITY from 2026-10-23, the model's expected regulation total at SPORT_CONFIDENCE's last pre-start build minus Superbet's main total line (the market 753 line with the closest OVER / UNDER prices in the last pre-start snapshot). (2) Legs: basketball singles of the official coupon (11_coupon.json, graded WIN / LOSS by coupon_sports.grade from each leg's source_date settled.json): realised minus mean confidence, NBA and other competitions apart (never pooled silently), with the OVER / UNDER / side split reported.",
+      "population": "NBA games and basketball singles printed from 2026-10-23, locked legs included, read-removed legs excluded.",
+      "data_window": {"from": "2026-10-23", "to": "2027-01-31"},
+      "required_n": {"games": 100, "legs": 200, "matches_min": 60, "basis": "the 10-21 / 10-22 replay under the rule let 14 NBA legs through on 13 games (~1 a game); ~100 NBA games by mid-November; with the other competitions ~200 printed basketball legs in about a month."},
+      "evaluation": "Level as a mean with a 95% interval from resampling games; realised minus confidence with a 95% interval from resampling games.",
+      "stop_criterion": "PASSED when the level's 95% interval lies above -4 points and the printed legs' realised minus confidence has a lower 95% bound above -5 pp at the required n; FAILED when the level's interval lies below -4 points (the rate still lags) or the legs' upper bound is below 0 (reported to the operator, who decides about the switch and a basketball refit).",
+      "evidence": [
+        {"source": "docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md", "line": 1, "quote": "Restart stawki ligi po przerwie międzysezonowej"}
+      ]
     }
   ]
 }

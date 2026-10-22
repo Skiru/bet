@@ -364,6 +364,10 @@ Procedura na kopii (2026-10-07):
 3. Koszykówka: `fit_sport_confidence.py --sport basketball --before <d+1>
    --bb-freshness on --dry-run --rows-out <dir>`, sekcja z `<dir>/basketball_
    section.json` do `config/sofa_sport_confidence_calibration.next.json`.
+   Dla `--before` >= 2026-10-23 replay sam włącza restart stawki ligi po
+   przerwie międzysezonowej (`epochs.LEAGUE_SEASON_RESTART_FROM_UTC`;
+   wymuszenie: `--league-season-restart`; `fitted_from.league_season_restart`).
+   Zainstalowana krzywa koszykówki (2026-10-14) była dopasowana bez niego.
 4. `refresh_line_evidence.py --before <d+1>` (to **nie** jest refit).
 
 **Jak replay widzi inne pliki:** `SOFA_CONFIG_DIR` (`bet.sofa.config.config_dir`)

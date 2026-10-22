@@ -329,6 +329,12 @@ FIXTURE_CHECK's `/event`).
 |---|---|---|
 | `SPORT_LATE_WINDOW_FROM_UTC` (2026-10-23 00:00Z), `LATE_WINDOW_END_H` 5 | A hockey / basketball / volleyball / CS2 game belonged to the UTC day of its start, so NBA / NHL games after 00:00Z fell to the next day's coupon, whose morning build found them under way. On, `sport_identity.day_window(D)` = [end(D-1), end(D)), end(D) = D+1 05:00Z (`epochs.sport_late_window(D)`, read by the DAY alone so the windows partition the timeline: 10-22 = [10-22 00:00Z, 10-23 00:00Z), 10-23 = [10-23 00:00Z, 10-24 05:00Z)). Read by SPORT_IDENTITY, SPORT_CONFIDENCE, `rebuild_plan.observe_sport`, COUPON_ASSEMBLY (`build_coupon.in_day_window`; football / tennis keep the UTC day, builders too) and `day_status` (day over at end(D), D+1's snapshot file read too). SHADOW / CS2 of D fetch a D+1 game starting before end(D) once even beyond the horizon, into D+1's file (`run_shadow.snapshot`, `run_cs2.snapshot`). A leg starting on D+1 carries `window: "late"`; an event on D-1's printed 11_coupon.json (singles + builders) is `ALREADY_PRINTED_PREV_DAY`. The loops' mornings settle D+1's file up to end(D) (`settle_shadow.py` / `settle_cs2.py --date D+1 --kickoff-before`; SETTLE_AFTER 4 h, so only games started by ~01:15Z grade that morning, the rest a day later with D+1's own settle); grading reads each leg's `source_date` file as before. The late games are priced only by the operator's manual evening rebuild (`rebuild_day.py --date D`, ~20:00-21:00Z; morning legs stay locked) - not automated. A scope change, no curve or estimator changes | operator 2026-10-22; 10-22's last SPORT_CONFIDENCE refused 276 hockey and 4,927 basketball sides KICKED_OFF (`runs/sofa/2026-10-22/08_confidence_sports.json`; 3,893 basketball / hockey rows in the planning pass's build); 10-21's files held 38 games starting 10-22 00:00-05:00Z (8 hockey, 18 basketball, 10 volleyball, 2 CS2), none on file by 20:00Z under the old 3 h horizon (read-only replay of `sport_identity.snapshot_events`); `tests/sofa/test_sport_late_window.py`; registered `T-SPORT-LATE-WINDOW` |
 
+### Basketball: the league rate restarts after an off-season (2026-10-23 00:00Z; operator's go 2026-10-22 ~10:21Z; ledger group "od 10-23")
+
+| constant | what | evidence |
+|---|---|---|
+| `LEAGUE_SEASON_RESTART_FROM_UTC` (2026-10-23 00:00Z), `LEAGUE_SEASON_RESTART_SPORTS` {basketball}; `football_rating.SEASON_GAP_S` 45 d, `SEASON_PRIOR_MATCHES` 10, `SEASON_RESTART_LEVEL_ONLY` True | The score model's league rate (`_League`, `ALPHA_LEAGUE` 0.02, ~ the last 50 games) carried a season's end into the next: the NBA (132) read 218.1 points on 10-21 (its May / June 2026 playoffs 215 / 206) against 228.6 for October's first 14 games; the model sat 13.2 points under Superbet's main total on 13 games and a replay printed 42 NBA legs on 10-21 / 10-22, 36 UNDERs on halves / quarters. On (`RatingBook.season_restart`, set only by `score_model.build_model(season_restart=...)`; football never): a league whose next game comes >= 45 days after its last reads the plain mean of the ended season (playoffs included; `_League.season_mean`, needs >= `MIN_LEAGUE_MATCHES` of it), and from its first new game its LEVEL (home + away) restarts from that mean worth 10 games (step 1/(w+1) down to `ALPHA_LEAGUE`), the home share at `ALPHA_LEAGUE`. The match count `n` (the 30-game gate) is never reset. Read by SPORT_CONFIDENCE (`DbForecaster`), `settled_shadow_rows` (day's rule), `walk_forward_rows(season_restart=)`, `fit_sport_confidence` (`--league-season-restart`, else the `--before` day's rule; `fitted_from.league_season_restart`), `fit_sport_derived` (`estimator_switches`). The installed basketball curve (`.next.json`, fitted 2026-10-14 on the old rule) is NOT refitted | Walk-forward A/B on copies of the DB (`data/refit_2026-10-22/league_season/`, `measure_restart.py`; as `walk_forward_rows`: rebuild every 30 days, book updated game by game, live switches; both arms scored on the union of their synthetic lines of every coupon game-line family; 1,000 sims; game bootstrap), 2024-09..2026-10-22, log loss per line new - old: **NBA** 2,644 games -0.0006 [-0.0010, -0.0001], first 30 days of a season (448 games) -0.0030 [-0.0050, -0.0012] (totals -0.0125, team totals -0.0079, halves -0.0034, quarters -0.0014; winner / handicap ~0); level actual - model at season starts 2024 +2.3 -> +1.4, 2025 +1.1 -> +0.6, 2026 (14 games) +10.3 -> +0.6; squared total error -2.84 [-4.60, -1.08] per game. **Other basketball** (1 in 20, 2026-09.. 1 in 4) 4,243 games -0.0001 [-0.0005, +0.0003], no family's interval above 0. Pooled (NBA + thinned other, 6,887 games) -0.0003 [-0.0006, +0.00004] - touches 0; pooled season starts -0.0009 [-0.0018, -0.0001]. Printable rows (curve >= 0.70) realised - confidence unchanged (NBA -2.0 pp both arms; other +1.3 / +1.2). The level-only form was chosen AFTER the pre-registered both-sides form (K 10) measured winner +0.0018 [+0.0003, +0.0031] / handicap +0.0013 [+0.0001, +0.0025] worse outside the NBA (NBA -0.0005 [-0.0010, -0.0001]) - on the same windows, so its margin over that form is in-sample. Replay of 10-21 / 10-22 (`replay_1021.py`, model cut 20 min before each kick-off): 42 NBA legs (36 UNDER, 3 handicap T2, 3 winner / 1X2 T1) -> 14 (6 UNDER, 1 OVER, 3 handicap T2, 4 winner / 1X2 T1); model minus Superbet's main total -13.2 -> -3.8 points. Report `docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md`; `tests/sofa/test_league_season_restart.py`; registered `T-BB-SEASON-RESTART-superbet` |
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -529,6 +535,13 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- the league-rate season restart for hockey and volleyball (2026-10-22, both
+  sides at the fast step, K 10, the basketball walk-forward's method): hockey
+  +0.0005 [+0.0002, +0.0009] log loss per line on 6,169 games (2026-09.. start
+  +0.0022 [+0.0013, +0.0032]), volleyball +0.0012 [+0.0005, +0.0020] on 5,373 -
+  their league levels do not drift between seasons; the level-only form was
+  not measured for them
+  (`docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md`);
 - a footballer's line-evidence offset measured only on lines with curve x odds
   >= 0.90 (2026-10-16, walk-forward 10-12..10-15): dropped legs not measurably
   worse (-7.3 pp [-22.2, +7.3] vs -4.1 kept), acted on player_shots_for alone
@@ -594,6 +607,19 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 - Volleyball overstates ~16 pp at confidence >= 0.70 with either curve (-15.4 pp
   [-24.4, -6.8] new); basketball printable gap -16 pp - curve / line-evidence
   questions.
+- Basketball period spread by league (2026-10-22, not switched): NBA
+  quarters / halves read 2.5 / 1.4 pp overconfident out of sample at curve
+  >= 0.70 while other leagues read +0.9 / +1.2 (NBA quarter-side residual SD
+  5.98 vs the pooled 5.20, `bb_sd_level_power` 0); the season restart leaves
+  it (NBA printable rows -2.0 pp both arms). A level-scaled spread was
+  declined 2026-10-03 on pooled windows; a per-level or per-pace spread
+  needs its own measurement and switch
+  (`data/refit_2026-10-22/nba_measure/nba_measure.md` section 2).
+- A basketball refit on the season-restart rule (`fit_sport_confidence.py
+  --sport basketball --league-season-restart`): the installed curve was
+  fitted without it; the printable rows' calibration did not move in the
+  walk-forward, so the curve stays consistent enough - a refit needs the
+  operator's go.
 - Superbet's game count of a tennis match tiebreak.
 - Line-evidence offsets of repriced families moved <= 1.3 pp a day over
   10-09..10-12 (stable); tennis `games_won_for` OVER offsets (-8.5 men, -12.1
@@ -655,7 +681,7 @@ Groups are never pooled.
 | "od 10-21" | none | holds no day (CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) - all in "10-21 mieszany") |
 | "10-21 mieszany" | 10-21 | the "od 10-21" switches 00:00Z, then LATE_RESOLVE 08:48Z, SQUAD_SEARCH_RETRY (moved from 10-22 00:00Z) and ENTITY_MISS_PER_DAY 09:20Z into the built day (late fixtures reach the coupon after the first print); IDENTITY_GATE_PER_FAMILY 10:50Z (wider football samples, re-sampled open fixtures) |
 | "od 10-22" | 10-22 | SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
-| "od 10-23" | 10-23 .. | current; SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon |
+| "od 10-23" | 10-23 .. | current; SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 

@@ -891,6 +891,7 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       set_length: bool = False, set_history: bool = False,
                       market_lines: Mapping[int, MarketLines] | None = None,
                       markets: Sequence[int] | None = None,
+                      season_restart: bool = False,
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it. `markets`: the
@@ -923,6 +924,8 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     the game's market lines. The MARKET_LINE_MARKETS families are then scored
     only on market-positioned lines, on EVERY game of the window that has
     them (thinned or not); None: today's synthetic replay.
+    `season_restart` (epochs.LEAGUE_SEASON_RESTART_FROM_UTC): the league rate
+    restarts after an off-season gap (RatingBook.season_restart).
     """
     ratings = [g.rating for g in history]
     vb_len = set_length and sport.key == "volleyball"
@@ -949,7 +952,7 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                                     sport.key, hk_empty_net),
                                 strict_league_rate=strict_league_rate,
                                 pace=pace, pace_level=pace_level,
-                               shots=hk_shots,
+                               shots=hk_shots, season_restart=season_restart,
                                **length_kw)
             next_rebuild = ts + REBUILD_DAYS * 86400
             if freshness and model.recent is None:
@@ -994,7 +997,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         pace_level: bool | None = None,
                        hk_shots: str | None = None,
                        hk_empty_net: bool | None = None,
-                       set_length: bool | None = None) -> list[Row]:
+                       set_length: bool | None = None,
+                       season_restart: bool | None = None) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
@@ -1004,7 +1008,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
     None: the day's own epochs.hk_shots, "off" / "replace" / "blend" forced
     (audit B8, the history must carry shots); `hk_empty_net` None: the day's
     own epochs.hk_empty_net; `set_length` None: the day's own
-    epochs.vb_set_length (audit B9)."""
+    epochs.vb_set_length (audit B9); `season_restart` None: the day's own
+    epochs.league_season_restart."""
     ratings = [g.rating for g in history]
     scores: dict[int, tuple[Sequence[int], Sequence[int]]] | None = None
     rows: list[Row] = []
@@ -1031,6 +1036,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                      else (None if hk_shots == "off" else hk_shots))
         day_en = (epochs.hk_empty_net(date) if hk_empty_net is None
                   else hk_empty_net)
+        day_restart = (epochs.league_season_restart(sport.key, date)
+                       if season_restart is None else season_restart)
         day_length = sport.key == "volleyball" and (
             epochs.vb_set_length(date) if set_length is None else set_length)
         if day_length and scores is None:
@@ -1043,6 +1050,7 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                                 sport.key, day_en),
                             strict_league_rate=strict, pace=day_pace,
                             pace_level=day_level, shots=day_shots,
+                            season_restart=day_restart,
                             **length_kw)
         for sb_id, entry in (doc.get("events") or {}).items():
             if entry.get("state") != "SETTLED" or entry.get("orientation_unclear"):

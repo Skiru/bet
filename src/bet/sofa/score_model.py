@@ -1141,7 +1141,8 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 shots: str | None = None,
                 set_length: bool = False,
                 set_scores: Mapping[int, tuple[Sequence[int], Sequence[int]]]
-                | None = None) -> ScoreModel:
+                | None = None,
+                season_restart: bool = False) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
@@ -1157,9 +1158,13 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     `set_length` (epochs.VB_SET_LENGTH_FROM_UTC, volleyball, audit B9): the
     set-length table from `set_scores` (event id -> home's and away's set
     points) of the SET_LENGTH_WINDOW_S before the cut, each game against the
-    book as it stood before it."""
+    book as it stood before it.
+    `season_restart` (epochs.LEAGUE_SEASON_RESTART_FROM_UTC): a league's rate
+    restarts after an off-season gap from the ended season's mean
+    (football_rating.SEASON_GAP_S / SEASON_PRIOR_MATCHES)."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
+    book.season_restart = season_restart
     k = sport.regulation_periods or 0
     tot_h = [0.0] * k
     tot_a = [0.0] * k

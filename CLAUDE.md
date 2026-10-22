@@ -263,6 +263,12 @@ measurement of Superbet's price and feed nothing else.
   (fuzzy matching never writes it); the queue `report_entity_queue.py`. Day
   anchor, tournament day and proven absence (`NOT_ON_SOFASCORE`) identify the
   rest; details in model-state.md.
+- **Basketball league rate** (`LEAGUE_SEASON_RESTART`, from 2026-10-23
+  00:00Z, operator's go 10-22): a league back after >= 45 days off reads the
+  ended season's plain mean, and its level restarts from it worth 10 games
+  (home share slow) - the NBA had carried its playoffs into October (218 vs
+  229 points). Basketball only (hockey / volleyball measured worse); the
+  installed basketball curve was fitted without it (a refit needs a go).
 - **History** is kept current by `refresh_sport_history.py` (run first by
   `refresh_line_evidence.py`); `day_status.py` WARNs `sport_history` below 80%
   of D-1's pinned games.

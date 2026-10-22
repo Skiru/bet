@@ -236,6 +236,9 @@ class DbForecaster:
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at),
                 pace=pace, pace_level=level, shots=hk_shots,
+                # the league rate restarts after an off-season gap
+                season_restart=epochs.league_season_restart(
+                    sport, self.date, self.at),
                 **vb_extra)
             self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
         return self._shadow[sport]

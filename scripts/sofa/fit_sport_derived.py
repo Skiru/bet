@@ -104,6 +104,7 @@ def estimator_switches(sport: str, day: str) -> dict[str, Any]:
         "hk_shots": epochs.hk_shots(day, first) if sport == "hockey" else None,
         "hk_empty_net": sport == "hockey" and epochs.hk_empty_net(day, first),
         "set_length": sport == "volleyball" and epochs.vb_set_length(day, first),
+        "season_restart": epochs.league_season_restart(sport, day, first),
     }
 
 
@@ -248,7 +249,8 @@ def run_sport(sport: str, args: argparse.Namespace) -> dict[str, Any]:
             history, shadow_sport, a, b, args.sims, cap, f"derived_{name}",
             sw["freshness"], sw["overtime"], sw["strict_league_rate"],
             sw["pace"], sw["pace_level"], sw["hk_shots"], sw["hk_empty_net"],
-            sw["set_length"], False, None, markets=markets)
+            sw["set_length"], False, None, markets=markets,
+            season_restart=sw["season_restart"])
         print(f"{sport} {name}: {len(rows[name])} rows, "
               f"{len({r['game'] for r in rows[name]})} games, "
               f"{time.monotonic() - t0:.0f} s", file=sys.stderr, flush=True)

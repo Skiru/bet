@@ -2922,3 +2922,58 @@ def sport_late_window(date: str) -> bool:
     if SPORT_LATE_WINDOW_FROM_UTC is None:
         return False
     return date >= SPORT_LATE_WINDOW_FROM_UTC.strftime("%Y-%m-%d")
+
+
+# --- Measured sports: the league rate restarts after an off-season (2026-10-23)
+# The score model's league rate (football_rating._League, ALPHA_LEAGUE 0.02,
+# ~ the last 50 matches) carried a season's last matches - for the NBA its
+# playoffs, 215 / 206 points a game in May / June 2026 - into the next season:
+# on 10-21 / 10-22 it read the NBA at 218.1 points against the 228.6 its first
+# 14 matches of October 2026 averaged, the model's totals 13.2 points under
+# Superbet's main line on 13 games, and 36 of the 42 NBA legs a replay let
+# through were UNDERs on halves / quarters (data/refit_2026-10-22/nba_measure).
+# On (RatingBook.season_restart): a league whose next match comes
+# football_rating.SEASON_GAP_S (45 days) or more after its last one reads the
+# plain mean of the season that ended, and its level restarts from that mean
+# as if it were SEASON_PRIOR_MATCHES (10) matches old, the home share at the
+# slow step (SEASON_RESTART_LEVEL_ONLY). A general estimator rule, every
+# league of the sports in LEAGUE_SEASON_RESTART_SPORTS alike (no league or
+# team is named). Live (SPORT_CONFIDENCE), in the line-evidence replay of a
+# day >= it and in a fit's history replay for a day >= it.
+# Measured out of sample (walk-forward as walk_forward_rows, both arms on the
+# union of their synthetic lines, game bootstrap; 2024-09..2026-10-22):
+# NBA log loss per game line -0.0006 [-0.0010, -0.0001] on 2,644 games, its
+# first 30 days of a season -0.0030 [-0.0050, -0.0012] on 448 (totals
+# -0.0125, team totals -0.0079); the 2026 start's level gap +10.3 -> +0.6
+# points; other basketball -0.0001 [-0.0005, +0.0003] on 4,243 games (1 in 20
+# thinned), no family worse; the printable rows' realised - confidence
+# unchanged (NBA -2.0 pp both). Changes basketball p, so it changes what
+# prints: from 2026-10-23 00:00Z by the operator's go of 2026-10-22 (~10:21Z)
+# (docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md); ledger group
+# "od 10-23" (the same day as SPORT_LATE_WINDOW). The installed basketball
+# curve was fitted on the old rule and is not refitted (a refit needs its
+# own go).
+LEAGUE_SEASON_RESTART = "league_season_restart_v1"
+LEAGUE_SEASON_RESTART_FROM_UTC: datetime | None = datetime(
+    2026, 10, 23, 0, 0, 0, tzinfo=UTC)
+# Basketball only: on the same replay hockey's game-line log loss was worse
+# (+0.0005 [+0.0002, +0.0009] per line, 6,169 games 2024-09..2026-10-22) and
+# volleyball's too (+0.0012 [+0.0005, +0.0020], 5,373 games) - measured with
+# both sides at the fast step (SEASON_RESTART_LEVEL_ONLY False); the
+# level-only form was not measured for them.
+LEAGUE_SEASON_RESTART_SPORTS: frozenset[str] = frozenset({"basketball"})
+
+
+def league_season_restart(sport: str, date: str | None = None,
+                          build_at: datetime | None = None) -> bool:
+    """Does the score model's league rate of `sport` restart after an
+    off-season gap (LEAGUE_SEASON_RESTART_FROM_UTC)? `date` None: the wall
+    clock alone."""
+    if (LEAGUE_SEASON_RESTART_FROM_UTC is None
+            or sport not in LEAGUE_SEASON_RESTART_SPORTS):
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if (date is not None
+            and date < LEAGUE_SEASON_RESTART_FROM_UTC.strftime("%Y-%m-%d")):
+        return False
+    return at >= LEAGUE_SEASON_RESTART_FROM_UTC
