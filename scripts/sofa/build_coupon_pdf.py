@@ -179,15 +179,43 @@ def source_label(calibrated_on: str) -> str:
     return shown[len("line:"):] if shown.startswith("line:") else shown
 
 
-def watch_label(leg: dict[str, Any]) -> str:
-    """A WATCH on a printed leg (a locked leg read after its print), shown on
-    the leg so it is never staked unread."""
-    watched = [r for r in leg.get("reads") or [] if r.get("verdict") == "WATCH"]
-    if not watched:
+READ_INK = {"KEEP": "#1b7f4b", "WATCH": "#b25b00", "NO_BET": "#b23b3b"}
+READ_WHO = {"analyst": "analityk", "verifier": "weryfikator", "auto": "automat"}
+READ_REASON_CHARS = 140
+
+
+def _reason_head(reason: str) -> str:
+    """The reason's first READ_REASON_CHARS characters, cut at a word (and
+    before escaping, so an entity is never split). Not its first sentence:
+    the analysts write in ";" and abbreviations ("1. poł.", "śr.")."""
+    text = " ".join(reason.split())
+    if len(text) > READ_REASON_CHARS:
+        cut = text[:READ_REASON_CHARS - 1]
+        if " " in cut[READ_REASON_CHARS // 2:]:
+            cut = cut[:cut.rindex(" ")]
+        text = cut.rstrip() + "…"
+    return text
+
+
+def read_label(leg: dict[str, Any]) -> str:
+    """Every read on the leg (reads.json via CONFIDENCE): verdict, who read it
+    and the opening of why - so a read leg is told from an unread one
+    on paper too (the full text is on the HTML view). The worst verdict
+    leads; WATCH / NO_BET on a locked leg is the read after its print."""
+    reads = [r for r in leg.get("reads") or [] if isinstance(r, dict)]
+    if not reads:
         return ""
-    who = ", ".join(sorted({str(r.get("author")) for r in watched}))
-    return (f"<br/><font size=6.5 color='#b25b00'><b>WATCH ({who})</b>: "
-            f"{escape(str(watched[0].get('reason') or ''))[:160]}</font>")
+    order = {"NO_BET": 0, "WATCH": 1, "KEEP": 2}
+    reads.sort(key=lambda r: order.get(str(r.get("verdict")), 3))
+    out = ""
+    for r in reads:
+        verdict = str(r.get("verdict") or "?")
+        who = READ_WHO.get(str(r.get("author")), str(r.get("author") or "?"))
+        ink = READ_INK.get(verdict, "#667085")
+        out += (f"<br/><font size=6.5 color='{ink}'><b>{escape(verdict)} "
+                f"({escape(who)})</b>: "
+                f"{escape(_reason_head(str(r.get('reason') or '')))}</font>")
+    return out
 
 
 def context_label(leg: dict[str, Any]) -> str:
@@ -787,7 +815,7 @@ def main() -> int:
             elif started_at_render(leg, now):
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
-            same += watch_label(leg) + context_label(leg) + price_gap_label(leg)
+            same += read_label(leg) + context_label(leg) + price_gap_label(leg)
             srows.append([
                 Paragraph(str(i), small),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -860,10 +888,11 @@ def main() -> int:
             for flag in leg.get("context_flags") or []:
                 caveats.append(f"noga {j}: {escape(str(flag))}")
             for r in leg.get("reads") or []:
-                if r.get("verdict") == "WATCH":
+                if r.get("verdict") in ("WATCH", "NO_BET"):
                     caveats.append(
-                        f"noga {j}: WATCH ({r.get('author')}): "
-                        f"{escape(str(r.get('reason') or ''))[:160]}")
+                        f"noga {j}: {escape(str(r.get('verdict')))} "
+                        f"({escape(str(r.get('author')))}): "
+                        f"{escape(_reason_head(str(r.get('reason') or '')))}")
             sub = f" {x['subject']}" if x["subject"] else ""
             rows.append([
                 str(j),
@@ -1159,7 +1188,7 @@ def render_stats_only(
             if results is None and started_at_render(leg, now):
                 match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                                "renderem PDF</b></font>")
-            match_cell += (watch_label(leg) + context_label(leg)
+            match_cell += (read_label(leg) + context_label(leg)
                            + stakes_label(leg) + price_gap_label(leg)
                            + peer_label(leg))
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
@@ -1230,7 +1259,10 @@ def render_stats_only(
                 Paragraph(str(j), small),
                 Paragraph(market_cell(
                     x, "", f"<b>{x['market']}{escape(sub)}</b> {x['line']} "
-                    f"{x['direction']}"), small),
+                    f"{x['direction']}") + (
+                        read_label(leg) or "<br/><font size=6.5 color='#b25b00'>"
+                        "<b>nieczytana</b> - brak odczytu analityka</font>"),
+                    small),
                 Paragraph(f"{float(leg['confidence']):.3f}", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"{x['odds']}", small),

@@ -46,7 +46,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `08_confidence_sports.json` | hockey / basketball / volleyball / CS2 legs (SPORT_CONFIDENCE) |
 | `11_coupon.json` | **the coupon**; read it through `confidence.coupon_artifact()` |
 | `KUPON_<d>.pdf`, `printed/<ts>.json`, `12_printed.json` | the product and its append-only print record (a rebuild locks from the first print) |
-| `KUPON_<d>.html` | the same legs as a filterable page - a **view**, not a coupon (`bet.sofa.coupon_html`), written by `build_coupon_pdf.py` after every PDF (HTML failure: PDF kept, exit 1); alone `build_coupon_html.py --date <d>` |
+| `KUPON_<d>.html` | the same legs as a filterable page - a **view**, not a coupon (`bet.sofa.coupon_html`); every read leg carries its analysts' notes (verdict, author, reason; the PDF: verdict + first 140 chars, `read_label`), a match with no read leg is marked "nieczytany" - display only; written by `build_coupon_pdf.py` after every PDF (HTML failure: PDF kept, exit 1); alone `build_coupon_html.py --date <d>` |
 | `family_record.json` | each (sport, market, direction) family's record on the printed legs of the 14 days before; "on the plus" = >= 50 legs and units > 0 (`bet.sofa.family_record`); the HTML's selection aid, **never a gate** - advantage not yet shown (`T-FAMILY-SELECTION`) |
 | `13_results.json` | settled result of every printed position, the ledger's own grades (`bet.sofa.coupon_results`); written by `mark_coupon_results.py` (called by `record_results.py`) |
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts, vetoes, the operator's extra positions |

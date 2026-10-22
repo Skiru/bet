@@ -17,7 +17,7 @@ import pytest
 
 from bet.sofa import player_model as pm
 from bet.sofa.comparability import MatchKind
-from scripts.sofa.build_coupon_pdf import context_label, watch_label
+from scripts.sofa.build_coupon_pdf import context_label, read_label
 from scripts.sofa.calibrate_from_cache import Played, iter_rows
 from scripts.sofa.find_friendly_competitions import (
     is_named_friendly,
@@ -103,16 +103,26 @@ def test_the_player_model_skips_a_preseason_game(tmp_path: Path) -> None:
 # --- the PDF's marks -------------------------------------------------------------
 
 
-def test_the_pdf_marks_a_kept_watch_and_a_context_flag() -> None:
-    leg = {"reads": [{"verdict": "WATCH", "author": "verifier",
-                      "reason": "model 9 pp over its sample <b>"}],
+def test_the_pdf_marks_every_read_and_a_context_flag() -> None:
+    leg = {"reads": [{"verdict": "KEEP", "author": "analyst",
+                      "reason": "Forti w 2. secie 8/10; rating 0,75"},
+                     {"verdict": "WATCH", "author": "verifier",
+                      "reason": "model 9 pp over its sample <b> & more"}],
            "context_flags": ["MAKEUP_FIXTURE(postponed 2026-09-06, event 1)"]}
-    assert "WATCH (verifier)" in watch_label(leg)
-    assert "&lt;b&gt;" in watch_label(leg)  # escaped for the PDF markup
+    label = read_label(leg)
+    assert "WATCH (weryfikator)" in label and "KEEP (analityk)" in label
+    assert label.index("WATCH") < label.index("KEEP")  # the worst verdict leads
+    assert "&lt;b&gt; &amp; more" in label  # escaped for the PDF markup
+    assert "Forti w 2. secie 8/10; rating 0,75" in label  # short: whole
     assert "MAKEUP_FIXTURE" in context_label(leg)
-    assert watch_label({}) == "" and context_label({}) == ""
-    assert watch_label({"reads": [{"verdict": "KEEP", "author": "analyst",
-                                   "reason": "x"}]}) == ""
+    assert read_label({}) == "" and context_label({}) == ""
+    # a long reason is cut before escaping: never a split entity
+    long = read_label({"reads": [{"verdict": "KEEP", "author": "analyst",
+                                  "reason": "&" * 300}]})
+    assert long.count("&amp;") == 139 and long.endswith("…</font>")
+    words = read_label({"reads": [{"verdict": "KEEP", "author": "analyst",
+                                   "reason": "abcdefghi " * 30}]})
+    assert "abcdefghi…" in words  # cut at a word
 
 
 # --- the friendly scanner --------------------------------------------------------

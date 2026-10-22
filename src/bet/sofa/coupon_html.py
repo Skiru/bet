@@ -87,6 +87,59 @@ def _verdict(leg: Mapping[str, Any]) -> str:
     return max(verdicts, key=lambda v: _VERDICT_RANK.get(v, 0), default="")
 
 
+def read_notes(leg: Mapping[str, Any]) -> list[dict[str, str]]:
+    """The reads riding on the leg (reads.json merged by CONFIDENCE /
+    coupon_sports.apply_reads): verdict, author and the reason as the analyst
+    or the verifier wrote it. Display only - the page shows what was read and
+    why, so an unread leg is never taken for a read one (2026-10-22: a builder
+    staked from four unread ITF legs)."""
+    return [{"verdict": str(r.get("verdict") or ""),
+             "author": str(r.get("author") or ""),
+             "reason": str(r.get("reason") or "")}
+            for r in leg.get("reads") or [] if isinstance(r, Mapping)]
+
+
+def _notes_by_key(doc: Mapping[str, Any]) -> dict[str, list[dict[str, str]]]:
+    """Every read leg of the artifact by the graders' key (coupon_results.
+    key_of), so a builder's leg - which carries no reads itself - shows the
+    read of the same leg."""
+    out: dict[str, list[dict[str, str]]] = {}
+    for src in ("singles", "legs", "removed_by_reads"):
+        for leg in doc.get(src) or []:
+            notes = read_notes(leg)
+            if not notes:
+                continue
+            try:
+                key = cr.key_of(leg)
+            except (KeyError, TypeError, ValueError):
+                continue  # a leg without a grader's key: nothing to join on
+            out.setdefault(key, notes)
+    return out
+
+
+def _event_of(leg: Mapping[str, Any]) -> str:
+    return str(leg.get("group_key") or leg.get("sofascore_event_id"))
+
+
+def read_events(doc: Mapping[str, Any]) -> list[str]:
+    """Matches with any read leg - printed or moved to removed_by_reads, so a
+    match whose read legs were all removed is not called unread."""
+    return sorted({_event_of(leg) for src in ("singles", "legs", "removed_by_reads")
+                   for leg in doc.get(src) or [] if read_notes(leg)})
+
+
+def _builder_leg_notes(x: Mapping[str, Any], eid: Any,
+                       notes_of: Mapping[str, list[dict[str, str]]]
+                       ) -> list[dict[str, str]]:
+    own = read_notes(x)
+    if own:
+        return own
+    try:
+        return notes_of.get(cr.key_of(x, eid), [])
+    except (KeyError, TypeError, ValueError):
+        return []
+
+
 def _sample(leg: Mapping[str, Any]) -> str:
     rate, n = leg.get("sample_hit_rate"), leg.get("sample_observations")
     if leg.get("sample_k") is not None and leg.get("sample_n"):
@@ -171,9 +224,10 @@ def build_view(
         fam = record.get(fr.family_key(leg))
         fam_plus = fr.on_plus(fam, min_legs)
         res = _result(leg, cr.of_leg(results, leg))
+        notes = read_notes(leg)
         rows.append({
             "id": i,
-            "event": str(leg.get("group_key") or leg.get("sofascore_event_id")),
+            "event": _event_of(leg),
             "match": str(leg.get("match") or ""),
             "competition": str(leg.get("competition") or ""),
             "sport": str(leg.get("sport") or "football"),
@@ -208,7 +262,11 @@ def build_view(
             # bet.sofa.price_gap: confidence above the price, the PDF's sentence
             "price_gap": price_gap_label(leg),
             "verdict": _verdict(leg),
+            # in the read set (confidence.legs_requiring_read) ...
             "read": id(leg) in read_ids,
+            # ... and what the read said; read_done = a read is on the leg
+            "notes": notes,
+            "read_done": bool(notes),
             "clock_note": clock["note"],
             "clock_checked": clock["checked"],
             # bet.sofa.family_record: the family's printed legs of the days
@@ -219,6 +277,7 @@ def build_view(
             "res_rank": None if res is None else _RES_RANK[res["status"]],
         })
     builders: list[dict[str, Any]] = []
+    notes_of = _notes_by_key(doc)
     printed_builders = cf.printed_builders(dict(doc))
     for b in printed_builders:
         ko = to_local(b.get("kickoff_utc"))
@@ -243,6 +302,8 @@ def build_view(
                 "confidence_txt": "—" if x.get("confidence") is None
                 else f"{float(x['confidence']):.3f}",
                 "odds_txt": "—" if x.get("odds") is None else str(x["odds"]),
+                "notes": _builder_leg_notes(x, b.get("sofascore_event_id"),
+                                            notes_of),
                 "res": None if results is None else _result(x, {
                     **(b_legs.get(cr.key_of(x, b.get("sofascore_event_id")))
                        or {"outcome": "PENDING", "status": cr.UNKNOWN,
@@ -257,6 +318,7 @@ def build_view(
         "rows": rows,
         "builders": builders,
         "meta": {
+            "read_events": read_events(doc),
             "built_local": f"{built:%H:%M}" if built else "",
             "fixture_check_local": f"{local_checked:%H:%M}" if local_checked else "",
             "positions": doc.get("positions"),

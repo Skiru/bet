@@ -3046,10 +3046,27 @@ jest PDF; HTML nie wycenia buildera i nie liczy stawki, a jedyna liczba,
 której nie ma w artefakcie, to rekord rodziny (niżej). Filtry: okno godzin
 (Europe/Warsaw, minuty od lokalnej północy dnia), minimalna pewność,
 minimalne x (pewność × kurs), kurs od-do, sport, turniej, rynek, kierunek, tekst,
-„ukryj zablokowane", „tylko czytane przez analityków"; kolumny sortowalne;
-grupowanie po meczu. Mecz, którego start z `fixture_status.json` różni się od
-zegara nogi, ma znacznik ⚠ z godziną FIXTURE_CHECK i godziną jego
-sprawdzenia (10-08: start z rana nie nadążał za przesunięciem meczu).
+„ukryj zablokowane", „tylko przeczytane przez analityków (z notatką)";
+kolumny sortowalne; grupowanie po meczu. Mecz, którego start z
+`fixture_status.json` różni się od zegara nogi, ma znacznik ⚠ z godziną
+FIXTURE_CHECK i godziną jego sprawdzenia (10-08: start z rana nie nadążał za
+przesunięciem meczu).
+
+**Notatki analityków (od 2026-10-22, tylko wyświetlanie).** Każdy odczyt z
+`reads.json`, który CONFIDENCE dołożył do nogi (`leg["reads"]`), jest na nodze:
+w HTML rozwijana notatka (werdykt, autor - analityk / weryfikator / automat -
+i pełne uzasadnienie; widać werdykt i początek tekstu), znacznik
+„przeczytana" przy KEEP (WATCH / NO_BET jak dotąd na czerwono), a mecz bez
+żadnej przeczytanej nogi na stronie ma znacznik „nieczytany". Noga buildera
+nie niesie odczytów - pokazuje odczyt tej samej nogi pojedynczej (klucz
+`coupon_results.key_of`) albo „nieczytana". Filtr „tylko przeczytane" liczy
+nogi z notatką (wcześniej: nogi z zestawu do czytania
+`confidence.legs_requiring_read`, także te, do których odczyt jeszcze nie
+dotarł). PDF (`build_coupon_pdf.read_label`): pod nogą każdy werdykt z
+autorem i pierwszymi 140 znakami uzasadnienia (ucięte na słowie; najgorszy
+werdykt pierwszy); noga buildera bez odczytu - „nieczytana". Niczego nie
+bramkuje; render wstecz pokazuje odczyty dnia, który je ma (10-22: Gengel -
+Lanik bez odczytu, Bondioli - Forti KEEP).
 
 `build_coupon_pdf.py` zapisuje HTML po każdym renderze PDF (także w
 `rebuild_day.py`), więc przebudowany kupon zawsze ma świeży HTML; błąd HTML

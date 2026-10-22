@@ -22,7 +22,9 @@ tr.lk td{color:var(--mut)}.tag{font-size:10.5px;padding:1px 5px;border-radius:3p
 h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:5px}
 .bl ul{margin:4px 0 0 16px;padding:0}
 tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
-.rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}.res{font-size:11.5px;white-space:nowrap}
+.rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}
+.ok{color:#1b7f4b;border-color:#1b7f4b}details.rn{margin-top:3px;font-size:11.5px;font-weight:400;color:var(--ink)}details.rn summary{cursor:pointer;color:var(--mut)}details.rn div{margin:2px 0 0 12px;white-space:pre-wrap}
+.vK{color:#1b7f4b}.vW{color:var(--warn)}.vN{color:var(--bad)}.res{font-size:11.5px;white-space:nowrap}
 #summary{margin:0 16px 24px;overflow-x:auto}
 .tabs{display:flex;gap:4px;padding:8px 16px 0;background:#fff;border-bottom:1px solid var(--line)}
 .tabs button{border-bottom:none;border-radius:5px 5px 0 0;background:#f1f3f6;color:var(--mut)}.tabs button.on{background:#fff;color:var(--ink);font-weight:600;border-color:var(--acc)}
@@ -55,7 +57,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label>szukaj<input type="search" id="q" placeholder="mecz, zawodnik, rynek"></label>
 <label id="reswrap">wynik<select id="res"><option value="">wszystkie</option><option value="won">weszło</option><option value="lost">nie weszło</option><option value="unknown">nie wiadomo / zwrot</option></select></label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
-<label class="chk"><input type="checkbox" id="readonly">tylko czytane przez analityków</label>
+<label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
 <label class="chk" id="famwrap"><input type="checkbox" id="famplus">tylko rodziny na plusie</label>
 <button id="best">x ≥ 1 i rodzina na plusie</button>
@@ -121,7 +123,7 @@ function pass(r){
   if($("fam").value&&r.family!==$("fam").value)return false;
   if($("dir").value&&r.direction!==$("dir").value)return false;
   if($("nolock").checked&&r.locked)return false;
-  if($("readonly").checked&&!r.read)return false;
+  if($("readonly").checked&&!r.read_done)return false;
   const rs=$("res").value;if(rs&&(!r.res||(rs==="unknown"?!(r.res.status==="unknown"||r.res.status==="refund"):r.res.status!==rs)))return false;
   const q=$("q").value.trim().toLowerCase();
   if(q&&!(r.match+" "+r.competition+" "+r.market+" "+r.family).toLowerCase().includes(q))return false;
@@ -137,14 +139,25 @@ function tags(r){let t="";
   if(r.fam_note)t+=' <span class="tag acc">'+esc(r.fam_note)+'</span>';
   if(r.locked)t+=' <span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+=' <span class="tag bad">'+r.verdict+'</span>';
+  else if(r.read_done)t+=' <span class="tag ok">przeczytana</span>';
   return t}
+// the analysts' reads riding on the leg (reads.json): verdict, author, reason;
+// the first note's opening words stay visible, the full text unfolds
+const WHO={analyst:"analityk",verifier:"weryfikator",auto:"automat"},VC={KEEP:"vK",WATCH:"vW",NO_BET:"vN"};
+function notesHtml(ns){if(!ns||!ns.length)return "";const a=ns[0].reason,cut=a.length>110?a.slice(0,110)+"…":a;
+  return '<details class="rn"><summary>'+ns.map(n=>'<b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> ('+esc(WHO[n.author]||n.author)+')').join(", ")+': '+esc(cut)+'</summary>'+
+   ns.map(n=>'<div><b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> <span class="note">('+esc(WHO[n.author]||n.author)+')</span> '+esc(n.reason)+'</div>').join("")+'</details>'}
+// a match with no read leg in the artifact (printed or removed by a read)
+// carries a warning, whatever the filter shows
+const EVREAD=new Set(V.meta.read_events||R.filter(r=>r.read_done).map(r=>r.event));
 function matchHead(g){const r=g[0];let n="";
   if(r.clock_note)n=' <span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
+  if(!EVREAD.has(r.event))n+=' <span class="tag warn">nieczytany - żadna noga nie ma odczytu analityka</span>';
   return '<tr class="m"><td>'+esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!=="__DATE__"?" ("+esc(r.ko_local.slice(5,10))+")":"")+
    '</td><td colspan="'+(COLS.length-1)+'">'+esc(r.match)+(r.res&&r.res.score?' <span class="tag">wynik '+esc(r.res.score)+'</span>':'')+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
    ' <span class="tag">'+g.length+' nóg, śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></td></tr>'}
 function line(r){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
- return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+notesHtml(r.notes)+
  '</td><td>'+esc(r.line)+'</td><td>'+esc(r.direction)+'</td><td class="n"><b>'+r.confidence_txt+'</b></td><td class="n">'+r.odds_txt+
  '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td>'+resCell(r.res)+'</td>':'')+'</tr>'}
 function render(){
@@ -172,7 +185,8 @@ function render(){
    (b.res?(b.res.score?'<span class="tag">wynik '+esc(b.res.score)+'</span> ':'')+'<span class="'+RC[b.res.status]+'">Builder: '+esc(b.res.word)+'</span>':'')+
    '<span class="note"> '+esc(b.competition)+' • p łączne '+b.combined_txt+' • kurs buildera: sprawdź na ekranie Superbetu</span><ul>'+
    b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
-     (l.res?' • było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+     (l.res?' • było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+
+     (l.notes&&l.notes.length?notesHtml(l.notes):' <span class="tag warn">nieczytana</span>')+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
 const pc=(a,n)=>n?(100*a/n).toFixed(1)+"%":"—";
 function renderSummary(rows){
   if(!RES){$("sh").style.display="none";$("reswrap").style.display="none";return}

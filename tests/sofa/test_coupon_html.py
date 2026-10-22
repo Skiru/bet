@@ -165,7 +165,6 @@ def _expected(doc: dict[str, Any], day: str, f: dict[str, Any],
     tz = ZoneInfo("Europe/Warsaw")
     midnight = datetime.combine(date.fromisoformat(day), time(), tzinfo=tz)
     from bet.sofa import confidence as cf
-    read = {id(x) for x in cf.legs_requiring_read(doc)}
     out: set[int] = set()
     for i, leg in enumerate(cf.printed_singles(doc)):
         ko = datetime.fromisoformat(
@@ -191,7 +190,7 @@ def _expected(doc: dict[str, Any], day: str, f: dict[str, Any],
             and not (f.get("famplus") and f"{leg['sport']}|{leg['market']}|"
                      f"{leg['direction']}" not in plus)
             and not (f.get("nolock") and leg.get("locked"))
-            and not (f.get("readonly") and id(leg) not in read)
+            and not (f.get("readonly") and not leg.get("reads"))
             and ("q" not in f or f["q"].lower() in hay)
         )
         if ok:
@@ -410,6 +409,9 @@ def _synthetic(n: int = 90, seed: int = 3) -> dict[str, Any]:
             competition=rng.choice(["ITF A", "Liga B", "NHL"]),
             sample_hit_rate=rng.choice([0.9, 0.8, 0.95]),
             sample_observations=rng.choice([10, 20])))
+        if i % 4 == 1:  # read; the reason carries markup that must stay text
+            singles[-1]["reads"] = [{"verdict": "KEEP", "author": "analyst",
+                                     "reason": f"<b>form</b> & 'h2h' {i}"}]
         if i % 7 == 0:  # an artifact's own rounded x, off confidence x odds
             leg = singles[-1]
             leg["x"] = round(leg["confidence"] * leg["offered_odds"], 4) + (
@@ -494,3 +496,97 @@ def test_the_peer_note_is_the_pdfs_own_sentence() -> None:
     assert rows[1]["starred"] and rows[1]["peer"] == label(doc["singles"][1])
     assert "najpewniejsza z 2 nóg tego meczu w pasie kursu 1.04" in rows[1]["peer"]
     assert rows[2]["peer"] == "" and not rows[2]["starred"]
+
+
+# --- the analysts' notes ---------------------------------------------------------
+
+
+def _read_doc() -> dict[str, Any]:
+    doc = _doc()
+    doc["singles"][2]["reads"] = [
+        {"verdict": "KEEP", "author": "analyst", "reason": "Form holds <i>x</i>."},
+        {"verdict": "WATCH", "author": "verifier", "reason": "Rest & travel."}]
+    bleg = {k: doc["singles"][2][k] for k in ("market", "subject", "line",
+                                               "direction", "confidence")}
+    doc["builders"] = [{
+        "sofascore_event_id": 2, "match": "Noon - Match", "competition": "ITF X",
+        "kickoff_utc": "2026-10-08T09:30:00Z", "combined_probability": 0.6,
+        "best_for_fixture": True, "ev_after_haircut": 0.1,
+        "legs": [{**bleg, "odds": 1.2},
+                 {**bleg, "market": "games_total", "subject": "", "odds": 1.3}]}]
+    return doc
+
+
+def test_a_read_legs_notes_ride_on_its_row_and_its_builder_leg() -> None:
+    view = ch.build_view(_read_doc(), "2026-10-08", None)
+    rows = view["rows"]
+    assert rows[2]["read_done"] and [n["author"] for n in rows[2]["notes"]] == [
+        "analyst", "verifier"]
+    assert rows[2]["notes"][0]["reason"] == "Form holds <i>x</i>."
+    assert not rows[1]["read_done"] and rows[1]["notes"] == []
+    # a builder's leg carries no reads itself: it shows the single's read of
+    # the same leg, and none where no single of that leg was read
+    legs = view["builders"][0]["legs"]
+    assert legs[0]["notes"] == rows[2]["notes"] and legs[1]["notes"] == []
+
+
+def test_read_notes_skip_a_leg_without_a_graders_key() -> None:
+    doc = _read_doc()
+    doc["legs"] = [{"reads": [{"verdict": "KEEP"}]}]  # no event, no market
+    doc["builders"][0]["legs"].append({"odds": 1.1})  # a builder leg too
+    legs = ch.build_view(doc, "2026-10-08", None)["builders"][0]["legs"]
+    assert legs[-1]["notes"] == []
+
+
+def test_a_match_whose_read_legs_were_all_removed_is_not_unread() -> None:
+    doc = _doc()
+    removed = _leg(3, "Late - Match", "2026-10-08T22:30:00Z", 0.8,
+                   sport="football", reads=[{"verdict": "WATCH",
+                                             "author": "analyst", "reason": "r"}])
+    doc["removed_by_reads"] = [removed]
+    events = ch.build_view(doc, "2026-10-08", None)["meta"]["read_events"]
+    assert "sofa:3" in events and "sofa:2" in events and "sofa:1" not in events
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_the_page_shows_each_read_and_names_an_unread_match(tmp_path: Path) -> None:
+    page = ch.render_html("2026-10-08", ch.build_view(_read_doc(), "2026-10-08",
+                                                      None))
+    probe = """
+const set=(id,v)=>{const e=document.getElementById(id);e.checked=v;
+ e.dispatchEvent(new Event("input"))};
+const out={};
+out.notes=[...document.querySelectorAll("#body details.rn")].map(d=>d.textContent);
+out.markup=document.querySelectorAll("#body details.rn i").length;
+out.unread=[...document.querySelectorAll("#body tr.m")].filter(
+ tr=>tr.textContent.includes("nieczytany")).map(tr=>tr.textContent.slice(0,40));
+out.kept=document.querySelectorAll("#body .tag.ok").length;
+out.blnotes=document.querySelectorAll("#builders details.rn").length;
+out.blunread=[...document.querySelectorAll("#builders .tag.warn")].length;
+set("readonly",true);
+out.readonly=[...document.querySelectorAll("#body tr:not(.m)")].length;
+const pre=document.createElement("pre");pre.id="probe";
+pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
+"""
+    html = tmp_path / "probe.html"
+    html.write_text(page.replace("</body>", f"<script>{probe}</script></body>"),
+                    encoding="utf-8")
+    dom = subprocess.run(
+        [CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=10000",
+         "--dump-dom", html.as_uri()],
+        capture_output=True, text=True, timeout=60, check=True).stdout
+    m = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
+    assert m, "the page's script did not run"
+    import html as htmllib
+    out = json.loads(htmllib.unescape(m.group(1)))
+    assert len(out["notes"]) == 1
+    note = out["notes"][0]
+    assert "KEEP (analityk)" in note and "WATCH (weryfikator)" in note
+    assert "Form holds <i>x</i>." in note and "Rest & travel." in note
+    assert out["markup"] == 0  # the reason is text, never markup
+    # the leg's WATCH is the bad tag, not "przeczytana"
+    assert out["kept"] == 0
+    # Early and Late have no read leg; Noon has one
+    assert len(out["unread"]) == 2 and not any("Noon" in u for u in out["unread"])
+    assert out["blnotes"] == 1 and out["blunread"] == 1
+    assert out["readonly"] == 1
