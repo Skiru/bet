@@ -171,7 +171,7 @@ def test_only_a_run_that_walked_its_whole_queue_completes_a_hop():
     assert hop_completed(3, 10, False, False)
 
 
-def _main(monkeypatch, tmp_path, rows, argv):
+def _main(monkeypatch, tmp_path, rows, argv, index=None):
     import types
 
     import scripts.sofa.backfill_listings as bl
@@ -187,7 +187,7 @@ def _main(monkeypatch, tmp_path, rows, argv):
         def __init__(self, db):
             pass
 
-    monkeypatch.setattr(bl, "IndexCounter", NoIndex)
+    monkeypatch.setattr(bl, "IndexCounter", index or NoIndex)
     seed = tmp_path / "seed.json"
     monkeypatch.setattr("sys.argv", ["backfill_listings.py", "--seed-file",
                                      str(seed), *argv])
@@ -221,3 +221,39 @@ def test_an_empty_hop_moves_the_seed_to_now_and_a_dry_run_writes_nothing(
                         lambda *a: [])
     rc, _ = _main(monkeypatch, tmp_path, rows, [])
     assert rc == 0 and json.loads(seed.read_text())["football"]["seed_before"] > old
+
+
+def test_the_empty_hop_check_counts_what_the_index_holds(
+        monkeypatch, tmp_path, capsys):
+    """2026-10-22 night: plan() was asked before the index counter was
+    attached, so a hop whose gaps the index covers looked unwalked - the
+    seed stayed at 09-30 and the counted plan (with the index) was empty:
+    hockey listings 'DONE' at 0 where the moved seed queued 77."""
+    import time
+
+    import scripts.sofa.backfill_listings as bl
+
+    now = int(time.time())
+    old = "2026-09-30T17:29:57+00:00"
+    rows = [(1, 0, _page([_event(11, now - DAY, 1, 2)], has_next=False),
+             "2026-10-20T00:00:00+00:00")]
+
+    class Index:
+        available = True
+
+        def __init__(self, db):
+            pass
+
+        def __call__(self, entity_id, after_ts, before_ts):
+            return 10**6
+
+    def counted_plan(states, *a):
+        # a gap only the index covers: open without it, closed with it
+        return [s for s in states.values() if s.indexed is None]
+
+    monkeypatch.setattr(bl, "plan", counted_plan)
+    (tmp_path / "seed.json").write_text(json.dumps({"football": old}))
+    rc, seed = _main(monkeypatch, tmp_path, rows, [], index=Index)
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[0])
+    assert rc == 0 and out["seed_advanced"]
+    assert json.loads(seed.read_text())["football"]["seed_before"] > old

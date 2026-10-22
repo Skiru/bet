@@ -546,7 +546,18 @@ def main() -> int:
     board = board_entities(config.runs_dir, args.sport)
     seed = args.seed_before or seed_cut(
         seed_path, args.sport, started_at, record=not args.dry_run)
-    states = scan(rows, SPORT_SLUGS[args.sport], recent, seed)
+    counter = IndexCounter(config.db_path)
+
+    def indexed(states: dict[int, EntityState]) -> dict[int, EntityState]:
+        # Before any plan(): a gap the index covers is no gap. The empty-hop
+        # check once ran without it, so on 2026-10-22 a hockey hop the index
+        # had walked kept its 09-30 seed and the counted plan was empty.
+        if counter.available:
+            for s in states.values():
+                s.indexed = counter
+        return states
+
+    states = indexed(scan(rows, SPORT_SLUGS[args.sport], recent, seed))
     seed_advanced = False
     if args.seed_before is None and seed < started_at and not plan(
             states, board, since, recent):
@@ -555,11 +566,7 @@ def main() -> int:
         seed, seed_advanced = started_at, True
         if not args.dry_run:
             advance_seed(seed_path, args.sport, started_at, config.run_id)
-        states = scan(rows, SPORT_SLUGS[args.sport], recent, seed)
-    counter = IndexCounter(config.db_path)
-    if counter.available:
-        for s in states.values():
-            s.indexed = counter
+        states = indexed(scan(rows, SPORT_SLUGS[args.sport], recent, seed))
     todo = plan(states, board, since, recent)
     if args.limit is not None:
         todo = todo[: args.limit]
