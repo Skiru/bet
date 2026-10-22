@@ -68,7 +68,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
-from bet.sofa import cs2
+from bet.sofa import cs2, epochs
 from bet.sofa.comparability import competition_id
 from bet.sofa.entity_map import learned_id
 from bet.sofa.errors import CircuitOpenError, ProviderError
@@ -137,10 +137,33 @@ def iso(at: datetime) -> str:
     return at.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
+def day_window_end(date: str) -> datetime:
+    """end(D): D+1 epochs.LATE_WINDOW_END_H:00Z while
+    epochs.sport_late_window(D), else D+1 00:00Z."""
+    end = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC) + timedelta(days=1)
+    if epochs.sport_late_window(date):
+        end += timedelta(hours=epochs.LATE_WINDOW_END_H)
+    return end
+
+
 def day_window(date: str) -> tuple[datetime, datetime]:
-    """[D 00:00Z, D+1 00:00Z): the day a sport leg belongs to."""
-    start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
-    return start, start + timedelta(days=1)
+    """[end(D-1), end(D)): the day a sport leg belongs to. Before
+    epochs.SPORT_LATE_WINDOW_FROM_UTC that is [D 00:00Z, D+1 00:00Z); from
+    it D runs to D+1 05:00Z, so a game after midnight UTC is the evening's.
+    Consecutive days meet end to end - no gap, no overlap, across the
+    switch too (10-23 = [10-23 00:00Z, 10-24 05:00Z))."""
+    prev = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime(
+        "%Y-%m-%d")
+    return day_window_end(prev), day_window_end(date)
+
+
+def late_window(date: str, kickoff: datetime) -> bool:
+    """A game of D's window that starts on D+1 (UTC): the evening's late
+    part, stamped `window: "late"` on its legs."""
+    next_day = (datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
+                + timedelta(days=1))
+    return (epochs.sport_late_window(date)
+            and next_day <= kickoff < day_window_end(date))
 
 
 def _newest(ev: Any) -> datetime:

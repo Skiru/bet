@@ -97,6 +97,11 @@ stage stops the stages after it (`SKIPPED`).
   price (football / tennis 45 min, measured sports 3 h; a moved price
   re-prices the leg). Every passing single prints - no page limit. Order:
   confidence, then earlier start, one match's legs together.
+- **Day window:** football / tennis the UTC day; hockey / basketball /
+  volleyball / CS2 from 2026-10-23 [end(D-1), D+1 05:00Z)
+  (`sport_identity.day_window`) - a game after midnight UTC is D's leg
+  (`window: "late"`, graded from its `source_date` file), added by the
+  operator's manual evening rebuild (~20:00-21:00Z); morning legs stay locked.
 - **Bet Builders:** one per fixture, by `combined_probability`; stakeable at
   combined p x haircut odds >= 0.90 (internal). sofa never prints a builder
   price: the PDF says "kurs buildera: sprawdź na ekranie Superbetu".
@@ -121,6 +126,7 @@ Refusals you will meet (named on the row; each is the code working):
 | `MODEL_ABOVE_OWN_SAMPLE` | football non-prop row (player props excluded): model > own hit rate + 0.15, automatic removal into `removed_by_reads` |
 | `FIXTURE_NOT_AS_SCHEDULED` | postponed / cancelled per FIXTURE_CHECK (`UNVERIFIED` = not checked, never a refusal) |
 | `FRIENDLY_FIXTURE`, `NO_LEAGUE_RATE` | friendly / competition under 30 matches (measured sports) |
+| `ALREADY_PRINTED_PREV_DAY` | measured-sport event already on D-1's printed coupon (from 2026-10-23) |
 | `NOT_IDENTIFIED`, `TOURNAMENT_NEVER_SETTLED`, `NO_MODEL_P`, `LINE_OUTSIDE_FIT` | sport identity missing / volleyball tournament with no settled event in 14 days / no model p (incl. CS2 without `best_of`) / CS2 team-rounds line outside 9.5-12.5 |
 | `market_thin:` / `cap:` in `calibrated_on` | K13 cap / price-band cap lowered the leg - a cap, not a refusal |
 

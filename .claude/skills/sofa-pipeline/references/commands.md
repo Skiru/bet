@@ -49,6 +49,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>     
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE   # settle the hockey / basketball / volleyball day
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE      # settle the CS2 day
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>   # CS2 re-settle sweep
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_shadow.py --date <D+1> --kickoff-before <D+1>T05:00:00Z   # D's late games (SPORT_LATE_WINDOW; the loops do it; settle_cs2.py alike)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py [--days 14] [--dry-run]   # bridge; the sports' finished games enter the history (run first by refresh_line_evidence.py)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows] [--skip-history]   # every morning, bridge up first (step 0 refreshes the sports' history), after D-1 is recorded, before D's CONFIDENCE (sofa-day 1a: bridge part first, fits with --skip-history beside RESOLVE); ~15-20 min, the sport fits in parallel; exit 1 = a sport's row fit failed, earlier rows reused
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; statistic gaps close days later; no bridge = exit 1

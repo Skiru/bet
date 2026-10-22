@@ -443,6 +443,32 @@
       "evidence": [
         {"source": "tests/sofa/test_basketball_player_v2.py", "line": 1, "quote": "Nine more basketball player lines (shadow.PLAYER_V2_MARKETS)"}
       ]
+    },
+    {
+      "id": "T-SPORT-LATE-WINDOW",
+      "registered_on": "2026-10-22",
+      "status": "REGISTERED",
+      "hypothesis": "The measured-sport legs a day's coupon prints for games starting after midnight UTC (window \"late\", epochs.SPORT_LATE_WINDOW_FROM_UTC - priced by the evening rebuild) realise like that day's other measured-sport legs: realised minus confidence of the late legs is not below the rest's.",
+      "rule": "Over the coupon's hockey / basketball / volleyball / CS2 singles (11_coupon.json, graded WIN / LOSS by coupon_sports.grade from the settled.json of each leg's source_date - the ledger's grade), split by the leg's `window` field (\"late\" or absent). Report realised minus mean confidence per group and the late-minus-rest difference, and ROI at the printed price; per sport and pooled (the pooling named).",
+      "population": "Measured-sport singles of the official coupon of days from 2026-10-23, locked legs included, a leg removed by a read excluded.",
+      "data_window": {
+        "from": "2026-10-23",
+        "to": "2027-01-22"
+      },
+      "required_n": {
+        "legs": 300,
+        "matches_min": 100,
+        "basis": "10-21's files held 38 games starting 10-22 00:00-05:00Z (8 hockey, 18 basketball, 10 volleyball, 2 CS2; read-only replay of sport_identity.snapshot_events with the window on); a few printed late legs per game over ~30 evenings gives about this many."
+      },
+      "evaluation": "Difference of (realised - confidence) late minus rest with a 95% interval from resampling games (legs of one game are not independent).",
+      "stop_criterion": "PASSED when the difference's lower 95% bound is above -3 pp at the required n; FAILED when its upper bound is below 0 at the required n (the evening's late legs over-promise against the day's; reported to the operator, who decides about the window).",
+      "evidence": [
+        {
+          "source": "src/bet/sofa/epochs.py",
+          "line": 2879,
+          "quote": "SPORT_LATE_WINDOW_FROM_UTC: datetime | None = datetime(2026, 10, 23, tzinfo=UTC)"
+        }
+      ]
     }
   ]
 }

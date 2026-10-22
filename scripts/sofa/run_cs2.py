@@ -15,7 +15,13 @@ event. Superbet only; no bridge, no Sofascore.
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py \\
         --date 2026-09-28 --only CS2
 
-Writes runs/sofa/cs2/<date>/snapshots.jsonl. Exit: 0 OK, 1 PARTIAL (an event
+From epochs.SPORT_LATE_WINDOW_FROM_UTC a series of D+1 that starts inside D's
+sport window (before D+1 05:00Z, sport_identity.day_window) is snapshotted
+too, into D+1's file: it is D's coupon's, and D+1's own loop starts only at
+23:30Z on D - after the operator's evening rebuild.
+
+Writes runs/sofa/cs2/<date>/snapshots.jsonl (and <date+1>/ for those).
+Exit: 0 OK, 1 PARTIAL (an event
 fetch failed), 2 FAILED (the board itself could not be read).
 """
 
@@ -33,6 +39,8 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa import epochs  # noqa: E402
+from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import (  # noqa: E402
     SNAPSHOTS_FILE,
@@ -65,18 +73,22 @@ def tournament_names(client: SuperbetClient) -> dict[str, str]:
     }
 
 
-def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]:
-    """Append one snapshot of the day's not-yet-started CS2 lines."""
+def snapshot(date: str, client: SuperbetClient, runs_dir: str,
+             at: datetime | None = None) -> dict[str, Any]:
+    """Append one snapshot of the day's not-yet-started CS2 lines (and, from
+    epochs.SPORT_LATE_WINDOW_FROM_UTC, of D+1's inside D's window)."""
     start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=UTC)
+    next_day = (start + timedelta(days=1)).strftime("%Y-%m-%d")
+    late_end = si.day_window_end(date) if epochs.sport_late_window(date) else None
     try:
         rows = client.events_by_date(
-            start, start + timedelta(days=1), offer_state="prematch"
+            start, late_end or start + timedelta(days=1), offer_state="prematch"
         )
     except Exception as exc:
         return {"verdict": "FAILED", "error": f"{type(exc).__name__}: {exc}"}
     rows = [r for r in rows if r.get("sportId") == SUPERBET_CS2_SPORT_ID]
     names = tournament_names(client) if rows else {}
-    at = now()
+    at = at or now()
     fetched_at = at.isoformat().replace("+00:00", "Z")
     out = cs2_day_dir(runs_dir, date) / SNAPSHOTS_FILE
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +99,9 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
         "lines": 0,
         "fetch_failed": 0,
     }
-    records = []
+    if late_end is not None:
+        metrics["next_day_events_with_lines"] = 0
+    records: dict[str, list[dict[str, Any]]] = {date: [], next_day: []}
     fetched_ok = 0
     not_reached = 0
     for index, r in enumerate(rows):
@@ -97,12 +111,17 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
             )
         except ValueError:
             continue
-        if kickoff.astimezone(UTC).strftime("%Y-%m-%d") != date:
+        day = kickoff.astimezone(UTC).strftime("%Y-%m-%d")
+        if day == next_day and late_end is not None and kickoff < late_end:
+            if kickoff <= at:
+                continue
+        elif day != date:
             continue
-        metrics["events_on_board"] += 1
-        if kickoff <= at:
-            metrics["started"] += 1
-            continue
+        else:
+            metrics["events_on_board"] += 1
+            if kickoff <= at:
+                metrics["started"] += 1
+                continue
         team1, team2 = split_match_name(r.get("matchName"))
         if not team1 or not team2:
             continue
@@ -121,9 +140,12 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
         lines = parse_event(odds_items(payload), event_id, team1, team2)
         if not lines:
             continue
-        metrics["events_with_lines"] += 1
-        metrics["lines"] += len(lines)
-        records.append(
+        if day == date:
+            metrics["events_with_lines"] += 1
+            metrics["lines"] += len(lines)
+        else:
+            metrics["next_day_events_with_lines"] += 1
+        records[day].append(
             {
                 "fetched_at_utc": fetched_at,
                 "superbet_event_id": event_id,
@@ -140,8 +162,10 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str) -> dict[str, Any]
         )
     # One write per snapshot, appended whole: a crash mid-loop loses this
     # snapshot, never corrupts an earlier one.
-    if records:
-        append_records(out, records)
+    for day, recs in records.items():
+        if recs:
+            # D+1's own loop may append to its file too: append_records locks
+            append_records(cs2_day_dir(runs_dir, day) / SNAPSHOTS_FILE, recs)
     return {
         "verdict": snapshot_verdict(metrics["fetch_failed"], fetched_ok, not_reached),
         "breaker_open": bool(not_reached),

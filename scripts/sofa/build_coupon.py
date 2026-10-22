@@ -50,6 +50,7 @@ from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
 from bet.sofa import price_gap as pg  # noqa: E402
+from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa import stakes as stakes_mod  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -58,6 +59,7 @@ from bet.sofa.confidence import (  # noqa: E402
     COUPON_ARTIFACT,
     coupon_order,
     group_key,
+    is_sheet_sport,
     is_stakeable,
     load_read_requests,
     request_covers,
@@ -173,8 +175,7 @@ def assemble(
 
     outside_window = 0
     if date is not None:
-        lo, hi = f"{date}T00:00:00", f"{day_after(date)}T00:00:00"
-        kept = [s for s in fresh if lo <= str(s.get("kickoff_utc") or "") < hi]
+        kept = [s for s in fresh if in_day_window(s, date)]
         outside_window = len(fresh) - len(kept)
         fresh = kept
     fresh, removed_by_form = cf.apply_form(fresh, form, form_active)
@@ -340,6 +341,23 @@ def coupon_structure(
 
 def day_after(date: str) -> str:
     return (datetime.date.fromisoformat(date) + datetime.timedelta(days=1)).isoformat()
+
+
+def in_day_window(leg: dict[str, Any], date: str) -> bool:
+    """K3's day window: football / tennis the UTC day; a measured sport's
+    leg sport_identity.day_window (to D+1 05:00Z from
+    epochs.SPORT_LATE_WINDOW_FROM_UTC)."""
+    kickoff = str(leg.get("kickoff_utc") or "")
+    if is_sheet_sport(leg):
+        return f"{date}T00:00:00" <= kickoff < f"{day_after(date)}T00:00:00"
+    try:
+        at = datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=datetime.UTC)
+    lo, hi = si.day_window(date)
+    return lo <= at < hi
 
 
 def prepare_sports(

@@ -85,6 +85,11 @@ leaves the audits out and says so - a skipped audit is not a passed one.
   printed match is `FIXTURE_NOT_AS_SCHEDULED`; a 403 stops it - never retry into a refusal.
 - Locked legs (`12_printed.json`, match started) stay as printed, first and unnumbered; a leg
   removed before its start stays removed. Not a defect.
+- The evening rebuild (from 2026-10-23, the operator's, ~20:00-21:00Z): a measured sport's
+  day runs to D+1 05:00Z (`sport_identity.day_window`), so the plan's SHADOW / CS2 refresh
+  reaches the games after midnight UTC (on file in D+1's snapshots) and SPORT_IDENTITY pins
+  them; their legs carry `window: "late"`. Report how many late legs were added per sport;
+  re-read with `read_set.py --unread` until C3 is clean.
 - `build_coupon_pdf.py` refuses `STALE_CONFIDENCE` / `STALE_COUPON`: fix the cause and re-run
   the whole rebuild, never only the PDF.
 - SPORT_CONFIDENCE exit 1 = a sport `NOT_CALIBRATED` or without `sport_fixtures.json`;

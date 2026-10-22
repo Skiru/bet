@@ -11,6 +11,10 @@ is graded) or when no earlier run today has recorded it at all (so an event
 priced once and never again still has a price). An event of the NEXT day that
 starts within the horizon is fetched too, into that day's file: late North
 American games start after 00:00Z, before the next day's own loop is running.
+From epochs.SPORT_LATE_WINDOW_FROM_UTC such a game that starts inside D's
+window (before D+1 05:00Z, sport_identity.day_window) is fetched once even
+beyond the horizon, as the day's own games are: it is D's coupon's, and the
+evening rebuild (rebuild_plan) must see it on file to refresh it.
 
 Cost: one /events/by-date call plus one /events/{id} per event in scope,
 sequential. Superbet only; no bridge, no Sofascore.
@@ -44,6 +48,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
         sys.path.insert(0, _path)
 
 from bet.sofa import epochs  # noqa: E402
+from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
@@ -107,6 +112,11 @@ def snapshot(
     # snapshots after midnight must see the next morning's early games (the
     # fixed "day + horizon" end stopped at 03:00Z D+1 - review round 4).
     window_end = max(start + timedelta(days=1), at or now()) + horizon
+    # epochs.SPORT_LATE_WINDOW_FROM_UTC: the board is asked up to the end of
+    # the day's sport window at least (D+1 05:00Z)
+    late_end = si.day_window_end(date) if epochs.sport_late_window(date) else None
+    if late_end is not None:
+        window_end = max(window_end, late_end)
     try:
         rows = client.events_by_date(start, window_end, offer_state="prematch")
     except Exception as exc:
@@ -155,9 +165,12 @@ def snapshot(
             continue
         day = kickoff.strftime("%Y-%m-%d")
         if day == next_day:
-            # Only what starts within the horizon; the rest is that day's own
+            # Only what starts within the horizon - or, from
+            # epochs.SPORT_LATE_WINDOW_FROM_UTC, inside D's window (fetched
+            # once beyond the horizon, below); the rest is that day's own
             # loop's to record.
-            if kickoff <= at or kickoff - at > horizon:
+            in_window = late_end is not None and kickoff < late_end
+            if kickoff <= at or (kickoff - at > horizon and not in_window):
                 continue
         elif day != date:
             continue
@@ -262,9 +275,6 @@ def pinned_teams(runs_dir: str, sport: str, day: str) -> dict[str, tuple[int, in
     """Superbet event id -> (team1, team2) Sofascore ids of every game
     SPORT_IDENTITY IDENTIFIED in runs/sofa/<d>/sport_fixtures.json, d = the
     snapshot's day and its neighbours (a loop pins D and D+1)."""
-
-    from bet.sofa import sport_identity as si
-
     base = datetime.strptime(day, "%Y-%m-%d")
     out: dict[str, tuple[int, int]] = {}
     for delta in (-1, 0, 1):

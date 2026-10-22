@@ -50,8 +50,9 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import epochs, timeutil  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
-from bet.sofa import timeutil  # noqa: E402
+from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.clv import CLOSE_MIN_MINUTES  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
@@ -161,21 +162,44 @@ def offer_check(run: Path, now: datetime) -> Check:
                  f"<= {OFFER_MAX_AGE.total_seconds() / 60:.0f} min")
 
 
+def _sport_day_over(date: str, now: datetime) -> bool:
+    """The measured sports' day is over at the end of its window
+    (sport_identity.day_window: D+1 05:00Z from
+    epochs.SPORT_LATE_WINDOW_FROM_UTC, else D+1 00:00Z)."""
+    return now >= si.day_window_end(date)
+
+
 def sport_checks(runs: Path, date: str, now: datetime) -> list[Check]:
+    """The newest snapshot of each measured sport for D - and, while D's
+    window runs into D+1 (epochs.sport_late_window), of D+1's file too:
+    D's late games are snapshotted there."""
     out = []
-    dirs = {s: runs / "shadow" / s / date for s in MEASURED}
-    dirs["cs2"] = runs / "cs2" / date
-    for sport, d in dirs.items():
-        path = d / "snapshots.jsonl"
-        if not path.exists():
-            out.append(Check(f"sport:{sport}", WARN, f"no {path}"))
+    days = [date]
+    if epochs.sport_late_window(date):
+        days.append((datetime.fromisoformat(date) + timedelta(days=1))
+                    .strftime("%Y-%m-%d"))
+    over = _sport_day_over(date, now)
+    for sport in (*MEASURED, "cs2"):
+        base = runs / "cs2" if sport == "cs2" else runs / "shadow" / sport
+        paths = [base / d / "snapshots.jsonl" for d in days]
+        present = [p for p in paths if p.exists()]
+        if not present:
+            out.append(Check(f"sport:{sport}", WARN, f"no {paths[0]}"))
             continue
-        rec = last_jsonl_record(path)
-        if not rec or not rec.get("fetched_at_utc"):
-            out.append(Check(f"sport:{sport}", BROKEN, f"{path}: no readable record"))
+        stamps: list[datetime] = []
+        broken: list[Path] = []
+        for path in present:
+            rec = last_jsonl_record(path)
+            if not rec or not rec.get("fetched_at_utc"):
+                broken.append(path)
+                continue
+            stamps.append(_utc(str(rec["fetched_at_utc"])))
+        if broken:
+            out.append(Check(f"sport:{sport}", BROKEN,
+                             f"{broken[0]}: no readable record"))
             continue
-        t = _utc(str(rec["fetched_at_utc"]))
-        stale = now - t > SPORT_SNAPSHOT_MAX_AGE and not _day_over(date, now)
+        t = max(stamps)
+        stale = now - t > SPORT_SNAPSHOT_MAX_AGE and not over
         out.append(Check(f"sport:{sport}", WARN if stale else OK,
                          f"newest snapshot {_z(t)} ({_age(now, t)} ago)"))
     return out

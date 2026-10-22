@@ -2892,3 +2892,33 @@ def identity_gate_per_family(date: str, build_at: datetime | None = None) -> boo
     at = build_at if build_at is not None else timeutil.now()
     return (date >= IDENTITY_GATE_PER_FAMILY_FROM_UTC.strftime("%Y-%m-%d")
             and at >= IDENTITY_GATE_PER_FAMILY_FROM_UTC)
+
+
+# --- Measured sports: the rolling day window (2026-10-23) --------------------
+# A hockey / basketball / volleyball / CS2 leg belonged to the UTC day of its
+# start, so the North American evening (NBA / NHL from ~23:00Z to ~04:00Z)
+# fell into the NEXT day's coupon, whose morning build found those games
+# already under way: 10-22's last SPORT_CONFIDENCE refused 276 hockey and
+# 4,927 basketball sides KICKED_OFF (08_confidence_sports.json; 3,893
+# basketball / hockey rows in the planning pass's build). On, day D's window
+# is [end(D-1), end(D)) with end(D) = D+1 LATE_WINDOW_END_H:00Z - the games
+# after midnight UTC belong to D, priced by the operator's manual evening
+# rebuild (rebuild_day.py --date D, ~20:00-21:00Z), which appends them to D's
+# coupon (morning legs stay locked). Football and tennis keep the UTC day.
+# A scope change, not a pricing change, but it changes what prints: from
+# 2026-10-23 00:00Z by the operator's decision of 2026-10-22; ledger group
+# "od 10-23". Read by DATE only - the window must partition the timeline
+# (10-22 = [10-22 00:00Z, 10-23 00:00Z), 10-23 = [10-23 00:00Z,
+# 10-24 05:00Z), no gap, no overlap), so a build's clock never moves it.
+SPORT_LATE_WINDOW_FROM_UTC: datetime | None = datetime(2026, 10, 23, tzinfo=UTC)
+LATE_WINDOW_END_H = 5
+# the stamp on a sport leg starting on D+1 (inside D's window)
+LATE_WINDOW_MARKER = "late"
+
+
+def sport_late_window(date: str) -> bool:
+    """Does day D's measured-sport window run to D+1 LATE_WINDOW_END_H:00Z
+    (SPORT_LATE_WINDOW_FROM_UTC)? By the day alone, never the build clock."""
+    if SPORT_LATE_WINDOW_FROM_UTC is None:
+        return False
+    return date >= SPORT_LATE_WINDOW_FROM_UTC.strftime("%Y-%m-%d")

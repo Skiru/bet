@@ -1865,6 +1865,7 @@ ale **własne progi**, i jedno ważne odstępstwo:
 | `ODDS_TOO_LOW` | poniżej `MIN_ODDS_FOR_CEILING = 1/0.9202 ≈ 1.0867` — **nie** 1,25 jak w singlach. Poniżej tej ceny noga nie może mieć dodatniego EV przy tej krzywej, niezależnie od meczu |
 | `NO_FIXTURE` | brak meczu w `02_fixtures.json` |
 | `VETOED` | trafione weto |
+| `ALREADY_PRINTED_PREV_DAY` | (SPORT_CONFIDENCE, od 2026-10-23) mecz sportu mierzonego jest już na wydrukowanym `11_coupon.json` dnia poprzedniego (single albo builder) — start przesunięty przez granicę okna dnia nie trafia na dwa kupony; HTML: „mecz już na kuponie poprzedniego dnia” |
 | `KICKED_OFF` | wcześniejszy z dwóch zegarów jest bliżej niż `MIN_MINUTES_TO_KICKOFF` (15 min). Od 2026-09-23 OFFER, COUPON i CONFIDENCE czytają ten sam zegar (`effective_kickoff`) i ten sam margines; wcześniej CONFIDENCE nie miało marginesu, a OFFER filtrowało po samym zegarze Sofascore |
 | `NO_FETCHED_AT` | szczebel bez znacznika pobrania ceny |
 | `STALE_PRICE` | cena starsza niż 45 min |
@@ -2065,12 +2066,38 @@ ostatnich 3 h przed startem jest pytany raz świeżo; brak udowodniony
 drużyny rozpoznanej po id bez żadnego jej meczu w ±12 h. Raport:
 `docs/sofa/history/RAPORT_K3_K7_TOZSAMOSC_2026-10-14.md`.
 
+**Okno dnia sportów mierzonych** (od 2026-10-23 00:00Z,
+`epochs.SPORT_LATE_WINDOW_FROM_UTC`, `LATE_WINDOW_END_H` 5; decyzja
+operatora 2026-10-22). Dzień D hokeja / kosza / siatkówki / CS2 to
+[koniec(D-1), koniec(D)), koniec(D) = D+1 05:00Z (przed przełącznikiem D+1
+00:00Z), więc dni stykają się bez luki i nakładki (10-22 = [10-22 00:00Z,
+10-23 00:00Z), 10-23 = [10-23 00:00Z, 10-24 05:00Z)). Przełącznik czyta
+tylko datę dnia, nie zegar budowy. Mecze NBA / NHL po północy UTC należą
+do kuponu D: 10-22 ostatnia SPORT_CONFIDENCE odrzuciła 276 stron hokeja i
+4 927 kosza jako `KICKED_OFF`. Okno czytają SPORT_IDENTITY,
+SPORT_CONFIDENCE, `rebuild_plan.observe_sport`, COUPON_ASSEMBLY
+(`build_coupon.in_day_window`: piłka, tenis i buildery dalej doba UTC) i
+`day_status.py` (dzień sportów kończy się o koniec(D), czyta też migawki
+D+1). SHADOW i CS2 dnia D pobierają raz, także poza horyzontem, mecz D+1
+startujący przed koniec(D) — do pliku D+1 (`source_date` D+1). Noga takiego
+meczu ma `window: "late"`; mecz z wydrukowanego `11_coupon.json` D-1
+(single i buildery) jest `ALREADY_PRINTED_PREV_DAY` (start przesunięty przez
+granicę okna nie trafia na dwa kupony). Wycenia je ręczna **wieczorna
+przebudowa** operatora (`rebuild_day.py --date D`, ok. 20:00–21:00Z; RUNBOOK
+cz. 4) — poranne nogi zostają zablokowane. Rozliczenie: poranne kroki pętli
+D (`shadow_daily.plan`, `cs2_daily.plan`) wołają `settle_shadow.py` /
+`settle_cs2.py --date D+1 --kickoff-before <D+1>T05:00:00Z` (reszta pliku
+D+1 nietknięta, licznik `after_cutoff`); ocena nogi zawsze z pliku jej
+`source_date`. Grupa dziennika „od 10-23”.
+
 **SPORT_CONFIDENCE** — `scripts/sofa/run_sport_confidence.py --date <d>`,
 bez mostu. Czyta `sport_fixtures.json`, migawki SHADOW / CS2,
 `config/sofa_sport_confidence_calibration.json` (`fit_sport_confidence.py`,
 na kopii bazy, instalacja za zgodą operatora) i bazę (tylko odczyt); pisze
 **`runs/sofa/<d>/08_confidence_sports.json`**. Dla każdej strony meczu ze
-startem w [D 00:00Z, D+1 00:00Z): pewność = dolna granica Wilsona kubełka
+startem w oknie dnia (`sport_identity.day_window`: [D 00:00Z, D+1 00:00Z);
+od `epochs.SPORT_LATE_WINDOW_FROM_UTC` 2026-10-23 00:00Z [koniec(D-1),
+D+1 05:00Z), patrz „Okno dnia sportów mierzonych” niżej): pewność = dolna granica Wilsona kubełka
 kalibracji, w który wpada prawdopodobieństwo modelu wyników (`score_model`)
 albo silnika CS2 (`cs2_engine`), bez ceny. Pola nogi: `sport`, `group_key`
 (`sofa:<id>`), `sofascore_event_id`, `superbet_event_id`, `market_id`,

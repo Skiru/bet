@@ -576,7 +576,12 @@ def settle(
     runs_dir: str,
     at: datetime,
     db_path: str | None = None,
+    kickoff_before: datetime | None = None,
 ) -> dict[str, Any]:
+    """`kickoff_before`: only the series starting before it are settled (the
+    previous day's loop grading the night series its coupon printed from
+    this file, epochs.SPORT_LATE_WINDOW_FROM_UTC); the rest are left as
+    they are, counted `after_cutoff`."""
     day = cs2_day_dir(runs_dir, date)
     snaps_path = day / SNAPSHOTS_FILE
     if not snaps_path.exists():
@@ -613,15 +618,19 @@ def settle(
         "graded_sides": 0,
         "series_only_skipped": 0,
         "pending_sides": 0,
+        "after_cutoff": 0,
     }
     breaker_open = False
     seeds = coupon_sports.pinned_seed(runs_dir, "cs2", date)
     for eid, ev in sorted(events.items(), key=lambda kv: kv[1].kickoff_utc):
+        kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
+        if kickoff_before is not None and kickoff >= kickoff_before:
+            metrics["after_cutoff"] += 1
+            continue
         prev = coupon_sports.seeded(done.get(eid), seeds.get(str(eid)))
         if prev and _shadow.is_terminal(prev["state"]) and not is_waiting(prev):
             metrics["kept"] += 1
             continue
-        kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
         if at - kickoff < SETTLE_AFTER:
             metrics["too_early"] += 1
             continue
@@ -700,7 +709,8 @@ def settle(
         states[rec["state"]] = states.get(rec["state"], 0) + 1
         metrics["series_only_skipped"] += int(rec.get("series_only_skipped") or 0)
         metrics["pending_sides"] += int(rec.get("pending_sides") or 0)
-    attempted = metrics["events"] - metrics["kept"] - metrics["too_early"]
+    attempted = (metrics["events"] - metrics["kept"] - metrics["too_early"]
+                 - metrics["after_cutoff"])
     if breaker_open and attempted and metrics["errors"] >= attempted:
         verdict = "FAILED"
     elif metrics["errors"]:
@@ -791,6 +801,12 @@ def main() -> int:
     )
     parser.add_argument("--sweep-to")
     parser.add_argument(
+        "--kickoff-before",
+        help="with --date: settle only the series starting before this UTC "
+        "time (ISO, e.g. 2026-10-24T05:00:00Z) - the previous day's loop "
+        "grading the night series its coupon printed (epochs.SPORT_LATE_WINDOW)",
+    )
+    parser.add_argument(
         "--identity-only",
         action="store_true",
         help="offline: only the identity pass (MOVED_TO, DUPLICATE_*, WITHDRAWN) "
@@ -799,6 +815,14 @@ def main() -> int:
     args = parser.parse_args()
     if args.sweep_from and not args.sweep_to:
         parser.error("--sweep-from needs --sweep-to")
+    if args.kickoff_before and not args.date:
+        parser.error("--kickoff-before needs --date")
+    kickoff_before = (
+        datetime.fromisoformat(args.kickoff_before.replace("Z", "+00:00"))
+        if args.kickoff_before else None
+    )
+    if kickoff_before is not None and kickoff_before.tzinfo is None:
+        kickoff_before = kickoff_before.replace(tzinfo=UTC)
     config = SofaConfig.from_env()
     if args.identity_only:
         for date in [args.date] if args.date else date_range(
@@ -833,7 +857,8 @@ def main() -> int:
     client = SofascoreClient(config)
     worst = 0
     for date in dates:
-        result = settle(date, client, config.runs_dir, now(), config.db_path)
+        result = settle(date, client, config.runs_dir, now(), config.db_path,
+                        kickoff_before)
         print(
             "SOFA_SUMMARY: "
             + json.dumps({"stage": "CS2_SETTLE", "date": date, **result}),

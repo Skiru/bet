@@ -12,8 +12,12 @@ and CS2 snapshots, config/sofa_sport_confidence_calibration.json
 runs/sofa/<d>/08_confidence_sports.json and nothing else - never the
 settled table, never a curve.
 
-Per Superbet side of an event whose kickoff is in [D 00:00Z, D+1 00:00Z):
-an identified fixture (else NOT_IDENTIFIED, or its DUPLICATE_* state), not
+Per Superbet side of an event whose kickoff is in the day's window
+(sport_identity.day_window: [D 00:00Z, D+1 00:00Z), from
+epochs.SPORT_LATE_WINDOW_FROM_UTC [end(D-1), D+1 05:00Z) - a leg starting on
+D+1 carries `window: "late"`; an event D-1's printed coupon already holds is
+ALREADY_PRINTED_PREV_DAY): an identified fixture (else NOT_IDENTIFIED, or
+its DUPLICATE_* state), not
 postponed / cancelled / interrupted by FIXTURE_CHECK's read of its pinned id
 (fixture_status.json; FIXTURE_NOT_AS_SCHEDULED, K14), not
 started (KICKED_OFF: inside the coupon's kickoff margin of the earlier of
@@ -68,7 +72,12 @@ from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.comparability import is_friendly_event  # noqa: E402
-from bet.sofa.confidence import COUPON_PROFILE, MIN_ODDS_FOR_CEILING  # noqa: E402
+from bet.sofa.confidence import (  # noqa: E402
+    COUPON_ARTIFACT,
+    COUPON_PROFILE,
+    MIN_ODDS_FOR_CEILING,
+    coupon_artifact,
+)
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.line_evidence import (  # noqa: E402
     DEFAULT_EVIDENCE,
@@ -86,8 +95,54 @@ MIN_ODDS = MIN_ODDS_FOR_CEILING  # 1/0.9202
 
 OK, NOT_CALIBRATED, NOT_IDENTIFIED = "OK", "NOT_CALIBRATED", "NOT_IDENTIFIED"
 FRIENDLY_FIXTURE, NO_LEAGUE_RATE = "FRIENDLY_FIXTURE", "NO_LEAGUE_RATE"
+# epochs.SPORT_LATE_WINDOW_FROM_UTC: an event D-1's printed coupon holds
+# (a single or a builder) is never priced again for D - a start Superbet moved
+# across the window's edge must not put one game on two coupons.
+ALREADY_PRINTED_PREV_DAY = "ALREADY_PRINTED_PREV_DAY"
 # The sports priced by bet.sofa.score_model (the league-rate rule's scope).
 SCORE_MODEL_SPORTS = frozenset({"hockey", "basketball", "volleyball"})
+
+
+@dataclass(frozen=True)
+class PrevPrinted:
+    """The measured-sport events D-1's printed coupon (11_coupon.json) holds."""
+    sofascore_ids: frozenset[int] = frozenset()
+    superbet_ids: frozenset[str] = frozenset()
+
+    def holds(self, superbet_id: str, fixture: Mapping[str, Any] | None) -> bool:
+        if str(superbet_id) in self.superbet_ids:
+            return True
+        sid = (fixture or {}).get("sofascore_event_id")
+        return sid is not None and int(sid) in self.sofascore_ids
+
+
+def prev_printed(runs_dir: str, date: str) -> PrevPrinted:
+    """D-1's printed measured-sport events: its 11_coupon.json singles and
+    builders (confidence.coupon_artifact; an 08_confidence.json fallback is
+    not a print and holds nothing). Empty while epochs.sport_late_window(D)
+    is off, or when D-1 has no coupon / an unreadable one."""
+    if not epochs.sport_late_window(date):
+        return PrevPrinted()
+    path = coupon_artifact(Path(runs_dir) / sport_day.prev_date(date))
+    if path.name != COUPON_ARTIFACT or not path.exists():
+        return PrevPrinted()
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return PrevPrinted()
+    sofa: set[int] = set()
+    sb: set[str] = set()
+    # a builder carries no sport; Sofascore's ids are unique across sports,
+    # so a football builder's id can never stand for a sport game
+    singles = [s for s in doc.get("singles") or []
+               if isinstance(s, dict) and str(s.get("sport") or "") in scf.SPORT_KEYS]
+    builders = [b for b in doc.get("builders") or [] if isinstance(b, dict)]
+    for item in [*singles, *builders]:
+        if item.get("sofascore_event_id") is not None:
+            sofa.add(int(item["sofascore_event_id"]))
+        if item.get("superbet_event_id") is not None:
+            sb.add(str(item["superbet_event_id"]))
+    return PrevPrinted(frozenset(sofa), frozenset(sb))
 
 
 def is_friendly_fixture_entry(sport: str, fixture: Mapping[str, Any]) -> bool:
@@ -380,6 +435,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 fixture_status: Mapping[int, Mapping[str, Any]] | None = None,
                 evidence: LineEvidence | None = None,
                 record: RefusalRecord | None = None,
+                printed_before: PrevPrinted | None = None,
                 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """`fixture_status` (fixture_status.json by Sofascore id, FIXTURE_CHECK):
     a pinned game postponed / cancelled / interrupted ... is refused
@@ -390,7 +446,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
     `evidence` (epochs.line_evidence; None = the admission rule as before):
     every fitted key's curve, read through bet.sofa.line_evidence.
     `record` (bet.sofa.priced_rows, display only): each priced side's
-    reason is added to it; the counts are the same either way."""
+    reason is added to it; the counts are the same either way.
+    `printed_before` (prev_printed): D-1's printed events, refused
+    ALREADY_PRINTED_PREV_DAY."""
+    printed_before = printed_before or PrevPrinted()
     rec = record if record is not None else RefusalRecord()
     status = sport_status(sport, fixtures_doc, calibration, evidence)
     league_rule = epochs.league_rate_rule(date, at)
@@ -455,6 +514,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
                     open_side(side_ln)
                     rec.refuse(reason)
 
+        if printed_before.holds(str(ev.superbet_event_id), fixture):
+            refuse_event(ALREADY_PRINTED_PREV_DAY)
+            continue
         # A game Superbet itself has started is KICKED_OFF whatever its
         # identity: Sofascore's events/next never lists a started game, so
         # SPORT_IDENTITY cannot pin it, and on 2026-10-05 339 of the legs
@@ -557,6 +619,9 @@ def build_sport(sport: str, date: str, runs_dir: str,
             legs.append(leg_dict(sport, ev, fixture, ln, family, conf, p, k, n,
                                  margin, kickoff, newest))
             rec.passed()
+            if si.late_window(date, sb_kickoff):
+                # epochs.SPORT_LATE_WINDOW_FROM_UTC: a D+1 start on D's coupon
+                legs[-1]["window"] = epochs.LATE_WINDOW_MARKER
             if offset:
                 legs[-1]["line_offset"] = offset
             if band_cap is not None:
@@ -708,9 +773,11 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     if calibration_path.name == scf.NEXT_CALIBRATION_FILE:
         doc["calibration_file"] = calibration_path.name  # a staged refit
     record = RefusalRecord()
+    printed_before = prev_printed(runs_dir, date)
     for sport in sports:
         entry, legs = build_sport(sport, date, runs_dir, fixtures_doc, calibration,
-                                  forecaster, at, fixture_status, evidence, record)
+                                  forecaster, at, fixture_status, evidence, record,
+                                  printed_before)
         doc["sports"][sport] = entry
         doc["legs"] += legs
     doc["legs"].sort(key=lambda g: (-g["confidence"], g["kickoff_utc"],

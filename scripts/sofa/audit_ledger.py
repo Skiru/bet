@@ -148,7 +148,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
-                "od 10-21", "10-21 mieszany", "od 10-22")
+                "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -204,10 +204,17 @@ SQUAD_SEARCH_EPOCH_FROM_DATE = "2026-10-22"
 # mixed - its own group, summed with neither "od 10-21" (which therefore
 # holds no day) nor "od 10-22".
 LATE_RESOLVE_1021_MIXED_DATE = "2026-10-21"
+# The measured sports' rolling day window (epochs.SPORT_LATE_WINDOW_FROM_UTC,
+# 2026-10-23 00:00Z, operator 2026-10-22): from 10-23 a day's coupon holds its
+# sport games up to D+1 05:00Z (the evening rebuild's), so the coupon's scope
+# changes - a new epoch, not a mixed day (the switch is at the day's 00:00Z).
+SPORT_LATE_WINDOW_EPOCH_FROM_DATE = "2026-10-23"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= SPORT_LATE_WINDOW_EPOCH_FROM_DATE:
+            return "od 10-23"
         if str(row.get("date", "")) >= SQUAD_SEARCH_EPOCH_FROM_DATE:
             return "od 10-22"
         if str(row.get("date", "")) == LATE_RESOLVE_1021_MIXED_DATE:

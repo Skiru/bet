@@ -244,6 +244,18 @@ record, `frozen_at_start`) -> SPORT_CONFIDENCE reads the sport calibration
 (fitted without prices) and corrects it with line evidence. SHADOW / CS2 are a
 measurement of Superbet's price and feed nothing else.
 
+- **Day window** (`SPORT_LATE_WINDOW`, from 2026-10-23 00:00Z, operator
+  10-22): a measured sport's day D is [end(D-1), end(D)) with end(D) = D+1
+  05:00Z (`sport_identity.day_window`; football / tennis keep the UTC day),
+  so NBA / NHL games after midnight UTC are D's, not the next morning's
+  KICKED_OFF. SHADOW / CS2 of D fetch them once early into D+1's file; legs
+  starting on D+1 carry `window: "late"`; an event D-1's printed coupon holds
+  is `ALREADY_PRINTED_PREV_DAY`. They print only through the operator's
+  **manual evening rebuild** - `rebuild_day.py --date D` at ~20:00-21:00Z
+  (not automated), which appends them; morning legs stay locked. The loops'
+  next morning settles D+1's file up to end(D) (`--kickoff-before`); grading
+  reads each leg's `source_date` file. `day_status.py` treats the sports' day
+  as over at end(D).
 - **Identity**: the entity map (`bet.sofa.entity_map`) learns verified names
   from SPORT_IDENTITY; opponent-only matches are candidates, conflicts are
   queued and never overwritten (`SofaCache.save_entity` in `src/bet/sofa/cache.py`

@@ -220,7 +220,7 @@ const $=id=>document.getElementById(id),blob=$("priced").textContent.trim();
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 if(!blob){$("tabs").style.display="none";return}
 const PER=200,GLOSS={BELOW_CONFIDENCE_FLOOR:"pewność poniżej 0.70",BELOW_FLOOR:"pewność poniżej 0.70",NEGATIVE_LEG_EV:"pewność × kurs poniżej 0.90",
- BELOW_MIN_X:"pewność × kurs poniżej 0.90",MARGIN_TOO_HIGH:"marża drabinki powyżej 15%",ODDS_TOO_LOW:"kurs za niski",KICKED_OFF:"mecz rozpoczęty albo za blisko startu",
+ BELOW_MIN_X:"pewność × kurs poniżej 0.90",MARGIN_TOO_HIGH:"marża drabinki powyżej 15%",ODDS_TOO_LOW:"kurs za niski",KICKED_OFF:"mecz rozpoczęty albo za blisko startu",ALREADY_PRINTED_PREV_DAY:"mecz już na kuponie poprzedniego dnia",
  STALE_PRICE:"cena nieświeża",NO_LINE_EVIDENCE:"brak krzywej i za mało rozliczonych linii",NOT_CALIBRATED:"brak krzywej dla tego p",NO_CLASS_CURVE:"brak krzywej klasy (kobiety / puchary drużynowe)",
  CROSS_LEAGUE_UNLINKED:"drużyny z niepołączonych lig",NOT_SETTLEABLE:"rynek nierozliczalny w tych rozgrywkach",SAMPLE_CROSSES_SEASON:"próbka starsza niż 180 dni",
  MODEL_ABOVE_OWN_SAMPLE:"model ponad własną próbkę (automatyczny WATCH)",WATCHED:"WATCH analityka",READ_NO_BET:"NO_BET analityka",VETOED:"weto",

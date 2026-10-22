@@ -266,6 +266,16 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
 - `capture_closing.py`: a missing close is a CLV hole, not a zero. `run_boosts.py`: a few
   times a day.
 
+## 10. Evening rebuild (from 2026-10-23; the operator's, by hand - not part of this run)
+
+A measured sport's day runs to D+1 05:00Z (`epochs.SPORT_LATE_WINDOW_FROM_UTC`,
+`sport_identity.day_window`): hockey / basketball / volleyball / CS2 games after midnight
+UTC are D's legs (`window: "late"`). The morning prices only those already fresh and
+pinned; the operator runs `/sofa-rebuild <D>` (`rebuild_day.py --date <D>`) at ~20:00-21:00Z,
+which refreshes SHADOW / CS2 / SPORT_IDENTITY and appends them - morning legs stay locked;
+then `/sofa-analyze` for the new unread legs. Football and tennis keep the UTC day. In the
+report, say the evening rebuild is still to come.
+
 ## Traps that cost money
 
 - Positions move on every rebuild: name a leg by `group_key`, market, line, direction;

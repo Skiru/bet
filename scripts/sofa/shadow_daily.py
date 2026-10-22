@@ -95,6 +95,12 @@ def plan(
         ["scripts/sofa/run_pipeline.py", "--date", d, "--only", "SHADOW_SETTLE"]
         for d in days
     ]
+    late = late_settle_step("scripts/sofa/settle_shadow.py", date)
+    if late is not None:
+        # epochs.SPORT_LATE_WINDOW_FROM_UTC: the games after midnight UTC
+        # that D's coupon printed sit in D+1's file; graded this morning
+        # (those 4 h past their start), not a day later by D+1's own settle
+        morning.insert(1, late)
     # D-7..D-3: only the dates whose settled.json still has a waiting game
     # (decided at run time, from the files - settle_shadow.waiting_sports).
     # Without it a game still waiting on D-3 was never asked again and never
@@ -115,6 +121,19 @@ def plan(
     )
     audit = ["scripts/sofa/audit_shadow.py", "--from", date, "--to", date]
     return snapshot, morning, audit
+
+
+def late_settle_step(script: str, date: str) -> list[str] | None:
+    """The settle of D+1's file up to the end of D's sport window
+    (sport_identity.day_window), while epochs.sport_late_window(D) - else
+    None. Shared with cs2_daily.plan."""
+    from bet.sofa import epochs
+    from bet.sofa import sport_identity as si
+
+    if not epochs.sport_late_window(date):
+        return None
+    return [script, "--date", next_day(date),
+            "--kickoff-before", si.iso(si.day_window_end(date))]
 
 
 def has_snapshots(date: str) -> bool:

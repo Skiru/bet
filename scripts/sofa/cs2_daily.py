@@ -239,6 +239,8 @@ def plan(
         # the day before again: STATS_PENDING series (72 h grace) and the
         # night series its coupon printed from this day's file
         ["scripts/sofa/run_pipeline.py", "--date", before, "--only", "CS2_SETTLE"],
+        # epochs.SPORT_LATE_WINDOW_FROM_UTC: D's coupon's night series after
+        # midnight UTC, in D+1's file (inserted here when on)
         # D-7..D-2: only the dates whose settled.json still has a waiting
         # series (decided at run time, from the files). Without it a series
         # still waiting on D-2 was never asked again, and never reached
@@ -248,12 +250,30 @@ def plan(
         # the ledger for every day those settles may have changed (offline)
         ["scripts/sofa/record_results.py", "--from", sweep_from, "--to", date],
     ]
+    late = late_cs2_settle(date)
+    if late is not None:
+        morning.insert(2, late)
     if backfill_minutes > 0:
         morning.append(
             ["scripts/sofa/backfill_cs2.py", "--max-minutes", str(backfill_minutes)]
         )
     audit = ["scripts/sofa/audit_cs2.py", "--from", date, "--to", date, "--history"]
     return snapshot, morning, audit
+
+
+def late_cs2_settle(date: str) -> list[str] | None:
+    """settle_cs2.py for D+1's file up to the end of D's sport window
+    (sport_identity.day_window) while epochs.sport_late_window(D)."""
+    for path in (str(REPO), str(REPO / "src")):
+        if path not in sys.path:  # started without PYTHONPATH=src:.
+            sys.path.append(path)
+    from bet.sofa import epochs
+    from bet.sofa import sport_identity as si
+
+    if not epochs.sport_late_window(date):
+        return None
+    return ["scripts/sofa/settle_cs2.py", "--date", next_day(date),
+            "--kickoff-before", si.iso(si.day_window_end(date))]
 
 
 def identity_steps(date: str, sports: Sequence[str]) -> list[list[str]]:

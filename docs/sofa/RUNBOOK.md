@@ -28,7 +28,10 @@ Kolejność `/sofa-day` (od 2026-10-05, jeden kupon ze statystyk):
    `12_printed.json`, → `audit_variants.py` + `audit_coupon.py`) (część 4);
 10. `audit_coupon.py`, `audit_variants.py` (C1–C3, U1–U3), `sofa-verifier`,
     dopisanie jego odczytów, przebudowa `rebuild_day.py` (część 5);
-11. raport (część 8).
+11. raport (część 8);
+12. od 2026-10-23: **wieczorna przebudowa** ok. 20:00–21:00Z — mecze
+    hokeja / kosza / siatkówki / CS2 po północy UTC (do D+1 05:00Z) na kupon
+    dnia D (część 4, „Wieczorna przebudowa”). Ręcznie, nieautomatyczna.
 
 ---
 
@@ -281,6 +284,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d
   siatkówka tylko z turnieju z meczem SETTLED w ostatnich 14 dniach. Kod 1,
   gdy sport jest `NOT_CALIBRATED` albo brak `sport_fixtures.json` — artefakt
   i tak powstaje, kupon piłki i tenisa buduje się dalej.
+- **Okno dnia sportów mierzonych** (od 2026-10-23 00:00Z,
+  `epochs.SPORT_LATE_WINDOW_FROM_UTC`, decyzja operatora 2026-10-22): dzień
+  D to [koniec(D-1), D+1 05:00Z) (`sport_identity.day_window`; 10-23 =
+  [10-23 00:00Z, 10-24 05:00Z)). Mecze NBA / NHL po północy UTC należą do
+  kuponu D, nie do porannego D+1 (tam byłyby `KICKED_OFF`). Piłka i tenis
+  bez zmian (doba UTC). Migawki D (SHADOW, CS2) pobierają takie mecze raz
+  już w ciągu dnia, do pliku D+1; noga meczu z D+1 ma `window: "late"`;
+  mecz już wydrukowany na kuponie D-1 jest `ALREADY_PRINTED_PREV_DAY`.
 
 ### 2c. COUPON_ASSEMBLY — jeden kupon
 
@@ -478,6 +489,38 @@ które dają PARTIAL. Odmawia przy ustawionym `SOFA_NOW`, honoruje
 Jeśli dzień jest **zakończony**, nie odświeżaj ceny. Powiedz, że ceny są
 historyczne i że każda bramka niżej je teraz odrzuci — bo to poprawne
 zachowanie.
+
+### Wieczorna przebudowa (od 2026-10-23)
+
+**Kiedy:** codziennie ok. 20:00–21:00Z, ręcznie (nic jej nie uruchamia
+samo). **Po co:** okno dnia sportów mierzonych sięga D+1 05:00Z (2b), więc
+mecze hokeja / kosza / siatkówki / CS2 rozpoczynające się po północy UTC są
+nogami kuponu D. Poranna budowa wyceni tylko te z nich, które mają już
+świeżą cenę (≤ 3 h) i przypięte id; Superbet często wystawia linie później,
+a cena sprzed wielu godzin to `STALE_PRICE`. Resztę dokłada wieczór.
+
+```bash
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D> --dry-run   # plan: SHADOW/CS2 z horyzontem do najdalszego startu, SPORT_IDENTITY
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread      # nowe nogi do odczytu (C3)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D>
+```
+
+**Co dodaje:** nogi meczów z okna D, które jeszcze się nie zaczęły — w tym
+z D+1 do 05:00Z (`window: "late"`, z pliku migawek D+1, `source_date` D+1).
+Plan przebudowy sam odświeża ceny SHADOW / CS2 i identyfikacje (most).
+**Nogi poranne zostają zablokowane** — wydrukowane przed startem nie
+zmieniają się; noga zdjęta przed startem zostaje zdjęta. Nowe nogi z
+pierwszych 30 meczów wartości wymagają odczytu analityka (`/sofa-analyze`),
+potem jeszcze jedna przebudowa. Jeśli `day_status.py` pokaże
+`loop:capture_closing` WARN (pętla kursów zamknięcia skończyła się po
+ostatnim porannym meczu), uruchom ją: `capture_closing.py --date <D> --loop`.
+**Rozliczenie:** poranne kroki pętli (05:00Z / 05:15Z D+1) rozliczają plik
+D+1 do D+1 05:00Z (`settle_cs2.py` / `settle_shadow.py --date <D+1>
+--kickoff-before <D+1>T05:00:00Z`); SETTLE_AFTER to 4 h, więc mecz po ok.
+01:15Z rozlicza się dopiero dzień później, przy rozliczeniu D+1. Dziennik
+(`record_results.py`) bierze ocenę z pliku `source_date` nogi.
 
 ### Kupon z czatu na kurs docelowy (poza pipeline'em)
 
