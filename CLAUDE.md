@@ -198,7 +198,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   sample opponents' cached lineups only, never by name; `THIN_SAMPLE` gap
   note; `PLAYER_HISTORY_ANY_TEAM`, `samples.any_team_sample`). Players'
   zero offsides from a team's rebuilt 0-0 (`PLAYER_OMITTED_ZERO`) measured
-  worse and off.
+  worse and off. An `ENTITY_CONFLICT` side keeps its newest 10 matches
+  after the newest clash instead of emptying (`SAMPLE_CONFLICT_CUT`, from
+  2026-10-24; fewer than 10 after it = empty as before).
 - **Start clock** = earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds dropped for
   every reader) and FIXTURE_CHECK's fresh `/event` start. A postponed /

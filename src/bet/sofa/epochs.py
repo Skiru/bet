@@ -3028,8 +3028,21 @@ def _audit_1023_on(switch: datetime | None, date: str,
     return date >= switch.strftime("%Y-%m-%d") and at >= switch
 
 
-# P1: ENTITY_CONFLICT cuts the sample at the conflict instead of emptying it.
-SAMPLE_CONFLICT_CUT_FROM_UTC: datetime | None = None
+# P1: ENTITY_CONFLICT cuts the sample at the conflict instead of emptying it
+# (samples.finish_history conflict_cut: the side keeps its newest sample_n
+# matches after the newest clash, only when it has sample_n of them - the
+# newest 10 the curves' cache replay reads; two friendly tournaments in
+# config/sofa_friendly_competitions.json excluded_from_sample_conflict_cut,
+# read only under this switch). Measured on football 2025-10-01..10-20
+# (scripts/sofa/measure_audit1023_p1_conflict_cut.py, DB copy, installed
+# curves, match bootstrap): 8,339 sides in 7,709 matches recovered; printable
+# recovered rows 93,631 (6,269 matches) realised - confidence +0.51 pp
+# [+0.15, +0.85], recovered minus clean +0.35 pp [-0.05, +0.75]; rows without
+# a clash unchanged. One market of 23 below: shots_for -4.6 pp [-6.6, -2.6]
+# (2,144 rows) - chance level, watched by its line evidence. Live 10-21..10-23:
+# 8 of 12 ENTITY_CONFLICT sides recovered -> ON.
+SAMPLE_CONFLICT_CUT_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
 
 
 def sample_conflict_cut(date: str, build_at: datetime | None = None) -> bool:

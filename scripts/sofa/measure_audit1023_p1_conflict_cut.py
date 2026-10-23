@@ -219,7 +219,7 @@ def replay_rows(con: sqlite3.Connection, event_id: int,
     for market, subject, line, direction, p, outcome in con.execute(
         "SELECT market, subject, line, direction, p_central, outcome "
         "FROM sofa_settled_row WHERE sofascore_event_id = ? "
-        "AND run_date = 'cache-calibration'", (event_id,),
+        "AND +run_date = 'cache-calibration'", (event_id,),
     ):
         if outcome not in ("WIN", "LOSS"):
             continue
@@ -381,7 +381,7 @@ def main() -> int:
     ap.add_argument("--from", dest="lo", default="2025-10-01")
     ap.add_argument("--to", dest="hi", default="2026-10-20")
     ap.add_argument("--days", default="")
-    ap.add_argument("--control-every", type=int, default=200)
+    ap.add_argument("--control-every", type=int, default=20)
     ap.add_argument("--groups-cache")
     ap.add_argument("--skip-history", action="store_true")
     ap.add_argument("--json-out")

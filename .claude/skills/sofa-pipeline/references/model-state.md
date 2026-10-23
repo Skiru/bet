@@ -350,7 +350,14 @@ Operator's rule: items without a measurement (P2, P8, P9, P12, P14) on once code
 sample (or, for a coverage fix, the added rows calibrated and nothing worse on
 the old rows). Every switch is read by the day and the build clock
 (`epochs._audit_1023_on`); off = the old call exactly (no new argument passed).
-P1's measurement: in progress, not recorded here (switch None). Football
+`SAMPLE_CONFLICT_CUT_FROM_UTC` (P1) ON: an ENTITY_CONFLICT side keeps its
+newest 10 matches after the newest clash (only when it has 10); football
+2025-10-01..10-20, installed curves, match bootstrap: 8,339 sides / 7,709
+matches recovered, printable recovered rows 93,631 realised - confidence
++0.51 pp [+0.15, +0.85], minus clean +0.35 [-0.05, +0.75]; shots_for -4.6 pp
+[-6.6, -2.6] on 2,144 rows (1 of 23 markets); 2 friendly tournaments in a
+switch-only key (`excluded_from_sample_conflict_cut`, categories unverified).
+Football
 (main session, from agent A's measurements 2026-10-23):
 - `PLAYER_HISTORY_ANY_TEAM_SPORTS` += football (P3): thin samples topped up by
   player id from the sample opponents' cached lineups; target matches
@@ -806,7 +813,7 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   25/26 season at the source). Operator 2026-10-23 ~13:50Z "ALL IN": P2, P3
   (hockey), P4, P7, P8, P9, P12, P13, P14 on from 2026-10-24 00:00Z (section a,
   "Coverage audit 2026-10-23"); P3 football and P5 on too; P6 measured worse,
-  off; P11 off; P1: measurement in progress
+  off; P11 off; P1 on
   (`docs/sofa/history/AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md`).
 
 ## (f) Ledger epoch groups
@@ -834,7 +841,7 @@ Groups are never pooled.
 | "od 10-21" | none | holds no day (CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) - all in "10-21 mieszany") |
 | "10-21 mieszany" | 10-21 | the "od 10-21" switches 00:00Z, then LATE_RESOLVE 08:48Z, SQUAD_SEARCH_RETRY (moved from 10-22 00:00Z) and ENTITY_MISS_PER_DAY 09:20Z into the built day (late fixtures reach the coupon after the first print); IDENTITY_GATE_PER_FAMILY 10:50Z (wider football samples, re-sampled open fixtures) |
 | "od 10-22" | 10-22 | SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
-| "od 10-24" | 10-24 .. | current; LIVE_ONLY_CURVE_REFUSED 00:00Z - 50 installed tennis curve keys fitted from live rows alone are not read (serve points, per-set aces / double faults, tiebreaks); the hockey refit of 2026-10-23 read from 00:00Z (`.next.2026-10-24.json`); the coverage audit's switches 00:00Z (P2 identity re-ask, P3 hockey + football any-team players, P5 football player slug, P4 volleyball query anchor, P7 CS2 unrated lineup rating, P8 name rules, P9 both-sides lists, P12 CS2 series-only `model_p` (evidence only), P13 volleyball golden set in the history, P14 tennis rating score winner) |
+| "od 10-24" | 10-24 .. | current; LIVE_ONLY_CURVE_REFUSED 00:00Z - 50 installed tennis curve keys fitted from live rows alone are not read (serve points, per-set aces / double faults, tiebreaks); the hockey refit of 2026-10-23 read from 00:00Z (`.next.2026-10-24.json`); the coverage audit's switches 00:00Z (P2 identity re-ask, P3 hockey + football any-team players, P5 football player slug, P1 ENTITY_CONFLICT sample cut, P4 volleyball query anchor, P7 CS2 unrated lineup rating, P8 name rules, P9 both-sides lists, P12 CS2 series-only `model_p` (evidence only), P13 volleyball golden set in the history, P14 tennis rating score winner) |
 | "od 10-23" | 10-23 | SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

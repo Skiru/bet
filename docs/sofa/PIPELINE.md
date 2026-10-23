@@ -2343,8 +2343,9 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   samego id w innych drużynach (P3, `PLAYER_HISTORY_ANY_TEAM_SPORTS` z
   piłką); slug Sofascore jako ostatnia reguła nazwy (P5, `match_rule
   "slug"`, SETTLE po `matched_name`). Zera spalonych z 0-0 drużyny (P6)
-  wyszły gorzej - wyłączone. P1 (cięcie próbki przy `ENTITY_CONFLICT`):
-  pomiar w toku, wyłączone.
+  wyszły gorzej - wyłączone. P1: strona z `ENTITY_CONFLICT` zachowuje
+  najnowsze 10 meczów po starciu zamiast pustej próbki
+  (`SAMPLE_CONFLICT_CUT`).
 
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 

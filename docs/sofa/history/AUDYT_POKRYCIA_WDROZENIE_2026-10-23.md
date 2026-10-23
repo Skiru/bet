@@ -233,7 +233,7 @@ p wygranej gospodarza 0,018 (jeden > 0,01). Wiersze SHEET tenisa nie mają
 znacznika tej reguły - commit musi wejść przed porannym SHEET 10-24.
 Testy: `tests/sofa/test_audit1023_p14_tennis_rating.py` (12).
 
-## 6. Piłka: P3, P5, P6 (zdecydowane) i P1 (pomiar w toku)
+## 6. Piłka: P1, P3, P5, P6
 
 - **P3 piłka - WŁĄCZONE** od 10-24 00:00Z (`"football"` w
   `PLAYER_HISTORY_ANY_TEAM_SPORTS`). Cienka próbka zawodnika (po oknie 20
@@ -254,11 +254,18 @@ Testy: `tests/sofa/test_audit1023_p14_tennis_rating.py` (12).
   [-0,00025; +0,00086], na wierszach, które oceniał stary czytelnik
   +0,00080 [+0,00025; +0,00141] - gorzej.
 
-> **P1 - pomiar historii w toku** (cięcie próbki przy `ENTITY_CONFLICT` +
-> 2 turnieje towarzyskie w nowym kluczu
-> `excluded_from_sample_conflict_cut`). Na żywo 10-21..10-23: 12 stron z
-> `ENTITY_CONFLICT`, 8 odzyskanych. `SAMPLE_CONFLICT_CUT_FROM_UTC` = `None`
-> do wyniku replayu.
+- **P1 - WŁĄCZONE** od 10-24 00:00Z. Strona z `ENTITY_CONFLICT` zachowuje
+  najnowsze 10 meczów po najnowszym starciu (tylko gdy ma ich 10 - to
+  dokładnie to, co czyta replay krzywych); 2 turnieje towarzyskie w nowym
+  kluczu `excluded_from_sample_conflict_cut`, czytanym tylko pod
+  przełącznikiem (kategorie w JSON niezweryfikowane w payloadzie). Pomiar
+  `measure_audit1023_p1_conflict_cut.py`, piłka 2025-10-01..10-20 (427 031
+  meczów): odzyskane 8 339 stron w 7 709 meczach; wiersze do druku
+  odzyskane 93 631 (6 269 meczów): realised - confidence +0,51 pp [+0,15;
+  +0,85], odzyskane minus czyste +0,35 pp [-0,05; +0,75]; wiersze bez
+  starcia bez zmian. Jeden rynek z 23 poniżej: shots_for -4,6 pp [-6,6;
+  -2,6] (2 144 wiersze) - tyle daje przypadek, pilnuje go line evidence. Na
+  żywo 10-21..10-23: 8 z 12 stron odzyskanych.
 
 > **Miejsce na wyniki - NIE są to decyzje.** W chwili pisania (2026-10-23)
 > pomiary agentów A (piłka: P1 cięcie próbki przy `ENTITY_CONFLICT` +
