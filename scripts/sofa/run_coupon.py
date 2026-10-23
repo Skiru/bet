@@ -295,6 +295,10 @@ def main() -> int:
     )
 
     run_dir.mkdir(parents=True, exist_ok=True)
+    # Before 06 is written: an empty vetoes.json created after it would make
+    # rebuild_plan read 06 as older than its inputs on every fresh day.
+    if not vetoes_path.exists():
+        vetoes_path.write_text("[]\n", encoding="utf-8")
     write_atomic(
         run_dir / "06_coupon.json",
         json.dumps(result.coupon.model_dump(mode="json"), indent=2, ensure_ascii=False),
@@ -323,8 +327,6 @@ def main() -> int:
         ),
     )
 
-    if not vetoes_path.exists():
-        vetoes_path.write_text("[]\n", encoding="utf-8")
 
     drop_reasons: dict[str, int] = {}
     for d in result.dropped:

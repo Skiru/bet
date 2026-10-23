@@ -434,3 +434,30 @@ na starym p), siatkówka (krzywa dopasowana bez P13).
 Bramki naprawiających: X1 5 958 passed, 2 skipped; X2 5 952 passed, 2
 skipped (potem tylko komentarz w `epochs.py`, podzbiór 544 passed); ruff,
 `mypy --strict --no-incremental` czyste, `check_test_registry.py` 0 uwag.
+
+## 11. Próba generalna na żywym moście (R6, 2026-10-23 19:21-20:15Z)
+
+Dzień 2026-10-24 zbudowany na żywo w katalogu na brudno (`SOFA_RUNS_DIR`) i na
+klonie bazy (`SOFA_DB_PATH`), wszystkie przełączniki audytu oraz
+`LIVE_ONLY_CURVE_REFUSED` przestawione na 2026-10-23 00:00Z (hook), most
+Sofascore i Superbet prawdziwe: 11 030 zapytań do Sofascore i 3 164 do
+Superbetu, 0 odmów, breakery zamknięte. Każdy etap bez Traceback i bez FAILED:
+BOARD 1 341, RESOLVE 1 312 (recall 98,2%), OFFER 1 312 (0 błędów), SAMPLES (P1:
+16 notatek cięcia, P3: 181 uzupełnień, P5: 90 próbek po slugu), SHEET 199 155
+wierszy bez NaN, CONFIDENCE 13 591 nóg, FIXTURE_CHECK, SHADOW / CS2 (D i D+1),
+SPORT_IDENTITY (hokej 74/75, kosz 138/140, siatkówka 84/101, CS2 15/20; 13
+zdarzeń już przypiętych w żywym pliku - te same id), SPORT_CONFIDENCE 472 nogi,
+COUPON_ASSEMBLY 13 716 pozycji i 12 builderów (0 naruszeń reguł druku, każda
+noga słowami Superbetu), PDF / HTML, read_set (284 nogi do czytania, zgodnie z
+C3), rebuild_day `--dry-run`, late RESOLVE, `verify_legs` DEFECT 0. Izolacja
+czysta (md5 plików kuponu 10-21..10-23, `reads.json`, księga bez zmian; nic w
+`config/`; żaden proces nie trzymał `data/sofa.db`).
+
+Poprawione: COUPON tworzył pusty `vetoes.json` po `06_coupon.json`, więc
+pierwszy rebuild każdego dnia dokładał zbędny krok COUPON (`run_coupon.py`,
+asercja w `tests/sofa/test_e2e.py`).
+
+Nie dało się sprawdzić wieczorem: tenis cienki (107 meczów), brak linii
+zawodników hokeja (P3 / P8 hokej), żadne zdarzenie w 3 h przed startem (P2
+świeże pytanie), P7 (brak pary bez ratingu), P12 attach i refit line evidence
+(zrobione offline w R4), rozliczenia, rebuild nie na sucho, analitycy.

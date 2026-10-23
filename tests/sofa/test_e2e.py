@@ -258,6 +258,10 @@ def test_full_pipeline_offline(
 
     markdown = (run_dir / "06_coupon.md").read_text(encoding="utf-8")
     assert markdown.strip()
+    # Review R6 2026-10-23: the empty vetoes.json COUPON creates must not be
+    # newer than 06, or rebuild_plan re-runs COUPON on every fresh day.
+    assert ((run_dir / "vetoes.json").stat().st_mtime_ns
+            <= (run_dir / "06_coupon.json").stat().st_mtime_ns)
 
     # A4: the offer is read twice, so every fixture's odds are fetched twice.
     assert superbet.odds_calls >= 2 * len(fixtures)
