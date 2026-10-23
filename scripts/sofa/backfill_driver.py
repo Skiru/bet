@@ -183,6 +183,17 @@ def parse_output(stdout: str) -> tuple[dict[str, Any], dict[str, Any]]:
     return plan, final
 
 
+def hop_limit_reached(stage: Stage, progress: Progress,
+                      plan: dict[str, Any]) -> bool:
+    """Would a chunk with this (dry-run) plan open a hop past the stage's
+    limit? Asked before the chunk runs: a chunk's own plan line comes after it
+    has already walked that hop (2026-10-23 audit, "740 left")."""
+    seed = plan.get("seed_before")
+    return (is_listings(stage) and stage.max_hops is not None
+            and isinstance(seed, str) and seed not in progress.seeds
+            and len(progress.seeds) + 1 > stage.max_hops)
+
+
 def judge_chunk(stage: Stage, progress: Progress, rc: int,
                 plan: dict[str, Any], final: dict[str, Any],
                 stall_chunks: int = 3) -> tuple[Progress, Outcome]:
@@ -308,6 +319,14 @@ class Driver:
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         return blocking_reason(out.splitlines(), today, self.a.yield_to_build)
 
+    def plan_chunk(self, stage: Stage) -> dict[str, Any]:
+        """The plan line of the stage's --dry-run (network-free, the cache
+        read-only, the seed not recorded - backfill_listings.py)."""
+        p = subprocess.run([sys.executable, *stage.args, "--dry-run"], cwd=REPO,
+                           env=self.env, capture_output=True, text=True,
+                           check=False)
+        return parse_output(p.stdout)[0]
+
     def run_chunk(self, stage: Stage) -> tuple[int, dict[str, Any], dict[str, Any]]:
         cmd = [sys.executable, *stage.args, "--max-minutes", f"{self.chunk:g}"]
         p = subprocess.run(cmd, cwd=REPO, env=self.env, capture_output=True,
@@ -372,6 +391,16 @@ class Driver:
                     self.log(f"{stage.name}: waiting, {b} is running")
                     self.sleep(self.a.blocker_wait_min * 60)
                     continue
+                if (is_listings(stage) and stage.max_hops is not None
+                        and len(progress.seeds) >= stage.max_hops):
+                    ahead = self.plan_chunk(stage)
+                    if hop_limit_reached(stage, progress, ahead):
+                        raw = ahead.get(stage.left_key)
+                        progress = replace(progress, last_left=int(raw) if isinstance(
+                            raw, (int, float)) else None)
+                        self.log(f"{stage.name}: "
+                                 f"{describe('DONE_HOPS', stage, progress)}")
+                        break
                 rc, plan, final = self.run_chunk(stage)
                 progress, outcome = judge_chunk(stage, progress, rc, plan, final,
                                                 self.a.stall_chunks)
@@ -408,7 +437,8 @@ class Driver:
 
 def describe(outcome: Outcome, stage: Stage, p: Progress) -> str:
     if outcome == "DONE_HOPS":
-        return f"DONE ({stage.max_hops} hops, {p.last_left} left at the next hop)"
+        return (f"DONE ({stage.max_hops} hops, {p.last_left} at the next hop, "
+                "not walked)")
     if outcome == "DONE_STALL":
         return f"DONE (no progress in {p.stalls} chunks, {p.last_left} left)"
     if outcome == "SKIPPED":

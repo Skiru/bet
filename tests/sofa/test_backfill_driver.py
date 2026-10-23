@@ -85,6 +85,43 @@ def test_listings_stop_after_max_hops_on_the_moving_seed() -> None:
     assert outs == ["CONTINUE", "CONTINUE", "CONTINUE", "DONE_HOPS"]
 
 
+def test_the_hop_past_the_limit_is_planned_not_walked(tmp_path: Path) -> None:
+    # 2026-10-23 audit: the night driver saw the third seed only in the plan
+    # line of a chunk that had already walked that hop, and logged that
+    # chunk's own count ("740 left") as the queue it left behind.
+    args = bd.argparse.Namespace(
+        log=str(tmp_path / "d.log"), yield_to_build=False, blocker_wait_min=5.0,
+        breaker_wait_min=15.0, breaker_stops=3, recover_hours=1.0,
+        probe_every_min=15.0, stall_chunks=3, after_log=None,
+        after_text="driver end")
+    d = bd.Driver(args, [LISTINGS], 7.0)
+    walked: list[str] = []
+    chunks = iter([(0, {"entities_to_deepen": 50, "seed_before": "s1"}, {}),
+                   (0, {"entities_to_deepen": 40, "seed_before": "s2"}, {})])
+
+    def run_chunk(stage: bd.Stage) -> tuple[int, dict[str, Any], dict[str, Any]]:
+        rc, plan, final = next(chunks)
+        walked.append(str(plan["seed_before"]))
+        return rc, plan, final
+
+    d.sleep = lambda s: None  # type: ignore[method-assign]
+    d.blocked = lambda: None  # type: ignore[method-assign]
+    d.run_chunk = run_chunk  # type: ignore[method-assign]
+    d.plan_chunk = lambda stage: {  # type: ignore[method-assign]
+        "entities_to_deepen": 1611, "seed_before": "s3"}
+    assert d.run() == 0
+    assert walked == ["s1", "s2"]
+    log = (tmp_path / "d.log").read_text()
+    assert "1611 at the next hop, not walked" in log
+
+
+def test_hop_limit_reached_only_on_a_new_seed_past_the_limit() -> None:
+    p = bd.Progress(seeds=frozenset({"s1", "s2"}))
+    assert bd.hop_limit_reached(LISTINGS, p, {"seed_before": "s3"})
+    assert not bd.hop_limit_reached(LISTINGS, p, {"seed_before": "s2"})
+    assert not bd.hop_limit_reached(STATS, p, {"seed_before": "s3"})
+
+
 def test_hops_do_not_bound_a_stats_stage() -> None:
     p = bd.Progress()
     for i in range(5):

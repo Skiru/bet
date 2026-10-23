@@ -77,7 +77,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_confidence.py --db-path <repl
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_line_curves.py --staged <staged file> (--dry-run | --confirm) [--backup-dir config/backup_<d>_line_curves]   # installs only by_market_direction_line; backup, tests, restore on failure
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_tennis_serve_curves.py --before <d> --out-dir data/refit_tennis_serve_<d> [--played-cache f.pkl]   # tennis serve curves, staged; NOT installed (model-state.md)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_score_market_curves.py --out-dir data/refit_new_markets_<d> --football-rows <1x2/dnb fit rows.csv.gz> --tennis-rows <tennis_sets rows.csv>   # score-market slice curves + set_score_not, staged
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_<d> --confirm   # install staged new-market curves
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_<d> --confirm   # install staged new-market curves (sport target: installed file + .next.json + every dated .next.<d>.json)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]   # sport curves
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]   # config/sofa_settleability.json
@@ -107,7 +107,8 @@ A long backfill runs through the driver, never a shell loop (data only - it neve
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_driver.py --preset {listings|stats|night} --log runs/sofa/backfill/<name>.log [--yield-to-build] [--dry-run]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_driver.py --plan <plan.json> --log <log>   # {"chunk_minutes": 7, "stages": [{"name", "args": ["scripts/sofa/backfill_*.py", ...], "left_key"?, "max_hops"?}]}
 # Chunks of --chunk-minutes (7); a stage ends at 0 left, after --max-hops (2) seed hops (listings: the seed moves after every
-# completed run), after 3 chunks without progress, or SKIPPED after 3 crashes. Waits while rebuild / settle / record /
+# completed run; once the limit is reached a --dry-run plan is read before each chunk and the hop past it is never walked -
+# "DONE (2 hops, N at the next hop, not walked)" names the real queue), after 3 chunks without progress, or SKIPPED after 3 crashes. Waits while rebuild / settle / record /
 # line-evidence / regrade runs; --yield-to-build also while today's run_pipeline.py BOARD..SHEET runs.
 # Circuit open: retry after 15 min; 3 in a row (a 403 "challenge" on 2026-10-22) -> probe the bridge (one live request)
 # every --probe-every-min 15 for up to --recover-hours 6, resume on 200; only then "STOP:" and exit 2.
