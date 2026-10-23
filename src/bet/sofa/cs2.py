@@ -682,8 +682,18 @@ ROSTER_MARKERS = frozenset(
 )
 
 
-def _roster(name: str) -> frozenset[str]:
-    return frozenset(w for w in name.split() if w in ROSTER_MARKERS)
+# epochs.NAME_RULES_1023_FROM_UTC (audit 2026-10-23 P8, B9): Sofascore prints
+# "Inner Circle Prospect" where Superbet prints "Inner Circle Prospects"
+# (Privateer - Inner Circle Prospects, 10-22, not identified; one team, 29
+# series in cs2_series). Under the rule the singular is the same marker.
+ROSTER_MARKER_FOLD = {"prospect": "prospects"}
+
+
+def _roster(name: str, name_rules: bool = False) -> frozenset[str]:
+    words = name.split()
+    if name_rules:
+        words = [ROSTER_MARKER_FOLD.get(w, w) for w in words]
+    return frozenset(w for w in words if w in ROSTER_MARKERS)
 
 
 def _core(name: str) -> str:
@@ -691,27 +701,28 @@ def _core(name: str) -> str:
     return " ".join(words) if words else name
 
 
-def esports_score(a: str, b: str) -> float:
+def esports_score(a: str, b: str, name_rules: bool = False) -> float:
     """Name similarity with no subset reading.
 
     Not `resolve.name_score`: its token-set half scores "big" against "big
     academy" 100, and an esports organisation's academy plays in the same
     tier-2 events as its main roster. Word order may differ; word sets may not.
     A women's roster never matches a men's one (0.0): the marker is one fact
-    on both sides, compared before the names are.
+    on both sides, compared before the names are. `name_rules`
+    (epochs.NAME_RULES_1023_FROM_UTC): ROSTER_MARKER_FOLD first.
     """
     a, a_women = _women_split(a)
     b, b_women = _women_split(b)
     if a_women != b_women:
         return 0.0
-    if _roster(a) != _roster(b):
+    if _roster(a, name_rules) != _roster(b, name_rules):
         return 0.0
     a, b = _core(a), _core(b)
     return max(fuzz.ratio(a, b), fuzz.token_sort_ratio(a, b))
 
 
 def _orientation(
-    event: dict[str, Any], team1: str, team2: str
+    event: dict[str, Any], team1: str, team2: str, name_rules: bool = False
 ) -> tuple[float, bool | None]:
     """(how well the event's sides match team1/team2, home is team1).
 
@@ -722,29 +733,34 @@ def _orientation(
     home = esports_name(str((event.get("homeTeam") or {}).get("name") or ""))
     away = esports_name(str((event.get("awayTeam") or {}).get("name") or ""))
     t1, t2 = esports_name(team1), esports_name(team2)
-    straight = min(esports_score(t1, home), esports_score(t2, away))
-    crossed = min(esports_score(t1, away), esports_score(t2, home))
+    straight = min(esports_score(t1, home, name_rules),
+                   esports_score(t2, away, name_rules))
+    crossed = min(esports_score(t1, away, name_rules),
+                  esports_score(t2, home, name_rules))
     if straight == crossed:
         return straight, None
     return max(straight, crossed), straight > crossed
 
 
 def series_orientation(
-    event: dict[str, Any], team1: str, team2: str
+    event: dict[str, Any], team1: str, team2: str, name_rules: bool = False
 ) -> tuple[float, bool | None]:
     """`_orientation` for a caller holding one series already (a pinned id):
-    (the weaker side's name score, home is team1 or None on a tie)."""
-    return _orientation(event, team1, team2)
+    (the weaker side's name score, home is team1 or None on a tie).
+    `name_rules`: epochs.NAME_RULES_1023_FROM_UTC (esports_score)."""
+    return _orientation(event, team1, team2, name_rules)
 
 
 def pick_event(
-    candidates: list[dict[str, Any]], team1: str, team2: str, kickoff: datetime
+    candidates: list[dict[str, Any]], team1: str, team2: str, kickoff: datetime,
+    name_rules: bool = False,
 ) -> Resolution | Literal["AMBIGUOUS"] | None:
     """The one Counter Strike event between these two sides near this kickoff.
 
     Both names must clear the pipeline's name threshold - one side alone
     matches every other series that team plays that week. Two different
-    events that both fit is AMBIGUOUS, never a coin toss.
+    events that both fit is AMBIGUOUS, never a coin toss. `name_rules`:
+    epochs.NAME_RULES_1023_FROM_UTC (esports_score).
     """
     fits: dict[int, Resolution] = {}
     offsets: dict[int, timedelta] = {}
@@ -757,7 +773,7 @@ def pick_event(
         )
         if abs(start - kickoff) > MATCH_WINDOW:
             continue
-        score, home_is_t1 = _orientation(e, team1, team2)
+        score, home_is_t1 = _orientation(e, team1, team2, name_rules)
         if score <= NAME_MATCH_THRESHOLD:
             continue
         if home_is_t1 is None:

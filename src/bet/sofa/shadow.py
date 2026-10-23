@@ -119,6 +119,31 @@ class ShadowSport:
     # sport today; hockey's overtime is its own period). A sport whose last
     # period absorbed overtime would set this True.
     last_period_ambiguous_with_ot: bool = False
+    # Finished descriptions of a match followed by a golden set (volleyball
+    # AET / AGS; GOLDEN_SET_DESCRIPTIONS): the match itself ended in sets, and
+    # the extra set decided the two-legged tie, not the match.
+    golden_set_descriptions: frozenset[str] = frozenset()
+
+
+# Volleyball's golden set (audit 2026-10-23 B13 / P13). Sofascore prints a
+# two-legged tie's return match that was followed by a golden set "AET" or
+# "AGS" (finished): the match's sets stay in period1..N, `current` /
+# `normaltime` are the sets the MATCH ended with, and the golden set (to 15)
+# is kept apart under `overtime` (15999857 Belluno - Altotevere, Serie A3
+# playoffs: 25-23 25-16 20-25 24-26 15-13, current 3-2; 90 such games in the
+# cache, 21 AET + 69 AGS). `winnerCode` is the match's winner on most of them
+# but the TIE's winner (the golden set's) on 28 of 90 (12193496 A1 Women
+# playoffs: 3-1 in sets, winnerCode 2, golden set 16-18) - so it is not read.
+# Superbet settles on the match: Regulamin Zakładów Wzajemnych przez sieć
+# Internet (approved 10.02.2026, DRG2.6841.1.2026; and the 04.07.2024 text)
+# 5.D.3.a: "za oficjalny wynik uznaje się rezultat uzyskany na boisku w
+# regulaminowym czasie gry, chyba, że treść Zakładu stanowi inaczej" - the
+# golden set is played after the match and is no part of it, and no
+# volleyball market SHADOW reads names the tie ("awans"). So every market is
+# graded on the match's sets alone, the winner by the sets (a correctness fix,
+# live at once, no switch; the score-model history reads such a game only
+# under epochs.VB_GOLDEN_SET_FROM_UTC, score_model.parse_event).
+GOLDEN_SET_DESCRIPTIONS: frozenset[str] = frozenset({"AET", "AGS"})
 
 
 SPORTS: dict[SportKey, ShadowSport] = {
@@ -129,7 +154,8 @@ SPORTS: dict[SportKey, ShadowSport] = {
         "basketball", 4, "basketball", 4, frozenset({"Ended", "AET"})
     ),
     "volleyball": ShadowSport(
-        "volleyball", 1, "volleyball", None, frozenset({"Ended"})
+        "volleyball", 1, "volleyball", None, frozenset({"Ended"}),
+        golden_set_descriptions=GOLDEN_SET_DESCRIPTIONS,
     ),
 }
 SPORT_BY_SUPERBET_ID: dict[int, ShadowSport] = {
@@ -1112,6 +1138,18 @@ def build_result(
     if not isinstance(h_cur, int) or not isinstance(a_cur, int):
         return None
     code = detail.get("winnerCode")
+    golden = (sport.regulation_periods is None
+              and (detail.get("status") or {}).get("description")
+              in sport.golden_set_descriptions)
+    if golden:
+        # A match followed by a golden set (GOLDEN_SET_DESCRIPTIONS): its
+        # winner is the sets', never winnerCode (which may name the tie's).
+        # Only a completed best-of-five is a result.
+        h_won = sum(1 for h, a in zip(h_periods, a_periods, strict=True) if h > a)
+        a_won = sum(1 for h, a in zip(h_periods, a_periods, strict=True) if a > h)
+        if max(h_won, a_won) != 3 or min(h_won, a_won) > 2:
+            return None
+        code = 1 if h_won > a_won else 2
     if allow_final_only and code is None and h_cur != a_cur:
         # No winnerCode beside a decided score (2026-10-17: Shumen - Botev
         # 16923354 of 2026-10-16, Ended 87-84, periods adding up, 16 lines
@@ -1574,6 +1612,10 @@ def event_state(
     kind = status.get("type")
     if kind == "finished":
         if status.get("description") in sport.finished_descriptions:
+            return "FINISHED"
+        if status.get("description") in sport.golden_set_descriptions:
+            # A volleyball match followed by a golden set: the match is
+            # finished and graded on its own sets (GOLDEN_SET_DESCRIPTIONS).
             return "FINISHED"
         return "UNUSUAL"
     if kind in ("canceled", "cancelled", "abandoned"):

@@ -672,15 +672,20 @@ class HistoryGame:
 
 
 def parse_history(events: Mapping[int, dict[str, Any]], sport: ShadowSport,
-                  box: Mapping[int, Any] | None = None) -> list[HistoryGame]:
+                  box: Mapping[int, Any] | None = None, *,
+                  halves: bool = False, golden_set: bool = False
+                  ) -> list[HistoryGame]:
     """Every rated finished game, oldest first (friendlies out, by
     score_model.parse_event -> comparability). `box` (basketball, audit B7:
     event id -> statistics_json, score_model.load_box_scores): each graded
     game carries its pace metrics (score_model.attach_box); hockey (audit B8,
-    the same mapping): its shot metrics (score_model.attach_hockey_shots)."""
+    the same mapping): its shot metrics (score_model.attach_hockey_shots).
+    `halves` / `golden_set` (epochs.bb_halves_leagues / epochs.vb_golden_set,
+    audit 2026-10-23 P11 / P13): passed to score_model.parse_event; both
+    False = the old history exactly."""
     out: list[HistoryGame] = []
     for e in events.values():
-        r = parse_event(e, sport)
+        r = parse_event(e, sport, halves=halves, golden_set=golden_set)
         if r is None:
             continue
         result = build_result(e, sport, True)
@@ -1527,10 +1532,15 @@ class TeamGames:
     by_team: dict[int, list[tuple[int, dict[str, Any]]]]
 
     @staticmethod
-    def build(events: Iterable[dict[str, Any]], sport: ShadowSport) -> TeamGames:
+    def build(events: Iterable[dict[str, Any]], sport: ShadowSport, *,
+              halves: bool = False, golden_set: bool = False) -> TeamGames:
+        """`halves` / `golden_set`: as parse_history (audit 2026-10-23 P11 /
+        P13); both False = the old sample exactly."""
         by_team: dict[int, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
         for e in events:
-            if parse_event(e, sport) is None:  # finished, rated, no friendly
+            # finished, rated, no friendly
+            if parse_event(e, sport, halves=halves,
+                           golden_set=golden_set) is None:
                 continue
             if match_kind(e, sport.sofascore_slug) != MatchKind.REGULAR:
                 continue

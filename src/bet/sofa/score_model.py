@@ -385,12 +385,50 @@ def _is_friendly(event: dict[str, Any]) -> bool:
     return is_friendly_event(event)
 
 
-def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | None:
+# Audit 2026-10-23 B11 / P11 (epochs.BB_HALVES_LEAGUES_FROM_UTC): basketball
+# competitions played in two halves (NCAA men: 2 x 20 min). parse_event wants
+# exactly the four quarters, so every game of theirs fell out of the history
+# (2,842 games in 365 days). The ids are the Sofascore unique tournaments
+# whose "Ended" games in the cache carry two periods (counted 2026-10-23 on
+# sofa_listed_event: 33651 NCAA Men's Division I 5,940 of 5,943; 648 NCAA Men
+# 664 of 667, labelled "1st half"; 33653 Division III 531; 13434 March Madness
+# 139; 33654 Interdivisional 66; 33652 Division II 51; 18640 NIT 49) - no
+# other competition has 30 such games. A game whose `periods.period1` label
+# says "half" is played in halves too, whatever its competition.
+BB_HALVES_COMPETITIONS: frozenset[int] = frozenset(
+    {33651, 648, 33653, 13434, 33654, 33652, 18640})
+
+
+def basketball_halves(event: Mapping[str, Any]) -> bool:
+    """A basketball game of a competition played in two halves
+    (BB_HALVES_COMPETITIONS, or Sofascore's own "1st half" label)."""
+    tournament = event.get("tournament")
+    unique = (tournament.get("uniqueTournament")
+              if isinstance(tournament, dict) else None)
+    if isinstance(unique, dict) and unique.get("id") in BB_HALVES_COMPETITIONS:
+        return True
+    periods = event.get("periods")
+    label = periods.get("period1") if isinstance(periods, dict) else None
+    return isinstance(label, str) and "half" in label.lower()
+
+
+def parse_event(event: dict[str, Any], sport: ShadowSport, *,
+                halves: bool = False, golden_set: bool = False
+                ) -> FootballResult | None:
     """One finished game as rating input, or None.
 
     Hockey / basketball: exactly the regulation periods, each a count >= 0.
     Volleyball: every set a clear win; the value is points per set played.
     Friendlies are left out, as in football.
+
+    `halves` (epochs.bb_halves_leagues, audit P11): a basketball game of a
+    competition played in halves (basketball_halves) with exactly two periods
+    is read on its regulation total alone - no quarter metric, so the period
+    shares and the quarter spread stay the quarter leagues'. `golden_set`
+    (epochs.vb_golden_set, audit P13): a volleyball match followed by a
+    golden set (shadow.GOLDEN_SET_DESCRIPTIONS) is read on its own sets - the
+    golden set is under `overtime`, never in a period - once the match is a
+    completed best-of-five. Both off: the rule before the audit.
     """
     try:
         if event["tournament"]["category"]["sport"]["slug"] != sport.sofascore_slug:
@@ -398,7 +436,10 @@ def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | N
         status = event.get("status") or {}
         if status.get("type") != "finished":
             return None
-        if status.get("description") not in sport.finished_descriptions:
+        description = status.get("description")
+        golden = (golden_set and sport.regulation_periods is None
+                  and description in sport.golden_set_descriptions)
+        if description not in sport.finished_descriptions and not golden:
             return None
         unique = event["tournament"].get("uniqueTournament") or {}
         competition = int(unique.get("id", event["tournament"]["id"]))
@@ -421,6 +462,14 @@ def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | N
         ap.append(a)
     values: dict[str, tuple[float, float]] = {}
     if sport.regulation_periods is not None:
+        if (halves and sport.key == "basketball" and len(hp) == 2
+                and basketball_halves(event)):
+            values[REG_METRIC[sport.key]] = (float(sum(hp)), float(sum(ap)))
+            return FootballResult(
+                event_id=int(event["id"]), ts=ts, competition_id=competition,
+                home_id=home, away_id=away, values=values,
+                women=sofascore_gender(event) == "W",
+            )
         if len(hp) != sport.regulation_periods:
             return None
         for i, (h, a) in enumerate(zip(hp, ap, strict=True), 1):
@@ -429,6 +478,14 @@ def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | N
     else:
         if len(hp) < 3 or any(h == a for h, a in zip(hp, ap, strict=True)):
             return None
+        if golden:
+            # A completed best-of-five whose sets are `current` (the golden
+            # set is no set of the match; shadow.build_result's own check).
+            won = sum(1 for h, a in zip(hp, ap, strict=True) if h > a)
+            if (max(won, len(hp) - won) != 3
+                    or (hs.get("current"), as_.get("current"))
+                    != (won, len(hp) - won)):
+                return None
         n_sets = len(hp)
         values[VOLLEYBALL_METRIC] = (sum(hp) / n_sets, sum(ap) / n_sets)
     return FootballResult(
@@ -438,10 +495,15 @@ def parse_event(event: dict[str, Any], sport: ShadowSport) -> FootballResult | N
     )
 
 
-def load_history(db_path: str | Path, sport: ShadowSport) -> list[FootballResult]:
-    """Every distinct finished game of the sport in the cached listings."""
+def load_history(db_path: str | Path, sport: ShadowSport, *,
+                 halves: bool = False, golden_set: bool = False
+                 ) -> list[FootballResult]:
+    """Every distinct finished game of the sport in the cached listings
+    (`halves` / `golden_set`: parse_event's)."""
     events = load_events(db_path, sport)
-    out = [r for e in events.values() if (r := parse_event(e, sport)) is not None]
+    out = [r for e in events.values()
+           if (r := parse_event(e, sport, halves=halves,
+                                golden_set=golden_set)) is not None]
     return sorted(out, key=lambda r: (r.ts, r.event_id))
 
 

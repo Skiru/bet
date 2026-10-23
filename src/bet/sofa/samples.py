@@ -12,6 +12,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
+from bet.sofa import epochs
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient
 from bet.sofa.comparability import (
@@ -62,9 +63,11 @@ from bet.sofa.players import (
     is_player_metric,
     match_player,
     match_player_by_inner_surname,
+    match_player_by_slug,
     match_player_by_surname,
     match_player_by_tokens,
     match_player_by_transliteration,
+    player_id_of,
     player_sample_key,
     squad_statistics,
     started,
@@ -90,6 +93,46 @@ INCIDENT_METRICS = frozenset({"cards_points_total", "cards_points_for"})
 # every history reader, 2026-10-04); re-exported here for the old importers.
 FRIENDLY_COMPETITION_IDS: frozenset[int] = _FRIENDLY_IDS
 _FRIENDLIES_PATH = FRIENDLIES_PATH
+
+
+def _load_conflict_cut_friendly_ids() -> frozenset[int]:
+    """The friendly ids the list adds under epochs.SAMPLE_CONFLICT_CUT_FROM_UTC
+    (its `excluded_from_sample_conflict_cut`): the comparability list is read
+    by every day alike, so an id added for a coming day sits apart and only
+    SAMPLES reads it, only under the switch (coverage audit 2026-10-23, B4)."""
+    try:
+        raw = json.loads(FRIENDLIES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    entries = raw.get("excluded_from_sample_conflict_cut") if isinstance(
+        raw, dict) else None
+    return frozenset(
+        int(e["competition_id"]) for e in entries or []
+        if isinstance(e, dict) and isinstance(e.get("competition_id"), int))
+
+
+CONFLICT_CUT_FRIENDLY_IDS: frozenset[int] = _load_conflict_cut_friendly_ids()
+
+
+def player_switches(fixture: Fixture) -> dict[str, bool]:
+    """The coverage audit's player switches for a football fixture, by its
+    (UTC) day and the build clock: P6 omitted_zero
+    (epochs.PLAYER_OMITTED_ZERO_FROM_UTC), P5 slug_name
+    (PLAYER_SLUG_NAME_FROM_UTC), P3 player_id (PLAYER_HISTORY_ANY_TEAM_FROM_UTC).
+    Every other sport: all off."""
+    day = fixture.kickoff_utc.strftime("%Y-%m-%d")
+    football = fixture.sport == "football"
+    return {
+        "omitted_zero": football and epochs.player_omitted_zero(day),
+        "slug_name": football and epochs.player_slug_name(day),
+        "player_id": football and epochs.player_history_any_team(day),
+    }
+
+
+def conflict_cut_on(fixture: Fixture) -> bool:
+    """epochs.sample_conflict_cut for the fixture's (UTC) day at the build
+    clock - the day a football fixture is SAMPLES' day."""
+    return epochs.sample_conflict_cut(fixture.kickoff_utc.strftime("%Y-%m-%d"))
 
 
 def _team_id(team: Mapping[str, Any]) -> int | None:
@@ -306,6 +349,7 @@ def get_historical_events(
     gaps: list[GapEntry] | None = None,
     pool_out: list[dict[str, Any]] | None = None,
     pool_friendly_competition: int | None = None,
+    conflict_cut: bool | None = None,
 ) -> list[dict[str, Any]]:
     """The last ``sample_n`` finished events for ``entity_id`` before kickoff.
 
@@ -322,7 +366,15 @@ def get_historical_events(
     fixture only): the pool - never the sample proper - also admits that
     friendly competition's matches (bet.sofa.men_friendly). None: the pool
     is what it always was.
+
+    ``conflict_cut`` (epochs.SAMPLE_CONFLICT_CUT_FROM_UTC; None: the switch
+    at the fixture's day and the build clock): a two-squad clash cuts the
+    sample proper at the clash (finish_history ``conflict_cut``) and the
+    friendlies of CONFLICT_CUT_FRIENDLY_IDS are out of the sample and the
+    pool. False: the old rule exactly.
     """
+    if conflict_cut is None:
+        conflict_cut = sport == "football" and conflict_cut_on(fixture)
     events: list[dict[str, Any]] = []
     # The pool's friendly matches (pool_friendly_competition), kept apart from
     # the sample proper.
@@ -386,6 +438,10 @@ def get_historical_events(
             friendly_ok and pool_friendly_competition is not None
             and _competition_id(event) == pool_friendly_competition
         ):
+            return False
+        # epochs.SAMPLE_CONFLICT_CUT_FROM_UTC: the friendlies added for it
+        if (conflict_cut and sport == "football"
+                and _competition_id(event) in CONFLICT_CUT_FRIENDLY_IDS):
             return False
 
         if sport == "tennis":
@@ -603,6 +659,7 @@ def get_historical_events(
     return finish_history(
         events, entity_id, sport, fixture_competition,
         int(fixture.kickoff_utc.timestamp()), config.sample_n, gaps,
+        conflict_cut=conflict_cut,
     )
 
 
@@ -616,6 +673,7 @@ def finish_history(
     gaps: list[GapEntry] | None = None,
     *,
     cut_at_conflict: bool = False,
+    conflict_cut: bool = False,
 ) -> list[dict[str, Any]]:
     """The admitted events of one side, made into its sample.
 
@@ -629,6 +687,16 @@ def finish_history(
     the matches after the newest clashing pair instead of emptying the side.
     The sample proper keeps the old rule - its candidates are the pages the
     walk read, so a clash there is a clash near the sample.
+
+    ``conflict_cut`` (the sample proper, epochs.SAMPLE_CONFLICT_CUT_FROM_UTC):
+    a clash cuts the side at the newest clashing pair, as the pool does, and
+    the side keeps its newest ``sample_n`` matches after it - only when there
+    are ``sample_n`` of them, so a cut sample is exactly the newest-ten the
+    cache replay the curves are fitted on reads (calibrate_from_cache runs no
+    two-squad check); fewer, and the side is left empty as before. The
+    "near the sample" argument did not hold: 12 fixtures in 3 days, 7 of
+    them over a clash older than four months (Bayern U19, Spax Cup
+    2016-05-15; docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md, B4).
     """
     # The sample is the most recent `sample_n`, newest first.
     events = one_listing_per_match(events)
@@ -674,6 +742,30 @@ def finish_history(
                 [e for e in events if int(e.get("startTimestamp") or 0) > after],
                 entity_id,
             )
+        if conflict is not None and conflict_cut and after is not None:
+            cut = events
+            left: str | None = conflict
+            cut_after: int | None = after
+            while left is not None and cut_after is not None:
+                cut, left, cut_after = _one_squad(
+                    [e for e in cut
+                     if int(e.get("startTimestamp") or 0) > cut_after],
+                    entity_id,
+                )
+            if left is None and len(cut) >= sample_n:
+                if gaps is not None:
+                    gaps.append(
+                        GapEntry(
+                            reason=GapReason.ENTITY_CONFLICT,
+                            metric="all",
+                            detail=(
+                                f"entity {entity_id}: {conflict}; sample cut "
+                                f"at the clash, {len(cut)} matches after it "
+                                "(epochs.SAMPLE_CONFLICT_CUT_FROM_UTC)"
+                            ),
+                        )
+                    )
+                events, conflict = cut, None
         if conflict is not None:
             if gaps is not None:
                 gaps.append(
@@ -925,12 +1017,19 @@ def process_historical_event(
     want_lineups: bool = False,
     want_shotmap: bool = False,
     per_family_identity: bool = False,
+    omitted_zero: bool = False,
+    slug_name: bool = False,
+    player_id: bool = False,
 ) -> dict[str, Any]:
     """One historical match's observations for ``metrics_to_collect``.
 
     ``per_family_identity`` (epochs.IDENTITY_GATE_PER_FAMILY): an internal
     identity the payload fails blocks only the metrics of its family
     (metrics.identity_gap_for_metric); off, any failure blocks every metric.
+
+    ``omitted_zero`` / ``slug_name`` / ``player_id``
+    (epochs.PLAYER_OMITTED_ZERO_FROM_UTC / PLAYER_SLUG_NAME_FROM_UTC /
+    PLAYER_HISTORY_ANY_TEAM_FROM_UTC): passed to players.squad_statistics.
     """
     event_id = event["id"]
 
@@ -1085,15 +1184,20 @@ def process_historical_event(
             squad = squad_statistics(
                 lineups, is_home=is_home, statistics=statistics_json,
                 shotmap=shotmap if shotmap is not None else {},
+                omitted_zero=omitted_zero, slug_name=slug_name,
+                player_id=player_id,
             )
         else:
             squad = squad_statistics(
                 lineups,
                 is_home=is_home,
                 statistics=statistics_json,
+                omitted_zero=omitted_zero,
+                slug_name=slug_name,
+                player_id=player_id,
             )
 
-    return {
+    result = {
         "event_id": event_id,
         "collected": collected,
         "is_h2h": is_h2h,
@@ -1106,6 +1210,11 @@ def process_historical_event(
         "season_id": season_id,
         "venue": venue,
     }
+    if player_id:
+        # epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC: the peers the any-team
+        # history reads (_foreign_side_results)
+        result["opponent_id"] = opponent_id
+    return result
 
 
 def cached_listing(
@@ -1194,6 +1303,7 @@ def build_player_samples(
     surname_fallback: bool = False,
     coverage: bool = False,
     cap: int | None = None,
+    slug_fallback: bool = False,
 ) -> dict[str, PlayerSample]:
     """One sample per (player metric, player Superbet quoted) — F54.
 
@@ -1229,11 +1339,17 @@ def build_player_samples(
     and two more fallbacks follow the surname one on the same terms -
     `match_player_by_transliteration`, then `match_player_by_inner_surname`.
     `cap` keeps the newest `cap` observations (coverage_player_samples).
+
+    `slug_fallback` (epochs.PLAYER_SLUG_NAME_FROM_UTC): last of all,
+    `match_player_by_slug` (the squads were read with slug_name=True), on the
+    same every-squad-agrees terms; `match_rule` "slug".
     """
     samples: dict[str, PlayerSample] = {}
     extra: list[tuple[str, Callable[[str, dict[str, dict[str, Any]]], str | None]]] = (
         [("transliteration", match_player_by_transliteration),
          ("inner_surname", match_player_by_inner_surname)] if coverage else [])
+    if slug_fallback:
+        extra.append(("slug", match_player_by_slug))
     for metric, players in sorted(wanted.items()):
         for player in sorted(players):
             per_side, per_side_names, named = _player_observations(
@@ -1361,6 +1477,9 @@ def _wide_side_results(
     config: SofaConfig,
     want_shotmap: bool,
     base: dict[str, list[dict[str, Any]]],
+    omitted_zero: bool = False,
+    slug_name: bool = False,
+    player_id: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
     """Each side's sampled matches followed by the older ones of its newest
     PLAYER_WIDE_SAMPLE_N (squads only: no team metric is read from them),
@@ -1383,7 +1502,8 @@ def _wide_side_results(
         out[label] = results + [
             process_historical_event(
                 client, cache, e, entity, fixture.sport, set(), fixture,
-                True, want_shotmap,
+                True, want_shotmap, omitted_zero=omitted_zero,
+                slug_name=slug_name, player_id=player_id,
             )
             for e in older
         ]
@@ -1401,6 +1521,8 @@ def coverage_player_samples(
     token_fallback: bool = False,
     starts_only: bool = False,
     surname_fallback: bool = False,
+    slug_fallback: bool = False,
+    foreign_results: Callable[[], dict[str, list[dict[str, Any]]]] | None = None,
 ) -> dict[str, PlayerSample]:
     """build_player_samples under epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC.
 
@@ -1410,18 +1532,25 @@ def coverage_player_samples(
     the older ones of the team's newest PLAYER_WIDE_SAMPLE_N, fetched once per
     fixture and only when someone needs it - keeping his newest `sample_n`;
     taken when that reaches `min_sample`, with its own gaps in place of the
-    first attempt's, and `wide_window` set to the side's history length."""
+    first attempt's, and `wide_window` set to the side's history length.
+
+    `foreign_results` (epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC, K7): a player
+    still under `min_sample` is topped up with his starts for other teams
+    (any_team_sample) - the squads `foreign_results()` reads, once per
+    fixture and only when someone needs it. None: never."""
     samples: dict[str, PlayerSample] = {}
     wide: dict[str, list[dict[str, Any]]] | None = None
+    foreign: dict[str, list[dict[str, Any]]] | None = None
     for metric, players in sorted(wanted.items()):
         for player in sorted(players):
             pair = {metric: {player}}
             key = player_sample_key(metric, player)
             own_gaps: list[GapEntry] = []
+            w_got: dict[str, PlayerSample] = {}
             got = build_player_samples(
                 pair, side_results, own_gaps, token_fallback=token_fallback,
                 starts_only=starts_only, surname_fallback=surname_fallback,
-                coverage=True)
+                coverage=True, slug_fallback=slug_fallback)
             sample = got.get(key)
             if sample is None or len(sample.observations) < min_sample:
                 if wide is None:
@@ -1431,15 +1560,185 @@ def coverage_player_samples(
                     w_got = build_player_samples(
                         pair, wide, wide_gaps, token_fallback=token_fallback,
                         starts_only=starts_only, surname_fallback=surname_fallback,
-                        coverage=True, cap=sample_n)
+                        coverage=True, cap=sample_n, slug_fallback=slug_fallback)
                     w_sample = w_got.get(key)
                     if (w_sample is not None
                             and len(w_sample.observations) >= min_sample):
                         w_sample.wide_window = len(wide[w_sample.side])
                         got, own_gaps = w_got, wide_gaps
+                if foreign_results is not None:
+                    best = got.get(key)
+                    used = side_results
+                    w_best = w_got.get(key) if wide_used(wide, side_results) else None
+                    if w_best is not None and (
+                            best is None
+                            or len(w_best.observations) > len(best.observations)):
+                        best, used = w_best, wide or side_results
+                    if best is not None and len(best.observations) < min_sample:
+                        if foreign is None:
+                            foreign = foreign_results()
+                        topped = any_team_sample(
+                            best, used, foreign, metric, starts_only=starts_only,
+                            sample_n=sample_n, min_sample=min_sample)
+                        if topped is not None:
+                            sample_topped, n_foreign = topped
+                            if used is not side_results and wide is not None:
+                                sample_topped.wide_window = len(
+                                    wide[sample_topped.side])
+                            got = {key: sample_topped}
+                            own_gaps.append(GapEntry(
+                                reason=GapReason.THIN_SAMPLE, metric=metric,
+                                detail=(
+                                    f"{ANY_TEAM_NOTE}: player {player!r} "
+                                    f"{len(best.observations)} starts for his "
+                                    f"side topped up with {n_foreign} for "
+                                    "other teams (by player id; "
+                                    "epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC)"
+                                )))
             gaps.extend(own_gaps)
             samples.update(got)
     return samples
+
+
+def wide_used(wide: dict[str, list[dict[str, Any]]] | None,
+              base: dict[str, list[dict[str, Any]]]) -> bool:
+    return wide is not None and any(
+        len(wide[s]) > len(base[s]) for s in base)
+
+
+# epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC (K7): the marker of a topped-up
+# footballer's sample (its THIN_SAMPLE note), and how far back each peer's
+# own listing is read for his squads.
+ANY_TEAM_NOTE = "PLAYER_HISTORY_ANY_TEAM"
+FOREIGN_PEER_GAMES = 20
+
+
+def any_team_sample(
+    sample: PlayerSample,
+    results: dict[str, list[dict[str, Any]]],
+    foreign: dict[str, list[dict[str, Any]]],
+    metric: str,
+    *,
+    starts_only: bool,
+    sample_n: int,
+    min_sample: int,
+) -> tuple[PlayerSample, int] | None:
+    """His thin sample topped up with his starts for other teams, newest
+    `sample_n`, when that reaches `min_sample`; with how many came from other
+    teams. He is the one Sofascore player id his own side's squads carry
+    under `matched_name` (players.PLAYER_ID_KEY); two ids, or none: None. A
+    foreign squad counts only when exactly one entry carries that id."""
+    ids = {
+        player_id_of(res["squad"][sample.matched_name])
+        for res in results[sample.side]
+        if res.get("squad") and sample.matched_name in res["squad"]
+    }
+    ids.discard(None)
+    if len(ids) != 1:
+        return None
+    pid = next(iter(ids))
+    seen = {o.sofascore_event_id for o in sample.observations}
+    seen |= {res["event_id"] for res in results[sample.side]}
+    extra: list[Observation] = []
+    for res in foreign.get(sample.side) or []:
+        if res["event_id"] in seen:
+            continue
+        hits = [st for st in (res.get("squad") or {}).values()
+                if player_id_of(st) == pid]
+        if len(hits) != 1:
+            continue
+        stats = hits[0]
+        value = extract_player_metric(metric, stats, woodwork_once=True)
+        if isinstance(value, GapReason):
+            continue
+        if starts_only and started(stats) is False:
+            continue
+        seen.add(res["event_id"])
+        extra.append(Observation(
+            sofascore_event_id=res["event_id"],
+            match_date_utc=res["match_date_utc"],
+            opponent=res["opponent"],
+            value=value,
+            minutes=stats.get("minutesPlayed"),
+            competition_id=res["competition_id"],
+            season_id=res["season_id"],
+            venue=res["venue"],
+        ))
+    if not extra:
+        return None
+    observations = sorted([*sample.observations, *extra],
+                          key=lambda o: o.match_date_utc, reverse=True)[:sample_n]
+    if len(observations) < min_sample:
+        return None
+    n_foreign = sum(1 for o in observations
+                    if o.sofascore_event_id in {x.sofascore_event_id for x in extra})
+    return sample.model_copy(update={"observations": observations}), n_foreign
+
+
+def _foreign_side_results(
+    cache: SofaCache,
+    fixture: Fixture,
+    base: dict[str, list[dict[str, Any]]],
+    omitted_zero: bool = False,
+) -> dict[str, list[dict[str, Any]]]:
+    """Each side's PEERS' own matches as squads with player ids, from the
+    cache only (a lineup nobody cached is not asked for): a peer is an
+    opponent in the side's sampled matches; its newest FOREIGN_PEER_GAMES
+    listed matches before kick-off, admitted like a sample's (finished
+    normally, no friendly), the peer's lineup side. A player who moved
+    between two teams that met keeps his starts for the former one (K7;
+    the hockey / basketball reader, player_model.load_appearances any_team,
+    reads its peers the same way)."""
+    kickoff_ts = int(fixture.kickoff_utc.timestamp())
+    out: dict[str, list[dict[str, Any]]] = {}
+    for label, own in (("side_a", fixture.home_entity_id),
+                       ("side_b", fixture.away_entity_id)):
+        peers: list[int] = []
+        for res in base.get(label) or []:
+            peer = res.get("opponent_id")
+            if isinstance(peer, int) and peer != own and peer not in peers:
+                peers.append(peer)
+        seen: set[int] = set()
+        rows: list[dict[str, Any]] = []
+        for peer in peers:
+            for event in cache.get_listed_events(
+                    peer, "last", kickoff_ts, FOREIGN_PEER_GAMES):
+                eid = event.get("id")
+                start = event.get("startTimestamp")
+                if (not isinstance(eid, int) or eid in seen
+                        or not isinstance(start, int) or start >= kickoff_ts
+                        or not is_completed_event(event)
+                        or is_friendly_event(event, "football")):
+                    continue
+                home_id = (event.get("homeTeam") or {}).get("id")
+                away_id = (event.get("awayTeam") or {}).get("id")
+                if peer not in (home_id, away_id):
+                    continue
+                lineups = cache.get_event_lineups(eid)
+                if not lineups:
+                    continue
+                seen.add(eid)
+                is_home = home_id == peer
+                stats = cache.get_event_stats(eid)
+                squad = squad_statistics(
+                    lineups, is_home=is_home,
+                    statistics=stats[0] if stats else None,
+                    omitted_zero=omitted_zero, player_id=True)
+                if not squad:
+                    continue
+                other = (event.get("awayTeam") if is_home
+                         else event.get("homeTeam")) or {}
+                rows.append({
+                    "event_id": eid,
+                    "squad": squad,
+                    "match_date_utc": datetime.fromtimestamp(start, UTC),
+                    "opponent": other.get("name") or "Unknown",
+                    "competition_id": _competition_id(event),
+                    "season_id": (event.get("season") or {}).get("id"),
+                    "venue": "home" if is_home else "away",
+                })
+        out[label] = rows
+    return out
 
 
 def newest_position(
@@ -1567,6 +1866,9 @@ def process_fixture_samples(
     shot_detail: bool = False,
     player_coverage: bool = False,
     per_family_identity: bool = False,
+    player_omitted_zero: bool | None = None,
+    player_slug_name: bool | None = None,
+    player_any_team: bool | None = None,
 ) -> FixtureSamples:
     """Sample one fixture. A provider failure blocks this fixture, not the day.
 
@@ -1574,6 +1876,12 @@ def process_fixture_samples(
     and the operator is left with no artifact at all rather than an artifact
     that names the fixture that failed. The circuit breaker is the mechanism
     that stops a genuinely dead provider; a single error is not that.
+
+    ``player_omitted_zero`` / ``player_slug_name`` / ``player_any_team``
+    (coverage audit 2026-10-23 P6 / P5 / P3): None reads the switch
+    (epochs.PLAYER_OMITTED_ZERO_FROM_UTC / PLAYER_SLUG_NAME_FROM_UTC /
+    PLAYER_HISTORY_ANY_TEAM_FROM_UTC) at the fixture's day and the build
+    clock; football only.
     """
     try:
         result = _process_fixture_samples(
@@ -1584,6 +1892,9 @@ def process_fixture_samples(
             shot_detail=shot_detail,
             player_coverage=player_coverage,
             per_family_identity=per_family_identity,
+            player_omitted_zero=player_omitted_zero,
+            player_slug_name=player_slug_name,
+            player_any_team=player_any_team,
         )
     except CircuitOpenError as exc:
         result = _blocked(fixture, GapReason.CIRCUIT_OPEN, str(exc))
@@ -1621,6 +1932,9 @@ def _process_fixture_samples(
     shot_detail: bool = False,
     player_coverage: bool = False,
     per_family_identity: bool = False,
+    player_omitted_zero: bool | None = None,
+    player_slug_name: bool | None = None,
+    player_any_team: bool | None = None,
 ) -> FixtureSamples:
     # The offer artifact if the pre-sample OFFER covered this fixture, and only
     # otherwise a live call. This is the saving A4 always claimed (F19).
@@ -1652,6 +1966,16 @@ def _process_fixture_samples(
     # shot-detail player market is quoted (off: never asked).
     want_shotmap = want_lineups and shot_detail and any(
         metric in SHOT_DETAIL_METRICS for metric in wanted_players)
+    on = player_switches(fixture)
+    if player_omitted_zero is None:
+        player_omitted_zero = on["omitted_zero"]
+    if player_slug_name is None:
+        player_slug_name = on["slug_name"]
+    if player_any_team is None:
+        player_any_team = on["player_id"]
+    squad_flags = {"omitted_zero": player_omitted_zero,
+                   "slug_name": player_slug_name,
+                   "player_id": player_any_team}
 
     if not metrics_to_collect and not wanted_players:
         return FixtureSamples(
@@ -1711,6 +2035,7 @@ def _process_fixture_samples(
             want_lineups,
             want_shotmap,
             per_family_identity,
+            **squad_flags,
         )
         for e in side_a_events
     ]
@@ -1726,6 +2051,7 @@ def _process_fixture_samples(
             want_lineups,
             want_shotmap,
             per_family_identity,
+            **squad_flags,
         )
         for e in side_b_events
     ]
@@ -1842,6 +2168,7 @@ def _process_fixture_samples(
             return _wide_side_results(
                 client, cache, fixture, config, want_shotmap,
                 {"side_a": side_a_results, "side_b": side_b_results},
+                **squad_flags,
             )
 
         player_samples = coverage_player_samples(
@@ -1854,6 +2181,13 @@ def _process_fixture_samples(
             token_fallback=token_fallback,
             starts_only=starts_only,
             surname_fallback=surname_fallback,
+            slug_fallback=player_slug_name,
+            foreign_results=(
+                (lambda: _foreign_side_results(
+                    cache, fixture,
+                    {"side_a": side_a_results, "side_b": side_b_results},
+                    omitted_zero=player_omitted_zero))
+                if player_any_team else None),
         )
     elif want_lineups:
         player_samples = build_player_samples(
@@ -1863,6 +2197,7 @@ def _process_fixture_samples(
             token_fallback=token_fallback,
             starts_only=starts_only,
             surname_fallback=surname_fallback,
+            slug_fallback=player_slug_name,
         )
         for key, sample in sorted(player_samples.items()):
             if len(sample.observations) < config.min_sample:

@@ -596,8 +596,12 @@ def test_event_state() -> None:
     assert event_state(HOCKEY_AET, HOCKEY, ko, at) == "FINISHED"
     walkover = {"status": {"type": "finished", "description": "Walkover"}}
     assert event_state(walkover, HOCKEY, ko, at) == "UNUSUAL"
-    # AET is not a volleyball description; anything unexpected is not graded.
-    assert event_state(HOCKEY_AET, VOLLEYBALL, ko, at) == "UNUSUAL"
+    # Volleyball's AET / AGS is a match followed by a golden set: finished,
+    # graded on the match's own sets (audit 2026-10-23 P13,
+    # test_audit1023_p13_golden_set.py); anything else unexpected is not.
+    assert event_state(HOCKEY_AET, VOLLEYBALL, ko, at) == "FINISHED"
+    odd = {"status": {"type": "finished", "description": "Halftime"}}
+    assert event_state(odd, VOLLEYBALL, ko, at) == "UNUSUAL"
     late = {"status": {"type": "notstarted"}}
     assert event_state(late, HOCKEY, ko, at) == "PENDING"
     assert event_state(late, HOCKEY, ko, ko + timedelta(hours=49)) == "VOID"

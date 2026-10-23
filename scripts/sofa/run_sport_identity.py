@@ -98,7 +98,10 @@ def run(date: str, sports: list[str], runs_dir: str, client: si.ListingClient,
                                    day_anchor=epochs.day_anchor(date, at),
                                    tournament_day=tournament_day
                                    if epochs.tournament_day(date, at) else None,
-                                   absence=epochs.not_on_sofascore(date, at))
+                                   absence=epochs.not_on_sofascore(date, at),
+                                   # audit 2026-10-23 P4: the query anchor's
+                                   # veto, read only under its switch
+                                   anchor_opponents=resolver.query_ids)
     # Sports not asked this run keep their earlier records.
     kept = [r for r in (prior or {}).get("fixtures") or []
             if r.get("sport") not in sports]

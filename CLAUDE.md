@@ -190,8 +190,15 @@ and a miss recorded before a rule's switch never blocks that rule.
 - **Players** (football): sample = his starts (Superbet voids a non-starter;
   SETTLE `PLAYER_NOT_STARTED`); a name `players.match_player` misses is tried by
   whole tokens (`match_rule: "tokens"`), then surname + first-name prefix
-  (`match_rule: "surname"`); SETTLE grades the `matched_name` from his own squad
-  (a candidate in the other squad is PLAYER_AMBIGUOUS).
+  (`match_rule: "surname"`), and from 2026-10-24 00:00Z last by his Sofascore
+  slug (`match_rule: "slug"`, `PLAYER_SLUG_NAME`); SETTLE grades the
+  `matched_name` from his own squad (a candidate in the other squad is
+  PLAYER_AMBIGUOUS). From 2026-10-24 a sample still thin after the 20-match
+  window is topped up with the same player id's starts for other teams (the
+  sample opponents' cached lineups only, never by name; `THIN_SAMPLE` gap
+  note; `PLAYER_HISTORY_ANY_TEAM`, `samples.any_team_sample`). Players'
+  zero offsides from a team's rebuilt 0-0 (`PLAYER_OMITTED_ZERO`) measured
+  worse and off.
 - **Start clock** = earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds dropped for
   every reader) and FIXTURE_CHECK's fresh `/event` start. A postponed /
@@ -271,7 +278,16 @@ measurement of Superbet's price and feed nothing else.
   follows the same rule). Manual decisions: `config/sofa_entity_aliases.json`
   (fuzzy matching never writes it); the queue `report_entity_queue.py`. Day
   anchor, tournament day and proven absence (`NOT_ON_SOFASCORE`) identify the
-  rest; details in model-state.md.
+  rest; details in model-state.md. From 2026-10-24 00:00Z (coverage audit,
+  model-state.md "Coverage audit 2026-10-23"): a refusal read from a cached
+  team page within 3 h of the start is re-asked fresh whatever its reason,
+  then the other side's page is asked too (`IDENTITY_FRESH_RECHECK_ALL`, P2;
+  ~120-180 extra requests a day); a volleyball event with no resolved side is
+  the query team's ONE game at Superbet's exact start, named >= 90, the
+  opponent agreeing weakly and not vetoed by its own query
+  (`SPORT_QUERY_ANCHOR`, P4, `match_method` QUERY_ANCHOR; backtest 0 wrong of
+  2,480; never learned as a name); CS2 "prospect" = "prospects"
+  (`NAME_RULES_1023`, P8).
 - **Basketball league rate** (`LEAGUE_SEASON_RESTART`, from 2026-10-23
   00:00Z, operator's go 10-22): a league back after >= 45 days off reads the
   ended season's plain mean, and its level restarts from it worth 10 games
@@ -300,6 +316,36 @@ measurement of Superbet's price and feed nothing else.
   attempted, personal fouls and turnovers (`shadow.PLAYER_V2_MARKETS`, one
   box key each; `player_v2_rule`); not read: first-quarter player lines,
   "N+" milestones, most / first, double / triple double.
+  From 2026-10-24 00:00Z (audit P3 / P8 / P9): a hockey player's sample also
+  reads the peers' games (the two teams' opponents, by side; his own sample
+  only, never the pool; a name absent from both teams looked up among them;
+  `player_history_rule`), basketball measured worse and off
+  (`PLAYER_HISTORY_ANY_TEAM[_SPORTS]`); hockey names fold transliterations
+  (Stuetzle / Stützle, Yegor / Egor; `NAME_RULES_1023`); a game seen on one
+  team's `last` page only is listed for the other as kind `last_side`
+  (`sport_history.list_both_sides`, written by every
+  `refresh_sport_history.py`), read by the pre-game and settle numbers from
+  `PLAYER_BOTH_SIDES_LISTED` (`player_lists_rule`; nothing reading `last` sees
+  it; `fit_player_model.py` reads `last` only). Player constants resolve per
+  day (`player_model.params_path_for`, a staged
+  `config/sofa_player_model.next.<YYYY-MM-DD>.json`); none staged.
+- CS2 from 2026-10-24 00:00Z: a pair whose team ids are not both rated reads
+  the lineup gap through its own calibration (`CS2_LINEUP_ELO_UNRATED`, P7,
+  `cs2_engine.fit_unrated`; rated pairs unchanged); the engine finds a
+  player's nickname by prefix as settlement does (`NAME_RULES_1023`); a series
+  graded from its result alone carries `model_p` (`CS2_SERIES_ONLY_MODEL_P`,
+  P12, by the settle clock; earlier series once through `settle_cs2.py
+  --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23`,
+  the 10-24 morning before `refresh_line_evidence.py`) - line evidence only.
+- A volleyball match followed by a golden set (Sofascore AET / AGS,
+  `shadow.GOLDEN_SET_DESCRIPTIONS`) is FINISHED and graded on the match's own
+  sets - winner by the sets, never `winnerCode` (the tie's winner on 28 of 90
+  cached games); the golden set (`overtime`) counts in nothing (Regulamin
+  5.D.3.a; correctness fix, live 2026-10-23). The score-model history reads
+  such a match from `VB_GOLDEN_SET` (10-24 00:00Z, P13). Basketball halves
+  leagues (NCAA, `score_model.BB_HALVES_COMPETITIONS`) only under
+  `BB_HALVES_LEAGUES` - OFF (P11: no NCAA basketball in Superbet's offer yet,
+  halves not settleable).
 - Basketball second half / Q4 grade on regulation periods (overtime does not
   count); full-game basketball markets include it.
 - A hockey / basketball game with no periods is graded from its final score

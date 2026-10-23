@@ -207,6 +207,22 @@ wczorajszy dowód - powiedz to w raporcie). `fitted_from.before` pliku
 pokazuje `sport_history` - WARN poniżej 80% przypiętych meczów D-1. To **nie**
 jest refit krzywych.
 
+**Rano 2026-10-24 (jednorazowo, audyt pokrycia P12):** po rozliczeniu CS2
+(krok 1), **przed** `refresh_line_evidence.py --before 2026-10-24`:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model \
+    --sweep-from 2026-09-28 --sweep-to 2026-10-23
+```
+
+Offline (baza tylko czytana), ~10 min, idempotentne; dopisuje `model_p` serii
+rozliczonych z samego wyniku (próba na kopiach: 346 z 392 linii W/L, 116
+serii). Przy wyłączonym przełączniku odmawia (`SWITCH_OFF`). Naprawa list
+obu drużyn (P9, `refresh_sport_history.py --both-sides-only`) już przeszła
+2026-10-23 ~15:20Z (42 892 wiersze `last_side`); dalej robi ją codzienny
+`refresh_sport_history.py`. Raport:
+`docs/sofa/history/AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md`.
+
 **Rano 2026-10-09 (pierwsze po instalacji refitu z 2026-10-08 23:42Z):** kolejność
 to rozlicz i zapisz D-1 (10-08), `refresh_line_evidence.py --before 2026-10-09`,
 dopiero potem pierwszy build. Dowód z linii dopasowano do STARYCH krzywych i

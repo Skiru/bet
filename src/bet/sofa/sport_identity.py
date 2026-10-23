@@ -352,6 +352,26 @@ class TeamResolver:
             index = self._index(slug)
         except sqlite3.Error:
             return None
+        ids = self._query_ids(sport, name, index, stop_at=2)
+        return next(iter(ids)) if len(ids) == 1 else None
+
+    def query_ids(self, sport: str, name: str) -> frozenset[int]:
+        """Every team of the index query_id reads for `name` (above
+        NAME_MATCH_THRESHOLD, same gender, compatible squad level) - the
+        QUERY_ANCHOR veto's "the opponent's own search names another team"
+        (P4). Empty for CS2 or an unreadable index."""
+        if sport == "cs2":
+            return frozenset()
+        slug = SPORTS[sport].sofascore_slug  # type: ignore[index]
+        try:
+            index = self._index(slug)
+        except sqlite3.Error:
+            return frozenset()
+        return frozenset(self._query_ids(sport, name, index))
+
+    @staticmethod
+    def _query_ids(sport: str, name: str, index: Mapping[str, set[int]],
+                   stop_at: int | None = None) -> set[int]:
         norm = normalize_name(name)
         women = norm.endswith("(w)")
         ids: set[int] = set()
@@ -360,9 +380,9 @@ class TeamResolver:
                 continue
             if side_score(sport, norm, key) > NAME_MATCH_THRESHOLD:
                 ids |= key_ids
-                if len(ids) > 1:
-                    return None
-        return next(iter(ids)) if len(ids) == 1 else None
+                if stop_at is not None and len(ids) >= stop_at:
+                    return ids
+        return ids
 
 
 # --- the listing ------------------------------------------------------------------
@@ -613,16 +633,112 @@ def match_shadow(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
     return {"status": IDENTIFIED, **fits[0]}
 
 
-def _cs2_same_roster(a: str, b: str) -> bool:
+# QUERY_ANCHOR (coverage audit 2026-10-23 P4, epochs.SPORT_QUERY_ANCHOR_FROM_UTC;
+# RESOLVE's FOOTBALL_SEARCHED_ANCHOR for the measured sports): when NEITHER
+# side has a resolved id, the query-only team (TeamResolver.query_id, a fuzzy
+# name) is no anchor in match_shadow and both names must pass 82 - OK Maribor
+# - ACH Lublana (10-23) was refused against Sofascore's "ACH Volley
+# Ljubljana" (71). The rule: the query team's ONLY game at Superbet's start
+# (QUERY_ANCHOR_MAX_GAP), named as the searched side (QUERY_ANCHOR_OWN_SCORE),
+# and the opponent agreeing weakly - VETO first (the opponent's own query
+# names teams and the game's opponent is none of them), then MUTUAL (it is
+# one of them), NAME (QUERY_ANCHOR_OPPONENT_SCORE) or SHARED_WORD (the
+# settle's opponent rule). Never a verified name: the entity map learns
+# nothing from it (entity_map.name_confirmed: no resolved id, a method in
+# neither NAME_METHODS nor OPPONENT_METHODS). Measured in
+# scripts/sofa/measure_audit1023_p4_query_anchor.py.
+QUERY_ANCHOR_SPORTS = frozenset({"volleyball"})
+QUERY_ANCHOR_MAX_GAP = timedelta(0)
+QUERY_ANCHOR_OWN_SCORE = 90.0
+QUERY_ANCHOR_OPPONENT_SCORE = 65.0
+QUERY_ANCHOR = "QUERY_ANCHOR"
+
+
+def match_query_anchor(ev: BoardEvent, candidates: Iterable[Mapping[str, Any]],
+                       query_id: int, query_is_team1: bool,
+                       opponent_ids: frozenset[int] | None,
+                       max_gap: timedelta = QUERY_ANCHOR_MAX_GAP
+                       ) -> dict[str, Any]:
+    """P4's QUERY_ANCHOR over the query team's listing (see the constants)."""
+    slug = SPORTS[ev.sport].sofascore_slug  # type: ignore[index]
+    gender = "W" if "W" in {superbet_gender(ev.team1), superbet_gender(ev.team2)} \
+        else "M"
+    games: list[Mapping[str, Any]] = []
+    for e in candidates:
+        sport_slug = (((e.get("tournament") or {}).get("category") or {})
+                      .get("sport") or {}).get("slug")
+        if sport_slug != slug:
+            continue
+        start = _start(e)
+        if start is None or abs(start - ev.kickoff) > max_gap:
+            continue
+        if sofascore_gender(dict(e)) != gender:
+            continue
+        if str((e.get("status") or {}).get("type") or "") in NOT_AS_SCHEDULED:
+            continue
+        (hid, _), (aid, _) = _side(e, "homeTeam"), _side(e, "awayTeam")
+        if query_id in (hid, aid) and hid != aid:
+            games.append(e)
+    if not games:
+        return {"status": NOT_IDENTIFIED, "reason": "QUERY_ANCHOR_NO_GAME"}
+    if len(games) > 1:
+        return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
+    e = games[0]
+    (hid, hname), (aid, aname) = _side(e, "homeTeam"), _side(e, "awayTeam")
+    q_home = hid == query_id
+    searched, opponent = ((ev.team1, ev.team2) if query_is_team1
+                          else (ev.team2, ev.team1))
+    q_name, o_id, o_name = (hname, aid, aname) if q_home else (aname, hid, hname)
+    s_norm, q_norm = normalize_name(searched), normalize_name(q_name)
+    o_board, o_norm = normalize_name(opponent), normalize_name(o_name)
+    own = side_score(ev.sport, s_norm, q_norm)
+    if own < QUERY_ANCHOR_OWN_SCORE or not same_squad(s_norm, q_norm):
+        return {"status": NOT_IDENTIFIED, "reason": "QUERY_ANCHOR_OWN_NAME",
+                "candidate_event_id": e.get("id")}
+    if not same_squad(o_board, o_norm):
+        return {"status": NOT_IDENTIFIED, "reason": "QUERY_ANCHOR_OPPONENT",
+                "candidate_event_id": e.get("id")}
+    opp_score = side_score(ev.sport, o_board, o_norm)
+    how: str | None = None
+    if opponent_ids:
+        if o_id not in opponent_ids:
+            return {"status": NOT_IDENTIFIED, "reason": "QUERY_ANCHOR_VETO",
+                    "candidate_event_id": e.get("id")}
+        how = "MUTUAL"
+    elif opp_score >= QUERY_ANCHOR_OPPONENT_SCORE:
+        how = "NAME"
+    else:
+        start = _start(e)
+        assert start is not None
+        if shadow_opponent_agrees(o_board, o_norm,
+                                  abs((start - ev.kickoff).total_seconds()),
+                                  searched=s_norm, searched_side=q_norm):
+            how = "SHARED_WORD"
+    if how is None:
+        return {"status": NOT_IDENTIFIED, "reason": "QUERY_ANCHOR_OPPONENT",
+                "candidate_event_id": e.get("id")}
+    home_is_team1 = q_home == query_is_team1
+    scores = ({"team1": round(own, 1), "team2": round(opp_score, 1)}
+              if query_is_team1 else
+              {"team1": round(opp_score, 1), "team2": round(own, 1)})
+    return {"status": IDENTIFIED, "event": e, "home_is_team1": home_is_team1,
+            "name_scores": scores, "match_method": QUERY_ANCHOR,
+            "query_anchor_rule": how}
+
+
+def _cs2_same_roster(a: str, b: str, name_rules: bool = False) -> bool:
     """Two folded CS2 names could be one roster: the same women's marker and
     the same roster markers (academy, ex-, junior ...) - esports_score's own
-    gates, without its name score."""
+    gates, without its name score. `name_rules`: epochs.NAME_RULES_1023
+    (cs2.ROSTER_MARKER_FOLD, "prospect" = "prospects")."""
     (a_core, a_women), (b_core, b_women) = cs2._women_split(a), cs2._women_split(b)
-    return a_women == b_women and cs2._roster(a_core) == cs2._roster(b_core)
+    return a_women == b_women and (cs2._roster(a_core, name_rules)
+                                   == cs2._roster(b_core, name_rules))
 
 
 def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
-                       t1_id: int | None, t2_id: int | None) -> dict[str, Any]:
+                       t1_id: int | None, t2_id: int | None,
+                       name_rules: bool = False) -> dict[str, Any]:
     """CS2's LISTING_ID_AND_OPPONENT, for a series cs2.pick_event did not
     find on both names (10-12: Superbet "Overtake" - "regain", Sofascore
     "Overtake Sector - regain" 17304875; "overtake" scores 69.6 against
@@ -643,7 +759,11 @@ def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
     DAY_ANCHOR (identity plan K2) is not applied to CS2: series run late
     (the settle's starts of 10-05..10-14 up to 2-4 h off Superbet's), a team
     plays several a day, and 10-06's BAKS - Clutchain was BakS - OldBoys at
-    the same hour (test_cs2_anchored_another_opponent_is_not_this_series)."""
+    the same hour (test_cs2_anchored_another_opponent_is_not_this_series).
+
+    `name_rules` (epochs.NAME_RULES_1023_FROM_UTC, audit 2026-10-23 P8): the
+    roster markers and name scores read cs2's 10-23 rules; False = the old
+    match exactly."""
     t1, t2 = cs2.esports_name(ev.team1), cs2.esports_name(ev.team2)
     near: list[tuple[dict[str, Any], datetime]] = []
     for e in candidates:
@@ -674,7 +794,7 @@ def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
             return False
         if other_id is not None:
             return other_ev_id == other_id
-        return _cs2_same_roster(other, other_ev) and shadow_opponent_agrees(
+        return _cs2_same_roster(other, other_ev, name_rules) and shadow_opponent_agrees(
             other, other_ev, gap_s, searched=anchor, searched_side=anchor_ev)
 
     straight = (confirmed(t1_id, hid, t1, home, t2, t2_id, aid, away)
@@ -686,22 +806,25 @@ def match_cs2_anchored(ev: BoardEvent, candidates: Iterable[dict[str, Any]],
     if not (straight or crossed):
         return {"status": NOT_IDENTIFIED, "reason": "NO_MATCH_IN_LISTING"}
     a, b = (home, away) if straight else (away, home)
-    scores = {"team1": cs2.esports_score(t1, a), "team2": cs2.esports_score(t2, b)}
+    scores = {"team1": cs2.esports_score(t1, a, name_rules),
+              "team2": cs2.esports_score(t2, b, name_rules)}
     return {"status": IDENTIFIED, "event": e, "home_is_team1": straight,
             "name_scores": {k: round(v, 1) for k, v in scores.items()},
             "match_method": "CS2_LISTING_ID_AND_OPPONENT"}
 
 
 def match_cs2(ev: BoardEvent, candidates: list[dict[str, Any]],
-              t1_id: int | None = None, t2_id: int | None = None
-              ) -> dict[str, Any]:
+              t1_id: int | None = None, t2_id: int | None = None,
+              name_rules: bool = False) -> dict[str, Any]:
     """cs2.pick_event over the team's upcoming series, then the start rule;
-    with no series on both names, match_cs2_anchored (a resolved side id)."""
-    found = cs2.pick_event(candidates, ev.team1, ev.team2, ev.kickoff)
+    with no series on both names, match_cs2_anchored (a resolved side id).
+    `name_rules`: epochs.NAME_RULES_1023_FROM_UTC (audit 2026-10-23 P8),
+    passed to cs2.pick_event / esports_score / _roster."""
+    found = cs2.pick_event(candidates, ev.team1, ev.team2, ev.kickoff, name_rules)
     if found == "AMBIGUOUS":
         return {"status": NOT_IDENTIFIED, "reason": "AMBIGUOUS"}
     if found is None:
-        return match_cs2_anchored(ev, candidates, t1_id, t2_id)
+        return match_cs2_anchored(ev, candidates, t1_id, t2_id, name_rules)
     event, home_is_t1 = found
     (hid, _), (aid, _) = _side(event, "homeTeam"), _side(event, "awayTeam")
     t1_ev, t2_ev = (hid, aid) if home_is_t1 else (aid, hid)
@@ -720,7 +843,8 @@ def match_cs2(ev: BoardEvent, candidates: list[dict[str, Any]],
     away = cs2.esports_name(str((event.get("awayTeam") or {}).get("name") or ""))
     t1, t2 = cs2.esports_name(ev.team1), cs2.esports_name(ev.team2)
     a, b = (home, away) if home_is_t1 else (away, home)
-    scores = {"team1": cs2.esports_score(t1, a), "team2": cs2.esports_score(t2, b)}
+    scores = {"team1": cs2.esports_score(t1, a, name_rules),
+              "team2": cs2.esports_score(t2, b, name_rules)}
     return {"status": IDENTIFIED, "event": event, "home_is_team1": home_is_t1,
             "name_scores": {k: round(v, 1) for k, v in scores.items()},
             "match_method": "CS2_PICK_EVENT"}
@@ -773,7 +897,10 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
                    day_anchor: bool = False,
                    tournament_day: Callable[[BoardEvent], list[dict[str, Any]]]
                    | None = None, absence: bool = False,
-                   refreshed: set[int] | None = None) -> dict[str, Any]:
+                   refreshed: set[int] | None = None,
+                   fresh_all: bool = False, query_anchor: bool = False,
+                   anchor_opponents: Callable[[str, str], frozenset[int]]
+                   | None = None, name_rules: bool = False) -> dict[str, Any]:
     """`query_teams` (TeamResolver.query_id): the team to ask about when
     neither side has an exact id; its id is never an id match. `day_anchor`:
     match_shadow's DAY_ANCHOR, hockey / basketball / volleyball only (a
@@ -784,12 +911,27 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
     that small list is the event (TOURNAMENT_DAY; not CS2). A refusal there
     aborts like any listing request. `absence` (epochs.NOT_ON_SOFASCORE_FROM_UTC):
     the K5 fresh re-ask and the NOT_ON_SOFASCORE verdict (FRESH_RECHECK_WITHIN,
-    ABSENCE_WINDOW); `refreshed` - the teams re-asked this run, once each."""
+    ABSENCE_WINDOW); `refreshed` - the teams re-asked this run, once each.
+
+    `fresh_all` (epochs.IDENTITY_FRESH_RECHECK_ALL_FROM_UTC, audit P2): the
+    fresh re-ask of a cached page fires on ANY refusal of it (CS2's
+    NO_MATCH_IN_LISTING, a START_GAP, an AMBIGUOUS...), not only
+    NO_GAME_WITHIN_1H, and with or without `absence`; and when the first
+    team's page still finds nothing, the OTHER side's team is asked too (its
+    resolved id, else its query id; cached page first, a fresh one in
+    FRESH_RECHECK_WITHIN of the start). `query_anchor`
+    (epochs.SPORT_QUERY_ANCHOR_FROM_UTC, audit P4): match_query_anchor for a
+    query-only event of QUERY_ANCHOR_SPORTS that match_shadow refused;
+    `anchor_opponents` (TeamResolver.query_ids) is its veto. `name_rules`
+    (epochs.NAME_RULES_1023_FROM_UTC, audit P8): CS2's name rules
+    (match_cs2)."""
     t1_id, t2_id = teams(ev.sport, ev.team1), teams(ev.sport, ev.team2)
     query = t1_id if t1_id is not None else t2_id
+    query_is_team1 = t1_id is not None
     query_only = False
     if query is None and query_teams is not None:
         query = query_teams(ev.sport, ev.team1)
+        query_is_team1 = query is not None
         if query is None:
             query = query_teams(ev.sport, ev.team2)
         query_only = query is not None
@@ -804,23 +946,69 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         found = found_t
         extra = {"team1_id": t1_id, "team2_id": t2_id}
     else:
+        def match(rows: list[dict[str, Any]], team: int,
+                  team_is_t1: bool) -> dict[str, Any]:
+            got = (match_cs2(ev, rows, t1_id, t2_id, name_rules)
+                   if ev.sport == "cs2"
+                   else match_shadow(ev, rows, t1_id, t2_id, day_anchor))
+            if (got["status"] != IDENTIFIED and query_anchor
+                    and ev.sport in QUERY_ANCHOR_SPORTS
+                    and t1_id is None and t2_id is None):
+                other = ev.team2 if team_is_t1 else ev.team1
+                opp = (anchor_opponents(ev.sport, other)
+                       if anchor_opponents is not None else None)
+                qa = match_query_anchor(ev, rows, team, team_is_t1, opp)
+                if qa["status"] == IDENTIFIED:
+                    return qa
+                got = {**got, "query_anchor_reason": qa["reason"]}
+            return got
+
+        def recheck(cached_page: bool, got: Mapping[str, Any], team: int) -> bool:
+            if not cached_page or got["status"] == IDENTIFIED:
+                return False
+            if ev.kickoff - at > FRESH_RECHECK_WITHIN:
+                return False
+            if refreshed is not None and team in refreshed:
+                return False
+            if fresh_all:
+                return True
+            return absence and got.get("reason") == "NO_GAME_WITHIN_1H"
+
         listing, cached = next_listing(client, cache, query)
-        found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
-                 else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
+        found = match(listing, query, query_is_team1)
         extra = {"queried_team_id": query, "listing_from_cache": cached,
                  "team1_id": t1_id, "team2_id": t2_id}
         if query_only:
             extra["query_only"] = True
         slug = SPORTS[ev.sport].sofascore_slug if ev.sport != "cs2" else "esports"  # type: ignore[index]
-        if (absence and cached and found.get("reason") == "NO_GAME_WITHIN_1H"
-                and ev.kickoff - at <= FRESH_RECHECK_WITHIN
-                and (refreshed is None or query not in refreshed)):
+        if recheck(cached, found, query):
             if refreshed is not None:
                 refreshed.add(query)
             listing, cached = fresh_listing(client, cache, query), False
-            found = (match_cs2(ev, listing, t1_id, t2_id) if ev.sport == "cs2"
-                     else match_shadow(ev, listing, t1_id, t2_id, day_anchor))
+            found = match(listing, query, query_is_team1)
             extra.update(listing_from_cache=False, fresh_recheck=True)
+        if fresh_all and found["status"] != IDENTIFIED:
+            second = t2_id if query_is_team1 else t1_id
+            if second is None and query_teams is not None:
+                second = query_teams(ev.sport,
+                                     ev.team2 if query_is_team1 else ev.team1)
+            if second is not None and second != query:
+                rows, s_cached = next_listing(client, cache, second)
+                got = match(rows, second, not query_is_team1)
+                extra.update(second_team_id=second,
+                             second_listing_from_cache=s_cached)
+                if recheck(s_cached, got, second):
+                    if refreshed is not None:
+                        refreshed.add(second)
+                    rows = fresh_listing(client, cache, second)
+                    got = match(rows, second, not query_is_team1)
+                    extra.update(second_listing_from_cache=False,
+                                 second_fresh_recheck=True)
+                if got["status"] == IDENTIFIED:
+                    found = got
+                    extra["identified_by_second_team"] = True
+                else:
+                    extra["second_team_reason"] = got.get("reason")
         if (found["status"] != IDENTIFIED and by_tournament
                 and tournament_day is not None):
             found = _tournament_day_found(ev, tournament_day) or found
@@ -859,6 +1047,8 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         sofascore_away=(event.get("awayTeam") or {}).get("name"),
         sofascore_tournament=tournament.get("name"),
         **extra)
+    if found.get("query_anchor_rule") is not None:
+        rec["query_anchor_rule"] = found["query_anchor_rule"]
     if ev.sport == "cs2":
         best_of = event.get("bestOf")
         rec["best_of"] = int(best_of) if isinstance(best_of, int) else None
@@ -872,7 +1062,8 @@ def identify(events: list[BoardEvent], client: ListingClient,
              query_teams: Callable[[str, str], int | None] | None = None,
              day_anchor: bool = False,
              tournament_day: Callable[[BoardEvent], list[dict[str, Any]]]
-             | None = None, absence: bool = False
+             | None = None, absence: bool = False,
+             anchor_opponents: Callable[[str, str], frozenset[int]] | None = None
              ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Every event of the day's window identified or refused, and the
     per-sport counts. `pinned`: the records of an earlier run - an
@@ -884,6 +1075,17 @@ def identify(events: list[BoardEvent], client: ListingClient,
     day). `query_teams`: see identify_event."""
     start, end = day_window(date)
     in_day = [ev for ev in events if start <= ev.kickoff < end]
+    # Coverage audit 2026-10-23 P2 / P4, by the day and the build clock.
+    fresh_all = epochs.identity_fresh_recheck_all(date, at)
+    query_anchor = epochs.sport_query_anchor(date, at)
+    # P8: CS2's name rules ("prospect" roster marker), by the day and clock
+    name_rules = epochs.name_rules_1023(date, at)
+    if anchor_opponents is None and query_anchor:
+        # The resolver behind query_teams (run_sport_identity passes
+        # TeamResolver.query_id): its query_ids is the anchor's veto.
+        owner = getattr(query_teams, "__self__", None)
+        anchor_opponents = (owner.query_ids if isinstance(owner, TeamResolver)
+                            else None)
     dup = duplicate_team_events(events)
     pinned = pinned or {}
     records: list[dict[str, Any]] = []
@@ -913,7 +1115,9 @@ def identify(events: list[BoardEvent], client: ListingClient,
         try:
             records.append(identify_event(ev, client, cache, teams, at,
                                           query_teams, day_anchor, tournament_day,
-                                          absence, refreshed))
+                                          absence, refreshed, fresh_all,
+                                          query_anchor, anchor_opponents,
+                                          name_rules))
         except BridgeAbortedError as exc:
             aborted = str(exc)
             records.append(_record(ev, at, status=NOT_IDENTIFIED,

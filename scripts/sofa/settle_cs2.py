@@ -137,11 +137,12 @@ class Cs2Sofascore:
                         self._stored.setdefault(int(tid), set()).add(str(name))
         return self._stored
 
-    def _store_candidates(self, side: str) -> list[int]:
+    def _store_candidates(self, side: str, name_rules: bool = False) -> list[int]:
         key = esports_name(side)
         scored = []
         for tid, names in self._stored_teams().items():
-            score = max(esports_score(key, esports_name(n)) for n in names)
+            score = max(esports_score(key, esports_name(n), name_rules)
+                        for n in names)
             if score > NAME_MATCH_THRESHOLD:
                 scored.append((score, tid))
         return [tid for _, tid in sorted(scored, reverse=True)[: self.STORE_CANDIDATES]]
@@ -162,9 +163,11 @@ class Cs2Sofascore:
         teams, a "Nexus" only the search knew - a per-side pick graded the
         wrong series with no search at all).
         """
+        # epochs.NAME_RULES_1023: the rule of the day the series was offered
+        rules = epochs.name_rules_1023(kickoff.strftime("%Y-%m-%d"), kickoff)
         pool: dict[int, dict[str, Any]] = {}
         for side in (ev.team1, ev.team2):
-            for tid in self._store_candidates(side):
+            for tid in self._store_candidates(side, rules):
                 for e in self._listing(tid):
                     pool[int(e["id"])] = e
             found = self.client.search(side) or {}
@@ -182,7 +185,7 @@ class Cs2Sofascore:
             for r in results:
                 if r.get("type") == "event" and isinstance(r.get("entity"), dict):
                     pool.setdefault(int(r["entity"]["id"]), r["entity"])
-        hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff)
+        hit = pick_event(list(pool.values()), ev.team1, ev.team2, kickoff, rules)
         if hit == "AMBIGUOUS":
             return "AMBIGUOUS"
         return hit if hit is not None else "NOT_ON_SOFASCORE"
@@ -347,6 +350,18 @@ def settle_one(
             fetched_at={k: v for k, v in ev.fetched_at.items() if k in keep},
         )
         graded, counts = settle_event(series_ev, series)
+        if db_path is not None and epochs.cs2_series_only_model_p(
+                at.strftime("%Y-%m-%d"), at):
+            # audit 2026-10-23 P12: the series lines graded from the result
+            # alone carry the engine's pre-match number too (line evidence
+            # read none of them: 392 lines of 116 series to 10-22). Read by
+            # the settle clock - model_p feeds only the next morning's line
+            # evidence, never a built coupon.
+            try:
+                attach_model(graded, ev, event, detail, home_is_t1, kickoff,
+                             db_path)
+            except Exception as exc:
+                record["model_error"] = f"{type(exc).__name__}: {exc}"
         skipped = len(ev.sides) - len(keep)
         waiting = skipped if at - kickoff <= GIVE_UP_AFTER else 0
         return {
@@ -415,7 +430,9 @@ def pinned_orientation(
         if (home, away) == (was_away, was_home):
             return not stored
         return None
-    score, home_is_t1 = series_orientation(detail, ev.team1, ev.team2)
+    kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
+    rules = epochs.name_rules_1023(kickoff.strftime("%Y-%m-%d"), kickoff)
+    score, home_is_t1 = series_orientation(detail, ev.team1, ev.team2, rules)
     if score <= NAME_MATCH_THRESHOLD:
         return None
     return home_is_t1
@@ -528,8 +545,15 @@ def attach_model(
     # epochs.CS2_MAP_IDENTITY / CS2_COUNT_EXPOSURE / CS2_PLAYER_SHARE: the day
     # the game was offered
     map_identity = epochs.cs2_map_identity(day, kickoff)
-    ratings = (build_ratings(history, MAP_TERMS) if map_identity
-               else build_ratings(history))
+    # epochs.CS2_LINEUP_ELO_UNRATED (audit 2026-10-23 P7): the day it was offered
+    lineup_unrated = epochs.cs2_lineup_elo_unrated(day, kickoff)
+    if lineup_unrated:
+        ratings = build_ratings(history, MAP_TERMS if map_identity else (), True)
+    else:
+        ratings = (build_ratings(history, MAP_TERMS) if map_identity
+                   else build_ratings(history))
+    # epochs.NAME_RULES_1023 (P8): a player's nickname by prefix too
+    name_rules = epochs.name_rules_1023(day, kickoff)
     exposure = (build_exposure(history, epochs.cs2_player_share(day, kickoff))
                 if epochs.cs2_count_exposure(day, kickoff) else None)
     home_id = int((event.get("homeTeam") or {}).get("id") or 0)
@@ -563,6 +587,7 @@ def attach_model(
             map_identity=map_identity,
             exposure=exposure,
             series_rounds=series_rounds,
+            name_rules=name_rules,
         )
         row["model_p"] = None if mp is None else round(mp.p, 4)
         row["model_n"] = None if mp is None else mp.n
@@ -728,6 +753,69 @@ def settle(
     }
 
 
+def attach_series_only_models(runs_dir: str, date: str, db_path: str,
+                              at: datetime, dry_run: bool = False
+                              ) -> dict[str, Any]:
+    """audit 2026-10-23 P12, offline: the engine's model_p onto the graded
+    rows of the date's SETTLED series-only records that never had one (no
+    `model_p` key), exactly as settle_one attaches it under
+    epochs.CS2_SERIES_ONLY_MODEL_P from the switch on - the series' format,
+    start and team ids from cs2_series, the history cut before its start.
+    Run once from the switch (settle clock), before the morning's
+    refresh_line_evidence.py, so the series settled before it count in the
+    evidence too. Nothing else in the file changes; no bridge."""
+    if not epochs.cs2_series_only_model_p(at.strftime("%Y-%m-%d"), at):
+        return {"state": "SWITCH_OFF"}
+    out = cs2_day_dir(runs_dir, date) / SETTLED_FILE
+    if not out.exists():
+        return {"state": "NO_FILE"}
+    counts = {"series": 0, "rows": 0, "with_model_p": 0, "no_series_row": 0,
+              "errors": 0}
+    with file_lock(out):
+        doc = json.loads(out.read_text(encoding="utf-8"))
+        events = doc.get("events") or {}
+        for sb_id, rec in events.items():
+            if rec.get("state") != "SETTLED" or not rec.get("series_only"):
+                continue
+            graded = [g for g in rec.get("graded") or [] if "model_p" not in g]
+            sofa_id = rec.get("sofascore_event_id")
+            if not graded or not isinstance(sofa_id, int):
+                continue
+            home_is_t1 = rec.get("home_is_team1")
+            with get_connection(db_path) as conn:
+                row = conn.execute(
+                    "SELECT start_ts, home_id, away_id, best_of FROM cs2_series"
+                    " WHERE sofascore_event_id = ?", (sofa_id,)).fetchone()
+            if row is None or not isinstance(home_is_t1, bool):
+                counts["no_series_row"] += 1
+                continue
+            event = {"id": sofa_id, "startTimestamp": int(row[0]),
+                     "homeTeam": {"id": int(row[1])},
+                     "awayTeam": {"id": int(row[2])}}
+            detail = {"bestOf": row[3]}
+            ev = SnapshotEvent(str(sb_id), str(rec.get("match_name") or ""),
+                               str(rec.get("team1") or ""),
+                               str(rec.get("team2") or ""),
+                               str(rec["kickoff_utc"]), rec.get("tournament"))
+            kickoff = datetime.fromisoformat(ev.kickoff_utc.replace("Z", "+00:00"))
+            try:
+                attach_model(graded, ev, event, detail, home_is_t1, kickoff,
+                             db_path)
+            except Exception as exc:
+                rec["model_error"] = f"{type(exc).__name__}: {exc}"
+                for g in graded:
+                    g.pop("model_p", None)
+                counts["errors"] += 1
+                continue
+            counts["series"] += 1
+            counts["rows"] += len(graded)
+            counts["with_model_p"] += sum(1 for g in graded
+                                          if g.get("model_p") is not None)
+        if not dry_run and counts["series"]:
+            write_atomic(out, json.dumps(doc, ensure_ascii=False, indent=1))
+    return {"state": "DRY_RUN" if dry_run else "WRITTEN", **counts}
+
+
 def waiting_dates(runs_dir: str, dates: list[str]) -> list[str]:
     """The dates CS2_SETTLE still has work on: snapshots, and a settled.json
     that is missing or holds a series `is_waiting`. Offline - files only -
@@ -812,6 +900,15 @@ def main() -> int:
         help="offline: only the identity pass (MOVED_TO, DUPLICATE_*, WITHDRAWN) "
         "over the dates' settled files - no bridge, nothing re-settled",
     )
+    parser.add_argument(
+        "--attach-series-only-model",
+        action="store_true",
+        help="offline (audit 2026-10-23 P12): model_p onto the dates' settled "
+        "series-only rows that never had one; only with "
+        "epochs.CS2_SERIES_ONLY_MODEL_P on at the clock; no bridge",
+    )
+    parser.add_argument("--dry-run", action="store_true",
+                        help="with --attach-series-only-model: count, write nothing")
     args = parser.parse_args()
     if args.sweep_from and not args.sweep_to:
         parser.error("--sweep-from needs --sweep-to")
@@ -839,6 +936,16 @@ def main() -> int:
                 ),
                 flush=True,
             )
+        return 0
+    if args.attach_series_only_model:
+        for date in [args.date] if args.date else date_range(
+            args.sweep_from, args.sweep_to
+        ):
+            print("SOFA_SUMMARY: " + json.dumps({
+                "stage": "CS2_SERIES_ONLY_MODEL", "date": date,
+                **attach_series_only_models(config.runs_dir, date,
+                                            config.db_path, now(),
+                                            args.dry_run)}), flush=True)
         return 0
     if args.date:
         dates = [args.date]

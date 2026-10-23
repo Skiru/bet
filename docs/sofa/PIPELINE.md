@@ -2262,6 +2262,90 @@ Superbetu): w paśmie 0,7-0,8 deklarowane / trafione np. wolne trafione
 0,735 / 0,723 (stare punkty 0,740 / 0,705); powyżej 0,8 rodziny rzutów
 z gry zawyżają (z gry trafione 0,838 / 0,682 na 768).
 
+
+### Audyt pokrycia 2026-10-23 („ALL IN”) - przełączniki od 2026-10-24 00:00Z
+
+Decyzja operatora 2026-10-23 ~13:50Z; raport
+`docs/sofa/history/AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md`, liczby i dowody
+w `model-state.md` („Coverage audit 2026-10-23”). Każdy przełącznik czyta
+dzień buildu i zegar buildu (`epochs._audit_1023_on`); wyłączony = dokładnie
+stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
+
+- **SPORT_IDENTITY, świeża strona i druga drużyna** (P2,
+  `IDENTITY_FRESH_RECHECK_ALL`): odmowa przeczytana ze strony drużyny z cache
+  na mniej niż 3 h przed startem jest sprawdzana na świeżej stronie bez
+  względu na powód (nie tylko `NO_GAME_WITHIN_1H`), raz na drużynę na
+  przebieg, a potem pytana jest strona drugiej drużyny (jej id albo id
+  z zapytania). Pola rekordu `second_team_*`, `identified_by_second_team`.
+  Koszt: do ~180 dodatkowych zapytań dziennie (~15 s mostu).
+- **Siatkówka, kotwica zapytania** (P4, `SPORT_QUERY_ANCHOR`, tylko
+  siatkówka): gdy żadna strona nie ma rozwiązanego id, mecz to jedyny mecz
+  drużyny z zapytania o dokładnej godzinie Superbetu, z nazwą tej strony
+  >= 90 i słabą zgodą przeciwnika (weto: zapytanie przeciwnika wskazuje inną
+  drużynę; dwa mecze = AMBIGUOUS). `match_method` QUERY_ANCHOR; mapa encji
+  nie uczy się z niego nazw. Backtest 10-05..10-23: 0 złych wyborów na
+  2 480, 11 odzyskanych meczów z 96 odmów (OK Maribor - ACH Lublana).
+  Hokej i koszykówka zmierzone czysto, ale poza zakresem - decyzja operatora.
+- **Zawodnicy hokeja z innych drużyn** (P3 / K7,
+  `PLAYER_HISTORY_ANY_TEAM`, zbiór `PLAYER_HISTORY_ANY_TEAM_SPORTS` =
+  hokej): próbka zawodnika przed meczem obejmuje też mecze
+  drużyn-rówieśników (rywali obu drużyn z wczytanych meczów), czytane po
+  stronie składu; liczą się tylko do jego próbki, nigdy do puli. Zawodnika
+  nieobecnego w obu drużynach szuka się wśród rówieśników tą samą ścisłą
+  regułą. Wiersz: `player_history_rule: "any_team_peers"`. Liczba
+  rozliczeniowa SHADOW_SETTLE czyta to samo po dniu meczu. Pomiar 09-29..10-22:
+  hokej lepszy (log loss -0,0018 [-0,0034; -0,0003], dodane strony
+  skalibrowane), kosz wyłączony (dodane strony przeszacowane o 8,3 pp).
+  Refit stałych hokeja niezainstalowany (nie lepszy). Stałe modelu mogą być
+  rozwiązywane po dniu (`config/sofa_player_model.next.<data>.json`); dziś
+  żaden plik nie jest przygotowany.
+- **Mecz w liście obu drużyn** (P9, `PLAYER_BOTH_SIDES_LISTED`, hokej /
+  kosz): mecz widziany tylko na stronie `last` jednej drużyny jest dopisywany
+  drugiej jako rodzaj `last_side` (offline, z zapisanego payloadu,
+  `sport_history.list_both_sides`; robi to każdy `refresh_sport_history.py`,
+  samo `--both-sides-only`; 2026-10-23 ~15:20Z zapisano 42 892 wiersze).
+  Czytelnicy `last` go nie widzą; model zawodników (liczba przedmeczowa
+  i rozliczeniowa) czyta go od przełącznika, wiersz
+  `player_lists_rule: "both_sides"`. `fit_player_model.py` czyta tylko `last`.
+- **Reguły nazw** (P8, `NAME_RULES_1023`): CS2 „prospect” = znacznik składu
+  „prospects” (Inner Circle Prospect / Prospects; SPORT_IDENTITY i
+  rozliczenie), nick zawodnika w silniku CS2 po prefiksie jak w rozliczeniu
+  (jeden nick >= 5 liter); hokej: transliteracje w nazwiskach zawodników
+  (Stuetzle / Stützle, Yegor / Egor; tylko równość złożonych tokenów, wiersz
+  `name_rule: "translit_1023"`). Kosz nigdy nie składa (20 fałszywych par).
+- **CS2, rating składu bez bramki id drużyny** (P7,
+  `CS2_LINEUP_ELO_UNRATED`): para, której id drużyn nie mają po
+  `MIN_MAPS_RATED` map, dostaje p z luki ratingu składu przez własną
+  kalibrację (`cs2_engine.fit_unrated`); pary ocenione bez zmian.
+  Walk-forward: 567 serii zyskuje liczbę, dodane skalibrowane (faworyt map
+  +1,7 pp [-0,9; +4,3]). Bez refitu krzywych.
+- **CS2, `model_p` serii rozliczonych z samego wyniku** (P12,
+  `CS2_SERIES_ONLY_MODEL_P`, wg zegara rozliczenia): tylko dla line
+  evidence; serie sprzed przełącznika jednorazowo przez
+  `settle_cs2.py --attach-series-only-model` (RUNBOOK, 10-24 rano).
+- **Złoty set w siatkówce** (P13): mecz, po którym rozegrano złoty set
+  (Sofascore AET / AGS), jest `FINISHED` i rozliczany z własnych setów
+  meczu - zwycięzca z setów, nigdy z `winnerCode` (na 28 z 90 meczów w cache
+  to zwycięzca dwumeczu); złoty set (`overtime`) nie liczy się do żadnego
+  rynku (Regulamin 5.D.3.a). Rozliczenie to poprawka poprawności, na żywo od
+  2026-10-23 bez przełącznika (0 rekordów do ponownego rozliczenia).
+  Historia modelu wyniku czyta takie mecze od `VB_GOLDEN_SET` (89 z 90).
+- **NCAA kosz w połowach** (P11, `BB_HALVES_LEAGUES`): WYŁĄCZONE - Superbet
+  nie ma jeszcze NCAA kosza w ofercie, rozliczenie połów nie istnieje
+  (`build_result` wymaga 4 kwart), krzywa kosza dopasowana bez NCAA. Wrócić,
+  gdy mecz NCAA pojawi się w snapshocie SHADOW (~11-03).
+- **Tenis, zwycięzca z wyniku w setach** (P14,
+  `TENNIS_RATING_SCORE_WINNER`, od 10-24): mecz „Ended” bez `winnerCode`
+  bierze zwycięzcę z pełnego wyniku w setach (nigdy krecz / walkower);
+  SHEET `load_tennis_rating` czyta przełącznik po dniu i zegarze; +173 mecze
+  historii, ruch p na 10-23 najwyżej 0,018.
+- **Piłka, zawodnicy** (od 10-24): cienka próbka uzupełniana startami tego
+  samego id w innych drużynach (P3, `PLAYER_HISTORY_ANY_TEAM_SPORTS` z
+  piłką); slug Sofascore jako ostatnia reguła nazwy (P5, `match_rule
+  "slug"`, SETTLE po `matched_name`). Zera spalonych z 0-0 drużyny (P6)
+  wyszły gorzej - wyłączone. P1 (cięcie próbki przy `ENTITY_CONFLICT`):
+  pomiar w toku, wyłączone.
+
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 
 `scripts/sofa/build_coupon.py --date <d>` (albo `run_pipeline.py --only

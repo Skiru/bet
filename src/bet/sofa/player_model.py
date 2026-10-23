@@ -81,15 +81,16 @@ from __future__ import annotations
 import functools
 import json
 import math
+import re
 import sqlite3
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bet.sofa import epochs
+from bet.sofa import epochs, sport_history
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import config_path
 from bet.sofa.joint import normal_cdf
@@ -143,6 +144,10 @@ MODEL_KEYS = (
     "model_pregame_rejected",
     "player_team_rule",
     "entity_map_rule",
+    # audit 2026-10-23 markers (P3 / P9 / P8), present only under their switch
+    "player_history_rule",
+    "player_lists_rule",
+    "name_rule",
     "unfitted_constants",
 )
 
@@ -190,6 +195,11 @@ class Appearance:
     group: str
     seconds: float
     stats: dict[str, Any]
+    # P3 (epochs.player_history_any_team): an appearance in a game of a team
+    # other than the two that meet (a peer team, load_appearances(any_team=
+    # True)). It counts in its own player's sample only - never in the pool,
+    # never as a name the strict rule finds first (find_player).
+    foreign: bool = False
 
 
 @dataclass(frozen=True)
@@ -272,6 +282,39 @@ def sport_params(sport: SportKey) -> SportParams:
     return load_params()[sport]
 
 
+# A refit for a coming day goes into a dated staged file
+# (sofa_player_model.next.<YYYY-MM-DD>.json, its `effective_from` the same
+# day), never into the installed file a built day reads (CLAUDE.md, the
+# sport calibration's rule; sport_confidence.calibration_path_for).
+_DATED_PARAMS = re.compile(r"^sofa_player_model\.next\.(\d{4}-\d{2}-\d{2})\.json$")
+
+
+def params_path_for(
+    date: str, at: datetime | None = None, config_dir: Path | None = None
+) -> Path:
+    """The constants a day reads: the staged file with the latest
+    `effective_from` at or before `date` whose day has begun on the clock
+    `at` (default now; a 10-24 game forecast on 10-23 still reads the
+    installed file), else the installed one."""
+    from bet.sofa import timeutil
+
+    main = (config_dir / PARAMS_FILE) if config_dir else config_path(PARAMS_FILE)
+    clock = (at or timeutil.now()).astimezone(UTC).strftime("%Y-%m-%d")
+    best: tuple[str, Path] | None = None
+    for path in sorted(main.parent.glob("sofa_player_model.next.*.json")):
+        named = _DATED_PARAMS.match(path.name)
+        if not named:
+            continue
+        eff = json.loads(path.read_text(encoding="utf-8")).get("effective_from")
+        if eff != named.group(1):
+            raise ValueError(
+                f"{path.name}: effective_from {eff!r} disagrees with the file name"
+            )
+        if date >= eff and clock >= eff and (best is None or eff > best[0]):
+            best = (eff, path)
+    return best[1] if best else main
+
+
 def position_group(sport: SportKey, raw: object) -> str:
     """Basketball G / F / C (first letter of "GF", "FC"...); hockey G (goalie),
     D, else F. Unknown is its own group."""
@@ -341,21 +384,22 @@ def listed_games(
     before_ts: int,
     exclude_event_id: int | None,
     history_games: int = HISTORY_GAMES,
+    kinds: Iterable[str] = ("last",),
 ) -> list[tuple[int, int]]:
     """(event id, start) of a team's newest listed games before `before_ts`.
+
+    `kinds` (sport_history.listing_kinds, epochs.PLAYER_BOTH_SIDES_LISTED,
+    audit 2026-10-23 P9): the list kinds read - ("last",), the default, is
+    the old query exactly; with `last_side` a game seen on the opponent's
+    page only counts for this team too (one row per game).
 
     A pre-season game, a friendly or an exhibition is not a game the player
     model may learn from (comparability.is_friendly_event, 2026-10-04: NHL /
     AHL / WNBA / NBA preseason were read as regular games). A listed game
     whose payload is not in the index is kept - nothing says what it was.
     """
-    listed = conn.execute(
-        "SELECT l.event_id, l.start_ts, e.event_json FROM sofa_listing_event l "
-        "LEFT JOIN sofa_listed_event e ON e.event_id = l.event_id "
-        "WHERE l.entity_id = ? AND l.kind = 'last' AND l.start_ts < ? "
-        "ORDER BY l.start_ts DESC LIMIT ?",
-        (int(team_id), int(before_ts), 3 * (int(history_games) + 1)),
-    ).fetchall()
+    listed = sport_history.listed_rows(
+        conn, team_id, before_ts, 3 * (int(history_games) + 1), kinds)
     out: list[tuple[int, int]] = []
     for eid, ts, event_json in listed:
         if exclude_event_id is not None and int(eid) == int(exclude_event_id):
@@ -396,6 +440,10 @@ def load_appearances(
     exclude_event_id: int | None,
     history_games: int = HISTORY_GAMES,
     team_from_side: bool = False,
+    any_team: bool = False,
+    memo: dict[tuple[int, int, bool], tuple[list[Appearance], list[int]]]
+    | None = None,
+    kinds: Iterable[str] = ("last",),
 ) -> list[Appearance]:
     """Every appearance for these teams in their own listed games before
     `before_ts` (sofa_listing_event, the index every `last` page feeds), from
@@ -404,39 +452,99 @@ def load_appearances(
     `team_from_side` (epochs.player_team_from_side): a game's squad is the
     lineup side the team held in it (sofa_listed_event's payload, event_side);
     a game whose payload does not name the team on a side is left out. Off:
-    the entries' `teamId` (the rule before the switch)."""
+    the entries' `teamId` (the rule before the switch).
+
+    `any_team` (epochs.player_history_any_team, P3 / K7; needs
+    `team_from_side`): also every PEER team's own listed games before
+    `before_ts` - a peer is a team the two met in the games just read
+    (their payloads' other side) - read the same way and marked `foreign`.
+    A player traded between peers keeps his games for his former team
+    (LaMelo Ball: 1 game for Minnesota, 58 read for Charlotte). Foreign
+    appearances enter only their own player's sample (line_probability);
+    the pool stays the two teams'. A team that was never an opponent in
+    those games (another league) is not read. `memo` caches one game's
+    appearances per (event, team, foreign) across calls - a game's entry does
+    not depend on the list it was found in, so `kinds` stays out of its key.
+
+    `kinds` (sport_history.listing_kinds, audit 2026-10-23 P9): the list
+    kinds every team's games are read from, the two teams' and the peers'
+    alike; ("last",) = the old reader."""
     out: list[Appearance] = []
-    for team_id in team_ids:
+    opponents: list[int] = []
+    teams = [int(t) for t in team_ids]
+    memo = {} if memo is None else memo
+    kind_list = tuple(kinds)
+
+    def read(team_id: int, foreign: bool) -> None:
         for eid, ts in listed_games(
-            conn, team_id, before_ts, exclude_event_id, history_games
+            conn, team_id, before_ts, exclude_event_id, history_games, kind_list
         ):
+            mkey = (int(eid), int(team_id), foreign)
+            hit = memo.get(mkey)
+            if hit is not None:
+                out.extend(hit[0])
+                opponents.extend(hit[1])
+                continue
             side: str | None = None
-            if team_from_side:
+            others: list[int] = []
+            if team_from_side or any_team:
                 ev = conn.execute(
                     "SELECT event_json FROM sofa_listed_event WHERE event_id = ?",
                     (eid,),
                 ).fetchone()
                 side = event_side(ev[0] if ev else None, int(team_id))
                 if side is None:
+                    memo[mkey] = ([], [])
                     continue
+                if any_team and not foreign:
+                    other = _other_team(ev[0], side)
+                    others = [] if other is None else [other]
+            got: list[Appearance] = []
             row = conn.execute(
                 "SELECT lineups_json FROM sofa_event_stats "
                 "WHERE sofascore_event_id = ?",
                 (eid,),
             ).fetchone()
-            if not row or not row[0]:
-                continue
-            try:
-                lineups = json.loads(row[0])
-            except ValueError:
-                continue
+            lineups: Any = None
+            if row and row[0]:
+                try:
+                    lineups = json.loads(row[0])
+                except ValueError:
+                    lineups = None
             if isinstance(lineups, dict):
-                out.extend(
-                    appearances_from_lineups(
-                        sport, lineups, eid, ts, int(team_id), side
-                    )
+                got = appearances_from_lineups(
+                    sport, lineups, eid, ts, int(team_id), side
                 )
+                if foreign:
+                    got = [replace(a, foreign=True) for a in got]
+            memo[mkey] = (got, others)
+            out.extend(got)
+            opponents.extend(others)
+
+    if any_team and not team_from_side:
+        raise ValueError("any_team needs team_from_side (a peer's squad by side)")
+    for team_id in teams:
+        read(team_id, False)
+    if any_team:
+        seen = set(teams)
+        for peer in opponents:
+            if peer not in seen:
+                seen.add(peer)
+                read(peer, True)
     return out
+
+
+def _other_team(event_json: object, side: str) -> int | None:
+    """The id of the side opposite `side` in a listed event's payload."""
+    try:
+        event = json.loads(event_json) if isinstance(event_json, str) else event_json
+    except ValueError:
+        return None
+    if not isinstance(event, dict):
+        return None
+    team = event.get("awayTeam" if side == "home" else "homeTeam")
+    tid = team.get("id") if isinstance(team, dict) else None
+    return tid if isinstance(tid, int) and not isinstance(tid, bool) else None
 
 
 # Name tokens that are not part of who a player is: generational suffixes
@@ -473,14 +581,59 @@ def _given_agree(a: Sequence[str], b: Sequence[str]) -> bool:
     return True
 
 
-def names_agree(subject: str, candidate: str) -> bool:
+def translit_token(tok: str) -> str:
+    """One name token with the transliterations a sports feed and a
+    bookmaker spell differently folded to one form (P8,
+    epochs.name_rules_1023): German umlauts written out ("stuetzle" ->
+    "stutzle", which normalize_name makes of "Stützle"), a Russian initial
+    "Ye" ("yegor" -> "egor"), "x" for "ks" ("alexei" -> "aleksei"), a final
+    "-iy" / "-ij" / "-y" ("dmitriy", "dmitry" -> "dmitri"). Applied to both
+    names alike; names_agree compares folded tokens only for equality."""
+    out = tok.replace("ue", "u").replace("oe", "o").replace("ae", "a")
+    out = out.replace("x", "ks")
+    if out.startswith("ye") and len(out) > 3:
+        out = out[1:]
+    if out.endswith(("iy", "ij")) and len(out) > 3:
+        out = out[:-2] + "i"
+    elif out.endswith("y") and len(out) > 3:
+        out = out[:-1] + "i"
+    return out
+
+
+def _tokens_agree(
+    subj: Sequence[str],
+    readings: Sequence[tuple[Sequence[str], Sequence[str]]],
+    cand: Sequence[str],
+) -> bool:
+    from rapidfuzz import fuzz
+
+    if not subj or not cand:
+        return False
+    if sorted(subj) == sorted(cand):
+        return True
+    if fuzz.token_sort_ratio(" ".join(subj), " ".join(cand)) >= STRICT_NAME_RATIO:
+        return True
+    for sur, given in readings:
+        if not sur or len(sur) >= len(cand) or list(cand[-len(sur) :]) != list(sur):
+            continue
+        if _given_agree(given, cand[: len(cand) - len(sur)]):
+            return True
+    return False
+
+
+def names_agree(subject: str, candidate: str, translit: bool = False) -> bool:
     """Whether Superbet's `subject` ("Williams, Jalen") names Sofascore's
     `candidate` ("Jalen Williams") on the strict rule the pre-game forecast
     needs: the same surname tokens and agreeing given names, or a
     token_sort_ratio of at least STRICT_NAME_RATIO. "Williams, Jalen" is not
-    "Jaylin Williams" (89.7, which players.match_player accepts)."""
-    from rapidfuzz import fuzz
+    "Jaylin Williams" (89.7, which players.match_player accepts).
 
+    `translit` (P8, epochs.name_rules_1023): when the names disagree as
+    written, both names' tokens folded by translit_token must be the same
+    tokens ("Stuetzle, Tim" / "Tim Stützle", "Chinakhov, Yegor" / "Egor
+    Chinakhov") - exactly, no initial, prefix or ratio on folded tokens: on
+    basketball's 56,868 stored names those rules over folded tokens made
+    namesakes of "Jeremy" / "Jeremiah", "Trae" / "Travis" (2026-10-23)."""
     cand = name_tokens(candidate)
     if not cand:
         return False
@@ -493,18 +646,13 @@ def names_agree(subject: str, candidate: str) -> bool:
         readings = [(subj[k:], subj[:k]) for k in range(1, len(subj))] + [
             (subj[:k], subj[k:]) for k in range(1, len(subj))
         ]
-    if not subj:
+    if _tokens_agree(subj, readings, cand):
+        return True
+    if not translit:
         return False
-    if sorted(subj) == sorted(cand):
-        return True
-    if fuzz.token_sort_ratio(" ".join(subj), " ".join(cand)) >= STRICT_NAME_RATIO:
-        return True
-    for sur, given in readings:
-        if not sur or len(sur) >= len(cand) or cand[-len(sur) :] != sur:
-            continue
-        if _given_agree(given, cand[: len(cand) - len(sur)]):
-            return True
-    return False
+
+    folded = sorted(translit_token(t) for t in subj)
+    return bool(folded) and folded == sorted(translit_token(t) for t in cand)
 
 
 def _unique_ids(appearances: Sequence[Appearance]) -> dict[str, int]:
@@ -516,8 +664,25 @@ def _unique_ids(appearances: Sequence[Appearance]) -> dict[str, int]:
     return {name: next(iter(p)) for name, p in ids.items() if len(p) == 1}
 
 
+def _find_among(
+    subject: str, appearances: Sequence[Appearance], translit: bool
+) -> tuple[int | None, str | None]:
+    candidates = _unique_ids(appearances)
+    agreed = {
+        pid
+        for name, pid in candidates.items()
+        if names_agree(subject, name, translit)
+    }
+    if len(agreed) == 1:
+        return next(iter(agreed)), None
+    if agreed:
+        return None, "NAME_UNCERTAIN"
+    loose = match_player(subject, {n: {} for n in candidates})
+    return None, ("NAME_UNCERTAIN" if loose is not None else "NOT_IN_HISTORY")
+
+
 def find_player(
-    subject: str, appearances: Sequence[Appearance]
+    subject: str, appearances: Sequence[Appearance], translit: bool = False
 ) -> tuple[int | None, str | None]:
     """(player id, None) for the one player fielded whose name agrees with
     Superbet's subject on the strict rule (names_agree), else (None, reason):
@@ -529,15 +694,21 @@ def find_player(
     HISTORY_GAMES games, a far larger field than the box the grade matches
     in, so the grade's own threshold would price a namesake (2026-10-03:
     "Williams, Jalen" matched "Jaylin Williams" at 89.7).
+
+    The two teams' own players are asked first; only when none of them is
+    near the name (NOT_IN_HISTORY) are the peers' players asked (`foreign`
+    appearances, load_appearances(any_team=True): a player who has not yet
+    played for his new team - Lyubushkin, 2026-10-22), on the same strict
+    rule; two of them agreeing is NAME_UNCERTAIN. `translit`: names_agree's.
     """
-    candidates = _unique_ids(appearances)
-    agreed = {pid for name, pid in candidates.items() if names_agree(subject, name)}
-    if len(agreed) == 1:
-        return next(iter(agreed)), None
-    if agreed:
-        return None, "NAME_UNCERTAIN"
-    loose = match_player(subject, {n: {} for n in candidates})
-    return None, ("NAME_UNCERTAIN" if loose is not None else "NOT_IN_HISTORY")
+    own = [a for a in appearances if not a.foreign]
+    pid, why = _find_among(subject, own, translit)
+    if pid is not None or why != "NOT_IN_HISTORY":
+        return pid, why
+    foreign = [a for a in appearances if a.foreign]
+    if not foreign:
+        return pid, why
+    return _find_among(subject, foreign, translit)
 
 
 def box_player_ids(lineups: dict[str, Any] | None) -> dict[str, int | None] | None:
@@ -787,18 +958,21 @@ def line_probability(
     appearances: Sequence[Appearance],
     params: SportParams | None = None,
     player_id: int | None = None,
+    translit: bool = False,
 ) -> PlayerProbability:
     """P(this side settles a win | it settles), or None with a reason.
 
     `player_id` is the player the grade reads (match_in_box, at settle);
-    without it the subject is found by the strict name rule (find_player)."""
+    without it the subject is found by the strict name rule (find_player,
+    `translit` its P8 fold). A `foreign` appearance (a peer team's game,
+    P3) counts in its own player's sample, never in the pool."""
     spec = PLAYER_MARKETS[sport].get(line.market_id)
     if spec is None:
         return PlayerProbability(None, 0, reason="NOT_A_PLAYER_MARKET")
     match = "box" if player_id is not None else "name"
     pid = player_id
     if pid is None:
-        pid, why = find_player(line.subject, appearances)
+        pid, why = find_player(line.subject, appearances, translit)
         if pid is None:
             return PlayerProbability(None, 0, reason=why, match=match)
     prm = params or sport_params(sport)
@@ -817,7 +991,9 @@ def line_probability(
             (
                 a
                 for a in appearances
-                if a.player_id != pid and (prm.pool == "all" or a.group == group)
+                if a.player_id != pid
+                and not a.foreign
+                and (prm.pool == "all" or a.group == group)
             ),
             spec,
         )
@@ -862,7 +1038,7 @@ def config_identity(path: Path | None = None) -> dict[str, Any]:
     }
 
 
-def model_fields(mp: PlayerProbability) -> dict[str, Any]:
+def model_fields(mp: PlayerProbability, path: Path | None = None) -> dict[str, Any]:
     """What a graded line carries: the model's number and its provenance -
     the model, the fitted file it read (config_identity), the player it
     priced and how he was found."""
@@ -874,7 +1050,7 @@ def model_fields(mp: PlayerProbability) -> dict[str, Any]:
         "model_mean": None if mp.mean is None else round(mp.mean, 3),
         "model_player_id": mp.player_id,
         "model_match": mp.match,
-        **config_identity(),
+        **config_identity(path),
         "unfitted_constants": list(UNFITTED),
     }
 
@@ -884,6 +1060,8 @@ def score_rows(
     sport: SportKey,
     appearances: Sequence[Appearance],
     box_ids: dict[str, int | None] | None = None,
+    params: SportParams | None = None,
+    translit: bool = False,
 ) -> list[PlayerProbability]:
     """One PlayerProbability per row, player lines only (others: None p).
 
@@ -897,13 +1075,15 @@ def score_rows(
             continue
         ln = line_from_row(r)
         if box_ids is None:
-            out.append(line_probability(ln, sport, appearances))
+            out.append(
+                line_probability(ln, sport, appearances, params, translit=translit)
+            )
             continue
         pid, why = match_in_box(ln.subject, box_ids)
         if pid is None:
             out.append(PlayerProbability(None, 0, reason=why, match="box"))
             continue
-        out.append(line_probability(ln, sport, appearances, player_id=pid))
+        out.append(line_probability(ln, sport, appearances, params, player_id=pid))
     return out
 
 
@@ -922,6 +1102,12 @@ MODEL_SPORTS: frozenset[SportKey] = frozenset({"basketball", "hockey"})
 # Sofascore team id when RESOLVE's entity cache does not hold it.
 TEAM_NAME_WINDOW_S = 120 * 86400
 UNFITTED_PREGAME = ("TEAM_NAME_WINDOW_S",)
+# Markers on a pre-game row read under P3 / P8 (absent when off).
+PLAYER_HISTORY_RULE = "any_team_peers"
+# audit 2026-10-23 P9 (epochs.PLAYER_BOTH_SIDES_LISTED_FROM_UTC): the marker of
+# a row whose teams' games were read from both sides' lists
+PLAYER_LISTS_RULE = "both_sides"
+NAME_RULE_TRANSLIT = "translit_1023"
 
 ForecastKey = tuple[str, str, int, str, str, str]
 
@@ -1095,7 +1281,9 @@ def forecast_records(
     from bet.sofa.shadow import group_shape
 
     index: dict[str, set[int]] | None = None
-    cache: dict[tuple[tuple[int, ...], int, bool], list[Appearance]] = {}
+    cache: dict[tuple[tuple[int, ...], int, bool, bool, tuple[str, ...]],
+                list[Appearance]] = {}
+    memo: dict[tuple[int, int, bool], tuple[list[Appearance], list[int]]] = {}
     out: list[dict[str, Any]] = []
     for rec in records:
         raw_lines = [
@@ -1116,6 +1304,23 @@ def forecast_records(
             kickoff.astimezone(UTC).strftime("%Y-%m-%d"),
             datetime.fromtimestamp(now_ts, UTC),
         )
+        # P3 (K7): peers' games too; P8: the transliteration fold; the
+        # constants the day reads (params_path_for) - all by the game's day
+        # and this snapshot's clock.
+        game_day = kickoff.astimezone(UTC).strftime("%Y-%m-%d")
+        clock = datetime.fromtimestamp(now_ts, UTC)
+        any_team = from_side and epochs.player_history_any_team(
+            game_day, clock, sport
+        )
+        # The fold is hockey's (P8: 0 new agreements between two player ids
+        # over hockey's 7,271 stored names; basketball's 56,868 gave 20,
+        # Braeden / Braden Smith among them - not switched there).
+        translit = sport == "hockey" and epochs.name_rules_1023(game_day, clock)
+        # P9: a game seen on the opponent's page only counts for this team too
+        kinds = sport_history.listing_kinds(game_day, clock)
+        both_sides = sport_history.OPPONENT_KIND in kinds
+        params_path = params_path_for(game_day, clock)
+        prm = load_params(params_path)[sport]
         teams: list[int] = []
         pin = (pinned or {}).get(str(rec["superbet_event_id"]))
         teams_source = "pinned" if pin is not None else "name"
@@ -1131,10 +1336,18 @@ def forecast_records(
                 tid = resolve_team(conn, slug, name, index, learned)
             if tid is not None:
                 teams.append(tid)
-        ckey = (tuple(sorted(teams)), before, from_side)
+        ckey = (tuple(sorted(teams)), before, from_side, any_team, kinds)
         if len(teams) == 2 and ckey not in cache:
             cache[ckey] = load_appearances(
-                conn, sport, teams, before, None, team_from_side=from_side
+                conn,
+                sport,
+                teams,
+                before,
+                None,
+                team_from_side=from_side,
+                any_team=any_team,
+                memo=memo,
+                kinds=kinds,  # ("last",) off: the old reader exactly
             )
         apps = cache.get(ckey, [])
         groups: dict[tuple[Any, ...], dict[str, float]] = {}
@@ -1173,18 +1386,26 @@ def forecast_records(
             if len(teams) < 2:
                 mp = PlayerProbability(None, 0, reason="TEAM_UNRESOLVED")
             else:
-                mp = line_probability(line_from_row(base), sport, apps)
+                mp = line_probability(
+                    line_from_row(base), sport, apps, prm, translit=translit
+                )
             row = {
                 **base,
                 "fair_p": None if fair is None else fair.get(str(ln["side"])),
                 "teams_resolved": len(teams),
                 "teams_source": teams_source,
-                **model_fields(mp),
+                **model_fields(mp, params_path),
                 "unfitted_constants": list(UNFITTED) + list(UNFITTED_PREGAME),
                 "computed_at_utc": computed_at,
             }
             if from_side:
                 row["player_team_rule"] = epochs.PLAYER_TEAM_RULE
+            if any_team:
+                row["player_history_rule"] = PLAYER_HISTORY_RULE
+            if translit:
+                row["name_rule"] = NAME_RULE_TRANSLIT
+            if both_sides:
+                row["player_lists_rule"] = PLAYER_LISTS_RULE
             if learned and pin is None:
                 # Teams read by name, learned rows of the entity map included.
                 row["entity_map_rule"] = epochs.ENTITY_MAP_RULE

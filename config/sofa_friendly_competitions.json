@@ -570,6 +570,24 @@
       "source": "cache_payload"
     }
   ],
+  "excluded_from_sample_conflict_cut": [
+    {
+      "competition_id": 38292,
+      "name": "Memorijalni turnir Mladen \u017di\u017eovi\u0107",
+      "category": "Bosnia & Herzegovina",
+      "evidence": "docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md",
+      "source": "cache_payload",
+      "note": "Read by SAMPLES only, only under epochs.SAMPLE_CONFLICT_CUT_FROM_UTC (samples.CONFLICT_CUT_FRIENDLY_IDS): this list is read by every day alike, so an id added for a coming day waits here. 4 cached matches 2026-09-26..27 (Zrinjski: two matches a day apart against different opponents -> ENTITY_CONFLICT)."
+    },
+    {
+      "competition_id": 38659,
+      "name": "Australian-Croatian Soccer Tournament",
+      "category": "Australia",
+      "evidence": "docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md",
+      "source": "cache_payload",
+      "note": "As above. 25 cached matches 2025-09-25..2026-09-27 (Sydney United 58)."
+    }
+  ],
   "candidates": [],
   "allowed": [
     {

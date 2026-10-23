@@ -31,7 +31,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from bet.sofa.listing_index import LISTED_EVENT, event_sport, index_page
+from bet.sofa import epochs
+from bet.sofa.listing_index import (
+    LISTED_EVENT,
+    LISTING_EVENT,
+    event_sport,
+    index_page,
+)
 
 # Sofascore sport slugs of the measured sports with a score-model history.
 SLUGS: dict[str, str] = {"hockey": "ice-hockey", "basketball": "basketball",
@@ -229,3 +235,130 @@ def coverage(conn: sqlite3.Connection, ids: Iterable[int]) -> tuple[int, int]:
             except (TypeError, ValueError):
                 continue
     return done, len(wanted)
+
+
+# --- a game in both teams' lists (audit 2026-10-23 B9 / P9) -----------------
+#
+# A `last` page indexes its events under the page's OWNER only
+# (listing_index.index_page), and `candidates` takes a game the index holds as
+# finished as done - so a game seen only on one team's page never reaches the
+# other team's list (store_event, which writes both, is never called for it).
+# player_model.listed_games reads a team's games from its own list, so that
+# team's players lose the game: Vancouver @ Florida 16546356 (2026-10-15
+# 23:00Z) is in Florida's list (3687) and not Vancouver's (3692). Counted
+# 2026-10-23 on data/sofa.db (finished games, one side missing): 42,892 sides
+# in the whole index, 8,514 with a start in the last 400 days (hockey 1,241,
+# basketball 7,273 games).
+#
+# The fix needs no network: the stored payload names both teams. The missing
+# side is written under its own kind, OPPONENT_KIND, never `last` - no reader
+# that asks for `last` (SAMPLES' entity_indexed_events, the refits, the
+# one-time fill's checks) sees a row it did not see before, and a reader
+# switched by epochs.player_both_sides_listed reads both (listed_rows).
+OPPONENT_KIND = "last_side"
+# The sports whose player model reads team lists (player_model: hockey and
+# basketball).
+BOTH_SIDES_SLUGS: tuple[str, ...] = ("ice-hockey", "basketball")
+
+
+@dataclass(frozen=True)
+class MissingSide:
+    event_id: int
+    team_id: int
+    start_ts: int | None
+    fetched_at: str
+
+
+def missing_sides(conn: sqlite3.Connection,
+                  slugs: Iterable[str] = BOTH_SIDES_SLUGS
+                  ) -> list[MissingSide]:
+    """Every finished indexed game of `slugs` whose payload names a team
+    (home or away) with neither a `last` nor an OPPONENT_KIND row for it in
+    the listing index, oldest first. Read-only."""
+    wanted = sorted(set(slugs))
+    if not wanted:
+        return []
+    marks = ",".join("?" * len(wanted))
+    out: list[MissingSide] = []
+    # json_extract in SQL: no payload crosses into Python; each side's check
+    # is a seek on the members' primary key (entity_id, kind, event_id).
+    sql = f"""
+        WITH ev AS (
+            SELECT event_id, start_ts, fetched_at,
+                   json_extract(event_json, '$.homeTeam.id') AS home,
+                   json_extract(event_json, '$.awayTeam.id') AS away
+            FROM {LISTED_EVENT}
+            WHERE sport IN ({marks})
+              AND json_valid(event_json)
+              AND json_extract(event_json, '$.status.type') = 'finished')
+        SELECT s.event_id, s.start_ts, s.fetched_at, s.team FROM (
+            SELECT event_id, start_ts, fetched_at, home AS team, 0 AS side FROM ev
+            UNION ALL
+            SELECT event_id, start_ts, fetched_at, away AS team, 1 AS side FROM ev
+        ) AS s
+        WHERE typeof(s.team) = 'integer'
+          AND NOT EXISTS (
+            SELECT 1 FROM {LISTING_EVENT} m
+            WHERE m.entity_id = s.team AND m.kind IN ('last', ?)
+              AND m.event_id = s.event_id)
+        ORDER BY s.start_ts, s.event_id, s.side"""
+    for event_id, start_ts, fetched_at, team in conn.execute(
+            sql, (*wanted, OPPONENT_KIND)):
+        out.append(MissingSide(int(event_id), int(team),
+                               start_ts if isinstance(start_ts, int) else None,
+                               str(fetched_at)))
+    return out
+
+
+def list_both_sides(conn: sqlite3.Connection,
+                    slugs: Iterable[str] = BOTH_SIDES_SLUGS) -> int:
+    """Write every missing side (missing_sides) as an OPPONENT_KIND member of
+    that team's list, stamped with the payload's own fetch; the caller
+    commits. Offline, idempotent: a second run writes nothing. Returns rows
+    written."""
+    rows = [(m.team_id, OPPONENT_KIND, m.event_id, m.start_ts, m.fetched_at)
+            for m in missing_sides(conn, slugs)]
+    conn.executemany(
+        f"INSERT OR IGNORE INTO {LISTING_EVENT} "
+        "(entity_id, kind, event_id, start_ts, fetched_at) VALUES (?, ?, ?, ?, ?)",
+        rows)
+    return len(rows)
+
+
+def listing_kinds(date: str, build_at: datetime | None = None
+                  ) -> tuple[str, ...]:
+    """The list kinds a team's games are read from on `date` at `build_at`:
+    `last` alone, and OPPONENT_KIND too from
+    epochs.PLAYER_BOTH_SIDES_LISTED_FROM_UTC."""
+    if epochs.player_both_sides_listed(date, build_at):
+        return ("last", OPPONENT_KIND)
+    return ("last",)
+
+
+def listed_rows(conn: sqlite3.Connection, team_id: int, before_ts: int,
+                limit: int, kinds: Iterable[str] = ("last",)
+                ) -> list[tuple[int, int, str | None]]:
+    """(event id, start, payload JSON or None) of a team's newest listed games
+    before `before_ts`, newest first, one row per game - the query
+    player_model.listed_games ran, over `kinds` (listing_kinds). With
+    ("last",) the rows are exactly the old query's."""
+    kind_list = sorted(set(kinds))
+    marks = ",".join("?" * len(kind_list))
+    rows = conn.execute(
+        "SELECT l.event_id, MIN(l.start_ts), e.event_json "
+        f"FROM {LISTING_EVENT} l "
+        f"LEFT JOIN {LISTED_EVENT} e ON e.event_id = l.event_id "
+        f"WHERE l.entity_id = ? AND l.kind IN ({marks}) AND l.start_ts < ? "
+        "GROUP BY l.event_id "
+        "ORDER BY MIN(l.start_ts) DESC LIMIT ?",
+        (int(team_id), *kind_list, int(before_ts), int(limit)),
+    ).fetchall() if len(kind_list) > 1 else conn.execute(
+        "SELECT l.event_id, l.start_ts, e.event_json "
+        f"FROM {LISTING_EVENT} l "
+        f"LEFT JOIN {LISTED_EVENT} e ON e.event_id = l.event_id "
+        "WHERE l.entity_id = ? AND l.kind = ? AND l.start_ts < ? "
+        "ORDER BY l.start_ts DESC LIMIT ?",
+        (int(team_id), kind_list[0], int(before_ts), int(limit)),
+    ).fetchall()
+    return [(int(r[0]), int(r[1]), r[2]) for r in rows]
+

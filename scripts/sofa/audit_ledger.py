@@ -219,6 +219,8 @@ SPORT_LATE_WINDOW_EPOCH_FROM_DATE = "2026-10-23"
 # The same group holds the hockey curve refitted 2026-10-23, read from
 # 2026-10-24 00:00Z (config/sofa_sport_confidence_calibration.next.2026-10-24
 # .json; docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md).
+# The coverage audit's P-switches (epochs, "Coverage audit 2026-10-23") also
+# start 2026-10-24 00:00Z: same group (AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md).
 LIVE_ONLY_CURVE_EPOCH_FROM_DATE = "2026-10-24"
 
 

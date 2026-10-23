@@ -677,8 +677,8 @@ def player_sample_names(samples: list[Any]) -> dict[tuple[int, str], str]:
 
 def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
     """{(event id, "<market>|<subject>"): matched_name} of the players SAMPLES
-    matched by a fallback (`match_rule` "tokens" or "surname") - the name
-    SETTLE grades."""
+    matched by a fallback (`match_rule` "tokens", "surname",
+    "transliteration", "inner_surname" or "slug") - the name SETTLE grades."""
     out: dict[tuple[int, str], str] = {}
     for fixture in samples:
         if not isinstance(fixture, dict):
@@ -686,7 +686,8 @@ def player_token_names(samples: list[Any]) -> dict[tuple[int, str], str]:
         eid = fixture.get("sofascore_event_id")
         for key, sample in (fixture.get("players") or {}).items():
             if not isinstance(sample, dict) or sample.get("match_rule") not in (
-                    "tokens", "surname", "transliteration", "inner_surname"):
+                    "tokens", "surname", "transliteration", "inner_surname",
+                    "slug"):
                 continue
             name = sample.get("matched_name")
             if isinstance(eid, int) and isinstance(name, str) and name:

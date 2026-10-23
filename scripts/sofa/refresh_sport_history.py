@@ -10,6 +10,14 @@ sport fits read them from then on. Every morning before `refresh_line_evidence`
     .venv/bin/python scripts/sofa/ensure_bridge.py
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py \\
         [--days 14] [--sport hockey ...] [--max-minutes 7] [--dry-run]
+    PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py \
+        --both-sides-only      # offline: the `last_side` repair alone, no bridge
+
+After the refresh (never on --dry-run) every finished hockey / basketball game
+listed on one team's `last` page only is listed for the other team too, under
+kind `last_side` (sport_history.list_both_sides; offline, idempotent, audit
+2026-10-23 P9) - nothing reading `last` sees it; the player model reads it from
+epochs.PLAYER_BOTH_SIDES_LISTED_FROM_UTC (sport_history.listing_kinds).
 
 Same client, token bucket, breaker and bridge as the pipeline; a refusal stops
 the run (resumable: a game stored as finished is never asked again).
@@ -21,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 import time
 from datetime import timedelta
@@ -38,6 +47,14 @@ from bet.sofa.stage import set_stage  # noqa: E402
 from bet.sofa.timeutil import frozen_clock_refusal, now  # noqa: E402
 
 
+def list_both_sides(conn: sqlite3.Connection) -> int:
+    """audit 2026-10-23 P9: write the missing list sides (kind `last_side`)
+    and commit; rows written."""
+    written = sh.list_both_sides(conn)
+    conn.commit()
+    return written
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--days", type=int, default=sh.DAYS)
@@ -47,6 +64,9 @@ def main() -> int:
     ap.add_argument("--max-minutes", type=float, default=7.0)
     ap.add_argument("--dry-run", action="store_true",
                     help="count the candidates; ask nothing, write nothing")
+    ap.add_argument("--both-sides-only", action="store_true",
+                    help="offline: only list each finished hockey / basketball "
+                         "game for both teams (kind last_side); no bridge")
     args = ap.parse_args()
     config = SofaConfig.from_env()
     refusal = frozen_clock_refusal(config.runs_dir)
@@ -54,6 +74,16 @@ def main() -> int:
         print(refusal, file=sys.stderr)
         return 2
     set_stage("SPORT_HISTORY")
+    if args.both_sides_only:
+        conn = get_connection(config.db_path)
+        try:
+            written = list_both_sides(conn)
+        finally:
+            conn.close()
+        print("SOFA_SUMMARY: " + json.dumps({
+            "stage": "SPORT_HISTORY", "verdict": "OK",
+            "both_sides_written": written}))
+        return 0
     sports = args.sport or sorted(sh.SLUGS)
     at = now()
     hi_ts = int((at - timedelta(hours=args.min_age_h)).timestamp())
@@ -83,6 +113,9 @@ def main() -> int:
         result = sh.refresh(conn, ids, client.event,
                             lambda: now().isoformat(),
                             lambda: time.monotonic() > stop_at)
+        # P9: offline, after the refresh's own writes (read only under its
+        # switch, so written whatever the day)
+        both_sides = list_both_sides(conn)
     finally:
         conn.close()
     # A 404 is an answer (a game Sofascore deleted, often from a stale `next`
@@ -93,7 +126,8 @@ def main() -> int:
     summary.update({"verdict": verdict, "asked": result.asked,
                     "finished": result.finished,
                     "not_finished": result.not_finished,
-                    "missing": result.missing, "stopped": result.stopped})
+                    "missing": result.missing, "stopped": result.stopped,
+                    "both_sides_written": both_sides})
     print("SOFA_SUMMARY: " + json.dumps(summary))
     return {"OK": 0, "PARTIAL": 1, "FAILED": 2}[verdict]
 

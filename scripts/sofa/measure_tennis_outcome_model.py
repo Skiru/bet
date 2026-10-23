@@ -266,8 +266,9 @@ def load(db: str) -> tuple[list[tr.TennisResult], dict[int, tuple[str, str]]]:
     meta: dict[int, tuple[str, str]] = {}
     original = tr.parse_event
 
-    def capture(event: Mapping[str, Any]) -> tr.TennisResult | None:
-        r = original(event)
+    def capture(event: Mapping[str, Any], *,
+                score_winner: bool = False) -> tr.TennisResult | None:
+        r = original(event, score_winner=score_winner)
         if r is not None:
             t = event.get("tournament") or {}
             cat = str((t.get("category") or {}).get("name", ""))

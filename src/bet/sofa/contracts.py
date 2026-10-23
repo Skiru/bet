@@ -228,9 +228,12 @@ class PlayerSample(BaseModel):
     # by `matched_name`, so it grades the person SAMPLES sampled.
     # "transliteration" / "inner_surname": the two fallbacks after "surname"
     # (epochs.FOOTBALL_PLAYER_COVERAGE_FROM_UTC); SETTLE grades them by
-    # `matched_name` like "tokens".
+    # `matched_name` like "tokens". "slug": the last fallback, the squad
+    # member whose Sofascore slug holds exactly the name's tokens
+    # (epochs.PLAYER_SLUG_NAME_FROM_UTC), graded by `matched_name` too.
     match_rule: Literal[
-        "fuzzy", "tokens", "surname", "transliteration", "inner_surname"
+        "fuzzy", "tokens", "surname", "transliteration", "inner_surname",
+        "slug"
     ] = "fuzzy"
     # Which appearances the sample holds: "all" of them, or only his "starts"
     # (epochs.PLAYER_STARTS_ONLY_FROM_UTC) - Superbet voids the market of a

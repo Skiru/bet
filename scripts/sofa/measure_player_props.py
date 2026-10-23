@@ -192,10 +192,14 @@ def collect(
                         _iso_ts(entry["kickoff_utc"]),
                         int(start) if isinstance(start, int) else None,
                     )
-                    # The day's squad rule (epochs.player_team_from_side).
+                    # The day's squad rule (epochs.player_team_from_side) and
+                    # its history rule (epochs.player_history_any_team, P3).
+                    from_side = epochs.player_team_from_side(date)
                     apps = load_appearances(
                         conn, sport, teams, before, eid,  # type: ignore[arg-type]
-                        team_from_side=epochs.player_team_from_side(date),
+                        team_from_side=from_side,
+                        any_team=from_side
+                        and epochs.player_history_any_team(date, sport=sport),
                     )
                     scored = score_rows(graded, sport, apps, box_ids)  # type: ignore[arg-type]
                 for g, mp in zip(graded, scored, strict=True):

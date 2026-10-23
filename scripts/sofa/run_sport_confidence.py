@@ -192,6 +192,12 @@ class DbForecaster:
                 cs2_engine.RatingModel] | None = None
     _cs2_exposure: cs2_engine.ExposureBook | None = None
 
+    @property
+    def _day(self) -> str:
+        """The day the audit 2026-10-23 switches read: the built day, else
+        the build clock's (str(None) would compare above every date)."""
+        return self.date or self.at.strftime("%Y-%m-%d")
+
     def _shadow_model(self, sport: str) -> tuple[Any, scf.TeamGames]:
         if sport not in self._shadow:
             from bet.sofa.score_model import (
@@ -219,7 +225,15 @@ class DbForecaster:
             hk_en = sport == "hockey" and epochs.hk_empty_net(self.date, self.at)
             box = (load_box_scores(self.db_path, events)
                    if pace or level or hk_shots else None)
-            history = scf.parse_history(events, sp, box)
+            # audit 2026-10-23 P11 / P13: basketball halves leagues, a
+            # volleyball match followed by a golden set read on its own sets
+            # (only a switch that is on is passed: off = the old calls)
+            parse_flags: dict[str, bool] = {}
+            if sport == "basketball" and epochs.bb_halves_leagues(self._day, self.at):
+                parse_flags["halves"] = True
+            if sport == "volleyball" and epochs.vb_golden_set(self._day, self.at):
+                parse_flags["golden_set"] = True
+            history = scf.parse_history(events, sp, box, **parse_flags)
             # audit B9 / C10: volleyball's set length from the history's table
             vb_length = (sport == "volleyball"
                          and epochs.vb_set_length(self.date, self.at))
@@ -240,7 +254,8 @@ class DbForecaster:
                 season_restart=epochs.league_season_restart(
                     sport, self.date, self.at),
                 **vb_extra)
-            self._shadow[sport] = (model, scf.TeamGames.build(events.values(), sp))
+            self._shadow[sport] = (model, scf.TeamGames.build(
+                events.values(), sp, **parse_flags))
         return self._shadow[sport]
 
     def _cs2_model(self) -> tuple[list[cs2_engine.MapRow], dict[int, scf.SeriesRow],
@@ -250,7 +265,13 @@ class DbForecaster:
             # epochs.CS2_MAP_IDENTITY: the order / pool terms fitted too
             terms = (cs2_engine.MAP_TERMS
                      if epochs.cs2_map_identity(str(self.date), self.at) else ())
-            self._cs2 = (maps, series, cs2_engine.build_ratings(maps, terms))
+            # epochs.CS2_LINEUP_ELO_UNRATED (audit 2026-10-23 P7): a pair not
+            # both rated reads the lineup gap through its own calibration
+            if epochs.cs2_lineup_elo_unrated(self._day, self.at):
+                ratings = cs2_engine.build_ratings(maps, terms, True)
+            else:
+                ratings = cs2_engine.build_ratings(maps, terms)
+            self._cs2 = (maps, series, ratings)
         return self._cs2
 
     def _cs2_counts(self, maps: list[cs2_engine.MapRow]
@@ -301,13 +322,18 @@ class DbForecaster:
             best_of = fixture.get("best_of")
             if not best_of and epochs.line_evidence_v2(str(self.date), self.at):
                 return None  # v2: a format nobody told us is not guessed as bo3
+            # epochs.NAME_RULES_1023 (audit 2026-10-23 P8): a player's
+            # nickname by prefix too (passed only when on: off = the old call)
+            name_rules = ({"name_rules": True}
+                          if epochs.name_rules_1023(self._day, self.at) else {})
             mp = cs2_engine.model_probability(
                 line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
                 maps, ratings, bool(fixture["home_is_team1"]),
                 team_rounds_race=epochs.cs2_team_rounds_race(str(self.date), self.at),
                 map_identity=epochs.cs2_map_identity(str(self.date), self.at),
                 exposure=self._cs2_counts(maps),
-                series_rounds=epochs.cs2_series_rounds(str(self.date), self.at))
+                series_rounds=epochs.cs2_series_rounds(str(self.date), self.at),
+                **name_rules)
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability, overtime_minutes
 

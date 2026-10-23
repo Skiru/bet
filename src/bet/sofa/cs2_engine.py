@@ -52,7 +52,7 @@ from functools import cache, lru_cache
 from typing import Any
 
 from bet.sofa.comparability import is_non_competitive_name
-from bet.sofa.cs2 import Cs2Line, esports_name, exact_score
+from bet.sofa.cs2 import NICK_PREFIX_MIN, Cs2Line, esports_name, exact_score
 from bet.sofa.engine import (
     P_CEILING,
     P_FLOOR,
@@ -345,6 +345,17 @@ class RatingModel:
     pool_c: float = 0.0
     pool: MapPoolBook | None = None
     map_fit: int = 0
+    # audit 2026-10-23 P7 (epochs.CS2_LINEUP_ELO_UNRATED_FROM_UTC): a series
+    # whose team ids are not both MIN_MAPS_RATED reads the lineup gap alone
+    # when the player model was fitted (Envy, 9 maps as a team id, its five
+    # players 1,078 maps); off = no number, as before
+    lineup_unrated: bool = False
+    # ... through its own calibration (fit_unrated: the rated lineup intercept,
+    # the slope fitted on the unrated pairs' walk-forward lineup gaps); used
+    # only when fitted (MIN_FIT points)
+    ua: float = 0.0
+    ub: float = 1.0
+    u_fit: int = 0
 
     def base_logit(self, d: float, g: float | None) -> float:
         """The calibrated home logit from the team gap d and the lineup gap
@@ -354,9 +365,11 @@ class RatingModel:
         return self.a + self.b * d
 
     def home_logit(self, home: int, away: int) -> float | None:
-        if not self.book.rated(home, away):
-            return None
         gap = self.players.gap(home, away) if self.players is not None else None
+        if not self.book.rated(home, away):
+            if self.lineup_unrated and gap is not None and self.u_fit >= MIN_FIT:
+                return self.ua + self.ub * gap
+            return None
         return self.base_logit(logit_diff(self.book, home, away), gap)
 
     def p_map(self, team1: int, team2: int, team1_is_home: bool) -> float | None:
@@ -673,12 +686,15 @@ def walk_forward_players(
     history: list[MapRow],
     pool: MapPoolBook | None = None,
     mpoints: list[MapPoint] | None = None,
+    upoints: list[tuple[float, float]] | None = None,
 ) -> tuple[EloBook, list[tuple[float, float]], PlayerEloBook,
            list[tuple[float, float]]]:
     """walk_forward, plus the player Elo and its (lineup gap, home won)
     points - each series from the ratings and lineups at its start. With a
     `pool` (audit B11) its map deviations are replayed too and each rated
-    series' MapPoints appended to `mpoints`."""
+    series' MapPoints appended to `mpoints`. `upoints` (audit 2026-10-23 P7):
+    the (lineup gap, home won) points of the series whose team ids are not
+    both rated are appended to it."""
     book = EloBook()
     players = PlayerEloBook()
     points: list[tuple[float, float]] = []
@@ -696,6 +712,10 @@ def walk_forward_players(
             g = players.gap(home, away)
             if g is not None:
                 ppoints.extend((g, 1.0 if m.home_won else 0.0) for m in maps)
+        elif upoints is not None:
+            g = players.gap(home, away)
+            if g is not None:
+                upoints.extend((g, 1.0 if m.home_won else 0.0) for m in maps)
         for m in maps:
             if pool is not None:
                 pool.update(m, book)
@@ -708,22 +728,47 @@ def walk_forward_players(
 
 
 def build_ratings(history: list[MapRow],
-                  map_terms: tuple[str, ...] = ()) -> RatingModel:
+                  map_terms: tuple[str, ...] = (),
+                  lineup_unrated: bool = False) -> RatingModel:
     """The calibrated rating model; `map_terms` (audit B11, MAP_TERMS under
-    epochs.CS2_MAP_IDENTITY) adds the order / pool terms for p_map_nr."""
+    epochs.CS2_MAP_IDENTITY) adds the order / pool terms for p_map_nr;
+    `lineup_unrated` (epochs.CS2_LINEUP_ELO_UNRATED_FROM_UTC, audit
+    2026-10-23 P7) gives an unrated pair the lineup gap's number. The
+    calibrations are fitted on the rated series either way."""
     pool = MapPoolBook() if map_terms else None
     mpoints: list[MapPoint] = []
-    book, points, players, ppoints = walk_forward_players(history, pool, mpoints)
+    upoints: list[tuple[float, float]] | None = [] if lineup_unrated else None
+    book, points, players, ppoints = walk_forward_players(history, pool, mpoints,
+                                                          upoints)
     if len(points) < MIN_FIT:
         return RatingModel(book, n_fit=len(points))
     a, b = fit_logistic([x for x, _ in points], [y for _, y in points])
-    model = RatingModel(book, a, max(0.0, min(2.0, b)), len(points), players)
+    model = RatingModel(book, a, max(0.0, min(2.0, b)), len(points), players,
+                        lineup_unrated=lineup_unrated)
     if len(ppoints) >= MIN_FIT:
         pa, pb = fit_logistic([x for x, _ in ppoints], [y for _, y in ppoints])
         model.pa, model.pb, model.p_fit = pa, max(0.0, min(2.0, pb)), len(ppoints)
+    if upoints is not None:
+        fit_unrated(model, upoints)
     if map_terms:
         fit_map_terms(model, mpoints, map_terms, pool)
     return model
+
+
+def fit_unrated(model: RatingModel, upoints: list[tuple[float, float]]) -> None:
+    """The unrated pairs' lineup calibration (audit 2026-10-23 P7): the rated
+    pairs' lineup intercept `pa` (the home term) kept, the slope on the
+    gap fitted on the unrated pairs' walk-forward points (with `pa` as the
+    offset). Under MIN_FIT points - or without a fitted player model - it
+    stays unfitted, and an unrated pair has no number.
+
+    Measured (measure_audit1023_p7_cs2_lineup_unrated.py, variants): the
+    rated calibration alone under-claimed these pairs (slope 1.83), a free
+    intercept over-claimed the home side (-3.2 pp, interval excluding 0)."""
+    if len(upoints) < MIN_FIT or model.p_fit < MIN_FIT:
+        return
+    (ub,) = fit_offsets([(model.pa, [g], y) for g, y in upoints], 1)
+    model.ua, model.ub, model.u_fit = model.pa, max(0.0, ub), len(upoints)
 
 
 # --- rounds from a round-win probability ------------------------------------------
@@ -1043,24 +1088,38 @@ def both_sides_rounds(maps: list[MapRow]) -> list[int]:
     return out
 
 
-def player_id(history: list[MapRow], team: int, name: str) -> int | None:
+def player_id(history: list[MapRow], team: int, name: str,
+              prefix: bool = False) -> int | None:
     """The Sofascore id of the one player with this nickname on the team's
-    recent maps, or None (none or a namesake)."""
+    recent maps, or None (none or a namesake).
+
+    `prefix` (epochs.NAME_RULES_1023_FROM_UTC, audit 2026-10-23 P8): with no
+    exact nickname, the settlement's rule (cs2.MapResult.player) - the one
+    player whose nickname of >= NICK_PREFIX_MIN letters starts the line's
+    name or is started by it ("MartinezSa" for "martinez")."""
     folded = esports_name(name)
-    ids = {
-        pid
+    nicks = {
+        (pid, nick)
         for m in _team_maps(history, team)
         for t, pid, nick, _ in m.players
-        if t == team and nick == folded
+        if t == team
     }
+    ids = {pid for pid, nick in nicks if nick == folded}
+    if not ids and prefix and len(folded) >= NICK_PREFIX_MIN:
+        ids = {
+            pid for pid, nick in nicks
+            if len(nick) >= NICK_PREFIX_MIN
+            and (folded.startswith(nick) or nick.startswith(folded))
+        }
     return next(iter(ids)) if len(ids) == 1 else None
 
 
-def player_values(history: list[MapRow], team: int, name: str, stat: str) -> list[int]:
+def player_values(history: list[MapRow], team: int, name: str, stat: str,
+                  prefix: bool = False) -> list[int]:
     """The player's last maps: found by his nickname on this team's recent maps,
     then followed by his Sofascore player id - across teams, since players
-    move - so the sample is his, not a namesake's."""
-    pid = player_id(history, team, name)
+    move - so the sample is his, not a namesake's. `prefix`: player_id's."""
+    pid = player_id(history, team, name, prefix)
     if pid is None:
         return []
     values: list[int] = []
@@ -1352,6 +1411,7 @@ def model_probability(
     map_identity: bool = False,
     exposure: ExposureBook | None = None,
     series_rounds: bool = False,
+    name_rules: bool = False,
 ) -> ModelP | None:
     """The model's probability for this side of this line, or None.
     `team_rounds_race` (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC): a team's
@@ -1362,7 +1422,9 @@ def model_probability(
     same history): a line of its `families` from the rounds' exposure, the
     old sample model where the exposure has no number.
     `series_rounds` (epochs.CS2_SERIES_ROUNDS_FROM_UTC): SERIES_ROUND_FAMILIES
-    from series_rounds_side_p; without it they have no number."""
+    from series_rounds_side_p; without it they have no number.
+    `name_rules` (epochs.NAME_RULES_1023_FROM_UTC): a player line's nickname
+    by prefix too (player_id)."""
     fam = line.family
     subject = line.subject.strip()
     side_team = team1_id if subject == team1 else team2_id if subject == team2 else None
@@ -1484,10 +1546,10 @@ def model_probability(
         return count_p(team_kills(history, side_team), line.line, over)
     stat = fam.removeprefix("player_")
     for team in (team1_id, team2_id):
-        values = player_values(history, team, line.subject, stat)
+        values = player_values(history, team, line.subject, stat, name_rules)
         if values:
             if exposure is not None and fam in exposure.families:
-                pid = player_id(history, team, line.subject)
+                pid = player_id(history, team, line.subject, name_rules)
                 opp = team2_id if team == team1_id else team1_id
                 mp = _exposure_line(exposure, ratings, team1_id, team2_id,
                                     team1_is_home, best_of, line, map_identity,

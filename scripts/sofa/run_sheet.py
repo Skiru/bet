@@ -959,7 +959,12 @@ def load_tennis_rating(
         return None
     coefficients, meta = loaded
     cut = datetime.strptime(run_date, "%Y-%m-%d").replace(tzinfo=UTC)
-    history = load_history(config.db_path)
+    # epochs.TENNIS_RATING_SCORE_WINNER (audit 2026-10-23 P14): the day being
+    # built and the build clock. Off: the one-argument call, as before.
+    if epochs.tennis_rating_score_winner(run_date):
+        history = load_history(config.db_path, score_winner=True)
+    else:
+        history = load_history(config.db_path)
     if not scoped:
         return build_model(
             history, coefficients, int(cut.timestamp()), names=meta["features"],

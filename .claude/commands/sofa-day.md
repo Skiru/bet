@@ -78,6 +78,10 @@ start step 2's RESOLVE and, beside it, the fits:
 nohup sh -c 'PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> --skip-history; echo "EXIT $?"' > runs/sofa/<D>/refresh_line_evidence.log 2>&1 &
 ```
 
+Once, on 2026-10-24 only (coverage audit P12), BEFORE that command: give the CS2 series
+settled from their result alone their `model_p` (offline, ~10 min):
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23`.
+
 `EXIT 0` written; 1 = a sport's row fit failed (that sport reuses earlier rows - name it;
 a `Traceback` in the log is a crash, also 1) - with `--skip-history` the history /
 statistics part is the bridge call above, with its own `exit` lines; 2 =

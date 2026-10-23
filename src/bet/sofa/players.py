@@ -48,6 +48,7 @@ from typing import Any
 
 from bet.sofa import shot_detail
 from bet.sofa.contracts import GapReason
+from bet.sofa.metrics import OMITTED_ZERO_KEYS, extract_flat_statistics
 from bet.sofa.names import normalize_name
 
 # The per-player quantities Superbet prices as a ladder AND Sofascore reports
@@ -183,6 +184,21 @@ STARTED_KEY = "_started"
 # which the shot-detail estimator pools by (shot_detail.forecast).
 POSITION_KEY = "_position"
 
+# Written by `squad_statistics(..., slug_name=True)` (epochs.
+# PLAYER_SLUG_NAME_FROM_UTC): the entry's Sofascore `slug` as a normalised
+# name. Sofascore's `name` is sometimes a nickname and the slug the full
+# name Superbet writes: "Jeff Chabot", slug "julian-chabot" (Stuttgart).
+SLUG_NAME_KEY = "_slug_name"
+
+# Written by `squad_statistics(..., player_id=True)` (epochs.
+# PLAYER_HISTORY_ANY_TEAM_FROM_UTC): the entry's Sofascore player id.
+PLAYER_ID_KEY = "_player_id"
+
+
+def player_id_of(stats: dict[str, Any] | None) -> int | None:
+    value = (stats or {}).get(PLAYER_ID_KEY)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
 
 def position(stats: dict[str, Any] | None) -> str | None:
     value = (stats or {}).get(POSITION_KEY)
@@ -287,8 +303,27 @@ def extract_player_metric(
     return 0.0
 
 
-def team_totals(statistics: Any, *, is_home: bool) -> dict[str, float]:
-    """One side's whole-match `/statistics` values, by Sofascore key."""
+def team_totals(
+    statistics: Any, *, is_home: bool, omitted_zero: bool = False
+) -> dict[str, float]:
+    """One side's whole-match `/statistics` values, by Sofascore key.
+
+    `omitted_zero` (epochs.PLAYER_OMITTED_ZERO_FROM_UTC): a key of
+    metrics.OMITTED_ZERO_KEYS the per-half full feed omitted on a 0-0 is the
+    team's 0, as the team reader takes it (metrics.fill_omitted_zero_pairs) -
+    the 0-0 offsides of 401 in 6,000 recent matches, where the players' sum
+    was 0-0 in 397 (docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md, B6). A key
+    the payload sends is never touched. False: the raw payload only."""
+    out = _raw_team_totals(statistics, is_home=is_home)
+    if omitted_zero and isinstance(statistics, dict):
+        whole = extract_flat_statistics(statistics).get("ALL") or {}
+        for key in OMITTED_ZERO_KEYS:
+            if key not in out and key in whole:
+                out[key] = whole[key][0 if is_home else 1]
+    return out
+
+
+def _raw_team_totals(statistics: Any, *, is_home: bool) -> dict[str, float]:
     out: dict[str, float] = {}
     if not isinstance(statistics, dict):
         return out
@@ -357,6 +392,9 @@ def squad_statistics(
     is_home: bool,
     statistics: Any = None,
     shotmap: dict[str, Any] | None = None,
+    omitted_zero: bool = False,
+    slug_name: bool = False,
+    player_id: bool = False,
 ) -> dict[str, dict[str, Any]] | None:
     """`{normalised player name: statistics}` for one side of one match.
 
@@ -375,6 +413,18 @@ def squad_statistics(
     shot_detail.stat_key(metric). A starter with no shot in the shotmap and
     `totalShots` 0 counts zero; a mismatch is a gap. None, the default,
     writes neither.
+
+    `omitted_zero` (epochs.PLAYER_OMITTED_ZERO_FROM_UTC): the team figure
+    that proves a team_sum zero is team_totals(omitted_zero=True) - a team
+    0-0 the feed omitted proves its appearing players' zeros.
+
+    `slug_name` (epochs.PLAYER_SLUG_NAME_FROM_UTC): each entry with
+    statistics also carries SLUG_NAME_KEY, its `slug` read as a name
+    ("julian-chabot" -> "julian chabot"), what match_player_by_slug reads.
+
+    `player_id` (epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC): each entry with
+    statistics also carries PLAYER_ID_KEY, his Sofascore player id - what a
+    footballer's starts for another team are found by.
     """
     if not lineups:
         return None
@@ -404,6 +454,14 @@ def squad_statistics(
             record[STARTED_KEY] = not substitute
         if record and shotmap is not None:
             _add_shot_detail(record, entry, player, shotmap)
+        if record and player_id:
+            pid = player.get("id")
+            if isinstance(pid, int) and not isinstance(pid, bool):
+                record[PLAYER_ID_KEY] = pid
+        if record and slug_name:
+            slug = player.get("slug")
+            if isinstance(slug, str) and slug.strip():
+                record[SLUG_NAME_KEY] = normalize_name(slug.replace("-", " "))
         if key in out:
             # Two squad members with one name (24 of 1,806 cached football
             # squad-sides, 2026-09-29: "ederson", "marcos paulo"): which one
@@ -414,7 +472,8 @@ def squad_statistics(
     for key in homonyms:
         del out[key]
     if statistics is not None:
-        proven = _zero_proven(out, team_totals(statistics, is_home=is_home))
+        proven = _zero_proven(out, team_totals(
+            statistics, is_home=is_home, omitted_zero=omitted_zero))
         if proven:
             for st in out.values():
                 if _statistic(st, "minutesPlayed") is not None:
@@ -713,6 +772,27 @@ def match_player_by_inner_surname(
             continue
         if _given_names_agree(first, cand[0]):
             hits.append(name)
+    return hits[0] if len(hits) == 1 else None
+
+
+def match_player_by_slug(
+    superbet_name: str, candidates: dict[str, dict[str, Any]] | None
+) -> str | None:
+    """epochs.PLAYER_SLUG_NAME_FROM_UTC: the one squad member whose slug
+    (SLUG_NAME_KEY, squad_statistics(slug_name=True)) holds exactly the
+    Superbet name's tokens, in any order ("Chabot, Julian" too), at least
+    PLAYER_TOKEN_MIN_SHARED of them; the squad key (his Sofascore name) or
+    None. Two members with that slug: None."""
+    if not candidates:
+        return None
+    target = _name_tokens(superbet_name)
+    if len(target) < PLAYER_TOKEN_MIN_SHARED:
+        return None
+    hits = [
+        name for name, stats in candidates.items()
+        if isinstance(slug := (stats or {}).get(SLUG_NAME_KEY), str)
+        and _name_tokens(slug) == target
+    ]
     return hits[0] if len(hits) == 1 else None
 
 

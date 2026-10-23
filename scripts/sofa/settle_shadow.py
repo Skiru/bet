@@ -832,12 +832,16 @@ def _settle_time_model(
     box_ids: dict[str, int | None] | None,
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     from bet.sofa.player_model import (
+        PLAYER_HISTORY_RULE,
+        PLAYER_LISTS_RULE,
         PlayerProbability,
         history_cutoff,
         load_appearances,
         model_fields,
         score_rows,
     )
+    from bet.sofa.sport_history import OPPONENT_KIND
+    from bet.sofa.sport_history import listing_kinds as player_listing_kinds
 
     start = detail.get("startTimestamp") or event.get("startTimestamp")
     before = history_cutoff(
@@ -850,9 +854,20 @@ def _settle_time_model(
     ]
     # The game's day (SHADOW's day key: the kickoff's UTC date) and the clock
     # now: the squad rule of epochs.player_team_from_side.
-    from_side = epochs.player_team_from_side(
-        kickoff.astimezone(UTC).strftime("%Y-%m-%d")
-    )
+    game_day = kickoff.astimezone(UTC).strftime("%Y-%m-%d")
+    from_side = epochs.player_team_from_side(game_day)
+    # Audit 2026-10-23, by the game's day and the clock now, as SHADOW reads
+    # them: P3 the peers' games too (needs the side rule), P9 both sides'
+    # lists. Off: the old call (no argument passed).
+    any_team = from_side and epochs.player_history_any_team(
+        game_day, sport=sport.key)
+    kinds = player_listing_kinds(game_day)
+    both_sides = OPPONENT_KIND in kinds
+    extra: dict[str, Any] = {}
+    if any_team:
+        extra["any_team"] = True
+    if both_sides:
+        extra["kinds"] = kinds
     if box_ids is None:
         scored = [
             PlayerProbability(None, 0, reason="NO_BOX", match="box") for _ in rows
@@ -867,11 +882,17 @@ def _settle_time_model(
                 before,
                 int(event["id"]),
                 team_from_side=from_side,
+                **extra,
             )
         finally:
             conn.close()
         scored = score_rows(rows, sport.key, apps, box_ids=box_ids)
-    rule = {"player_team_rule": epochs.PLAYER_TEAM_RULE} if from_side else {}
+    rule: dict[str, Any] = (
+        {"player_team_rule": epochs.PLAYER_TEAM_RULE} if from_side else {})
+    if any_team:
+        rule["player_history_rule"] = PLAYER_HISTORY_RULE
+    if both_sides:
+        rule["player_lists_rule"] = PLAYER_LISTS_RULE
     return [
         (
             row,

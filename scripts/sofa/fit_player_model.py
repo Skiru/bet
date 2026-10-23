@@ -70,7 +70,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 import bet.sofa.player_model as pm  # noqa: E402
 from bet.sofa import epochs  # noqa: E402
 from bet.sofa.comparability import is_friendly_event  # noqa: E402
-from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.config import SofaConfig, config_path  # noqa: E402
 from bet.sofa.joint import normal_cdf  # noqa: E402
 from bet.sofa.shadow import (  # noqa: E402
     PLAYER_MARKETS,
@@ -118,6 +118,12 @@ class History:
     # epochs.player_team_from_side: a game's squad is the team's lineup side
     # in it (pm.load_appearances(team_from_side=True)), not the entries' teamId.
     team_from_side: bool = False
+    # epochs.player_history_any_team (P3 / K7): a player's sample also reads
+    # the peers' games (pm.load_appearances(any_team=True)); needs
+    # team_from_side. player_index: player id -> every (event, team) a stored
+    # box lists him on (the team = that side's team in the event).
+    any_team: bool = False
+    player_index: dict[int, list[tuple[int, int]]] = field(default_factory=dict)
 
     @classmethod
     def build(
@@ -127,8 +133,11 @@ class History:
         listing_rows: Iterable[tuple[int, int, int]],
         lineups: dict[int, str],
         team_from_side: bool = False,
+        any_team: bool = False,
     ) -> History:
         """`listing_rows`: (team, event id, start_ts) of kind 'last'."""
+        if any_team and not team_from_side:
+            raise ValueError("any_team needs team_from_side")
         by_team: dict[int, list[tuple[int, int]]] = defaultdict(list)
         for team, eid, ts in listing_rows:
             by_team[int(team)].append((int(ts), int(eid)))
@@ -136,11 +145,43 @@ class History:
         for team, rows in by_team.items():
             rows.sort()
             listing[team] = ([ts for ts, _ in rows], [e for _, e in rows])
-        return cls(sport, events, listing, lineups, team_from_side=team_from_side)
+        index: dict[int, list[tuple[int, int]]] = defaultdict(list)
+        if any_team:
+            for eid, text in lineups.items():
+                if eid not in events:
+                    continue
+                try:
+                    payload = json.loads(text)
+                except ValueError:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                _, home, away = events[eid]
+                for side, team in (("home", home), ("away", away)):
+                    for entry in (payload.get(side) or {}).get("players") or []:
+                        if not isinstance(entry, dict):
+                            continue
+                        player = entry.get("player")
+                        pid = player.get("id") if isinstance(player, dict) else None
+                        if isinstance(pid, int) and not isinstance(pid, bool):
+                            index[pid].append((eid, team))
+        return cls(
+            sport,
+            events,
+            listing,
+            lineups,
+            team_from_side=team_from_side,
+            any_team=any_team,
+            player_index=dict(index),
+        )
 
     @classmethod
     def from_db(
-        cls, conn: sqlite3.Connection, sport: SportKey, team_from_side: bool = False
+        cls,
+        conn: sqlite3.Connection,
+        sport: SportKey,
+        team_from_side: bool = False,
+        any_team: bool = False,
     ) -> History:
         slug = SPORTS[sport].sofascore_slug
         events: dict[int, tuple[int, int, int]] = {}
@@ -187,7 +228,10 @@ class History:
                 )
                 if int(eid) not in friendly
             )
-        return cls.build(sport, events, rows, lineups, team_from_side=team_from_side)
+        return cls.build(
+            sport, events, rows, lineups, team_from_side=team_from_side,
+            any_team=any_team,
+        )
 
     def appearances_in(self, eid: int, team: int) -> list[pm.Appearance]:
         key = (eid, team)
@@ -246,6 +290,46 @@ class History:
                     continue
                 for a in self.appearances_in(eid, team):
                     out.append(a if a.ts == ts else replace(a, ts=ts))
+        return out
+
+    def foreign_before(
+        self,
+        teams: Sequence[int],
+        before_ts: int,
+        exclude: int | None,
+        players: Iterable[int],
+    ) -> dict[int, list[pm.Appearance]]:
+        """pm.load_appearances(any_team=True)'s foreign appearances, in
+        memory, for `players` only: the peers are the teams' opponents in
+        their games_before (in that order), each peer's games_before read on
+        its own side, marked foreign."""
+        seen = set(teams)
+        peers: list[int] = []
+        for team in teams:
+            for e, _ in self.games_before(team, before_ts, exclude):
+                ev = self.events.get(e)
+                if ev is None:
+                    continue
+                _, home, away = ev
+                other = away if home == team else home if away == team else None
+                if other is not None and other not in seen:
+                    seen.add(other)
+                    peers.append(other)
+        window: dict[tuple[int, int], int] = {}
+        for peer in peers:
+            for e, ts in self.games_before(peer, before_ts, exclude):
+                window[(e, peer)] = ts
+        out: dict[int, list[pm.Appearance]] = {}
+        for pid in players:
+            for e, team in self.player_index.get(pid, ()):
+                at = window.get((e, team))
+                if at is None or e not in self.lineups:
+                    continue
+                for a in self.appearances_in(e, team):
+                    if a.player_id == pid:
+                        out.setdefault(pid, []).append(
+                            replace(a, ts=at, foreign=True)
+                        )
         return out
 
 
@@ -338,26 +422,37 @@ def replay_game(
         [sum(by_group[g][f][k] for g in by_group) for k in range(4)] for f in range(nf)
     ]
     out: list[Record] = []
+    foreign: dict[int, list[pm.Appearance]] = {}
+    if history.any_team:
+        foreign = history.foreign_before(
+            teams,
+            before,
+            eid,
+            [t.player_id for team in teams for t in history.appearances_in(eid, team)],
+        )
     for team in teams:
         for target in history.appearances_in(eid, team):
             pid = target.player_id
-            idx = sorted(
-                mine.get(pid, []), key=lambda i: (-apps[i].ts, apps[i].event_id)
-            )
+            # His sample: his team appearances, then (any_team) the peers'
+            # games he played; newest first, one per game (pm.own_sample).
+            cand = [(apps[i], vals[i]) for i in mine.get(pid, [])] + [
+                (a, _vals(a, specs)) for a in foreign.get(pid, [])
+            ]
+            cand.sort(key=lambda av: (-av[0].ts, av[0].event_id))
             seen: set[int] = set()
-            uniq: list[int] = []
-            for i in idx:
-                if apps[i].event_id not in seen:
-                    seen.add(apps[i].event_id)
-                    uniq.append(i)
+            uniq: list[tuple[pm.Appearance, Vals]] = []
+            for av in cand:
+                if av[0].event_id not in seen:
+                    seen.add(av[0].event_id)
+                    uniq.append(av)
             if len(uniq) < pm.MIN_APPEARANCES:
                 continue
             group_pools: list[pm.Pool] = []
             all_pools: list[pm.Pool] = []
             raw_phi: list[float | None] = []
             for f in range(nf):
-                first = next((i for i in uniq if vals[i][f] is not None), None)
-                g = apps[first].group if first is not None else apps[uniq[0]].group
+                first = next((a for a, v in uniq if v[f] is not None), None)
+                g = first.group if first is not None else uniq[0][0].group
                 sub_g = [0.0, 0.0, 0.0, 0.0]
                 sub_a = [0.0, 0.0, 0.0, 0.0]
                 for i in mine[pid]:
@@ -401,7 +496,7 @@ def replay_game(
                     pid,
                     target.seconds,
                     _vals(target, specs),
-                    tuple((apps[i].ts, apps[i].seconds, vals[i]) for i in uniq[:STORE]),
+                    tuple((a.ts, a.seconds, v) for a, v in uniq[:STORE]),
                     {"group": tuple(group_pools), "all": tuple(all_pools)},
                     tuple(raw_phi),
                 )
@@ -811,6 +906,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="a past game's squad from the team's lineup side "
         "(epochs.PLAYER_TEAM_FROM_SIDE_FROM_UTC), not the entries' teamId",
     )
+    ap.add_argument(
+        "--any-team",
+        action="store_true",
+        help="a player's sample also reads the peers' games "
+        "(epochs.PLAYER_HISTORY_ANY_TEAM_FROM_UTC, P3 / K7); needs "
+        "--player-team-from-side",
+    )
+    ap.add_argument(
+        "--sport",
+        choices=("basketball", "hockey"),
+        default=None,
+        help="refit one sport's own constants only: the shared ones and the "
+        "other sport's entry are the installed file's (written unchanged)",
+    )
+    ap.add_argument(
+        "--effective-from",
+        default=None,
+        help="YYYY-MM-DD written as the file's effective_from (a staged "
+        "config/sofa_player_model.next.<day>.json, pm.params_path_for)",
+    )
     args = ap.parse_args(argv)
     started = time.monotonic()
     cut = int(datetime.fromisoformat(args.cut).replace(tzinfo=UTC).timestamp())
@@ -822,13 +937,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     curves: dict[str, dict[str, Any]] = {}
     provenance: dict[str, Any] = {}
     shared = START
+    base_doc: dict[str, Any] | None = None
+    if args.sport:
+        base_doc = json.loads(
+            config_path(pm.PARAMS_FILE).read_text(encoding="utf-8")
+        )
+        installed = pm.load_params()[args.sport]
+        shared = replace(
+            START,
+            hl_minutes=installed.hl_minutes,
+            k_phi=installed.k_phi,
+            max_sample=installed.max_sample,
+        )
     try:
-        sports: tuple[SportKey, ...] = ("basketball", "hockey")
+        sports: tuple[SportKey, ...] = (
+            (args.sport,) if args.sport else ("basketball", "hockey")
+        )
         for sport in sports:
             key: SportKey = sport
             t0 = time.monotonic()
             history = History.from_db(
-                conn, key, team_from_side=args.player_team_from_side
+                conn,
+                key,
+                team_from_side=args.player_team_from_side,
+                any_team=args.any_team,
             )
             specs = family_specs(key)
             records = build_records_parallel(history, specs, args.procs)
@@ -846,7 +978,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 flush=True,
             )
             _STATE.update(records=records, specs=specs, printed=printed, cut=cut)
-            if sport == "basketball":
+            if sport == "basketball" and not args.sport:
                 best, c_shared = coordinate_descent(
                     START, SHARED + OWN[sport], args.procs, log, sport, args.rounds
                 )
@@ -865,8 +997,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sport,
                     args.rounds,
                 )
-                # The shared constants' curve on this sport too (evidence only).
-                for name in SHARED:
+                # The shared constants' curve on this sport too (evidence only;
+                # skipped by a one-sport refit).
+                for name in () if args.sport else SHARED:
                     curve = {}
                     for value in GRID[name]:
                         rows = score_all(replace(best, **{name: value}), args.procs)
@@ -897,7 +1030,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{sport}: done in {time.monotonic() - t0:.0f} s", flush=True)
     finally:
         conn.close()
-    doc = {
+    doc: dict[str, Any] = {
+        **({"effective_from": args.effective_from} if args.effective_from else {}),
         "_doc": (
             "Fitted by scripts/sofa/fit_player_model.py on the stored history "
             "(no prices); read by bet.sofa.player_model. A measurement's "
@@ -918,6 +1052,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if args.player_team_from_side
                 else {}
             ),
+            **(
+                {"player_history_rule": pm.PLAYER_HISTORY_RULE}
+                if args.any_team
+                else {}
+            ),
         },
         "criterion": (
             "train split (kickoff before cut_utc): minimise the mean over "
@@ -935,7 +1074,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             name: {
                 "value": getattr(shared, name),
                 "fitted_on": "basketball",
-                "curve": curves["basketball"].get(name),
+                "curve": curves.get("basketball", {}).get(name),
             }
             for name in SHARED
         },
@@ -968,6 +1107,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             for sport, prm in fitted.items()
         },
     }
+    if base_doc is not None and args.sport:
+        # One sport refitted: everything else is the installed file's.
+        merged = dict(base_doc)
+        merged["sports"] = {**base_doc["sports"], args.sport: doc["sports"][args.sport]}
+        merged["fitted_from"] = {
+            **doc["fitted_from"],
+            "sports_refitted": [args.sport],
+            "others_from_fitted_at_utc": base_doc["fitted_from"].get("fitted_at_utc"),
+        }
+        merged.pop("effective_from", None)
+        if args.effective_from:
+            merged = {"effective_from": args.effective_from, **merged}
+        doc = merged
     Path(args.out).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
     report["runtime_s"] = round(time.monotonic() - started, 1)
     report["log"] = log

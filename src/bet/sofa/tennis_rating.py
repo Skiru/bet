@@ -80,7 +80,7 @@ from typing import Any
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.config import config_path
 from bet.sofa.listing_index import iter_indexed_events
-from bet.sofa.tennis_score import set_games
+from bet.sofa.tennis_score import match_tiebreak_sets, set_games
 
 DEFAULT_CONFIG = config_path("tennis_rating.json")
 
@@ -209,17 +209,86 @@ class TennisResult:
     female: bool = False
 
 
-def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
+def _singles_side(team: Mapping[str, Any], score_winner: bool) -> bool:
+    """Is this side one player? Sofascore's type 1. With
+    epochs.TENNIS_RATING_SCORE_WINNER (audit 2026-10-23 B14 / P14) also a
+    type 0 that is not a team: not ``national`` (Davis / Hopman Cup ties are
+    type 0 nations), no "/" in the name (a pair), no ``subTeams``. Off: type 1
+    only, as before."""
+    kind = team.get("type")
+    if kind == 1:
+        return True
+    if not score_winner or kind != 0:
+        return False
+    return (
+        not team.get("national")
+        and "/" not in str(team.get("name") or "")
+        and not team.get("subTeams")
+    )
+
+
+def _set_decided(h: int, a: int, match_tiebreak: bool) -> bool:
+    """A set that ended with a winner: 6-0..6-4, 7-5, 7-6, or a match
+    tiebreak (set_games has already counted it as 1-0)."""
+    if match_tiebreak:
+        return h != a
+    hi, lo = max(h, a), min(h, a)
+    return (hi == 6 and lo <= 4) or (hi == 7 and lo in (5, 6))
+
+
+def winner_from_sets(
+    home_score: Mapping[str, Any], away_score: Mapping[str, Any]
+) -> int | None:
+    """1 / 2 when the set score alone names the winner of a completed match:
+    every set decided, the winner reached two (best of three) or three (best
+    of five) sets, won the last one, the loser fewer, and Sofascore's own set
+    count (``current``) agrees when it is there. None otherwise - a partial
+    or odd score is never read as a win."""
+    sets = set_games(home_score, away_score)
+    if not sets:
+        return None
+    tiebreaks = match_tiebreak_sets(home_score, away_score)
+    for i, (h, a) in enumerate(sets, start=1):
+        if not _set_decided(h, a, i in tiebreaks):
+            return None
+    home_sets = sum(1 for h, a in sets if h > a)
+    away_sets = len(sets) - home_sets
+    won, lost = max(home_sets, away_sets), min(home_sets, away_sets)
+    if won not in (2, 3) or lost >= won:
+        return None
+    winner = 1 if home_sets > away_sets else 2
+    last_h, last_a = sets[-1]
+    if (last_h > last_a) != (winner == 1):
+        return None
+    current = (home_score.get("current"), away_score.get("current"))
+    if all(isinstance(c, int) for c in current) and current != (
+        home_sets, away_sets
+    ):
+        return None
+    return winner
+
+
+def parse_event(
+    event: Mapping[str, Any], *, score_winner: bool = False
+) -> TennisResult | None:
     """A Sofascore listing event -> TennisResult, or None if it is not a
-    finished singles result the model can use."""
+    finished singles result the model can use.
+
+    ``score_winner`` = epochs.TENNIS_RATING_SCORE_WINNER (audit 2026-10-23
+    P14): an "Ended" match whose ``winnerCode`` is absent takes its winner
+    from the set score (``winner_from_sets``) and a non-team type-0 side is a
+    player (``_singles_side``). A retired / walked-over match never takes a
+    winner from its score; a winnerCode 3 is not "absent". Off = as before,
+    byte for byte."""
     try:
         if event["tournament"]["category"]["sport"]["slug"] != "tennis":
             return None
         home, away = event["homeTeam"], event["awayTeam"]
     except (KeyError, TypeError):
         return None
-    if home.get("type") != 1 or away.get("type") != 1:
-        return None  # doubles
+    if not (_singles_side(home, score_winner)
+            and _singles_side(away, score_winner)):
+        return None  # doubles / a team tie
     # An exhibition / legends event is not a match the rating may learn
     # from (comparability, 2026-10-04: only the UTS ones fell out, through
     # their unparseable score; Kooyong Classic and Six Kings Slam did not).
@@ -232,9 +301,11 @@ def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
     if description not in ("Ended", "Retired"):
         return None  # walkovers and removals have no match in them
     winner = event.get("winnerCode")
+    hs, as_ = event.get("homeScore") or {}, event.get("awayScore") or {}
+    if score_winner and winner is None and description == "Ended":
+        winner = winner_from_sets(hs, as_)
     if winner not in (1, 2):
         return None
-    hs, as_ = event.get("homeScore") or {}, event.get("awayScore") or {}
     # Games per set with a 10-point match tiebreak counted as one game; the
     # raw periods put 10-5 points into the neighbour table's games totals
     # (tennis_score). None = not a set score (UTS exhibitions).
@@ -264,9 +335,19 @@ def parse_event(event: Mapping[str, Any]) -> TennisResult | None:
     )
 
 
-def load_history(db_path: str | Path) -> list[TennisResult]:
+def load_history(
+    db_path: str | Path, *, score_winner: bool = False
+) -> list[TennisResult]:
     """Every distinct finished singles match in the cached player listings,
-    in time order."""
+    in time order. ``score_winner``: parse_event's (P14), off by default."""
+
+    def parse(event: Mapping[str, Any]) -> TennisResult | None:
+        # Off: the one-argument call, as before (a measure script wraps
+        # parse_event with a one-argument function).
+        if score_winner:
+            return parse_event(event, score_winner=True)
+        return parse_event(event)
+
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         seen: dict[int, TennisResult] = {}
@@ -280,7 +361,7 @@ def load_history(db_path: str | Path) -> list[TennisResult]:
         ):
             for event in json.loads(events_json).get("events", []):
                 eid = event.get("id") if isinstance(event, dict) else None
-                result = parse_event(event)
+                result = parse(event)
                 if result is not None:
                     seen[result.event_id] = result
                 if isinstance(eid, int):
@@ -292,7 +373,7 @@ def load_history(db_path: str | Path) -> list[TennisResult]:
         # copy wins even when it no longer parses (football_rating drops such
         # an event the same way): its page result is the stale one (F6).
         for event in iter_indexed_events(conn, fetched, sport="tennis"):
-            result = parse_event(event)
+            result = parse(event)
             if result is not None:
                 seen[result.event_id] = result
             else:

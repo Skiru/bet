@@ -3008,3 +3008,268 @@ def live_only_curve_refused(date: str, build_at: datetime | None = None) -> bool
     at = build_at if build_at is not None else timeutil.now()
     return (date >= LIVE_ONLY_CURVE_REFUSED_FROM_UTC.strftime("%Y-%m-%d")
             and at >= LIVE_ONLY_CURVE_REFUSED_FROM_UTC)
+
+
+# --- Coverage audit 2026-10-23, plan P1-P14 (operator "ALL IN", 2026-10-23
+# ~13:45Z; docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md, sections 7 and 14).
+# Every switch below changes what prints and is read by the day and the build
+# clock. A switch stays None (off) until its fix ships with a test; the
+# measured ones (P1, P3, P4, P5, P6, P7) are set only when their out-of-sample
+# measurement is better (operator: "włącz tylko lepsze"). On: from 2026-10-24
+# 00:00Z, ledger group "od 10-24" (no mixed day). Each block is owned by the
+# fix it names; its comment states the measurement once it is set.
+
+
+def _audit_1023_on(switch: datetime | None, date: str,
+                   build_at: datetime | None) -> bool:
+    if switch is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= switch.strftime("%Y-%m-%d") and at >= switch
+
+
+# P1: ENTITY_CONFLICT cuts the sample at the conflict instead of emptying it.
+SAMPLE_CONFLICT_CUT_FROM_UTC: datetime | None = None
+
+
+def sample_conflict_cut(date: str, build_at: datetime | None = None) -> bool:
+    """P1 (SAMPLE_CONFLICT_CUT_FROM_UTC)."""
+    return _audit_1023_on(SAMPLE_CONFLICT_CUT_FROM_UTC, date, build_at)
+
+
+# P2: SPORT_IDENTITY re-asks a fresh page on a cache miss near the start and
+# asks the second team's page too (sport_identity.identify_event
+# `fresh_all`: any refusal of a cached page within FRESH_RECHECK_WITHIN, not
+# only K5's NO_GAME_WITHIN_1H; the other side's team - resolved id, else its
+# query id - cached page first, fresh in the window). No measurement needed
+# (operator); ON once code + tests passed. Cost (upper bound,
+# scripts/sofa/measure_audit1023_p2_recheck_cost.py, the loops' run clocks):
+# 179 / 123 / 156 extra listing requests on 10-21 / 10-22 / 10-23 (partial),
+# ~15 s of bridge time a day; breaker / BRIDGE_ABORTED unchanged.
+IDENTITY_FRESH_RECHECK_ALL_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def identity_fresh_recheck_all(date: str,
+                               build_at: datetime | None = None) -> bool:
+    """P2 (IDENTITY_FRESH_RECHECK_ALL_FROM_UTC)."""
+    return _audit_1023_on(IDENTITY_FRESH_RECHECK_ALL_FROM_UTC, date, build_at)
+
+
+# P3 (K7): a player's history from every team he played for. Each sport is
+# judged on its own (PLAYER_HISTORY_ANY_TEAM_SPORTS: on only where its own
+# measurement was better); a call without `sport` is football's
+# (samples.py). Hockey / basketball: player_model.load_appearances(any_team)
+# - the peers' games (opponents of the two teams in their loaded games),
+# installed constants. Measured on Superbet's settled pre-game player lines
+# 2026-09-29..10-22 (scripts/sofa/measure_audit1023_p3_player_any_team.py,
+# DB copy data/refit_2026-10-23_allin, the box's player, side rule both
+# readers, 1,000 game bootstraps):
+#   hockey 24,838 sides / 155 games: p on 22,418 -> 24,294 sides; on the
+#     22,418 both price, log loss -0.0018 [-0.0034, -0.0003], Brier -0.0007
+#     [-0.0012, -0.0002]; the 2,240 sides whose p moved -0.0181 [-0.0354,
+#     -0.0030]; the 938 added favoured sides claim 0.667, hit 0.647, hit -
+#     claimed -0.020 [-0.055, +0.013] (calibrated) -> ON.
+#   basketball 27,864 sides / 245 games: common log loss -0.0013 [-0.0045,
+#     +0.0019]; the 2,015 added favoured sides claim 0.627, hit 0.544, -0.083
+#     [-0.115, -0.052] (over-claim) -> OFF.
+# A hockey refit on the any-team reader (fit_player_model.py --sport hockey
+# --any-team) was no better than the installed constants on the same reader
+# (log loss -0.0003 [-0.0008, +0.0001], Brier slightly worse) - not installed.
+# Football (samples.any_team_sample: a thin sample topped up with the same
+# player id's starts for the sample opponents' teams, cached lineups only;
+# scripts/sofa/measure_audit1023_p3_any_team_football.py, target matches
+# 2026-08-01..10-20, 3,371 matches, installed curves, match bootstrap): added
+# printable rows 4,247 (458 matches) realise - confidence +0.52 pp
+# [-0.68, +1.73], added minus base +0.36 pp [-0.92, +1.61]; rows that existed
+# are unchanged by construction (top-up only below min_sample) -> ON.
+PLAYER_HISTORY_ANY_TEAM_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+PLAYER_HISTORY_ANY_TEAM_SPORTS: frozenset[str] = frozenset(
+    {"hockey", "football"})
+
+
+def player_history_any_team(date: str,
+                            build_at: datetime | None = None,
+                            sport: str = "football") -> bool:
+    """P3 (PLAYER_HISTORY_ANY_TEAM_FROM_UTC) for `sport`, one of
+    PLAYER_HISTORY_ANY_TEAM_SPORTS."""
+    return (sport in PLAYER_HISTORY_ANY_TEAM_SPORTS
+            and _audit_1023_on(PLAYER_HISTORY_ANY_TEAM_FROM_UTC, date,
+                               build_at))
+
+
+# P4: volleyball query-only anchor (one game at the exact start, weak
+# opponent agreement), like FOOTBALL_SEARCHED_ANCHOR
+# (sport_identity.match_query_anchor, QUERY_ANCHOR_SPORTS = volleyball).
+# Backtest 10-05..10-23 (scripts/sofa/measure_audit1023_p4_query_anchor.py,
+# DB copy, ids hidden): volleyball 1,308 picks with the true team as the
+# query and 1,172 with today's query id (3 impostor ids, all refused) - 0
+# wrong; decoy opponent (another board team of the tournament / day) 18 of
+# 15,280 accepted; recall 11 of 96 query-only refusals (8 the settle's own
+# event, 3 not settled, 0 contradicted; OK Maribor - ACH Lublana 10-23 one
+# of them). Hockey (0 wrong of 4,985) and basketball (0 of 5,760) measured
+# clean too but not in scope (QUERY_ANCHOR_SPORTS).
+SPORT_QUERY_ANCHOR_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def sport_query_anchor(date: str, build_at: datetime | None = None) -> bool:
+    """P4 (SPORT_QUERY_ANCHOR_FROM_UTC)."""
+    return _audit_1023_on(SPORT_QUERY_ANCHOR_FROM_UTC, date, build_at)
+
+
+# P5: football player slug read as a second name (players.match_player_by_slug,
+# the last fallback of samples.build_player_samples; match_rule "slug", SETTLE
+# grades it by matched_name). False-match test on the 15,423 newest football
+# lineups (600,124 entries; scripts/sofa/measure_audit1023_p5_slug.py): the
+# slug points at the same person 24,321 times, at another 0; recovered live
+# 10-21..10-23: 4 / 4 / 6 names, each one Sofascore id -> ON.
+PLAYER_SLUG_NAME_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def player_slug_name(date: str, build_at: datetime | None = None) -> bool:
+    """P5 (PLAYER_SLUG_NAME_FROM_UTC)."""
+    return _audit_1023_on(PLAYER_SLUG_NAME_FROM_UTC, date, build_at)
+
+
+# P6: players' zero offsides from the team's rebuilt 0-0.
+PLAYER_OMITTED_ZERO_FROM_UTC: datetime | None = None
+
+
+def player_omitted_zero(date: str, build_at: datetime | None = None) -> bool:
+    """P6 (PLAYER_OMITTED_ZERO_FROM_UTC)."""
+    return _audit_1023_on(PLAYER_OMITTED_ZERO_FROM_UTC, date, build_at)
+
+
+# P7: CS2 lineup rating without the team-id gate. A pair whose team ids are
+# not both MIN_MAPS_RATED reads the lineup gap through its own calibration
+# (cs2_engine.fit_unrated: the rated lineup intercept, the slope fitted on the
+# unrated pairs' walk-forward points); rated pairs unchanged. Measured
+# (measure_audit1023_p7_cs2_lineup_unrated.py, copy DB 2025-10-23..2026-10-22,
+# walk-forward, 7-day refits, evaluated from 02-20, bootstrap over series):
+# 567 series / 1,221 maps gain a number (111 series in the last 30 days),
+# 8,575 rated series 0 rows changed. Maps: log loss 0.628 vs the home share's
+# 0.690 (-0.062 [-0.078, -0.046]); realised - claimed (home) -0.8 pp
+# [-3.6, +2.0], favourite +1.7 pp [-0.9, +4.3], slope 1.12 [0.95, 1.33];
+# series winner: favourite +2.7 pp [-1.0, +6.3], home -0.9 pp [-4.6, +2.9].
+# From 06-20 only: favourite -1.1 pp [-4.4, +2.3]. The calibration variant
+# was chosen among three on these data (rated one alone: slope 1.83
+# [1.54, 2.15]; free intercept: home -3.2 pp [-5.9, -0.3]).
+CS2_LINEUP_ELO_UNRATED_FROM_UTC: datetime | None = datetime(2026, 10, 24, 0, 0,
+                                                            0, tzinfo=UTC)
+
+
+def cs2_lineup_elo_unrated(date: str,
+                           build_at: datetime | None = None) -> bool:
+    """P7 (CS2_LINEUP_ELO_UNRATED_FROM_UTC)."""
+    return _audit_1023_on(CS2_LINEUP_ELO_UNRATED_FROM_UTC, date, build_at)
+
+
+# P8: name rules - CS2 "prospect", the engine's nickname by prefix, hockey
+# transliteration (ue -> u-umlaut, Yegor / Egor). No measurement (plan, section
+# 7). CS2 part (agent D-cs2): cs2.ROSTER_MARKER_FOLD ("prospect" is the marker
+# "prospects"; esports_score / pick_event / series_orientation `name_rules`)
+# and cs2_engine.player_id's nickname by prefix (cs2.MapResult.player's rule,
+# >= NICK_PREFIX_MIN letters, one player). The hockey part
+# (player_model.names_agree) shares this switch. Read by the day the series /
+# game was offered and the build clock.
+NAME_RULES_1023_FROM_UTC: datetime | None = datetime(2026, 10, 24, 0, 0, 0,
+                                                     tzinfo=UTC)
+
+
+def name_rules_1023(date: str, build_at: datetime | None = None) -> bool:
+    """P8 (NAME_RULES_1023_FROM_UTC)."""
+    return _audit_1023_on(NAME_RULES_1023_FROM_UTC, date, build_at)
+
+
+# P9: hockey / basketball - a game belongs to both teams' lists. No
+# measurement (operator: P9 goes on with code + tests). The missing side of a
+# game is written offline from its stored payload under its own list kind
+# (sport_history.OPPONENT_KIND, list_both_sides: 42,892 sides in the index on
+# 2026-10-23, 8,514 games of the last 400 days - hockey 1,241, basketball
+# 7,273; Vancouver @ Florida 16546356 now in Vancouver's 3692 list too); the
+# player model reads it only from this switch (sport_history.listing_kinds /
+# listed_rows). Ledger group "od 10-24".
+PLAYER_BOTH_SIDES_LISTED_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def player_both_sides_listed(date: str,
+                             build_at: datetime | None = None) -> bool:
+    """P9 (PLAYER_BOTH_SIDES_LISTED_FROM_UTC)."""
+    return _audit_1023_on(PLAYER_BOTH_SIDES_LISTED_FROM_UTC, date, build_at)
+
+
+# P11: basketball score model for leagues played in halves (NCAA). Off:
+# Superbet's offer holds no NCAA basketball game yet (SHADOW snapshots
+# 09-29..10-24: none; the by-date offer to 11-12 on 2026-10-23: none; its
+# struct lists "USA - NCAA" tournaments 36 / 2108 / 33447 and "(K)" 2175 /
+# 33361 with no sport named - 3348 / 35201 are hockey, 33224 volleyball, by
+# our snapshots). The installed basketball curve was fitted without NCAA.
+# Revisit when an NCAA basketball game is in a SHADOW snapshot (season from
+# ~11-03), with settlement of halves games (shadow.build_result wants four
+# quarters) done first.
+BB_HALVES_LEAGUES_FROM_UTC: datetime | None = None
+
+
+def bb_halves_leagues(date: str, build_at: datetime | None = None) -> bool:
+    """P11 (BB_HALVES_LEAGUES_FROM_UTC)."""
+    return _audit_1023_on(BB_HALVES_LEAGUES_FROM_UTC, date, build_at)
+
+
+# P12: CS2 model_p for series settled from the result alone. No measurement
+# (plan, section 7). Read by the SETTLE clock (settle_cs2.settle_one passes the
+# run's own date and clock): model_p feeds only the next morning's line
+# evidence, never a built coupon, so a 10-23 series settled on the 10-24
+# morning gets one too. The series settled before the switch get theirs once
+# through `settle_cs2.py --attach-series-only-model --sweep-from 2026-09-28
+# --sweep-to <D-1>` (offline, refuses while this is off), run before the
+# 10-24 refresh_line_evidence.py.
+CS2_SERIES_ONLY_MODEL_P_FROM_UTC: datetime | None = datetime(2026, 10, 24, 0, 0,
+                                                             0, tzinfo=UTC)
+
+
+def cs2_series_only_model_p(date: str,
+                            build_at: datetime | None = None) -> bool:
+    """P12 (CS2_SERIES_ONLY_MODEL_P_FROM_UTC); `date` / `build_at` are the
+    settle run's own day and clock."""
+    return _audit_1023_on(CS2_SERIES_ONLY_MODEL_P_FROM_UTC, date, build_at)
+
+
+# P13: volleyball golden set (AET / AGS) in the model; the settlement side is
+# a correctness fix and needs no switch (shadow.GOLDEN_SET_DESCRIPTIONS:
+# Superbet's Regulamin 5.D.3.a - the official result is the match's, the
+# golden set decides the tie and is no part of it). On: such a match is read
+# on its own sets (score_model.parse_event golden_set; 89 of the 90 cached
+# AET / AGS games parse, 15670573 refused - its sets 3-0 disagree with
+# `current` 3-1; measure_audit1023_p13_golden_set.py).
+# Ledger group "od 10-24".
+VB_GOLDEN_SET_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def vb_golden_set(date: str, build_at: datetime | None = None) -> bool:
+    """P13 model side (VB_GOLDEN_SET_FROM_UTC)."""
+    return _audit_1023_on(VB_GOLDEN_SET_FROM_UTC, date, build_at)
+
+
+# P14: tennis rating - winner from the set score, player type 0.
+# tennis_rating.parse_event(score_winner=True): an "Ended" match with no
+# winnerCode takes its winner from a complete set score (winner_from_sets;
+# Retired / Walkover never, winnerCode 3 never), and a type-0 side that is not
+# a team (not national, no "/", no subTeams) is a player. Read by SHEET's
+# load_tennis_rating (run_sheet passes the day's state) on the day being built
+# and the build clock. No measurement required (operator 2026-10-23); the
+# offline count is in scripts/sofa/measure_audit1023_p14_tennis_rating.py.
+# The installed tennis curves were fitted on a replay without it
+# (calibrate_from_cache RatingReplay.from_db): a later refit replays it.
+TENNIS_RATING_SCORE_WINNER_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def tennis_rating_score_winner(date: str,
+                               build_at: datetime | None = None) -> bool:
+    """P14 (TENNIS_RATING_SCORE_WINNER_FROM_UTC)."""
+    return _audit_1023_on(TENNIS_RATING_SCORE_WINNER_FROM_UTC, date, build_at)
