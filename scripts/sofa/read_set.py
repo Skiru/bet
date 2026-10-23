@@ -27,12 +27,16 @@ Superbet line moves, the web checklist) in runs/sofa/<d>/dossier/, and each
 leg its path in `dossier` (--no-dossier skips it; --db-path, default
 $SOFA_DB_PATH or data/sofa.db). Before the dossiers, every match's
 head-to-head is asked of Sofascore through the bridge (`bet.sofa.h2h` ->
-runs/sofa/<d>/h2h.json, the only request this script makes; --no-h2h skips
-it, a failure is printed and the dossier says h2h was not answered).
+runs/sofa/<d>/h2h.json; --no-h2h skips it, a failure is printed and the
+dossier says h2h was not answered), and every football / hockey / basketball
+match not yet started gets Sofascore's pre-match line-up
+(`bet.sofa.prematch_lineups` -> runs/sofa/<d>/lineups_prematch.json, never the
+cache; --no-lineups skips it). These two are the only requests it makes.
 
 Writes <out-dir>/read_set_<sport>[_<i>].json (default runs/sofa/<d>/read_set/;
 stale sport files of an earlier call are removed) and prints one line per
-sport: legs, matches, file. Read-only on the day's artifacts but h2h.json.
+sport: legs, matches, file. Read-only on the day's artifacts but h2h.json
+and lineups_prematch.json.
 Exit 0 (an empty set too), 2 when 11_coupon.json is missing or unreadable.
 """
 
@@ -50,7 +54,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import dossier, h2h  # noqa: E402
+from bet.sofa import dossier, h2h, prematch_lineups  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     READ_REQUIRED_EVENTS,
@@ -174,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-dossier", action="store_true")
     ap.add_argument("--no-h2h", action="store_true",
                     help="dossiers from the cache only, no Sofascore h2h request")
+    ap.add_argument("--no-lineups", action="store_true",
+                    help="no Sofascore pre-match line-up request")
     args = ap.parse_args(argv)
     run = Path(args.runs_dir) / args.date
     try:
@@ -191,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
         every = [x for legs in sets.values() for x in legs]
         if not args.no_h2h:
             print(h2h.fetch_for_legs(run, every))
+        if not args.no_lineups:
+            print(prematch_lineups.fetch_for_legs(run, every))
         print(dossier.attach(run, every, args.db_path))
     for sport, all_legs in sorted(sets.items()):
         chunks = parts(all_legs, args.split)

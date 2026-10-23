@@ -2644,6 +2644,14 @@ runs/sofa/<data>/
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   reads.json           LegRead[]          werdykty o nogach (KEEP / WATCH / NO_BET)
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
+  dossier/<sport>_<id>.json               teczka meczu dla analityków (bet.sofa.dossier, read_set.py / build_slip.py) - tylko podgląd, nigdy bramka
+  h2h.json                                h2h Sofascore każdego czytanego meczu (bet.sofa.h2h; --no-h2h pomija) - tylko dla dossier
+  lineups_prematch.json                   skład Sofascore przed meczem (przewidywany / potwierdzony) i absencje (missingPlayers: missing / doubtful)
+                                          każdego czytanego, nierozpoczętego meczu piłki / hokeja / koszykówki (bet.sofa.prematch_lineups,
+                                          read_set.py / build_slip.py przed dossier; --no-lineups pomija); potwierdzony nie jest pytany ponownie,
+                                          niepotwierdzony po 30 min; odmowa breakera = reszta NOT_ASKED. Tylko dla dossier (blok `lineups`):
+                                          SAMPLES / SHEET / CONFIDENCE go nie czytają i NIGDY nie trafia do cache (sofa_event_stats.lineups_json
+                                          to skład po meczu, z którego czytają próbki graczy i SETTLE)
   10_boosts.json/.md   Boost[]            boosty Superbeta — NIE są kuponem (run_boosts.py)
 
 runs/sofa/cs2/<data>/   — obok dnia, nigdy w nim

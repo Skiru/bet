@@ -237,6 +237,7 @@ def test_read_set_cli_writes_dossiers_and_points_each_leg(
                 "--db-path",
                 str(db),
                 "--no-h2h",
+                "--no-lineups",
             ]
         )
         == 0

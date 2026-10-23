@@ -58,7 +58,7 @@ Shapes (list vs object): `sofa-pipeline` `references/artifacts.md`, "Artifact sh
 
 | file | what you take from it |
 |---|---|
-| `dossier/<sport>_<event id>.json` (the leg's `dossier`) | **first, whole, per match**: form, rest, table, h2h, venue and its local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, every leg of the match, the web checklist - blocks and per-sport reading: `references/dossier.md`; no field = "brak dossier" |
+| `dossier/<sport>_<event id>.json` (the leg's `dossier`) | **first, whole, per match**: form, rest, table, h2h, Sofascore's pre-match lineup and absences (`lineups`: predicted is not confirmed; an absent regular is at most a WATCH through the leg's variable, never a promotion), venue and its local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, every leg of the match, the web checklist - blocks and per-sport reading: `references/dossier.md`; no field = "brak dossier" |
 | `11_coupon.json` | the leg's full row (above), `removed_by_reads`, `builders`, `peer`, `price_gap` |
 | `02_fixtures.json` | names, competition, round, both clocks, `identity`, referee, `ground_type`, `default_period_count`, `previous_leg_event_id` |
 | `fixture_status.json` | FIXTURE_CHECK's fresh start and status (`events.<id>`) |

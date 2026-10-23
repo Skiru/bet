@@ -89,9 +89,16 @@ Template and step table: `references/event-protocol.md`.
 8. **Referee** (cards, fouls). `RefereeRecord` is a rate with `games` as its
    n; not in the centre; absence is normal - say what it costs on a tight
    line in a high-spread league.
-9. **Absences and lineups.** Web, two domains; within ~1 h of kickoff the
-   club's or league's page. Four starters out is a CONTEXT candidate
-   (`ABSENCES`); a rested XI likewise (`ROTATION`).
+9. **Absences and lineups.** The dossier's `lineups` block first:
+   Sofascore's XI (`confirmed` false = **predicted, not confirmed** - say
+   which, with `asked_at_utc`), `missing_players` (missing / doubtful),
+   `player_legs` (each prop's player: XI / ławka / missing / not listed) and
+   per side `regulars_not_in_xi`. `missing` there = not known, not "no
+   absences". Then the web, two domains; within ~1 h of kickoff the club's or
+   league's page. An absent regular can at most give a WATCH through the
+   leg's variable (his side's shots, his own prop), never a promotion. Four
+   starters out is a CONTEXT candidate (`ABSENCES`); a rested XI likewise
+   (`ROTATION`).
 10. **Game script A-D**: favourite ahead / underdog ahead / 0-0 to 60' /
     level. Weight it from Superbet's own ladders in `04_offer.json`
     (`goals_for`, `double_chance`, `result_1x2`, `handicap_corners`, `most_*`)

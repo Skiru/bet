@@ -11,7 +11,11 @@ match's own city, local hour and names filled in. Head-to-head is the one
 block asked of Sofascore beforehand: the read-set writers fetch it into
 `runs/sofa/<d>/h2h.json` (`bet.sofa.h2h`, operator 2026-10-21 - the cached
 listings alone missed Real Madrid - RB Leipzig's four meetings); a match whose
-h2h was not answered says so and the web checklist asks for it.
+h2h was not answered says so and the web checklist asks for it. Sofascore's
+pre-match line-up is the second (`bet.sofa.prematch_lineups` ->
+`runs/sofa/<d>/lineups_prematch.json`): block `lineups` shows the predicted or
+confirmed XI, the missing / doubtful list, each player leg's player and each
+side's regulars (from cached post-match line-ups) not in the XI.
 
 Display only: nothing here feeds a confidence, a gate or the coupon. Every
 block says what it was built from; a block the cache cannot fill says so
@@ -34,6 +38,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from bet.sofa import h2h as h2h_fetch
+from bet.sofa import prematch_lineups
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import entity_indexed_events, has_index
@@ -43,6 +48,13 @@ from bet.sofa.metrics import (
     TENNIS_METRICS,
     extract_flat_statistics,
     extract_metric,
+)
+from bet.sofa.names import normalize_name
+from bet.sofa.players import (
+    is_player_metric,
+    match_player,
+    match_player_by_surname,
+    match_player_by_tokens,
 )
 from bet.sofa.settle import venue_timezone
 
@@ -810,6 +822,202 @@ def web_checklist(
     return items
 
 
+# --- Sofascore's pre-match line-up (lineups_prematch.json) -----------------
+
+REGULARS_GAMES = 10  # last cached games read for a side's regulars
+REGULAR_MIN_SHARE = 0.6  # starts / cached line-ups that make a regular
+REGULARS_MIN_LINEUPS = 3  # fewer cached post-match line-ups: no regulars
+
+
+def cached_lineups(con: sqlite3.Connection, event_id: int) -> dict[str, Any] | None:
+    """The cached post-match /lineups answer of a finished game (read only)."""
+    try:
+        row = con.execute(
+            "SELECT lineups_json FROM sofa_event_stats WHERE sofascore_event_id = ?",
+            (event_id,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row or not row[0]:
+        return None
+    try:
+        payload = json.loads(row[0])
+    except (TypeError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) and payload else None
+
+
+def regulars(
+    con: sqlite3.Connection, team_id: int, kickoff_ts: int
+) -> dict[str, Any]:
+    """A side's regulars: players who started at least REGULAR_MIN_SHARE of
+    its last REGULARS_GAMES cached games that hold a post-match line-up."""
+    starts: dict[int, int] = defaultdict(int)
+    names: dict[int, str] = {}
+    counted = 0
+    for game in team_games(con, team_id, kickoff_ts, REGULARS_GAMES):
+        payload = cached_lineups(con, int(game["id"]))
+        side = "home" if (game.get("homeTeam") or {}).get("id") == team_id else "away"
+        players = ((payload or {}).get(side) or {}).get("players")
+        if not isinstance(players, list) or not players:
+            continue
+        counted += 1
+        for entry in players:
+            player = entry.get("player") if isinstance(entry, Mapping) else None
+            if not isinstance(player, Mapping) or not isinstance(player.get("id"), int):
+                continue
+            if entry.get("substitute") is False:
+                starts[player["id"]] += 1
+                names[player["id"]] = str(player.get("name") or player["id"])
+    basis = {"games_read": REGULARS_GAMES, "lineups_cached": counted,
+             "min_share": REGULAR_MIN_SHARE}
+    if counted < REGULARS_MIN_LINEUPS:
+        return {**basis, "missing": f"tylko {counted} składów po meczu w cache"}
+    need = REGULAR_MIN_SHARE * counted
+    rows: list[dict[str, Any]] = [
+        {"id": pid, "name": names[pid], "starts": n}
+        for pid, n in sorted(starts.items(), key=lambda kv: (-kv[1], names[kv[0]]))
+        if n >= need]
+    return {**basis, "players": rows}
+
+
+def _where(side: Mapping[str, Any], player_id: object) -> str | None:
+    """XI / ławka / missing / doubtful for one player id on one side."""
+    for row in side.get("starters") or []:
+        if row.get("id") == player_id:
+            return "XI"
+    for row in side.get("substitutes") or []:
+        if row.get("id") == player_id:
+            return "ławka"
+    for row in side.get("missing") or []:
+        if row.get("id") == player_id:
+            return str(row.get("type") or "missing")
+    return None
+
+
+def _is_player_leg(leg: Mapping[str, Any]) -> bool:
+    market = str(leg.get("market") or "")
+    return bool(leg.get("subject")) and (
+        market.startswith("player_") or is_player_metric(market))
+
+
+def player_leg_status(
+    entry: Mapping[str, Any], legs: Sequence[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """Each player leg's player in Sofascore's line-up: XI / ławka / missing /
+    doubtful, or not on the list. Matched by the samples' own name rules
+    (fuzzy, then whole tokens, then surname + first-name prefix); a name no
+    rule places is `nie znaleziony`, never a guess."""
+    candidates: dict[str, tuple[str, str]] = {}
+    homonyms: set[str] = set()
+    for label in ("home", "away"):
+        side = entry.get(label) or {}
+        for group, where in (("starters", "XI"), ("substitutes", "ławka"),
+                             ("missing", None)):
+            for listed in side.get(group) or []:
+                name = listed.get("name")
+                if not isinstance(name, str) or not name:
+                    continue
+                key = normalize_name(name)
+                if key in candidates:
+                    homonyms.add(key)
+                candidates[key] = (
+                    label, where or str(listed.get("type") or "missing"))
+    for key in homonyms:
+        del candidates[key]
+    pool: dict[str, dict[str, Any]] = {k: {} for k in candidates}
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for leg in legs:
+        if not _is_player_leg(leg):
+            continue
+        subject, market = str(leg["subject"]), str(leg.get("market"))
+        if (subject, market) in seen:
+            continue
+        seen.add((subject, market))
+        row: dict[str, Any] = {"subject": subject, "market": market}
+        rules = (("fuzzy", match_player), ("tokens", match_player_by_tokens),
+                 ("surname", match_player_by_surname))
+        for rule, matcher in rules:
+            found = matcher(subject, pool)
+            if found:
+                side, where = candidates[found]
+                row.update(status=where, side=side, matched_name=found, match_rule=rule)
+                break
+        else:
+            row["status"] = "nie ma na liście Sofascore (lub nazwa nie dopasowana)"
+        out.append(row)
+    return out
+
+
+def lineups_block(
+    con: sqlite3.Connection,
+    sport: str,
+    entry: Mapping[str, Any] | None,
+    legs: Sequence[Mapping[str, Any]],
+    team_ids: Mapping[str, object],
+    kickoff_ts: int,
+) -> dict[str, Any]:
+    """The dossier's `lineups`: Sofascore's predicted or confirmed XI, the
+    missing / doubtful players, each player leg's player, and each side's
+    regulars (from its cached post-match line-ups) not in the XI. Display
+    only; what is not known says `missing`."""
+    if sport not in prematch_lineups.SPORTS:
+        return {"missing": f"Sofascore nie podaje składów w tym kształcie ({sport})"}
+    entry = entry or {}
+    status = str(entry.get("status") or "NOT_ASKED")
+    out: dict[str, Any] = {
+        "source": f"Sofascore /event/{{id}}/lineups ({prematch_lineups.FILE})",
+        "status": status,
+        "asked_at_utc": entry.get("asked_at_utc"),
+    }
+    if isinstance(entry.get("last_attempt"), Mapping):
+        out["last_attempt"] = entry["last_attempt"]
+    if status != prematch_lineups.OK:
+        why = {"NOT_ASKED": "nie pytano (read_set --no-lineups, mecz rozpoczęty "
+                            "lub brak odpowiedzi)",
+               prematch_lineups.NOT_PUBLISHED: "Sofascore nie opublikował składu"}
+        out["missing"] = why.get(status, f"zapytanie nieudane ({status})")
+        return out
+    confirmed = entry.get("confirmed") is True
+    out["confirmed"] = confirmed
+    out["kind"] = "potwierdzony" if confirmed else "przewidywany (nie potwierdzony)"
+    for label in ("home", "away"):
+        side = entry.get(label) or {}
+        view: dict[str, Any] = {}
+        if side.get("missing_side"):
+            view["missing"] = side["missing_side"]
+        else:
+            if side.get("formation"):
+                view["formation"] = side["formation"]
+            view["starters"] = [
+                " ".join(str(x) for x in (r.get("name"), f"({r['position']})"
+                         if r.get("position") else None) if x)
+                for r in side.get("starters") or []]
+            view["substitutes"] = [
+                str(r.get("name")) for r in side.get("substitutes") or []]
+            view["missing_players"] = side.get("missing") or []
+            if not side.get("missing_listed"):
+                view["missing_players_note"] = "Sofascore nie podał listy absencji"
+        team = team_ids.get(label)
+        if isinstance(team, int) and "missing" not in view:
+            reg = regulars(con, team, kickoff_ts)
+            if "players" in reg:
+                rows = [{**r, "status": _where(side, r["id"])
+                         or "nie ma na liście Sofascore"} for r in reg["players"]]
+                reg["players"] = rows
+                view["regulars_not_in_xi"] = [
+                    f"{r['name']} ({r['starts']}/{reg['lineups_cached']}):"
+                    f" {r['status']}"
+                    for r in rows if r["status"] != "XI"]
+            view["regulars"] = reg
+        elif "missing" not in view:
+            view["regulars"] = {"missing": "brak id drużyny"}
+        out[label] = view
+    out["player_legs"] = player_leg_status(entry, legs)
+    return out
+
+
 # --- the dossier -----------------------------------------------------------
 
 
@@ -827,6 +1035,7 @@ def build(
     offer: Sequence[Mapping[str, Any]] | None,
     now: datetime | None = None,
     h2h_entries: Mapping[str, Mapping[str, Any]] | None = None,
+    lineup_entries: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """One match's dossier (a dict ready for JSON)."""
     detail = event_detail(con, event_id) or {}
@@ -951,7 +1160,8 @@ def build(
         "schema": SCHEMA_VERSION,
         "built_at_utc": (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": "data/sofa.db (tylko odczyt) + artefakty dnia (h2h.json: odpowiedź "
-        "Sofascore pobrana przez read_set / build_slip); bez zapytań",
+        "Sofascore pobrana przez read_set / build_slip; lineups_prematch.json: "
+        "skład Sofascore przed meczem); bez zapytań",
         "use": "kontekst do odczytu - nie zmienia pewności ani bramek",
         "header": header,
         "legs": leg_rows(legs),
@@ -978,7 +1188,18 @@ def build(
     if sport in ("football", "tennis"):
         doc["samples"] = samples_block(samples.get(event_id), legs)
     doc["market"] = market_block(run, sport, legs, offer, event_id)
+    if sport in TEAM_SPORTS:
+        doc["lineups"] = lineups_block(
+            con, sport, (lineup_entries or {}).get(str(event_id)), legs,
+            {"home": home_id, "away": away_id}, kickoff_ts)
     doc["web_checklist"] = web_checklist(sport, header, side_names)
+    lineup_line = _lineup_checklist(doc.get("lineups"))
+    if lineup_line:
+        doc["web_checklist"] = [
+            lineup_line if x.startswith("przewidywane / potwierdzone składy") else x
+            for x in doc["web_checklist"]]
+        if lineup_line not in doc["web_checklist"]:
+            doc["web_checklist"].append(lineup_line)
     if h2h_asked.get("status") != h2h_fetch.OK:
         asked = h2h_asked.get("status") or "NOT_ASKED"
         doc["web_checklist"].append(
@@ -986,6 +1207,15 @@ def build(
             f" - ostatnie spotkania {side_names['home'] or '?'} - "
             f"{side_names['away'] or '?'} i statystyki rynków nóg z sieci")
     return doc
+
+
+def _lineup_checklist(block: Mapping[str, Any] | None) -> str | None:
+    """The web checklist's line-up item, saying what the dossier already has."""
+    if not isinstance(block, Mapping) or block.get("status") != prematch_lineups.OK:
+        return None
+    kind = "POTWIERDZONY" if block.get("confirmed") else "PRZEWIDYWANY"
+    return (f"składy: dossier ma skład Sofascore ({kind}, {block.get('asked_at_utc')})"
+            " - sprawdź tylko zmiany od tej godziny i absencje spoza listy Sofascore")
 
 
 def _load(path: Path) -> Any:
@@ -1036,6 +1266,7 @@ def write_for_legs(
     status = (_load(run / "fixture_status.json") or {}).get("events") or {}
     offer = _load(run / "04_offer.json")
     h2h_entries = h2h_fetch.load(run)
+    lineup_entries = prematch_lineups.load(run)
     written: dict[int, str] = {}
     con = connect(db_path)
     try:
@@ -1055,6 +1286,7 @@ def write_for_legs(
                 offer=offer,
                 now=now,
                 h2h_entries=h2h_entries,
+                lineup_entries=lineup_entries,
             )
             path = dossier_path(run, sport, event_id)
             path.parent.mkdir(parents=True, exist_ok=True)

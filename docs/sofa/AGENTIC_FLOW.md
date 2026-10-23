@@ -216,7 +216,17 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   pobieranej przez `read_set.py` / `build_slip.py` dla każdego meczu przed
   dossier - operator 2026-10-21: zawsze; przy każdym spotkaniu metryki nóg
   meczu; `head_to_head_source` mówi, czy Sofascore odpowiedział i od kiedy
-  sięga cache; brak odpowiedzi = linia h2h na liście kontrolnej webu), stadion z miastem i godziną lokalną, sędzia, ranking,
+  sięga cache; brak odpowiedzi = linia h2h na liście kontrolnej webu),
+  **składy Sofascore** (blok `lineups`, z `lineups_prematch.json`, pobieranego
+  przez `read_set.py` / `build_slip.py` przed dossier dla każdego
+  nierozpoczętego meczu piłki / hokeja / koszykówki, `--no-lineups` pomija;
+  nigdy do cache): przewidywany czy potwierdzony i godzina zapytania, XI,
+  ławka, absencje missing / doubtful z powodem Sofascore, przy każdej nodze
+  zawodnika - XI / ławka / brak / nie ma na liście, przy każdej drużynie -
+  jej podstawowi (najwięcej startów w 10 ostatnich meczach z cache), których
+  nie ma w XI; brak danych = `missing`, nigdy zgadywanie. Przewidywany skład
+  to nie potwierdzony; nieobecny podstawowy daje najwyżej WATCH przez zmienną
+  nogi, nigdy promocję), stadion z miastem i godziną lokalną, sędzia, ranking,
   CS2: skład i nowe nazwisko, pula map, forma graczy; ruch linii Superbetu
   przez dzień; lista kontrolna webu z wpisanymi nazwami — tylko podgląd,
   nigdy bramka; KEEP podaje oczekiwanie w jednostkach rynku, fakt z dossier

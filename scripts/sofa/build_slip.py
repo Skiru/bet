@@ -43,7 +43,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import dossier, h2h  # noqa: E402
+from bet.sofa import dossier, h2h, prematch_lineups  # noqa: E402
 from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
@@ -100,11 +100,13 @@ def window(
 
 def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
                    db_path: str | None = None,
-                   fetch_h2h: bool = True) -> dict[str, int]:
+                   fetch_h2h: bool = True,
+                   fetch_lineups: bool = True) -> dict[str, int]:
     """read_set_slip_<sport>.json of the unread slip and reserve legs; with
     `run`, each match's dossier too (`bet.sofa.dossier`, the leg's `dossier`),
     its head-to-head asked of Sofascore first (`bet.sofa.h2h`) unless
-    `fetch_h2h` is off."""
+    `fetch_h2h` is off, and its pre-match line-up (`bet.sofa.prematch_lineups`)
+    unless `fetch_lineups` is off."""
     out_dir.mkdir(parents=True, exist_ok=True)
     for stale in out_dir.glob("read_set_slip_*.json"):
         stale.unlink()
@@ -120,6 +122,8 @@ def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
         every = [x for legs in by_sport.values() for x in legs]
         if fetch_h2h:
             print(h2h.fetch_for_legs(run, every))
+        if fetch_lineups:
+            print(prematch_lineups.fetch_for_legs(run, every))
         print(dossier.attach(run, every, db_path))
     for sport, legs in by_sport.items():
         (out_dir / f"read_set_slip_{sport}.json").write_text(
@@ -155,6 +159,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-dossier", action="store_true")
     ap.add_argument("--no-h2h", action="store_true",
                     help="dossiers from the cache only, no Sofascore h2h request")
+    ap.add_argument("--no-lineups", action="store_true",
+                    help="no Sofascore pre-match line-up request")
     ap.add_argument(
         "--no-refresh-record",
         action="store_true",
@@ -223,7 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.read_set_dir:
         out_dir = Path(args.read_set_dir)
         written = write_read_set(out_dir, result, None if args.no_dossier else run,
-                                 args.db_path, not args.no_h2h)
+                                 args.db_path, not args.no_h2h,
+                                 not args.no_lineups)
         for sport, n in sorted(written.items()):
             path = out_dir / f"read_set_slip_{sport}.json"
             print(f"do przeczytania: {sport} {sb.legs_pl(n)} -> {path}")
