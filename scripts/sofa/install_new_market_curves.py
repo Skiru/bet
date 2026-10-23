@@ -15,7 +15,8 @@ calibration it goes into; without one, sport_derived goes into
 config/sofa_sport_confidence_calibration.json and every other group into
 config/sofa_confidence_calibration.json. Where the target has a staged
 `.next.json` beside it, that file is merged too (a day at or after its
-`effective_from` reads it instead).
+`effective_from` reads it instead); the sport target also merges every dated
+staged `.next.<YYYY-MM-DD>.json` (`target_files`).
 
 curves.json - which keys install:
   football / tennis target (sofa_confidence_calibration.json):
@@ -74,6 +75,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import sport_confidence as scf
 from bet.sofa.confidence import AWAITING_OWN_CURVE, TENNIS_PER_SET
 from bet.sofa.line_curves import SECTION as LINE_SECTION
 
@@ -361,6 +363,20 @@ def _write_atomic(path: Path, doc: Mapping[str, Any]) -> None:
     tmp.replace(path)
 
 
+def target_files(config_dir: Path, target: str) -> list[Path]:
+    """The files a target's curves go into: the installed one, its staged
+    `.next.json` and, for the sport target, every dated staged
+    `.next.<YYYY-MM-DD>.json` (sport_confidence.calibration_path_for reads the
+    latest one a day has reached - from 2026-10-24 the dated file, so an
+    install into `.next.json` alone never reached those days)."""
+    stem = target.removesuffix(".json")
+    out = [config_dir / target, config_dir / f"{stem}.next.json"]
+    if target == SPORT_TARGET:
+        out += [p for p in scf.staged_calibration_paths(config_dir)
+                if p not in out]
+    return out
+
+
 def install(args: argparse.Namespace) -> int:
     base = Path(args.dir)
     config_dir = Path(args.config_dir)
@@ -374,8 +390,7 @@ def install(args: argparse.Namespace) -> int:
     for target, adds in plan.adds.items():
         if not adds:
             continue
-        stem = target.removesuffix(".json")
-        for path in (config_dir / target, config_dir / f"{stem}.next.json"):
+        for path in target_files(config_dir, target):
             if not path.is_file():
                 if path.name == target:
                     problems.append(f"{path} missing")

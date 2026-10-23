@@ -125,6 +125,32 @@ def test_a_staged_next_file_is_merged_too(tmp_path: Path) -> None:
     assert nxt["sports"]["hockey"]["curves"]["double_chance|TEAM"] == CURVE
 
 
+def test_every_dated_staged_sport_file_is_merged_too(tmp_path: Path) -> None:
+    # 2026-10-23: from 10-24 a day reads .next.2026-10-24.json
+    # (sport_confidence.calibration_path_for); an install into the installed
+    # file and .next.json alone never reached the days after it.
+    cfg, runs = _setup(tmp_path)
+    _write(cfg / "sofa_sport_confidence_calibration.next.json", {
+        "effective_from": "2026-10-14",
+        "sports": {"hockey": {"curves": {}}}})
+    dated = cfg / "sofa_sport_confidence_calibration.next.2026-10-24.json"
+    _write(dated, {"effective_from": "2026-10-24",
+                   "sports": {"hockey": {"curves": {}}}})
+    assert _run(cfg, runs, tmp_path, "--confirm", "--test-cmd", OK) == 0
+    assert _load(dated)["sports"]["hockey"]["curves"]["double_chance|TEAM"] == CURVE
+    assert (tmp_path / "backup" / dated.name).is_file()
+
+
+def test_a_conflict_in_a_dated_staged_file_refuses(tmp_path: Path) -> None:
+    cfg, runs = _setup(tmp_path)
+    dated = cfg / "sofa_sport_confidence_calibration.next.2026-10-24.json"
+    _write(dated, {"effective_from": "2026-10-24",
+                   "sports": {"hockey": {"curves": {"double_chance|TEAM": CURVE}}}})
+    assert _run(cfg, runs, tmp_path, "--confirm", "--test-cmd", OK) == 2
+    assert "double_chance|TEAM" not in _load(
+        cfg / inst.SPORT_TARGET)["sports"]["hockey"]["curves"]
+
+
 def test_a_malformed_curve_is_refused(tmp_path: Path) -> None:
     cfg, runs = _setup(tmp_path)
     _write(runs / "double_chance" / "curves.json", {

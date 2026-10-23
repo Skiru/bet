@@ -569,6 +569,12 @@ poniżej). Przyjęte tylko klucze, które przeszły **jednostronną bramkę
 holdoutu** (`scripts/sofa/new_market_gate.py`: fit przed 2026-09-01, ocena
 na 09-01..10-13; przy krzywej >= 0,70 n >= 300 i zrealizowane − krzywa >=
 −2 pp – odpada tylko zawyżenie; każdy klucz „12” odrzucony z zasady).
+Cel sportowy (`sofa_sport_confidence_calibration.json`): instalator scala
+krzywe do pliku zainstalowanego, `.next.json` **i każdego** pliku z datą
+`.next.<YYYY-MM-DD>.json` (`target_files`, od 2026-10-23 – wcześniej dni od
+10-24, czytające plik z datą, nie dostałyby nowych krzywych; audyt pokrycia
+2026-10-23, `docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md`). Konflikt w
+którymkolwiek pliku odmawia całej instalacji.
 
 | plik | co dopisano | pochodzenie |
 |---|---|---|
