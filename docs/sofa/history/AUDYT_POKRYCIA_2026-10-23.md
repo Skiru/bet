@@ -626,3 +626,53 @@ wieczornego rebuildu operatora.
 - Wpływ: rekord sędziego (`FOOTBALL_REFEREE`) i każdy czytelnik kartek z
   incydentów widzą więcej meczów od następnego buildu. To dane, nie zmiana
   reguły.
+
+## 14. Decyzje do podjęcia (operator, później)
+
+Stan 2026-10-23 ~10:45Z. Nic z listy P nie jest wdrożone, a kupon 10-23 jest
+nietknięty (md5 bez zmian).
+
+**Co to daje dla wygranej.** Żadna pozycja P1-P14 nie ma zmierzonego wpływu
+na szansę wygranej. Większość dokłada mecze lub linie (pokrycie) albo
+poprawia kalibrację; kupon realizuje się po cenie rynkowej, a poprawki
+kalibracji tego nie zmieniają. Z jakością samych nóg mogą mieć związek tylko
+dwie rzeczy:
+- **K7 w hokeju:** nogi zawodników liczone na 5-10 meczach przy ponad 50 w
+  poprzednim klubie. Kierunek błędu nieznany.
+- **Pełniejszy rekord sędziego:** backfill incydentów w toku, działa od
+  buildu 10-24.
+
+**Propozycja przełącznika od 10-24 00:00Z, bez pomiaru** (ta sama grupa
+księgi „od 10-24” co krzywa hokeja i `LIVE_ONLY_CURVE_REFUSED`, więc bez
+nowego dnia mieszanego):
+- **P2:** ponowne pytanie o świeżą stronę przy chybieniu z cache oraz pytanie
+  o drugą drużynę;
+- **P8:** CS2 „prospect” i nick po prefiksie w silniku;
+- **P9:** mecz w liście obu drużyn (hokej / kosz);
+- **P12:** `model_p` dla serii CS2 rozliczonych z samego wyniku.
+
+**Pomiar przed decyzją:**
+- **P1:** `ENTITY_CONFLICT` cięty przy starciu, plus 2 turnieje towarzyskie
+  na liście; potencjalnie najwięcej nóg;
+- **P5:** slug zawodnika (test pomyłek na historii);
+- **P4:** kotwica w siatkówce (backtest z ukrytymi id).
+
+**Nie teraz:**
+- **P3 (K7):** zmiana modelu, pomiar poza próbą, prawdopodobnie refit stałych
+  `fit_player_model.py`;
+- **P6:** idzie tylko z refitem rodziny `player_offsides_for`;
+- **P7:** pomiar walk-forward;
+- **P11:** czy Superbet oferuje NCAA (sezon od ~11-03);
+- **P13:** jak Superbet liczy złoty set.
+
+**Bez zmiany kodu, na dziś:** nogi K7 w hokeju z 10-23 mogą trafić do
+`read_requests.json` do przeczytania przez analityków. Lektura może nogę
+tylko zdjąć.
+
+**Backfill incydentów piłki** (driver w tle,
+`runs/sofa/backfill/incidents_2026-10-23.log`):
+- przed driverem: 3 334 mecze w dwóch ręcznych chunkach;
+- chunk 1 drivera (10:42Z): 5 960 meczów, 6 bez incydentów, 0 błędów,
+  zostało 16 763;
+- driver kończy sam (stall po 3 chunkach bez postępu lub 0 celów); STOP w
+  logu = odmowa mostu, `day_status.py` ostrzeże.
