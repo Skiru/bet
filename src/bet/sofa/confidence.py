@@ -1266,6 +1266,17 @@ class Calibration:
     # 0.75-0.80 bucket bounds 0.709 and by_market's 0.731. Off, a lookup is
     # exactly what it was.
     cap_pool_by_neighbour: bool = False
+    # epochs.LIVE_ONLY_CURVE_REFUSED (bet.sofa.live_only_curves.strip): the
+    # markets / "<market>|<DIR>" keys whose installed curve was fitted from
+    # our settled days alone and is not read. Such a key reads as a market
+    # with no curve: no pool stands in for it (realised -> None, so line
+    # evidence reads its own Superbet lines or NO_LINE_EVIDENCE). Empty, a
+    # lookup is exactly what it was.
+    no_pool_keys: frozenset[str] = frozenset()
+    # The unproven-market ceiling of the full file, kept when keys are
+    # stripped (live_only_curves.strip) so that no other market's ceiling
+    # moves. None: computed from by_market as before.
+    unproven_ceiling: float | None = None
 
     def _own_neighbour_cap(
         self, market: str, direction: str | None, p: float,
@@ -1410,6 +1421,8 @@ class Calibration:
             thin_by_market_direction=section.get("thin_by_market_direction", {}),
             cap_market_by_thin=self.cap_market_by_thin,
             cap_pool_by_neighbour=self.cap_pool_by_neighbour,
+            no_pool_keys=frozenset(section.get("no_pool_keys") or ()),
+            unproven_ceiling=section.get("unproven_ceiling"),
         )
 
     def _direction_entry(
@@ -1508,6 +1521,13 @@ class Calibration:
             if self.cap_market_by_thin:
                 return self._cap_by_thin(market, direction, p, hit)
             return hit
+        # See no_pool_keys: a curve refused as fitted from live rows alone
+        # leaves its key with no curve, and no pool stands in for it.
+        if self.no_pool_keys and (
+                market in self.no_pool_keys
+                or (direction and direction_key(market, direction)
+                    in self.no_pool_keys)):
+            return None
         # A joint / comparative market is read from its own curve or not at
         # all: the pools hold count markets only (fit_confidence keeps derived
         # rows out of them). Review 2026-10-07.
@@ -1555,7 +1575,7 @@ class Calibration:
             # settled - games_set1_total, games_set2_total, tiebreaks_total on
             # 2026-09-23 - cannot be assumed to be the exception. It may not
             # claim more than the empirical markets that HAVE been measured.
-            ceiling = self._unproven_ceiling()
+            ceiling = self.unproven_ceiling_value()
             if p >= ceiling:
                 return None
 
@@ -1600,6 +1620,13 @@ class Calibration:
             self._find(curve.get(key, {}), p) is not None
             for curve in (self.by_market_direction, self.thin_by_market_direction)
         )
+
+    def unproven_ceiling_value(self) -> float:
+        """The ceiling of an empirical market with no curve of its own: the
+        one kept by live_only_curves.strip, else _unproven_ceiling."""
+        if self.unproven_ceiling is not None:
+            return float(self.unproven_ceiling)
+        return self._unproven_ceiling()
 
     def _unproven_ceiling(self) -> float:
         """The lowest measured ceiling among empirical markets with a curve.

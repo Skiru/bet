@@ -127,6 +127,11 @@ and a miss recorded before a rule's switch never blocks that rule.
   `LINE_EVIDENCE_FROM_UTC` use the old by-name refusals (`refused_markets`,
   `admitted_player_markets`, `admitted_tennis_set_markets`,
   `DERIVED_NOT_CALIBRATABLE`, the sports' `admitted` keys).
+- **No curve from our days alone** (`LIVE_ONLY_CURVE_REFUSED`, from 2026-10-24
+  00:00Z): `fit_confidence` gives no curve to a key only live settled rows
+  reached (`live_only_refused` in its output); the 50 installed tennis keys
+  measured so (`config/sofa_live_only_curves.json`) read as markets without a
+  curve, no pool standing in (`bet.sofa.live_only_curves`).
 - **Football from 2026-10-21** (model-state.md, "Football statistics night"):
   cards / fouls centres carry the fixture **referee's** as-of shrunk rate
   (`bet.sofa.referees`; labels from `backfill_referees.py`, the fixture's

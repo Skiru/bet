@@ -35,6 +35,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import line_curves as lc  # noqa: E402
+from bet.sofa import live_only_curves as loc  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     CLASS_WOMEN,
@@ -204,6 +205,10 @@ def main() -> int:
     event_col = "sofascore_event_id" if "sofascore_event_id" in columns else "NULL"
     outcome_col = "outcome" if "outcome" in columns else "NULL"
     run_col = "run_date" if "run_date" in columns else "NULL"
+    # A table without run_date (hand-built fixtures; the real one has it NOT
+    # NULL, bet.sofa.db) cannot tell a replayed row from a live one: every
+    # row counts as history there, as it did before the live-only rule.
+    provenance_known = "run_date" in columns
     # Friendlies are out of SAMPLES and the rating, so they are out of the
     # curves too (2026-10-02). A table without competition_id cannot say.
     friendly_term = (
@@ -249,6 +254,22 @@ def main() -> int:
         lambda: defaultdict(lambda: defaultdict(list)))
     by_class_sport: dict[str, dict[str, dict[int, list[int]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(list)))
+    # bet.sofa.live_only_curves: the curve keys a REPLAYED row reached (run_date
+    # loc.REPLAY_RUN_DATE). Our settled days are an audit of a curve, never
+    # its source (CLAUDE.md): a key reached by live SETTLE rows alone gets no
+    # curve and is listed under loc.REFUSED_FIELD (found 2026-10-22: tennis
+    # service points, per-set aces / double faults, tiebreaks had curves from
+    # live rows only, docs/sofa/history/KRZYWE_TYLKO_Z_NASZYCH_DNI_2026-10-23.md).
+    # A live row still counts in a key the replay reached - only the key's
+    # provenance is judged here.
+    hist_market: set[str] = set()
+    hist_direction: set[str] = set()
+    hist_sport: set[str] = set()
+    hist_pooled: set[str] = set()
+    hist_line: set[tuple[str, str]] = set()
+    hist_class_market: dict[str, set[str]] = defaultdict(set)
+    hist_class_direction: dict[str, set[str]] = defaultdict(set)
+    hist_class_sport: dict[str, set[str]] = defaultdict(set)
     scored = 0
     for (market, line, direction, n, mean, sd, actual, stored_p, sport,
          event_id, outcome, run_date) in rows:
@@ -275,6 +296,8 @@ def main() -> int:
                 b = bucket_of(min(max(float(stored_p), 0.0), 1.0))
                 per_market[market][b].append(hit)
                 per_market_direction[direction_key(market, direction)][b].append(hit)
+                hist_market.add(market)
+                hist_direction.add(direction_key(market, direction))
                 scored += 1
             continue
         if is_derived(market):
@@ -325,32 +348,48 @@ def main() -> int:
         # (confidence.OWN_CURVE_ONLY never reads one for it).
         pools_it = (not market.startswith("player_")
                     and market not in RATING_ONLY_MARKETS)
+        replayed = run_date == loc.REPLAY_RUN_DATE or not provenance_known
+        dkey = direction_key(market, direction)
         klass = classes.get(event_id)
         if klass is not None:
             by_class_market[klass][market][b].append(hit)
-            by_class_direction[klass][direction_key(market, direction)][b].append(hit)
+            by_class_direction[klass][dkey][b].append(hit)
             if pools_it:
                 by_class_sport[klass][sport][b].append(hit)
+            if replayed:
+                hist_class_market[klass].add(market)
+                hist_class_direction[klass].add(dkey)
+                if pools_it:
+                    hist_class_sport[klass].add(sport)
         if args.classes_only:
             scored += 1
             continue
         # bet.sofa.line_curves: men's football rows of a listed key, per line
         # (a class row reads its class's curves, never a line curve)
         if klass is None and sport == lc.SPORT and line_keys:
-            dkey = direction_key(market, direction)
             if dkey in line_keys:
-                cell = per_line[dkey][lc.line_label(line)][b]
+                label = lc.line_label(line)
+                cell = per_line[dkey][label][b]
                 cell[0] += hit
                 cell[1] += 1
+                if replayed:
+                    hist_line.add((dkey, label))
         if args.line_curves_only:
             scored += 1
             continue
         per_market[market][b].append(hit)
-        per_market_direction[direction_key(market, direction)][b].append(hit)
+        per_market_direction[dkey][b].append(hit)
         if pools_it:
             pooled[b].append(hit)
             if sport:
                 pooled_by_sport[sport][b].append(hit)
+        if replayed:
+            hist_market.add(market)
+            hist_direction.add(dkey)
+            if pools_it:
+                hist_pooled.add(loc.POOLED_ALL)
+                if sport:
+                    hist_sport.add(sport)
         scored += 1
 
     def curve(
@@ -371,9 +410,12 @@ def main() -> int:
             }
         return out
 
-    line_section = line_curve_section(per_line)
+    line_refused: list[str] = []
+    line_section = loc.refuse_lines(line_curve_section(per_line), hist_line,
+                                    line_refused)
     line_fitted_from = {"db_path": args.db_path, "keys": sorted(line_keys),
-                        "min_market_bucket": MIN_MARKET_BUCKET, **stamp}
+                        "min_market_bucket": MIN_MARKET_BUCKET,
+                        loc.REFUSED_FIELD: line_refused, **stamp}
     if args.line_curves_only:
         prior_doc: dict[str, Any] = json.loads(
             Path(args.out).read_text(encoding="utf-8"))
@@ -383,43 +425,49 @@ def main() -> int:
         print(json.dumps({
             "stage": "FIT_CONFIDENCE", "verdict": "OK", "mode": "line-curves-only",
             "metrics": {"scored_rows": scored, "keys": len(line_section),
-                        "lines": sum(len(v) for v in line_section.values())},
+                        "lines": sum(len(v) for v in line_section.values()),
+                        "live_only_refused": len(line_refused)},
+            loc.REFUSED_FIELD: line_refused,
             "output_path": args.out,
         }))
         return 0
-    by_direction = {
+    refused: list[str] = []
+    by_direction = loc.refuse({
         m: c
         for m, counts in per_market_direction.items()
         if (c := curve(counts, MIN_MARKET_BUCKET))
-    }
+    }, hist_direction, "by_market_direction", refused)
     # The buckets by_direction leaves out for thinness, where the market's
     # own rows still bound what a pool may claim for it (MIN_THIN_BUCKET).
     # Player props read no pool, so they have no use for one.
-    thin_by_direction = {
+    thin_by_direction = loc.refuse({
         m: c
         for m, counts in per_market_direction.items()
         if not m.startswith("player_")
         and (c := curve(counts, MIN_THIN_BUCKET, below=MIN_MARKET_BUCKET))
-    }
+    }, hist_direction, "thin_by_market_direction", refused)
+    class_refused: list[str] = []
     by_class = {
         klass: {
-            "by_market": {
+            "by_market": loc.refuse({
                 m: c for m, counts in by_class_market[klass].items()
                 if (c := curve(counts, MIN_MARKET_BUCKET))
-            },
-            "by_market_direction": {
+            }, hist_class_market[klass], "by_market", class_refused, klass),
+            "by_market_direction": loc.refuse({
                 m: c for m, counts in by_class_direction[klass].items()
                 if (c := curve(counts, MIN_MARKET_BUCKET))
-            },
-            "thin_by_market_direction": {
+            }, hist_class_direction[klass], "by_market_direction",
+                class_refused, klass),
+            "thin_by_market_direction": loc.refuse({
                 m: c for m, counts in by_class_direction[klass].items()
                 if not m.startswith("player_")
                 and (c := curve(counts, MIN_THIN_BUCKET, below=MIN_MARKET_BUCKET))
-            },
-            "pooled_by_sport": {
+            }, hist_class_direction[klass], "thin_by_market_direction",
+                class_refused, klass),
+            "pooled_by_sport": loc.refuse({
                 sp: c for sp, counts in by_class_sport[klass].items()
                 if (c := curve(counts, MIN_POOLED_BUCKET))
-            },
+            }, hist_class_sport[klass], "pooled_by_sport", class_refused, klass),
         }
         for klass in sorted(by_class_sport)
     }
@@ -429,6 +477,7 @@ def main() -> int:
         prior["by_class_fitted_from"] = {
             "db_path": args.db_path, "scored_rows": scored,
             "classes": {k: len(v["by_market"]) for k, v in by_class.items()},
+            loc.REFUSED_FIELD: class_refused,
             **stamp,
         }
         write_atomic(Path(args.out), json.dumps(prior, indent=1) + "\n")
@@ -456,17 +505,19 @@ def main() -> int:
         ),
         "fitted_from": {"db_path": args.db_path, "scored_rows": scored, **stamp},
         "min_market_bucket": MIN_MARKET_BUCKET,
-        "pooled": curve(pooled, MIN_POOLED_BUCKET),
-        "pooled_by_sport": {
+        "pooled": loc.refuse(
+            {loc.POOLED_ALL: c} if (c := curve(pooled, MIN_POOLED_BUCKET)) else {},
+            hist_pooled, "pooled", refused).get(loc.POOLED_ALL, {}),
+        "pooled_by_sport": loc.refuse({
             sp: c
             for sp, counts in pooled_by_sport.items()
             if (c := curve(counts, MIN_POOLED_BUCKET))
-        },
-        "by_market": {
+        }, hist_sport, "pooled_by_sport", refused),
+        "by_market": loc.refuse({
             m: c
             for m, counts in per_market.items()
             if (c := curve(counts, MIN_MARKET_BUCKET))
-        },
+        }, hist_market, "by_market", refused),
         "by_market_direction": by_direction,
         lc.SECTION: line_section,
         lc.FITTED_FROM: line_fitted_from,
@@ -489,6 +540,11 @@ def main() -> int:
         # the separately fitted curves (new markets, the tennis winner):
         # not in the DB either, so a refit must not drop them
         carried = carry_separately_fitted_curves(doc, prior)
+    # A separately fitted curve (fit_meta.SEPARATE_FIT_META: its own history
+    # fit) may fill a key this fit refused: it is no longer without a curve.
+    live_only = sorted(e for e in (*refused, *line_refused, *class_refused)
+                       if not loc.present(doc, e))
+    doc[loc.REFUSED_FIELD] = live_only
     write_atomic(out_path, json.dumps(doc, indent=1) + "\n")
     print(
         json.dumps(
@@ -505,7 +561,9 @@ def main() -> int:
                         sp: len(c) for sp, c in doc["pooled_by_sport"].items()
                     },
                     "carried_separate_curves": len(carried),
+                    "live_only_refused": len(live_only),
                 },
+                loc.REFUSED_FIELD: live_only,
                 "output_path": args.out,
             }
         )

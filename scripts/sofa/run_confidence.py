@@ -38,6 +38,7 @@ from pydantic import RootModel  # noqa: E402
 from bet.sofa import (  # noqa: E402
     curve_status,
     epochs,
+    live_only_curves,  # noqa: E402
     priced_rows,  # noqa: E402
     timeutil,
 )
@@ -412,6 +413,9 @@ def main() -> int:
             one_sided_ok and one_sided_single(leg))
 
     cal = Calibration.load(args.calibration or calibration_path_for(args.date, now))
+    # epochs.LIVE_ONLY_CURVE_REFUSED: no installed curve fitted from our
+    # settled days alone (config/sofa_live_only_curves.json) is read
+    cal = live_only_curves.for_day(cal, args.date, now)
     if so:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.

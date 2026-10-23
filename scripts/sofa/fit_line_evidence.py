@@ -52,6 +52,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
         sys.path.insert(0, _p)
 
 from bet.sofa import line_evidence as le  # noqa: E402
+from bet.sofa import live_only_curves  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -251,6 +252,8 @@ def main() -> int:
     cal = dataclasses.replace(Calibration.load(calibration_path_for(args.before)),
                               gap_shrink_k=0.0,
                               cap_market_by_thin=True, cap_pool_by_neighbour=True)
+    # epochs.LIVE_ONLY_CURVE_REFUSED: the base the --before day reads
+    cal = live_only_curves.for_day(cal, args.before)
     days = stats_only_days(runs_dir, args.before)
     # epochs.LINE_CURVES: the base is the curve the --before day reads, at its
     # own line where that day reads per line

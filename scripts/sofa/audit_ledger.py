@@ -148,7 +148,7 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
-                "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23")
+                "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -212,10 +212,17 @@ LATE_RESOLVE_1021_MIXED_DATE = "2026-10-21"
 # 00:00Z): basketball's league rate restarts after an off-season, which moves
 # basketball p and so what prints.
 SPORT_LATE_WINDOW_EPOCH_FROM_DATE = "2026-10-23"
+# No installed football / tennis curve fitted from our settled days alone
+# (epochs.LIVE_ONLY_CURVE_REFUSED_FROM_UTC, 2026-10-24 00:00Z): the listed
+# keys (config/sofa_live_only_curves.json) read as markets without a curve -
+# a new epoch, not a mixed day (the switch is at the day's 00:00Z).
+LIVE_ONLY_CURVE_EPOCH_FROM_DATE = "2026-10-24"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= LIVE_ONLY_CURVE_EPOCH_FROM_DATE:
+            return "od 10-24"
         if str(row.get("date", "")) >= SPORT_LATE_WINDOW_EPOCH_FROM_DATE:
             return "od 10-23"
         if str(row.get("date", "")) >= SQUAD_SEARCH_EPOCH_FROM_DATE:

@@ -2977,3 +2977,34 @@ def league_season_restart(sport: str, date: str | None = None,
             and date < LEAGUE_SEASON_RESTART_FROM_UTC.strftime("%Y-%m-%d")):
         return False
     return at >= LEAGUE_SEASON_RESTART_FROM_UTC
+
+
+# --- Football / tennis: no curve fitted from our settled days alone (2026-10-24)
+# fit_confidence read every sofa_settled_row, the replay's ('cache-calibration')
+# and SETTLE's live rows alike, so a market the history replay does not price
+# got a curve from our settled days ALONE - against the rule that curves are
+# fitted on the history and our days only audit them (found 2026-10-22,
+# docs/sofa/history/REFIT_PILKA_2026-10-22.md "Znalezisko"). The fit now
+# refuses such a key (bet.sofa.live_only_curves, `live_only_refused`). The
+# installed curves predate that: the keys measured live-only on the DB they
+# were fitted from (data/refit_2026-10-17/sofa_replay.db) are listed in
+# config/sofa_live_only_curves.json, and from this moment CONFIDENCE and the
+# line evidence's base of such a day read the calibration without them
+# (live_only_curves.strip): the key has no curve and no pool stands in for
+# it - its own Superbet lines or NO_LINE_EVIDENCE, like any market without a
+# curve. Changes what prints; operator's go for fixes 2026-10-23, from
+# 2026-10-24 00:00Z (nothing earlier); ledger group "od 10-24"
+# (docs/sofa/history/KRZYWE_TYLKO_Z_NASZYCH_DNI_2026-10-23.md).
+LIVE_ONLY_CURVE_REFUSED_FROM_UTC: datetime | None = datetime(
+    2026, 10, 24, 0, 0, 0, tzinfo=UTC)
+
+
+def live_only_curve_refused(date: str, build_at: datetime | None = None) -> bool:
+    """Does CONFIDENCE read the football / tennis calibration without the
+    installed curve keys fitted from live rows alone
+    (LIVE_ONLY_CURVE_REFUSED_FROM_UTC)? By the day and the build clock."""
+    if LIVE_ONLY_CURVE_REFUSED_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= LIVE_ONLY_CURVE_REFUSED_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= LIVE_ONLY_CURVE_REFUSED_FROM_UTC)
