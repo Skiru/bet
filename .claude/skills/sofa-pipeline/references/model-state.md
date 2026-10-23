@@ -736,6 +736,24 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   their measured range wait for 50 settled lines a bucket (`NO_LINE_EVIDENCE`).
 - Unread markets' prices are recorded (`unmapped_prices/`, from 2026-10-14) for
   a later model's line evidence.
+- **Data-coverage audit 2026-10-23** (`docs/sofa/history/AUDYT_POKRYCIA_2026-10-23.md`,
+  section 7 = the plan P1-P14, each a print change waiting for the operator):
+  the NBA "LaMelo n=1" case is K7 (a player's games for his former team are
+  never read: basketball 53 players / 1,398 lines 10-23, hockey 106 players -
+  11 of 43 player legs priced on 5-10 games with 50+ elsewhere; football
+  ~16 a day; not CS2, whose share follows the player id). Reader defects found:
+  CS2 / sport identity never re-asks a stale cached page on NO_MATCH_IN_LISTING
+  (`sport_identity.py:815`; 23 of 67 CS2 cached misses later in cs2_series);
+  volleyball query-only anchor refuses a game it holds (Maribor - ACH
+  "Lublana" 100 / 71); football `ENTITY_CONFLICT` empties a sample on a clash
+  years old (12 fixtures / 3 days); lineup `slug` unread (Chabot); player
+  offsides zero proof ignores the omitted 0-0; CS2 team-id gate blocks the
+  lineup Elo (8 of 16 unrated); NCAA basketball halves dropped by
+  `parse_event`; CS2 series-only settles lack `model_p` (392 evidence lines);
+  volleyball AET / AGS dropped; football referee record reads ~half its
+  matches (incidents never re-asked - tooling fixed, backfill run). Measure K7
+  and P1 before any switch. Volleyball QVL 2345 -> 39366: not a defect (no
+  25/26 season at the source).
 
 ## (f) Ledger epoch groups
 
