@@ -156,10 +156,15 @@ def barren_competitions(
     listings: Iterable[list[dict[str, Any]]],
     asked: dict[int, bool],
     threshold: int | None = None,
+    sport: str | None = None,
 ) -> set[int]:
     """Competitions the cache has already asked `threshold`+ times with not
     one success - so a chunked run does not pay MAX_BARREN_MISSES again per
-    competition on every chunk. `asked` maps event id -> it had statistics."""
+    competition on every chunk. `asked` maps event id -> it had statistics.
+    `sport`: only that sport's events count (None: every sport); a sport of
+    BARREN_EXEMPT_SPORTS has none."""
+    if sport in BARREN_EXEMPT_SPORTS:
+        return set()
     limit = MAX_BARREN_MISSES if threshold is None else threshold
     hits: dict[int, int] = {}
     misses: dict[int, int] = {}
@@ -173,7 +178,7 @@ def barren_competitions(
                 continue
             seen.add(event_id)
             comp = _competition(event)
-            if comp is None:
+            if comp is None or (sport is not None and _sport(event) != sport):
                 continue
             bucket = hits if asked[event_id] else misses
             bucket[comp] = bucket.get(comp, 0) + 1
@@ -235,12 +240,22 @@ def _already_asked(db_path: str) -> dict[int, bool]:
 # 2026-09-25 run: the 404 share rose from 39% to 83% as the run walked into
 # older and lower-tier matches. One success keeps the competition in for good.
 MAX_BARREN_MISSES = 25
+# Sports the rule never cuts: ITF tennis publishes statistics match by match,
+# not per competition (2026-10-23 audit: ITF M15 Monastir 2 and ITF W100
+# Dubai, 25 cached 404s each, a never-asked match answered 200).
+BARREN_EXEMPT_SPORTS = frozenset({"tennis"})
 
 
 def _competition(event: dict[str, Any]) -> int | None:
     unique = ((event.get("tournament") or {}).get("uniqueTournament") or {})
     comp = unique.get("id")
     return comp if isinstance(comp, int) else None
+
+
+def _sport(event: dict[str, Any]) -> str | None:
+    category = (event.get("tournament") or {}).get("category") or {}
+    slug = (category.get("sport") or {}).get("slug")
+    return slug if isinstance(slug, str) else None
 
 
 # --- the measured sports (hockey / basketball / volleyball) -------------------
@@ -480,6 +495,7 @@ class Backfill:
         # Tennis SAMPLES reads /statistics only (samples.py needs_incidents is
         # football-only), so a tennis backfill asks one route, not two.
         self.with_incidents = sport == "football"
+        self.barren_exempt = sport in BARREN_EXEMPT_SPORTS
         self.cache = cache
         # time.monotonic() after which no new event is started. On 2026-09-25
         # the bridge was refused after ~23-26 min of continuous work in each
@@ -501,6 +517,8 @@ class Backfill:
             self.counts.update({"lineups": 0, "no_lineups": 0})
 
     def exhausted(self) -> set[int | None]:
+        if self.barren_exempt:
+            return set()
         with self.lock:
             return {c for c, n in self.misses.items()
                     if n >= MAX_BARREN_MISSES and not self.hits.get(c)}
@@ -649,7 +667,8 @@ def main() -> int:
     )
     since = int(time.time()) - args.days * 86400
     asked = _already_asked(config.db_path)
-    barren = barren_competitions(_iter_listings(config.db_path), asked)
+    barren = barren_competitions(_iter_listings(config.db_path), asked,
+                                 sport=args.sport)
     targets = select_targets(
         _iter_listings(config.db_path), comps, set(asked), since, barren,
         sport=args.sport, entities=entities,
