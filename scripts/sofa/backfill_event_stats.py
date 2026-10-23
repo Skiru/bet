@@ -219,6 +219,23 @@ def _iter_listings(db_path: str) -> Iterable[list[dict[str, Any]]]:
         conn.close()
 
 
+def incidents_only_targets(db_path: str, since_ts: int) -> list[int]:
+    """Football events started since `since_ts` whose row holds statistics
+    but no incidents, newest first. "Already asked" keys on statistics alone,
+    so such a row was never asked again (2026-10-23 audit: 8,560 refereed
+    matches whose card points bet.sofa.referees could not count)."""
+    conn = read_only_connection(db_path)
+    try:
+        return [int(r[0]) for r in conn.execute(
+            "SELECT s.sofascore_event_id FROM sofa_event_stats s"
+            " JOIN sofa_listed_event e ON e.event_id = s.sofascore_event_id"
+            " WHERE e.sport = 'football' AND e.start_ts >= ?"
+            " AND s.statistics_json IS NOT NULL AND s.incidents_json IS NULL"
+            " ORDER BY e.start_ts DESC", (int(since_ts),))]
+    finally:
+        conn.close()
+
+
 def _already_asked(db_path: str) -> dict[int, bool]:
     """Event id -> whether the cached row carries statistics."""
     conn = read_only_connection(db_path)
@@ -490,8 +507,12 @@ class Backfill:
         cache: Any,
         deadline: float | None = None,
         sport: str = "football",
+        incidents_only: bool = False,
     ) -> None:
         self.client = client
+        # --incidents-only: /incidents alone for rows that hold statistics
+        # (incidents_only_targets); the stored statistics are never touched.
+        self.incidents_only = incidents_only
         # Tennis SAMPLES reads /statistics only (samples.py needs_incidents is
         # football-only), so a tennis backfill asks one route, not two.
         self.with_incidents = sport == "football"
@@ -506,6 +527,8 @@ class Backfill:
         self.stop = threading.Event()
         self.counts = {"done": 0, "stats": 0, "no_stats": 0, "errors": 0,
                        "skipped_barren": 0}
+        if incidents_only:
+            self.counts.update({"incidents": 0, "no_incidents": 0})
         self.hits: dict[int | None, int] = {}
         self.misses: dict[int | None, int] = {}
         # The measured sports keep barren competitions per route (fetch_shadow).
@@ -597,10 +620,14 @@ class Backfill:
             return
         event_id = int(event["id"])
         try:
-            stats = self.client.event_statistics(event_id)
-            incidents = (
-                self.client.event_incidents(event_id) if self.with_incidents else None
-            )
+            if self.incidents_only:
+                incidents = self.client.event_incidents(event_id)
+            else:
+                stats = self.client.event_statistics(event_id)
+                incidents = (
+                    self.client.event_incidents(event_id)
+                    if self.with_incidents else None
+                )
         except CircuitOpenError:
             # Sofascore or the bridge is refusing: stop every worker, do not
             # hammer a breaker that is telling us to wait.
@@ -613,6 +640,14 @@ class Backfill:
                 self.counts["errors"] += 1
             if breaker_tripped(self.client):
                 self.stop.set()  # the failure that opened it
+            return
+        if self.incidents_only:
+            # None statistics leaves the stored ones (save_event_stats
+            # COALESCE); a 404 leaves the row NULL, as the full route does.
+            self.cache.save_event_stats(event_id, None, incidents, "finished")
+            with self.lock:
+                self.counts["done"] += 1
+                self.counts["incidents" if incidents else "no_incidents"] += 1
             return
         # None statistics is the asked-and-404 row SAMPLES reads the same way.
         self.cache.save_event_stats(event_id, stats, incidents, "finished")
@@ -647,7 +682,12 @@ def main() -> int:
     ap.add_argument("--with-lineups", action="store_true",
                     help="hockey/basketball/volleyball: also ask /lineups "
                     "(the box score player lines are graded on)")
+    ap.add_argument("--incidents-only", action="store_true",
+                    help="football: ask /incidents alone for rows holding "
+                    "statistics and no incidents (incidents_only_targets)")
     args = ap.parse_args()
+    if args.incidents_only and args.sport != "football":
+        ap.error("--incidents-only is for football")
     if args.with_lineups and args.sport not in SHADOW_SPORTS:
         ap.error("--with-lineups is for " + "/".join(SHADOW_SPORTS))
 
@@ -659,6 +699,9 @@ def main() -> int:
         )
     if args.sport in SHADOW_SPORTS:
         return _main_shadow(args, config)
+
+    if args.incidents_only:
+        return _main_incidents_only(args, config)
 
     comps = target_competitions(args.sport, args.competitions, config.runs_dir)
     entities = (
@@ -700,6 +743,30 @@ def main() -> int:
                "timed_out": runner.timed_out.is_set(), "targets": len(targets),
                **runner.counts, "competitions_given_up": len(runner.exhausted())}
     print(json.dumps(summary), flush=True)
+    return 2 if runner.stop.is_set() else (1 if runner.counts["errors"] else 0)
+
+
+def _main_incidents_only(args: argparse.Namespace, config: SofaConfig) -> int:
+    """--incidents-only (football): /incidents for rows with statistics only."""
+    since = int(time.time()) - args.days * 86400
+    ids = incidents_only_targets(config.db_path, since)
+    if args.limit is not None:
+        ids = ids[: args.limit]
+    print(json.dumps({"run_id": config.run_id, "sport": args.sport,
+                      "incidents_only": True, "targets": len(ids),
+                      "requests": len(ids)}), flush=True)
+    if args.dry_run or not ids:
+        return 0
+    deadline = (
+        time.monotonic() + args.max_minutes * 60 if args.max_minutes else None
+    )
+    runner = Backfill(SofascoreClient(config), SofaCache(config), deadline,
+                      sport=args.sport, incidents_only=True)
+    with ThreadPoolExecutor(max_workers=max(1, config.max_concurrency)) as pool:
+        list(pool.map(runner.fetch_one, [{"id": i} for i in ids]))
+    print(json.dumps({"final": True, "circuit_open": runner.stop.is_set(),
+                      "timed_out": runner.timed_out.is_set(),
+                      "targets": len(ids), **runner.counts}), flush=True)
     return 2 if runner.stop.is_set() else (1 if runner.counts["errors"] else 0)
 
 

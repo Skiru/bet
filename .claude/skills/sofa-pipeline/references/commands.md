@@ -95,7 +95,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_listings.py --sport {foo
 # Opponents are queued only from pages cached before the sport's seed (runs/sofa/backfill/listings_seed.json): one hop at a time.
 # The seed moves to a run's start when that run walks its whole queue (not cut by --limit / --max-minutes / the breaker),
 # or at once when the queue at the recorded seed is empty (dry-run prints "seed_advanced", writes nothing). --seed-before overrides.
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days 365 [--board-days 7] --max-minutes 7   # event statistics
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --sport {football|tennis} --days 365 [--board-days 7] --max-minutes 7   # event statistics (tennis never cut by the barren rule)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_stats.py --incidents-only --days 365 --max-minutes 8   # football /incidents for rows with statistics and no incidents (referee record, card points)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_football_lineups.py --days 365 --max-minutes 7   # football lineups
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_cs2.py --days 180       # CS2 history
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/backfill_event_extra.py --kind {shotmap|point_by_point|incidents} --sport {football|tennis|hockey|basketball|volleyball} --days 120 --max-minutes 7   # sofa_event_extra
