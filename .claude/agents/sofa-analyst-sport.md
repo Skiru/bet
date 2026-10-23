@@ -114,7 +114,13 @@ shoot-out; total, team totals, handicap and 1X2 are regulation; period
 markets their period. Basketball winner, total, handicap, team totals and
 odd / even are the full game with overtime; 1X2 is regulation; halves and
 quarters are their regulation periods - overtime never counts there. A CS2
-map's rounds include its overtime rounds. Raise a scope only where
+map's rounds include its overtime rounds. Volleyball: a match followed by a
+golden set (AET / AGS) is graded on its own sets - winner by the sets, never
+`winnerCode`; the golden set counts in no market. `match_method` `QUERY_ANCHOR`
+(from 2026-10-24) = one side identified by its query alone at the exact start -
+confirm both names. A CS2 leg with `lineup_unrated_rule` (from 2026-10-24) is
+priced from the lineups' rating because the team ids are not rated - check the
+announced five against the roster the price assumes. Raise a scope only where
 `superbet_market` says otherwise.
 
 ## Output contract

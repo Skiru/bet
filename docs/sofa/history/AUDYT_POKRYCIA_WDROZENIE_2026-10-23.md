@@ -28,12 +28,12 @@ sekcja (a) „Coverage audit 2026-10-23”.
 
 | # | przełącznik | stan | dlaczego |
 |---|---|---|---|
-| P1 | `SAMPLE_CONFLICT_CUT_FROM_UTC` | `None` | pomiar w toku (sekcja 6) |
+| P1 | `SAMPLE_CONFLICT_CUT_FROM_UTC` | **10-24 00:00Z** | odzyskane +0,51 pp [+0,15; +0,85] (sekcja 6) |
 | P2 | `IDENTITY_FRESH_RECHECK_ALL_FROM_UTC` | **10-24 00:00Z** | bez pomiaru, kod + testy |
-| P3 | `PLAYER_HISTORY_ANY_TEAM_FROM_UTC`, `PLAYER_HISTORY_ANY_TEAM_SPORTS` = {hokej} | **10-24 00:00Z, tylko hokej** | hokej lepszy; kosz gorszy; piłka - pomiar w toku |
+| P3 | `PLAYER_HISTORY_ANY_TEAM_FROM_UTC`, `PLAYER_HISTORY_ANY_TEAM_SPORTS` = {hokej, piłka} | **10-24 00:00Z, hokej i piłka** | hokej lepszy; piłka: dodane skalibrowane (sekcja 6); kosz gorszy |
 | P4 | `SPORT_QUERY_ANCHOR_FROM_UTC` (`QUERY_ANCHOR_SPORTS` = {siatkówka}) | **10-24 00:00Z** | backtest 0 złych na 2 480 |
-| P5 | `PLAYER_SLUG_NAME_FROM_UTC` | `None` | pomiar w toku |
-| P6 | `PLAYER_OMITTED_ZERO_FROM_UTC` | `None` | pomiar w toku |
+| P5 | `PLAYER_SLUG_NAME_FROM_UTC` | **10-24 00:00Z** | 0 innych osób na 24 321 (sekcja 6) |
+| P6 | `PLAYER_OMITTED_ZERO_FROM_UTC` | `None` | zmierzone gorzej (sekcja 6) |
 | P7 | `CS2_LINEUP_ELO_UNRATED_FROM_UTC` | **10-24 00:00Z** | dodane skalibrowane, stare bez zmian |
 | P8 | `NAME_RULES_1023_FROM_UTC` | **10-24 00:00Z** | bez pomiaru |
 | P9 | `PLAYER_BOTH_SIDES_LISTED_FROM_UTC` | **10-24 00:00Z** | bez pomiaru |
@@ -41,7 +41,7 @@ sekcja (a) „Coverage audit 2026-10-23”.
 | P11 | `BB_HALVES_LEAGUES_FROM_UTC` | `None` | brak NCAA kosza w ofercie Superbetu |
 | P12 | `CS2_SERIES_ONLY_MODEL_P_FROM_UTC` | **10-24 00:00Z** (zegar rozliczenia) | bez pomiaru |
 | P13 | rozliczenie: bez przełącznika; model: `VB_GOLDEN_SET_FROM_UTC` | rozliczenie **na żywo od 10-23**; model **10-24 00:00Z** | poprawka poprawności + fakt Superbetu ustalony |
-| P14 | `TENNIS_RATING_SCORE_WINNER_FROM_UTC` | **10-24 00:00Z** (ustawiony) | bez pomiaru; podpięcie i liczenie w toku (sekcja 6) |
+| P14 | `TENNIS_RATING_SCORE_WINNER_FROM_UTC` | **10-24 00:00Z** | bez pomiaru; podpięte w SHEET (`run_sheet.load_tennis_rating`), +173 mecze (sekcja 5) |
 
 ## 2. Tożsamość sportów (P2, P4, P8-CS2)
 
@@ -52,7 +52,10 @@ w każdym sporcie, raz na drużynę na przebieg; gdy dalej nic, pytana jest
 strona drugiej drużyny (jej id, bez niego id z zapytania; najpierw cache,
 świeża w oknie). Pola rekordu: `second_team_id`, `second_listing_from_cache`,
 `second_fresh_recheck`, `identified_by_second_team` / `second_team_reason`.
-`NOT_ON_SOFASCORE` czyta dalej tylko stronę pierwszej drużyny; breaker /
+`NOT_ON_SOFASCORE` czyta stronę pierwszej drużyny i wymaga zgody strony
+drugiej: jeśli druga strona pokazuje mecz, ale go odrzuca (AMBIGUOUS,
+START_GAP...), zostaje `NO_GAME_WITHIN_1H` z polem
+`absence_contradicted_by_second_team` (przegląd R1 F4, sekcja 10); breaker /
 `BRIDGE_ABORTED` bez zmian. Koszt (górna granica,
 `scripts/sofa/measure_audit1023_p2_recheck_cost.py`): 179 / 123 / 156
 dodatkowych zapytań 10-21 / 10-22 / 10-23 (niepełny), ~15 s mostu dziennie.
@@ -164,7 +167,8 @@ dziś p = None, pod przełącznikiem 0,411. Nie mierzone na liniach Superbetu.
 Testy: `tests/sofa/test_audit1023_p7_cs2_lineup_unrated.py` (5).
 
 **P8 - nick po prefiksie w silniku.** `cs2_engine.player_id(prefix)`: bez
-dokładnego nicku - jeden zawodnik, którego nick >= 5 liter zaczyna nazwę
+dokładnego nicku w żadnym ze składów (kolejność rozliczenia,
+`cs2.MapResult.player`; przegląd R1 F1) - jeden zawodnik, którego nick >= 5 liter zaczyna nazwę
 linii (albo odwrotnie), jak w rozliczeniu; dwóch = nikt. Testy:
 `tests/sofa/test_audit1023_p8_cs2_names.py` (6).
 
@@ -238,11 +242,18 @@ Testy: `tests/sofa/test_audit1023_p14_tennis_rating.py` (12).
 - **P3 piłka - WŁĄCZONE** od 10-24 00:00Z (`"football"` w
   `PLAYER_HISTORY_ANY_TEAM_SPORTS`). Cienka próbka zawodnika (po oknie 20
   meczów) uzupełniana startami tego samego id w składach innych drużyn
-  (przeciwnicy z próbki, tylko składy z cache, nigdy po nazwisku). Pomiar
-  `measure_audit1023_p3_any_team_football.py`, mecze 2026-08-01..10-20
-  (3 371): dodane wiersze do druku 4 247 (458 meczów), realised - confidence
-  +0,52 pp [-0,68; +1,73], dodane minus bazowe +0,36 pp [-0,92; +1,61];
-  istniejące wiersze bez zmian z konstrukcji. Zastrzeżenie: okno = start
+  (tylko składy z cache, nigdy po nazwisku). Rówieśnicy = przeciwnicy
+  z właściwej próbki strony; mecze każdego z nich przechodzą tę samą
+  akceptację co próbka (`samples.peer_history`: zakończone, bez
+  towarzyskich, jeden wpis na mecz, RESERVE_SQUAD, jeden skład na id /
+  cięcie P1), jeden wiersz na (mecz, rówieśnik), statystyki czytane
+  z godziną startu (wiersz tymczasowy nie dowodzi zera). Pomiar
+  `measure_audit1023_p3_any_team_football.py` powtórzony 10-23 na tej
+  regule (przegląd R2 #1-#3, #8; sekcja 10), mecze 2026-08-01..10-20
+  (3 371), historie z cięciem P1: dodane wiersze do druku 5 497 (562 mecze),
+  realised - confidence +0,25 pp [-0,82; +1,28], dodane minus bazowe
+  +0,07 pp [-1,03; +1,10]; żaden rynek nie wyklucza zera; istniejące wiersze
+  bez zmian z konstrukcji -> WŁĄCZONE. Zastrzeżenie: okno = start
   sezonu; środki z udziału (`player_share`) nie widzą obcych meczów.
 - **P5 - WŁĄCZONE** od 10-24 00:00Z. Slug Sofascore jako ostatnia reguła
   dopasowania (`match_rule "slug"`); `contracts.PlayerSample` i SETTLE
@@ -267,16 +278,8 @@ Testy: `tests/sofa/test_audit1023_p14_tennis_rating.py` (12).
   -2,6] (2 144 wiersze) - tyle daje przypadek, pilnuje go line evidence. Na
   żywo 10-21..10-23: 8 z 12 stron odzyskanych.
 
-> **Miejsce na wyniki - NIE są to decyzje.** W chwili pisania (2026-10-23)
-> pomiary agentów A (piłka: P1 cięcie próbki przy `ENTITY_CONFLICT` +
-> 2 turnieje towarzyskie, P5 slug zawodnika, P6 zera spalonych zawodników
-> i refit rodziny `player_offsides_for`, P3 piłka) i F (P14: liczba meczów
-> dodanych do ratingu tenisa, podpięcie w SHEET) nie są zakończone.
-> Stan w kodzie: `SAMPLE_CONFLICT_CUT_FROM_UTC`, `PLAYER_SLUG_NAME_FROM_UTC`,
-> `PLAYER_OMITTED_ZERO_FROM_UTC` = `None`; „football” poza
-> `PLAYER_HISTORY_ANY_TEAM_SPORTS`; `TENNIS_RATING_SCORE_WINNER_FROM_UTC` =
-> 10-24 00:00Z. Ta sekcja, `CLAUDE.md` i `model-state.md` dostaną wyniki po
-> ich zakończeniu.
+> Wyniki agentów A i F są wyżej w tej sekcji (i w sekcji 5); stan w kodzie:
+> P1, P5, P3-piłka i P14 od 2026-10-24 00:00Z, P6 `None`.
 
 ## 7. Podpięcie i smoke
 
@@ -318,3 +321,116 @@ czyste na dotkniętych plikach, `check_test_registry.py` 0 uwag, pełne
 `pytest tests/sofa`: 5 895 passed, 1 failed -
 `test_audit1023_p3_any_team_football.py::test_the_player_switches_by_day_and_build_clock`
 (test agenta A w toku: nie podmienia `PLAYER_HISTORY_ANY_TEAM_SPORTS`).
+Po sekcji 6 (commit 0a6f39af): pełne `pytest tests/sofa` - 5 918 passed, 0
+failed; z poprawkami przeglądu (dossier: reguły nazw zawodnika) 5 923 passed,
+2 skipped, 0 failed.
+
+## 10. Przegląd iteracyjny 2026-10-23 wieczór
+
+Runda 1: czterech recenzentów nad `625d89e7..HEAD` (tylko odczyt, bez sieci,
+kopia bazy `data/refit_2026-10-23_allin/sofa_copy.db`), potem trzech
+naprawiających (X1 sporty, X2 piłka, X3 dokumentacja / agenci) i ta
+dokumentacja (X4). Nic nie zatwierdzone (bez commita).
+
+**R1 - sporty (4 uwagi, MINOR):**
+- F1 P8: prefiks nicku drużyny 1 wygrywał z dokładnym nickiem drużyny 2 ->
+  poprawione: dokładny nick w obu składach przed prefiksem
+  (`cs2_engine._nick_on_team`, `model_probability`), jak w rozliczeniu;
+  test `test_audit1023_p8_cs2_names.py`.
+- F2 P7: pary bez ratingu czytają człony kolejności map / puli z par
+  ocenionych (niezmierzone) -> zmierzone, kod bez zmian: grupa bez ratingu
+  567 serii / 1 221 map, walk-forward, log loss -0,0017 [-0,0037; +0,0002]
+  wobec wersji bez członów, faworyt +0,4 pp [-2,2; +2,8], nachylenie 1,08 -
+  skalibrowane, `p_map_nr` zostaje (docstring `cs2_engine.p_map_nr`).
+- F3 P12: rozliczenie CS2 biegnące równolegle mogło nadpisać dopisane
+  `model_p` -> poprawione: `settle_cs2.keep_attached_models` pod blokadą
+  pliku; testy w `test_audit1023_p12_cs2_series_only_model.py`.
+- F4 P2: odmowa strony drugiej drużyny nie blokowała `NOT_ON_SOFASCORE` ->
+  poprawione: zostaje `NO_GAME_WITHIN_1H`, pole
+  `absence_contradicted_by_second_team`; test
+  `test_audit1023_p2_fresh_recheck.py`.
+
+**R2 - piłka / tenis (9 uwag, MINOR):**
+- #1, #2, #3, #8 P3 piłka: mecz dwóch rówieśników liczony raz, rówieśnicy
+  bez akceptacji próbki właściwej, pomiar nie odpowiadał regule na żywo,
+  statystyki bez godziny startu -> poprawione (`samples.peer_history`,
+  wiersz na (mecz, rówieśnik), `get_event_stats(kickoff_ts=...)`; test
+  `test_audit1023_p3_peer_acceptance.py`); pomiar powtórzony na regule na
+  żywo: 5 497 dodanych wierszy do druku w 562 meczach, +0,25 pp [-0,82;
+  +1,28], dodane minus bazowe +0,07 [-1,03; +1,10] - piłka zostaje w
+  `PLAYER_HISTORY_ANY_TEAM_SPORTS` (sekcja 6; pomiar sprzed
+  przeglądu nieaktualny). Uwaga: #3 częściowo błędna - stary pomiar też
+  brał rówieśników z 10 najnowszych meczów.
+- #4 refit: P1 / P3 / P5 / P14 poza listami przełączników replayu ->
+  ostrzeżenia (`prepare_refit.UNREPLAYED_AUDIT_SWITCHES`,
+  `replay_switch_warnings`; `fit_sport_confidence.py` dla P7 / P13,
+  `fitted_from.unreplayed_switches`), nigdy odmowa; test
+  `test_refit_audit1023_switches.py`.
+- #5 P14: mecz kobiecy tylko po płci gospodarza -> którakolwiek strona „F”
+  (`tennis_rating.parse_event`); test `test_audit1023_p14_female_either_side.py`.
+- #6 `find_friendly_competitions.py`: klucz
+  `excluded_from_sample_conflict_cut` traktowany jako przejrzany; test
+  `test_find_friendly_reviewed_ids.py`.
+- #7 P5: dossier nie znajdował zawodnika po slugu -> poprawione przez X3
+  (dossier czyta `matched_name` próbki). Notatka SHEET dla sluga
+  (`PLAYER_NAME_SLUG` w `run_sheet.player_coverage_notes`) - nie dodana.
+- #9 `rebuild_plan` bez znaczników P1 / P3 / P5 / P14 - zostawione (niżej).
+
+**R3 - dokumentacja / agenci (10 uwag):** F1 kolejność kroku P12 w
+`sofa-day.md` 1a, F2 agenci nie znali zmian 10-24 (skille), F3 dossier
+a reguły nazw (slug / transliteracja / inner_surname), F4 / F5 / F6 / F7 /
+F8 / F9 rozjazdy dokumentów z kodem (zbiór `{hokej, piłka}`, tabela
+przełączników, otwarte pytania, CLAUDE.md, commands.md, CONFIG.md) -
+wszystkie poprawione przez X3 (test `test_dossier_match_rules.py`). F10
+znacznik nóg CS2 z kalibracji par bez ratingu -> poprawione przez X1:
+`lineup_unrated_rule: "cs2_lineup_unrated_1023"`
+(`cs2_engine.LINEUP_UNRATED_RULE`, `run_sport_confidence`; test
+`test_audit1023_p7_unrated_marker.py`), także w skillu analityka sportu.
+
+**R4 - próba generalna e2e** (kopie APFS 10-23, sieć zablokowana, przełączniki
+audytu przestawione na 10-23 00:00Z, zegary etapów prawdziwego dnia; ON vs OFF):
+bez awarii na każdym etapie offline. SPORT_CONFIDENCE OFF = prawdziwy plik
+(592 nogi), ON 596 (siatkówka 15 -> 19, P13). SHEET 64 973 vs 64 743 wierszy
+(piłka +234, propsy; P14 zmienia p na 5 901 wierszach tenisa, 25 o > 5 pp; bez
+NaN). CONFIDENCE 4 009 vs 4 010; kupon 4 520 vs 4 517 pozycji, 0 naruszeń
+reguł druku, `verify_legs --all` DEFECT 0. Model zawodników hokeja: p zmienia
+się na 136 z 1 026 wierszy (66 o > 5 pp). P12 attach: 116 serii, 392 linie,
+346 z `model_p`, 0 błędów, 8,5 min. Line evidence: CS2 +346 wierszy. 45
+skryptów procedury importuje się i parsuje argumenty. Nie próbowane (most /
+sieć): BOARD, RESOLVE, OFFER, snapshoty SHADOW / CS2, zachowanie
+SPORT_IDENTITY (P2 / P4 / P8 - tylko brak awarii), FIXTURE_CHECK, ocena w
+SETTLE, agenci.
+
+**Incydent R4:** `read_set.py` pomijał `SOFA_RUNS_DIR` i pierwsza próba zapisała
+`runs/sofa/2026-10-23/read_set/` i `dossier/` z prawdziwego kuponu (~20:02
+lokalnie); przywrócone z klona ~20:05 (tylko daty plików nowe). Pliki kuponu,
+`reads.json` i księga nietknięte (md5). Poprawka: `read_set.py`,
+`merge_reads.py`, `build_slip.py`, `verify_legs.py` biorą domyślny
+`--runs-dir` z `SOFA_RUNS_DIR`, a trzy piszące odmawiają przy `SOFA_NOW` na
+prawdziwym katalogu (`tests/sofa/test_scripts_honour_runs_dir_env.py`).
+
+**Runda 2 (R5, przegląd poprawek):** bez blokad; poprawione:
+`settle_cs2.keep_attached_models` bierze pola modelu tylko z rekordu tej samej
+serii i tej samej kolejności drużyn; dossier szuka `matched_name` próbki tylko
+po stronie zawodnika. Obserwacja bez zmiany: P1 w `peer_history` zeruje
+rówieśnika ze starciem 5-19 meczów wstecz (ta sama reguła co próbka, zmierzona).
+Do obserwacji pierwszych dni: nogi zawodników hokeja (line evidence dopasowane
+na starym p), siatkówka (krzywa dopasowana bez P13).
+
+**Zostaje:**
+- `rebuild_plan` bez znaczników P1 / P3 / P5 / P14 (R2 #9): SAMPLES /
+  SHEET dnia 10-24 zbudowane przed 00:00Z zostałyby na starych regułach,
+  a przebudowa by ich nie powtórzyła. Dziś dla 10-24 istnieje tylko
+  `sport_fixtures.json`; sofa-day biegnie po północy.
+- P14 jako odtwarzana flaga refitu (`--tennis-score-winner` w
+  `calibrate_from_cache` / `RatingReplay.from_db` i w `REPLAYABLE_SWITCHES`)
+  - na razie tylko ostrzeżenie.
+- P9 w `fit_player_model.py` (czyta tylko `last`).
+- Znacznik P7 tylko na nogach (`08_confidence_sports.json` ->
+  `11_coupon.json`); rozliczone wiersze CS2 (`settle_cs2.attach_model`) i
+  księga go nie niosą.
+- Notatka SHEET dla dopasowania po slugu (R2 #7, druga połowa).
+
+Bramki naprawiających: X1 5 958 passed, 2 skipped; X2 5 952 passed, 2
+skipped (potem tylko komentarz w `epochs.py`, podzbiór 544 passed); ruff,
+`mypy --strict --no-incremental` czyste, `check_test_registry.py` 0 uwag.

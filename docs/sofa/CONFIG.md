@@ -23,7 +23,8 @@ historia wyników hokej/kosz/siatka/CS2 + linie SHADOW/CS2 ──► fit_sport_c
 | `sofa_confidence_calibration.json` | `fit_confidence.py` (`--classes-only` odświeża tylko `by_class`, reszta bajt w bajt) | `run_confidence.py`, `coupon.py` | krzywe `pooled` / `pooled_by_sport` / `by_market`, sufit każdego rynku; `by_class` — krzywe klas meczu (`women`, `tennis_women`, `tennis_team_cup`), noga klasy czyta tylko je |
 | `sofa_side_correlations.json` | `measure_side_correlations.py` | `joint.py`, `derived.py` | `correlation` (**residual**, nie `raw_correlation`), `residual_pairs` |
 | `sofa_reserve_competitions.json` | ręcznie, z dowodem (kolizje terminów na główną ligę, 2026-10-02) | `reserve_squads.py` → `samples.py`, `football_rating.py` | rozgrywki, w których kluby z `reserve_when_main_in` grają drugim składem pod id pierwszej drużyny; każdy wpis z liczbami `evidence`; brak pliku = tylko reguła kolizji |
-| `sofa_friendly_competitions.json` | ręcznie, z dowodem | `samples.py`, `football_rating.py` | każdy wpis wskazuje plik dowodowy; id, nigdy nazwa; `allowed` — towarzyskie zostawione celowo, z powodem (851, 852: reprezentacje seniorskie) |
+| `sofa_friendly_competitions.json` | ręcznie, z dowodem | `samples.py`, `football_rating.py` | każdy wpis wskazuje plik dowodowy; id, nigdy nazwa; `allowed` — towarzyskie zostawione celowo, z powodem (851, 852: reprezentacje seniorskie); `excluded_from_sample_conflict_cut` — towarzyskie wykluczane tylko przy `SAMPLE_CONFLICT_CUT` (od 2026-10-24, `samples.py`; poza `bet.sofa.comparability`), czytane przez każdy dzień, więc id na przyszły dzień czeka tutaj |
+| `sofa_player_model[.next.<data>].json` | `fit_player_model.py` (kopia bazy, zgoda operatora; `--effective-from <d>` wpisuje `effective_from` do `--out`, czyli pliku staged `.next.<d>.json`) | `player_model.py` (SHADOW, SHADOW_SETTLE) | dzień czyta plik staged z najpóźniejszym `effective_from` <= dniu, którego dzień już się zaczął na zegarze (`player_model.params_path_for`), inaczej zainstalowany; dziś żaden staged |
 | `tennis_rating.json` | `fit_tennis_rating.py --cut <d>` (między dniami) | `run_sheet.py` | `fitted_from.cut_utc`, `features` zawiera `dhigh`/`dtour`, `n` na poziom |
 | `sofa_women_competitions.json` | `find_women_competitions.py` | `run_sheet.py` | rozgrywki kobiece z cache (≥80% meczów kobiecych) — pula `PRIOR_GLOBAL_WOMEN` |
 | `sofa_board_exclusions.json` | ręcznie, z pomiarem | `board.py` | **pusty jest poprawny** — wykluczenie bez pomiaru to cięcie pokrycia w przebraniu oszczędności |
@@ -631,7 +632,11 @@ flaga, zapisana w `install_manifest.json`). Przełączniki, których replay nie
 umie odtworzyć (`FOOTBALL_REFEREE`, `FOOTBALL_PLAYER_SHARE`), dają tylko
 `WARNING` z listą rynków (`markets` z `sofa_referee_effect.json` /
 `sofa_player_share.json`), których krzywe będą dopasowane na centrach bez
-nich (`replay_switch_warnings` w manifeście).
+nich (`replay_switch_warnings` w manifeście). Tak samo przełączniki audytu
+pokrycia 2026-10-23 (`UNREPLAYED_AUDIT_SWITCHES`): instalacja przy włączonych
+P1 / P3 (piłka) / P5 / P14 ostrzega - `calibrate_from_cache` żadnego z nich
+nie odtwarza; `fit_sport_confidence.py` ostrzega dla P7 (CS2) i P13
+(siatkówka) i zapisuje `fitted_from.unreplayed_switches`. Nigdy nie odmawia.
 
 ### 7.10 Krzywe rynków serwisowych tenisa (dopasowane 2026-10-17, **niezainstalowane**)
 

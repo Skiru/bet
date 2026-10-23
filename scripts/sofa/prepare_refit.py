@@ -1984,6 +1984,27 @@ UNREPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     ("FOOTBALL_PLAYER_SHARE", epochs.football_player_share,
      "sofa_player_share.json"),
 )
+# The coverage audit 2026-10-23's switches the cache replay does not carry
+# (review R2 #4): calibrate_from_cache builds a side's history with
+# finish_history without `conflict_cut`, a player's sample with no slug name
+# and no other team, and the tennis rating from load_history() without
+# `score_winner` - an install while one is on fits the curves it names on
+# samples / ratings without it. Warned like UNREPLAYABLE_SWITCHES, never
+# refused. (switch name, its is-on function, what the replay lacks)
+UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
+    ("SAMPLE_CONFLICT_CUT (P1)", epochs.sample_conflict_cut,
+     "every football curve: the history is not cut at an ENTITY_CONFLICT "
+     "clash and the excluded_from_sample_conflict_cut friendlies stay in"),
+    ("PLAYER_HISTORY_ANY_TEAM (P3, football)",
+     lambda date, at=None: epochs.player_history_any_team(date, at, "football"),
+     "the football player curves: no thin sample is topped up with his "
+     "starts for other teams"),
+    ("PLAYER_SLUG_NAME (P5)", epochs.player_slug_name,
+     "the football player curves: no player is found by his slug"),
+    ("TENNIS_RATING_SCORE_WINNER (P14)", epochs.tennis_rating_score_winner,
+     "the tennis curves: the rating replay (RatingReplay.from_db) reads "
+     "load_history without score_winner"),
+)
 
 
 def _flag_key(flag: str) -> str:
@@ -2034,6 +2055,10 @@ def replay_switch_gaps(
             f"{name} is on and the replay cannot carry it: the curves of "
             f"{', '.join(markets) or '(no markets in ' + cfg + ')'} are "
             f"fitted on centres without it")
+    for name, is_on, what in UNREPLAYED_AUDIT_SWITCHES:
+        if _on_through_next_day(is_on, at):
+            warnings.append(
+                f"{name} is on and the replay cannot carry it: {what}")
     return refusals, warnings
 
 

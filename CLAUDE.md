@@ -147,6 +147,11 @@ and a miss recorded before a rule's switch never blocks that rule.
   fouls drawn on a player, card points by half, side / half reds and
   penalties, both-over throw-ins / goal kicks / tackles, shots handicaps.
   Neither the referee nor the share is replayed by a refit yet.
+- **Tennis rating from 2026-10-24** (`TENNIS_RATING_SCORE_WINNER`, audit P14):
+  an Ended match with no `winnerCode` takes its winner from a complete set
+  score (never retired / walkover); SHEET reads it by the day and the build
+  clock; a match is a women's when either side says "F"; rows carry no marker;
+  the installed tennis curves were fitted without it.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a
   past match whose payload contradicts itself loses only the metrics that read
   the contradiction (`metrics.identity_gap_for_metric`: shots identity -> shot
@@ -154,6 +159,11 @@ and a miss recorded before a rule's switch never blocks that rule.
   period sum -> goals and the incident metrics on the 90-minute score);
   tennis `gamesWon` nonsense still drops the whole match. Before it one bad
   shot count dropped the match from every sample (Roma 3-4 Real, 10-14).
+  From 2026-10-24 00:00Z a football side with `ENTITY_CONFLICT` keeps its
+  newest 10 matches after the newest clash instead of emptying
+  (`SAMPLE_CONFLICT_CUT`; gap detail "sample cut at the clash"; fewer than 10
+  after it = empty as before; two friendly tournaments excluded for it only,
+  `excluded_from_sample_conflict_cut` in `config/sofa_friendly_competitions.json`).
 - What each estimator does today (ratings, dispersion, stretches, cup strength,
   opponent correction, new markets...) and when it switched on: model-state.md.
 
@@ -190,17 +200,18 @@ and a miss recorded before a rule's switch never blocks that rule.
 - **Players** (football): sample = his starts (Superbet voids a non-starter;
   SETTLE `PLAYER_NOT_STARTED`); a name `players.match_player` misses is tried by
   whole tokens (`match_rule: "tokens"`), then surname + first-name prefix
-  (`match_rule: "surname"`), and from 2026-10-24 00:00Z last by his Sofascore
+  (`match_rule: "surname"`), then `transliteration`, `inner_surname` (10-21,
+  `FOOTBALL_PLAYER_COVERAGE`), and from 2026-10-24 00:00Z last by his Sofascore
   slug (`match_rule: "slug"`, `PLAYER_SLUG_NAME`); SETTLE grades the
   `matched_name` from his own squad (a candidate in the other squad is
   PLAYER_AMBIGUOUS). From 2026-10-24 a sample still thin after the 20-match
-  window is topped up with the same player id's starts for other teams (the
-  sample opponents' cached lineups only, never by name; `THIN_SAMPLE` gap
-  note; `PLAYER_HISTORY_ANY_TEAM`, `samples.any_team_sample`). Players'
+  window is topped up with the same player id's starts for other teams (from
+  cached lineups of the sample proper's opponents' own newest 20 matches, each
+  admitted as the sample proper admits a match - `samples.peer_history` - one
+  row per (match, peer), never asked, never by name; a `THIN_SAMPLE` gap, detail `PLAYER_HISTORY_ANY_TEAM:`,
+  marks a sample that IS used; `samples.any_team_sample`). Players'
   zero offsides from a team's rebuilt 0-0 (`PLAYER_OMITTED_ZERO`) measured
-  worse and off. An `ENTITY_CONFLICT` side keeps its newest 10 matches
-  after the newest clash instead of emptying (`SAMPLE_CONFLICT_CUT`, from
-  2026-10-24; fewer than 10 after it = empty as before).
+  worse and off.
 - **Start clock** = earliest of RESOLVE's clock, Superbet's start signal
   (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds dropped for
   every reader) and FIXTURE_CHECK's fresh `/event` start. A postponed /
@@ -284,7 +295,9 @@ measurement of Superbet's price and feed nothing else.
   model-state.md "Coverage audit 2026-10-23"): a refusal read from a cached
   team page within 3 h of the start is re-asked fresh whatever its reason,
   then the other side's page is asked too (`IDENTITY_FRESH_RECHECK_ALL`, P2;
-  ~120-180 extra requests a day); a volleyball event with no resolved side is
+  ~120-180 extra requests a day; a second page showing the game but refusing
+  it blocks `NOT_ON_SOFASCORE`, `absence_contradicted_by_second_team`); a
+  volleyball event with no resolved side is
   the query team's ONE game at Superbet's exact start, named >= 90, the
   opponent agreeing weakly and not vetoed by its own query
   (`SPORT_QUERY_ANCHOR`, P4, `match_method` QUERY_ANCHOR; backtest 0 wrong of
@@ -333,12 +346,15 @@ measurement of Superbet's price and feed nothing else.
   `config/sofa_player_model.next.<YYYY-MM-DD>.json`); none staged.
 - CS2 from 2026-10-24 00:00Z: a pair whose team ids are not both rated reads
   the lineup gap through its own calibration (`CS2_LINEUP_ELO_UNRATED`, P7,
-  `cs2_engine.fit_unrated`; rated pairs unchanged); the engine finds a
-  player's nickname by prefix as settlement does (`NAME_RULES_1023`); a series
+  `cs2_engine.fit_unrated`; rated pairs unchanged; such a leg carries
+  `lineup_unrated_rule`); the engine finds a player's nickname as settlement
+  does - the exact nickname on either roster first, then a prefix
+  (`NAME_RULES_1023`); a series
   graded from its result alone carries `model_p` (`CS2_SERIES_ONLY_MODEL_P`,
   P12, by the settle clock; earlier series once through `settle_cs2.py
   --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23`,
-  the 10-24 morning before `refresh_line_evidence.py`) - line evidence only.
+  the 10-24 morning before `refresh_line_evidence.py`; a settle writing
+  meanwhile keeps the attached `model_p`) - line evidence only.
 - A volleyball match followed by a golden set (Sofascore AET / AGS,
   `shadow.GOLDEN_SET_DESCRIPTIONS`) is FINISHED and graded on the match's own
   sets - winner by the sets, never `winnerCode` (the tie's winner on 28 of 90
@@ -451,6 +467,13 @@ day without a go; with one, `run_pipeline.py --only SHEET` by hand. Curves need
 nothing (CONFIDENCE reads them on every rebuild). `rebuild_plan.py` re-runs SHEET
 itself when a switch is on for the day and the build clock and a row of its
 sport lacks the switch's marker (a sheet without that sport never re-runs).
+The coverage audit's P1 / P3 / P5 / P14 carry no such marker: a 10-24
+SAMPLES / SHEET built before 00:00Z stays on the old rules, and moving one of
+them into a built day needs SAMPLES / SHEET re-run by hand - rebuild_plan
+will not see it. Their curves are
+not replayed: `prepare_refit.py` warns on install (`replay_switch_warnings`)
+while P1 / P3 (football) / P5 / P14 is on, `fit_sport_confidence.py` for P7 /
+P13 (`fitted_from.unreplayed_switches`); neither refuses.
 
 Daily loops spawn each step through `run_pipeline.py` (fresh code per step);
 only the loop's own orchestration is old code until it ends - a loop started

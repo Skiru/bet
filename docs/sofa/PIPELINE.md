@@ -2277,6 +2277,9 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   względu na powód (nie tylko `NO_GAME_WITHIN_1H`), raz na drużynę na
   przebieg, a potem pytana jest strona drugiej drużyny (jej id albo id
   z zapytania). Pola rekordu `second_team_*`, `identified_by_second_team`.
+  `NOT_ON_SOFASCORE` wymaga zgody strony drugiej drużyny: jeśli druga strona
+  pokazuje mecz, ale go odrzuca (AMBIGUOUS, START_GAP...), zostaje
+  `NO_GAME_WITHIN_1H` z polem `absence_contradicted_by_second_team`.
   Koszt: do ~180 dodatkowych zapytań dziennie (~15 s mostu).
 - **Siatkówka, kotwica zapytania** (P4, `SPORT_QUERY_ANCHOR`, tylko
   siatkówka): gdy żadna strona nie ma rozwiązanego id, mecz to jedyny mecz
@@ -2288,7 +2291,7 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   Hokej i koszykówka zmierzone czysto, ale poza zakresem - decyzja operatora.
 - **Zawodnicy hokeja z innych drużyn** (P3 / K7,
   `PLAYER_HISTORY_ANY_TEAM`, zbiór `PLAYER_HISTORY_ANY_TEAM_SPORTS` =
-  hokej): próbka zawodnika przed meczem obejmuje też mecze
+  hokej i piłka; piłka - punkt „Piłka, zawodnicy” niżej): próbka zawodnika przed meczem obejmuje też mecze
   drużyn-rówieśników (rywali obu drużyn z wczytanych meczów), czytane po
   stronie składu; liczą się tylko do jego próbki, nigdy do puli. Zawodnika
   nieobecnego w obu drużynach szuka się wśród rówieśników tą samą ścisłą
@@ -2309,8 +2312,9 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   `player_lists_rule: "both_sides"`. `fit_player_model.py` czyta tylko `last`.
 - **Reguły nazw** (P8, `NAME_RULES_1023`): CS2 „prospect” = znacznik składu
   „prospects” (Inner Circle Prospect / Prospects; SPORT_IDENTITY i
-  rozliczenie), nick zawodnika w silniku CS2 po prefiksie jak w rozliczeniu
-  (jeden nick >= 5 liter); hokej: transliteracje w nazwiskach zawodników
+  rozliczenie), nick zawodnika w silniku CS2 jak w rozliczeniu
+  (`cs2.MapResult.player`): najpierw dokładny nick w obu składach, prefiks
+  (jeden nick >= 5 liter) dopiero, gdy żaden skład go nie ma; hokej: transliteracje w nazwiskach zawodników
   (Stuetzle / Stützle, Yegor / Egor; tylko równość złożonych tokenów, wiersz
   `name_rule: "translit_1023"`). Kosz nigdy nie składa (20 fałszywych par).
 - **CS2, rating składu bez bramki id drużyny** (P7,
@@ -2318,11 +2322,21 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   `MIN_MAPS_RATED` map, dostaje p z luki ratingu składu przez własną
   kalibrację (`cs2_engine.fit_unrated`); pary ocenione bez zmian.
   Walk-forward: 567 serii zyskuje liczbę, dodane skalibrowane (faworyt map
-  +1,7 pp [-0,9; +4,3]). Bez refitu krzywych.
+  +1,7 pp [-0,9; +4,3]). Linie z numerem mapy dla takiej pary czytają
+  `p_map_nr` z członami kolejności map / puli dopasowanymi na parach
+  z ratingiem; zmierzone na grupie bez ratingu (567 serii / 1 221 map,
+  walk-forward): log loss -0,0017 [-0,0037; +0,0002] wobec wersji bez
+  członów, faworyt +0,4 pp [-2,2; +2,8], nachylenie 1,08 - skalibrowane.
+  Noga wyceniona tą kalibracją (bez niej nie ma liczby albo jest inna) niesie
+  `lineup_unrated_rule: "cs2_lineup_unrated_1023"` (tylko nogi; rozliczone
+  wiersze CS2 bez znacznika). Bez refitu krzywych.
 - **CS2, `model_p` serii rozliczonych z samego wyniku** (P12,
   `CS2_SERIES_ONLY_MODEL_P`, wg zegara rozliczenia): tylko dla line
   evidence; serie sprzed przełącznika jednorazowo przez
   `settle_cs2.py --attach-series-only-model` (RUNBOOK, 10-24 rano).
+  Rozliczenie CS2 biegnące w trakcie dopisywania zachowuje dopisane `model_p`
+  (`settle_cs2.keep_attached_models`, ponowny odczyt pod blokadą); ponowne
+  uruchomienie dopisywania jest bezpieczne (idempotentne).
 - **Złoty set w siatkówce** (P13): mecz, po którym rozegrano złoty set
   (Sofascore AET / AGS), jest `FINISHED` i rozliczany z własnych setów
   meczu - zwycięzca z setów, nigdy z `winnerCode` (na 28 z 90 meczów w cache
@@ -2337,15 +2351,32 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
 - **Tenis, zwycięzca z wyniku w setach** (P14,
   `TENNIS_RATING_SCORE_WINNER`, od 10-24): mecz „Ended” bez `winnerCode`
   bierze zwycięzcę z pełnego wyniku w setach (nigdy krecz / walkower);
-  SHEET `load_tennis_rating` czyta przełącznik po dniu i zegarze; +173 mecze
+  mecz jest kobiecy, gdy którakolwiek strona ma „F”; SHEET `load_tennis_rating` czyta przełącznik po dniu i zegarze; +173 mecze
   historii, ruch p na 10-23 najwyżej 0,018.
 - **Piłka, zawodnicy** (od 10-24): cienka próbka uzupełniana startami tego
   samego id w innych drużynach (P3, `PLAYER_HISTORY_ANY_TEAM_SPORTS` z
-  piłką); slug Sofascore jako ostatnia reguła nazwy (P5, `match_rule
+  piłką): rówieśnicy = przeciwnicy z właściwej próbki strony; najnowsze 20
+  meczów każdego z nich przechodzi tę samą akceptację co próbka
+  (`samples.peer_history`: zakończone, przed startem, bez towarzyskich, jeden
+  wpis na mecz, RESERVE_SQUAD, jeden skład na id / cięcie P1), jeden wiersz
+  na (mecz, rówieśnik), statystyki czytane z godziną startu (wiersz
+  tymczasowy nie dowodzi zera), tylko składy z cache, nigdy po nazwisku.
+  Pomiar powtórzony 10-23 na tej regule (mecze 2026-08-01..10-20, 3 371):
+  dodane wiersze do druku 5 497 (562 mecze), realised - confidence +0,25 pp
+  [-0,82; +1,28], dodane minus bazowe +0,07 pp [-1,03; +1,10] -> WŁĄCZONE.
+  Slug Sofascore jako ostatnia reguła nazwy (P5, `match_rule
   "slug"`, SETTLE po `matched_name`). Zera spalonych z 0-0 drużyny (P6)
   wyszły gorzej - wyłączone. P1: strona z `ENTITY_CONFLICT` zachowuje
   najnowsze 10 meczów po starciu zamiast pustej próbki
-  (`SAMPLE_CONFLICT_CUT`).
+  (`SAMPLE_CONFLICT_CUT`; `find_friendly_competitions.py` traktuje klucz
+  `excluded_from_sample_conflict_cut` jako przejrzany).
+- **Refit a te przełączniki**: instalacja przy włączonych P1 / P3 (piłka) /
+  P5 / P14 ostrzega (`replay_switch_warnings`) - `calibrate_from_cache`
+  żadnego z nich nie odtwarza; `fit_sport_confidence.py` ostrzega dla P7
+  (CS2) i P13 (siatkówka) i zapisuje `fitted_from.unreplayed_switches`.
+  Nigdy nie odmawia. `rebuild_plan` nie ma znacznika P1 / P3 / P5 / P14:
+  SAMPLES / SHEET dnia 10-24 zbudowane przed 00:00Z zostałyby na starych
+  regułach.
 
 ## 10b. COUPON_ASSEMBLY — `11_coupon.json`, jedyny artefakt kuponu
 

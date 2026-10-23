@@ -3092,10 +3092,16 @@ def identity_fresh_recheck_all(date: str,
 # Football (samples.any_team_sample: a thin sample topped up with the same
 # player id's starts for the sample opponents' teams, cached lineups only;
 # scripts/sofa/measure_audit1023_p3_any_team_football.py, target matches
-# 2026-08-01..10-20, 3,371 matches, installed curves, match bootstrap): added
-# printable rows 4,247 (458 matches) realise - confidence +0.52 pp
-# [-0.68, +1.73], added minus base +0.36 pp [-0.92, +1.61]; rows that existed
-# are unchanged by construction (top-up only below min_sample) -> ON.
+# 2026-08-01..10-20, 3,371 matches, installed curves, match bootstrap). Re-run
+# 2026-10-23 on the final live rule (review R2 #1-#3, #8: peers = opponents of
+# the sample proper; each peer's matches through samples.peer_history - the
+# sample proper's acceptance, one row per (match, peer); statistics read with
+# the kick-off; histories under P1): added printable rows 5,497 (562 matches)
+# realise - confidence +0.25 pp [-0.82, +1.28], added minus base +0.07 pp
+# [-1.03, +1.10]; no market's added interval excludes zero (shots UNDER -0.94
+# [-3.24, +1.19], 1,316 rows); rows that existed are unchanged by construction
+# (top-up only below min_sample) -> ON. (First run, before the review:
+# 4,247 rows, +0.52 pp [-0.68, +1.73].)
 PLAYER_HISTORY_ANY_TEAM_FROM_UTC: datetime | None = datetime(
     2026, 10, 24, 0, 0, 0, tzinfo=UTC)
 PLAYER_HISTORY_ANY_TEAM_SPORTS: frozenset[str] = frozenset(

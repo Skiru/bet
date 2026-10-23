@@ -49,8 +49,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>     
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only SHADOW_SETTLE   # settle the hockey / basketball / volleyball day
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D-1> --only CS2_SETTLE      # settle the CS2 day
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --sweep-from <D-7> --sweep-to <D-2>   # CS2 re-settle sweep
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model --sweep-from <d> --sweep-to <d> [--dry-run]   # offline, P12: model_p onto SETTLED series-only rows without one; refuses SWITCH_OFF; once 2026-10-24 before refresh_line_evidence.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_shadow.py --date <D+1> --kickoff-before <D+1>T05:00:00Z   # D's late games (SPORT_LATE_WINDOW; the loops do it; settle_cs2.py alike)
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py [--days 14] [--dry-run]   # bridge; the sports' finished games enter the history (run first by refresh_line_evidence.py)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_sport_history.py [--days 14] [--sport hockey|basketball|volleyball] [--dry-run] [--both-sides-only]   # bridge; the sports' finished games enter the history (run first by refresh_line_evidence.py); --both-sides-only offline: only the P9 last_side lists (every refresh writes them too)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> [--dry-run] [--skip-sport-rows] [--skip-history]   # every morning, bridge up first (step 0 refreshes the sports' history), after D-1 is recorded, before D's CONFIDENCE (sofa-day 1a: bridge part first, fits with --skip-history beside RESOLVE); ~15-20 min, the sport fits in parallel; exit 1 = a sport's row fit failed, earlier rows reused
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>   # every morning; statistic gaps close days later; no bridge = exit 1
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <d> --to <d> [--sport all]   # after D-1's settle; exit 1 on a finding
@@ -81,6 +82,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --di
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]   # sport curves
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]   # config/sofa_settleability.json
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_player_model.py --out <f> --db <copy> --player-team-from-side [--any-team] [--sport hockey|basketball] [--effective-from <d>]   # player constants; --any-team = P3 reader; --effective-from writes effective_from into --out (a staged sofa_player_model.next.<d>.json, player_model.params_path_for)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit; without the dir no price-band cap for the sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_count_dispersion.py --before <d> --cases <dir> [--write]   # without --write a dry run
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_calibration.py --from <d> --to <d> [--epoch stats_only] [--write-config --before <d>]   # PASS n >= 300 and abs gap <= 2 pp
@@ -153,6 +155,17 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_selection_walk_forward.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_read_value.py --from <d> --to <d> [--md-out f]   # do analyst / verifier reads improve the coupon: KEEP vs removed legs, match bootstrap
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_red_flags.py --from <d> --to <d> [--md-out f]   # red flags on printed legs; offline, ~20 s (T-RED-FLAG-SCRIPT)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p1_conflict_cut.py --db-path <copy> [--from <d>] [--to <d>]   # coverage audit P1 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p2_recheck_cost.py [--from <d>] [--to <d>]   # coverage audit P2 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p3_any_team_football.py --db-path <copy> [--from <d>] [--to <d>]   # coverage audit P3 football (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p3_player_any_team.py [--sport hockey|basketball] [--db <copy>]   # coverage audit P3 hockey / basketball (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p4_query_anchor.py [--db-path <copy>] [--from <d>] [--to <d>]   # coverage audit P4 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p5_slug.py --db-path <copy> [--days N]   # coverage audit P5 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p6_offsides.py [--db-path <copy>]   # coverage audit P6 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p7_cs2_lineup_unrated.py --db-path <copy> [--before <d>]   # coverage audit P7 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p9_both_sides.py [--db-path <copy>] [--days N]   # coverage audit P9 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p13_golden_set.py [--db-path <copy>]   # coverage audit P13 (read-only; DB copy)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p14_tennis_rating.py --db-path <copy> --date <d>   # coverage audit P14 (read-only; DB copy)
 ```
 
 ## Chat slip to a target price (outside the pipeline; read-only, no network)

@@ -73,6 +73,22 @@ LATE_RESOLVE (new fixtures only) and SAMPLES / SHEET `--event-ids` (open
 fixtures under a sample switch); never run those stages by hand. In
 `03_samples.json`, an entry with `identity_gate: "per_family"` lost only the
 metric family a contradictory payload touches, not the whole past match.
+From 2026-10-24 00:00Z (coverage audit; model-state.md "Coverage audit 2026-10-23"):
+a football `ENTITY_CONFLICT` gap whose detail says "sample cut at the clash" is a kept
+sample (its matches after the newest clash), not an absence ("side left empty" = the old
+empty side). A footballer's thin sample may be topped up with his
+starts for other teams, by Sofascore player id from cached lineups of the sample
+opponents' own matches: a `THIN_SAMPLE` gap whose detail starts `PLAYER_HISTORY_ANY_TEAM`
+marks a sample that IS used (those observations' opponent / venue are the other team's;
+`observations` may exceed `squad_matches`). Player `match_rule` `slug` (his Sofascore slug
+holds exactly Superbet's name tokens; tried after `tokens`, `surname`, `transliteration`,
+`inner_surname`) is a name rule like the others - SETTLE grades `matched_name`. Hockey
+player rows read his other teams' games too and carry `player_history_rule: "any_team_peers"`, `player_lists_rule:
+"both_sides"`, `name_rule: "translit_1023"`. Volleyball `match_method: "QUERY_ANCHOR"`
+(the query team's one game at Superbet's exact start, opponent agreeing weakly, never
+learned as a name): check both names before trusting a leg. A volleyball match followed
+by a golden set (Sofascore AET / AGS) is graded on its own sets; the golden set counts in
+nothing and `winnerCode` is never read.
 
 Exit codes everywhere: **0 OK, 1 PARTIAL, 2 FAILED**. PARTIAL on RESOLVE /
 OFFER / SAMPLES (fixture gaps) or SPORT_CONFIDENCE (a sport `NOT_CALIBRATED`)

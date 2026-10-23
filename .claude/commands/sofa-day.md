@@ -72,15 +72,20 @@ mkdir -p runs/sofa/<D>
 
 Name a non-zero `exit` (no bridge, a refusal); the fits run on what is cached. When
 `BRIDGE_PART_DONE` is in the log (never earlier - two writers on the bridge and the DB),
-start step 2's RESOLVE and, beside it, the fits:
+start step 2's RESOLVE.
+
+**2026-10-24 only (coverage audit P12), after the settler has returned and before the fits:**
+give the CS2 series settled from their result alone their `model_p` (offline, files only,
+~10 min, idempotent; always `run_in_background: true` - ~10 min is the foreground limit -
+and wait for its `attach exit` line):
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23 > runs/sofa/<D>/cs2_series_only_model.log 2>&1; echo "attach exit $?"`.
+Each date prints `"stage": "CS2_SERIES_ONLY_MODEL"`; `SWITCH_OFF` on any date = the clock is
+before 2026-10-24 00:00Z - stop and report; `NO_FILE` is normal for a date without CS2.
+Report the summed `with_model_p` / `errors`. Only then start the fits beside RESOLVE:
 
 ```bash
 nohup sh -c 'PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> --skip-history; echo "EXIT $?"' > runs/sofa/<D>/refresh_line_evidence.log 2>&1 &
 ```
-
-Once, on 2026-10-24 only (coverage audit P12), BEFORE that command: give the CS2 series
-settled from their result alone their `model_p` (offline, ~10 min):
-`PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23`.
 
 `EXIT 0` written; 1 = a sport's row fit failed (that sport reuses earlier rows - name it;
 a `Traceback` in the log is a crash, also 1) - with `--skip-history` the history /

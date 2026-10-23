@@ -215,9 +215,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-onl
     --sweep-from 2026-09-28 --sweep-to 2026-10-23
 ```
 
-Offline (baza tylko czytana), ~10 min, idempotentne; dopisuje `model_p` serii
+Offline (baza tylko czytana; zapisuje `runs/sofa/cs2/<d>/settled.json` pod blokadą pliku), ~10 min, idempotentne; dopisuje `model_p` serii
 rozliczonych z samego wyniku (próba na kopiach: 346 z 392 linii W/L, 116
-serii). Przy wyłączonym przełączniku odmawia (`SWITCH_OFF`). Naprawa list
+serii). Przy wyłączonym przełączniku odmawia (`SWITCH_OFF`). Rozliczenie
+CS2 pętli biegnące w tym czasie zachowuje dopisane `model_p` (ponowny odczyt
+pod blokadą); ponowne uruchomienie jest bezpieczne. Naprawa list
 obu drużyn (P9, `refresh_sport_history.py --both-sides-only`) już przeszła
 2026-10-23 ~15:20Z (42 892 wiersze `last_side`); dalej robi ją codzienny
 `refresh_sport_history.py`. Raport:

@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -54,7 +55,12 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import dossier, h2h, prematch_lineups  # noqa: E402
+from bet.sofa import (  # noqa: E402
+    dossier,
+    h2h,
+    prematch_lineups,
+    timeutil,  # noqa: E402
+)
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     READ_REQUIRED_EVENTS,
@@ -172,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--buffer", type=int, default=0)
     ap.add_argument("--unread", action="store_true")
     ap.add_argument("--split", type=int, default=0)
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--out-dir")
     ap.add_argument("--db-path", default=None)
     ap.add_argument("--no-dossier", action="store_true")
@@ -181,6 +187,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-lineups", action="store_true",
                     help="no Sofascore pre-match line-up request")
     args = ap.parse_args(argv)
+    frozen = timeutil.frozen_clock_refusal(args.runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     run = Path(args.runs_dir) / args.date
     try:
         sets = read_set(run, args.buffer, args.unread)

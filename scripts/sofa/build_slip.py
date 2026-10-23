@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -43,7 +44,12 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import dossier, h2h, prematch_lineups  # noqa: E402
+from bet.sofa import (  # noqa: E402
+    dossier,
+    h2h,
+    prematch_lineups,
+    timeutil,  # noqa: E402
+)
 from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
@@ -166,9 +172,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="read family_record.json as it is (no ledger / database access)",
     )
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--md-out", default=None)
     args = ap.parse_args(argv)
+    frozen = timeutil.frozen_clock_refusal(args.runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     if args.target <= 1.0 or args.slips < 1 or args.max_legs < 1 or args.reserve < 0:
         ap.error("--target > 1, --slips >= 1, --max-legs >= 1, --reserve >= 0")
     if not 1.0 < args.min_odds <= args.max_odds:

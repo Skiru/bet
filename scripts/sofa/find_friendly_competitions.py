@@ -51,10 +51,17 @@ NAME_MARKERS = re.compile(
 )
 
 
+# Every list of the friendlies file a competition is already decided in: the
+# comparability lists, and `excluded_from_sample_conflict_cut` - the ids added
+# for epochs.SAMPLE_CONFLICT_CUT_FROM_UTC, which must not be proposed again
+# (and moved into `excluded`, read by every day alike; review R2 #6).
+REVIEWED_KEYS = ("excluded", "allowed", "excluded_from_sample_conflict_cut")
+
+
 def reviewed_ids(path: Path = FRIENDLIES_PATH) -> set[int]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     out: set[int] = set()
-    for key in ("excluded", "allowed"):
+    for key in REVIEWED_KEYS:
         for entry in raw.get(key) or []:
             if isinstance(entry, dict) and isinstance(entry.get("competition_id"), int):
                 out.add(entry["competition_id"])

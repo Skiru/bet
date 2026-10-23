@@ -630,8 +630,8 @@ wieczornego rebuildu operatora.
 ## 14. Decyzje do podjęcia (operator, później)
 
 > **Decyzja operatora 2026-10-23 ~13:50Z: ALL IN.** Wdrożenie, stan
-> przełączników (P2, P3-hokej, P4, P7, P8, P9, P12, P13, P14 od 2026-10-24
-> 00:00Z; P11 wyłączone; P1 / P5 / P6 / P3-piłka - pomiar w toku) i pomiary:
+> przełączników (P1, P2, P3 hokej + piłka, P4, P5, P7, P8, P9, P12, P13, P14
+> od 2026-10-24 00:00Z; P6 zmierzone gorzej i P11 - wyłączone) i pomiary:
 > [AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md](AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md).
 > Tekst poniżej to stan sprzed decyzji.
 

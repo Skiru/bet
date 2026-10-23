@@ -815,7 +815,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit-fixtures", type=int, default=None,
                         help="with --live: ask at most this many fixtures")
     parser.add_argument("--out-dir", default=None)
-    parser.add_argument("--runs-dir", default="runs/sofa")
+    parser.add_argument("--runs-dir",
+                        default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     args = parser.parse_args(argv)
     try:
         return run(args)

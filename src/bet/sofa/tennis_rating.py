@@ -331,7 +331,11 @@ def parse_event(
         sets=tuple(sets),
         minutes=minutes,
         completed=description == "Ended" and len(sets) >= 2,
-        female=home.get("gender") == "F",
+        # P14 (score_winner): a newly admitted type-0 side may carry no
+        # gender - either side's "F" makes the match a women's (review R2 #5);
+        # off: the home side's, as before.
+        female=(home.get("gender") == "F"
+                or (score_winner and away.get("gender") == "F")),
     )
 
 

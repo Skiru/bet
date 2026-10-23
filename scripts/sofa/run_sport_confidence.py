@@ -48,7 +48,7 @@ import sqlite3
 import sys
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
@@ -171,6 +171,11 @@ def _utc(raw: str) -> datetime:
     return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
 
+def _cs2_side_key(ev: Any, line: Any) -> tuple[Any, ...]:
+    return (str(ev.superbet_event_id), line.family, line.map_nr, line.subject,
+            line.line, line.side)
+
+
 @dataclass
 class DbForecaster:
     """The score model / CS2 engine as of `at`, from the database read-only.
@@ -191,6 +196,9 @@ class DbForecaster:
     _cs2: tuple[list[cs2_engine.MapRow], dict[int, scf.SeriesRow],
                 cs2_engine.RatingModel] | None = None
     _cs2_exposure: cs2_engine.ExposureBook | None = None
+    # (superbet event, family, map, subject, line, side) of the CS2 sides
+    # whose p came from the unrated pairs' calibration (P7, unrated_rule)
+    _cs2_unrated: set[tuple[Any, ...]] = field(default_factory=set)
 
     @property
     def _day(self) -> str:
@@ -303,6 +311,12 @@ class DbForecaster:
             (str(ev.superbet_event_id), int(line.market_id), str(line.subject),
              line.line, str(line.side)))
 
+    def unrated_rule(self, sport: str, ev: Any, line: Any) -> bool:
+        """True when this CS2 side's p was priced through the unrated pairs'
+        lineup calibration (epochs.CS2_LINEUP_ELO_UNRATED, audit 2026-10-23
+        P7); read after probability()."""
+        return sport == "cs2" and _cs2_side_key(ev, line) in self._cs2_unrated
+
     def refusal(self, sport: str, fixture: Mapping[str, Any]) -> str | None:
         """NO_LEAGUE_RATE: a score-model game whose competition has no rate
         of its own (epochs.LEAGUE_RATE_RULE_FROM_UTC); else None."""
@@ -334,6 +348,23 @@ class DbForecaster:
                 exposure=self._cs2_counts(maps),
                 series_rounds=epochs.cs2_series_rounds(str(self.date), self.at),
                 **name_rules)
+            if (mp is not None and getattr(ratings, "lineup_unrated", False)
+                    and not ratings.book.rated(t1, t2)):
+                # audit 2026-10-23 P7: the side's number differs from (or does
+                # not exist under) the model without the unrated calibration -
+                # the leg is P7's and says so (review R3 F10)
+                off = cs2_engine.model_probability(
+                    line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
+                    maps, replace(ratings, lineup_unrated=False),
+                    bool(fixture["home_is_team1"]),
+                    team_rounds_race=epochs.cs2_team_rounds_race(
+                        str(self.date), self.at),
+                    map_identity=epochs.cs2_map_identity(str(self.date), self.at),
+                    exposure=self._cs2_counts(maps),
+                    series_rounds=epochs.cs2_series_rounds(str(self.date), self.at),
+                    **name_rules)
+                if off is None or off.p != mp.p:
+                    self._cs2_unrated.add(_cs2_side_key(ev, line))
             return None if mp is None else mp.p
         from bet.sofa.score_model import line_probability, overtime_minutes
 
@@ -668,6 +699,11 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.DC_PAIR_MARKETS.get(sport, {}):  # type: ignore[call-overload]
                 legs[-1]["dc_pair_rule"] = epochs.BASKETBALL_DC_PAIR
+            unrated = getattr(forecaster, "unrated_rule", None)
+            if unrated is not None and unrated(sport, ev, ln):
+                # audit 2026-10-23 P7: priced through the unrated pairs'
+                # lineup calibration (review R3 F10)
+                legs[-1]["lineup_unrated_rule"] = cs2_engine.LINEUP_UNRATED_RULE
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.PLAYER_V2_MARKETS.get(sport, frozenset()):  # type: ignore[call-overload]
                 legs[-1]["player_v2_rule"] = epochs.BASKETBALL_PLAYER_V2

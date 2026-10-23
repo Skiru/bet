@@ -40,6 +40,7 @@ import json
 import pickle
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -127,10 +128,36 @@ def no_curve_reason(key: str, fitted_keys: set[str]) -> str:
     return "NO_HISTORY_ROWS"
 
 
+# The coverage audit 2026-10-23's switches this history replay does not carry
+# (review R2 #4): a fit for a day they are on fits the curves on histories /
+# ratings without them - warned on stderr and named in fitted_from
+# (`unreplayed_switches`), never refused. (sport, switch, is-on, what is lacking)
+UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, str, Callable[..., bool], str], ...] = (
+    ("cs2", "CS2_LINEUP_ELO_UNRATED (P7)", epochs.cs2_lineup_elo_unrated,
+     "the walk-forward rows read no lineup rating for unrated team ids "
+     "(cs2_engine.fit_unrated)"),
+    ("volleyball", "VB_GOLDEN_SET (P13)", epochs.vb_golden_set,
+     "parse_history(golden_set=False): the AET / AGS matches stay out of "
+     "the history"),
+)
+
+
+def unreplayed_switches(sport: str, before: str) -> list[str]:
+    """The UNREPLAYED_AUDIT_SWITCHES of `sport` on for `before` (its first
+    build, 00:00Z), each as a warning line."""
+    first = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC)
+    return [f"{name} is on for {before} and the replay cannot carry it: {what}"
+            for s, name, is_on, what in UNREPLAYED_AUDIT_SWITCHES
+            if s == sport and is_on(before, first)]
+
+
 def fit_sport(sport: str, before: str, args: argparse.Namespace,
               db_path: str, runs_dir: str) -> tuple[dict[str, Any],
                                                      dict[str, list[scf.Row]]]:
     before_ts = scf.day_ts(before)
+    unreplayed = unreplayed_switches(sport, before)
+    for line in unreplayed:
+        print(f"WARNING: {sport}: {line}", file=sys.stderr)
     fresh = sport == "basketball" and bb_freshness_on(before, args.bb_freshness)
     # the rules of the day the fit is for (its first build, 00:00Z): audit
     # 2026-10-13 A2 (league rate) and A3 + C8 (basketball overtime)
@@ -261,6 +288,7 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_freshness": fresh,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
+            **({"unreplayed_switches": unreplayed} if unreplayed else {}),
             **({"league_season_restart": True} if restart else {}),
             **({"bb_pace": True} if pace else {}),
             **({"bb_pace_level": True} if level else {}),

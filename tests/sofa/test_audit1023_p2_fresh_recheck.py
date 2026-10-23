@@ -149,3 +149,36 @@ def test_the_switch_reads_the_day_and_the_build_clock(
     assert not epochs.identity_fresh_recheck_all("2026-10-24",
                                                  at - timedelta(seconds=1))
     assert epochs.identity_fresh_recheck_all("2026-10-24", at)
+
+
+
+def test_on_the_second_teams_refusal_blocks_the_absence_verdict(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review R1 F4: the first team's fresh page holds no game within 12 h
+    (the proven absence), but the second team's page shows the game and
+    refuses it (two such games near the start: AMBIGUOUS) - that is not
+    proof of absence."""
+    monkeypatch.setattr(epochs, "IDENTITY_FRESH_RECHECK_ALL_FROM_UTC", ON)
+    week = _listed(1, (10, "Sparta Praha"), (30, "Other"), KICK + timedelta(days=3))
+    twins = [_listed(eid, (10, "Sparta Praha"), (20, "Kometa Brno"),
+                     KICK + timedelta(minutes=m)) for eid, m in ((2, 10), (3, 20))]
+    teams = {"Sparta Praha": 10, "Kometa Brno": 20}
+
+    def run(second_page: list[dict[str, Any]]) -> dict[str, Any]:
+        (r,), _ = si.identify([_ev("1", "Sparta Praha", "Kometa Brno")],
+                              FakeClient({10: [week], 20: second_page}),
+                              StaleCache({10: [], 20: []}),
+                              lambda s, n: teams.get(n), NEAR, "2026-10-06",
+                              absence=True)
+        return r
+
+    r = run(twins)
+    assert r["status"] == si.NOT_IDENTIFIED
+    assert r["second_team_reason"] == "AMBIGUOUS"
+    assert r["reason"] == "NO_GAME_WITHIN_1H"  # not NOT_ON_SOFASCORE
+    assert r["absence_contradicted_by_second_team"] == r["second_team_reason"]
+    assert "absence_evidence" not in r
+    # the second page holds nothing near either: the absence stands
+    r = run([])
+    assert r["reason"] == "NOT_ON_SOFASCORE"
+    assert "absence_contradicted_by_second_team" not in r

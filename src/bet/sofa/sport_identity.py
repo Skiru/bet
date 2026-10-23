@@ -1015,7 +1015,12 @@ def identify_event(ev: BoardEvent, client: ListingClient, cache: ListingCache | 
         if absence and found.get("reason") == "NO_GAME_WITHIN_1H":
             near = nearest_game_h(listing, query, ev.kickoff, slug)
             extra["nearest_game_h"] = near
-            if (not cached and not query_only
+            # the second team's page (P2) showing the game but refusing it
+            # (START_GAP, AMBIGUOUS...) contradicts the absence (review R1 F4)
+            second_reason = extra.get("second_team_reason", "NO_GAME_WITHIN_1H")
+            if second_reason != "NO_GAME_WITHIN_1H":
+                extra["absence_contradicted_by_second_team"] = second_reason
+            elif (not cached and not query_only
                     and (near is None or near > ABSENCE_WINDOW.total_seconds() / 3600)):
                 found = {**found, "reason": "NOT_ON_SOFASCORE"}
                 extra["absence_evidence"] = {

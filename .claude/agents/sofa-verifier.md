@@ -140,7 +140,10 @@ values (`opponent_correction.gate_values`).
 **2b. Subject -> side** (team subjects: `verify_legs.py`; a `_for` row on the
 wrong side = NO_BET, invisible to every other check). Player legs (`player_*_for`): `matched_name` is the person Superbet names
 (spellings differ: "Khlan" = Chłań), `side` his club, `match_rule`
-`tokens` / `surname` = one person, `appearances: "starts"`; rebuild the mean
+`tokens` / `surname` / `transliteration` / `inner_surname` / `slug` = one
+person (SETTLE grades `matched_name`), `appearances: "starts"`; a
+`THIN_SAMPLE` gap with `PLAYER_HISTORY_ANY_TEAM` = starts for his other teams
+by player id, legal; rebuild the mean
 from `observations`. A one-sided single is legal with `market:` / `line:`
 and `calibration_n` >= 300 (`confidence.one_sided_single`); a
 `PLAYER_SHAPE_GATE_MARKETS` leg with 5..9 starts carrying
@@ -198,7 +201,7 @@ wrong clock. `UNVERIFIED` = start not re-checked, say so. Name every PDF mark
 **2e. Sport legs.** `verify_legs.py` checks IDENTIFIED, the pinned id,
 `home_is_team1`, `start_gap_h`. By hand: both names are the two sides (a
 reserve, women's, U-team or e-sport squad is another match; `match_method`,
-`name_scores`). Wrong identity = NO_BET. Scope: basketball second half / Q4 on regulation
+`name_scores`; `QUERY_ANCHOR` = one side found by its query alone - confirm both names). Wrong identity = NO_BET. Scope: basketball second half / Q4 on regulation
 (full-game includes overtime); a fixed-format friendly; CS2 without
 `best_of` prints nothing; CS2 team rounds outside 9.5-12.5 =
 `LINE_OUTSIDE_FIT`; market in `sport_confidence.allowed_markets`; a hockey /

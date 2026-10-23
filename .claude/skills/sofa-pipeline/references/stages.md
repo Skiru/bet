@@ -71,7 +71,7 @@ market name), `classify_derived_market` (both-teams / comparative / handicap:
 subject and line on the selection), `classify_player_market` (football
 player counts: player, line and direction on the selection; the player found
 by name - `players.match_player`, then whole tokens, then surname + first-name
-prefix). Player market names match exactly, never by prefix (Superbet prices
+prefix, then transliteration, inner surname, from 2026-10-24 his Sofascore slug). Player market names match exactly, never by prefix (Superbet prices
 body-part and location variants Sofascore's `/lineups` does not report).
 **Football player markets are quoted OVER only**: no devig, `market_p` null;
 such a leg prints as a one-sided single when its own curve has n >= 300
@@ -93,7 +93,9 @@ gap `RESERVE_SQUAD`). A footballer's sample is his starts.
 `EVENT_NOT_FINISHED`, `NO_STATISTICS`, `NO_INCIDENTS`, `STAT_KEY_ABSENT`,
 `ALL_ZERO_SAMPLE`, `OUTSIDE_MODEL_RESOLUTION`, `INTERNAL_INCONSISTENT`,
 `ENTITY_CONFLICT`, `RESERVE_SQUAD`, `ZERO_NOT_RECORDED`, `CARDS_NOT_RECORDED`,
-`THIN_SAMPLE`, `SURFACE_UNKNOWN` (tennis fixture with no surface - the sample
+`THIN_SAMPLE` (from 2026-10-24 also a used player sample topped up from his
+other teams, detail `PLAYER_HISTORY_ANY_TEAM`; `ENTITY_CONFLICT` with "sample cut
+at the clash" is a kept sample), `SURFACE_UNKNOWN` (tennis fixture with no surface - the sample
 was never surface-scoped), `NO_PRICE`, `STALE_PRICE`, `PROVIDER_ERROR`,
 `CIRCUIT_OPEN`. `provider_fault_fixtures` > 0 makes the verdict `PARTIAL`.
 The coverage floor (`src/bet/sofa/coverage.py`) is weekday-blind and its

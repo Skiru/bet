@@ -84,3 +84,29 @@ def test_the_switch_is_on_from_the_24th() -> None:
     assert not epochs.name_rules_1023("2026-10-23",
                                       datetime(2026, 10, 23, 23, tzinfo=UTC))
     assert epochs.name_rules_1023("2026-10-24", datetime(2026, 10, 24, tzinfo=UTC))
+
+
+def test_an_exact_nickname_on_either_roster_beats_a_prefix_on_team1() -> None:
+    """Review R1 F1: the settlement (cs2.MapResult.player) tries the exact
+    nickname on both rosters before any prefix; the engine must price the
+    same player - team2's exact "martin", not team1's "martinez"."""
+    hist = []
+    for i in range(10):
+        players = (
+            (1, 11, "martinez", (("kills", 30),)),
+            *((1, 12 + k, f"teamone{k}", (("kills", 20),)) for k in range(4)),
+            (2, 21, "martin", (("kills", 10),)),
+            *((2, 22 + k, f"teamtwo{k}", (("kills", 15),)) for k in range(4)),
+        )
+        hist.append(eng.MapRow(i, i, 1, 1, 2, 13, 9, True, players))
+    ratings = eng.build_ratings(hist)
+    line = cs2.Cs2Line("e", "player_kills", 1, "martin", 19.5, "OVER", 1.8)
+    for rules in (False, True):
+        mp = eng.model_probability(line, 1, 2, "a", "b", 3, hist, ratings,
+                                   True, name_rules=rules)
+        assert mp is not None and mp.p < 0.5  # martin's 10 kills, not 30
+    # no exact nickname anywhere: the prefix still finds the one player
+    line_sa = cs2.Cs2Line("e", "player_kills", 1, "MartinezSa", 19.5, "OVER", 1.8)
+    mp = eng.model_probability(line_sa, 1, 2, "a", "b", 3, hist, ratings, True,
+                               name_rules=True)
+    assert mp is not None and mp.p > 0.5

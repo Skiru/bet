@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -54,6 +55,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
 
 from pydantic import RootModel, ValidationError  # noqa: E402
 
+from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
@@ -264,13 +266,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--report", action="append", required=True, type=Path)
     ap.add_argument("--author", choices=("analyst", "verifier"))
-    ap.add_argument("--runs-dir", default="runs/sofa")
+    ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--slip", action="store_true",
                     help="a chat slip's reads: *_slip.json, never the coupon's")
     ap.add_argument("--read-set", action="append", type=Path, default=[],
                     help="check the reads against this read-set file")
     args = ap.parse_args(argv)
+    frozen = timeutil.frozen_clock_refusal(args.runs_dir)
+    if frozen:
+        print(frozen, file=sys.stderr)
+        return 2
     try:
         return merge(Path(args.runs_dir) / args.date, args.report, args.author,
                      args.dry_run, slip=args.slip, read_sets=args.read_set)

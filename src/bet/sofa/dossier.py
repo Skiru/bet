@@ -53,8 +53,10 @@ from bet.sofa.names import normalize_name
 from bet.sofa.players import (
     is_player_metric,
     match_player,
+    match_player_by_inner_surname,
     match_player_by_surname,
     match_player_by_tokens,
+    match_player_by_transliteration,
 )
 from bet.sofa.settle import venue_timezone
 
@@ -620,6 +622,7 @@ def samples_block(
         key: {
             "matched_name": p.get("matched_name"),
             "side": p.get("side"),
+            "match_rule": p.get("match_rule"),
             "values": [o.get("value") for o in p.get("observations") or []],
         }
         for key, p in (sample.get("players") or {}).items()
@@ -628,7 +631,14 @@ def samples_block(
     return {
         "schedule": sample.get("schedule"),
         "readiness": sample.get("readiness"),
-        "gaps": [g.get("reason") for g in sample.get("gaps") or []][:20],
+        # The detail tells a kept ENTITY_CONFLICT cut ("sample cut at the
+        # clash") from an emptied side, and a used PLAYER_HISTORY_ANY_TEAM
+        # top-up from a refused THIN_SAMPLE.
+        "gaps": [
+            {"reason": g.get("reason"), "metric": g.get("metric"),
+             "detail": str(g.get("detail") or "")[:160]}
+            for g in sample.get("gaps") or [] if isinstance(g, Mapping)
+        ][:20],
         "metrics": metrics,
         "players": players,
     }
@@ -902,12 +912,16 @@ def _is_player_leg(leg: Mapping[str, Any]) -> bool:
 
 
 def player_leg_status(
-    entry: Mapping[str, Any], legs: Sequence[Mapping[str, Any]]
+    entry: Mapping[str, Any],
+    legs: Sequence[Mapping[str, Any]],
+    sample: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Each player leg's player in Sofascore's line-up: XI / ławka / missing /
-    doubtful, or not on the list. Matched by the samples' own name rules
-    (fuzzy, then whole tokens, then surname + first-name prefix); a name no
-    rule places is `nie znaleziony`, never a guess."""
+    doubtful, or not on the list. First the person SAMPLES itself matched
+    (the sample's `matched_name`, whatever rule found him - slug included,
+    which a line-up without slugs cannot re-run); else the samples' name
+    rules (fuzzy, whole tokens, surname + first-name prefix, transliteration,
+    inner surname); a name no rule places is not on the list, never a guess."""
     candidates: dict[str, tuple[str, str]] = {}
     homonyms: set[str] = set()
     for label in ("home", "away"):
@@ -926,6 +940,7 @@ def player_leg_status(
     for key in homonyms:
         del candidates[key]
     pool: dict[str, dict[str, Any]] = {k: {} for k in candidates}
+    sampled = (sample or {}).get("players") or {}
     out: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     for leg in legs:
@@ -936,8 +951,22 @@ def player_leg_status(
             continue
         seen.add((subject, market))
         row: dict[str, Any] = {"subject": subject, "market": market}
+        own = (sampled.get(f"{market}|{subject}")
+               if isinstance(sampled, Mapping) else None)
+        if isinstance(own, Mapping) and isinstance(own.get("matched_name"), str):
+            key = normalize_name(str(own["matched_name"]))
+            own_label = {"side_a": "home", "side_b": "away"}.get(
+                str(own.get("side")))
+            if key in candidates and own_label in (None, candidates[key][0]):
+                side, where = candidates[key]
+                row.update(status=where, side=side, matched_name=key,
+                           match_rule=str(own.get("match_rule") or "fuzzy"))
+                out.append(row)
+                continue
         rules = (("fuzzy", match_player), ("tokens", match_player_by_tokens),
-                 ("surname", match_player_by_surname))
+                 ("surname", match_player_by_surname),
+                 ("transliteration", match_player_by_transliteration),
+                 ("inner_surname", match_player_by_inner_surname))
         for rule, matcher in rules:
             found = matcher(subject, pool)
             if found:
@@ -957,6 +986,7 @@ def lineups_block(
     legs: Sequence[Mapping[str, Any]],
     team_ids: Mapping[str, object],
     kickoff_ts: int,
+    sample: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The dossier's `lineups`: Sofascore's predicted or confirmed XI, the
     missing / doubtful players, each player leg's player, and each side's
@@ -1014,7 +1044,7 @@ def lineups_block(
         elif "missing" not in view:
             view["regulars"] = {"missing": "brak id drużyny"}
         out[label] = view
-    out["player_legs"] = player_leg_status(entry, legs)
+    out["player_legs"] = player_leg_status(entry, legs, sample)
     return out
 
 
@@ -1191,7 +1221,8 @@ def build(
     if sport in TEAM_SPORTS:
         doc["lineups"] = lineups_block(
             con, sport, (lineup_entries or {}).get(str(event_id)), legs,
-            {"home": home_id, "away": away_id}, kickoff_ts)
+            {"home": home_id, "away": away_id}, kickoff_ts,
+            samples.get(event_id))
     doc["web_checklist"] = web_checklist(sport, header, side_names)
     lineup_line = _lineup_checklist(doc.get("lineups"))
     if lineup_line:

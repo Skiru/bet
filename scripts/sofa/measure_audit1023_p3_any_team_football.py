@@ -18,10 +18,17 @@ alike). Per starter of a finished target match and lineup metric:
   BASE - >= min_sample starts in the side's newest sample_n: today's row;
   ANY  - fewer than min_sample starts in the side's newest 20 (the coverage
          window fails), topped up with his starts for PEER teams (opponents
-         in the side's newest sample_n; each peer's newest
-         samples.FOREIGN_PEER_GAMES listed matches before kick-off with a
-         cached squad), matched by his Sofascore player id
-         (samples.any_team_sample), newest sample_n, at least min_sample.
+         in the side's sample proper - its newest sample_n; each peer's
+         matches through samples.peer_history, the live acceptance, one row
+         per (match, peer), a provisional statistics row read as none),
+         matched by his Sofascore player id (samples.any_team_sample), newest
+         sample_n, at least min_sample. His id and the matches excluded from
+         the top-up come from the window live reads him over: the 20 when
+         they hold more of his starts than the 10, else the 10
+         (samples.coverage_player_samples, `used`).
+
+Histories are built with the coverage audit's sample rules as live from
+2026-10-24 (finish_history conflict_cut, CONFLICT_CUT_FRIENDLY_IDS).
 
 Reported per market / direction on rows at confidence >= 0.70: realised
 minus confidence with a match bootstrap, ANY minus BASE; and how many
@@ -44,6 +51,7 @@ for p in (ROOT / "src", ROOT):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from bet.sofa.cache import is_provisional  # noqa: E402
 from bet.sofa.confidence import Calibration, calibration_path_for  # noqa: E402
 from bet.sofa.contracts import GapReason  # noqa: E402
 from bet.sofa.listing_index import entity_indexed_events  # noqa: E402
@@ -55,11 +63,13 @@ from bet.sofa.players import (  # noqa: E402
     started,
 )
 from bet.sofa.samples import (  # noqa: E402
-    FOREIGN_PEER_GAMES,
+    CONFLICT_CUT_FRIENDLY_IDS,
+    PEER_LISTING_LIMIT,
     _competition_id,
     finish_history,
+    peer_history,
 )
-from bet.sofa.settle import is_completed_event, settle  # noqa: E402
+from bet.sofa.settle import settle  # noqa: E402
 from scripts.sofa import calibrate_from_cache as cfc  # noqa: E402
 from scripts.sofa import measure_player_coverage as mpc  # noqa: E402
 
@@ -81,21 +91,29 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
     hi_ts = int(datetime.fromisoformat(hi).replace(tzinfo=UTC).timestamp()) + 86400
     targets = mpc._targets(con, lo_ts, hi_ts)
     print(f"targets {len(targets)}", file=sys.stderr)
-    cache: collections.OrderedDict[int, dict[bool, Any]] = collections.OrderedDict()
+    cache: collections.OrderedDict[tuple[int, bool], dict[bool, Any]] = (
+        collections.OrderedDict())
     counts: collections.Counter[str] = collections.Counter()
+    at = datetime.now(UTC)
 
-    def squads_of(event_id: int) -> dict[bool, Any]:
-        if event_id in cache:
-            cache.move_to_end(event_id)
-            return cache[event_id]
+    def squads_of(event_id: int, kickoff_ts: int | None = None) -> dict[bool, Any]:
+        """Both squads; with ``kickoff_ts`` a provisional statistics row is
+        read as none (cache.get_event_stats(kickoff_ts=...), the peers')."""
+        key = (event_id, kickoff_ts is not None)
+        if key in cache:
+            cache.move_to_end(key)
+            return cache[key]
         found = con.execute(
-            "SELECT statistics_json, lineups_json FROM sofa_event_stats "
+            "SELECT statistics_json, lineups_json, fetched_at FROM sofa_event_stats "
             "WHERE sofascore_event_id = ?", (event_id,)).fetchone()
         stats = json.loads(found[0]) if found and found[0] else None
+        if (found and kickoff_ts is not None
+                and is_provisional(found[0], found[2], kickoff_ts, at)):
+            stats = None
         lineups = json.loads(found[1]) if found and found[1] else None
         both = {h: squad_statistics(lineups, is_home=h, statistics=stats,
                                     player_id=True) for h in (True, False)}
-        cache[event_id] = both
+        cache[key] = both
         if len(cache) > 40_000:
             cache.popitem(last=False)
         return both
@@ -107,8 +125,10 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
                                              cfc.PLAYER_HISTORY_LISTED)
             if cfc.admitted_football_event(p, entity, kickoff)
             and not cfc.is_same_match(p, event)
+            and _competition_id(p) not in CONFLICT_CUT_FRIENDLY_IDS
         ]
-        return finish_history(admitted, entity, "football", comp, kickoff, n)
+        return finish_history(admitted, entity, "football", comp, kickoff, n,
+                              conflict_cut=True)
 
     def peer_squads(own: int, recent: list[dict[str, Any]], kickoff: int,
                     exclude: set[int]) -> list[tuple[int, int, Any]]:
@@ -120,20 +140,18 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
             if isinstance(other, int) and other != own and other not in peers:
                 peers.append(other)
         out: list[tuple[int, int, Any]] = []
-        seen = set(exclude)
+        seen: set[tuple[int, int]] = set()
         for peer in peers:
-            for ev in entity_indexed_events(con, peer, "last", kickoff,
-                                            FOREIGN_PEER_GAMES):
-                eid = ev.get("id")
-                start = ev.get("startTimestamp")
-                if (not isinstance(eid, int) or eid in seen
-                        or not isinstance(start, int) or start >= kickoff
-                        or not is_completed_event(ev)
-                        or not cfc.admitted_football_event(ev, peer, kickoff)):
+            listed = entity_indexed_events(con, peer, "last", kickoff,
+                                           PEER_LISTING_LIMIT)
+            for ev in peer_history(listed, peer, kickoff, conflict_cut=True):
+                eid = int(ev["id"])
+                start = int(ev["startTimestamp"])
+                if eid in exclude or (eid, peer) in seen:
                     continue
-                seen.add(eid)
+                seen.add((eid, peer))
                 home = (ev.get("homeTeam") or {}).get("id") == peer
-                sq = squads_of(eid)[home]
+                sq = squads_of(eid, start)[home]
                 if sq:
                     out.append((eid, start, sq))
         return out
@@ -147,6 +165,7 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
         comp = _competition_id(event)
         hist: dict[bool, list[tuple[int, int, Any]]] = {}
         recent_of: dict[bool, list[dict[str, Any]]] = {}
+        proper_of: dict[bool, list[dict[str, Any]]] = {}
         entity_of: dict[bool, int] = {}
         for is_home in (True, False):
             entity = int(((event.get("homeTeam" if is_home else "awayTeam"))
@@ -154,6 +173,8 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
             entity_of[is_home] = entity
             recent = history_of(entity, kickoff, comp, event, WIDE_N)
             recent_of[is_home] = recent
+            proper_of[is_home] = history_of(entity, kickoff, comp, event,
+                                            SAMPLE_N)
             hist[is_home] = [
                 (idx, int(past["id"]),
                  squads_of(int(past["id"]))[
@@ -162,7 +183,7 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
             ]
         target = squads_of(int(event["id"]))
         both = set(target.get(True) or {}) & set(target.get(False) or {})
-        peers_cache: dict[bool, list[tuple[int, int, Any]]] = {}
+        peers_cache: dict[tuple[bool, bool], list[tuple[int, int, Any]]] = {}
         for is_home in (True, False):
             squad = target.get(is_home)
             if not squad:
@@ -202,29 +223,42 @@ def run(db: str, lo: str, hi: str, runs_dir: Path) -> tuple[list[dict[str, Any]]
                     elif (n20[is_home] > n20[not is_home]
                           and n20[is_home] < MIN_SAMPLE):
                         counts[f"thin:{metric}"] += 1
-                        ids = {player_id_of(sq[key]) for _, _, sq, key in
-                               matched[is_home] if key is not None}
+                        # live reads him over the 20 only when they hold more
+                        # of his starts than the 10 (coverage_player_samples)
+                        wide = n20[is_home] > n10[is_home]
+                        scope = SAMPLE_N if not wide else WIDE_N
+                        ids = {player_id_of(sq[key]) for idx, _, sq, key in
+                               matched[is_home]
+                               if key is not None and idx < scope}
                         ids.discard(None)
                         if len(ids) != 1:
                             continue
                         pid = next(iter(ids))
-                        if is_home not in peers_cache:
-                            own_ids = {int(p["id"]) for p in recent_of[is_home]}
-                            peers_cache[is_home] = peer_squads(
-                                entity_of[is_home], recent_of[is_home][:SAMPLE_N],
+                        if (is_home, wide) not in peers_cache:
+                            own_ids = {int(p["id"]) for p in (
+                                recent_of[is_home] if wide
+                                else proper_of[is_home])}
+                            peers_cache[(is_home, wide)] = peer_squads(
+                                entity_of[is_home], proper_of[is_home],
                                 kickoff, own_ids | {int(event["id"])})
                         foreign: list[tuple[int, float]] = []
-                        for _eid, start, sq in peers_cache[is_home]:
+                        taken: set[int] = set()
+                        for f_eid, start, sq in peers_cache[(is_home, wide)]:
+                            if f_eid in taken:
+                                continue
                             hits = [st for st in sq.values()
                                     if player_id_of(st) == pid]
-                            if len(hits) != 1 or started(hits[0]) is False:
+                            if len(hits) != 1:
                                 continue
                             v = extract_player_metric(metric, hits[0],
                                                       woodwork_once=True)
-                            if not isinstance(v, GapReason):
-                                foreign.append((start, v))
+                            if isinstance(v, GapReason) or started(hits[0]) is False:
+                                continue
+                            taken.add(f_eid)
+                            foreign.append((start, v))
                         own = [(int(recent_of[is_home][i]["startTimestamp"]), v)
-                               for i, _, v in vals[is_home]]
+                               for i, _, v in vals[is_home]
+                               if wide or i < SAMPLE_N]
                         merged = sorted(own + foreign, reverse=True)[:SAMPLE_N]
                         if not foreign:
                             continue

@@ -384,7 +384,15 @@ class RatingModel:
                  best_of: int | None, map_nr: int) -> float | None:
         """p_map for map `map_nr` of the series (audit B11): the base logit
         plus the (format, map number) term and the pool term. Equal to p_map
-        when the terms were not fitted (build_ratings without map_terms)."""
+        when the terms were not fitted (build_ratings without map_terms).
+
+        An unrated pair (P7, lineup_unrated) reads the terms fitted on the
+        rated pairs too - measured on that group (review R1 F2, walk-forward
+        as measure_audit1023_p7_cs2_lineup_unrated.py, copy DB to 10-23, 567
+        series / 1,221 maps): log loss 0.6262 with the terms vs 0.6279
+        without (-0.0017 [-0.0037, +0.0002]), favourite realised - claimed
+        +0.4 pp [-2.2, +2.8] vs +1.7 pp [-1.0, +4.2], slope 1.08 vs 1.12 -
+        calibrated, so the terms stay."""
         home, away = (team1, team2) if team1_is_home else (team2, team1)
         z = self.home_logit(home, away)
         if z is None:
@@ -755,6 +763,11 @@ def build_ratings(history: list[MapRow],
     return model
 
 
+# the marker a leg priced through fit_unrated's calibration carries
+# (`lineup_unrated_rule`, run_sport_confidence; review R3 F10)
+LINEUP_UNRATED_RULE = "cs2_lineup_unrated_1023"
+
+
 def fit_unrated(model: RatingModel, upoints: list[tuple[float, float]]) -> None:
     """The unrated pairs' lineup calibration (audit 2026-10-23 P7): the rated
     pairs' lineup intercept `pa` (the home term) kept, the slope on the
@@ -1114,6 +1127,17 @@ def player_id(history: list[MapRow], team: int, name: str,
     return next(iter(ids)) if len(ids) == 1 else None
 
 
+def _nick_on_team(history: list[MapRow], team: int, name: str) -> bool:
+    """True when a player of the team's recent maps carries exactly this
+    nickname (player_id's exact rule, namesakes included)."""
+    folded = esports_name(name)
+    return any(
+        t == team and nick == folded
+        for m in _team_maps(history, team)
+        for t, _, nick, _ in m.players
+    )
+
+
 def player_values(history: list[MapRow], team: int, name: str, stat: str,
                   prefix: bool = False) -> list[int]:
     """The player's last maps: found by his nickname on this team's recent maps,
@@ -1424,7 +1448,8 @@ def model_probability(
     `series_rounds` (epochs.CS2_SERIES_ROUNDS_FROM_UTC): SERIES_ROUND_FAMILIES
     from series_rounds_side_p; without it they have no number.
     `name_rules` (epochs.NAME_RULES_1023_FROM_UTC): a player line's nickname
-    by prefix too (player_id)."""
+    by prefix too (player_id) - only when neither roster has it exactly, the
+    settlement's order (cs2.MapResult.player)."""
     fam = line.family
     subject = line.subject.strip()
     side_team = team1_id if subject == team1 else team2_id if subject == team2 else None
@@ -1545,11 +1570,17 @@ def model_probability(
                 return mp
         return count_p(team_kills(history, side_team), line.line, over)
     stat = fam.removeprefix("player_")
-    for team in (team1_id, team2_id):
-        values = player_values(history, team, line.subject, stat, name_rules)
+    teams = (team1_id, team2_id)
+    # the settlement's order (cs2.MapResult.player): the exact nickname on
+    # either roster first, the prefix only when neither roster has it - else
+    # team1's "martinez" would price team2's exact "martin" (review R1 F1)
+    prefix = name_rules and not any(
+        _nick_on_team(history, t, line.subject) for t in teams)
+    for team in teams:
+        values = player_values(history, team, line.subject, stat, prefix)
         if values:
             if exposure is not None and fam in exposure.families:
-                pid = player_id(history, team, line.subject, name_rules)
+                pid = player_id(history, team, line.subject, prefix)
                 opp = team2_id if team == team1_id else team1_id
                 mp = _exposure_line(exposure, ratings, team1_id, team2_id,
                                     team1_is_home, best_of, line, map_identity,

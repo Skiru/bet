@@ -129,7 +129,7 @@ def test_foreign_results_read_peers_from_the_cache_only() -> None:
         def get_event_lineups(self, eid: int) -> dict[str, Any] | None:
             return lineups if eid == 400 else None
 
-        def get_event_stats(self, eid: int) -> None:
+        def get_event_stats(self, eid: int, kickoff_ts: int | None = None) -> None:
             return None
 
     fixture = Fixture(

@@ -713,6 +713,8 @@ def settle(
             if out.exists()
             else {}
         )
+        for eid, record in updated.items():
+            keep_attached_models(current.get(eid), record)
         done = {**current, **updated}
         # The identity pass (MOVED_TO, WITHDRAWN, DUPLICATE_SUPERBET_TEAM,
         # DUPLICATE_SOFASCORE_ID) over D-1..D+1, on what is written now.
@@ -751,6 +753,40 @@ def settle(
         },
         "output_path": str(out),
     }
+
+
+MODEL_FIELDS = ("model_p", "model_n", "model", "unfitted_constants")
+
+
+def _graded_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    return tuple(row.get(k) for k in Cs2Line.__dataclass_fields__)
+
+
+def keep_attached_models(current: dict[str, Any] | None,
+                         record: dict[str, Any]) -> None:
+    """A graded side this run writes without `model_p` keeps the model fields
+    the file holds for the same side at write time (under the lock): a settle
+    that read the record before `--attach-series-only-model` wrote model_p
+    (audit 2026-10-23 P12) must not write it back without (review R1 F3).
+    A row this run gave a model_p of its own keeps its own. Only from a file
+    record graded against the same Sofascore series with the same team
+    order (T1 / T2 numbers depend on it; review R5 #1)."""
+    if not current or not record.get("graded"):
+        return
+    if any(current.get(k) != record.get(k)
+           for k in ("sofascore_event_id", "home_is_team1")):
+        return
+    attached = {_graded_key(g): g for g in current.get("graded") or []
+                if isinstance(g, dict) and "model_p" in g}
+    if not attached:
+        return
+    graded = []
+    for g in record["graded"]:
+        held = attached.get(_graded_key(g)) if isinstance(g, dict) else None
+        if held is not None and "model_p" not in g:
+            g = {**g, **{k: held[k] for k in MODEL_FIELDS if k in held}}
+        graded.append(g)
+    record["graded"] = graded
 
 
 def attach_series_only_models(runs_dir: str, date: str, db_path: str,

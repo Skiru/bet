@@ -1675,51 +1675,99 @@ def any_team_sample(
     return sample.model_copy(update={"observations": observations}), n_foreign
 
 
+# How many of a peer's newest listed events are read before its acceptance
+# (peer_history): room for what finish_history drops on the way to its
+# newest FOREIGN_PEER_GAMES.
+PEER_LISTING_LIMIT = 2 * FOREIGN_PEER_GAMES
+
+
+def peer_history(
+    events: list[dict[str, Any]],
+    peer: int,
+    kickoff_ts: int,
+    *,
+    conflict_cut: bool,
+) -> list[dict[str, Any]]:
+    """One peer's listed events admitted as a football sample proper admits
+    them (get_historical_events' `admit`, then finish_history): finished
+    normally, before kick-off, the peer one of the sides, no friendly (and,
+    under ``conflict_cut``, none of CONFLICT_CUT_FRIENDLY_IDS); then one
+    listing per match, the second squad's matches out (RESERVE_SQUAD), one
+    squad per id (a clash cuts the peer at the clash under ``conflict_cut``,
+    else empties it) - newest FOREIGN_PEER_GAMES. The live any-team top-up
+    (_foreign_side_results) and its measurement
+    (measure_audit1023_p3_any_team_football.py) both read peers through
+    this function."""
+    admitted: list[dict[str, Any]] = []
+    for event in events:
+        start = event.get("startTimestamp")
+        if (not isinstance(event.get("id"), int)
+                or not isinstance(start, int) or start >= kickoff_ts
+                or not is_completed_event(event)
+                or is_friendly_event(event, "football")):
+            continue
+        if conflict_cut and _competition_id(event) in CONFLICT_CUT_FRIENDLY_IDS:
+            continue
+        if peer not in ((event.get("homeTeam") or {}).get("id"),
+                        (event.get("awayTeam") or {}).get("id")):
+            continue
+        admitted.append(event)
+    return finish_history(admitted, peer, "football", None, kickoff_ts,
+                          FOREIGN_PEER_GAMES, conflict_cut=conflict_cut)
+
+
+def peers_of(results: list[dict[str, Any]], own: int) -> list[int]:
+    """The opponents of a side's sampled matches, first-seen first."""
+    peers: list[int] = []
+    for res in results:
+        peer = res.get("opponent_id")
+        if isinstance(peer, int) and peer != own and peer not in peers:
+            peers.append(peer)
+    return peers
+
+
 def _foreign_side_results(
     cache: SofaCache,
     fixture: Fixture,
     base: dict[str, list[dict[str, Any]]],
     omitted_zero: bool = False,
+    conflict_cut: bool | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Each side's PEERS' own matches as squads with player ids, from the
     cache only (a lineup nobody cached is not asked for): a peer is an
     opponent in the side's sampled matches; its newest FOREIGN_PEER_GAMES
-    listed matches before kick-off, admitted like a sample's (finished
-    normally, no friendly), the peer's lineup side. A player who moved
-    between two teams that met keeps his starts for the former one (K7;
-    the hockey / basketball reader, player_model.load_appearances any_team,
-    reads its peers the same way)."""
+    listed matches before kick-off through the sample proper's acceptance
+    (peer_history; ``conflict_cut`` None: the switch at the fixture's day),
+    the peer's lineup side. A match between two peers is a row for each of
+    them (one per (event, peer)): the player may have played for either. A
+    provisional statistics row (cache.is_provisional) is read as none, as
+    the sample proper reads it. A player who moved between two teams that
+    met keeps his starts for the former one (K7; the hockey / basketball
+    reader, player_model.load_appearances any_team, reads its peers the
+    same way)."""
+    if conflict_cut is None:
+        conflict_cut = conflict_cut_on(fixture)
     kickoff_ts = int(fixture.kickoff_utc.timestamp())
     out: dict[str, list[dict[str, Any]]] = {}
     for label, own in (("side_a", fixture.home_entity_id),
                        ("side_b", fixture.away_entity_id)):
-        peers: list[int] = []
-        for res in base.get(label) or []:
-            peer = res.get("opponent_id")
-            if isinstance(peer, int) and peer != own and peer not in peers:
-                peers.append(peer)
-        seen: set[int] = set()
+        seen: set[tuple[int, int]] = set()
         rows: list[dict[str, Any]] = []
-        for peer in peers:
-            for event in cache.get_listed_events(
-                    peer, "last", kickoff_ts, FOREIGN_PEER_GAMES):
-                eid = event.get("id")
-                start = event.get("startTimestamp")
-                if (not isinstance(eid, int) or eid in seen
-                        or not isinstance(start, int) or start >= kickoff_ts
-                        or not is_completed_event(event)
-                        or is_friendly_event(event, "football")):
-                    continue
-                home_id = (event.get("homeTeam") or {}).get("id")
-                away_id = (event.get("awayTeam") or {}).get("id")
-                if peer not in (home_id, away_id):
+        for peer in peers_of(base.get(label) or [], own):
+            listed = cache.get_listed_events(
+                peer, "last", kickoff_ts, PEER_LISTING_LIMIT)
+            for event in peer_history(listed, peer, kickoff_ts,
+                                      conflict_cut=conflict_cut):
+                eid = int(event["id"])
+                start = int(event["startTimestamp"])
+                if (eid, peer) in seen:
                     continue
                 lineups = cache.get_event_lineups(eid)
                 if not lineups:
                     continue
-                seen.add(eid)
-                is_home = home_id == peer
-                stats = cache.get_event_stats(eid)
+                seen.add((eid, peer))
+                is_home = (event.get("homeTeam") or {}).get("id") == peer
+                stats = cache.get_event_stats(eid, kickoff_ts=start)
                 squad = squad_statistics(
                     lineups, is_home=is_home,
                     statistics=stats[0] if stats else None,

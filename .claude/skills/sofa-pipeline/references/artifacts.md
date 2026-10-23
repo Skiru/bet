@@ -81,7 +81,7 @@ joint intersects on it), `match_date_utc`, `opponent`, `opponent_id`,
 `PlayerSample`: `metric`, `player`, `matched_name`, `side`, `squad_matches`
 (how many of the side's sampled matches had a squad list - the honest
 denominator), `observations` (newest first), `match_rule` (`fuzzy | tokens |
-surname`), `appearances` (`all | starts`; Superbet voids a footballer's market
+surname | transliteration | inner_surname | slug`), `appearances` (`all | starts`; Superbet voids a footballer's market
 unless he starts), `position`. A squad member who did not play is not an
 observation.
 
@@ -184,7 +184,8 @@ its start" ahead of `start_utc`.
 `created_at_utc`, `date`, `day_window_utc`, `sports` (per sport `events`,
 `identified`, `refused`), `sports_run`, `aborted`, `fixtures[]`:
 `superbet_event_id`, `sport`, `sofascore_event_id`, `home_id`, `away_id`,
-`home_is_team1`, `competition_id`, `match_method` (incl. `DAY_ANCHOR`),
+`home_is_team1`, `competition_id`, `match_method` (incl. `DAY_ANCHOR`; `QUERY_ANCHOR` volleyball from
+2026-10-24),
 `name_scores`, `start_gap_h`, `matched_at_utc`, `status` (`IDENTIFIED` /
 `NOT_IDENTIFIED` / `DUPLICATE_*`), `reason` (e.g. `NOT_ON_SOFASCORE`,
 `NO_GAME_WITHIN_1H` with `nearest_game_h`), `frozen_at_start`, `match_name`,
@@ -209,7 +210,10 @@ and is the id SETTLE grades by.
 `line_offset` / `price_band_cap` when lowered; CS2 map legs `team1`, `team2`,
 `map_nr`; `dc_pair_rule` on a basketball double-chance pair;
 `derived_rule` (`sport_derived_v1`) on a score-model derived market (hockey /
-basketball double chance, volleyball team sets / sets count).
+basketball double chance, volleyball team sets / sets count);
+`lineup_unrated_rule` (`cs2_lineup_unrated_1023`, from 2026-10-24) on a CS2
+leg priced through the unrated pairs' lineup calibration (P7: without it the
+side has no number, or another one).
 
 ## `11_coupon.json` / `.md` (COUPON_ASSEMBLY) - the coupon
 

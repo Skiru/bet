@@ -130,10 +130,14 @@ him; the sample sits in `03_samples.json` `players["<market>|<subject>"]`.
   (median minutes, starts of 60'+, matches played of those sampled): 90'
   starts and 60' starts are different quantities. A short sample of a new
   signing has no note saying why - compare `sample_size` with
-  `squad_matches`.
+  `squad_matches`. From 2026-10-24 a `THIN_SAMPLE` gap whose detail starts
+  `PLAYER_HISTORY_ANY_TEAM` means the sample also holds his starts for other
+  teams (by player id): their opponent / venue are the other team's and
+  `squad_matches` counts only his current side - read the gap's N first.
 - **Identity** is a name match: `match_rule` `tokens` (`PLAYER_NAME_TOKENS`,
-  Superbet's full registered name matched by whole tokens) or `surname`
-  (`PLAYER_NAME_SURNAME`). Check that `matched_name` is the same person (club,
+  Superbet's full registered name matched by whole tokens) `surname`
+  (`PLAYER_NAME_SURNAME`), `transliteration`, `inner_surname` or, from
+  2026-10-24, `slug` (his Sofascore slug holds exactly Superbet's name tokens). Check that `matched_name` is the same person (club,
   position) and say how you know. Sofascore spells names with their own
   letters ("Wålemark", "Khlan" for Chłań) - search both spellings.
 - **Per leg check:** the expected lineup (club / league page within ~1 h of

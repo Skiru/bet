@@ -70,7 +70,10 @@ on its sides' leagues); `NO_PRIOR`; `PRIOR_GLOBAL` / `PRIOR_GLOBAL_WOMEN`
 owns most of a thin row's centre.
 
 A `_total` row exists only when both sides have `min_sample` own
-observations; one side's history is refused as `THIN_SAMPLE`.
+observations; one side's history is refused as `THIN_SAMPLE`. A player sample
+carrying a `THIN_SAMPLE` gap with detail `PLAYER_HISTORY_ANY_TEAM` was topped up
+and is used. An `ENTITY_CONFLICT` gap with "sample cut at the clash" is a kept
+sample, not an absence.
 
 ## Context in `02_fixtures.json`
 

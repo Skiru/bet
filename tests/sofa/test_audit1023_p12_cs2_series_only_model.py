@@ -121,3 +121,69 @@ def test_the_backfill_attaches_once_and_only_under_the_switch(
     assert "model_p" not in events["2"]["graded"][0]  # not series-only: untouched
     again = sc.attach_series_only_models(str(tmp_path), "2026-09-26", db, SWITCH)
     assert again["series"] == 0  # idempotent
+
+
+def test_a_concurrent_settle_keeps_the_model_p_attached_meanwhile(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review R1 F3: the loop's settle reads settled.json, the offline attach
+    writes model_p while that settle runs, the settle's failed retry of the
+    series writes `{**prev, ...}` back - the file must keep the model_p."""
+    monkeypatch.setattr(epochs, "CS2_SERIES_ONLY_MODEL_P_FROM_UTC", SWITCH)
+    write_snapshot(tmp_path)
+    db, path = _store(tmp_path), _settled_file(tmp_path)
+    doc = json.loads(path.read_text())
+    doc["events"]["1"]["pending_sides"] = 1  # retried by the settle
+    path.write_text(json.dumps(doc))
+
+    def fake_attach(graded: list[dict[str, Any]], *a: Any) -> None:
+        for g in graded:
+            g["model_p"], g["model_n"], g["model"] = 0.55, 40, "elo"
+
+    monkeypatch.setattr(sc, "attach_model", fake_attach)
+
+    def concurrent(ev: Any, sofa: Any, at: datetime, db_path: Any, snaps: Any,
+                   prev: Any = None) -> dict[str, Any]:
+        # the second writer: the offline attach, mid-run of the settle
+        assert sc.attach_series_only_models(str(tmp_path), "2026-09-26", db,
+                                            SWITCH)["series"] == 1
+        return {"match_name": ev.match_name, "kickoff_utc": ev.kickoff_utc,
+                "state": "ERROR", "error": "ProviderError: 504"}
+
+    monkeypatch.setattr(sc, "settle_one", concurrent)
+    sc.settle("2026-09-26", FakeSofascore(), str(tmp_path),  # type: ignore[arg-type]
+              KICKOFF + timedelta(days=1), db)
+    rec = json.loads(path.read_text())["events"]["1"]
+    assert rec["last_retry_state"] == "ERROR"
+    assert [(g["model_p"], g["model_n"], g["model"]) for g in rec["graded"]] == [
+        (0.55, 40, "elo"), (0.55, 40, "elo")]
+
+
+def test_a_settle_keeps_its_own_model_p_over_the_file() -> None:
+    row = {"superbet_event_id": "1", "family": "match_winner", "map_nr": 0,
+           "subject": "", "line": None, "side": "T1", "odds": 1.8}
+    current = {"graded": [dict(row, model_p=0.5, model_n=9, model="elo")]}
+    record = {"graded": [dict(row, model_p=0.7, model_n=12, model="elo"),
+                         dict(row, side="T2")]}
+    sc.keep_attached_models(current, record)
+    assert record["graded"][0]["model_p"] == 0.7  # its own
+    assert "model_p" not in record["graded"][1]  # another side: nothing held
+    sc.keep_attached_models(None, record)  # no record in the file: unchanged
+
+
+def test_a_file_record_of_another_series_or_team_order_lends_nothing() -> None:
+    # Review R5 #1: T1 / T2 numbers depend on the series and the team order.
+    row = {"superbet_event_id": "1", "family": "match_winner", "map_nr": 0,
+           "subject": "", "line": None, "side": "T1", "odds": 1.8}
+    held = dict(row, model_p=0.5, model_n=9, model="elo")
+    for changed in ({"sofascore_event_id": 8}, {"home_is_team1": False}):
+        current = {"sofascore_event_id": 7, "home_is_team1": True,
+                   "graded": [held]}
+        record = {"sofascore_event_id": 7, "home_is_team1": True,
+                  "graded": [dict(row)], **changed}
+        sc.keep_attached_models(current, record)
+        assert "model_p" not in record["graded"][0]
+    record = {"sofascore_event_id": 7, "home_is_team1": True,
+              "graded": [dict(row)]}
+    sc.keep_attached_models({"sofascore_event_id": 7, "home_is_team1": True,
+                             "graded": [held]}, record)
+    assert record["graded"][0]["model_p"] == 0.5
