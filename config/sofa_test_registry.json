@@ -484,6 +484,32 @@
       "evidence": [
         {"source": "docs/sofa/history/NBA_SEZON_STAWKA_LIGI_2026-10-22.md", "line": 1, "quote": "Restart stawki ligi po przerwie międzysezonowej"}
       ]
+    },
+    {
+      "id": "T-HOCKEY-REFIT-1024",
+      "registered_on": "2026-10-23",
+      "status": "PROPOSED",
+      "hypothesis": "The hockey history curve refitted 2026-10-23 (config/sofa_sport_confidence_calibration.next.2026-10-24.json, read from 2026-10-24) is calibrated on Superbet's settled hockey lines after its install: lines at curve confidence >= 0.70 realise at least their confidence minus 3 pp, and its log loss is not worse than the 2026-10-07 curve's on the same lines.",
+      "rule": "Over settled Superbet hockey lines (runs/sofa/shadow/hockey/<d>/settled.json) of days from 2026-10-24, each line's model p read through both curves (bucket lo95, admission not required, no line evidence; scripts/sofa/measure_sport_curve_swap.py --old config/sofa_sport_confidence_calibration.next.json --new config/sofa_sport_confidence_calibration.next.2026-10-24.json --sport hockey, rows from fit_sport_confidence.py --rows-out of a later day). Report realised minus confidence at >= 0.70 for the new curve and log loss new minus old.",
+      "population": "Settled Superbet hockey lines of days from 2026-10-24.",
+      "data_window": {
+        "from": "2026-10-24",
+        "to": "2027-01-23"
+      },
+      "required_n": {
+        "legs": 3000,
+        "matches_min": 500,
+        "basis": "09-29..10-21 held 10,764 lines >= 0.70 in 1,582 games for the new curve (about 450 lines / 70 games a day); 3,000 lines in 500 games give a 95% half-width of about 1.5 pp on the gap."
+      },
+      "evaluation": "Bootstrap over games (lines of one game are not independent), 95% intervals.",
+      "stop_criterion": "PASSED when the gap's lower 95% bound is above -3 pp and log loss new minus old has its lower bound below 0 at the required n; FAILED when the gap's upper bound is below -3 pp or log loss new minus old has its lower bound above 0 (the curve is reported to the operator, who decides on reverting to .next.json's hockey section).",
+      "evidence": [
+        {
+          "source": "docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md",
+          "line": 1,
+          "quote": "Refit krzywych hokeja i siatkówki"
+        }
+      ]
     }
   ]
 }

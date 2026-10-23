@@ -546,6 +546,7 @@ jeszcze zbudowany - nie jest mieszany. Raport nocy:
 | `match_won_for` w `config/sofa_confidence_calibration.json` | `fit_tennis_winner_curve.merge` | od 2026-10-16 przenoszony przez sam `fit_confidence` (`fit_meta.carry_separately_fitted_curves`; wcześniej wklejany ręcznie po fitcie); `TENNIS_MATCH_WINNER` od 2026-10-14 00:00Z |
 | krzywe łączników (`both_over_*`, `most_*`, `handicap_*`) | ten fit | dopasowane, **nieczytane**: `DERIVED_CURVES`, `CARDS_CORRELATION`, `DERIVED_SHEET_MARGINS` = `None` (`docs/sofa/evidence/derived_curves_2026-10-14.md`) |
 | `config/sofa_sport_confidence_calibration.json` / `.next.json` | `fit_sport_confidence.py` | staged CS2 (B10) przeniesiony nad plik główny; nowy `.next.json` = to + koszykówka A7, `effective_from` 2026-10-14 (`MARKET_POSITIONED_LINES`); hokej / siatkówka / CS2 / zwykła koszykówka zmierzone, niezainstalowane |
+| `config/sofa_sport_confidence_calibration.next.2026-10-24.json` | `fit_sport_confidence.py --sport hockey --before 2026-10-23 --league-rate-rule` (kopia bazy) | drugi plik staged z własną datą: dzień czyta plik staged z najpóźniejszym `effective_from` <= dzień (`sport_confidence.calibration_path_for`); 10-14..10-23 czytają `.next.json`, od 2026-10-24 ten plik - `.next.json` z sekcją hokeja przeliczoną 2026-10-23 (reszta sportów bez zmian); siatkówka zmierzona, niezainstalowana (`docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md`) |
 
 Próba na sucho (artefakty poranka 10-13, przełączniki dnia 10-14, nowe
 krzywe): drukowane single 1323 -> 1296; piłka / tenis stabilne (pewność

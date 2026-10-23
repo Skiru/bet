@@ -773,7 +773,7 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     }
     if evidence is not None:
         doc["line_evidence_fitted_from"] = evidence.doc.get("fitted_from")
-    if calibration_path.name == scf.NEXT_CALIBRATION_FILE:
+    if scf.is_staged_calibration(calibration_path):
         doc["calibration_file"] = calibration_path.name  # a staged refit
     record = RefusalRecord()
     printed_before = prev_printed(runs_dir, date)

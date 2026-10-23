@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import re
 from bisect import bisect_right
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence
@@ -84,22 +85,52 @@ CALIBRATION_FILE = "sofa_sport_confidence_calibration.json"
 # `effective_from` (YYYY-MM-DD); a day at or after it reads this file instead
 # of CALIBRATION_FILE. The refit procedure later moves it over CALIBRATION_FILE.
 NEXT_CALIBRATION_FILE = "sofa_sport_confidence_calibration.next.json"
+# A second (third, ...) staged refit carrying its own date: the whole document
+# again, named sofa_sport_confidence_calibration.next.<YYYY-MM-DD>.json with
+# `effective_from` that same day (2026-10-23: the volleyball refit staged from
+# 2026-10-24 while .next.json stays the read of 10-14..10-23). A day reads the
+# staged file with the latest `effective_from` <= the day; a file whose name
+# and `effective_from` disagree is an error, never silently skipped.
+DATED_CALIBRATION_PREFIX = "sofa_sport_confidence_calibration.next."
+_DATED_NAME = re.compile(
+    r"^sofa_sport_confidence_calibration\.next\.(\d{4}-\d{2}-\d{2})\.json$")
+
+
+def staged_calibration_paths(config_dir: Path | None = None) -> list[Path]:
+    """Every staged sport calibration of the config dir: .next.json and the
+    dated .next.<YYYY-MM-DD>.json files, existing ones only, sorted by name."""
+    from bet.sofa.config import config_path
+
+    base = config_dir if config_dir else config_path(CALIBRATION_FILE).parent
+    nxt = base / NEXT_CALIBRATION_FILE
+    out = [nxt] if nxt.exists() else []
+    out += sorted(p for p in base.glob(DATED_CALIBRATION_PREFIX + "*.json")
+                  if _DATED_NAME.match(p.name))
+    return out
+
+
+def is_staged_calibration(path: Path) -> bool:
+    """Is `path` a staged (not the installed) sport calibration file?"""
+    return path.name == NEXT_CALIBRATION_FILE or bool(_DATED_NAME.match(path.name))
 
 
 def calibration_path_for(date: str, config_dir: Path | None = None) -> Path:
-    """The sport calibration a day reads: the staged one from its
-    `effective_from`, else the installed one."""
+    """The sport calibration a day reads: the staged file with the latest
+    `effective_from` at or before the day, else the installed one."""
     from bet.sofa.config import config_path
 
     main = (config_dir / CALIBRATION_FILE) if config_dir else config_path(
         CALIBRATION_FILE)
-    nxt = (config_dir / NEXT_CALIBRATION_FILE) if config_dir else config_path(
-        NEXT_CALIBRATION_FILE)
-    if nxt.exists():
-        eff = json.loads(nxt.read_text(encoding="utf-8")).get("effective_from")
-        if isinstance(eff, str) and date >= eff:
-            return nxt
-    return main
+    best: tuple[str, Path] | None = None
+    for path in staged_calibration_paths(config_dir):
+        eff = json.loads(path.read_text(encoding="utf-8")).get("effective_from")
+        named = _DATED_NAME.match(path.name)
+        if named and eff != named.group(1):
+            raise ValueError(f"{path.name}: effective_from {eff!r} disagrees "
+                             "with the file name")
+        if isinstance(eff, str) and date >= eff and (best is None or eff > best[0]):
+            best = (eff, path)
+    return best[1] if best else main
 
 # --- F2: the allow-list ---------------------------------------------------------
 #

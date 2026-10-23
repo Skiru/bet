@@ -91,9 +91,12 @@ and a miss recorded before a rule's switch never blocks that rule.
   each match with the estimator SHEET prices with today. Our settled days are an
   audit of a curve, never its source. Curves: `config/sofa_confidence_calibration.json`
   (football / tennis) and `config/sofa_sport_confidence_calibration.json` (a
-  staged `.next.json` is read from its `effective_from`,
-  `sport_confidence.calibration_path_for` - from 2026-10-14 every sport reads
-  the `.next.json`, so an edit goes there, not into the installed file).
+  staged `.next.json` is read from its `effective_from`, and a dated
+  `.next.<YYYY-MM-DD>.json` from that day - a day reads the staged file with
+  the latest `effective_from` <= it, `sport_confidence.calibration_path_for`;
+  10-14..10-23 read `.next.json`, from 2026-10-24 `.next.2026-10-24.json`
+  (hockey refit), so an edit for a coming day goes into the latest staged
+  file, never into the installed one or a file a built day reads).
 - SHEET keeps the price out of `p_central`; the rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
   statistics to a calibrated confidence through the curves.

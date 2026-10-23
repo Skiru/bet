@@ -477,6 +477,7 @@ better (-0.0006 [-0.0078, +0.0069]) and its legs overstate (35 / 15 matches,
 | score-market slice curves | 10-16 (`install_new_market_curves.py --dir data/refit_new_markets_2026-10-17`) | 133 football slice curves (men 50, season_early 40, women 43) + `set_score_not` men and `tennis_women:`; `scripts/sofa/fit_score_market_curves.py` on the 1X2/DNB and tennis set fit rows - no replay; one-sided gate + no slice overstating (one curve per market had hidden -3..-9 pp slices in a -0.5 pp pooled gap) | - |
 | refit 2026-10-17 | 10-17 19:13Z (into the mixed day) | football / tennis curves, engine constants, league baselines, reliability on `data/refit_2026-10-17/sofa_replay.db` (1,282,317 matches, 121.9M rows; 10-16b flags + `--goals-stretch --count-stretch --player-stretch`); tests/sofa 5102 passed; line evidence refitted; `fit_confidence` keeps footballer shot-detail rows out (`shot_detail.METRICS`; the first fit had replaced the left / right foot curves). E2E: 10-16 +83 / -44 legs, settled -89.94 -> -90.95 u. (dropped 41 graded -0.51, added 81 -1.52); 10-17 +71 / -28, common abs move 0.002 mean, 0.060 max | **keep this DB** (`fitted_from.db_path`); `config/backup_2026-10-18` |
 | per-line curves | 10-18 12:04Z (`install_line_curves.py`) | `by_market_direction_line` only | `config/backup_2026-10-18_line_curves/` |
+| hockey refit 2026-10-23 | staged 2026-10-23, read from 2026-10-24 00:00Z (`config/sofa_sport_confidence_calibration.next.2026-10-24.json`, the dated staged chain of `sport_confidence.calibration_path_for`; 10-14..10-23 keep reading `.next.json`) | hockey section only: `fit_sport_confidence.py --sport hockey --before 2026-10-23 --league-rate-rule` (fit 2025-09-23..2026-09-23, 785,934 rows; holdout 09-23..10-23, 647,144 rows / 3,375 games; no season restart, no A7); new-market DC curves carried; basketball / volleyball / CS2 sections byte-identical to `.next.json`. Settled Superbet lines 09-29..10-21 (out of sample for both): log loss -0.00048 [-0.00062, -0.00033] (71,948 lines / 1,788 games; `handicap` alone +0.00224 [+0.00187, +0.00262] worse); confidence >= 0.70 -0.5 pp [-1.5, +0.5] -> -0.2 pp [-1.2, +0.8], difference +0.30 pp [+0.13, +0.49]; history holdout +0.00003 [-0.00002, +0.00008], >= 0.70 +0.8 -> +0.9 pp. Pre-registered `T-HOCKEY-REFIT-1024` (PROPOSED) | DB copy `data/refit_2026-10-23/sp.db` deleted; rows / comparisons kept in `data/refit_2026-10-23/`; `docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md` |
 
 New-market curves of 10-15 (operator go 10-14 "zbudować krzywe dla tych
 wszystkich rynków"; one-sided holdout gate, operator 10-14 18:55Z,
@@ -504,9 +505,10 @@ in `fit_confidence`, `carry_sport_new_market_curves` in `fit_sport_confidence`;
 listed in `new_market_curves_fitted_from`); before, a refit dropped them unless
 carried by hand.
 
-Sport curves: hockey / volleyball / CS2 = the installed sport file's (CS2's
+Sport curves: volleyball / CS2 = the installed sport file's (CS2's
 B10 curve promoted 2026-10-14, bc69b56e); basketball = the staged `.next.json`
-(A7 + hybrid).
+(A7 + hybrid); hockey = the 10-07 curve through 10-23, from 10-24 the
+2026-10-23 refit (`.next.2026-10-24.json`).
 
 Replay contents (`calibrate_from_cache.py`): football rating in the marginal
 rows' centres (`--football-rating` with `--rated-scope --venue-prior
@@ -590,8 +592,21 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   picture as the 10-16 full-cache refit: a newer window worsens the half /
   team-total families. Not installed, no epoch; a key-subset hybrid would be
   chosen after the result (`docs/sofa/history/REFIT_KOSZ_SEZON_2026-10-22.md`).
-  Installing a sport curve from a later day needs the `.next.json` promoted
-  first (one staged file, one `effective_from`);
+  (Since 2026-10-23 a dated staged file `.next.<YYYY-MM-DD>.json` carries a
+  later day's sport curves without promoting `.next.json`.);
+- the volleyball refit on the fuller history (2026-10-23, `--before
+  2026-10-23 --league-rate-rule`): settled Superbet lines 09-29..10-21 log
+  loss -0.00080 [-0.00137, -0.00023] (18,210 lines / 922 games), >= 0.70
+  -6.9 -> -6.4 pp (+0.56 pp [+0.50, +0.63]), holdout -0.00013 [-0.00028,
+  +0.00002] - but the whole gain is `set_winner` (-0.0063), a settled-only
+  family (`settled_only_families`) refitted from our settled lines
+  09-29..10-09; with the history-fitted families alone -0.00003 [-0.00046,
+  +0.00041], and the refit would add three curves from our days alone
+  (`set_points_total` OVER, `set_points_odd_even`). Not staged (hard rule:
+  our settled days are an audit, never a curve's source). Both curves
+  overstate `points_handicap` (-26 pp, 251 lines) and `points_total` (-22 pp,
+  53 lines) at >= 0.70 - `measure_sport_curve_swap.py`'s own verdict
+  `install: false` (`docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md`);
 - the league-rate season restart for hockey and volleyball (2026-10-22, both
   sides at the fast step, K 10, the basketball walk-forward's method): hockey
   +0.0005 [+0.0002, +0.0009] log loss per line on 6,169 games (2026-09.. start
@@ -747,7 +762,7 @@ Groups are never pooled.
 | "od 10-21" | none | holds no day (CS2_PLAYER_SHARE 00:00Z; CS2_PRICE_GAP 00:00Z annotation (+ read order); the seven football statistics switches 00:00Z and their curves (installed 10-20 ~22Z) - all in "10-21 mieszany") |
 | "10-21 mieszany" | 10-21 | the "od 10-21" switches 00:00Z, then LATE_RESOLVE 08:48Z, SQUAD_SEARCH_RETRY (moved from 10-22 00:00Z) and ENTITY_MISS_PER_DAY 09:20Z into the built day (late fixtures reach the coupon after the first print); IDENTITY_GATE_PER_FAMILY 10:50Z (wider football samples, re-sampled open fixtures) |
 | "od 10-22" | 10-22 | SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
-| "od 10-24" | 10-24 .. | current; LIVE_ONLY_CURVE_REFUSED 00:00Z - 50 installed tennis curve keys fitted from live rows alone are not read (serve points, per-set aces / double faults, tiebreaks) |
+| "od 10-24" | 10-24 .. | current; LIVE_ONLY_CURVE_REFUSED 00:00Z - 50 installed tennis curve keys fitted from live rows alone are not read (serve points, per-set aces / double faults, tiebreaks); the hockey refit of 2026-10-23 read from 00:00Z (`.next.2026-10-24.json`) |
 | "od 10-23" | 10-23 | SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
