@@ -535,6 +535,24 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- the football / tennis curves refitted on the fuller history (2026-10-22/23,
+  operator's go ~21:30Z "install where measurement shows improvement"; replay
+  on the copy `data/refit_2026-10-22c/fb.db` with the installed flags plus
+  `--closeness-stretch --player-coverage`: 1,302,366 matches / 127.0M rows vs
+  1,282,317 / 121.9M of 10-17 - the backfill added +1.6% matches; no
+  football-only fit exists, both sports fitted, tennis history incomplete):
+  candidate fitted without matches / live rows from 10-18 vs the installed
+  curve, history holdout 10-18..10-22 (1,712 matches, 302 football) log loss
+  -0.4e-4 [-1.2, +0.4] (football -0.8 [-2.0, +0.5], tennis +0.3 [+0.0, +0.7],
+  tennis_women +1.2 [+0.5, +1.9] worse); >= 0.70 realised - confidence +0.26
+  -> +0.31 pp; settled Superbet lines from 10-18 by group: gated gap moves
+  <= 0.17 pp, log loss intervals across zero for football. Not installed, no
+  staged file, no epoch (`docs/sofa/history/REFIT_PILKA_2026-10-22.md`). The
+  per-line curves are refitted by the same fit (43 / 76 keys unchanged) and
+  were measured with it - no separate refit. A football / tennis refit is
+  worth repeating only when the replay grows materially (the stats backfill
+  reaching matches the replay lacks), or with referee / player share
+  replayable;
 - a goals_for dispersion fix and a refitted double-chance r (2026-10-22,
   pre-registered, history replay with today's centre - rating weight, goals
   stretch v2, season phase, cup strength - TRAIN 2025-07..2026-03, TEST
@@ -651,6 +669,17 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 - A basketball refit on the season-restart rule: done with the operator's go
   2026-10-22 and NOT installed (section (d)); the installed curve (10-14 A7 +
   10-15 hybrid) stays, p moves by the rule from 10-23.
+- `fit_confidence` reads every `sofa_settled_row`, live rows included: a market
+  the replay never prices (tennis serve points, per-set aces / double faults,
+  tiebreaks) gets its curve from our settled days alone - against "curves
+  from the history". The installed file carries such keys from earlier
+  refits; the 2026-10-22c candidate froze them to the installed values
+  (`data/refit_2026-10-22c/freeze_live_only.py`). Hardening item: exclude
+  live rows from the fit, or freeze those keys in the tool.
+- Football staging exists: `confidence.calibration_path_for` reads
+  `config/sofa_confidence_calibration.next.json` from its `effective_from`
+  (CONFIDENCE, `fit_line_evidence`); `run_coupon.py` (06) reads the installed
+  file; `install_line_curves.py` refuses beside a `.next.json`.
 - Superbet's game count of a tennis match tiebreak.
 - Line-evidence offsets of repriced families moved <= 1.3 pp a day over
   10-09..10-12 (stable); tennis `games_won_for` OVER offsets (-8.5 men, -12.1
