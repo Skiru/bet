@@ -1,7 +1,8 @@
 """Render KUPON_<d>.html (the coupon's legs with filters) from 11_coupon.json.
 
 build_coupon_pdf.py already writes it after every PDF; this is for the HTML
-alone (a changed page, no new print record). Exit 0 OK, 2 failed."""
+alone (a changed page, no new print record); the iCloud copy follows it
+(bet.sofa.icloud_sync). Exit 0 OK, 1 the iCloud copy failed, 2 failed."""
 
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from bet.sofa.confidence import coupon_artifact
 from bet.sofa.coupon_html import write_html
+from bet.sofa.icloud_sync import sync_day
 from scripts.sofa.build_family_record import ensure_quietly as ensure_family_record
 
 
@@ -33,9 +35,14 @@ def main() -> int:
     if fam_error:
         print(f"family_record.json NOT refreshed: {fam_error}", file=sys.stderr)
     out = write_html(run, doc, args.date)
-    print(json.dumps({"stage": "COUPON_HTML", "verdict": "OK",
-                      "output_path": str(out), "legs": len(doc.get("singles") or [])}))
-    return 0
+    icloud = sync_day(args.runs_dir, args.date)
+    if icloud.status == "FAILED":
+        print(f"iCloud copy NOT written: {icloud.detail}", file=sys.stderr)
+    failed = icloud.status == "FAILED"
+    print(json.dumps({"stage": "COUPON_HTML", "verdict": "PARTIAL" if failed else "OK",
+                      "output_path": str(out), "legs": len(doc.get("singles") or []),
+                      "icloud": icloud.as_json()}))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

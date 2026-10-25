@@ -20,7 +20,7 @@ There is no DISCOVER, ENRICH, ANALYZE, MARKET_CONTEXT or TIPSTERS stage
 | file (`runs/sofa/<d>/`) | what it is |
 |---|---|
 | `11_coupon.json` | **the coupon** (COUPON_ASSEMBLY). Read it through `confidence.coupon_artifact(run_dir)` (falls back to `08_confidence.json` on a day without 11) |
-| `KUPON_<d>.pdf` | **the product the operator stakes**, rendered from 11. `KUPON_<d>.html` is a filterable view of the same legs |
+| `KUPON_<d>.pdf` | **the product the operator stakes**, rendered from 11. `KUPON_<d>.html` is a filterable view of the same legs. Every render copies both to the operator's iCloud Drive `Kupony/<DD.MM.YYYY>/` (`bet.sofa.icloud_sync`; a scratch runs dir never; `day_status.py` `icloud` checks it) |
 | `12_printed.json`, `printed/<ts>.json` | the append-only print record; a rebuild locks from the first print |
 | `08_confidence.json` | football / tennis legs - the INPUT of 11 (and of SETTLE), not the coupon |
 | `08_confidence_sports.json` | hockey / basketball / volleyball / CS2 legs - input of 11 |

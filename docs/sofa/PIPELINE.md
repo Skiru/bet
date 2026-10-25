@@ -3280,7 +3280,19 @@ Lanik bez odczytu, Bondioli - Forti KEEP).
 `build_coupon_pdf.py` zapisuje HTML po każdym renderze PDF (także w
 `rebuild_day.py`), więc przebudowany kupon zawsze ma świeży HTML; błąd HTML
 zostawia PDF i kończy PARTIAL (exit 1). Sam HTML: `build_coupon_html.py
---date <d>`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
+--date <d>`.
+
+**Kopia na iCloud Drive (od 2026-10-25, operator).** Każdy render kuponu
+dnia (druk, każda przebudowa, render z wynikami, sam `build_coupon_html.py`)
+kopiuje `KUPON_<d>.pdf` i `.html` do `~/Library/Mobile Documents/
+com~apple~CloudDocs/Kupony/<DD.MM.RRRR>/` (`bet.sofa.icloud_sync`), podmieniając
+starsze wersje atomowo (`os.replace`, czas pliku lokalnego). Render w innym
+katalogu runs (scratch, test) nigdy tam nie pisze; `SOFA_ICLOUD_KUPONY_DIR`
+wskazuje inny katalog docelowy (pusty = wyłączone; testy ustawiają pusty).
+Brak iCloud Drive = SKIPPED; nieudana kopia = etap PDF PARTIAL (exit 1).
+`day_status.py` linia `icloud`: OK gdy obie kopie są identyczne bajt w bajt,
+WARN gdy brak / różnica. Kopia - nic jej nie czyta. Test:
+`tests/sofa/test_icloud_sync.py`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
 filtry w prawdziwej przeglądarce, jeśli jest Chrome).
 
 **Rodzina na plusie i selekcja „x ≥ 1 i rodzina na plusie” (od 2026-10-18).** Rodzina to

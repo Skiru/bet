@@ -76,3 +76,10 @@ def _no_detached_closing_loop(monkeypatch: pytest.MonkeyPatch) -> None:
         raise RuntimeError(f"detached capture_closing spawn in unit test ({date})")
 
     monkeypatch.setattr(capture_closing, "spawn_loop", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _no_icloud_copy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No unit test copies a coupon to the operator's iCloud Drive
+    (bet.sofa.icloud_sync); a test that wants the copy names its own root."""
+    monkeypatch.setenv("SOFA_ICLOUD_KUPONY_DIR", "")

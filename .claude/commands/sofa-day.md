@@ -272,6 +272,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
 
 - `day_status.py` (no network) = STATUS. BROKEN (ledger MISMATCH, STALE_COUPON, a PDF older
   than 11) is fixed before reporting; its `bridge` is always NOT_CHECKED, never a pass.
+- **iCloud copy (the last step, operator 2026-10-25):** every PDF render (step 7, step 8's
+  rebuild, the evening rebuild, a results render) copies `KUPON_<D>.pdf` + `.html` over
+  `~/Library/Mobile Documents/com~apple~CloudDocs/Kupony/<DD.MM.YYYY>/` itself
+  (`bet.sofa.icloud_sync`; the PDF stage's JSON line carries `icloud`). `day_status.py`
+  `icloud` must be OK (byte-equal); a WARN (missing / differs) = re-copy with
+  `PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <D>` (no print
+  record) and check again; SKIPPED / NOT_CHECKED (no iCloud Drive) is named in the report.
 - `capture_closing.py`: a missing close is a CLV hole, not a zero. `run_boosts.py`: a few
   times a day.
 
@@ -298,6 +305,7 @@ report, say the evening rebuild is still to come.
 
 ```
 KUPON:    runs/sofa/<D>/KUPON_<D>.pdf — <n> pozycji (piłka / tenis / hokej / kosz / siatka / CS2), <n> zablokowanych, <n> Bet Builderów
+iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK / WARN / NOT_CHECKED> (day_status icloud)
 SPORTY:   hokej / kosz / siatka / CS2 <status, refused> (każdy inny niż OK z powodem)
 RUN:      <run_id> · werdykt każdego etapu · <n> na tablicy → <n> dopasowanych → <n> READY
 SHEET:    <n> wierszy (<n> piłka / <n> tenis), epoka stats_only

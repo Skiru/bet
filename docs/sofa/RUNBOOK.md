@@ -467,7 +467,9 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   `rebuild_plan.after_fixture_check`: `rebuild_day.py` wstawia wtedy SHEET
   zaraz po FIXTURE_CHECK, przed CONFIDENCE - audyt 2026-10-21 D7), **CONFIDENCE**,
   **SPORT_CONFIDENCE**, **COUPON_ASSEMBLY** (`build_coupon.py`), **PDF**
-  (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `KUPON_<data>.html` + `12_printed.json`),
+  (`build_coupon_pdf.py` → `KUPON_<data>.pdf` + `KUPON_<data>.html` + `12_printed.json`,
+  i kopia obu plików na iCloud Drive `Kupony/<DD.MM.RRRR>/`, `bet.sofa.icloud_sync`;
+  `day_status.py` `icloud` sprawdza, że jest identyczna),
   `audit_variants.py`, `audit_coupon.py`.
 
 Dzień zakończony (żaden mecz nie da się już zagrać): ceny nie są

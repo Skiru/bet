@@ -24,6 +24,9 @@ named, never shown as passed:
                   close in closing.jsonl (and per day from --clv-from)
     coupon        11_coupon.json / 08_confidence.json against their sources
                   (build_coupon_pdf's own staleness rules)
+    icloud        the iCloud Drive copy of KUPON pdf / html
+                  (bet.sofa.icloud_sync) equal to the local render, byte
+                  for byte; NOT_CHECKED for a scratch runs dir / no iCloud
     fixtures      UNVERIFIED events of fixture_status.json
     identity      sport_fixtures.json: any BRIDGE_ABORTED refusal, or a
                   sport's identified share under its measured floor
@@ -59,6 +62,7 @@ from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.clv import CLOSE_MIN_MINUTES  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
+from bet.sofa.icloud_sync import differences as icloud_differences  # noqa: E402
 from scripts.sofa.audit_clv import closing_rows  # noqa: E402
 from scripts.sofa.build_coupon_pdf import (  # noqa: E402
     confidence_older_than_sheet,
@@ -419,6 +423,18 @@ def coupon_check(run: Path, now: datetime) -> Check:
                  + ("" if pdf.exists() else f"; KUPON_{run.name}.pdf absent"))
 
 
+def icloud_check(runs: Path, date: str) -> Check:
+    dest, diffs = icloud_differences(runs, date)
+    if dest is None:
+        return Check("icloud", NOT_CHECKED, "no iCloud copy for this runs dir")
+    if not (runs / date / f"KUPON_{date}.pdf").exists():
+        return Check("icloud", NOT_CHECKED, f"KUPON_{date}.pdf not rendered yet")
+    if diffs:
+        return Check("icloud", WARN, f"{dest}: {', '.join(diffs)} - "
+                     f"re-render (build_coupon_pdf.py --date {date})")
+    return Check("icloud", OK, f"{dest}: pdf + html equal to the local render")
+
+
 def fixtures_check(run: Path) -> Check:
     status = fs.load(run)
     if not status:
@@ -531,6 +547,7 @@ def checks(runs: Path, date: str, now: datetime,
         ledger_check(runs, date),
         clv_check(runs, date, now),
         coupon_check(run, now),
+        icloud_check(runs, date),
         fixtures_check(run),
         identity_check(run),
         history_check(runs, date, db_path),

@@ -65,6 +65,7 @@ from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.coupon_html import write_html  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.icloud_sync import sync_day  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
 from bet.sofa.superbet_names import (  # noqa: E402
@@ -668,16 +669,27 @@ def main() -> int:
                 html_error = f"{type(exc).__name__}: {exc}"
                 print(f"KUPON_{args.date}.html NOT written: {html_error}",
                       file=sys.stderr)
+        # The operator's copy on iCloud Drive (bet.sofa.icloud_sync): every
+        # render of the day's own coupon replaces it; a scratch runs dir is
+        # SKIPPED. A failed copy leaves the run's files as they are and ends
+        # PARTIAL like a missing HTML.
+        icloud = (sync_day(args.runs_dir, args.date) if args.out is None
+                  else None)
+        if icloud is not None and icloud.status == "FAILED":
+            print(f"iCloud copy NOT written: {icloud.detail}", file=sys.stderr)
+        partial = bool(html_error) or (icloud is not None
+                                       and icloud.status == "FAILED")
         print(json.dumps({
-            "stage": "COUPON_PDF", "verdict": "PARTIAL" if html_error else "OK",
+            "stage": "COUPON_PDF", "verdict": "PARTIAL" if partial else "OK",
             "epoch": STATS_ONLY,
             "metrics": {"picks": len(picks), "singles": len(singles),
                         "positions": doc_json.get("positions"),
                         "locked": n_locked},
             "output_path": str(out_path),
             "html_path": str(html_path) if html_path else None,
+            "icloud": icloud.as_json() if icloud is not None else None,
         }))
-        return 1 if html_error else 0
+        return 1 if partial else 0
 
     story.append(Paragraph("Jak czytać ten kupon", h2))
     story.append(Paragraph(
