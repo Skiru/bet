@@ -1,71 +1,138 @@
 # The web context pass - every match, every sport
 
-Operator 2026-10-20: the statistics are half the read; the other half is
-what no statistic holds. Every match not yet started gets this pass, after
-the dossier (`dossier.md`) and before the verdicts. Sources by sport:
-`context-sources.md`.
+Operator 2026-10-20: the statistics are half the read; the other half is what
+no statistic holds. Every match not yet started gets this pass, after the
+dossier (`dossier.md`) and before the verdicts. Sources by sport:
+`context-sources.md` (the index) -> `sources-<sport>.md`. Why these rules:
+`literature.md`.
 
-## What to look for
+## What the pass is for (measured, 2026-10-26)
 
-Start from the dossier's `web_checklist`, then what its blocks raise (a new
-CS2 name, a back-to-back, a losing run, a moved line). Search in the match's
-own language too - local press, the clubs' / teams' / players' channels.
+The price already holds what is public and old: home advantage, form, the
+referee's rate, table stakes, last week's injuries. Reads 10-13..10-25 removed
+legs that realised exactly like the kept ones (-0.9 pp [-5.9, +4.2]): an
+opinion about the match removes volume, not losers. The pass looks for two
+things only:
 
-1. **News and facts** - lineups and absences, injuries, suspensions, a
-   stand-in, the starting goalie / setter, a postponement, a format change.
-2. **Conditions** - weather at the venue at the local start hour (rain,
-   wind, heat, snow, a heavy pitch), roof, altitude, travel. Outdoor only.
-3. **Morale and the backstage** - dressing-room conflict, a coach under
-   pressure or just sacked, unpaid wages, a strike or boycott, fan protests,
-   a dispute with the federation, an organisation in turmoil (CS2), a
-   player's public row.
-4. **What the result is worth** - stakes, a decided tie, a dead rubber, the
-   next match they rest for.
-5. **Opinions** - previews, journalists, coaches' and players' words, a
-   tipster's *reasoning* (never a pick alone).
+1. **A defect of the leg as printed** - the match moved / postponed, a format
+   the line does not assume, a prop player who does not start, a backup
+   goalie under a goalie-dependent line, a CS2 stand-in under a roster-based
+   line, a second squad, a market Superbet settles otherwise.
+2. **A fact newer than the price** (or than the model's sample) acting
+   through the leg's own variable - a confirmed XI / goalie / five, an
+   absence announced since the price's `fetched_at_utc`, a referee change, a
+   fan ban, an extreme condition.
 
-Budget: up to ~8 searches / fetches per match; more for a leg on a printed
-builder or a chat slip when a lead needs a second domain. Queries that cannot
-return a scoreline (the fact and its period, never the two names alone). Pages
-published before the start only; a leaked result is named and the claim
-marked `CANNOT VERIFY`.
+Everything else - mood, narrative, "must-win", a derby, a preview's pick - is
+read and named, and at most a WATCH when it acts through the leg's variable
+by a named mechanism.
 
-## How much it weighs
+## The order - never reverse it
+
+1. **Base rate first.** Write the leg's printed confidence as the outside
+   view, and the expectation in the market's units (dossier / samples).
+2. **Kill facts before the search** (premortem). Per match, write in one line
+   which facts would break its legs ("Union bez Biondica -> gole Union 2.5
+   OVER; deszcz nie zmienia nic"). Search for those. More information raises
+   confidence faster than accuracy - a list fixed before the search is what
+   keeps the pass honest.
+3. **Search** (budget below), starting from the dossier's `web_checklist` and
+   the sport's mandatory checks (`sources-<sport>.md`, "Mandatory").
+4. **Verdict per leg**: did a kill fact turn up, through which variable, on
+   how many domains, published when relative to the price?
+
+## Weight
 
 | what you found | may carry |
 |---|---|
-| a fact on two independent domains | `NO_BET` (a defect of the leg as printed) |
-| a fact on one domain, a reasoned opinion, a mood report | at most `WATCH`, and only through **this leg's variable** - name the mechanism ("ulewa w Tangerang o 19:00 -> mniej dośrodkowań i rożnych"), never "atmosfera zła" alone |
+| a defect of the leg as printed, on an artifact or two independent domains | `NO_BET` |
+| a fact on two independent domains, newer than the price, breaking the leg's premise | `NO_BET` |
+| a fact on one domain (named reporter / official channel), or a reasoned opinion, acting through **this leg's variable** by a named mechanism | at most `WATCH` |
+| a mood report, a narrative, a derby, "they need the points" (`MORALE` / `MOTIVATION` / `DERBY`) | at most `WATCH`, only through the leg's variable by a named mechanism (operator 2026-10-20); the literature measures ~0 here - name it, KEEP by default |
+| a tipster's pick, a preview's prediction | nothing - a lead to verify |
+| what the model already carries (home advantage, the referee's rate, form, table, rest days in `schedule`, closeness) | nothing, unless the **input changed** (a new referee, a neutral venue, closed doors) |
 | nothing relevant | KEEP, with "nic istotnego dla tych nóg" in the section |
 
-Context only removes; it never raises a confidence or admits a leg. Tag
-every claim `[WEB: <domain>, publ. <time>, fetched <UTC>]`; one domain alone
-is `niepotwierdzone`, a view is `opinia`. A removal carrying a `context` tag
-(`MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`, `CONDITIONS`,
-`MORALE`) names its source in `reason`. `UNVERIFIED` is an honest answer
-for a source that does not exist (ITF, a youth league) - write it rather
-than invent one.
+Source rank: the league / club / federation's own channel > a named beat
+reporter > a national outlet > an aggregator > a fan site / forum (`opinia`)
+> a tipster (a lead to verify, never a source). Volume is not weight: ten
+aggregators copying one rumour are one domain.
 
-## What the report shows
+Priors per tag (literature, to be confirmed by audit 7e / 7i): ABSENCES and
+ROTATION carry real information; SCHEDULE some; CONDITIONS only when
+extreme; MOTIVATION, MORALE and DERBY near zero on their own. A WATCH on
+MOTIVATION / MORALE / DERBY needs the mechanism to reach the leg's variable
+through a lineup ("dead rubber -> the coach named five reserves -> fewer
+shots"), never the mood alone.
 
-Each match section has a **Kontekst (web)** paragraph: the queries' topics,
-what was found (tagged), what it does to which leg, or "nic istotnego dla
-tych nóg". A KEEP `reason` carries three things:
+## Budget and the delta pass
+
+- **First read of a match**: up to ~6 searches / fetches, the mandatory
+  checks first; a leg on a printed builder or a chat slip may take more when
+  a lead needs its second domain. Stop when the kill facts are answered.
+- **A leg with `prior_analysis`** (the match was analysed earlier today -
+  `read_set.py` sets it): read that section and, when it is a delta, the
+  full pass it cites (`prior_analysis.full_pass_report`) first -
+  `jq -r --arg a <report> --arg b <full_pass_report> '.events["<id>"][] | select(.report==$a or .report==$b) | .markdown' runs/sofa/<d>/analyses.json`; take
+  its dossier and context findings as yours (cite them "[wcześniej: <report>,
+  <recorded_at_utc>]"), and do a **delta pass** only: what can have changed
+  since `recorded_at_utc` - a confirmed lineup / goalie / five now published,
+  a late absence, a postponement - about 2 searches, more only when a lead
+  needs its second domain. Redo the full pass when
+  `prior_analysis.full_pass_at_utc` is empty (no earlier section made a full
+  pass with a web source) or older than 6 h - a delta section never restarts
+  that clock. Mark a delta section by citing "[wcześniej: ...]". The kill facts
+  are inherited (restate them only when one changed). A full pass under
+  1 h old with no lineup / goalie / five due since: no search at all - the
+  delta reads only the dossier's fresh fields (`lineups` asked_at, line
+  moves) and says so ("delta: pełny przegląd <czas>, nic nowego do sprawdzenia"). The new legs still each get their own verdict.
+- Queries that cannot return a scoreline (the fact and its period, never the
+  two names alone). Pages published before the start only; a leaked result
+  is named and the claim marked `CANNOT VERIFY`.
+- A source that is blocked (Cloudflare, JS-only - `sources-<sport>.md` lists
+  them) is not retried: use the named alternative or a site-limited search,
+  and list the check under **Czego zabrakło**.
+- Where context does not exist (ITF, youth / reserve leagues, most volleyball
+  starting sixes, European hockey goalies) write `UNVERIFIED` and move on: a
+  missing source is not a reason to remove a leg.
+
+## Timing
+
+Every leg has its price time (`04_offer.json` rung `fetched_at_utc`; a sport
+leg `price_fetched_at_utc`). A fact published **after** that time is news the
+price may not hold; one published days before is almost surely priced - name
+which. A leg whose premise hangs on a lineup that is not out yet (a prop, a
+goalie-dependent total) and whose start is close: say when the lineup comes
+(`sources-<sport>.md`), and WATCH only when there is a concrete reason to
+expect a change (a doubt, a rotation announced), never on the mere absence
+of the XI.
+
+## Tags and the report
+
+Tag every claim `[WEB: <domain>, publ. <time>, fetched <UTC>]`; one domain
+alone is `niepotwierdzone`, a view is `opinia`. A removal carrying a
+`context` tag (`MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`,
+`CONDITIONS`, `MORALE`) names its source in `reason`. Context only removes;
+it never raises a confidence or admits a leg.
+
+Each match section has a **Kontekst (web)** block: the kill facts you
+fixed, what you searched, what was found (tagged), what it does to which leg,
+or "nic istotnego dla tych nóg". A KEEP `reason` carries:
 
 1. the expectation in the market's units (from the dossier / samples),
 2. at least one dossier fact (form, table, rest, map pool, line move),
-3. the context finding.
+3. the context finding (or "nic istotnego").
 
-Good: `"rożne: Dewa 10.2 / Persijap 9.1 śr., 15/18 > 7.5; tabela 2. vs 18.;
-pogoda Tangerang 19:00 bez opadów [WEB: bmkg.go.id, publ. 10-20, fetched
-06:20Z]"`. Not a read: `"15/18"`.
+Good: `"rożne: oczekuję ~10 (Dewa 10.2 / Persijap 9.1 śr.), 15/18 > 7.5;
+tabela 2. vs 18.; skład bez zmian, pogoda bez opadów [WEB: bmkg.go.id, publ.
+10-20, fetched 06:20Z]"`. Not a read: `"15/18"`.
 
 ## The check
 
 `scripts/sofa/check_analyst_report.py --report <path>` (`bet.sofa.report_check`)
 lists what is missing: a KEEP match without "Kontekst (web)", a report that
 never mentions the dossier, a KEEP reason that is a bare count or under 40
-characters, a context removal without a source. The project's PostToolUse
-hook runs the same check on every report written and sends the findings back
-- rewrite the report until it is clean, then validate with `merge_reads.py
---dry-run`.
+characters, a context removal without a source, a read match whose section
+heading lacks its `sofa:<id>` token. The project's PostToolUse hook runs the
+same check on every report written and sends the findings back - rewrite
+the report until it is clean, then validate with `merge_reads.py --dry-run`.

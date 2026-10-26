@@ -33,6 +33,7 @@ The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
 | `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way); a chat slip's file (`read_set_slip_<sport>.json`, the `/kupon` loop) holds `slip` (on the slip) or `slip_reserve` (its replacements) - read them the same way |
 | `model_p`, `forecast_p`, `calibrated_on`, `sample_size`, `sample_hit_rate`, `sample_oldest_days`, `sample_newest_days`, `context_flags`, `superbet_event_id`, `source_date` | the leg's numbers - use them before any lookup (a field is absent when null) |
 | `dossier` | the match's fact sheet path (below, first artifact) |
+| `prior_analysis` | the match was analysed earlier today (`report`, `recorded_at_utc`, `web_tags`, `context_pass`, `full_pass_report`, `full_pass_at_utc`): read that section first and do a **delta pass** (`references/context-pass.md`, "Budget and the delta pass") |
 
 **Read exactly those legs - every one gets a read.** Never recompute the
 read set or rebuild the pipeline's gates to guess what would print. If
@@ -58,6 +59,7 @@ Shapes (list vs object): `sofa-pipeline` `references/artifacts.md`, "Artifact sh
 
 | file | what you take from it |
 |---|---|
+| `analyses.json` (only for a leg with `prior_analysis`) | the earlier section of the match: the `jq` of `references/context-pass.md` (the section and the full pass it cites) - its dossier and context findings are yours to cite, then only what changed since |
 | `dossier/<sport>_<event id>.json` (the leg's `dossier`) | **first, whole, per match**: form, rest, table, h2h, Sofascore's pre-match lineup and absences (`lineups`: predicted is not confirmed; an absent regular is at most a WATCH through the leg's variable, never a promotion), venue and its local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, every leg of the match, the web checklist - blocks and per-sport reading: `references/dossier.md`; no field = "brak dossier" |
 | `11_coupon.json` | the leg's full row (above), `removed_by_reads`, `builders`, `peer`, `price_gap` |
 | `02_fixtures.json` | names, competition, round, both clocks, `identity`, referee, `ground_type`, `default_period_count`, `previous_leg_event_id` |
@@ -120,13 +122,22 @@ Recompute a number only **from the row's own fields** (say so). Never present `p
 3. **Every match not yet started gets a context pass on the web** (operator
    2026-10-20): news and facts, conditions (weather at the local hour),
    morale and the backstage, what the result is worth, opinions - starting
-   from the dossier's `web_checklist`. Each match section has **Kontekst
-   (web)**, "nic istotnego dla tych nóg" included; a KEEP whose match had no
-   pass is not a read. Protocol, budget and examples:
-   `references/context-pass.md`.
-4. **Weight**: a fact on two independent domains may carry a NO_BET; one
-   domain, an opinion or a mood report at most a WATCH, through this leg's
-   variable (name the mechanism). Every claim tagged
+   from the dossier's `web_checklist` and your sport's **mandatory checks**
+   (`references/sources-<sport>.md`; the index `references/context-sources.md`).
+   Before searching, write the match's **kill facts** - what would break its
+   legs - and search for those (more information raises confidence faster
+   than accuracy). A leg with `prior_analysis` gets the delta pass. Each match
+   section has **Kontekst (web)**, "nic istotnego dla tych nóg" included; a
+   KEEP whose match had no pass is not a read. Protocol, budget and examples:
+   `references/context-pass.md`; the evidence behind it: `references/literature.md`.
+4. **Weight**: the pass looks for a **defect of the leg as printed** or a
+   **fact newer than the price** acting through the leg's variable; what the
+   model and the price already hold (home advantage, the referee's rate,
+   form, table, rest) is no reason unless its input changed. A fact on two
+   independent domains may carry a NO_BET; one domain, an opinion or a mood
+   report at most a WATCH, through this leg's variable (name the mechanism).
+   Measured 10-13..10-25: removals by opinion realised like the kept legs
+   (`references/literature.md`, section 1). Every claim tagged
    `[WEB: <domain>, publ. <time>, fetched <UTC>]`. A KEEP `reason` names the
    expectation in the market's units, a dossier fact and the context
    finding - never a bare "15/18".
@@ -145,16 +156,27 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
 | verdict | effect |
 |---|---|
 | `KEEP` | stays; records the read (a leg in the set without a read fails C3) |
-| `WATCH` | removed into `removed_by_reads` - a leg you would not stake but cannot call broken; `BUY ≈ KILL` is a WATCH |
+| `WATCH` | removed into `removed_by_reads` - a fact newer than the price on one domain, or an opinion, acting through the leg's variable by a named mechanism; or an artifact fact the code does not see ("DEFEKT: …" - a sample from another surface / venue / squad than tonight's) |
 | `NO_BET` | removed - a defect, or a fact confirmed by two domains |
 
 - **Vetoes** (football / tennis only): a sample that does not describe the
   match, or a context that breaks every rung - normally keyed with
   `market` / `subject` / `line` / `direction` null. Do not write the same
   fault twice as a veto and a NO_BET.
-- **Reads**: one `LegRead` per leg of your file, `author: "analyst"`. A
-  fixture-wide KEEP (`market: null`) is fine when it is your read of the
-  whole match.
+- **Reads**: one `LegRead` per leg of your file, `author: "analyst"`; a
+  KEEP may cover a (market, direction) family (`line: null`) with the
+  expectation against its lines - never a match-wide `market: null` KEEP.
+- **What a removal's reason must name**: a fact newer than the price with a
+  dated tag (`[WEB: domena, publ. <data>, fetched <czas>]`; unknown date =
+  `publ. ?`, which is not newer than anything) or an artifact defect written
+  `DEFEKT: <artifact, field, what is wrong>`. **Never a removal by itself**:
+  h2h, form, a streak, the table, the model vs the own sample or
+  `forecast_p` (the code's `MODEL_ABOVE_OWN_SAMPLE` already decides), a weak
+  rating bridge between leagues (`CROSS_LEAGUE_UNLINKED` decides),
+  `price_gap`, your own estimate near the confidence, "BUY ≈ KILL"
+  (measured 10-13..10-25: such removals realised like the kept legs;
+  10-26: 19 of 24 WATCHes were of this kind). Write them in the section as
+  notes. `report_check` refuses a removal without one of the two marks.
 - **Count what a null hits**: `subject: null` covers every subject of the
   match (no player field). Key a player leg to the player as the leg writes him.
 
@@ -178,7 +200,13 @@ entry of the day).
       sentence the bettor must read first.
    2. **Mecze** - one section per match in your sport skill's event-protocol
       format; every argument FAKT -> RACHUNEK -> IMPLIKACJA -> RYZYKO; every
-      non-artifact statement tagged.
+      non-artifact statement tagged. **The match heading carries the token
+      `sofa:<sofascore_event_id>`** (`### Home – Away — <rozgrywki> · sofa:15275920`):
+      `merge_reads.py` files the section under that match in `analyses.json`,
+      and the HTML view / the PDF appendix show it at the match's legs. The
+      section is what the operator reads behind a leg: dense, no artifact
+      tables copied (the page shows the numbers) - at most ~4,000
+      characters a match, more only for a builder match or a removal.
    3. **Zdjęte** - each WATCH / NO_BET, one line, Superbet's words.
    4. **Czego zabrakło** and **NIE PODANO** - every check you could not make.
    5. ` ```json vetoes ` (football / tennis; `[]` is normal), then

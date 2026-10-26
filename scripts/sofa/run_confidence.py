@@ -150,6 +150,7 @@ from bet.sofa.veto import (  # noqa: E402
     load_reads,
     load_vetoes,
     matching_reads,
+    read_note,
     read_refusal,
     veto_matches,
 )
@@ -1034,10 +1035,7 @@ def main() -> int:
                 # there is one; an artifact without reads is byte-for-byte what
                 # it was before 2026-10-04.
                 **(
-                    {"reads": [
-                        {"verdict": r.verdict, "author": r.author, "reason": r.reason}
-                        for r in row_reads
-                    ]}
+                    {"reads": [read_note(r) for r in row_reads]}
                     if row_reads else {}
                 ),
                 # The stats-only epoch (K0/K11): the second number, never

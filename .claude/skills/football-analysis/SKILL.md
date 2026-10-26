@@ -65,7 +65,8 @@ Template and step table: `references/event-protocol.md`.
    it for the first leg's score); table, dead rubber, derby from the web or
    `UNVERIFIED`. A leg with `stakes.effect` `przeciw` (cards / fouls UNDER,
    goals / shots OVER in a six-pointer or top-4 race) is read against it:
-   say what this club's sample says in such a match, or WATCH.
+   say what this club's sample says in such a match - a note; stakes alone
+   remove nothing (core, "What a removal's reason must name").
 3. **Schedule.** `schedule` block and `context_flags` (`MAKEUP_FIXTURE`,
    `LONG_LAYOFF` >= 21 d, `CONGESTED` >= 3 in 7 d). For a make-up fixture find
    out **why** it was postponed and whether the cause still holds.
@@ -110,8 +111,11 @@ Template and step table: `references/event-protocol.md`.
     say why you keep the weaker one beside it.
 12. **Correlation** (builder legs): the shared mechanism and the one scenario
     that kills every leg. Never multiply.
-13. **Buy case / kill case -> verdict.** `BUY ≈ KILL` is WATCH at most. The
-    price is the filter the code applied, never a reason.
+13. **Buy case / kill case -> verdict.** A KEEP unless the kill case rests on
+    a fact newer than the price or a `DEFEKT:` (core, "What a removal's reason
+    must name"); a balanced case from the statistics is a KEEP with the
+    doubt written in the section. The price is the filter the code applied,
+    never a reason.
 
 ## Markets with their own reading
 

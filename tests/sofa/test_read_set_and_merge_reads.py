@@ -199,3 +199,22 @@ def test_unmatched_veto_exit_counts_fresh_ones_and_spares_sport_games(
                      .replace("1,", "77,"))
     assert merge_reads.main(["--date", run.name, "--runs-dir", str(tmp_path),
                              "--report", str(third)]) == 0
+
+
+def test_a_builder_leg_has_the_same_shape_as_a_single(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A builder leg carries `odds` and no clock (10-26 live test: the
+    analyst's inventory one-liner died on `kickoff_utc`); the read set gives
+    it the builder's kickoff / competition and `offered_odds`."""
+    run = tmp_path / "2026-10-26"
+    run.mkdir()
+    builder = {"sofascore_event_id": 7, "match": "A - B", "competition": "Liga",
+               "kickoff_utc": "2026-10-26T18:00:00Z", "legs": []}
+    (run / "11_coupon.json").write_text(json.dumps(
+        {"singles": [], "builders": [builder]}))
+    bleg = {"sofascore_event_id": 7, "market": "corners_total", "subject": "",
+            "line": 11.5, "direction": "UNDER", "odds": 1.4, "confidence": 0.8}
+    monkeypatch.setattr(read_set, "legs_requiring_read", lambda doc, req: [bleg])
+    got = read_set.read_set(run)["football"][0]
+    assert (got["kickoff_utc"], got["competition"], got["match"],
+            got["offered_odds"]) == ("2026-10-26T18:00:00Z", "Liga", "A - B", 1.4)

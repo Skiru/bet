@@ -236,7 +236,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread -
 ```
 
 (add `--buffer 5` while early kickoffs keep pulling new matches in) and repeat steps 5-7 on
-those files only (paths `_r<n>`). `read set: empty` while C3 is still red = a printed leg
+those files only (paths `_r<n>`); measured-sport files of at most 6 matches together go to
+one `sofa-analyst-sport` instance (`/sofa-analyze` step 3), and a leg of a match read
+earlier today carries `prior_analysis` (the analyst's delta pass). `read set: empty` while C3 is still red = a printed leg
 carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read.
 At most 3 rounds, then report the C3 lines left. A WATCH / NO_BET on a builder leg makes
 that fixture's builder take its next candidate: in the re-read prompt add "also read every

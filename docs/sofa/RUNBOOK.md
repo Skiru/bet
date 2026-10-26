@@ -375,7 +375,10 @@ następnych meczów w tej samej kolejności.
    ```
 
    i kroki 2-3 tylko na tych plikach, aż C3 będzie czyste (najwyżej 3
-   rundy). `read set: empty` przy czerwonym C3 = wydrukowana noga ma WATCH /
+   rundy). Pliki sportów mierzonych z łącznie ≤ 6 meczami czyta w takiej
+   rundzie **jedna** instancja `sofa-analyst-sport` (raport
+   `<data>_analiza_sports_r<n>.md`); noga meczu przeczytanego wcześniej
+   tego dnia ma `prior_analysis` i dostaje tylko przegląd delty. `read set: empty` przy czerwonym C3 = wydrukowana noga ma WATCH /
    NO_BET albo brak `reads.json`: przebuduj, nie czytaj.
 
 Noga sportu mierzonego schodzi odczytem `NO_BET` / `WATCH` (ma stronę i

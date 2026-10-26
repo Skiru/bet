@@ -3272,10 +3272,32 @@ nie niesie odczytów - pokazuje odczyt tej samej nogi pojedynczej (klucz
 nogi z notatką (wcześniej: nogi z zestawu do czytania
 `confidence.legs_requiring_read`, także te, do których odczyt jeszcze nie
 dotarł). PDF (`build_coupon_pdf.read_label`): pod nogą każdy werdykt z
-autorem i pierwszymi 140 znakami uzasadnienia (ucięte na słowie; najgorszy
-werdykt pierwszy); noga buildera bez odczytu - „nieczytana". Niczego nie
-bramkuje; render wstecz pokazuje odczyty dnia, który je ma (10-22: Gengel -
-Lanik bez odczytu, Bondioli - Forti KEEP).
+autorem, godziną scalenia (UTC), tagiem kontekstu i całym uzasadnieniem
+(od 2026-10-26; wcześniej 140 znaków; najgorszy werdykt pierwszy); noga
+buildera bez odczytu - „nieczytana". Niczego nie bramkuje; render wstecz
+pokazuje odczyty dnia, który je ma (10-22: Gengel - Lanik bez odczytu,
+Bondioli - Forti KEEP).
+
+**Pełne analizy meczów (od 2026-10-26).** Za jednozdaniowym odczytem stoi
+sekcja meczu w raporcie analityka - dotąd rozrzucona po kilkudziesięciu
+plikach `_analiza_*_r<n>.md` dziennie (10-25: 50 plików, 1,4 MB).
+`merge_reads.py` tnie każdy scalany raport na sekcje meczów (nagłówek z
+tokenem `sofa:<id>`, w starych raportach - obie nazwy drużyn) i zapisuje je
+w `analyses.json` (`bet.sofa.analyses`; po meczu, najnowsza pierwsza, autor,
+raport, czas, liczba źródeł `[WEB:`, czy był przegląd kontekstu).
+`build_analyses.py --date <d>` odbudowuje plik z raportów na dysku (dzień
+sprzed zmiany, ręczna poprawka raportu). HTML: pod notatką nogi rozwija się
+„analiza meczu" - pełna sekcja analityka (i weryfikatora), renderowana dopiero
+po rozwinięciu; nogi bez odczytu, ale z przeczytanym meczem, też ją mają.
+PDF: przy meczu odnośnik „analiza meczu: A<n>", a na końcu „Aneks: analizy
+meczów" z najnowszą sekcją analityka i weryfikatora każdego wydrukowanego,
+przeczytanego meczu (10-25: ~70 stron). `read_set.py` dokłada nodze meczu
+już analizowanego tego dnia `prior_analysis` - analityk kolejnej rundy czyta
+tę sekcję (i ostatni pełny przegląd, `full_pass_report`, gdy to delta) i
+robi tylko przegląd zmian, zamiast całego dossier i sieci od nowa; pełny
+przegląd powtarza po 6 h od ostatniego pełnego. Raporty kuponów czatowych
+(`_kupon_`) nigdy nie trafiają do `analyses.json`; weryfikator pisze sekcję
+meczu (`### … · sofa:<id>`) dla każdej nogi, której by nie postawił. Tylko wyświetlanie i proces - nic tu nie zmienia pewności ani bramek.
 
 `build_coupon_pdf.py` zapisuje HTML po każdym renderze PDF (także w
 `rebuild_day.py`), więc przebudowany kupon zawsze ma świeży HTML; błąd HTML

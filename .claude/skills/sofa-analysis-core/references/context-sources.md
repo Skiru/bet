@@ -1,83 +1,70 @@
-# Where the context lives - sources for a CONTEXT veto or a read
+# Where the context lives - the index
 
-Superbet prices off the same statistics we sample. Neither of us holds the
-context: what the match is worth, who plays, what the fixture list did to the
-squad. This file says where to look, so a fact is found, not re-derived.
+Superbet prices off the same statistics we sample. Neither of us holds all of
+the context: who plays tonight, what the fixture list did to the squad, what
+changed since the price was taken. This file is the index; **read only your
+sport's file**:
 
-**None of these sources is measured.** Whether a context read removes losers
-is what the settlement audit answers per `context` tag (7e for vetoes, 7i for
-removed legs). A source earns trust from that table, not its reputation.
+| sport | file |
+|---|---|
+| football | `sources-football.md` |
+| tennis | `sources-tennis.md` |
+| hockey | `sources-hockey.md` |
+| basketball | `sources-basketball.md` |
+| volleyball | `sources-volleyball.md` |
+| CS2 | `sources-cs2.md` |
 
-The rules of SKILL.md bind every lookup: decision point first, then a context
-pass on **every** match not yet started (news, conditions, morale and the
-backstage, stakes, opinions; up to ~8 searches / fetches), queries that cannot
-return a scoreline, every claim tagged with domain and publication time, a
-leak declared. Two independent domains for a NO_BET; one domain or an opinion
-carries at most a WATCH, through the leg's own variable.
+Each holds: the **mandatory checks** (made on every match, in that order),
+the full checklist of what can change an outcome (the variable it moves, the
+direction, the evidence grade and the most it may carry), and the sources -
+**checked for reachability on 2026-10-26** (OK / JS-only / blocked), with when
+each publishes relative to the start. Research behind them (links, grades):
+`docs/sofa/history/analitycy_2026-10-26/sources_football_tennis.md`,
+`docs/sofa/history/analitycy_2026-10-26/sources_measured_sports.md`.
 
-## Derive it before you search for it
+**None of these sources is measured as a removal signal.** Whether a context
+read removes losers is what the settlement audit answers per `context` tag
+(7e for vetoes, 7i for removed legs). A source earns trust from that table,
+not its reputation. The rules of the core skill bind every lookup (decision
+point, kill facts before the search, two domains for a NO_BET, tags, leaks):
+`context-pass.md`.
+
+## Derive it before you search for it (every sport)
 
 The cheapest context is on disk and cannot leak a result:
 
 | signal | where | `context` |
 |---|---|---|
-| second leg | `02_fixtures.json` `previous_leg_event_id` (the first leg's score is not there - follow the id) | `MOTIVATION` |
-| knockout vs league, which round | `round_name`, `cup_round_type` | `MOTIVATION` |
-| make-up fixture, rest, matches in 7 / 14 days | `03_samples.json` `schedule` (`makeup_of`, `makeup_postponed_utc`, per side `last_match_utc`, `rest_days`, `matches_7d`, `matches_14d`); the legs' `context_flags` | `SCHEDULE`, `ROTATION` |
-| table stakes (football) | the leg's `stakes` (`STAKES_SIX_POINTER` / `STAKES_TOP4`, `effect` `za` / `przeciw`) | `MOTIVATION` |
-| a cup tie a few days either side | the sample's own `match_date_utc` / `competition_id` | `ROTATION`, `SCHEDULE` |
-
-Table position and what is left to play are one standings page away: a fact,
-not an opinion.
-
-## Football
-
-| what | where | notes |
-|---|---|---|
-| predicted XI, rotation, absences | Sports Mole previews; Sportsgambler lineups; Rotowire soccer lineups; Fantasy Football Scout (Premier League) | predicted, not confirmed - say "przewidywany" |
-| confirmed XI | the club's or league's own channel, ~1 h before kickoff | the only confirmed source |
-| manager's words on rotation | local press: Marca / AS, Gazzetta dello Sport, Kicker, L'Équipe, BBC Sport | the quote, the date, the domain |
-| stakes and narrative | The Analyst (Opta), WhoScored previews (missing players too) | |
-| Polish football | Meczyki.pl, Weszło, Przegląd Sportowy | |
-| derby | the same previews; a derby is a fact, "revenge" is a journalist's word - say which | |
-
-## Tennis
-
-| what | where | notes |
-|---|---|---|
-| order of play, round, court | the tournament's official site, then a second domain | qualifying is best of three even at a slam |
-| ranking points to defend | live-tennis.eu | `MOTIVATION` |
-| surface Elo, form, hold / break % | Tennis Abstract | a rating, not an observation of tonight |
-| withdrawals, retirements, previous match length | Tennis Explorer; the tournament's site and social accounts | `SCHEDULE` / `ABSENCES` |
-| ITF / UTR | almost nothing is published | say so; do not manufacture a source |
-
-## Hockey, basketball, volleyball, CS2
-
-| what | where | notes |
-|---|---|---|
-| CS2 roster, stand-ins, best-of, postponement | HLTV, Liquipedia | a stand-in matters for winner / handicap / map lines |
-| hockey / basketball / volleyball schedule, postponement, format | the league's or federation's site, then a second domain | a friendly with a fixed number of periods or sets is a format the line may not assume |
-| overtime / shoot-out scope | Superbet's market text on the leg (`superbet_market`) and its rules - not a preview | not a `context` tag; leave `context` out |
+| second leg | `02_fixtures.json` `previous_leg_event_id`; dossier `header.first_leg` | `MOTIVATION` |
+| knockout vs league, which round | `round_name`, `cup_round_type`; dossier `header` | `MOTIVATION` |
+| make-up fixture, rest, matches in 7 / 14 days | `03_samples.json` `schedule`; dossier `sides.*.summary` (`rest_days`, `games_7d`); the legs' `context_flags` | `SCHEDULE`, `ROTATION` |
+| table stakes | the leg's `stakes`; dossier `table` (rebuilt, not official) | `MOTIVATION` |
+| who plays (football / hockey / basketball) | dossier `lineups` (Sofascore pre-match: predicted or confirmed, missing / doubtful, `regulars_not_in_xi`, each prop's player status) | `ABSENCES`, `ROTATION` |
+| CS2 roster change | dossier `cs2.roster_new_vs_previous` | `ABSENCES` |
+| referee (football) | dossier `header` referee + games / cards; the sheet's `REFEREE` note | - (already in the model) |
+| line moves | dossier `market` | a question for the web, never a verdict |
+| venue, city, local hour, coordinates | dossier `header` | the weather hour |
 
 ## Every sport - the soft half
 
-| what | where | `context` |
-|---|---|---|
-| weather at the venue at the start | a weather service's hourly forecast for the city (two domains), the club's matchday post | `CONDITIONS` |
-| pitch, roof, altitude, indoor / outdoor | the club / venue, local press | `CONDITIONS` |
-| dressing room, conflict, unpaid wages, a sacked or doomed coach, a boycott, fan protest | local press in the club's language, the club's and players' own channels, fan sites (fan site = `opinia`) | `MORALE` |
-| managers' and players' words before the match | press conference reports, the club's channels | the tag the words are about |
-| previews, journalists | any preview with reasoning - `opinia`, a lead to check | the tag the reasoning is about |
+| what | where | `context` | carries |
+|---|---|---|---|
+| weather at the venue (outdoor only) | `https://api.open-meteo.com/v1/forecast?latitude=<lat>&longitude=<lon>&hourly=precipitation,wind_speed_10m,wind_gusts_10m,temperature_2m` (JSON, no key; the dossier's coordinates) + yr.no / meteoblue as the second domain | `CONDITIONS` | extreme only (waterlogged pitch, gale, snow, heat-rule temperatures); ordinary rain / wind is unmeasured on any count |
+| dressing room, conflict, unpaid wages, a sacked coach, a boycott, fan protest | local press in the club's language, the club's and players' own channels; fan sites = `opinia` | `MORALE` | a note; a WATCH only through a lineup (players refusing to play, a youth XI) |
+| managers' / players' words | press-conference reports, club channels | the tag the words are about | a fact when it names a lineup ("X nie zagra"), else `opinia` |
+| previews, journalists | any preview with reasoning | `opinia` | a lead to verify, never a removal by itself |
 
 ## Tipsters
 
 A tipster's reasoning ("rotating before the derby") is a lead to verify on a
-second domain - unverified it is an `opinia` that may carry a WATCH through the
-leg's variable; a tipster's pick is evidence of nothing.
+second domain; unverified it is an `opinia`. A tipster's pick is evidence of
+nothing (Forrest & Simmons 2000; Spann & Skiera 2009 - `literature.md`).
 
 ## Never a source
 
 - bzzoiro or any provider other than Sofascore and Superbet, as a number;
-- another bookmaker's or an aggregator's price;
+- another bookmaker's or an aggregator's price (odds sites included);
 - anything published after the decision point;
-- a pick without its reasoning.
+- a pick without its reasoning;
+- Sofascore itself through the web (Cloudflare): its data reaches you through
+  the pipeline's bridge - the dossier, `lineups_prematch.json`, `h2h.json`.

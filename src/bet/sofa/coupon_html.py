@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from bet.sofa import analyses as an
 from bet.sofa import confidence as cf
 from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
@@ -200,8 +201,11 @@ def build_view(
     fixture_status: Mapping[str, Any] | None = None,
     families: Mapping[str, Any] | None = None,
     results: Mapping[str, Any] | None = None,
+    analyses: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Rows of the page: the singles the PDF prints and its builders.
+    `analyses` is the day's analyses.json (bet.sofa.analyses): the page
+    carries the full match sections of its matches, folded under each leg.
     `families` is the day's bet.sofa.family_record (None: the page has no
     family filter). `results` is the day's 13_results.json
     (bet.sofa.coupon_results; None before the day is settled): each row then
@@ -228,6 +232,7 @@ def build_view(
         rows.append({
             "id": i,
             "event": _event_of(leg),
+            "event_id": str(leg.get("sofascore_event_id") or ""),
             "match": str(leg.get("match") or ""),
             "competition": str(leg.get("competition") or ""),
             "sport": str(leg.get("sport") or "football"),
@@ -288,6 +293,7 @@ def build_view(
                 "status": b_res["status"], "word": cr.outcome_text(b_res),
                 "score": b_res.get("score") or ""},
             "no": str(b.get("builder_no") or ""),
+            "event_id": str(b.get("sofascore_event_id") or ""),
             "match": str(b.get("match") or ""),
             "competition": str(b.get("competition") or ""),
             "ko_local": f"{ko:%Y-%m-%d %H:%M}" if ko else "",
@@ -319,6 +325,10 @@ def build_view(
         "builders": builders,
         "meta": {
             "read_events": read_events(doc),
+            # only the page's own matches: a section is shown, never searched
+            "analyses": an.for_events(
+                analyses or {},
+                {r["event_id"] for r in rows} | {b["event_id"] for b in builders}),
             "built_local": f"{built:%H:%M}" if built else "",
             "fixture_check_local": f"{local_checked:%H:%M}" if local_checked else "",
             "positions": doc.get("positions"),
@@ -345,8 +355,9 @@ def render_html(date: str, view: Mapping[str, Any],
     """`priced`: the "Wszystkie wyceny" tab's payload (bet.sofa.priced_view;
     None: the page has no such tab)."""
     data = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
-    # a JSON string inside <script>: nothing in it may close the element
-    data = data.replace("</", "<\\/").replace("<!--", "<\\!--")
+    # a JSON string inside <script>: nothing in it may close the element or
+    # open a comment ("<\\!--" is no JSON escape - JSON.parse refused the page)
+    data = data.replace("<", "\\u003c")
     # base64 holds no "<": safe inside its element as it is
     blob = priced_view.encode(priced) if priced is not None else ""
     return (_TEMPLATE.replace("__DATE__", date).replace("__PRICED__", blob)
@@ -362,6 +373,7 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str,
     status = (json.loads(status_path.read_text(encoding="utf-8"))
               if status_path.exists() else None)
     families = fr.load(run, day)
+    store = an.load(run)
     # named in Superbet's words on a copy: the caller's artifact is not edited
     named: dict[str, Any] = copy.deepcopy(dict(doc))
     sides = board_sides(run)
@@ -374,7 +386,7 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str,
     priced = priced_view.build(run, named, day, sides, to_local,
                                minutes_of_day)
     tmp.write_text(render_html(day, build_view(named, day, status, families,
-                                               results), priced),
+                                               results, store), priced),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

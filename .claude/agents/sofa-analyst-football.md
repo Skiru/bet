@@ -40,21 +40,23 @@ return that in one line.
    (`02_fixtures.json`), `fixture_status.json`, `now` (`date -u`), the delta.
    A started match is dropped and listed.
 3. **Per match, in the read-set order** - the protocol of `football-analysis`:
-   - the match's **dossier** first (the leg's `dossier` file: form, rest,
-     table, head-to-head, venue / city / local hour, referee, every metric's
-     values per side, the ladder, the web checklist);
+   - a leg with `prior_analysis`: the match's earlier section first
+     (`analyses.json`, core "Artifacts"), then only what changed - the delta
+     pass;
+   - the match's **dossier** (the leg's `dossier` file: form, rest, table,
+     head-to-head, venue / city / local hour, referee, lineups, every
+     metric's values per side, the ladder, the web checklist);
    - the match's legs from `11_coupon.json` (the lookup in
      `sofa-analysis-core`), the sheet rows behind them (`05_sheet.json`
      filtered with `jq` to the event id and market), the observations
      (`03_samples.json`, the `jq` in `.claude/skills/sofa-analysis-core/references/evidence-rules.md`);
-   - the **context pass on the web, every match** (core decision point,
-     step 3; up to ~8 searches / fetches, local press in the clubs' language):
-     lineups and absences, stakes and aggregate, why a make-up, **weather at
-     the venue at kickoff** (rain / wind on goals, corners, shots), the
-     pitch, **morale and the backstage** (a coach under pressure or sacked,
-     unpaid wages, conflict, fan protest), the referee's name if announced,
-     previews and managers' words; tagged, weighted as the core says
-     ("Kontekst (web)" in the match section);
+   - the **kill facts** in one line, then the **context pass on the web,
+     every match**: the mandatory checks of
+     `.claude/skills/sofa-analysis-core/references/sources-football.md`
+     (is it on, who plays - every prop's player -, second leg / dead rubber
+     through the lineup, a referee change for card / foul legs, extreme
+     conditions), local press in the clubs' language; up to ~6 searches;
+     tagged, weighted as `context-pass.md` says ("Kontekst (web)");
    - a verdict per leg; a veto where the sample itself is broken.
 4. **If the file is larger than you can read well**, keep its order but put
    first: matches behind a printed builder, then legs on `*_1h_*` / `*_2h_*`

@@ -117,12 +117,22 @@ def test_the_pdf_marks_every_read_and_a_context_flag() -> None:
     assert "MAKEUP_FIXTURE" in context_label(leg)
     assert read_label({}) == "" and context_label({}) == ""
     # a long reason is cut before escaping: never a split entity
+    # (the whole reason up to READ_REASON_CHARS = 600 - the longest of
+    # 10-25 ran 469 - so the PDF no longer hides the read behind 140 chars)
     long = read_label({"reads": [{"verdict": "KEEP", "author": "analyst",
-                                  "reason": "&" * 300}]})
-    assert long.count("&amp;") == 139 and long.endswith("…</font>")
+                                  "reason": "&" * 700}]})
+    assert long.count("&amp;") == 599 and long.endswith("…</font>")
+    whole = read_label({"reads": [{"verdict": "KEEP", "author": "analyst",
+                                   "reason": "abcdefghi " * 45}]})
+    assert "…" not in whole  # 450 characters: whole
     words = read_label({"reads": [{"verdict": "KEEP", "author": "analyst",
-                                   "reason": "abcdefghi " * 30}]})
+                                   "reason": "abcdefghi " * 70}]})
     assert "abcdefghi…" in words  # cut at a word
+    # when and why: the merge time and the context tag ride on the read
+    stamped = read_label({"reads": [{
+        "verdict": "WATCH", "author": "analyst", "reason": "x",
+        "read_at_utc": "2026-10-25T09:46:12+00:00", "context": "ABSENCES"}]})
+    assert "WATCH (analityk 09:46Z, ABSENCES)" in stamped
 
 
 # --- the friendly scanner --------------------------------------------------------

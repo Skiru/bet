@@ -23,7 +23,7 @@ h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;b
 .bl ul{margin:4px 0 0 16px;padding:0}
 tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
 .rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}
-.ok{color:#1b7f4b;border-color:#1b7f4b}details.rn{margin-top:3px;font-size:11.5px;font-weight:400;color:var(--ink)}details.rn summary{cursor:pointer;color:var(--mut)}details.rn div{margin:2px 0 0 12px;white-space:pre-wrap}
+.ok{color:#1b7f4b;border-color:#1b7f4b}details.rn{margin-top:3px;font-size:11.5px;font-weight:400;color:var(--ink)}details.rn summary{cursor:pointer;color:var(--mut)}details.rn div{margin:2px 0 0 12px;white-space:pre-wrap}details.an{margin:4px 0 0 12px;font-size:12px;font-weight:400;color:var(--ink)}details.an>summary{cursor:pointer;color:var(--acc)}.md{margin:4px 0 6px;padding:8px 10px;background:#fbfcfd;border:1px solid var(--line);border-radius:5px;max-width:980px;white-space:normal;overflow-x:auto}.md p{margin:4px 0}.md .h{font-weight:700;margin:8px 0 2px}.md table{width:auto;margin:4px 0}.md td,.md th{position:static;padding:2px 6px;font-size:11.5px;cursor:default}.md ul{margin:2px 0 2px 16px;padding:0}.md code{font-size:11px;background:#f1f3f6;padding:0 2px}.md .src{color:var(--mut);font-size:11px}.md pre{white-space:pre-wrap;font-size:11px;background:#f1f3f6;padding:4px 6px;margin:4px 0}
 .vK{color:#1b7f4b}.vW{color:var(--warn)}.vN{color:var(--bad)}.res{font-size:11.5px;white-space:nowrap}
 #summary{margin:0 16px 24px;overflow-x:auto}
 .tabs{display:flex;gap:4px;padding:8px 16px 0;background:#fff;border-bottom:1px solid var(--line)}
@@ -144,9 +144,38 @@ function tags(r){let t="";
 // the analysts' reads riding on the leg (reads.json): verdict, author, reason;
 // the first note's opening words stay visible, the full text unfolds
 const WHO={analyst:"analityk",verifier:"weryfikator",auto:"automat"},VC={KEEP:"vK",WATCH:"vW",NO_BET:"vN"};
-function notesHtml(ns){if(!ns||!ns.length)return "";const a=ns[0].reason,cut=a.length>110?a.slice(0,110)+"…":a;
-  return '<details class="rn"><summary>'+ns.map(n=>'<b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> ('+esc(WHO[n.author]||n.author)+')').join(", ")+': '+esc(cut)+'</summary>'+
-   ns.map(n=>'<div><b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> <span class="note">('+esc(WHO[n.author]||n.author)+')</span> '+esc(n.reason)+'</div>').join("")+'</details>'}
+// the analysts' full match sections (analyses.json, bet.sofa.analyses), by
+// match; rendered only when a reader unfolds one
+const AN=V.meta.analyses||{};
+const hhmm=t=>t?String(t).slice(11,16)+"Z":"";
+function noteHead(n){return '<b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> <span class="note">('+esc(WHO[n.author]||n.author)+
+  (n.read_at_utc?", "+esc(hhmm(n.read_at_utc)):"")+(n.context?", "+esc(n.context):"")+')</span>'}
+function anHtml(ev){const a=AN[ev];if(!a||!a.length)return "";
+  return a.map((x,i)=>'<details class="an" data-ev="'+esc(ev)+'" data-i="'+i+'"><summary>'+(i?"wcześniejsza ":"")+'analiza meczu - '+esc(WHO[x.author]||x.author)+
+   ', '+esc(hhmm(x.recorded_at_utc))+(x.web_tags?', źródła web: '+x.web_tags:'')+(x.context_pass?'':', <span class="bad">bez przeglądu kontekstu</span>')+
+   '</summary><div class="md"></div></details>').join("")}
+function notesHtml(ns,ev){const an=ev!=null?anHtml(ev):"";if((!ns||!ns.length)&&!an)return "";
+  if(!ns||!ns.length)return '<details class="rn"><summary>bez odczytu tej nogi - analiza meczu</summary>'+an+'</details>';
+  const a=ns[0].reason,cut=a.length>110?a.slice(0,110)+"…":a;
+  return '<details class="rn"><summary>'+ns.map(noteHead).join(", ")+': '+esc(cut)+'</summary>'+
+   ns.map(n=>'<div>'+noteHead(n)+' '+esc(n.reason)+'</div>').join("")+an+'</details>'}
+// a small markdown reader for the analysts' sections: escaped first, then
+// headings, bold, code, tables, lists and paragraphs - nothing else
+function inl(t){return esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\[(WEB:[^\]]*)\]/g,'<span class="src">[$1]</span>')}
+function md(src){const L=String(src||"").split("\n");let h="",i=0;
+  while(i<L.length){const l=L[i];
+    if(/^\s*```/.test(l)){const c=[];i++;while(i<L.length&&!/^\s*```/.test(L[i])){c.push(esc(L[i]));i++}i++;h+="<pre>"+c.join("\n")+"</pre>";continue}
+    if(/^\s*\|/.test(l)){const rows=[];while(i<L.length&&/^\s*\|/.test(L[i])){rows.push(L[i]);i++}
+      h+="<table>"+rows.filter(r=>!/^\s*\|[\s:|-]+\|\s*$/.test(r)).map((r,j)=>"<tr>"+r.trim().replace(/^\||\|$/g,"").split("|").map(c=>(j?"<td>":"<th>")+inl(c.trim())+(j?"</td>":"</th>")).join("")+"</tr>").join("")+"</table>";continue}
+    if(/^\s*[-*] /.test(l)){let u="";while(i<L.length&&/^\s*[-*] /.test(L[i])){u+="<li>"+inl(L[i].replace(/^\s*[-*] /,""))+"</li>";i++}h+="<ul>"+u+"</ul>";continue}
+    const m=l.match(/^\s{0,3}(#{1,6})\s+(.*)$/);if(m){h+='<div class="h">'+inl(m[2])+"</div>";i++;continue}
+    if(!l.trim()){i++;continue}
+    // the first line is always taken: a line no branch above claims can never stall the loop
+    const p=[inl(l)];i++;while(i<L.length&&L[i].trim()&&!/^\s*(\||[-*] |```)|^\s{0,3}#{1,6}\s/.test(L[i])){p.push(inl(L[i]));i++}h+="<p>"+p.join("<br>")+"</p>"}
+  return h}
+document.addEventListener("toggle",e=>{const d=e.target;if(!d.classList||!d.classList.contains("an")||!d.open)return;
+  const box=d.querySelector(".md");if(box.dataset.done)return;const x=(AN[d.dataset.ev]||[])[+d.dataset.i];
+  box.innerHTML=x?'<div class="src">'+esc(x.report)+'</div>'+md(x.markdown):"";box.dataset.done="1"},true);
 // a match with no read leg in the artifact (printed or removed by a read)
 // carries a warning, whatever the filter shows
 const EVREAD=new Set(V.meta.read_events||R.filter(r=>r.read_done).map(r=>r.event));
@@ -157,7 +186,7 @@ function matchHead(g){const r=g[0];let n="";
    '</td><td colspan="'+(COLS.length-1)+'">'+esc(r.match)+(r.res&&r.res.score?' <span class="tag">wynik '+esc(r.res.score)+'</span>':'')+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
    ' <span class="tag">'+g.length+' nóg, śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></td></tr>'}
 function line(r){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
- return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+notesHtml(r.notes)+
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+notesHtml(r.notes,r.event_id)+
  '</td><td>'+esc(r.line)+'</td><td>'+esc(r.direction)+'</td><td class="n"><b>'+r.confidence_txt+'</b></td><td class="n">'+r.odds_txt+
  '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td>'+resCell(r.res)+'</td>':'')+'</tr>'}
 function render(){
@@ -186,7 +215,7 @@ function render(){
    '<span class="note"> '+esc(b.competition)+' • p łączne '+b.combined_txt+' • kurs buildera: sprawdź na ekranie Superbetu</span><ul>'+
    b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
      (l.res?' • było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+
-     (l.notes&&l.notes.length?notesHtml(l.notes):' <span class="tag warn">nieczytana</span>')+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+     (l.notes&&l.notes.length?notesHtml(l.notes,b.event_id):' <span class="tag warn">nieczytana</span>'+notesHtml([],b.event_id))+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
 const pc=(a,n)=>n?(100*a/n).toFixed(1)+"%":"—";
 function renderSummary(rows){
   if(!RES){$("sh").style.display="none";$("reswrap").style.display="none";return}

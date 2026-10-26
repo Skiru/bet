@@ -38,6 +38,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # COUPON_ASSEMBLY -> 11_coupon.json; exit 1 while 08_confidence_sports.json is absent
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>    # KUPON_<d>.pdf + .html
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <d>   # the HTML view alone
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_analyses.py --date <d> [--dry-run]   # rebuild analyses.json (the match sections) from the day's reports; then build_coupon_html.py to show them
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_family_record.py --date <d>  # family_record.json for the HTML filter
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>        # the old VALUE selector (06_coupon.json): structure, arithmetic, anti-selection
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>      # 11_coupon.json: C1-C3, U1-U3

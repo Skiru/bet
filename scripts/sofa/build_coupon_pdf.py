@@ -13,6 +13,7 @@ import datetime
 import json
 import math
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -41,9 +42,13 @@ from reportlab.platypus import (  # noqa: E402
     TableStyle,
 )
 
+from bet.sofa import (  # noqa: E402
+    analyses,  # noqa: E402
+    price_gap,
+    timeutil,
+)
 from bet.sofa import coupon_results as cr  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
-from bet.sofa import price_gap, timeutil  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import tmp_path  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -182,41 +187,154 @@ def source_label(calibrated_on: str) -> str:
 
 READ_INK = {"KEEP": "#1b7f4b", "WATCH": "#b25b00", "NO_BET": "#b23b3b"}
 READ_WHO = {"analyst": "analityk", "verifier": "weryfikator", "auto": "automat"}
-READ_REASON_CHARS = 140
+# The whole reason (the longest of 10-25 ran 469 characters); only a
+# runaway one is cut.
+READ_REASON_CHARS = 600
+# All the reasons of one leg together: a table row never splits across a
+# page, so a leg with three long reads overflowed the frame (LayoutError -
+# no PDF). Past it a read shows its verdict line only; the full text is in
+# the HTML and the appendix.
+READ_CELL_CHARS = 700
+READ_REASON_MIN = 40
 
 
-def _reason_head(reason: str) -> str:
-    """The reason's first READ_REASON_CHARS characters, cut at a word (and
-    before escaping, so an entity is never split). Not its first sentence:
-    the analysts write in ";" and abbreviations ("1. poł.", "śr.")."""
+def _reason_head(reason: str, limit: int = READ_REASON_CHARS) -> str:
+    """The reason's first `limit` characters, cut at a word (and before
+    escaping, so an entity is never split). Not its first sentence: the
+    analysts write in ";" and abbreviations ("1. poł.", "śr.")."""
     text = " ".join(reason.split())
-    if len(text) > READ_REASON_CHARS:
-        cut = text[:READ_REASON_CHARS - 1]
-        if " " in cut[READ_REASON_CHARS // 2:]:
+    if len(text) > limit:
+        cut = text[:limit - 1]
+        if " " in cut[limit // 2:]:
             cut = cut[:cut.rindex(" ")]
         text = cut.rstrip() + "…"
     return text
 
 
 def read_label(leg: dict[str, Any]) -> str:
-    """Every read on the leg (reads.json via CONFIDENCE): verdict, who read it
-    and the opening of why - so a read leg is told from an unread one
-    on paper too (the full text is on the HTML view). The worst verdict
-    leads; WATCH / NO_BET on a locked leg is the read after its print."""
+    """Every read on the leg (reads.json via CONFIDENCE): verdict, who read it,
+    when (UTC) and with which context tag, and why - so a read leg is told
+    from an unread one on paper too (the match's full analysis is in the
+    appendix, `analysis_appendix_flowables`). The worst verdict leads;
+    WATCH / NO_BET on a locked leg is the read after its print."""
     reads = [r for r in leg.get("reads") or [] if isinstance(r, dict)]
     if not reads:
         return ""
     order = {"NO_BET": 0, "WATCH": 1, "KEEP": 2}
     reads.sort(key=lambda r: order.get(str(r.get("verdict")), 3))
     out = ""
+    budget = READ_CELL_CHARS
     for r in reads:
         verdict = str(r.get("verdict") or "?")
         who = READ_WHO.get(str(r.get("author")), str(r.get("author") or "?"))
+        at = str(r.get("read_at_utc") or "")[11:16]
+        who += (f" {at}Z" if at else "") + (
+            f", {r['context']}" if r.get("context") else "")
         ink = READ_INK.get(verdict, "#667085")
+        limit = min(READ_REASON_CHARS, budget)
+        head = (_reason_head(str(r.get("reason") or ""), limit)
+                if limit >= READ_REASON_MIN else "powód w HTML / aneksie")
+        budget -= len(head)
         out += (f"<br/><font size=6.5 color='{ink}'><b>{escape(verdict)} "
-                f"({escape(who)})</b>: "
-                f"{escape(_reason_head(str(r.get('reason') or '')))}</font>")
+                f"({escape(who)})</b>: {escape(head)}</font>")
     return out
+
+
+def analysis_refs(singles: list[dict[str, Any]], picks: list[dict[str, Any]],
+                  store: dict[str, Any] | None) -> dict[str, str]:
+    """{event id: "A<k>"} of the printed matches with an analyst's or the
+    verifier's section in analyses.json (bet.sofa.analyses), numbered in
+    the order the coupon first prints them."""
+    events = (store or {}).get("events") or {}
+    # only a match the appendix prints (an analyst's or the verifier's entry)
+    shown = {k for k, v in events.items()
+             if any(e.get("author") in ("analyst", "verifier") for e in v)}
+    out: dict[str, str] = {}
+    for item in [*singles, *picks]:
+        eid = str(item.get("sofascore_event_id"))
+        if eid in shown and eid not in out:
+            out[eid] = f"A{len(out) + 1}"
+    return out
+
+
+def analysis_ref_label(refs: dict[str, str], event_id: Any) -> str:
+    ref = refs.get(str(event_id))
+    return (f"<br/><font size=6.5 color='#1f5fa8'>analiza meczu: <b>{ref}</b> "
+            "(aneks)</font>" if ref else "")
+
+
+_MD_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_MD_CODE = re.compile(r"`([^`]+)`")
+_MD_RULE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
+
+
+def md_paragraphs(markdown: str) -> list[str]:
+    """An analyst's section as reportlab paragraph markup: escaped, then
+    headings and **bold** bold, `code` plain, a table row its cells joined
+    by " · ", consecutive lines one paragraph."""
+    out: list[str] = []
+    block: list[str] = []
+
+    def flush() -> None:
+        if block:
+            out.append("<br/>".join(block))
+            block.clear()
+
+    for raw in markdown.split("\n"):
+        line = raw.rstrip()
+        if not line.strip():
+            flush()
+            continue
+        if _MD_RULE.match(line):
+            continue
+        heading = re.match(r"^(#{1,6})\s+(.*)$", line)
+        text = heading.group(2) if heading else line
+        if text.lstrip().startswith("|"):
+            text = " · ".join(c.strip() for c in text.strip().strip("|").split("|"))
+        text = _MD_CODE.sub(r"\1", _MD_BOLD.sub(r"<b>\1</b>", escape(text)))
+        if heading:
+            flush()
+            out.append(f"<b>{text}</b>")
+        else:
+            block.append(text)
+    flush()
+    return out
+
+
+def analysis_appendix_flowables(refs: dict[str, str], store: dict[str, Any] | None,
+                                small: ParagraphStyle, h2: ParagraphStyle
+                                ) -> list[Any]:
+    """The appendix: per printed match with a section, the newest section of
+    each author (analyst, verifier) in full - the read behind the legs'
+    one-line reasons. Display only."""
+    events = (store or {}).get("events") or {}
+    if not refs:
+        return []
+    flow: list[Any] = [PageBreak(), Paragraph("Aneks: analizy meczów", h2),
+                       Paragraph(
+        "Pełna sekcja analityka (i weryfikatora, gdy pisał o meczu) za każdym "
+        "wydrukowanym meczem, który przeczytano - najnowsza każdego autora "
+        "(analyses.json). Odczyt nogi (KEEP / WATCH / NO_BET) stoi przy nodze; "
+        "tu jest jego uzasadnienie: dossier, próbka, kontekst z sieci.", small),
+                       Spacer(1, 4)]
+    for eid, ref in refs.items():
+        newest: dict[str, dict[str, Any]] = {}
+        for entry in events.get(eid) or []:
+            newest.setdefault(str(entry.get("author")), entry)
+        for author in ("analyst", "verifier"):
+            entry = newest.get(author)
+            if entry is None:
+                continue
+            who = READ_WHO.get(author, author)
+            at = str(entry.get("recorded_at_utc") or "")[11:16]
+            flow.append(Paragraph(
+                f"<b>{ref}</b> · {escape(str(entry.get('heading') or ''))} "
+                f"<font color='#667085'>({who}{', ' + at + 'Z' if at else ''}; "
+                f"{escape(str(entry.get('report') or ''))})</font>", small))
+            flow += [Paragraph(p, small)
+                     for p in md_paragraphs(str(entry.get("markdown") or ""))[1:]]
+            flow.append(Spacer(1, 5))
+    return flow
 
 
 def context_label(leg: dict[str, Any]) -> str:
@@ -620,7 +738,8 @@ def main() -> int:
 
     if so:
         render_stats_only(story, doc_json, singles, picks, legs_idx, now,
-                          body, small, h2, pick, max_overround, results)
+                          body, small, h2, pick, max_overround, results,
+                          analyses.load(run))
         pdf.build(story)
         # A results render keeps the printed PDF beside it and the PDF's
         # time: run_confidence and audit_variants read the PDF's mtime as
@@ -1050,10 +1169,14 @@ def render_stats_only(
     pick: ParagraphStyle,
     max_overround: float,
     results: dict[str, Any] | None = None,
+    analyses_store: dict[str, Any] | None = None,
 ) -> None:
     """The one coupon of a stats-only day (plan 2026-10-05, K3/K10/K11).
     With `results` (bet.sofa.coupon_results) every row carries its result
-    and colour, and the page ends with the percent summary."""
+    and colour, and the page ends with the percent summary. With
+    `analyses_store` (bet.sofa.analyses) a read match points to its full
+    section in the appendix."""
+    an_refs = analysis_refs(singles, picks, analyses_store)
     story.append(Paragraph("Jak czytać ten kupon", h2))
     story.append(Paragraph(
         "<b>pewność</b> pochodzi wyłącznie ze statystyk: to dolna granica "
@@ -1128,7 +1251,11 @@ def render_stats_only(
         header_rows: list[int] = []
         headed: set[int] = set()
         locked_paint: list[tuple[int, str]] = []
+        ref_shown: set[str] = set()
         for leg in locked:
+            eid = str(leg.get("sofascore_event_id"))
+            ref = "" if eid in ref_shown else analysis_ref_label(an_refs, eid)
+            ref_shown.add(eid)
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
             if lno is not None and lno not in headed:
@@ -1143,7 +1270,7 @@ def render_stats_only(
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
                           f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>"
-                          + score_note(entry), small),
+                          + score_note(entry) + ref + read_label(leg), small),
                 Paragraph(market_cell(leg, ladder_marker(lno),
                                       f"{leg.get('market')}{escape(subj)}"), small),
                 Paragraph(line_cell(leg), small),
@@ -1196,7 +1323,8 @@ def render_stats_only(
                         f"{str(mk.get('postponed_utc') or '?')[:10]})</font>")
             entry = cr.of_leg(results, leg)
             if first:
-                match_cell += score_note(entry)
+                match_cell += score_note(entry) + analysis_ref_label(
+                    an_refs, leg.get("sofascore_event_id"))
             if results is None and started_at_render(leg, now):
                 match_cell += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                                "renderem PDF</b></font>")
@@ -1250,7 +1378,8 @@ def render_stats_only(
         block.append(Paragraph(
             f"{escape(str(b.get('competition') or '—'))} • start "
             f"{str(b['kickoff_utc'])[11:16]}Z" + locked_label(b)
-            + score_note(b_entry), small))
+            + score_note(b_entry)
+            + analysis_ref_label(an_refs, b.get("sofascore_event_id")), small))
         if results is not None:
             block.append(Paragraph(
                 f"<font color='{STATUS_INK[b_entry['status']]}'><b>Builder: "
@@ -1309,6 +1438,7 @@ def render_stats_only(
             "najwyższe p ma 2-nogowy. Łączne p mnoży nogi (zakłada "
             "niezależność); Superbet nie wycenia buildera iloczynem nóg.", small))
         story.append(KeepTogether(block))
+    story.extend(analysis_appendix_flowables(an_refs, analyses_store, small, h2))
     if results is not None:
         story.append(PageBreak())
         story.extend(results_summary_flowables(singles, picks, results, body,

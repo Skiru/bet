@@ -249,7 +249,10 @@ Write the whole report in Polish to `<report>` with ONE Bash heredoc
    "works" (the breaker needs three consecutive failures); skipped checks
    named.
 5. The legs you would not stake although printed, each with its reason - the
-   deliverable.
+   deliverable: one section per match, heading
+   `### <Gospodarz> – <Gość> — <rozgrywki> · sofa:<sofascore_event_id>` (the
+   token files it in `analyses.json`; the HTML / PDF show it at the legs),
+   each leg in Superbet's words with the evidence - a few lines, no tables.
 6. Verdict, no stake recommendation.
 
 End with exactly one ```` ```json reads ```` block - a bare `LegRead` array

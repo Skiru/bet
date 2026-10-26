@@ -791,45 +791,66 @@ def leg_rows(legs: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
 def web_checklist(
     sport: str, header: Mapping[str, Any], sides: Mapping[str, Any]
 ) -> list[str]:
-    """What the analyst must look up on the web, with the match filled in."""
+    """What the analyst must look up on the web, with the match filled in:
+    the sport's mandatory checks first (`sofa-analysis-core` references
+    `sources-<sport>.md`, with the source that answers each), then the soft
+    half. Weather only outdoors, and only the extreme counts."""
     home, away = sides.get("home") or "?", sides.get("away") or "?"
     city = header.get("city")
     local = header.get("kickoff_venue_local") or header.get("kickoff_utc")
     lang = header.get("country") or "kraj meczu"
-    items = [
-        f"newsy i absencje: {home} / {away} (prasa lokalna, {lang}; kanały klubów)",
+    first = [f"czy się odbędzie: przełożenie, zmiana miejsca / godziny - "
+             f"{home} - {away}"]
+    if sport == "football":
+        first += [
+            "przewidywane / potwierdzone składy (~1 h przed)",
+            f"absencje od wyceny: {home} / {away} (transfermarkt, sportsgambler, "
+            f"prasa lokalna, {lang}); każdy gracz nogi zawodniczej - czy gra, "
+            "na jakiej pozycji",
+            "sędzia, jeśli ogłoszony (zmiana względem dossier = nowa informacja), "
+            "przy nogach kartek / fauli",
+        ]
+    elif sport == "tennis":
+        first += [
+            "order of play, kort, hala / otwarty, format (Bo3 / Bo5)",
+            "poprzedni mecz: długość, godzina końca, MTO, krecz (tennisexplorer)",
+            "wycofania, lucky loser; słowa gracza, zmiana trenera",
+        ]
+    elif sport == "hockey":
+        first += [
+            "potwierdzony bramkarz startowy obu drużyn (dailyfaceoff, rotowire; "
+            "Europa: zwykle UNVERIFIED)",
+            "back-to-back, podróż; absencje top-6 / top-4 D; gracz nogi - linia, PP",
+        ]
+    elif sport == "basketball":
+        first += [
+            "raport kontuzji: Out / Doubtful / Questionable pierwszej piątki, "
+            "ograniczenie minut (official.nba.com, rotowire; Euroliga: basketnews)",
+            "back-to-back, podwójna kolejka Euroligi, podróż",
+        ]
+    elif sport == "volleyball":
+        first += [
+            "zapowiedziane urazy / odpoczynek atakującego, rozgrywającego, "
+            "przyjmującego (szóstki przed meczem nikt nie publikuje)",
+            "kalendarz: mecz między meczami CEV; format (złoty set, tie-break do 15)",
+        ]
+    elif sport == "cs2":
+        first += [
+            "HLTV (wyszukiwanie po domenie) / dust2.us / Liquipedia API: skład, "
+            "stand-in, bootcamp, wizy; gracz nogi - czy w piątce",
+            "LAN czy online, format (Bo1/Bo3/Bo5), map pool i veto",
+        ]
+    soft = [
+        f"stawka: o co gra {home} i {away} (tabela, następny mecz, dwumecz) - "
+        "liczy się tylko przez skład",
         f"nastroje i kulisy: {home} / {away} - trener, szatnia, pensje, spory",
-        f"stawka: o co gra {home} i {away} (tabela, następny mecz, dwumecz)",
         f"zapowiedzi i opinie: {home} - {away} (rozumowanie, nigdy sam typ)",
     ]
     if sport not in INDOOR:
-        items.insert(
-            1,
-            f"pogoda: {city or 'miasto meczu'} {local} (godzinowa: deszcz, wiatr)",
-        )
-    if sport == "football":
-        items += [
-            "przewidywane / potwierdzone składy (~1 h przed)",
-            "sędzia, jeśli ogłoszony, i jego kartki w sezonie",
-        ]
-    elif sport == "tennis":
-        items += [
-            "order of play, kort, hala / otwarty",
-            "poprzedni mecz: długość, MTO, krecz",
-            "wycofania; słowa gracza, zmiana trenera",
-        ]
-    elif sport == "hockey":
-        items += ["potwierdzony bramkarz startowy obu drużyn", "back-to-back, podróż"]
-    elif sport == "basketball":
-        items += ["kontuzje i load management pierwszej piątki", "back-to-back, podróż"]
-    elif sport == "volleyball":
-        items += ["szóstka startowa; odpoczywający atakujący / rozgrywający"]
-    elif sport == "cs2":
-        items += [
-            "HLTV / Liquipedia: skład, stand-in, bootcamp, wizy",
-            "LAN czy online, format (Bo1/Bo3/Bo5), map pool i veto",
-        ]
-    return items
+        soft.insert(0, f"pogoda: {city or 'miasto meczu'} {local} (godzinowa, "
+                       "open-meteo; liczy się tylko skrajna: ulewa, wichura, "
+                       "śnieg, upał)")
+    return first + soft
 
 
 # --- Sofascore's pre-match line-up (lineups_prematch.json) -----------------

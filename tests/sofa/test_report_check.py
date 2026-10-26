@@ -36,7 +36,9 @@ DEEP = (
     "pogoda bez opadów [WEB: bmkg.go.id, publ. 10-20, fetched 06:20Z]"
 )
 GOOD_BODY = (
-    "Dossier przeczytane.\n\n### Dewa - Persijap\nKontekst (web): nic istotnego."
+    "Dossier przeczytane.\n\n### Dewa - Persijap · sofa:1\n"
+    "**Fakty zabójcze (przed siecią):** deszcz, rezerwowy skład\n"
+    "Kontekst (web): nic istotnego."
 )
 
 
@@ -58,14 +60,15 @@ def test_no_dossier_mention_and_an_unsourced_context_removal() -> None:
     )
     found = findings(report([watch], "### Mecz\nKontekst (web): plotki."))
     assert any(f.startswith("DOSSIER") for f in found)
-    assert any(f.startswith("ŹRÓDŁO") and "MORALE" in f for f in found)
+    assert any(f.startswith("USUNIĘCIE BEZ FAKTU") and "WATCH" in f for f in found)
     sourced = dict(
         watch,
         reason="trener zwolniony [WEB: sport.pl, publ. 10-19, "
         "fetched 07:00Z] - niepotwierdzone",
     )
     assert not any(
-        f.startswith("ŹRÓDŁO") for f in findings(report([sourced], "dossier ok"))
+        f.startswith(("ŹRÓDŁO", "USUNIĘCIE"))
+        for f in findings(report([sourced], "dossier ok"))
     )
 
 
@@ -117,3 +120,32 @@ def test_hook_ignores_other_commands_and_tools() -> None:
         timeout=30,
     )
     assert done.returncode == 0
+
+
+def test_a_removal_needs_a_dated_fact_or_a_named_defect() -> None:
+    """10-26 grading: 19 of 24 WATCHes rested on h2h, form, the table or a
+    model-vs-sample gap - what the price and the code already carry."""
+    def removal(reason: str) -> dict[str, object]:
+        return dict(keep(1, reason), verdict="WATCH")
+
+    streak = removal("Técnico bez gola w 4 ostatnich, h2h 0/4, luka model-próbka")
+    defect = removal("DEFEKT: próbka z kortów otwartych, mecz w hali (02_fixtures)")
+    fact = removal("bramkarz rezerwowy [WEB: nhl.com, publ. 10-26 15:00Z, fetched 16:00Z]")
+    undated = removal("bramkarz rezerwowy [WEB: nhl.com, fetched 16:00Z]")
+    def bad(r: dict[str, object]) -> bool:
+        return any(f.startswith("USUNIĘCIE BEZ FAKTU")
+                   for f in findings(report([r], GOOD_BODY)))
+    assert bad(streak) and bad(undated)
+    assert not bad(defect) and not bad(fact)
+
+
+def test_undated_tags_missing_kill_facts_and_a_match_wide_keep() -> None:
+    body = ("Dossier.\n\n### A - B · sofa:1\nKontekst (web): nic "
+            "[WEB: bbc.com, fetched 08:00Z]\n\n### C - D · sofa:2\n"
+            "[wcześniej: r1.md] Kontekst (web): delta, nic nowego\n")
+    wide = dict(keep(1, DEEP), market=None)
+    found = findings(report([wide, keep(2, DEEP)], body))
+    assert any(f.startswith("TAG WEB BEZ DATY: 1 z ") for f in found)
+    # the delta section of match 2 inherits its kill facts
+    assert any(f.startswith("FAKTY ZABÓJCZE: mecze 1 ") for f in found)
+    assert any(f.startswith("KEEP ZBIORCZY") for f in found)

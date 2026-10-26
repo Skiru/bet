@@ -61,7 +61,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffe
 One instance per file, **all in one message, foreground** (`run_in_background: false`):
 `football` -> `sofa-analyst-football`, `tennis` -> `sofa-analyst-tennis`, `hockey` /
 `basketball` / `volleyball` / `cs2` -> `sofa-analyst-sport`. A sport without a file gets no
-analyst; say so. Give the path `runs/sofa/<date>/<date>_analiza_<sport>[_<i>].md`; if it
+analyst; say so. **A re-read round** (`--unread`, step 5) whose measured-sport files hold at
+most 6 matches together gives them to **one** `sofa-analyst-sport` instance (`sport` = the
+list, every file named, one report `runs/sofa/<date>/<date>_analiza_sports_r<n>.md`): each
+instance costs its whole preloaded contract before the first leg, and a round of 1-2 matches
+a sport is mostly that cost. Give the path `runs/sofa/<date>/<date>_analiza_<sport>[_<i>].md`; if it
 exists, the next free `_r<n>` - never overwrite. The prompt, exactly, with no opinion of yours:
 
 ```
@@ -69,7 +73,13 @@ date <date>; run_id <id>; sport <sport>; read set: runs/sofa/<date>/read_set/rea
 write your report to: runs/sofa/<date>/<date>_analiza_<sport>[_<i>][_r<n>].md
 ```
 
-Each writes its own report and returns <= 12 lines with the path it **actually wrote** (it
+The combined sport instance of a re-read round gets the same prompt with `sport <s1>,<s2>`,
+one `read set:` path per sport (comma-separated) and the report
+`runs/sofa/<date>/<date>_analiza_sports_r<n>.md`.
+
+A leg of a match analysed earlier today carries `prior_analysis` (`read_set.py`, from
+`analyses.json`): the analyst reads that section and does only a delta pass - say nothing
+about it in the prompt. Each writes its own report and returns <= 12 lines with the path it **actually wrote** (it
 may re-suffix `_r<n>`; one part = one report - you split, via `--split`). Never re-type its text or arrays.
 
 ## 4. Merge, then rebuild
@@ -82,6 +92,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date> --dr
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 ```
 
+- `merge_reads.py` also stamps each read (`read_at_utc`) and files each report's match
+  sections in `analyses.json` (the HTML / PDF show them at the legs); `NO_SECTIONS: <file>`
+  = no heading carried `sofa:<id>` - report it, the merge stands.
 - `merge_reads.py`: exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing -
   report it); 2 refused, nothing written - relaunch that instance with the refusal line and a
   new `_r<n>` path (never fix its JSON yourself; after 2 relaunches report the failure). It carries earlier vetoes over and only appends reads (WATCH / NO_BET

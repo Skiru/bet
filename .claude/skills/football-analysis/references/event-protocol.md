@@ -20,7 +20,7 @@ protocol; a match you intend to veto too. Anything else: one line under
 | I8 | referee (cards / fouls) | `RefereeRecord` | `games`, yellow and red rate - or "brak sędziego" and what that costs |
 | I9 | absences and lineup | the web, two domains | per side: count, the names that matter, how you checked |
 | I10 | game script A-D | Superbet's ladders in `04_offer.json` (`goals_for`, `double_chance`, `result_1x2`, `handicap_corners`, `most_*`) | which scenario is modal and whether the leg survives it; "nieważone" when no ladder |
-| I11 | the ladder | every rung in `04_offer.json` + sheet rows + coupon legs | rung table: pewność, próbka k/n, model, kurs, x; why this rung |
+| I11 | the ladder | every rung in `04_offer.json` + sheet rows + coupon legs | why this rung (the line against the distribution) - no rung table, the page shows the numbers |
 | I12 | correlation | the mechanism, for a builder leg | the one scenario that kills every leg - **never multiply** |
 | I13 | price, only the filter | `offered_odds`, x, the rung's `fetched_at_utc` | "x 1.03 >= 0.90, cena z 09:05Z" - a condition the code applied |
 | I14 | buy / kill | | strongest fact for, strongest against, which wins |
@@ -28,34 +28,32 @@ protocol; a match you intend to veto too. Anything else: one line under
 
 ## The match section, in Polish
 
+Dense: the operator reads it folded under the leg (HTML) and in the PDF's
+appendix. Facts and arithmetic, no artifact tables copied - the page shows
+each leg's pewność, kurs, x, próbka. At most ~4,000 characters; a quiet match needs less.
+
 ```markdown
-### <Gospodarz> – <Gość> — <rozgrywki>, <runda>
-**Start:** 2026-09-21 20:00Z (Superbet 20:00Z; rozjazd 0.0 h) · **identity:** CONFIRMED
-**Status:** nierozpoczęty o 09:12Z (najwcześniejszy zegar: 20:00Z)
+### <Gospodarz> – <Gość> — <rozgrywki>, <runda> · sofa:<sofascore_event_id>
+**Start:** 2026-09-21 20:00Z (Superbet 20:00Z) · **identity:** CONFIRMED · nierozpoczęty o 09:12Z
+**Punkt wyjścia:** pewność nóg 0.78-0.86; oczekuję <liczba w jednostkach rynku> (<skąd>).
+**Fakty zabójcze (przed siecią):** <co złamałoby te nogi - 1 linia>
 
-**Stawka.** <runda, dwumecz + wynik 1. meczu, miejsce w tabeli - albo „brak">
+**Dossier.** <stawka / tabela / dwumecz; forma; odpoczynek; h2h na metryce nóg; skład (przewidywany / potwierdzony, braki); sędzia - 3-6 punktów>
+**Próbka.** <n per strona, zakres dat, rozkład wokół linii: mediana, moda, ogon; udział próbki w centrum i rating - 2-4 zdania; integralność: puchary, luki>
+**Kontekst (web).** <zapytania i wynik, każde z [WEB: domena, publ., fetched]; co robi której nodze, albo „nic istotnego dla tych nóg”>
+**Scenariusz.** <modalny A-D z drabin Superbetu; który zabija nogi>
 
-**Próbka.** corners_total: side_a n=10 (2026-07-14 … 2026-09-14), side_b n=10,
-h2h n=3. Wartości side_a: 6 8 8 9 9 10 11 11 12 15 (mediana 9, moda 8/9/11,
-zakres 6–15). Trzy najwyższe przeciw <rywale>.
-**Udział próbki w centrum:** n=10, K=15 -> 40%; rating: <W, centrum ratingu> albo „rynek bez ratingu".
+**Nogi.**
+- <superbet_market: superbet_selection> — KEEP / WATCH / NO_BET: <jedno zdanie: oczekiwanie vs linia, fakt>
+- …
 
-**Rozkład.** <moda, ogony, gdzie leży linia>
-
-**Kontekst.** Sędzia: <nazwisko>, <games> meczów, <żółte>/mecz - albo „brak".
-Braki kadrowe: <…> `[WEB: domena, publ. …, fetched …]`. Scenariusz modalny: <A/B/C/D>.
-
-**Drabina.**
-| poz. | rynek (Superbet) | pewność | próbka k/n | model | kurs | x | uwagi |
-|---|---|---|---|---|---|---|---|
-
-**Cena (tylko warunek).** <kurs, x = pewność x kurs >= 0.90, fetched_at>
-
-**Za:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
-**Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
-
-**Werdykt:** KEEP / WATCH / NO_BET — <jedno zdanie>
+**Za / Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO (najmocniejszy argument każdej strony)
 ```
+
+A buy / kill that reaches no leg is not written. A match with a prior
+section today (`prior_analysis`) gets the same heading, **Dossier** /
+**Próbka** as "[wcześniej: <report>]" plus what changed, and a **Kontekst
+(web)** of the delta pass.
 
 ## Rules for the section
 

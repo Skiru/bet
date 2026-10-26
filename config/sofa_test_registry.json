@@ -510,6 +510,32 @@
           "quote": "Refit krzywych hokeja i siatkówki"
         }
       ]
+    },
+    {
+      "id": "T-ANALYST-CONTEXT-TAGS",
+      "registered_on": "2026-10-26",
+      "status": "PROPOSED",
+      "hypothesis": "The literature's prediction for a remove-only analyst (docs/sofa/history/analitycy_2026-10-26/lit_review.md, 'Implications', rule 23): legs removed by a read tagged ABSENCES or ROTATION realise below the price-band-matched KEEP legs, while legs removed on MOTIVATION, MORALE or DERBY alone realise like them. 10-13..10-25 (before this registration) showed no subgroup apart from zero (removed minus KEEP ROI -0.9 pp [-5.9, +4.2], 1,104 removed legs).",
+      "rule": "Per context tag group - A = {ABSENCES, ROTATION}, B = {MOTIVATION, MORALE, DERBY}, C = {SCHEDULE, CONDITIONS} - legs in 11_coupon.json removed_by_reads whose covering read (reads.json, author analyst or verifier) carries the tag, graded by record_results.graded_confidence (variant removed:reads, refunds 0 u.), against KEEP legs of the same days in the same price band (line_evidence.PRICE_BANDS); stake 1 u at the printed price. Report hit minus 1/odds and ROI difference removed minus KEEP per group.",
+      "population": "Read legs (KEEP and removed) of every sport on days from 2026-10-27.",
+      "data_window": {
+        "from": "2026-10-27",
+        "to": "2027-01-27"
+      },
+      "required_n": {
+        "legs": 300,
+        "matches_min": 120,
+        "basis": "10-13..10-25 removed 1,104 legs in 13 days, about 70 of them tagged ABSENCES / ROTATION; 300 removed legs in group A over ~3 months give a ROI half-width of roughly 8 pp under a match bootstrap."
+      },
+      "evaluation": "Bootstrap over matches (legs of one match are not independent), 95% intervals, per group.",
+      "stop_criterion": "PASSED when group A's removed-minus-KEEP ROI has its upper 95% bound below 0 at the required n (the tag removes losers) and group B's interval covers 0; FAILED when group A's interval covers 0 at the required n - then ABSENCES / ROTATION removals carry no measured information either, and the operator decides whether reads stay a removal or become a note.",
+      "evidence": [
+        {
+          "source": "docs/sofa/history/analitycy_2026-10-26/analyst_measurement.md",
+          "line": 1,
+          "quote": "Analysts' reads: value and cost"
+        }
+      ]
     }
   ]
 }

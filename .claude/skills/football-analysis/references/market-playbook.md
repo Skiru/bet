@@ -72,7 +72,8 @@ market is priced by a negative binomial with a fitted dispersion
 ## Offsides - `offsides_total`, `offsides_for`
 
 Driven by one side's high line and the other's runners. Thin samples, high
-variance. WATCH unless the matchup argument is specific.
+variance - a note in the section; a removal needs what any removal needs
+(a dated fact or a `DEFEKT:`, core).
 
 ## Saves, throw-ins, goal kicks, tackles
 
@@ -145,8 +146,9 @@ him; the sample sits in `03_samples.json` `players["<market>|<subject>"]`.
   set pieces (shots); the opponent's style (a low block concedes shots, a
   possession side concedes few tackles); the referee (fouls); a manager
   change inside the sample; minutes limits after injury.
-- **Verdicts:** an expected early substitution, a role change the sample
-  does not contain, or an identity you cannot confirm is WATCH. A doubtful
+- **Verdicts:** an expected early substitution or a role change the sample
+  does not contain (on a dated source), or an identity you cannot confirm
+  (`DEFEKT:`), is WATCH. A doubtful
   start alone is not a reason. "Props never pay" is not a read.
 - **On the coupon** a player leg prints as a one-sided single (no UNDER
   side, so no margin; `one_sided_market`, "1-str." on the PDF) when its

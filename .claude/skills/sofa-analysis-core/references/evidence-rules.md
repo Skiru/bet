@@ -100,16 +100,16 @@ your decision point; quote both when they differ by more than an hour.
 
 ## What the pipeline does not know, and you might
 
-None of these is in the artifacts; each is a CONTEXT opening:
+The dossier holds part of it (`lineups` - predicted / confirmed XI, missing
+/ doubtful; `header.first_leg` - a second leg's aggregate); the rest is a
+CONTEXT opening, the absences and the XI first (`references/literature.md`):
 
+- absences, suspensions, a rested XI newer than the dossier's lineup;
 - what is at stake beyond the `stakes` flag - a dead rubber, a decided tie,
-  a play-off;
-- a second leg's aggregate score;
-- absences, suspensions, a rested XI;
+  a play-off - only through who plays;
 - a manager change inside the sample window;
 - weather, pitch, altitude;
 - a tennis player's withdrawal or walkover announced before the start;
-- whether a match is a derby;
 - *why* a make-up fixture was postponed and whether the cause still holds.
 
 ## Already enforced - never veto or WATCH for these

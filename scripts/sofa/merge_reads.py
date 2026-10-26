@@ -34,6 +34,13 @@ current, so nothing is written unless every entry validates):
   or dropped (WATCH / NO_BET win over KEEP whoever wrote them); with
   --author every read must carry that author.
 
+Every merged read is stamped `read_at_utc` (the merge time; a read merged
+again keeps its first stamp). A coupon merge (not --slip, not --dry-run) also
+records each report's match sections in analyses.json (`bet.sofa.analyses`:
+the full section behind the legs, shown folded on the HTML view and in the
+PDF's appendix); a report the parser finds no section in is named
+(NO_SECTIONS) - display only, never a refusal.
+
 Prints the counts and every WATCH / NO_BET. Exit 0 merged, 1 merged with an
 UNMATCHED_VETO, 2 refused (nothing written).
 """
@@ -55,7 +62,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
 
 from pydantic import RootModel, ValidationError  # noqa: E402
 
-from bet.sofa import timeutil  # noqa: E402
+from bet.sofa import analyses, timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
@@ -116,7 +123,9 @@ def parse_report(text: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
 
 
 def _key(entry: dict[str, Any]) -> str:
-    return json.dumps(entry, sort_keys=True)
+    """The entry without its merge stamp: a read merged twice is one read."""
+    return json.dumps({k: v for k, v in entry.items() if k != "read_at_utc"},
+                      sort_keys=True)
 
 
 def _leg_key(entry: dict[str, Any]) -> tuple[Any, ...]:
@@ -153,12 +162,15 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     carried = [v for v in earlier_v if _key(v) not in fresh_keys]
     merged_v = _dedupe(fresh_v) + carried
     earlier_r = _load(reads_path)
+    # every fresh read is stamped with this merge's time (the view and the
+    # slip show when a leg was read) - a stamp copied into a report is never
+    # trusted; a read merged before keeps its first stamp (`_key` ignores it)
+    stamp = utc_now().isoformat(timespec="seconds")
+    fresh_r = [{**r, "read_at_utc": stamp} for r in fresh_r]
     if slip:
-        # a slip's read is stamped, and a later read of the same leg by the
-        # same author replaces an earlier KEEP (its time is what the slip
-        # shows); an earlier WATCH / NO_BET is never replaced - it wins
-        stamp = utc_now().isoformat(timespec="seconds")
-        fresh_r = [{**r, "read_at_utc": stamp} for r in fresh_r]
+        # a later read of the same leg by the same author replaces an earlier
+        # KEEP (its time is what the slip shows); an earlier WATCH / NO_BET is
+        # never replaced - it wins
         again = {_leg_key(r) for r in fresh_r}
         earlier_r = [r for r in earlier_r
                      if r.get("verdict") != "KEEP" or _leg_key(r) not in again]
@@ -212,8 +224,29 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
                          json.dumps(merged_v, indent=2, ensure_ascii=False) + "\n")
         write_atomic(reads_path,
                      json.dumps(merged_r, indent=2, ensure_ascii=False) + "\n")
+        if not slip:
+            _record_sections(run, reports, author, stamp)
     off_set = _check_read_sets(read_sets or [], fresh_r, fresh_v)
     return 1 if fresh_unmatched or off_set else 0
+
+
+def _record_sections(run: Path, reports: list[Path], author: str | None,
+                     stamp: str) -> None:
+    """Each report's match sections into analyses.json (display only: a
+    failure is printed, the merge stands)."""
+    try:
+        store = analyses.load(run)
+        names = analyses.coupon_match_names(run)
+        for path in reports:
+            who = author or analyses.author_of(path)
+            n = analyses.add_report(store, path, who, stamp, names)
+            print(f"  {path.name}: {n} match sections -> {analyses.STORE}"
+                  if n else f"  NO_SECTIONS: {path.name} - no match heading "
+                  "found (the event protocol's sofa:<id> token)")
+        analyses.save(run, store)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        print(f"  WARNING: {analyses.STORE} not written - "
+              f"{type(exc).__name__}: {exc}")
 
 
 def _check_read_sets(paths: list[Path], fresh_r: list[dict[str, Any]],

@@ -70,10 +70,10 @@ Set it on every CONTEXT veto; the settlement audit grades each tag apart
 
 | `context` | use when | example |
 |---|---|---|
-| `MOTIVATION` | what the result is worth: dead rubber, must-win, decided tie, points to defend | "dwumecz rozstrzygnięty 4-0" |
+| `MOTIVATION` | what the result is worth: dead rubber, must-win, decided tie, points to defend | "rewanż przy 4-0: trener zapowiedział rezerwowy skład" (through the XI; the stake alone carries ~0) |
 | `ROTATION` | rested or reserve XI | "trener zapowiedział rotację przed Ligą Mistrzów" |
 | `ABSENCES` | named starters out | "obaj podstawowi stoperzy zawieszeni" |
-| `DERBY` | rivalry where the sample's normal matches do not describe tonight | "derby miasta; ostatnie trzy: 7, 8, 9 kartek" |
+| `DERBY` | rivalry where the sample's normal matches do not describe tonight | "derby; sędzia zmieniony na X (ogłoszone dziś)" (a changed input; derby alone carries ~0) |
 | `SCHEDULE` | fatigue, travel, back-to-back, a long previous match, a postponement | "wczoraj 3h40 w pięciu setach" |
 | `CONDITIONS` | weather, pitch, altitude, indoor / outdoor | "ulewa, podtopione boisko" |
 | `MORALE` | dressing room, conflict, unpaid wages, a sacked coach, a boycott, fan protest | "piłkarze od trzech miesięcy bez pensji, zapowiedź bojkotu treningów" |
@@ -103,7 +103,7 @@ veto written after its match started is excluded from the grade.
 | `period` | int \| null, optional | hockey period, quarter, set, CS2 map; `0` the whole match (and basketball halves); null covers every period |
 | `verdict` | `KEEP \| WATCH \| NO_BET` | |
 | `author` | `analyst \| verifier` | you are `"analyst"` |
-| `reason` | non-empty str | Polish; rides on the leg as `reads` |
+| `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries a dated `[WEB: …, publ. …]` tag or `DEFEKT: …` (`report_check`) |
 | `context` | a `context` tag above, optional | leave it out when none fits |
 
 Eight keys are required (`sofascore_event_id`, `market`, `subject`, `line`,
@@ -139,7 +139,7 @@ Football / tennis read:
 ```json
 [{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
   "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "analyst",
-  "reason": "Chaves w ostatnich czterech: 4/5/4/5 goli; mecz zaległy 5. kolejki (przełożony 6.09, choroba w kadrze)"}]
+  "context": "ABSENCES", "reason": "obaj podstawowi stoperzy Chaves zawieszeni (komunikat ligi) [WEB: ligaportugal.pt, publ. 2026-10-05 14:00Z, fetched 2026-10-06 08:40Z]; Chaves w ostatnich czterech 4/5/4/5 goli - nota, nie powód"}]
 ```
 
 Measured-sport read (`period` 0 = whole match):
@@ -148,5 +148,5 @@ Measured-sport read (`period` 0 = whole match):
 [{"sofascore_event_id": 16310568, "market": "total", "subject": "",
   "line": 3.5, "direction": "OVER", "period": 0, "verdict": "NO_BET",
   "author": "analyst", "context": "SCHEDULE",
-  "reason": "mecz przełożony [WEB: hltv.org, liquipedia.net, fetched 2026-10-06 09:10Z]"}]
+  "reason": "mecz przełożony [WEB: dust2.us, pgl.ro, publ. 2026-10-06 08:30Z, fetched 2026-10-06 09:10Z]"}]
 ```

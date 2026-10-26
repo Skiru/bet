@@ -15,7 +15,7 @@ The only structured output an analyst had could not touch the product.
 """
 
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import RootModel
 
@@ -148,6 +148,18 @@ def matching_reads(
             period=period,
         )
     ]
+
+
+def read_note(read: LegRead) -> dict[str, Any]:
+    """A read as it rides on a leg (`reads`): verdict, author, reason, and
+    when set its merge time and context tag (the view shows them)."""
+    note: dict[str, Any] = {"verdict": read.verdict, "author": read.author,
+                            "reason": read.reason}
+    if read.read_at_utc:
+        note["read_at_utc"] = read.read_at_utc
+    if read.context:
+        note["context"] = read.context
+    return note
 
 
 def read_refusal(reads: list[LegRead]) -> str | None:

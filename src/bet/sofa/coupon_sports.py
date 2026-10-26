@@ -33,7 +33,7 @@ from bet.sofa import sport_day as sd
 from bet.sofa.confidence import SHEET_SPORTS, too_close_to_kickoff
 from bet.sofa.contracts import LegRead, Veto
 from bet.sofa.locked_print import printed_after_its_start, started_by_printed_kickoff
-from bet.sofa.veto import read_refusal, veto_matches
+from bet.sofa.veto import read_note, read_refusal, veto_matches
 
 MEASURED_SPORTS = ("hockey", "basketball", "volleyball", "cs2")
 SPORT_FIXTURES_FILE = "sport_fixtures.json"
@@ -164,9 +164,7 @@ def apply_reads(
             continue
         covering = [r for r in reads if veto_matches(r, **args, period=k[2])]  # type: ignore[arg-type]
         if covering:
-            leg = {**leg, "reads": [
-                {"verdict": r.verdict, "author": r.author, "reason": r.reason}
-                for r in covering]}
+            leg = {**leg, "reads": [read_note(r) for r in covering]}
         refusal = read_refusal(covering)
         if refusal is not None:
             verdict = "NO_BET" if refusal == "READ_NO_BET" else "WATCH"

@@ -41,7 +41,7 @@ kuponu jest w UTC dla każdego sportu.**
 |---|---|---|---|
 | `sofa-runner` | dzień jako podagent: czyta i wykonuje `sofa-day.md`, zwraca raport dnia | sesji | dane tylko przez skrypty |
 | `sofa-analyst-football` / `-tennis` | odczyt nóg ze swojego pliku `read_set`, weta + jeden odczyt na nogę | sesji | **tylko swój raport** |
-| `sofa-analyst-sport` | to samo dla jednego sportu mierzonego (hokej / kosz / siatka / CS2); tylko odczyty (strona, okres) | sesji | tylko swój raport |
+| `sofa-analyst-sport` | to samo dla sportu mierzonego (hokej / kosz / siatka / CS2; w rundzie re-read kilka małych plików sportów naraz); tylko odczyty (strona, okres) | sesji | tylko swój raport |
 | `sofa-verifier` | adwersaryjna weryfikacja zbudowanego dnia; nogi, których by nie postawił, jako odczyty `author: "verifier"` | sesji | tylko swój raport |
 | `sofa-settler` | rozliczenie D-1, audyty, dziennik, opinia o refitowaniu (domyślnie „nie”) | `sonnet` | nic |
 | `sofa-market-scout` | czy da się postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | `sonnet` | `runs/sofa/<d>/market_coverage.json` / `.md` przez `report_market_coverage.py` (gdy ich brak) |
@@ -65,6 +65,7 @@ kuponu jest w UTC dla każdego sportu.**
 | `sofa-pipeline` | wspólny kontrakt: kupon, etapy, reguły druku, kanały (weta, odczyty, prośby), twarde zasady | każdego agenta `sofa` |
 | `sofa-analysis-core` | kontrakt analityka: plik `read_set`, kolejność artefaktów, punkt decyzyjny, bloki JSON, raport do pliku | trzech analityków |
 | `football-analysis` / `tennis-analysis` | metoda sportowa | analityk danego sportu |
+| `sport-analysis` | metoda sportów mierzonych: co wyceniło nogę (model wyniku, silnik CS2, model zawodnika, dowód linii), tożsamość i zakres, decydujące fakty przedmeczowe sportu (bramkarz, raport kontuzji i back-to-back, szóstka, piątka i pula map), sekcja meczu (od 2026-10-26) | `sofa-analyst-sport` |
 | `bet-slip-audit` | wycena slipa z ekranu operatora | na żądanie |
 
 Gdy dwa źródła mówią co innego: **kod > artefakt > skill > plik agenta**.
@@ -130,7 +131,16 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
 - wypisuje jedną linię na sport / część: `<n> legs, <n> matches (<n>
   required, <n> buffer)` — liczby required / buffer to **nogi**;
 - `--unread` — tylko nogi bez odczytu analityka (reguła C3); używane w każdej
-  rundzie po przebudowie.
+  rundzie po przebudowie;
+- noga meczu, który ma już tego dnia sekcję analityka w `analyses.json`,
+  niesie `prior_analysis` (raport, czas, liczba źródeł, czy był przegląd
+  kontekstu, oraz `full_pass_report` / `full_pass_at_utc` - ostatni pełny
+  przegląd, którego sekcja delty nie zastępuje): analityk czyta tę sekcję (i
+  pełny przegląd, gdy to delta) i robi **przegląd zmian** (~2 wyszukiwania:
+  potwierdzony skład / bramkarz / piątka, nowa absencja, przełożenie) zamiast
+  całego dossier i sieci od nowa; pełny przegląd powtarza, gdy ostatni jest
+  starszy niż 6 h albo go nie ma (od 2026-10-26;
+  10-13..10-25 11% odczytów meczów było meczem już czytanym tego dnia).
 
 ### Kontrakt przekazania analityk → maszyna
 
@@ -153,6 +163,22 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
    ponownych uruchomieniach zgłosić porażkę.
 4. Weryfikator tak samo: `runs/sofa/<d>/<d>_weryfikacja[_r<n>].md`,
    scalenie z `--author verifier`.
+5. Scalenie kuponu stempluje każdy odczyt (`read_at_utc`) i tnie raport na
+   sekcje meczów do `analyses.json` (`bet.sofa.analyses`): nagłówek sekcji
+   niesie token `sofa:<id>` (sprawdza go `check_analyst_report.py` i hook);
+   raport bez żadnej sekcji to `NO_SECTIONS` w wyjściu - nie odmowa. Sekcje
+   widać przy nogach w HTML (rozwijane) i w aneksie PDF.
+6. Hook (`report_check`) odsyła raport analitykowi do poprawy, gdy:
+   - WATCH / NO_BET nie nazywa faktu nowszego niż cena (datowany tag
+     `[WEB: …, publ. …]`) ani defektu artefaktu (`DEFEKT: …`); h2h, forma,
+     seria, tabela, luka model-próbka, `price_gap` ani słaby most ratingu nie
+     zdejmują nogi (10-26: 19 z 24 WATCH było tego rodzaju; pomiar
+     10-13..10-25 nie pokazał, by takie zdjęcia cokolwiek dawały);
+   - tag `[WEB:]` nie ma daty publikacji;
+   - sekcja czytanego meczu nie ma linii „Fakty zabójcze” (sekcja delty je
+     dziedziczy);
+   - KEEP jest zbiorczy (`market: null`) - jeden odczyt na rodzinę (rynek,
+     kierunek).
 
 ### Kanały do produktu
 
@@ -232,7 +258,12 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   nigdy bramka; KEEP podaje oczekiwanie w jednostkach rynku, fakt z dossier
   i ustalenie z kontekstu, nigdy samo „15/18”;
 - **każdy nierozpoczęty mecz dostaje przegląd kontekstu w sieci** (operator
-  2026-10-20; do ~8 wyszukiwań / pobrań na mecz, także prasa lokalna):
+  2026-10-20; od 2026-10-26 do ~6 wyszukiwań / pobrań na mecz, najpierw
+  **obowiązkowe sprawdzenia sportu** z
+  `.claude/skills/sofa-analysis-core/references/sources-<sport>.md` - lista
+  kontrolna i źródła sprawdzone 2026-10-26, z tym co blokuje pobieranie -
+  a przed wyszukiwaniem **fakty zabójcze** meczu w jednej linii; także prasa
+  lokalna):
   newsy i fakty (składy, absencje, bramkarz / zawodnik zastępczy, format),
   warunki (pogoda w miejscu meczu, murawa, hala), nastroje i kulisy (konflikt,
   zaległe pensje, zwolniony trener, protesty kibiców — tag `MORALE`), stawka
@@ -240,8 +271,14 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   typ); w sekcji meczu „Kontekst (web)”, także „nic istotnego”;
 - waga: fakt z dwóch niezależnych domen może dać `NO_BET`; jedna domena,
   opinia albo nastrój — co najwyżej `WATCH` i tylko przez zmienną tej nogi
-  (deszcz → rożne i gole, rezerwowy bramkarz → suma); wszystko otagowane,
-  „niezweryfikowane” bywa uczciwą odpowiedzią;
+  (rezerwowy bramkarz → suma, stand-in → handicap); wszystko otagowane,
+  „niezweryfikowane” bywa uczciwą odpowiedzią. Od 2026-10-26 (literatura i
+  pomiar, `docs/sofa/history/analitycy_2026-10-26/`): przegląd szuka **wady
+  nogi w obecnym kształcie** albo **faktu nowszego niż cena**; to, co model i
+  cena już mają (atut własnego boiska, sędzia, forma, tabela, odpoczynek),
+  nie jest powodem, chyba że zmieniło się wejście (nowy sędzia, zamknięte
+  trybuny); pogoda tylko skrajna; derby, nastroje i motywacja same z siebie
+  nie zdejmują nogi;
 - źródła: tylko Sofascore i Superbet z artefaktów dnia oraz otwarty web;
   **bzzoiro ani żaden inny dostawca**;
 - weto i odczyt tylko zdejmują; nie wetuje za bramkę, którą kod już stosuje;

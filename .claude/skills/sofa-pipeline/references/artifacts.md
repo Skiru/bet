@@ -29,6 +29,7 @@ typo is a validation error). The day is **UTC**; datetimes are UTC ISO with
 | `KUPON_<d>.pdf`, `KUPON_<d>.html` | PDF | **the product**; the HTML is a filterable view of the same legs |
 | `12_printed.json`, `printed/<ts>.json` | PDF | the print record |
 | `vetoes.json`, `reads.json`, `read_requests.json` | analysts / verifier / operator | the channels (SKILL.md) |
+| `analyses.json` | `merge_reads.py` (`bet.sofa.analyses`) | the analysts' match sections by match - display / `prior_analysis` |
 | `read_set/read_set_<sport>[_<i>].json` | `read_set.py` | the legs an analyst instance reads |
 | `<d>_analiza_<sport>[_<part>][_r<n>].md`, `<d>_weryfikacja[_r<n>].md` | analysts / verifier | their reports, merged by `merge_reads.py` |
 | `07_settled.json`, `07_settle_skips.json`, `07_settled_printed.json` | SETTLE (D-1) | grades, skips / refunds, printed legs without a sheet row |
@@ -289,7 +290,21 @@ X2, 12, or an exact score "3:1"), `period` = period / quarter / set / CS2 map.
 One bad entry fails the file and every stage reading it - merge only through
 `merge_reads.py`. Append-only; WATCH / NO_BET win over KEEP whoever wrote
 them. The covering reads are written on the leg as `reads: [{verdict, author,
-reason}]`.
+reason}]` plus `read_at_utc` / `context` when set; `merge_reads.py` stamps
+`read_at_utc` on every read it merges (a re-merge keeps the first stamp).
+
+## `analyses.json` - the analysts' match sections
+
+`{"version": 1, "events": {"<sofascore_event_id>": [entry, ...]}}`, newest
+first; entry: `author` (analyst / verifier), `report` (file name),
+`recorded_at_utc`, `heading`, `markdown` (the whole section), `web_tags`
+(`[WEB:` count), `context_pass` (a "Kontekst (web)" block), `verdict_line`.
+Written by every coupon `merge_reads.py` (`bet.sofa.analyses`: a section is
+a `##`-`####` heading carrying `sofa:<id>`, else naming both teams of a
+coupon match); `build_analyses.py --date <d>` rebuilds it from the day's
+reports. Read by the HTML view (folded under each leg), the PDF appendix and
+`read_set.py` (`prior_analysis` on a leg of a match analysed earlier today).
+Display / process only.
 
 ## `runs/sofa/shadow/<sport>/<d>/` and `runs/sofa/cs2/<d>/` - the measured sports
 

@@ -29,28 +29,27 @@ price.
 ## The match section, in Polish
 
 ```markdown
-### <Zawodnik A> – <Zawodnik B> — <turniej>, <runda>
-**Format:** BO3 (`default_period_count = 3`) · **Nawierzchnia:** hard (`ground_type`)
-**Start:** 2026-09-21 11:00Z (Superbet 11:00Z; rozjazd 0.0 h) · **identity:** CONFIRMED
-**Weryfikacja:** on order of play `[WEB: itftennis.com, fetched …]` + `[WEB: …]`
+### <Zawodnik A> – <Zawodnik B> — <turniej>, <runda> · sofa:<sofascore_event_id>
+**Format:** BO3 (`default_period_count = 3`) · **Nawierzchnia:** hard, hala / otwarty (`ground_type`)
+**Start:** 2026-09-21 11:00Z (Superbet 11:00Z) · **identity:** CONFIRMED · nierozpoczęty o 07:40Z
+**Punkt wyjścia:** pewność nóg 0.78-0.84; oczekuję <gemy / sety / asy> (<skąd>).
+**Fakty zabójcze (przed siecią):** <wycofanie, uraz, długi mecz wczoraj, format - 1 linia>
 
-**Próbka.** games_total: A n=8 po zakresie (2026-06-02 … 2026-09-14),
-B n=10. Wartości A: 17 19 20 20 21 22 23 26 (mediana 20,5, moda 20).
-Rywale A: <names, class>. **Estymator:** rating (model = model_p) / próbka (10/18 = 56% centrum).
+**Dossier.** <ranking obu, ostatnie mecze (ile trwały, krecz?), odpoczynek, h2h - 3-5 punktów>
+**Próbka.** <n po zakresie, rozkład wokół linii, rywale A / B i ich klasa; estymator: rating czy próbka>
+**Serw i return.** <asy, DF, punkty serwisowe; hold% z sieci, tagowane>
+**Arytmetyka wyników.** 6-3 6-4 = 19 · 6-4 7-5 = 22 · 7-6 6-7 7-6 = 39 - modalny wynik ląduje na <…>
+**Kontekst (web).** <kolejność gier, stan zdrowia, warunki; [WEB: …] - albo „nic istotnego dla tych nóg”>
 
-**Serw i return.** <aces, DF, serve points per side; hold% from the web, tagged>
-
-**Arytmetyka wyników.** 6-3 6-4 = 19 · 6-4 7-5 = 22 · 7-6 6-7 7-6 = 39.
-Modalny wynik <…> ląduje na szczeblu <…>.
-
-**Drabina.**
-| poz. | linia | kier. | pewność | próbka k/n | model | kurs | x | uwagi |
-|---|---|---|---|---|---|---|---|---|
+**Nogi.**
+- <superbet_market: superbet_selection> — KEEP / WATCH / NO_BET: <jedno zdanie>
 
 **Za / Przeciw:** FAKT → RACHUNEK → IMPLIKACJA → RYZYKO
-
-**Werdykt:** KEEP / WATCH / NO_BET — <one sentence>
 ```
+
+Dense: no rung table (the page shows pewność, kurs, x, próbka);
+at most ~4,000 characters (a quiet match less). A match with `prior_analysis` cites the earlier
+section and adds only the delta.
 
 ## Rules for the section
 

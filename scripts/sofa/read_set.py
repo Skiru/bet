@@ -21,6 +21,15 @@ The operator's requests are read from runs/sofa/<d>/read_requests.json (the
 file the next rebuild applies); audit C3 reads the copy 11_coupon.json
 carries - they differ only between an edit of the file and that rebuild.
 
+A leg whose match already has an analyst's section today (analyses.json,
+`bet.sofa.analyses`, recorded by merge_reads.py) carries `prior_analysis`
+(report, recorded_at_utc, web_tags, context_pass; full_pass_report /
+full_pass_at_utc - the newest full context pass, which a delta section never
+replaces): the analyst of a re-read
+round reads that section and checks only what changed since, instead of
+redoing the match's dossier read and web pass (10-13..10-25: 11% of match
+readings were a match already read that day).
+
 Each match also gets its dossier (`bet.sofa.dossier`, offline: form, rest,
 table, head-to-head, venue and its local hour, referee / ranking / roster,
 Superbet line moves, the web checklist) in runs/sofa/<d>/dossier/, and each
@@ -56,6 +65,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
         sys.path.insert(0, _p)
 
 from bet.sofa import (  # noqa: E402
+    analyses,
     dossier,
     h2h,
     prematch_lineups,
@@ -84,6 +94,10 @@ FIELDS = (
     # `map_nr` beside its market / direction
     "odds", "family", "side", "map_nr",
 )
+
+
+# What a re-read needs to find the earlier section (`jq` on analyses.json).
+PRIOR_FIELDS = ("report", "recorded_at_utc", "web_tags", "context_pass")
 
 
 def buffer_legs(doc: dict[str, Any], n: int) -> list[dict[str, Any]]:
@@ -141,9 +155,12 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False
     if fixtures_path.exists():
         sport_of = {int(f["sofascore_event_id"]): str(f.get("sport") or "")
                     for f in json.loads(fixtures_path.read_text(encoding="utf-8"))}
+    builder_of = {int(b["sofascore_event_id"]): b for b in doc.get("builders") or []
+                  if b.get("sofascore_event_id") is not None}
     legs = [(x, "required") for x in legs_requiring_read(doc, requests)]
     legs += [(x, "buffer") for x in buffer_legs(doc, buffer)]
     reads = load_reads(run / "reads.json") if unread else []
+    store = analyses.load(run)
     out: dict[str, list[dict[str, Any]]] = {}
     seen: set[tuple[Any, ...]] = set()
     for leg, why in legs:
@@ -155,7 +172,22 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False
         sport = str(leg.get("sport") or sport_of.get(
             int(leg["sofascore_event_id"])) or "football")
         compact = {k: leg[k] for k in FIELDS if leg.get(k) is not None}
+        # a builder leg carries neither its match's clock nor `offered_odds`:
+        # one shape for every leg (the analyst's inventory reads both)
+        eid = int(leg["sofascore_event_id"])
+        for k in ("kickoff_utc", "competition", "match"):
+            if k not in compact and builder_of.get(eid, {}).get(k) is not None:
+                compact[k] = builder_of[eid][k]
+        if "offered_odds" not in compact and compact.get("odds") is not None:
+            compact["offered_odds"] = compact["odds"]
         compact.update(sport=sport, group_key=group_key(leg), in_set=why)
+        prior = analyses.latest(store, leg["sofascore_event_id"], "analyst")
+        if prior is not None:
+            full = analyses.full_pass(store, leg["sofascore_event_id"]) or {}
+            compact["prior_analysis"] = {
+                **{k: prior.get(k) for k in PRIOR_FIELDS},
+                "full_pass_report": full.get("report"),
+                "full_pass_at_utc": full.get("recorded_at_utc")}
         out.setdefault(sport, []).append(compact)
     return out
 
