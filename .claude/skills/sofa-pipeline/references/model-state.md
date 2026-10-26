@@ -526,6 +526,18 @@ whose replay lacks a flag an installed separately fitted curve requires
 set games OVER -7.1 / -6.6 pp, intervals touching zero
 (`T-TENNIS-SET-GAMES-OVER`).
 
+Re-measured 2026-10-26 on 20,367 settled Superbet lines (312 matches, 09-18..10-25,
+match bootstrap; `docs/sofa/evidence/tennis_serve_markets_2026-10-26.md`, plan
+`tennis_serve_markets_plan_2026-10-26.md`): shipping p >= 0.70 -> 2,778 legs at
+0.781 claimed, 0.548 realised, ROI -10.1%; Brier worse than the price
+(+0.0302 [+0.0205, +0.0401]); a curve fitted on market-like lines never reaches
+0.70. Superbet's aces / serve-points lines realise at their price against our
+grades; the model's centre is biased for serve points (+5 pp OVER) and double
+faults (+7 / +18 pp). Double faults: line 5.79 vs realised 4.97 (OVER 32.5%),
+gap narrowing; UNDER +6.8% [+0.9, +13.5] found post hoc among 36 cells - a
+lead, forward test `T-TENNIS-DF-UNDER-FORWARD` (from 10-27). Still off; a
+bottom-up model (points -> games -> sets) awaits the operator's go.
+
 Exposure / tournament / returner centres (2026-10-19, pre-registered,
 `scripts/sofa/measure_tennis_serve_exposure.py`, main tour only, tier prior as
 SHEET, curves on market-like lines): true match length is the largest missing

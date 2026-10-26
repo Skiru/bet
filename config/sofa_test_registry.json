@@ -536,6 +536,32 @@
           "quote": "Analysts' reads: value and cost"
         }
       ]
+    },
+    {
+      "id": "T-TENNIS-DF-UNDER-FORWARD",
+      "registered_on": "2026-10-26",
+      "status": "PROPOSED",
+      "hypothesis": "Superbet's double-faults lines sit above the realised Sofascore counts (total line 5.79 vs 4.97, OVER 32.5%, 305 matches 09-18..10-25), so UNDER on double_faults_total / double_faults_for realises above its price. Found post hoc among 36 cells; the gap narrowed over time (-1.27 -> -0.60), so it may be fading.",
+      "rule": "Every settled double_faults_total / double_faults_for UNDER line (sofa_settled_row, run_date >= 2026-10-27, WIN/LOSS with a Superbet price), ROI at the quoted price, match bootstrap, every line of the match kept (no cherry-picked line). No confidence curve involved: this tests the price, not the model.",
+      "population": "Tennis fixtures Superbet quotes double-faults lines on (ATP / WTA main tour), days from 2026-10-27.",
+      "data_window": {
+        "from": "2026-10-27",
+        "to": "2027-01-26"
+      },
+      "required_n": {
+        "legs": 400,
+        "matches": 120,
+        "basis": "09-18..10-25: 3,215 UNDER legs / 311 matches at +6.8% [+0.9, +13.5]; second half +1.6% [-6.6, +9.5]."
+      },
+      "evaluation": "Read-only measurement on sofa_settled_row from 2026-10-27 (base: df1.py of the 2026-10-26 session, to be written into scripts/sofa/ as measure_tennis_df_under.py).",
+      "stop_criterion": "PASSED (a price-rule discussion, never a curve; needs the operator's go) when the lower 95% bound of ROI is above 0 at the required n; FAILED when the upper bound is below +0.02; STOPPED_FUTILE if the data window ends before the required n.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_serve_markets_2026-10-26.md",
+          "line": 92,
+          "quote": "(m3.py) 2 778 nóg, trafione 0.548, średnie p 0.781, 1/kurs 0.608, ROI -10.1%."
+        }
+      ]
     }
   ]
 }
