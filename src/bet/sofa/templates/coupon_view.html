@@ -11,7 +11,7 @@
    confidence, its tick the price's 1/odds (both fields of the artifact). */
 :root{
  --bg:#0d131d;--s1:#141c29;--s2:#1a2434;--s3:#223047;--line:#26324a;--line2:#33415c;
- --ink:#e6ebf3;--mut:#94a0b6;--dim:#66728a;
+ --ink:#e6ebf3;--mut:#94a0b6;--dim:#7a869e;
  --acc:#7cc0ff;--good:#4fd18b;--bad:#ff7d7d;--warn:#f2b84b;
  --t-good:rgba(79,209,139,.11);--t-bad:rgba(255,125,125,.11);--t-warn:rgba(242,184,75,.11);
  --r:10px;--gut:max(12px,env(safe-area-inset-left));--gutr:max(12px,env(safe-area-inset-right));
@@ -50,7 +50,7 @@ button,input,select{font:inherit;color:var(--ink)}
 .trow input[type=search]{flex:1;min-width:0}
 input,select{background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;min-height:36px}
 input::placeholder{color:var(--dim)}
-input[type=number]{width:84px}input[type=time]{width:104px}
+input.dec{width:84px}input[type=time]{width:104px}
 select{padding-right:6px}
 .btn{background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;min-height:36px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--acc)}
@@ -83,7 +83,7 @@ tr.m td{border-radius:var(--r) var(--r) 0 0}
 tr.m .mt{font-weight:650;font-size:15px}tr.m .when{display:inline-block;min-width:52px;margin-right:8px}
 tr.m .when{font:600 15px ui-rounded,"SF Pro Rounded",-apple-system,sans-serif}
 tr.m.past .when,tr.m.past .mt{color:var(--mut)}
-tr.lk td{color:var(--mut)}
+body:not(.res) tr.lk td{color:var(--mut)}
 tr.won td{background:var(--t-good)}tr.lost td{background:var(--t-bad)}tr.unknown td,tr.refund td{background:var(--t-warn)}
 .mkt{font-weight:550}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
@@ -132,14 +132,14 @@ li.unknown,li.refund{border-left-color:var(--warn);background:var(--t-warn)}
 td.why{font-size:12.5px;color:var(--mut)}td.pr{font-weight:650;color:var(--good)}
 tr.ap td{background:var(--t-good)}
 .legs .sub{color:var(--mut);font-size:12px}
-/* --- a phone: every leg a card, no sideways scroll -------------------------------- */
-@media (max-width:760px){
+/* --- a phone: every leg a card, no sideways scroll (a printed page keeps the table) - */
+@media screen and (max-width:760px){
  body{font-size:15px}
  input,select,.btn{font-size:16px}  /* iOS zooms into a field under 16px */
- input[type=number]{width:96px}
+ input.dec{width:96px}
  .tool.open{position:static}
  .bar label{flex:1 1 140px}.bar label.chk{flex:1 1 100%}
- .bar label input,.bar label select{width:100%}
+ .bar label:not(.chk) input,.bar label select{width:100%}
  .tw{padding:0 var(--gutr) 0 var(--gut)}
  table.legs,.legs tbody{display:block}
  .legs thead{display:none}
@@ -162,6 +162,13 @@ tr.ap td{background:var(--t-good)}
  .c-conf{grid-area:conf}.c-odds{grid-area:odds}.c-x{grid-area:x}
  .c-line{grid-area:line}.c-dir{grid-area:dir}.c-smp{grid-area:smp}.c-mar{grid-area:mar}.c-pos{grid-area:pos}
  .c-res{grid-area:res}.c-res:empty{display:none!important}
+ body.res .legs tr[data-id]{grid-template-areas:"ko match match match match" "mkt mkt mkt mkt mkt" "res res res res res" "conf conf conf odds x" "line dir smp mar pos"}
+ body.res .c-res{margin:2px 0 4px}
+ /* the results summary: one block per sport, every column readable without a sideways scroll */
+ #summary table,#summary tbody{display:block}#summary tr:first-child{display:none}
+ #summary tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+ #summary td,#summary td.n{border:0;padding:0;white-space:normal;text-align:left}#summary td:first-child{grid-column:1/-1;font-weight:650}
+ #summary td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--dim);font-weight:500}
  .c-conf b,.c-odds,.c-x{font-size:17px;font-weight:650}
  .c-line,.c-dir,.c-smp,.c-mar,.c-pos{font-size:12.5px;color:var(--mut)}
  .c-res .res{color:var(--mut)}
@@ -175,7 +182,7 @@ tr.ap td{background:var(--t-good)}
  #abody tr.ap{background:var(--t-good)}
  .tabs{width:auto}.tabs button{flex:1}
 }
-@media (min-width:761px){
+@media print,(min-width:761px){
  body{font-size:13.5px}
  .hero{padding-top:22px}
  .legs .c-match{max-width:260px}
@@ -185,7 +192,9 @@ tr.ap td{background:var(--t-good)}
 }
 @media print{
  :root{--bg:#fff;--s1:#f3f5f8;--s2:#eef1f5;--s3:#dde3ea;--line:#d5dbe3;--line2:#c4ccd7;--ink:#111;--mut:#555;--dim:#777;--acc:#1f5fa8;--good:#1b7f4b;--bad:#b23b3b;--warn:#8a5a00;color-scheme:light}
- .tool,.tabs,tr.more,#apager{display:none!important}.legs th{position:static}details.rn>summary{color:var(--ink)}}
+ .tool,.tabs,tr.more,#apager,.about{display:none!important}.legs th{position:static}details.rn>summary{color:var(--ink)}
+ body{font-size:10.5px}.hero{padding-top:0}.legs th,.legs td{padding:4px 5px}.legs .c-res{min-width:0;width:22%}.legs td.c-mkt{width:46%}
+ tr.m,tr[data-id],.bl li{break-inside:avoid}.meter{width:60px}}
 @media (prefers-reduced-motion:no-preference){.chip,.btn,.tabs button{transition:background-color .12s,border-color .12s,color .12s}}
 </style></head><body>
 <header class="hero">
@@ -212,16 +221,16 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <div class="bar" id="bar">
 <label>od godziny<input type="time" id="t0"></label>
 <label>do godziny<input type="time" id="t1"></label>
-<label>min. pewność<input type="number" id="cmin" step="0.01" min="0" max="1" placeholder="0.70" inputmode="decimal"></label>
-<label>min. x<input type="number" id="xmin" step="0.01" min="0" placeholder="1.00" inputmode="decimal"></label>
-<label>kurs od<input type="number" id="o0" step="0.01" min="1" inputmode="decimal"></label>
-<label>kurs do<input type="number" id="o1" step="0.01" min="1" inputmode="decimal"></label>
+<label>min. pewność<input type="text" class="dec" id="cmin" step="0.01" min="0" max="1" placeholder="0.70" inputmode="decimal"></label>
+<label>min. x<input type="text" class="dec" id="xmin" step="0.01" min="0" placeholder="1.00" inputmode="decimal"></label>
+<label>kurs od<input type="text" class="dec" id="o0" step="0.01" min="1" inputmode="decimal"></label>
+<label>kurs do<input type="text" class="dec" id="o1" step="0.01" min="1" inputmode="decimal"></label>
 <label>sport<select id="sport"><option value="">wszystkie</option></select></label>
 <label>turniej<select id="comp"><option value="">wszystkie</option></select></label>
 <label>rynek<select id="fam"><option value="">wszystkie</option></select></label>
 <label>kierunek<select id="dir"><option value="">oba</option><option>OVER</option><option>UNDER</option></select></label>
 <label id="reswrap">wynik<select id="res"><option value="">wszystkie</option><option value="won">weszło</option><option value="lost">nie weszło</option><option value="unknown">nie wiadomo / zwrot</option></select></label>
-<label class="chk"><input type="checkbox" id="upcoming">tylko nierozpoczęte</label>
+<label class="chk" id="upwrap"><input type="checkbox" id="upcoming">tylko nierozpoczęte</label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
@@ -261,7 +270,7 @@ const $=id=>document.getElementById(id);
 const COLS=[["ko_local","godzina"],["match","mecz"],["market","rynek"],["line","linia","","linia"],["direction","kier.","","kier."],
  ["confidence","pewność","n","pewność"],["odds","kurs","n","kurs"],["x","x","n","x"],["margin","marża","n","marża"],["sample","próbka","","próbka"],["position","#","n","#"]];
 // the settled result of each row (bet.sofa.coupon_results), once the day is settled
-const RES=V.meta.results;if(RES)COLS.push(["res_rank","wynik"]);
+const RES=V.meta.results;if(RES){COLS.push(["res_rank","wynik"]);document.body.classList.add("res")}
 const RC={won:"rw",lost:"rl",refund:"ru",unknown:"ru"};
 function resCell(x){if(!x)return "";return '<span class="'+RC[x.status]+'">'+esc(x.word)+'</span><br><span class="res">typ: '+esc(x.claim)+'<br>było: <b>'+esc(x.actual)+'</b></span>'}
 let sortKey="confidence",sortDir=-1;
@@ -290,16 +299,18 @@ const F=V.meta.families;
 if(F){$("famnote").textContent="Rodzina = sport, rynek i kierunek. „Na plusie”: jej drukowane nogi z dni "+(F.span||"(brak dni)")+" dały zysk przy co najmniej "+F.min_legs+" nogach ("+F.on_plus+" rodzin). x = pewność × kurs. "+F.measured+" Przycisk „x ≥ 1 i rodzina na plusie” ustawia oba filtry, reszty nie rusza.";}
 else{$("famwrap").style.display="none";$("best").style.display="none";$("famnote").textContent="Brak rekordu rodzin (family_record.json) - filtr rodzin wyłączony.";}
 if(RES){const a=RES.summary[RES.summary.length-1];$("meta").textContent+=" • WYNIKI ("+RES.computed_utc+"Z): weszło "+a.won+", nie weszło "+a.lost+", nie wiadomo / zwrot "+a.other+" z "+a.legs+"; trafność "+a.hit+" przy śr. pewności "+a.conf+" - podsumowanie na końcu strony."}
+// a decimal field read with a comma or a dot (a Polish keyboard types a comma)
+const num=id=>parseFloat($(id).value.replace(",","."));
 const hm=v=>{if(!v)return null;const[a,b]=v.split(":");return +a*60+ +b};
 const started=t=>{const s=Date.parse(t);return !isNaN(s)&&s<=Date.now()};
 function pass(r){
   const t0=hm($("t0").value),t1=hm($("t1").value);
   if(t0!=null&&r.ko_min<t0)return false;
   if(t1!=null&&r.ko_min>t1)return false;
-  const c=parseFloat($("cmin").value);if(!isNaN(c)&&r.confidence<c)return false;
-  const xm=parseFloat($("xmin").value);if(!isNaN(xm)&&(r.x==null||r.x<xm))return false;
+  const c=num("cmin");if(!isNaN(c)&&r.confidence<c)return false;
+  const xm=num("xmin");if(!isNaN(xm)&&(r.x==null||r.x<xm))return false;
   if($("famplus").checked&&!r.fam_plus)return false;
-  const o0=parseFloat($("o0").value),o1=parseFloat($("o1").value);
+  const o0=num("o0"),o1=num("o1");
   if(!isNaN(o0)&&(r.odds==null||r.odds<o0))return false;
   if(!isNaN(o1)&&(r.odds==null||r.odds>o1))return false;
   if($("sport").value&&r.sport!==$("sport").value)return false;
@@ -370,8 +381,9 @@ function soon(t){const s=Date.parse(t);if(isNaN(s))return "";const m=Math.round(
 const clock=t=>RES?"":started(t)?'<span class="tag">rozpoczęty</span>':soon(t);
 // back on the page: the clock tags move in place - the drawn chunks, the open
 // notes and the scroll stay; only the "nierozpoczęte" filter needs a redraw
-function tick(){if(RES)return;if($("upcoming").checked){render();return}
+function paint(){if(RES)return;
   document.querySelectorAll("#body .clk").forEach(c=>{c.innerHTML=clock(c.dataset.ko);c.closest("tr").classList.toggle("past",started(c.dataset.ko))})}
+function tick(){if(RES)return;if($("upcoming").checked)render();else paint()}
 function when(r){return esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!==DAY?" ("+esc(r.ko_local.slice(5,10))+")":"")}
 function matchHead(g){const r=g[0];let n="";
   if(r.clock_note)n='<span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
@@ -386,11 +398,13 @@ function meter(r){if(r.odds==null)return '<span class="meter"><i style="width:'+
   const imp=1/r.odds;return '<span class="meter'+(r.confidence>=imp?' over':'')+'" title="pewność '+r.confidence_txt+', 1/kurs '+imp.toFixed(3)+'"><i style="width:'+pos(r.confidence)+'%"></i><u style="left:'+pos(imp)+'%"></u></span>'}
 const L=k=>{const c=COLS.find(c=>c[0]===k);return c&&c[3]?' data-l="'+c[3]+'"':""};
 function line(r,g){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
- return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td class="c-ko">'+(g?"":esc(r.ko_local.slice(11)))+'</td><td class="c-match">'+(g?"":esc(r.match))+'</td><td class="c-mkt"><span class="mkt">'+esc(r.market)+'</span>'+tags(r)+notesHtml(r.notes,r.event_id)+
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td class="c-ko">'+(g?"":when(r))+'</td><td class="c-match">'+(g?"":esc(r.match))+'</td><td class="c-mkt"><span class="mkt">'+esc(r.market)+'</span>'+tags(r)+notesHtml(r.notes,r.event_id)+
  '</td><td class="c-line"'+L("line")+'>'+esc(r.line||"—")+'</td><td class="c-dir"'+L("direction")+'>'+esc(r.direction||"—")+'</td><td class="n c-conf conf"'+L("confidence")+'><b>'+r.confidence_txt+'</b>'+meter(r)+'</td><td class="n c-odds"'+L("odds")+'>'+r.odds_txt+
  '</td><td class="n c-x"'+L("x")+'>'+r.x_txt+'</td><td class="n c-mar"'+L("margin")+'>'+r.margin_txt+'</td><td class="c-smp"'+L("sample")+'>'+esc(r.sample)+'</td><td class="n c-pos"'+L("position")+'>'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td class="c-res">'+resCell(r.res)+'</td>':'')+'</tr>'}
 // a long day (1,700+ legs) is drawn a chunk at a time: the rest follows as
 // the reader scrolls to the end (or taps "pokaż więcej")
+// a builder's sport: its match's printed singles (none: shown under every sport)
+const EVSPORT=new Map(R.map(r=>[r.event_id,r.sport]));
 const CHUNK=200;let rest=[],io=null;
 function more(){const tb=$("body"),m=$("more");if(m)m.remove();let n=0,h="";
   while(rest.length&&n<CHUNK){const p=rest.shift();h+=p.h;n+=p.n}
@@ -417,16 +431,18 @@ function render(){
   $("body").innerHTML=rows.length?"":'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów. Wyczyść filtry albo poluzuj jeden z nich.</td></tr>';
   if(io)io.disconnect();more();
   renderSummary(rows);
-  const bs=B.filter(b=>{const t0=hm($("t0").value),t1=hm($("t1").value);
+  const bs=B.filter(b=>{const t0=hm($("t0").value),t1=hm($("t1").value),sp=EVSPORT.get(b.event_id);
     if(t0!=null&&b.ko_min<t0)return false;if(t1!=null&&b.ko_min>t1)return false;
     if($("nolock").checked&&b.locked)return false;
     if($("upcoming").checked&&started(b.ko_utc))return false;
+    if($("sport").value&&sp&&sp!==$("sport").value)return false;
+    if($("comp").value&&b.competition!==$("comp").value)return false;
     const q=$("q").value.trim().toLowerCase();return !q||(b.match+" "+b.competition).toLowerCase().includes(q)});
   $("bh").style.display=B.length?"":"none";
-  $("builders").innerHTML=bs.map(b=>'<div class="bl'+(b.res?' '+b.res.status:'')+'"><div class="bh"><b>'+esc(b.no)+' '+esc(b.match)+'</b><span class="tag">'+esc(b.ko_local.slice(11))+'</span>'+(b.locked?'<span class="tag">zablokowany</span>':'')+
+  $("builders").innerHTML=bs.map(b=>'<div class="bl'+(b.res?' '+b.res.status:'')+'"><div class="bh"><b>'+esc(b.no)+' '+esc(b.match)+'</b><span class="tag">'+when(b)+'</span>'+(b.locked?'<span class="tag">zablokowany</span>':'')+
    (b.res?(b.res.score?'<span class="tag">wynik '+esc(b.res.score)+'</span>':'')+'<span class="'+RC[b.res.status]+'">Builder: '+esc(b.res.word)+'</span>':'')+
    '</div><div class="note">'+esc(b.competition)+', p łączne '+b.combined_txt+'. Kurs buildera: sprawdź na ekranie Superbetu.</div><ul>'+
-   b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'><span class="mkt">'+esc(l.market)+'</span> '+esc(l.line)+' '+esc(l.direction)+'<div class="note">pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
+   b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'><span class="mkt">'+esc(l.market)+'</span><div class="note">'+(l.line||l.direction?(l.line?'linia '+esc(l.line)+' ':'')+esc(l.direction)+', ':'')+'pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
      (l.res?', było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+'</div>'+
      (l.notes&&l.notes.length?notesHtml(l.notes,b.event_id):'<div class="tags"><span class="tag warn">nieczytana</span></div>'+notesHtml([],b.event_id))+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"");
   syncUi();save()}
@@ -436,7 +452,8 @@ function renderSummary(rows){
   const S=RES.summary,B2=RES.builders;
   let h='<div class="note">Rozliczenie '+esc(RES.computed_utc)+'Z, to samo co w rejestrze wyników (audit_settlement 7c). Kolor: <span class="rw">zielony</span> weszło, <span class="rl">czerwony</span> nie weszło, <span class="ru">żółty</span> nie wiadomo (czeka na rozliczenie, nie rozliczono) albo zwrot (0 j.). <b>typ</b> - linia i strona nogi, <b>było</b> - co faktycznie policzył rynek (przy rynkach tak/nie wynik meczu). Trafność liczona na rozstrzygniętych nogach; średnia pewność to, ile kupon przewidywał. Jednostki płaskie po 1 j. po wydrukowanym kursie.</div>';
   h+='<table><tr><th>sport</th><th class="n">nóg</th><th class="n">weszło</th><th class="n">nie weszło</th><th class="n">nie wiadomo / zwrot</th><th class="n">trafność</th><th class="n">śr. pewność</th><th class="n">jedn.</th><th class="n">ROI</th></tr>'+
-   S.map(l=>'<tr><td>'+esc(l.name)+'</td><td class="n">'+l.legs+'</td><td class="n">'+l.won+'</td><td class="n">'+l.lost+'</td><td class="n">'+l.other+'</td><td class="n">'+l.hit+'</td><td class="n">'+l.conf+'</td><td class="n">'+l.units+'</td><td class="n">'+l.roi+'</td></tr>').join("")+'</table>';
+   S.map(l=>'<tr><td>'+esc(l.name)+'</td>'+[["nóg",l.legs],["weszło",l.won],["nie weszło",l.lost],["nie wiadomo / zwrot",l.other],["trafność",l.hit],["śr. pewność",l.conf],["jedn.",l.units],["ROI",l.roi]]
+     .map(([k,v])=>'<td class="n" data-l="'+k+'">'+esc(v)+'</td>').join("")+'</tr>').join("")+'</table>';
   if(B.length)h+='<div class="note" style="margin-top:8px"><b>Bet Buildery ('+B.length+'):</b> weszło '+B2.won+', nie weszło '+B2.lost+', nie wiadomo / zwrot '+(B2.unknown+B2.refund)+' (kurs buildera to ekran Superbetu - sofa go nie wycenia).</div>';
   const w=rows.filter(r=>r.res&&r.res.status==="won").length,l=rows.filter(r=>r.res&&r.res.status==="lost").length,d=w+l;
   const c=rows.filter(r=>r.res&&(r.res.status==="won"||r.res.status==="lost"));
@@ -453,7 +470,8 @@ $("sort").innerHTML=[["confidence",-1],["x",-1],["odds",-1],["ko_local",1],["odd
   .map(([k,d])=>'<option value="'+k+":"+d+'">'+(COLS.find(c=>c[0]===k)||[0,k])[1]+(d<0?" ↓":" ↑")+'</option>').join("");
 $("sort").addEventListener("change",e=>{const[k,d]=e.target.value.split(":");setSort(k,+d)});
 // quick chips: each sport with its legs, then the filters used most on a phone
-const CH=[["upcoming","nierozpoczęte"],["readonly","przeczytane"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]];
+const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
+if(RES)$("upwrap").style.display="none";
 function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0)+1));
   let h='<button class="chip" data-sport="">wszystkie<span class="n">'+R.length+'</span></button>';
   [...n.entries()].sort((a,b)=>b[1]-a[1]).forEach(([s,c])=>h+='<button class="chip" data-sport="'+esc(s)+'">'+esc(SPORT_PL[s]||s)+'<span class="n">'+c+'</span></button>');
@@ -462,14 +480,14 @@ function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0
 chips();
 $("chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;
   if(b.dataset.sport!=null)$("sport").value=b.dataset.sport;
-  else if(b.dataset.t==="xone")$("xmin").value=parseFloat($("xmin").value)>=1?"":"1.00";
+  else if(b.dataset.t==="xone")$("xmin").value=num("xmin")>=1?"":"1.00";
   else{const c=$(b.dataset.t);c.checked=!c.checked}
   render()};
 const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","famplus"];
 function syncUi(){
   document.querySelectorAll("#chips .chip").forEach(b=>{let on;
     if(b.dataset.sport!=null)on=$("sport").value===b.dataset.sport;
-    else if(b.dataset.t==="xone")on=parseFloat($("xmin").value)>=1;else on=$(b.dataset.t).checked;
+    else if(b.dataset.t==="xone")on=num("xmin")>=1;else on=$(b.dataset.t).checked;
     b.classList.toggle("on",on)});
   const n=FIELDS.filter(k=>k!=="q"&&$(k).value).length+CHECKS.filter(k=>$(k).checked).length+($("group").checked?0:1);
   $("fcount").textContent=n?String(n):"";
@@ -483,7 +501,7 @@ const KEY="kupon:"+DAY;
 function save(){try{const s={sortKey,sortDir,group:$("group").checked};FIELDS.forEach(k=>s[k]=$(k).value);CHECKS.forEach(k=>s[k]=$(k).checked);
   localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
 function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(!s)return;
-  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="famplus"||!!F)});
+  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="famplus"||!!F)&&(k!=="upcoming"||!RES)});
   if(typeof s.group==="boolean")$("group").checked=s.group;
   if(s.sortKey&&COLS.some(c=>c[0]===s.sortKey)){sortKey=s.sortKey;sortDir=s.sortDir<0?-1:1}}catch(e){}}
 document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventListener("input",render));
@@ -499,6 +517,8 @@ const setBar=()=>document.documentElement.style.setProperty("--th",$("tool").off
 window.addEventListener("resize",setBar);
 // back to the page after a while: the started matches and "za N min" move on
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});
+// an open page: "za N min" counts down, a started match turns "rozpoczęty"
+setInterval(()=>{if(!document.hidden)paint()},60000);
 window.addEventListener("beforeprint",()=>{while(rest.length)more()});
 restore();render();openBar(false);
 </script>

@@ -26,7 +26,7 @@ from bet.sofa import coupon_results as cr
 from bet.sofa import sport_day as sd
 from bet.sofa.confidence import COUPON_PROFILE, STAKEABLE_RULE_X
 from bet.sofa.locked_print import leg_key
-from tests.sofa.test_coupon_html import CHROME
+from tests.sofa.test_coupon_html import CHROME, _probe
 
 ROOT = Path(__file__).parents[2]
 
@@ -633,3 +633,56 @@ pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
     assert out["all"] == 7 and out["window"] == 1
     assert out["odds"] == 2 and out["comp"] == 1
     assert out["q"] == 2 and out["res_lost_q"] == 1
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_a_results_page_ignores_a_saved_upcoming_filter_and_reads_on_a_phone(
+        tmp_path: Path) -> None:
+    coupon = _coupon()
+    coupon["singles"][0]["locked"] = True
+    # the evening before: "nierozpoczęte" ticked, saved for the day
+    _probe(ch.render_html("2026-10-16", ch.build_view(coupon, "2026-10-16", None)), """
+const c=document.getElementById("upcoming");c.checked=true;
+c.dispatchEvent(new Event("input"));done(0);
+""", tmp_path)
+    page = ch.render_html("2026-10-16", ch.build_view(
+        coupon, "2026-10-16", None, results=_results()))
+    out = _probe(page, """
+const G=id=>document.getElementById(id),q=s=>document.querySelector(s);
+const ytop=(tr,c)=>tr.querySelector(c).getBoundingClientRect().top;
+const lk=q("#body tr.lk"),other=q("#body tr[data-id]:not(.lk)");
+done({rows:document.querySelectorAll("#body tr[data-id]").length,
+ upcoming:G("upcoming").checked,box:getComputedStyle(G("upwrap")).display,
+ chip:!!q('#chips .chip[data-t="upcoming"]'),
+ grey:getComputedStyle(lk.querySelector(".c-mkt")).color!==
+      getComputedStyle(other.querySelector(".c-mkt")).color,
+ res_first:ytop(lk,".c-res")<ytop(lk,".c-conf"),
+ sum:[G("summary").scrollWidth,G("summary").clientWidth],
+ sum_label:getComputedStyle(q("#summary td[data-l]"),"::before").content});
+""", tmp_path, phone=True)
+    # every match is over: the saved "nierozpoczęte" would hide every leg
+    assert out["rows"] == 7 and not out["upcoming"]
+    assert out["box"] == "none" and not out["chip"]
+    # a locked leg (every leg of a settled day) is not greyed; the result
+    # sits under the market, the summary has no hidden columns
+    assert not out["grey"] and out["res_first"]
+    assert out["sum"][0] <= out["sum"][1] and out["sum_label"] == '"nóg"'
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_a_builder_follows_the_sport_chip_and_names_its_line_once(
+        tmp_path: Path) -> None:
+    coupon = _coupon()
+    coupon["builders"][0]["sofascore_event_id"] = 1  # a football match's builder
+    page = ch.render_html("2026-10-16", ch.build_view(coupon, "2026-10-16", None))
+    out = _probe(page, """
+const chip=s=>{document.querySelector('#chips .chip[data-sport="'+s+'"]').click();
+ return document.querySelectorAll("#builders .bl").length};
+const li=document.querySelector("#builders li");
+done({li:li.querySelector(".mkt").textContent+" | "+
+  li.querySelector(".note").textContent,
+ hockey:chip("hockey"),football:chip("football")});
+""", tmp_path)
+    assert out["hockey"] == 0 and out["football"] == 1
+    mkt, note = out["li"].split(" | ")
+    assert "8.5" not in mkt and note.startswith("linia 8.5 OVER, pewność 0.850")

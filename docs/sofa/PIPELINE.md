@@ -3280,7 +3280,25 @@ karty). Strona rysuje po 200 nóg (całe mecze), resztę dokłada przy
 przewijaniu albo „pokaż więcej” - filtry, sortowanie i podsumowania liczą
 zawsze wszystkie nogi. Render z wynikami (`--with-results`) ma w nagłówku
 pasek weszło / nie weszło / nie wiadomo i trafność, jednostki, ROI z tabeli
-podsumowania; karta nogi ma kolor wyniku i słowo wyniku na wierzchu.
+podsumowania; karta nogi ma kolor wyniku, a wynik (słowo, typ, było) stoi
+zaraz pod rynkiem, przed liczbami.
+
+**Poprawki widoku (2026-10-26, przegląd po commicie 4d936558).** Strona z
+wynikami nie ma chipu ani pola „nierozpoczęte” i nie przywraca go z zapisanych
+filtrów (dzień rozliczony jest cały rozpoczęty - zapisany wieczorem filtr
+ukrywał rano każdą nogę); noga zablokowana nie jest tam przygaszona (na
+rozliczonym dniu zablokowane jest prawie wszystko). Tabela podsumowania na
+telefonie to bloki po sporcie, każda kolumna z etykietą, bez przewijania w bok.
+Pola liczbowe panelu przyjmują przecinek (polska klawiatura iPhone'a).
+Pola wyboru panelu na telefonie stoją przy swoich podpisach. Lista płaska
+podaje datę startu z innego dnia („00:30 (10-27)”), builder też. Builder
+słucha filtra sportu (sport jego meczu z nóg pojedynczych; mecz bez nogi
+pojedynczej - pokazany zawsze) i turnieju; linia i strona nogi buildera są w
+wierszu z pewnością, nie po raz drugi przy słowach Superbetu. „Za N min” i
+„rozpoczęty” odświeżają się co minutę na otwartej stronie (bez przerysowania
+listy). Druk zawsze w tabeli (strona A4 jest węższa niż 760 px - karty dawały
+prawie dwa razy więcej stron), bez panelu „Co pokazuje ta strona”. Etykiety
+kart (`--dim`) mają kontrast ≥ 4,5:1.
 
 **Notatki analityków (od 2026-10-22, tylko wyświetlanie).** Każdy odczyt z
 `reads.json`, który CONFIDENCE dołożył do nogi (`leg["reads"]`), jest na nodze:

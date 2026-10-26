@@ -738,3 +738,66 @@ done([document.getElementById("famplus").checked,
  document.querySelectorAll("#body tr[data-id]").length]);
 """, tmp_path)
     assert out == [False, 90]
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_phone_panel_comma_decimals_and_a_next_days_date(tmp_path: Path) -> None:
+    doc = _synthetic()
+    page = ch.render_html("2026-10-08", ch.build_view(doc, "2026-10-08"))
+    out = _probe(page, """
+const G=id=>document.getElementById(id);
+const n=()=>document.querySelectorAll("#body tr[data-id]").length;
+const out={};
+// the panel's checkboxes stay boxes beside their words (not stretched to the row)
+G("ftoggle").click();out.box=G("nolock").getBoundingClientRect().width;
+// a Polish keyboard types a comma: the filter reads it as the dot
+G("cmin").value="0,8";G("cmin").dispatchEvent(new Event("input"));out.comma=n();
+G("reset").click();
+// a flat list: a start on the next day carries its date
+G("group").checked=false;G("group").dispatchEvent(new Event("input"));
+out.next=[...document.querySelectorAll("#body tr[data-id]")].filter(t=>
+  V.rows[+t.dataset.id].ko_local.slice(0,10)!=="2026-10-08").map(t=>t.querySelector(".c-ko").textContent);
+done(out);
+""", tmp_path, phone=True)
+    assert out["box"] <= 24
+    assert out["comma"] == sum(s["confidence"] >= 0.8 for s in doc["singles"])
+    assert out["next"] and all(t.endswith("(10-09)") for t in out["next"])
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_an_open_page_moves_its_clock_without_a_redraw(tmp_path: Path) -> None:
+    import datetime as dt
+    start = dt.datetime.now(dt.UTC).replace(microsecond=0) + dt.timedelta(minutes=30)
+    day = f"{start:%Y-%m-%d}"
+    doc = _doc()
+    doc["singles"] = [_leg(7, "Soon - Match", f"{start:%Y-%m-%dT%H:%M:%SZ}", 0.8)]
+    page = ch.render_html(day, ch.build_view(doc, day))
+    out = _probe(page, """
+const tag=()=>document.querySelector("#body .clk").textContent;
+const before=tag(),row=document.querySelector("#body tr[data-id]");
+const real=Date.now;Date.now=()=>real()+40*60000;paint();
+done([before,tag(),row.isConnected]);
+""", tmp_path)
+    assert re.fullmatch(r"za (29|30) min", out[0])
+    assert out[1] == "rozpoczęty" and out[2]
+
+
+def _contrast(fg: str, bg: str) -> float:
+    def lum(h: str) -> float:
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    a, b = sorted((lum(fg), lum(bg)), reverse=True)
+    return (a + 0.05) / (b + 0.05)
+
+
+def test_print_keeps_the_table_and_small_labels_are_readable() -> None:
+    css = ch._TEMPLATE
+    # an A4 page is narrower than 760 px: the cards are the screen's only
+    assert "@media screen and (max-width:760px){" in css
+    assert "@media print,(min-width:761px){" in css
+    assert "@media (max-width:760px)" not in css
+    # the 11 px card labels (--dim) on a card (--s1) and on the page (--bg)
+    tok = dict(re.findall(r"--(dim|s1|bg):(#[0-9a-f]{6})", css.split("@media")[0]))
+    assert _contrast(tok["dim"], tok["s1"]) >= 4.5
+    assert _contrast(tok["dim"], tok["bg"]) >= 4.5
