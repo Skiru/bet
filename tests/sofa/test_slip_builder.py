@@ -728,3 +728,74 @@ def test_read_legs_are_kept_over_unread_ones_on_a_hair_of_chance() -> None:
     got = sb.best_slip(read + clearly, 4.0, 2)
     assert got is not None
     assert {x.leg["sofascore_event_id"] for x in got.legs} == {3, 4}
+
+
+def test_any_family_searches_every_leg_in_one_pass() -> None:
+    """Operator 2026-10-26: no preference for families on the plus - one pass
+    over every leg, so a rest leg with the better chance wins its slot."""
+    record = _record({PLUS: _fam(80, 0.82, 0.80), MINUS: _fam(80, 0.70, 0.72)})
+    singles = [
+        _leg(1, 2.0, 0.40),  # plus family, weak
+        _leg(2, 2.0, 0.60, market="goals_total", direction="UNDER"),
+    ]
+    tiered = sb.build(singles, record, NOW, 1.9, allow_rest=True)
+    one = sb.build(singles, record, NOW, 1.9, any_family=True)
+    assert [x.leg["sofascore_event_id"] for x in tiered.slips[0].legs] == [1]
+    assert [x.leg["sofascore_event_id"] for x in one.slips[0].legs] == [2]
+    assert one.any_family
+    assert "rodziny na plusie bez pierwszeństwa" in sb.render(
+        one, day="2026-10-20", target=1.9, record=record, now=NOW
+    )
+
+
+def _builder(eid: int, *legs: dict[str, Any], p: float = 0.5) -> dict[str, Any]:
+    return {
+        "sofascore_event_id": eid,
+        "match": f"A{eid} - B{eid}",
+        "competition": "X",
+        "kickoff_utc": LATER,
+        "combined_probability": p,
+        "odds_if_product": 9.99,
+        "legs": [
+            {k: g[k] for k in ("market", "direction", "line", "confidence",
+                               "superbet_market", "superbet_selection")}
+            | {"odds": g["offered_odds"]}
+            for g in legs
+        ],
+    }
+
+
+def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
+    """A builder's odds are its legs' product (the operator's rule), its
+    chance the combined probability lowered by each leg's shortfall, and it
+    shares the match with that match's singles."""
+    record = _record({PLUS: _fam(80, 0.80, 0.80)})
+    a = _leg(1, 1.5, 0.70)
+    b = _leg(1, 1.4, 0.75, line=8.5)
+    pool, _ = sb.builder_candidates([_builder(1, a, b, p=0.6)], record, NOW,
+                                    max_odds=5.0)
+    (x,) = pool
+    assert x.odds == pytest.approx(1.5 * 1.4)
+    assert x.match_key == "sofa:1"
+    assert x.chance <= 0.6
+    assert len(sb.leg_rows(x)) == 2
+    res = sb.build([], record, NOW, 2.0, any_family=True, max_odds=5.0,
+                   builders=[_builder(1, a, b, p=0.6)])
+    assert res.slips and res.slips[0].legs[0].leg["market"] == sb.BUILDER_MARKET
+    text = sb.render(res, day="2026-10-20", target=2.0, record=record, now=NOW)
+    assert "iloczyn kursów jego nóg" in text
+
+
+def test_builder_with_a_refused_leg_never_enters() -> None:
+    from bet.sofa.contracts import LegRead
+
+    record = _record({PLUS: _fam(80, 0.80, 0.80)})
+    a = _leg(1, 1.5, 0.70)
+    b = _leg(1, 1.4, 0.75, line=8.5)
+    watch = LegRead(sofascore_event_id=1, market="corners_total", subject="",
+                    line=8.5, direction="OVER", verdict="WATCH",
+                    author="analyst", reason="test")
+    pool, refused = sb.builder_candidates([_builder(1, a, b)], record, NOW,
+                                          max_odds=5.0, slip_reads=[watch])
+    assert pool == []
+    assert refused == {"builder: noga odrzucona przez analityka": 1}

@@ -55,8 +55,16 @@ A slip assembled in chat is not a coupon and has no gates.
 When the operator asks for a slip (AKO) "na ~X" - in a time window ("od 10
 do 12"), or several disjoint ones - build it with the script, never by hand,
 have every leg read, and relay the script's first line first. Operator
-2026-10-20: search **every market** (`--allow-rest`), the analysts read the
+2026-10-20: search **every market**, the analysts read the
 chosen legs, a refused leg is replaced by the next best and that one is read.
+Operator 2026-10-26: `--any-family` (one pass over every leg, families on the
+plus not preferred - the first line says so instead of "say no first"),
+`--builders` (the day's Bet Builders as one option of their match; its odds in
+the search are the product of its legs' single prices - the operator's rule;
+the table says Superbet prices a builder lower and the screen decides; its
+chance = `combined_probability` lowered by each leg's measured shortfall;
+its legs go to the analysts and a refusal of any leg drops it) and
+`--max-legs 10` (with legs of ~1.2-1.5 five legs rarely reach ~10).
 
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
 singles, not started (10 min margin), odds 1.10-2.00, one per match; a leg's
@@ -75,7 +83,7 @@ local time, so a second slip of the day never collides with the first):
 1. Build and write the read set:
    ```bash
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> \
-       [--start-from HH:MM --start-to HH:MM] [--slips N] --allow-rest \
+       [--start-from HH:MM --start-to HH:MM] [--slips N] --any-family --builders --max-legs 10 \
        --read-set-dir runs/sofa/<d>/read_set_slip
    ```
    (`--reserve 1` also reads the next disjoint slip ahead; off by default -

@@ -557,13 +557,21 @@ czyta analityk:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 4 \
-    --start-from 10:00 --start-to 12:00 --allow-rest \
+    --start-from 10:00 --start-to 12:00 --any-family --builders --max-legs 10 \
     --read-set-dir runs/sofa/<data>/read_set_slip
 ```
 
 - **Wszystkie rynki** (`--allow-rest`, decyzja operatora 2026-10-20). Pierwsza
   linia i tak mówi najpierw „nie”: ile kuponów dzień daje z rodzin na plusie;
   kupon z reszty rynków jest oznaczony „poza poparciem”.
+- **Jedna pula + buildery** (decyzja operatora 2026-10-26): `--any-family` szuka
+  po wszystkich nogach naraz, rodziny na plusie bez pierwszeństwa (pierwsza linia
+  to mówi); `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
+  wyszukiwaniu = iloczyn kursów nóg (zasada operatora), tabela mówi, że Superbet
+  liczy buildera niżej (8,8-19,6%) i decyduje ekran; szansa = `combined_probability`
+  obniżona o zmierzoną lukę każdej nogi; analityk czyta każdą nogę buildera,
+  odrzucenie jednej usuwa builder. `--max-legs 10`: przy nogach ~1,2-1,5 pięć
+  nóg rzadko sięga ~10.
 - **Algorytm**: dokładny problem plecakowy z wyborem (jedna noga z meczu) —
   maksymalna zmierzona szansa kuponu przy iloczynie kursów ≥ cel; to samo
   wybiera najmniej nóg, bo każda noga traci podobnie w każdym przedziale kursu

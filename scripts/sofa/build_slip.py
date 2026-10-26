@@ -118,8 +118,7 @@ def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
         stale.unlink()
     by_sport: dict[str, list[dict[str, object]]] = {}
     for why, slips in (("slip", result.slips), ("slip_reserve", result.reserve)):
-        for x in sb.unread_legs(slips):
-            leg = x.leg
+        for leg in (g for x in sb.unread_legs(slips) for g in sb.leg_rows(x)):
             compact = {k: leg[k] for k in FIELDS if leg.get(k) is not None}
             sport = str(leg.get("sport") or "football")
             compact.update(sport=sport, in_set=why)
@@ -150,6 +149,16 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-rest",
         action="store_true",
         help="fill missing slips from legs outside families on the plus",
+    )
+    ap.add_argument(
+        "--any-family",
+        action="store_true",
+        help="search every leg in one pass, families on the plus not preferred",
+    )
+    ap.add_argument(
+        "--builders",
+        action="store_true",
+        help="add the day's Bet Builders, priced as the product of their legs",
     )
     ap.add_argument("--start-from", default=None, help="HH:MM local (Europe/Warsaw)")
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
@@ -224,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
         reserve=args.reserve,
         built_at=coupon.get("created_at_utc"),
         competitions=args.competition,
+        any_family=args.any_family,
+        builders=(coupon.get("builders") or []) if args.builders else (),
     )
     text = sb.render(
         result,
@@ -250,7 +261,8 @@ def main(argv: list[str] | None = None) -> int:
                 if result.slips
                 else "do przeczytania: nic - brak kuponu"
             )
-    return 0 if result.supported >= args.slips else 1
+    found = len(result.slips) if args.any_family else result.supported
+    return 0 if found >= args.slips else 1
 
 
 if __name__ == "__main__":

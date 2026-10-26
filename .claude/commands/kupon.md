@@ -27,7 +27,10 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 ## Run
 
 The skill's loop, with `--start-from <HH:MM> --start-to <HH:MM> --target <X>
-[--slips N] --allow-rest --read-set-dir runs/sofa/<date>/read_set_slip`, the
+[--slips N] --any-family --builders --max-legs 10 --read-set-dir runs/sofa/<date>/read_set_slip`
+(operator 2026-10-26: every market in one pass, families on the plus not
+preferred; the day's Bet Builders as an option of their match, priced as the
+product of their legs - the table says Superbet prices a builder lower), the
 analysts' reports at `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<hhmm>_<round>.md`
 (`<hhmm>` = now, local) and `merge_reads.py --slip --author analyst ...
 --read-set <file>` - every step as the skill states it. Narrate a line per
