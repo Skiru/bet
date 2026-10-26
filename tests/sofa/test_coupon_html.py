@@ -801,3 +801,42 @@ def test_print_keeps_the_table_and_small_labels_are_readable() -> None:
     tok = dict(re.findall(r"--(dim|s1|bg):(#[0-9a-f]{6})", css.split("@media")[0]))
     assert _contrast(tok["dim"], tok["s1"]) >= 4.5
     assert _contrast(tok["dim"], tok["bg"]) >= 4.5
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_a_phone_names_the_match_being_read_and_says_a_repeated_reason_once(
+        tmp_path: Path) -> None:
+    doc = _synthetic(150)
+    for leg in doc["singles"]:  # one reason for every leg of a match
+        leg["reads"] = [{"verdict": "KEEP", "author": "analyst",
+                         "reason": f"match {leg['sofascore_event_id']} <i>ok</i>"}]
+    page = ch.render_html("2026-10-08", ch.build_view(doc, "2026-10-08"))
+    out = _probe(page, """
+const G=id=>document.getElementById(id),c=G("cur");
+// headless --dump-dom runs no animation frames: the scroll handler's work by hand
+const wait=async()=>cur();
+(async()=>{try{const out={top:c.hidden};
+const hs=G("body").getElementsByClassName("m"),h=hs[2];
+// the third match's header scrolled under the tool row, its legs in view
+const y=h.getBoundingClientRect().bottom+scrollY-G("tool").offsetHeight+5;
+window.scrollTo(0,y);await wait();
+out.shown=!c.hidden;out.name=c.textContent.includes(h.querySelector(".mt").textContent);
+c.click();await wait();
+out.tapped=Math.abs(h.getBoundingClientRect().top-G("tool").getBoundingClientRect().bottom)<=2;
+// the panel open: no bar; Escape closes the panel
+G("ftoggle").click();out.open_hidden=getComputedStyle(c).display==="none";
+document.body.focus();
+document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));
+out.esc_closed=!G("tool").classList.contains("open");
+// the reason: in full on a match's first leg, "the same" on the next ones
+const first=hs[0].nextElementSibling,second=first.nextElementSibling;
+out.first=first.querySelector("details.rn summary").textContent;
+out.second=second.querySelector("details.rn summary").textContent;
+out.second_full=second.querySelector("details.rn>div").textContent;
+done(out)}catch(e){done({err:String(e)})}})();
+""", tmp_path, phone=True)
+    assert out["top"] and out["shown"] and out["name"] and out["tapped"]
+    assert out["open_hidden"] and out["esc_closed"]
+    assert "<i>ok</i>" in out["first"]
+    assert out["second"].endswith("to samo uzasadnienie co przy nodze wyżej")
+    assert "<i>ok</i>" in out["second_full"]

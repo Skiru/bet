@@ -262,6 +262,9 @@ def test_the_tab_filters_in_a_browser(tmp_path: Path) -> None:
  set("aprinted","1");out.printed=n();set("aprinted","0");out.notprinted=n();set("aprinted","");
  set("areason","NO_PRICE");out.reason=n();set("areason","");
  set("afam","corners_total");out.fam=n();set("afam","");
+ // the sport named in Polish, filtered by its key
+ out.label=document.getElementById("asport").options[1].textContent;
+ out.cell=document.querySelector("#abody .a-sport").textContent;
  set("asport","football");out.sport=n();
  const p=document.createElement("pre");p.id="probe";
  p.textContent=JSON.stringify(out);document.body.appendChild(p)})();
@@ -276,4 +279,5 @@ def test_the_tab_filters_in_a_browser(tmp_path: Path) -> None:
     assert m, "the tab's script did not run"
     assert json.loads(m.group(1)) == {"tab": True, "all": 5, "printed": 2,
                                       "notprinted": 3, "reason": 1, "fam": 1,
-                                      "sport": 5}
+                                      "sport": 5, "label": "piłka (5)",
+                                      "cell": "piłka"}

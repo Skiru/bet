@@ -3300,6 +3300,15 @@ listy). Druk zawsze w tabeli (strona A4 jest węższa niż 760 px - karty dawał
 prawie dwa razy więcej stron), bez panelu „Co pokazuje ta strona”. Etykiety
 kart (`--dim`) mają kontrast ≥ 4,5:1.
 
+Druga runda tego samego dnia: na telefonie pod paskiem narzędzi stoi nazwa
+meczu, którego nogi właśnie widać (karta jej nie powtarza; dotknięcie
+przewija do nagłówka meczu; znika przy otwartym panelu i bez grupowania).
+Noga, której odczyt jest taki sam jak nogi tuż nad nią w tym meczu, pokazuje
+w skrócie „to samo uzasadnienie co przy nodze wyżej” (pełny tekst po
+rozwinięciu bez zmian). Esc zamyka panel filtrów. Zakładka „Wszystkie wyceny”
+nazywa sport po polsku. HTML porcji 200 nóg powstaje dopiero przy jej
+rysowaniu (filtr przy 7970 nogach: ~8 ms zamiast ~23 ms na Macu).
+
 **Notatki analityków (od 2026-10-22, tylko wyświetlanie).** Każdy odczyt z
 `reads.json`, który CONFIDENCE dołożył do nogi (`leg["reads"]`), jest na nodze:
 w HTML rozwijana notatka (werdykt, autor - analityk / weryfikator / automat -

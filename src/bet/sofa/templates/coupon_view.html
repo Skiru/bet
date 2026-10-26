@@ -70,6 +70,10 @@ select{padding-right:6px}
 .chk input{width:18px;height:18px;min-height:0;accent-color:var(--acc)}
 .bar .acts{display:flex;gap:8px;flex-direction:row}
 #count{padding:10px var(--gutr) 6px var(--gut);color:var(--mut);font-size:12.5px}
+/* a phone: the match being read, under the tool row (a card does not repeat it); tap = its header */
+.cur{position:absolute;left:0;right:0;top:100%;display:block;width:100%;margin:0;text-align:left;border:0;border-bottom:1px solid var(--line2);
+ background:var(--s2);padding:7px var(--gutr) 7px var(--gut);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cur[hidden],.tool.open .cur{display:none}
 /* --- the legs: a table on a wide screen ------------------------------------- */
 .tw{padding:0 var(--gutr) 0 var(--gut)}
 table.legs{border-collapse:separate;border-spacing:0;width:100%}
@@ -184,6 +188,7 @@ tr.ap td{background:var(--t-good)}
 }
 @media print,(min-width:761px){
  body{font-size:13.5px}
+ .cur{display:none!important}
  .hero{padding-top:22px}
  .legs .c-match{max-width:260px}
  .legs .c-res{min-width:200px}
@@ -218,6 +223,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <select id="sort" aria-label="sortuj"></select>
 </div>
 <div class="chips" id="chips"></div>
+<button class="cur" id="cur" type="button" hidden></button>
 <div class="bar" id="bar">
 <label>od godziny<input type="time" id="t0"></label>
 <label>do godziny<input type="time" id="t1"></label>
@@ -350,10 +356,12 @@ function anHtml(ev){const a=AN[ev];if(!a||!a.length)return "";
   return a.map((x,i)=>'<details class="an" data-ev="'+esc(ev)+'" data-i="'+i+'"><summary>'+(i?"wcześniejsza ":"")+'analiza meczu - '+esc(WHO[x.author]||x.author)+
    ', '+esc(hhmm(x.recorded_at_utc))+(x.web_tags?', źródła web: '+esc(x.web_tags):'')+(x.context_pass?'':', <span class="vN">bez przeglądu kontekstu</span>')+
    '</summary><div class="md"></div></details>').join("")}
-function notesHtml(ns,ev){const an=ev!=null?anHtml(ev):"";if((!ns||!ns.length)&&!an)return "";
+// `same`: the leg drawn just above in the same match carries the same notes -
+// the summary says so instead of repeating the opening words (unfolds as ever)
+function notesHtml(ns,ev,same){const an=ev!=null?anHtml(ev):"";if((!ns||!ns.length)&&!an)return "";
   if(!ns||!ns.length)return '<details class="rn"><summary>bez odczytu tej nogi - analiza meczu</summary>'+an+'</details>';
-  const a=ns[0].reason,cut=a.length>110?a.slice(0,110)+"…":a;
-  return '<details class="rn"><summary>'+ns.map(noteHead).join(", ")+': '+esc(cut)+'</summary>'+
+  const a=ns[0].reason,cut=same?'<span class="note">to samo uzasadnienie co przy nodze wyżej</span>':esc(a.length>110?a.slice(0,110)+"…":a);
+  return '<details class="rn"><summary>'+ns.map(noteHead).join(", ")+': '+cut+'</summary>'+
    ns.map(n=>'<div>'+noteHead(n)+' '+esc(n.reason)+'</div>').join("")+an+'</details>'}
 // a small markdown reader for the analysts' sections: escaped first, then
 // headings, bold, code, tables, lists and paragraphs - nothing else
@@ -397,17 +405,21 @@ const pos=v=>Math.max(0,Math.min(100,(v-.5)*200));
 function meter(r){if(r.odds==null)return '<span class="meter"><i style="width:'+pos(r.confidence)+'%"></i></span>';
   const imp=1/r.odds;return '<span class="meter'+(r.confidence>=imp?' over':'')+'" title="pewność '+r.confidence_txt+', 1/kurs '+imp.toFixed(3)+'"><i style="width:'+pos(r.confidence)+'%"></i><u style="left:'+pos(imp)+'%"></u></span>'}
 const L=k=>{const c=COLS.find(c=>c[0]===k);return c&&c[3]?' data-l="'+c[3]+'"':""};
-function line(r,g){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
- return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td class="c-ko">'+(g?"":when(r))+'</td><td class="c-match">'+(g?"":esc(r.match))+'</td><td class="c-mkt"><span class="mkt">'+esc(r.market)+'</span>'+tags(r)+notesHtml(r.notes,r.event_id)+
+const noteKey=r=>(r.notes||[]).map(n=>n.verdict+"\u0001"+n.author+"\u0001"+n.reason).join("\u0002");
+function line(r,g,same){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td class="c-ko">'+(g?"":when(r))+'</td><td class="c-match">'+(g?"":esc(r.match))+'</td><td class="c-mkt"><span class="mkt">'+esc(r.market)+'</span>'+tags(r)+notesHtml(r.notes,r.event_id,same)+
  '</td><td class="c-line"'+L("line")+'>'+esc(r.line||"—")+'</td><td class="c-dir"'+L("direction")+'>'+esc(r.direction||"—")+'</td><td class="n c-conf conf"'+L("confidence")+'><b>'+r.confidence_txt+'</b>'+meter(r)+'</td><td class="n c-odds"'+L("odds")+'>'+r.odds_txt+
  '</td><td class="n c-x"'+L("x")+'>'+r.x_txt+'</td><td class="n c-mar"'+L("margin")+'>'+r.margin_txt+'</td><td class="c-smp"'+L("sample")+'>'+esc(r.sample)+'</td><td class="n c-pos"'+L("position")+'>'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td class="c-res">'+resCell(r.res)+'</td>':'')+'</tr>'}
-// a long day (1,700+ legs) is drawn a chunk at a time: the rest follows as
-// the reader scrolls to the end (or taps "pokaż więcej")
 // a builder's sport: its match's printed singles (none: shown under every sport)
 const EVSPORT=new Map(R.map(r=>[r.event_id,r.sport]));
+// a long day (1,700+ legs) is drawn a chunk at a time: the rest follows as
+// the reader scrolls to the end (or taps "pokaż więcej"); a chunk's html is
+// built only when it is drawn (a keystroke filters 8,000 legs, draws 200)
 const CHUNK=200;let rest=[],io=null;
+function groupHtml(gr){let k=null;return matchHead(gr)+gr.map(r=>{const nk=noteKey(r),h=line(r,true,!!nk&&nk===k);k=nk;return h}).join("")}
+const html=p=>p.g?groupHtml(p.g):line(p.r,false);
 function more(){const tb=$("body"),m=$("more");if(m)m.remove();let n=0,h="";
-  while(rest.length&&n<CHUNK){const p=rest.shift();h+=p.h;n+=p.n}
+  while(rest.length&&n<CHUNK){const p=rest.shift();h+=html(p);n+=p.n}
   tb.insertAdjacentHTML("beforeend",h);
   if(rest.length){const left=rest.reduce((s,p)=>s+p.n,0);
     tb.insertAdjacentHTML("beforeend",'<tr class="more" id="more"><td colspan="'+COLS.length+'">pokaż więcej ('+plural(left,"noga","nogi","nóg")+')</td></tr>');
@@ -423,9 +435,9 @@ function render(){
     // legs follow that order
     groups.forEach(gr=>gr.sort(cmp));
     groups.sort((a,b)=>cmp(a[0],b[0]));
-    groups.forEach(gr=>rest.push({h:matchHead(gr)+gr.map(r=>line(r,true)).join(""),n:gr.length}));
+    groups.forEach(gr=>rest.push({g:gr,n:gr.length}));
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+groups.length+" meczów (kolejność meczów: wg "+sortLabel()+")";
-  }else{rows.sort(cmp);rows.forEach(r=>rest.push({h:line(r,false),n:1}));
+  }else{rows.sort(cmp);rows.forEach(r=>rest.push({r,n:1}));
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów (wg "+sortLabel()+")";}
   $("body").parentNode.classList.toggle("grouped",g);
   $("body").innerHTML=rows.length?"":'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów. Wyczyść filtry albo poluzuj jeden z nich.</td></tr>';
@@ -445,7 +457,7 @@ function render(){
    b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'><span class="mkt">'+esc(l.market)+'</span><div class="note">'+(l.line||l.direction?(l.line?'linia '+esc(l.line)+' ':'')+esc(l.direction)+', ':'')+'pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
      (l.res?', było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+'</div>'+
      (l.notes&&l.notes.length?notesHtml(l.notes,b.event_id):'<div class="tags"><span class="tag warn">nieczytana</span></div>'+notesHtml([],b.event_id))+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"");
-  syncUi();save()}
+  syncUi();save();cur()}
 const pc=(a,n)=>n?(100*a/n).toFixed(1)+"%":"—";
 function renderSummary(rows){
   if(!RES){$("sh").style.display="none";$("reswrap").style.display="none";return}
@@ -508,10 +520,11 @@ document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventLi
 $("reset").onclick=()=>{FIELDS.forEach(k=>$(k).value="");CHECKS.forEach(k=>$(k).checked=false);$("group").checked=true;
   sortKey="confidence";sortDir=-1;render()};
 $("best").onclick=()=>{$("xmin").value="1.00";$("famplus").checked=true;render()};
-function openBar(o){$("tool").classList.toggle("open",o);$("ftoggle").setAttribute("aria-expanded",String(o));$("ftoggle").classList.toggle("on",o);setBar()}
+function openBar(o){$("tool").classList.toggle("open",o);$("ftoggle").setAttribute("aria-expanded",String(o));$("ftoggle").classList.toggle("on",o);setBar();cur()}
 $("ftoggle").onclick=()=>openBar(!$("tool").classList.contains("open"));
 document.addEventListener("keydown",e=>{if(e.key==="/"&&!$("paneK").hidden&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="SELECT"){e.preventDefault();$("q").focus()}
-  else if(e.key==="Escape"&&document.activeElement===$("q")&&$("q").value){$("q").value="";render()}});
+  else if(e.key==="Escape"&&document.activeElement===$("q")&&$("q").value){$("q").value="";render()}
+  else if(e.key==="Escape"&&$("tool").classList.contains("open")){openBar(false);$("ftoggle").focus()}});
 // the column headers stick under the tool row
 const setBar=()=>document.documentElement.style.setProperty("--th",$("tool").offsetHeight+"px");
 window.addEventListener("resize",setBar);
@@ -520,6 +533,21 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});
 // an open page: "za N min" counts down, a started match turns "rozpoczęty"
 setInterval(()=>{if(!document.hidden)paint()},60000);
 window.addEventListener("beforeprint",()=>{while(rest.length)more()});
+// the current match: the last header scrolled under the tool row (headers
+// are in page order - a binary search), hidden while the next one arrives
+let curRaf=0;
+function cur(){curRaf=0;const c=$("cur");
+  if(!$("group").checked||$("tool").classList.contains("open")||!matchMedia("(max-width:760px)").matches){c.hidden=true;return}
+  const hs=$("body").getElementsByClassName("m"),edge=$("tool").getBoundingClientRect().bottom;
+  let lo=0,hi=hs.length-1,f=-1;
+  while(lo<=hi){const mid=(lo+hi)>>1;if(hs[mid].getBoundingClientRect().top<edge){f=mid;lo=mid+1}else hi=mid-1}
+  const nx=hs[f+1];
+  if(f<0||hs[f].getBoundingClientRect().bottom>edge||(nx&&nx.getBoundingClientRect().top<edge+36)){c.hidden=true;return}
+  const h=hs[f];c.textContent=h.querySelector(".when").textContent+"  "+h.querySelector(".mt").textContent;c.hidden=false;c.dataset.i=String(f)}
+addEventListener("scroll",()=>{if(!curRaf)curRaf=requestAnimationFrame(cur)},{passive:true});
+window.addEventListener("resize",()=>{if(!curRaf)curRaf=requestAnimationFrame(cur)});
+$("cur").onclick=()=>{const h=$("body").getElementsByClassName("m")[+$("cur").dataset.i];
+  if(h)window.scrollTo(0,h.getBoundingClientRect().top+scrollY-$("tool").offsetHeight)};
 restore();render();openBar(false);
 </script>
 <script>
@@ -541,6 +569,7 @@ const PER=200,GLOSS={BELOW_CONFIDENCE_FLOOR:"pewność poniżej 0.70",BELOW_FLOO
  CATCH_ALL_BUCKET:"p w zbiorczym koszyku 0-0.60",LINE_BEYOND_SAMPLE:"linia poza próbką",MODE_LOSES:"najczęstszy wynik przegrywa",NO_FIXTURE:"brak meczu w RESOLVE",
  NO_PRICE:"brak ceny","?":"powód nieznany (dzień sprzed zapisu odmów)"};
 const PR=["nie","pojedyncza","noga buildera"];
+const SPL={football:"piłka",tennis:"tenis",hockey:"hokej",basketball:"koszykówka",volleyball:"siatkówka",cs2:"CS2"},sp=v=>SPL[v]||v;
 const COLS=[["kmin","godzina"],["match","mecz"],["sport","sport"],["market","rynek (słowa Superbetu)"],["line_n","linia"],["dir","kier."],
  ["odds","kurs","n"],["p","p","n"],["conf","pewność","n"],["pr","druk"],["reason","powód"]];
 let A=null,page=0,sortK="kmin",sortD=1,loading=false;
@@ -557,11 +586,11 @@ async function load(){loading=true;$("acount").textContent="Rozpakowuję wyceny�
  const cnt=k=>{const m=new Map();A.forEach(r=>m.set(r[k],(m.get(r[k])||0)+1));return m};
  const opt=(id,pairs)=>{const s=$(id);pairs.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;s.appendChild(o)})};
  const byN=m=>[...m.entries()].sort((a,b)=>b[1]-a[1]);
- opt("asport",byN(cnt("sport")).map(([v,n])=>[v,v+" ("+n+")"]));
+ opt("asport",byN(cnt("sport")).map(([v,n])=>[v,sp(v)+" ("+n+")"]));
  opt("afam",[...cnt("fam").entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([v,n])=>[v,v+" ("+n+")"]));
  opt("areason",byN(cnt("reason")).map(([v,n])=>[v||"-",(v||"— (na kuponie)")+(GLOSS[v]?" - "+GLOSS[v]:"")+" ("+n+")"]));
  const evs=new Map();A.forEach(r=>{if(!evs.has(r.ev))evs.set(r.ev,r)});
- opt("amatch",[...evs.values()].sort((a,b)=>a.kmin-b.kmin||a.match.localeCompare(b.match)).map(r=>[String(r.ev),r.ko.slice(11)+" "+r.match+" ("+r.sport+")"]));
+ opt("amatch",[...evs.values()].sort((a,b)=>a.kmin-b.kmin||a.match.localeCompare(b.match)).map(r=>[String(r.ev),r.ko.slice(11)+" "+r.match+" ("+sp(r.sport)+")"]));
  $("ahead").innerHTML=COLS.map(c=>'<th class="'+(c[2]||"")+'" data-k="'+c[0]+'">'+c[1]+'</th>').join("");
  render()}
 function pass(r){const v=id=>$(id).value;
@@ -579,7 +608,7 @@ const f=(v,n)=>v==null?"—":v.toFixed(n);
 function render(){if(!A)return;const rows=A.filter(pass).sort(cmp),pages=Math.max(1,Math.ceil(rows.length/PER));
  if(page>=pages)page=pages-1;const sl=rows.slice(page*PER,page*PER+PER);
  $("abody").innerHTML=sl.map(r=>'<tr'+(r.pr?' class="ap"':'')+' data-id="'+r.id+'"><td class="a-ko">'+esc(r.ko.slice(11))+(r.ko&&r.ko.slice(0,10)!=="__DATE__"?" ("+esc(r.ko.slice(5,10))+")":"")+'</td><td class="a-match"><b>'+esc(r.match)+
-  '</b><div class="sub">'+esc(r.ko.slice(11))+' '+esc(r.sport)+', '+esc(r.comp)+'</div></td><td class="a-sport">'+esc(r.sport)+'</td><td class="a-mkt">'+esc(r.market)+'</td><td class="a-line">'+esc(r.line)+'</td><td class="a-dir">'+esc(r.dir)+
+  '</b><div class="sub">'+esc(r.ko.slice(11))+' '+esc(sp(r.sport))+', '+esc(r.comp)+'</div></td><td class="a-sport">'+esc(sp(r.sport))+'</td><td class="a-mkt">'+esc(r.market)+'</td><td class="a-line">'+esc(r.line)+'</td><td class="a-dir">'+esc(r.dir)+
   '</td><td class="n a-odds" data-l="kurs">'+(r.odds==null?"—":r.odds)+'</td><td class="n a-p" data-l="p">'+f(r.p,3)+'</td><td class="n a-conf" data-l="pewność">'+f(r.conf,3)+'</td><td class="a-pr'+(r.pr?' pr':'')+'" data-l="druk">'+PR[r.pr]+
   '</td><td class="why a-why"'+(GLOSS[r.reason]?' title="'+esc(GLOSS[r.reason])+'"':'')+'>'+esc(r.reason)+(GLOSS[r.reason]?'<div class="sub">'+esc(GLOSS[r.reason])+'</div>':'')+'</td></tr>').join("")||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
  const np=rows.filter(r=>r.pr).length;
