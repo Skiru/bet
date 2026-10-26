@@ -1,6 +1,6 @@
 ---
 name: sofa-analyst-football
-description: Football analyst for one sofa day. Reads exactly the legs of the read_set file the caller names (the 30 best-value matches' legs, printed builder legs, read_requests.json, a buffer if added) against samples, sheet and context; writes its Polish report with vetoes and reads blocks to the given path; returns a short summary.
+description: Football analyst for one sofa day. Reads exactly the legs of the read_set file the caller names (the 20 best-value matches' legs, printed builder legs, read_requests.json, a buffer if added) against samples, sheet and context; writes its Polish report with vetoes and reads blocks to the given path; returns a short summary.
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 omitClaudeMd: true
 skills:

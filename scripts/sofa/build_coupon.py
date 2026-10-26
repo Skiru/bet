@@ -75,6 +75,7 @@ from bet.sofa.epochs import (  # noqa: E402
     price_gap_sports,
     read_by_event,
     read_by_value,
+    read_scope_events,
 )
 from bet.sofa.football_score_markets import (  # noqa: E402
     display_market as score_display_market,
@@ -118,6 +119,7 @@ def assemble(
     peer_active: bool = False,
     read_events: bool = False,
     read_value_order: bool = False,
+    read_events_n: int | None = None,
     stakes_by_event: dict[int, list[str]] | None = None,
     price_gap_active: bool = False,
     price_gap_extra: frozenset[str] = frozenset(),
@@ -275,6 +277,9 @@ def assemble(
         "read_unit": "event" if read_events else "position",
         # the order of the read set's matches (epochs.READ_BY_VALUE_FROM_UTC)
         "read_order": "value" if read_events and read_value_order else "coupon",
+        # how many matches it reads (epochs.READ_SCOPE_FROM_UTC); absent = 30
+        **({"read_events": read_events_n}
+           if read_events and read_events_n else {}),
         "peer_choice": {
             "active": peer_active,
             "active_from_utc": "2026-10-08T08:10:00Z",
@@ -531,6 +536,7 @@ def main() -> int:
                    screen_required=builder_screen_price_required(args.date, at),
                    peer_active=peer_on, read_events=read_by_event(args.date, at),
                    read_value_order=read_by_value(args.date, at),
+                   read_events_n=read_scope_events(args.date, at),
                    stakes_by_event=stakes_by_event,
                    price_gap_active=price_gap_flag(args.date, at),
                    price_gap_extra=price_gap_sports(args.date, at))

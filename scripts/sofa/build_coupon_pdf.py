@@ -64,6 +64,7 @@ from bet.sofa.confidence import (  # noqa: E402
     ladder_leg_counts,
     printed_builders,
     printed_singles,
+    read_required_events,
     too_close_to_kickoff,
 )
 from bet.sofa.config import config_path  # noqa: E402
@@ -1206,13 +1207,14 @@ def render_stats_only(
             "<b>Mecz o utrzymanie / czołówkę</b> to kontekst z tabeli (mierzony: "
             "średnio +0,2 kartki, +0,9 faulu, -0,15 gola na mecz), pokazany "
             "obok nogi i nigdy jej nie bramkujący.", small))
+    n_read = read_required_events(doc)
     unit = (
-        "<b>wszystkie nogi 30 meczów o najwyższej wartości</b> (pewność x kurs "
-        "najlepszej nogi meczu, pewność nogi nad ceną liczona najwyżej "
-        "1/kurs + 0,03; 30 wydarzeń, nie 30 rynków)"
+        f"<b>wszystkie nogi {n_read} meczów o najwyższej wartości</b> (pewność "
+        "x kurs najlepszej nogi meczu, pewność nogi nad ceną liczona najwyżej "
+        f"1/kurs + 0,03; {n_read} wydarzeń, nie {n_read} rynków)"
         if doc.get("read_unit") == "event" and doc.get("read_order") == "value"
-        else "<b>wszystkie nogi 30 pierwszych meczów</b> kuponu (mecz najlepszej "
-        "nogi pierwszy; 30 wydarzeń, nie 30 rynków)"
+        else f"<b>wszystkie nogi {n_read} pierwszych meczów</b> kuponu (mecz "
+        f"najlepszej nogi pierwszy; {n_read} wydarzeń, nie {n_read} rynków)"
         if doc.get("read_unit") == "event" else "<b>30 pierwszych pozycji</b>")
     story.append(Paragraph(
         f"Analitycy czytają {unit} i każdą nogę "

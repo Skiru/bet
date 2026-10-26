@@ -41,7 +41,7 @@ kuponu jest w UTC dla każdego sportu.**
 |---|---|---|---|
 | `sofa-runner` | dzień jako podagent: czyta i wykonuje `sofa-day.md`, zwraca raport dnia | sesji | dane tylko przez skrypty |
 | `sofa-analyst-football` / `-tennis` | odczyt nóg ze swojego pliku `read_set`, weta + jeden odczyt na nogę | sesji | **tylko swój raport** |
-| `sofa-analyst-sport` | to samo dla sportu mierzonego (hokej / kosz / siatka / CS2; w rundzie re-read kilka małych plików sportów naraz); tylko odczyty (strona, okres) | sesji | tylko swój raport |
+| `sofa-analyst-sport` | to samo dla sportu mierzonego (hokej / kosz / siatka / CS2; w rundzie re-read kilka małych plików sportów naraz); tylko odczyty (strona, okres); model Sonnet (operator 2026-10-26: koszt) | sesji | tylko swój raport |
 | `sofa-verifier` | adwersaryjna weryfikacja zbudowanego dnia; nogi, których by nie postawił, jako odczyty `author: "verifier"` | sesji | tylko swój raport |
 | `sofa-settler` | rozliczenie D-1, audyty, dziennik, opinia o refitowaniu (domyślnie „nie”) | `sonnet` | nic |
 | `sofa-market-scout` | czy da się postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | `sonnet` | `runs/sofa/<d>/market_coverage.json` / `.md` przez `report_market_coverage.py` (gdy ich brak) |
@@ -115,8 +115,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>
 
 ### Zbiór do przeczytania — `read_set.py`
 
-Zbiór C3 to `confidence.legs_requiring_read`: niezablokowane nogi 30 meczów
-o najlepszej wartości (`read_unit: "event"`, `read_order: "value"`), każda
+Zbiór C3 to `confidence.legs_requiring_read`: niezablokowane nogi 20 meczów
+o najlepszej wartości (do 10-26: 30; artefakt niesie `read_events`) (`read_unit: "event"`, `read_order: "value"`), każda
 noga wydrukowanego buildera i każda prośba z `read_requests.json`. Reszta
 kuponu drukuje się bez odczytu (decyzja operatora). `read_set.py` zapisuje go
 jako `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json` (zwarte nogi:

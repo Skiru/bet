@@ -83,3 +83,24 @@ def test_an_old_artifact_keeps_the_position_rule() -> None:
     doc = build(day(events=40, legs_each=5), by_event=False)
     doc.pop("read_unit")
     assert len(legs_requiring_read(doc)) == READ_REQUIRED_SINGLES
+
+
+def test_from_10_27_the_read_set_is_the_20_best_matches() -> None:
+    """Operator's go 2026-10-26 (analyst audit: reads showed no measured
+    edge, the legs read are the cost): 20 matches from the next midnight; the
+    artifact records the count, and one built before reads 30."""
+    at = epochs.READ_SCOPE_FROM_UTC
+    assert at == datetime.datetime(2026, 10, 27, 0, 0, tzinfo=UTC)
+    assert epochs.read_scope_events("2026-10-26", at) is None
+    assert epochs.read_scope_events("2026-10-27", at - datetime.timedelta(seconds=1)) is None
+    assert epochs.read_scope_events("2026-10-27", at) == 20
+    singles = day(events=40, legs_each=3)
+    conf = {"profile": "standard", "epoch": "stats_only", "created_at_utc": "x",
+            "singles": singles, "legs": singles, "builders": []}
+    narrow = assemble(conf, None, [], {}, "now", "2026-10-09", read_events=True,
+                      read_events_n=20)
+    assert narrow["read_events"] == 20
+    assert len({s["sofascore_event_id"] for s in legs_requiring_read(narrow)}) == 20
+    old = build(singles, by_event=True)
+    assert "read_events" not in old
+    assert len({s["sofascore_event_id"] for s in legs_requiring_read(old)}) == 30

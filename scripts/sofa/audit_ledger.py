@@ -148,7 +148,8 @@ def estimated_text(rows: list[dict[str, Any]]) -> str:
 EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
-                "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24")
+                "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
+                "od 10-27")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -222,10 +223,17 @@ SPORT_LATE_WINDOW_EPOCH_FROM_DATE = "2026-10-23"
 # The coverage audit's P-switches (epochs, "Coverage audit 2026-10-23") also
 # start 2026-10-24 00:00Z: same group (AUDYT_POKRYCIA_WDROZENIE_2026-10-23.md).
 LIVE_ONLY_CURVE_EPOCH_FROM_DATE = "2026-10-24"
+# The analyst audit (operator's go 2026-10-26): the read set narrows to 20
+# matches (epochs.READ_SCOPE_FROM_UTC, 2026-10-27 00:00Z) and a read removal
+# must name a dated fact or an artifact defect (report_check, contract) -
+# fewer legs read and fewer removed, so what prints changes: a new epoch.
+READ_SCOPE_EPOCH_FROM_DATE = "2026-10-27"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= READ_SCOPE_EPOCH_FROM_DATE:
+            return "od 10-27"
         if str(row.get("date", "")) >= LIVE_ONLY_CURVE_EPOCH_FROM_DATE:
             return "od 10-24"
         if str(row.get("date", "")) >= SPORT_LATE_WINDOW_EPOCH_FROM_DATE:

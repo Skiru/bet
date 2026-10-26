@@ -149,3 +149,22 @@ def test_undated_tags_missing_kill_facts_and_a_match_wide_keep() -> None:
     # the delta section of match 2 inherits its kill facts
     assert any(f.startswith("FAKTY ZABÓJCZE: mecze 1 ") for f in found)
     assert any(f.startswith("KEEP ZBIORCZY") for f in found)
+
+
+def test_the_verdict_rules_bind_from_the_next_day_only() -> None:
+    """Operator's go 2026-10-26: the sourced-removal and per-family KEEP
+    rules change reads, so they bind reports of days from 2026-10-27 - a
+    later round of the built 10-26 keeps the old rules; the hook and the CLI
+    take the day from the file name."""
+    from bet.sofa.report_check import report_day
+
+    streak = dict(keep(1, "seria 0/4 w h2h, forma"), verdict="WATCH")
+    wide = dict(keep(1, DEEP), market=None)
+    text = report([streak, wide], GOOD_BODY)
+    assert report_day("2026-10-26_analiza_football_r3.md") == "2026-10-26"
+    assert report_day("x/2026-10-27_weryfikacja.md") == "2026-10-27"
+    old = findings(text, "2026-10-26")
+    new = findings(text, "2026-10-27")
+    assert not any(f.startswith(("USUNIĘCIE", "KEEP ZBIORCZY")) for f in old)
+    assert any(f.startswith("USUNIĘCIE") for f in new)
+    assert any(f.startswith("KEEP ZBIORCZY") for f in new)

@@ -26,6 +26,7 @@ import re
 from typing import Any
 
 from bet.sofa import analyses
+from bet.sofa.epochs import READ_SCOPE_DATE
 
 CONTEXT_MARK = re.compile(r"kontekst\s*\(web\)", re.IGNORECASE)
 DOSSIER_MARK = re.compile(r"dossier", re.IGNORECASE)
@@ -35,6 +36,11 @@ WEB_TAG = re.compile(r"\[WEB:[^\]]*\]", re.I)
 DATED = re.compile(r"publ", re.I)
 DEFECT_MARK = re.compile(r"DEFEKT")
 KILL_MARK = re.compile(r"fakty\s+zab[oó]jcze", re.I)
+# The two rules that change a verdict (a sourced removal, no match-wide KEEP)
+# bind the reports of days from the analyst audit's switch (epochs
+# READ_SCOPE_DATE, 2026-10-27, operator's go 10-26) - never mid-day.
+SOURCED_REMOVALS_DATE = READ_SCOPE_DATE
+REPORT_DAY = re.compile(r"(\d{4}-\d{2}-\d{2})_(?:analiza|weryfikacja)")
 READS_BLOCK = re.compile(r"```json reads[^\n]*\n(.*?)```", re.DOTALL)
 # A KEEP reason shorter than this cannot carry an expectation, a dossier fact
 # and a context finding (the contract's example runs ~120 characters).
@@ -55,8 +61,17 @@ def reads_block(text: str) -> list[dict[str, Any]]:
     return out
 
 
-def findings(text: str) -> list[str]:
-    """Every depth problem of one report, in Polish (the analyst reads them)."""
+def report_day(name: str) -> str | None:
+    """The day a report file is of ("2026-10-27_analiza_football.md")."""
+    m = REPORT_DAY.search(name)
+    return m.group(1) if m else None
+
+
+def findings(text: str, day: str | None = None) -> list[str]:
+    """Every depth problem of one report, in Polish (the analyst reads them).
+    `day`: the report's day; before SOURCED_REMOVALS_DATE the verdict rules
+    of the 10-26 audit are not applied (None: they are)."""
+    sourced = day is None or day >= SOURCED_REMOVALS_DATE
     reads = reads_block(text)
     out: list[str] = []
     if not reads:
@@ -117,7 +132,7 @@ def findings(text: str) -> list[str]:
             f"{r.get('line')} {r.get('direction')}"
         ).replace("  ", " ")
         if r.get("verdict") == "KEEP":
-            if r.get("market") is None:
+            if sourced and r.get("market") is None:
                 out.append(
                     f"KEEP ZBIORCZY: {label}: KEEP z `market: null` - jeden odczyt "
                     "na rodzinę (rynek, kierunek) z oczekiwaniem wobec jej linii"
@@ -127,7 +142,7 @@ def findings(text: str) -> list[str]:
                     f"KEEP BEZ UZASADNIENIA: {label}: „{reason}” - podaj oczekiwanie "
                     "w jednostkach rynku, fakt z dossier i ustalenie z kontekstu"
                 )
-        elif not (DEFECT_MARK.search(reason) or any(
+        elif sourced and not (DEFECT_MARK.search(reason) or any(
                 DATED.search(t) for t in WEB_TAG.findall(reason))):
             out.append(
                 f"USUNIĘCIE BEZ FAKTU: {label}: {r.get('verdict')} - powód musi "

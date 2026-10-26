@@ -92,7 +92,7 @@ a `Traceback` in the log is a crash, also 1) - with `--skip-history` the history
 statistics part is the bridge call above, with its own `exit` lines; 2 =
 `fit_line_evidence.py` failed, today builds on the previous file (say so).
 `config/sofa_superbet_line_evidence.json` `fitted_from.before` must read `<D>`.
-**Step 3 waits for `EXIT`** - a build on yesterday's evidence reshuffles the 30 best-value
+**Step 3 waits for `EXIT`** - a build on yesterday's evidence reshuffles the 20 best-value
 matches on the rebuild and leaves read legs unread.
 
 ## 1b. Loops

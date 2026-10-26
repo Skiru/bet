@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The legs the analysts read, one file per sport - the C3 read set
-(`confidence.legs_requiring_read`: the 30 best-value matches' unlocked legs,
+(`confidence.legs_requiring_read`: the 20 best-value matches' unlocked
+legs - 30 on an artifact built before 2026-10-27 -,
 every printed builder leg, `read_requests.json`), optionally widened by a
 buffer of the next matches in the same order and narrowed to the legs no
 analyst has read yet.
@@ -8,9 +9,9 @@ analyst has read yet.
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> \\
         [--buffer N] [--unread] [--split K] [--out-dir <dir>]
 
---buffer N   also the next N matches after the required 30, in the order
+--buffer N   also the next N matches after the required matches, in the order
              legs_requiring_read ranks them (a provisional build reshuffles
-             the top 30; a buffer read now saves a C3 round later).
+             the required ones; a buffer read now saves a C3 round later).
 --unread     only legs no analyst read covers (C3's own rule,
              `veto.matching_reads`); a re-read pass after a rebuild gives the
              analysts the new legs only.
@@ -73,11 +74,11 @@ from bet.sofa import (  # noqa: E402
 )
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
-    READ_REQUIRED_EVENTS,
     group_key,
     legs_requiring_read,
     load_read_requests,
     printed_singles,
+    read_required_events,
     read_value,
 )
 from bet.sofa.veto import load_reads, matching_reads  # noqa: E402
@@ -116,7 +117,8 @@ def buffer_legs(doc: dict[str, Any], n: int) -> list[dict[str, Any]]:
         g = group_key(s)
         if g not in events:
             events.append(g)
-    extra = set(events[READ_REQUIRED_EVENTS:READ_REQUIRED_EVENTS + n])
+    first = read_required_events(doc)
+    extra = set(events[first:first + n])
     return [s for s in fresh if group_key(s) in extra]
 
 

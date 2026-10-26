@@ -174,7 +174,7 @@ Nothing can **promote** a leg.
   with `requested_by`, `at_utc`. Prefer `group_key`: positions shift every rebuild.
 
 **The read set** (`confidence.legs_requiring_read`, audit C3): every unlocked
-leg of the **30 best-value matches** (value = best leg's confidence x odds, a
+leg of the **20 best-value matches** (30 on a coupon built before 2026-10-27; the artifact's `read_events`) (value = best leg's confidence x odds, a
 `price_gap` leg's confidence capped at 1/odds + 0.03), every printed builder
 leg, every requested leg. A rebuild moves positions, so re-read until C3 is
 clean. Never compute it by hand:

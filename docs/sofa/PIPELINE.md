@@ -425,7 +425,7 @@ przełącznik jest włączony i istnieje niezmostkowany wpis, który jeszcze si�
 nie zaczął (albo zdarzenie w toku). Krok jest miękki: jego porażka robi z
 przebudowy PARTIAL, nie zatrzymuje jej. Nowe nogi przechodzą wszystkie
 bramki jak każde inne; nogi wydrukowane wcześniej zostają zablokowane.
-Nowe nogi z pierwszych 30 meczów wg wartości trzeba przeczytać
+Nowe nogi z pierwszych 20 meczów wg wartości (do 10-26: 30) trzeba przeczytać
 (`read_set.py --unread`, audyt C3).
 
 ---

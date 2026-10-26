@@ -740,6 +740,30 @@ def read_by_value(date: str, build_at: datetime | None = None) -> bool:
     return date >= READ_BY_VALUE_DATE and at >= READ_BY_VALUE_FROM_UTC
 
 
+# The read set narrows from 30 matches to READ_SCOPE_EVENTS (operator's go
+# 2026-10-26, analyst audit docs/sofa/history/analitycy_2026-10-26/): reads
+# showed no measured edge - removed legs minus KEEP ROI -0.9 pp [-5.9, +4.2]
+# over 1,104 vs 9,198 legs (10-13..10-25) - and the legs read are the cost.
+# The 20 best-value matches are still read whole, builders and the operator's
+# requests too; the rest prints unread. Changes which legs a read may remove,
+# so next day 00:00Z; the build records the count in the artifact
+# (`read_events`), an artifact without it reads 30.
+READ_SCOPE_DATE = "2026-10-27"
+READ_SCOPE_FROM_UTC: datetime | None = datetime(2026, 10, 27, 0, 0, tzinfo=UTC)
+READ_SCOPE_EVENTS = 20
+
+
+def read_scope_events(date: str, build_at: datetime | None = None) -> int | None:
+    """The read set's match count from READ_SCOPE_FROM_UTC; None before it
+    (the artifact then carries no count and reads the old 30)."""
+    if READ_SCOPE_FROM_UTC is None:
+        return None
+    at = build_at if build_at is not None else timeutil.now()
+    if date >= READ_SCOPE_DATE and at >= READ_SCOPE_FROM_UTC:
+        return READ_SCOPE_EVENTS
+    return None
+
+
 # A footballer Superbet writes under his full registered name ("Andrade,
 # Matheus Araujo") and Sofascore under the name he plays by ("Matheus
 # Araujo") scored under match_player's 85 and had no sample: 346 of the 680

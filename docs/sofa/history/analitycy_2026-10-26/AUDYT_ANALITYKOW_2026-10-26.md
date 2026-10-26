@@ -203,3 +203,26 @@ odświeżenie 10-26 (inny proces, plik poza tym commitem) dało 18 kombinacjom
 rodzin V2 dowody linii. Na configu z HEAD przechodzi; padnie temu, kto
 zacommituje odświeżony config - trzeba go uniezależnić od daty. ruff i mypy
 --strict czyste, rejestr testów 26 / 0.
+
+## 9. Decyzje operatora (2026-10-26) i wdrożenie
+
+Operator: „1 i 2 na tak”.
+
+1. **Reguła zdjęć** (powód WATCH / NO_BET = datowany fakt nowszy niż cena
+   albo `DEFEKT: …`; KEEP na rodzinę, nie zbiorczy) wiąże raporty dni od
+   **2026-10-27** (`report_check.SOURCED_REMOVALS_DATE`; hook i
+   `check_analyst_report.py` biorą dzień z nazwy pliku). Późniejsze rundy
+   zbudowanego 10-26 zostają na starych regułach. Format (data tagu, fakty
+   zabójcze, token) obowiązuje już teraz - nie zmienia werdyktów.
+2. **Koszt**:
+   - zakres odczytu 20 meczów zamiast 30 - przełącznik
+     `epochs.READ_SCOPE_FROM_UTC` 2026-10-27 00:00Z (`READ_SCOPE_EVENTS` 20);
+     liczba trafia do `11_coupon.json` (`read_events`), artefakt bez niej
+     czyta 30, więc przebudowa starszego dnia i audyt C3 trzymają jego regułę;
+     PDF podaje liczbę z artefaktu;
+   - `sofa-analyst-sport` na modelu Sonnet (najlepiej oceniona część raportów
+     10-26; piłka i tenis zostają na mocniejszym modelu, bo tam były defekty).
+   - Księga: nowa grupa epok „od 10-27” (`audit_ledger.EPOCH_GROUPS`) - mniej
+     czytanych i mniej zdjętych nóg zmienia to, co się drukuje.
+   - Do sprawdzenia za ~2 tygodnie: 7i (zdjęte vs KEEP) w grupie „od 10-27”
+     i jakość raportów Sonneta (ten sam recenzent co 10-26).

@@ -53,6 +53,7 @@ goals; not corrected for relegation-zone weakness; shown, never gated.
 | `TENNIS_SCOPED_TABLE_FROM_UTC` | 10-09 00:00 | rating neighbours from the tier x gender cell, then tier, then pooled when a cell holds < 1200 outcomes, plus tier start `lp_t`; games_total -81e-4 log-loss; `tennis_table_rule`; replay `--tennis-scoped-table`, fit `fit_tennis_rating.py --tier-start` (tier_start offsets look ahead inside the replay - Elo at the cut - like the coefficients) |
 | `PER_MARKET_K_FROM_UTC` | 10-09 00:00 | `K_CENTRE.by_market.football` in `config/sofa_engine_constants.json`: cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15; `k_rule`; `--per-market-k`. Paired with COUNT_DISPERSION: SHEET exits 2 with only one on (`epochs.require_k_with_dispersion`) |
 | `READ_EVENTS_FROM_UTC` | 10-09 00:00 | reads by match: every unlocked leg of the first 30 matches (`read_unit: "event"`; operator "30 wydarzeń, nie 30 rynków") |
+| `READ_SCOPE_FROM_UTC` | 10-27 00:00 | the read set narrows to the 20 best-value matches (`READ_SCOPE_EVENTS`, artifact `read_events`; 30 before); same moment, `report_check` binds a read removal to a dated fact or `DEFEKT:` (operator's go 10-26, analyst audit: removed minus KEEP ROI -0.9 pp [-5.9, +4.2], 1,104 vs 9,198 legs, 10-13..10-25; ledger group "od 10-27") |
 
 A day < 10-09 is the old estimator and is never rebuilt under the new one; a
 rebuild of a day >= 10-09 re-runs SHEET on a sheet without the markers

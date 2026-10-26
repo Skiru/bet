@@ -252,7 +252,8 @@ and a miss recorded before a rule's switch never blocks that rule.
   carries `superbet_market` / `superbet_selection` as the screen writes them
   ("3. tercja - Seattle Kraken - liczba goli" / "poniżej 1.5"); a market it does
   not know keeps its old label, nothing guessed. The PDF / HTML name legs this way.
-- **Reads:** analysts read every unlocked leg of the first 30 matches by value
+- **Reads:** analysts read every unlocked leg of the first 20 matches by value
+  (30 on a coupon built before `READ_SCOPE_FROM_UTC` 2026-10-27 00:00Z, operator 10-26; the artifact's `read_events`)
   (best unlocked leg's confidence x odds, a football / tennis or flagged CS2
   confidence capped at 1/odds + `price_gap.GAP`; `confidence.read_value`), every printed builder
   leg and `read_requests.json` (`confidence.legs_requiring_read`; audit C3; a
@@ -266,6 +267,12 @@ and a miss recorded before a rule's switch never blocks that rule.
   context pass on every match not yet started (news, weather, morale and the
   backstage - `MORALE` tag - stakes, opinions; operator 2026-10-20); one
   domain or an opinion carries at most a WATCH, through the leg's variable.
+  From reports of 2026-10-27 (operator's go 10-26) a WATCH / NO_BET reason
+  names a dated fact newer than the price (`[WEB: ..., publ. ...]`) or an
+  artifact defect (`DEFEKT: ...`) - h2h, form, table, a model-sample gap,
+  `price_gap` never remove a leg - and a KEEP is per market family
+  (`report_check`, the hook sends a report back). `sofa-analyst-sport` runs
+  on Sonnet (operator 10-26: cost).
 
 ### Measured sports (hockey, basketball, volleyball, CS2)
 

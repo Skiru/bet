@@ -18,7 +18,7 @@ Kolejność `/sofa-day` (od 2026-10-05, jeden kupon ze statystyk):
 6. świeże migawki `run_pipeline.py --only SHADOW` i `--only CS2`, potem
    SPORT_IDENTITY (most) i SPORT_CONFIDENCE (2b);
 7. COUPON_ASSEMBLY (`build_coupon.py` → `11_coupon.json`, 2c);
-8. analitycy na `legs_requiring_read` (30 meczów o najlepszej wartości +
+8. analitycy na `legs_requiring_read` (20 meczów o najlepszej wartości +
    nogi builderów + `read_requests.json`; `read_set.py` -> raporty ->
    `merge_reads.py`): `sofa-analyst-football`, `sofa-analyst-tennis`,
    `sofa-analyst-sport` per sport mierzony (część 3);
@@ -331,8 +331,8 @@ starszy niż arkusz, weta, odczyty lub kalibracja.
 Analitycy biegną **po COUPON_ASSEMBLY**, na `11_coupon.json`. Procedurę
 prowadzi `/sofa-analyze` (`.claude/commands/sofa-analyze.md`); dzień robi to
 w krokach 5-7 `/sofa-day`. Zbiór do przeczytania
-(`confidence.legs_requiring_read`): niezablokowane nogi **30 meczów o
-najlepszej wartości** (najlepsza niezablokowana noga meczu: pewność x kurs,
+(`confidence.legs_requiring_read`): niezablokowane nogi **20 meczów o
+najlepszej wartości** (od 2026-10-27; wcześniej 30) (najlepsza niezablokowana noga meczu: pewność x kurs,
 pewność piłki / tenisa i oflagowanej nogi CS2 ucięta do 1/kurs + `price_gap.GAP`;
 `read_order: "value"`), każda noga wydrukowanego buildera i wpisy
 `runs/sofa/<data>/read_requests.json`; na budowie wstępnej dochodzi bufor
@@ -435,7 +435,7 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   05; stare wiersze nietknięte). Krok miękki. Ręcznie: najpierw
   `ensure_bridge.py`, potem `run_late_resolve.py --date <d> [--dry-run]`;
   zapis przebiegów w `runs/sofa/<d>/late_resolve.json`. Nowe nogi z
-  pierwszych 30 meczów wg wartości wymagają odczytu (`read_set.py --unread`).
+  pierwszych 20 meczów wg wartości wymagają odczytu (`read_set.py --unread`).
 
 - **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza
   cena meczu, który jeszcze można zagrać, jest starsza niż limit CONFIDENCE
@@ -535,7 +535,7 @@ z D+1 do 05:00Z (`window: "late"`, z pliku migawek D+1, `source_date` D+1).
 Plan przebudowy sam odświeża ceny SHADOW / CS2 i identyfikacje (most).
 **Nogi poranne zostają zablokowane** — wydrukowane przed startem nie
 zmieniają się; noga zdjęta przed startem zostaje zdjęta. Nowe nogi z
-pierwszych 30 meczów wartości wymagają odczytu analityka (`/sofa-analyze`),
+pierwszych 20 meczów wartości wymagają odczytu analityka (`/sofa-analyze`),
 potem jeszcze jedna przebudowa. Jeśli `day_status.py` pokaże
 `loop:capture_closing` WARN (pętla kursów zamknięcia skończyła się po
 ostatnim porannym meczu), uruchom ją: `capture_closing.py --date <D> --loop`.
@@ -693,7 +693,7 @@ napisałeś**.
 ## 8. Raport dnia
 
 Wzór jest w [`AGENTIC_FLOW.md`](AGENTIC_FLOW.md), część 8: jeden kupon,
-sekcje per sport, przeczytany zbiór C3 (30 meczów o najlepszej wartości), liczba nóg poza nim, nogi zdjęte
+sekcje per sport, przeczytany zbiór C3 (20 meczów o najlepszej wartości), liczba nóg poza nim, nogi zdjęte
 (`removed_by_reads`) z autorem i powodem, D-1 (7c per sport + suma, zwroty,
 7i, dziennik per epoka, CLV), audyty C1–C3 / U1–U3, weryfikacja.
 

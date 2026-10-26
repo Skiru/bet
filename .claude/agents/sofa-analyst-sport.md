@@ -2,6 +2,7 @@
 name: sofa-analyst-sport
 description: Measured-sport analyst (hockey, basketball, volleyball or CS2; one sport per instance, several small ones in a re-read round) for one sofa day. Reads exactly the legs of the read_set file the caller names, checks pinned identity and raw Superbet price, looks for a fact that makes a leg wrong as printed; writes a Polish report with a reads block to the given path.
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
+model: sonnet
 omitClaudeMd: true
 skills:
   - sofa-pipeline

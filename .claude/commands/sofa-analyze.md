@@ -1,5 +1,5 @@
 ---
-description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (30 best-value matches, printed builder legs, the operator's 'dodatkowo' positions) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES by hand."
+description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (20 best-value matches, printed builder legs, the operator's 'dodatkowo' positions) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES by hand."
 argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD [dodatkowo: <pozycje>]"
 ---
 
@@ -46,7 +46,7 @@ report each.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffer 25 --split 12
 ```
 
-- `--buffer 25` on a provisional build (the rebuild reshuffles the 30 best-value matches;
+- `--buffer 25` on a provisional build (the rebuild reshuffles the 20 best-value matches;
   legs read now save a C3 round); `--buffer 0` on a final rebuild; `--unread` on every
   re-read pass (step 5).
 - `--split 12`: parts of <= 12 whole matches, one analyst each.

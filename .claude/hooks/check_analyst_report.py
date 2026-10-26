@@ -31,7 +31,7 @@ def main() -> int:
     if not paths:
         return 0
     try:
-        from bet.sofa.report_check import findings
+        from bet.sofa.report_check import findings, report_day
     except ImportError:
         return 0
     problems: list[str] = []
@@ -45,7 +45,7 @@ def main() -> int:
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue
-        found = findings(text)
+        found = findings(text, report_day(path.name))
         if found:
             problems.append(f"{raw}:")
             problems += [f"  - {x}" for x in found]

@@ -23,8 +23,8 @@ Kończy się werdyktem i **żadną rekomendacją stawki**.
 `runs/sofa/<data>/11_coupon.json` (COUPON_ASSEMBLY: piłka i tenis z
 `08_confidence.json`, hokej / koszykówka / siatkówka / CS2 z
 `08_confidence_sports.json`). Weryfikujesz **zbiór odczytu** (`read_set.py --date <data> --out-dir <scratch>`,
-`confidence.legs_requiring_read`): niezablokowane nogi **30 meczów o
-najlepszej wartości**, **każdą nogę wydrukowanego buildera**, pozycje z
+`confidence.legs_requiring_read`): niezablokowane nogi **20 meczów o
+najlepszej wartości** (do 10-26: 30), **każdą nogę wydrukowanego buildera**, pozycje z
 `read_requests.json`, w tym **nogi sportów mierzonych** (z surowej migawki).
 Mechaniczny przesiew robi `scripts/sofa/verify_legs.py`: `--live` na zbiorze
 odczytu (dopytuje Superbet o piłkę / tenis), `--all` na każdej wydrukowanej
@@ -93,8 +93,8 @@ Wyjście `0` = brak znalezisk, `1` = są znaleziska, `2` = zły plik.
   starszy od artefaktu.
 - **C2** — każdy wydrukowany singiel spełnia swoje pokrętła; noga
   zablokowana sprawdzana wobec `printed_under`.
-- **C3** — każda noga z `confidence.legs_requiring_read` (30 meczów o
-  najlepszej wartości, nogi wydrukowanych builderów, `read_requests.json`) ma odczyt
+- **C3** — każda noga z `confidence.legs_requiring_read` (20 meczów o
+  najlepszej wartości, do 10-26: 30; nogi wydrukowanych builderów, `read_requests.json`) ma odczyt
   `author: "analyst"`, a żadna wydrukowana nie ma WATCH ani NO_BET.
 - **U1** — świeże single `11_coupon.json` w kolejności `coupon_order`,
   numerowane 1..N, zablokowane na górze bez numeru.
@@ -208,7 +208,7 @@ a każda miara nadwyżki rośnie, gdy `p` jest **zawyżone**. Wiersze najbardzie
 podatne na błąd są więc najczęściej wybierane. To własność mechanizmu, nie
 hipoteza o dniu, i z niej biorą się konkretne kontrole
 (dotyczą `06_coupon.json`). Kupon (`11_coupon.json`) od 2026-10-05 sortuje po
-pewności, nie po cenie — tam test antyselekcji to: czy zbiór odczytu (30 meczów o najlepszej wartości) skupia się w
+pewności, nie po cenie — tam test antyselekcji to: czy zbiór odczytu (20 meczów o najlepszej wartości) skupia się w
 jednym rynku, jednej lidze, cienkich kubełkach krzywej (`calibration_n`) albo
 w jednym sporcie mierzonym, i ile szczebli jednej drabiny stoi obok siebie.
 Kontrole selektora VALUE:

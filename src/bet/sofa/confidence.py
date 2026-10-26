@@ -829,6 +829,13 @@ READ_REQUIRED_SINGLES = 30
 READ_REQUIRED_EVENTS = 30
 
 
+def read_required_events(artifact: Mapping[str, Any]) -> int:
+    """The match count of the artifact's read set: its `read_events`
+    (epochs.READ_SCOPE_FROM_UTC, 20) or, on an artifact built before, 30."""
+    n = artifact.get("read_events")
+    return int(n) if isinstance(n, int) and n > 0 else READ_REQUIRED_EVENTS
+
+
 def legs_requiring_read(
     artifact: dict[str, Any],
     requests: list[dict[str, Any]] | None = None,
@@ -861,7 +868,7 @@ def legs_requiring_read(
                 g = group_key(s)
                 if g not in events:
                     events.append(g)
-            top = set(events[:READ_REQUIRED_EVENTS])
+            top = set(events[:read_required_events(artifact)])
             chosen = [s for s in fresh if group_key(s) in top]
         else:
             chosen = [

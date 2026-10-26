@@ -70,7 +70,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <d> --ou
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> --out-dir "<S>/read_set"
 ```
 
-One `read_set_<sport>.json` per sport (the 30 best-value matches' unlocked
+One `read_set_<sport>.json` per sport (the 20 best-value matches' unlocked
 legs, printed builder legs, `read_requests.json`). Then the deterministic
 screen - on the read set with the live re-ask, and on every printed leg
 offline:
