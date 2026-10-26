@@ -1,0 +1,133 @@
+rows 4271889 thin(top-up) rows 417538 normal rows 3854351
+LOG target player-games 1065066 with event in rows 1002474
+
+-- TEST>=07-01 all: target player-games 106022 | thin today 49692 (46.9%) own=0 16065 | foreign found 31918 | own+foreign>=5 29341 | still <5 20351
+   priced thin player-games per market (rows with a p under top-up): points 29322 (59% of thin), rebounds 29318 (59% of thin), assists 29270 (59% of thin), threes 29233 (59% of thin), pts_reb_ast 29255 (59% of thin)
+
+-- TEST NBA: target player-games 925 | thin today 296 (32.0%) own=0 132 | foreign found 281 | own+foreign>=5 278 | still <5 18
+   priced thin player-games per market (rows with a p under top-up): points 278 (94% of thin), rebounds 278 (94% of thin), assists 278 (94% of thin), threes 278 (94% of thin), pts_reb_ast 278 (94% of thin)
+
+-- TEST non-NBA: target player-games 105097 | thin today 49396 (47.0%) own=0 15933 | foreign found 31637 | own+foreign>=5 29063 | still <5 20333
+   priced thin player-games per market (rows with a p under top-up): points 29044 (59% of thin), rebounds 29040 (59% of thin), assists 28992 (59% of thin), threes 28955 (59% of thin), pts_reb_ast 28977 (59% of thin)
+
+-- LATE>=10-01 all: target player-games 65210 | thin today 32004 (49.1%) own=0 7101 | foreign found 20541 | own+foreign>=5 19209 | still <5 12795
+   priced thin player-games per market (rows with a p under top-up): points 19190 (60% of thin), rebounds 19186 (60% of thin), assists 19138 (60% of thin), threes 19101 (60% of thin), pts_reb_ast 19123 (60% of thin)
+
+-- LATE NBA: target player-games 925 | thin today 296 (32.0%) own=0 132 | foreign found 281 | own+foreign>=5 278 | still <5 18
+   priced thin player-games per market (rows with a p under top-up): points 278 (94% of thin), rebounds 278 (94% of thin), assists 278 (94% of thin), threes 278 (94% of thin), pts_reb_ast 278 (94% of thin)
+
+-- LATE non-NBA: target player-games 64285 | thin today 31708 (49.3%) own=0 6969 | foreign found 20260 | own+foreign>=5 18931 | still <5 12777
+   priced thin player-games per market (rows with a p under top-up): points 18912 (60% of thin), rebounds 18908 (60% of thin), assists 18860 (59% of thin), threes 18823 (59% of thin), pts_reb_ast 18845 (59% of thin)
+
+-- TRAIN <07-01: target player-games 896452 | thin today 181838 (20.3%) own=0 60560 | foreign found 72604 | own+foreign>=5 54228 | still <5 127610
+   priced thin player-games per market (rows with a p under top-up): points 54228 (30% of thin), rebounds 54228 (30% of thin), assists 54228 (30% of thin), threes 54228 (30% of thin), pts_reb_ast 54228 (30% of thin)
+
+== QUALITY TEST>=07-01 all: top-up rows 146398 games 4524 players 8254
+   top-up p (thin players)            n= 146398 logloss 0.6633 Brier 0.2343 ECE 0.0196
+   same players once own 5-9 games    n=  36506 logloss 0.6454 Brier 0.2272 ECE 0.0091
+   all normal players                 n= 281281 logloss 0.6412 Brier 0.2256 ECE 0.0120
+   top-up minus naive pool-mean p (n=145478): dLL -0.1320 [-0.1390,-0.1251] dBrier -0.0373 [-0.0396,-0.0351] (naive logloss 0.7945, Brier 0.2715)
+     top-up OVER: 0.5-0.6 n=40346 p=0.546 hit=0.554(+0.008) | 0.6-0.7 n=21009 p=0.643 hit=0.661(+0.017) | 0.7-0.8 n=6248 p=0.735 hit=0.753(+0.018) | 0.8-1.0 n=401 p=0.823 hit=0.840(+0.017)
+     top-up UNDER: 0.5-0.6 n=44197 p=0.547 hit=0.555(+0.008) | 0.6-0.7 n=19284 p=0.641 hit=0.632(-0.009) | 0.7-0.8 n=6868 p=0.743 hit=0.642(-0.102) | 0.8-1.0 n=8045 p=0.884 hit=0.780(-0.104)
+     same players normal OVER: 0.5-0.6 n=9231 p=0.547 hit=0.546(-0.000) | 0.6-0.7 n=5292 p=0.645 hit=0.654(+0.010) | 0.7-0.8 n=2006 p=0.739 hit=0.760(+0.021) | 0.8-1.0 n=339 p=0.829 hit=0.855(+0.027)
+     same players normal UNDER: 0.5-0.6 n=10246 p=0.549 hit=0.539(-0.010) | 0.6-0.7 n=5660 p=0.642 hit=0.639(-0.003) | 0.7-0.8 n=2070 p=0.743 hit=0.772(+0.029) | 0.8-1.0 n=1662 p=0.878 hit=0.855(-0.023)
+     points       n=29137 topup LL 0.6770 naive 0.8066 d -0.1296 [-0.1411,-0.1186]
+     rebounds     n=29133 topup LL 0.6564 naive 0.7668 d -0.1104 [-0.1200,-0.1008]
+     assists      n=29087 topup LL 0.6732 naive 0.8115 d -0.1383 [-0.1471,-0.1293]
+     threes       n=29049 topup LL 0.6122 naive 0.7396 d -0.1274 [-0.1333,-0.1214]
+     pts_reb_ast  n=29072 topup LL 0.6936 naive 0.8480 d -0.1543 [-0.1676,-0.1401]
+
+== QUALITY TEST NBA: top-up rows 1390 games 41 players 127
+   top-up p (thin players)            n=   1390 logloss 0.6624 Brier 0.2350 ECE 0.1115
+   same players once own 5-9 games    n=     45 logloss 0.6540 Brier 0.2340 ECE 0.1801
+   all normal players                 n=   3145 logloss 0.6473 Brier 0.2286 ECE 0.0413
+   top-up minus naive pool-mean p (n=1390): dLL -0.1342 [-0.2029,-0.0642] dBrier -0.0304 [-0.0533,-0.0082] (naive logloss 0.7966, Brier 0.2654)
+     top-up OVER: 0.5-0.6 n=402 p=0.545 hit=0.445(-0.100) | 0.6-0.7 n=172 p=0.644 hit=0.541(-0.103) | 0.7-0.8 n=52 p=0.735 hit=0.615(-0.120)
+     top-up UNDER: 0.5-0.6 n=457 p=0.545 hit=0.667(+0.122) | 0.6-0.7 n=232 p=0.644 hit=0.780(+0.136) | 0.7-0.8 n=50 p=0.736 hit=0.680(-0.056)
+
+== QUALITY TEST non-NBA: top-up rows 145008 games 4483 players 8130
+   top-up p (thin players)            n= 145008 logloss 0.6633 Brier 0.2343 ECE 0.0201
+   same players once own 5-9 games    n=  36461 logloss 0.6453 Brier 0.2272 ECE 0.0089
+   all normal players                 n= 278136 logloss 0.6411 Brier 0.2256 ECE 0.0126
+   top-up minus naive pool-mean p (n=144088): dLL -0.1320 [-0.1388,-0.1251] dBrier -0.0374 [-0.0397,-0.0351] (naive logloss 0.7945, Brier 0.2715)
+     top-up OVER: 0.5-0.6 n=39944 p=0.546 hit=0.556(+0.009) | 0.6-0.7 n=20837 p=0.643 hit=0.662(+0.018) | 0.7-0.8 n=6196 p=0.735 hit=0.754(+0.019) | 0.8-1.0 n=396 p=0.823 hit=0.841(+0.018)
+     top-up UNDER: 0.5-0.6 n=43740 p=0.547 hit=0.554(+0.007) | 0.6-0.7 n=19052 p=0.641 hit=0.630(-0.011) | 0.7-0.8 n=6818 p=0.743 hit=0.641(-0.102) | 0.8-1.0 n=8025 p=0.884 hit=0.780(-0.104)
+     same players normal OVER: 0.5-0.6 n=9213 p=0.547 hit=0.547(-0.000) | 0.6-0.7 n=5290 p=0.645 hit=0.654(+0.009) | 0.7-0.8 n=2006 p=0.739 hit=0.760(+0.021) | 0.8-1.0 n=339 p=0.829 hit=0.855(+0.027)
+     same players normal UNDER: 0.5-0.6 n=10233 p=0.549 hit=0.539(-0.010) | 0.6-0.7 n=5653 p=0.642 hit=0.639(-0.003) | 0.7-0.8 n=2067 p=0.743 hit=0.772(+0.029) | 0.8-1.0 n=1660 p=0.878 hit=0.855(-0.024)
+     points       n=28859 topup LL 0.6772 naive 0.8066 d -0.1294 [-0.1409,-0.1184]
+     rebounds     n=28855 topup LL 0.6564 naive 0.7666 d -0.1102 [-0.1203,-0.1005]
+     assists      n=28809 topup LL 0.6729 naive 0.8113 d -0.1385 [-0.1474,-0.1297]
+     threes       n=28771 topup LL 0.6119 naive 0.7396 d -0.1277 [-0.1338,-0.1218]
+     pts_reb_ast  n=28794 topup LL 0.6941 naive 0.8482 d -0.1542 [-0.1672,-0.1407]
+
+== QUALITY LATE>=10-01 all: top-up rows 95738 games 2907 players 7315
+   top-up p (thin players)            n=  95738 logloss 0.6573 Brier 0.2321 ECE 0.0205
+   same players once own 5-9 games    n=  24286 logloss 0.6483 Brier 0.2285 ECE 0.0168
+   all normal players                 n= 165661 logloss 0.6399 Brier 0.2251 ECE 0.0147
+   top-up minus naive pool-mean p (n=95273): dLL -0.1390 [-0.1476,-0.1314] dBrier -0.0407 [-0.0435,-0.0378] (naive logloss 0.7958, Brier 0.2726)
+     top-up OVER: 0.5-0.6 n=26307 p=0.546 hit=0.564(+0.018) | 0.6-0.7 n=13865 p=0.643 hit=0.676(+0.033) | 0.7-0.8 n=4063 p=0.735 hit=0.765(+0.030) | 0.8-1.0 n=259 p=0.823 hit=0.857(+0.034)
+     top-up UNDER: 0.5-0.6 n=29209 p=0.547 hit=0.549(+0.002) | 0.6-0.7 n=12693 p=0.641 hit=0.638(-0.003) | 0.7-0.8 n=4409 p=0.743 hit=0.654(-0.089) | 0.8-1.0 n=4933 p=0.884 hit=0.801(-0.083)
+     same players normal OVER: 0.5-0.6 n=6077 p=0.547 hit=0.560(+0.013) | 0.6-0.7 n=3560 p=0.645 hit=0.662(+0.017) | 0.7-0.8 n=1391 p=0.739 hit=0.762(+0.023) | 0.8-1.0 n=228 p=0.828 hit=0.855(+0.027)
+     same players normal UNDER: 0.5-0.6 n=6910 p=0.548 hit=0.532(-0.016) | 0.6-0.7 n=3842 p=0.642 hit=0.625(-0.016) | 0.7-0.8 n=1322 p=0.743 hit=0.764(+0.021) | 0.8-1.0 n=956 p=0.874 hit=0.845(-0.029)
+     points       n=19096 topup LL 0.6710 naive 0.8089 d -0.1379 [-0.1512,-0.1248]
+     rebounds     n=19092 topup LL 0.6502 naive 0.7679 d -0.1177 [-0.1291,-0.1068]
+     assists      n=19046 topup LL 0.6702 naive 0.8105 d -0.1403 [-0.1509,-0.1298]
+     threes       n=19008 topup LL 0.6083 naive 0.7395 d -0.1312 [-0.1385,-0.1237]
+     pts_reb_ast  n=19031 topup LL 0.6843 naive 0.8523 d -0.1680 [-0.1836,-0.1520]
+
+== QUALITY LATE NBA: top-up rows 1390 games 41 players 127
+   top-up p (thin players)            n=   1390 logloss 0.6624 Brier 0.2350 ECE 0.1115
+   same players once own 5-9 games    n=     45 logloss 0.6540 Brier 0.2340 ECE 0.1801
+   all normal players                 n=   3145 logloss 0.6473 Brier 0.2286 ECE 0.0413
+   top-up minus naive pool-mean p (n=1390): dLL -0.1342 [-0.2047,-0.0734] dBrier -0.0304 [-0.0520,-0.0085] (naive logloss 0.7966, Brier 0.2654)
+     top-up OVER: 0.5-0.6 n=402 p=0.545 hit=0.445(-0.100) | 0.6-0.7 n=172 p=0.644 hit=0.541(-0.103) | 0.7-0.8 n=52 p=0.735 hit=0.615(-0.120)
+     top-up UNDER: 0.5-0.6 n=457 p=0.545 hit=0.667(+0.122) | 0.6-0.7 n=232 p=0.644 hit=0.780(+0.136) | 0.7-0.8 n=50 p=0.736 hit=0.680(-0.056)
+
+== QUALITY TRAIN all: top-up rows 271140 games 18776 players 10091
+   top-up p (thin players)            n= 271140 logloss 0.6589 Brier 0.2318 ECE 0.0294
+   same players once own 5-9 games    n= 415765 logloss 0.6403 Brier 0.2250 ECE 0.0141
+   all normal players                 n=3573070 logloss 0.6396 Brier 0.2252 ECE 0.0115
+   top-up minus naive pool-mean p (n=268518): dLL -0.1888 [-0.1947,-0.1831] dBrier -0.0547 [-0.0565,-0.0529] (naive logloss 0.8442, Brier 0.2859)
+     top-up OVER: 0.5-0.6 n=70954 p=0.547 hit=0.572(+0.025) | 0.6-0.7 n=37911 p=0.644 hit=0.673(+0.030) | 0.7-0.8 n=12493 p=0.736 hit=0.774(+0.038) | 0.8-1.0 n=1220 p=0.828 hit=0.847(+0.019)
+     top-up UNDER: 0.5-0.6 n=76699 p=0.547 hit=0.535(-0.012) | 0.6-0.7 n=39607 p=0.642 hit=0.621(-0.021) | 0.7-0.8 n=15558 p=0.744 hit=0.655(-0.089) | 0.8-1.0 n=16698 p=0.883 hit=0.798(-0.084)
+     same players normal OVER: 0.5-0.6 n=101705 p=0.547 hit=0.560(+0.013) | 0.6-0.7 n=59222 p=0.644 hit=0.656(+0.012) | 0.7-0.8 n=22338 p=0.739 hit=0.748(+0.009) | 0.8-1.0 n=3291 p=0.830 hit=0.833(+0.004)
+     same players normal UNDER: 0.5-0.6 n=113662 p=0.548 hit=0.532(-0.017) | 0.6-0.7 n=63499 p=0.642 hit=0.630(-0.012) | 0.7-0.8 n=25477 p=0.745 hit=0.762(+0.016) | 0.8-1.0 n=26571 p=0.885 hit=0.869(-0.016)
+     points       n=53704 topup LL 0.6729 naive 0.9033 d -0.2304 [-0.2400,-0.2208]
+     rebounds     n=53704 topup LL 0.6490 naive 0.7988 d -0.1499 [-0.1570,-0.1424]
+     assists      n=53704 topup LL 0.6660 naive 0.8290 d -0.1630 [-0.1696,-0.1565]
+     threes       n=53702 topup LL 0.6044 naive 0.7459 d -0.1415 [-0.1457,-0.1370]
+     pts_reb_ast  n=53704 topup LL 0.6848 naive 0.9439 d -0.2591 [-0.2704,-0.2479]
+
+== QUALITY TRAIN NBA: top-up rows 2140 games 281 players 99
+   top-up p (thin players)            n=   2140 logloss 0.6364 Brier 0.2237 ECE 0.0256
+   same players once own 5-9 games    n=   5830 logloss 0.6464 Brier 0.2270 ECE 0.0299
+   all normal players                 n= 127315 logloss 0.6501 Brier 0.2297 ECE 0.0180
+   top-up minus naive pool-mean p (n=2120): dLL -0.4385 [-0.5220,-0.3646] dBrier -0.1306 [-0.1569,-0.1046] (naive logloss 1.0751, Brier 0.3544)
+     top-up OVER: 0.5-0.6 n=490 p=0.545 hit=0.529(-0.017) | 0.6-0.7 n=259 p=0.645 hit=0.672(+0.027) | 0.7-0.8 n=62 p=0.734 hit=0.742(+0.008)
+     top-up UNDER: 0.5-0.6 n=623 p=0.548 hit=0.596(+0.047) | 0.6-0.7 n=385 p=0.643 hit=0.642(-0.001) | 0.7-0.8 n=154 p=0.742 hit=0.721(-0.021) | 0.8-1.0 n=160 p=0.873 hit=0.906(+0.034)
+     same players normal OVER: 0.5-0.6 n=1384 p=0.547 hit=0.555(+0.008) | 0.6-0.7 n=845 p=0.646 hit=0.678(+0.032) | 0.7-0.8 n=381 p=0.742 hit=0.780(+0.038) | 0.8-1.0 n=57 p=0.833 hit=0.860(+0.027)
+     same players normal UNDER: 0.5-0.6 n=1508 p=0.548 hit=0.531(-0.017) | 0.6-0.7 n=824 p=0.643 hit=0.593(-0.049) | 0.7-0.8 n=385 p=0.745 hit=0.696(-0.049) | 0.8-1.0 n=446 p=0.889 hit=0.809(-0.079)
+     points       n=424 topup LL 0.6554 naive 1.2927 d -0.6373 [-0.7788,-0.4940]
+     rebounds     n=424 topup LL 0.6621 naive 0.9819 d -0.3198 [-0.4252,-0.2138]
+     assists      n=424 topup LL 0.6600 naive 0.9417 d -0.2817 [-0.3761,-0.1898]
+     threes       n=424 topup LL 0.5630 naive 0.8577 d -0.2947 [-0.3579,-0.2336]
+     pts_reb_ast  n=424 topup LL 0.6428 naive 1.3016 d -0.6587 [-0.8078,-0.5178]
+
+== top-up rows by own appearances (TEST all): n_own 0 / 1-2 / 3-4
+   own=0: n=40773 logloss 0.6991 Brier 0.2482 over gap +0.008
+   own 1-2: n=64316 logloss 0.6569 Brier 0.2323 over gap +0.017
+   own 3-4: n=41309 logloss 0.6379 Brier 0.2239 over gap +0.018
+
+== SETTLED Superbet THIN_SAMPLE lines 2026-10-03..10-25 (model_p null, THIN_SAMPLE, player id known): 4156; priced under top-up 4054; NBA 668 (priced 618)
+  games 179 NBA games 25 other games 154
+  all priced: logloss 6.6039 Brier 0.5476 mean p 0.500 hit 0.500 | vs 0.5 baseline logloss 0.6931
+  NBA: n=618 logloss 6.2444 Brier 0.5178 mean p 0.500 hit 0.500
+  non-NBA: n=3436 logloss 6.6686 Brier 0.5530 mean p 0.500 hit 0.500
+  OVER: 0.8-1.0 n=2027 p=1.000 hit=0.452 1/odds=0.541
+  UNDER: 0.0-0.3 n=2027 p=0.000 hit=0.548 1/odds=0.546
+  ALL          priced 4054 | p>=.70: 2027 hit 0.452 p 1.000 1/odds 0.541 | p>=.70 & p*odds>=.90: 2027 units/line -0.161 [-0.215,-0.108]
+  points       priced 1246 | p>=.70: 623 hit 0.445 p 1.000 1/odds 0.544 | p>=.70 & p*odds>=.90: 623 units/line -0.185 [-0.252,-0.122]
+  rebounds     priced 992 | p>=.70: 496 hit 0.454 p 1.000 1/odds 0.541 | p>=.70 & p*odds>=.90: 496 units/line -0.166 [-0.244,-0.086]
+  assists      priced 920 | p>=.70: 460 hit 0.448 p 1.000 1/odds 0.544 | p>=.70 & p*odds>=.90: 460 units/line -0.179 [-0.269,-0.090]
+  threes       priced 798 | p>=.70: 399 hit 0.471 p 1.000 1/odds 0.533 | p>=.70 & p*odds>=.90: 399 units/line -0.094 [-0.197,+0.009]
+  pts_reb_ast  priced 98 | p>=.70: 49 hit 0.429 p 1.000 1/odds 0.540 | p>=.70 & p*odds>=.90: 49 units/line -0.205 [-0.499,+0.084]

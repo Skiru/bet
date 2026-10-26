@@ -184,3 +184,36 @@ def test_side_of_a_club_reads_its_own_name_before_shared_affixes() -> None:
                           _fixture("Club Atlético Platense", "CA Lanús")) == "side_b"
     # nothing distinctive either way: still no guess
     assert determine_side("fc", _fixture("FC Basel", "FC Zürich")) is None
+
+
+def test_initials_joined_player_name_found_in_box() -> None:
+    # 2026-10-23..25: "PJ Washington" / "Washington, P.J" beside Sofascore's
+    # "P.J. Washington Jr." left 8 NBA lines UNMATCHED
+    box = PlayerBox({"p.j. washington jr.": {"secondsPlayed": 1988, "points": 17},
+                     "jalen green": {"secondsPlayed": 1586, "points": 9}}, ok=True)
+
+    def line(name: str) -> ShadowLine:
+        return ShadowLine("1", 233565, "player_points", 0, name, 10.5, "OVER", 1.9)
+
+    assert player_value(line("PJ Washington"), box, BASKETBALL) == 17.0
+    assert player_value(line("Washington, P.J"), box, BASKETBALL) == 17.0
+    # a different player with the same initial is never guessed
+    assert player_value(line("Draymond Green"), box, BASKETBALL) == "UNMATCHED"
+
+
+def test_normaltime_above_the_final_score_is_a_defect_settle_reads_periods() -> None:
+    # 16824734 Golden State - Memphis, 2026-10-24: periods 108 / 111 = current,
+    # normaltime 182 / 189
+    home = {"current": 108, "normaltime": 182,
+            "period1": 34, "period2": 22, "period3": 34, "period4": 18}
+    away = {"current": 111, "normaltime": 189,
+            "period1": 33, "period2": 27, "period3": 24, "period4": 27}
+    detail = {"status": {"type": "finished", "description": "Ended"},
+              "winnerCode": 2, "homeScore": home, "awayScore": away}
+    assert build_result(detail, BASKETBALL, True) is None  # history unchanged
+    r = build_result(detail, BASKETBALL, True, allow_final_only=True)
+    assert r is not None and r.winner == "T2" and not r.overtime
+    assert (r.t1_full, r.t2_full) == (108, 111)
+    # a normaltime BELOW the final score still has to agree with the periods
+    low = {**detail, "homeScore": {**home, "normaltime": 100}}
+    assert build_result(low, BASKETBALL, True, allow_final_only=True) is None

@@ -629,6 +629,7 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- basketball player model, three corrections measured offline 2026-10-26 (operator: "wazne jest aby rozliczac rynki nba wszystkie"; `docs/sofa/evidence/nba_player_model_2026-10-26.md`): a **form term** (mean model residual of the last 5 games, slope +0.13 [+0.11, +0.14] on 255k test player-games, log-loss -0.0017, but NBA 2026-27 -0.06 [-0.15, +0.04], 41 games, and p >= 0.70 lines 372 -> 337), a **directional calibration** per market and side (test log-loss -0.0010, NBA 2026-27 +0.0026 with the CI off zero, Superbet lines no gain, UNDER >= 0.7 still overconfident) and a **top-up for movers** (own sample < 5 -> up to 20 appearances of the same player id for other teams: 59% of thin player-games priced, 94% in NBA 2026-27, beats the pool mean by -0.132 log-loss, but 0.663 vs 0.645 for normal p, and on settled Superbet lines log-loss 0.719 > 0.693). None installed. Re-measure with the same scripts when NBA 2026-27 has ~200 games (late November 2026), NBA and other basketball apart.
 - the football / tennis curves refitted on the fuller history (2026-10-22/23,
   operator's go ~21:30Z "install where measurement shows improvement"; replay
   on the copy `data/refit_2026-10-22c/fb.db` with the installed flags plus
@@ -753,6 +754,7 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (e) Open questions, not modelled yet, before the next refit
 
+- **NBA player lines (2026-10-26)**: why no leg prints (p sits at the median by the book's construction, new markets have ~25 games of lines, p overconfident in the top buckets) is in `docs/sofa/evidence/nba_player_model_2026-10-26.md`; open: re-measure at ~200 NBA 2026-27 games; NBA-specific calibration term; a box that sums to the score +-1 point (Milwaukee - Chicago 10-23, 494 lines ungraded; today refused by design); `NOT_IN_HISTORY` outside the NBA.
 - **Open checks on new data**: `T-PEER-CHOICE-edge`, `T-FAMILY-SELECTION`,
   `T-LINE-CURVES`, `T-PLAYER-SAMPLE-GATES`, `T-SCORE-MARKETS-superbet`,
   `T-CS2-SERIES-ROUNDS-superbet`, `T-TENNIS-SERVE-MARKET-LINE`,

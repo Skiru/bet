@@ -1,0 +1,162 @@
+{
+ "fit_on": "all-basketball replay rows, ts < 2026-07-01 (line p = installed model p with calibration_b, at the replay line); p_new = sigmoid(a + b*logit p), then if >=0.70: 0.70 + shrink*(p-0.70); variant A: b=1; B: a,b; C: B + shrink",
+ "n_train_rows_per_market": 714614,
+ "params": {
+  "A": {
+   "points|OVER": {
+    "a": 0.07,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "points|UNDER": {
+    "a": -0.07,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "rebounds|OVER": {
+    "a": 0.0606,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "rebounds|UNDER": {
+    "a": -0.0606,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "assists|OVER": {
+    "a": 0.0221,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "assists|UNDER": {
+    "a": -0.0221,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "threes|OVER": {
+    "a": -0.0419,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "threes|UNDER": {
+    "a": 0.0419,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|OVER": {
+    "a": 0.0986,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|UNDER": {
+    "a": -0.0986,
+    "b": 1.0,
+    "shrink_above_0.70": 1.0
+   }
+  },
+  "B": {
+   "points|OVER": {
+    "a": 0.0621,
+    "b": 0.9211,
+    "shrink_above_0.70": 1.0
+   },
+   "points|UNDER": {
+    "a": -0.0621,
+    "b": 0.9211,
+    "shrink_above_0.70": 1.0
+   },
+   "rebounds|OVER": {
+    "a": 0.0579,
+    "b": 1.0155,
+    "shrink_above_0.70": 1.0
+   },
+   "rebounds|UNDER": {
+    "a": -0.0579,
+    "b": 1.0155,
+    "shrink_above_0.70": 1.0
+   },
+   "assists|OVER": {
+    "a": 0.0212,
+    "b": 1.0092,
+    "shrink_above_0.70": 1.0
+   },
+   "assists|UNDER": {
+    "a": -0.0212,
+    "b": 1.0092,
+    "shrink_above_0.70": 1.0
+   },
+   "threes|OVER": {
+    "a": -0.015,
+    "b": 1.1855,
+    "shrink_above_0.70": 1.0
+   },
+   "threes|UNDER": {
+    "a": 0.015,
+    "b": 1.1855,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|OVER": {
+    "a": 0.0905,
+    "b": 0.9708,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|UNDER": {
+    "a": -0.0905,
+    "b": 0.9708,
+    "shrink_above_0.70": 1.0
+   }
+  },
+  "C": {
+   "points|OVER": {
+    "a": 0.0621,
+    "b": 0.9211,
+    "shrink_above_0.70": 1.0
+   },
+   "points|UNDER": {
+    "a": -0.0621,
+    "b": 0.9211,
+    "shrink_above_0.70": 0.75
+   },
+   "rebounds|OVER": {
+    "a": 0.0579,
+    "b": 1.0155,
+    "shrink_above_0.70": 1.0
+   },
+   "rebounds|UNDER": {
+    "a": -0.0579,
+    "b": 1.0155,
+    "shrink_above_0.70": 0.2
+   },
+   "assists|OVER": {
+    "a": 0.0212,
+    "b": 1.0092,
+    "shrink_above_0.70": 1.0
+   },
+   "assists|UNDER": {
+    "a": -0.0212,
+    "b": 1.0092,
+    "shrink_above_0.70": 0.7
+   },
+   "threes|OVER": {
+    "a": -0.015,
+    "b": 1.1855,
+    "shrink_above_0.70": 0.9
+   },
+   "threes|UNDER": {
+    "a": 0.015,
+    "b": 1.1855,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|OVER": {
+    "a": 0.0905,
+    "b": 0.9708,
+    "shrink_above_0.70": 1.0
+   },
+   "pts_reb_ast|UNDER": {
+    "a": -0.0905,
+    "b": 0.9708,
+    "shrink_above_0.70": 0.95
+   }
+  }
+ }
+}

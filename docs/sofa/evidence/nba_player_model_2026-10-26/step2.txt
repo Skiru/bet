@@ -1,0 +1,151 @@
+##### (1) TEST-split replay (>=2026-07-01), the pmf of the actual count + p at replay line
+
+== TEST all basketball: n=255135 games=5008
+  ALL         n=255135 | count logloss old 2.1932 new 2.1915 d(new-old) -0.00170 [-0.00212,-0.00128] g=5008
+              line-p Brier old 0.22694 new 0.22639 d -0.00055 [-0.00065,-0.00044] g=5008 | line-p logloss d -0.00102 [-0.00126,-0.00077] g=5008 | ECE old 0.0116 new 0.0132 | MSE of mean old 17.164 new 17.057
+  assists     n= 51022 | count logloss old 1.6188 new 1.6179 d(new-old) -0.00092 [-0.00169,-0.00018] g=5008
+              line-p Brier old 0.23054 new 0.23014 d -0.00039 [-0.00058,-0.00020] g=5008 | line-p logloss d -0.00048 [-0.00093,-0.00001] g=5008 | ECE old 0.0108 new 0.0124 | MSE of mean old 2.666 new 2.649
+  points      n= 51070 | count logloss old 2.8822 new 2.8797 d(new-old) -0.00246 [-0.00309,-0.00183] g=5008
+              line-p Brier old 0.24016 new 0.23958 d -0.00058 [-0.00077,-0.00040] g=5008 | line-p logloss d -0.00105 [-0.00145,-0.00065] g=5008 | ECE old 0.0156 new 0.0173 | MSE of mean old 27.756 new 27.616
+  pts_reb_ast n= 50994 | count logloss old 3.2578 new 3.2545 d(new-old) -0.00323 [-0.00402,-0.00241] g=5008
+              line-p Brier old 0.22783 new 0.22677 d -0.00106 [-0.00127,-0.00086] g=5008 | line-p logloss d -0.00206 [-0.00254,-0.00159] g=5008 | ECE old 0.0214 new 0.0229 | MSE of mean old 48.786 new 48.430
+  rebounds    n= 51066 | count logloss old 2.0879 new 2.0866 d(new-old) -0.00129 [-0.00180,-0.00077] g=5008
+              line-p Brier old 0.23273 new 0.23235 d -0.00039 [-0.00054,-0.00023] g=5008 | line-p logloss d -0.00079 [-0.00110,-0.00048] g=5008 | ECE old 0.0218 new 0.0230 | MSE of mean old 5.549 new 5.530
+  threes      n= 50983 | count logloss old 1.1187 new 1.1181 d(new-old) -0.00059 [-0.00095,-0.00021] g=5008
+              line-p Brier old 0.20340 new 0.20309 d -0.00031 [-0.00039,-0.00023] g=5008 | line-p logloss d -0.00072 [-0.00095,-0.00046] g=5008 | ECE old 0.0111 new 0.0106 | MSE of mean old 1.066 new 1.065
+    old OVER: [0.0,0.3) n=30678 p=0.178 hit=0.196 gap=+0.018 | [0.3,0.4) n=33116 p=0.359 hit=0.372 gap=+0.013 | [0.4,0.5) n=73357 p=0.453 hit=0.458 gap=+0.005 | [0.5,0.6) n=69710 p=0.546 hit=0.558 gap=+0.011 | [0.6,0.7) n=35993 p=0.643 hit=0.661 gap=+0.018 | [0.7,0.8) n=11324 p=0.736 hit=0.754 gap=+0.018 | [0.8,1.0) n=957 p=0.823 hit=0.850 gap=+0.026
+    old UNDER: [0.0,0.3) n=12281 p=0.257 hit=0.239 gap=-0.018 | [0.3,0.4) n=35993 p=0.357 hit=0.339 gap=-0.018 | [0.4,0.5) n=69710 p=0.454 hit=0.442 gap=-0.011 | [0.5,0.6) n=73357 p=0.547 hit=0.542 gap=-0.005 | [0.6,0.7) n=33116 p=0.641 hit=0.628 gap=-0.013 | [0.7,0.8) n=14027 p=0.746 hit=0.725 gap=-0.021 | [0.8,1.0) n=16651 p=0.886 hit=0.870 gap=-0.016
+    new OVER: [0.0,0.3) n=31695 p=0.177 hit=0.198 gap=+0.021 | [0.3,0.4) n=34124 p=0.358 hit=0.370 gap=+0.011 | [0.4,0.5) n=71618 p=0.453 hit=0.460 gap=+0.007 | [0.5,0.6) n=69054 p=0.547 hit=0.560 gap=+0.013 | [0.6,0.7) n=36147 p=0.643 hit=0.661 gap=+0.018 | [0.7,0.8) n=11465 p=0.736 hit=0.755 gap=+0.019 | [0.8,1.0) n=1032 p=0.824 hit=0.851 gap=+0.027
+    new UNDER: [0.0,0.3) n=12497 p=0.257 hit=0.237 gap=-0.020 | [0.3,0.4) n=36147 p=0.357 hit=0.339 gap=-0.018 | [0.4,0.5) n=69054 p=0.453 hit=0.440 gap=-0.013 | [0.5,0.6) n=71618 p=0.547 hit=0.540 gap=-0.007 | [0.6,0.7) n=34124 p=0.642 hit=0.630 gap=-0.011 | [0.7,0.8) n=14445 p=0.745 hit=0.723 gap=-0.023 | [0.8,1.0) n=17250 p=0.887 hit=0.869 gap=-0.019
+
+== TEST NBA (id 132): n=3125 games=41
+  ALL         n=  3125 | count logloss old 2.3854 new 2.3871 d(new-old) +0.00170 [-0.00149,+0.00460] g=41
+              line-p Brier old 0.22907 new 0.22985 d +0.00078 [-0.00011,+0.00169] g=41 | line-p logloss d +0.00164 [-0.00020,+0.00353] g=41 | ECE old 0.0403 new 0.0347 | MSE of mean old 24.487 new 24.655
+  assists     n=   625 | count logloss old 1.8365 new 1.8343 d(new-old) -0.00225 [-0.00664,+0.00196] g=41
+              line-p Brier old 0.23233 new 0.23305 d +0.00073 [-0.00087,+0.00231] g=41 | line-p logloss d +0.00183 [-0.00155,+0.00525] g=41 | ECE old 0.0701 new 0.0711 | MSE of mean old 3.883 new 3.820
+  points      n=   625 | count logloss old 3.0826 new 3.0833 d(new-old) +0.00076 [-0.00351,+0.00498] g=41
+              line-p Brier old 0.23841 new 0.23902 d +0.00061 [-0.00099,+0.00210] g=41 | line-p logloss d +0.00148 [-0.00188,+0.00466] g=41 | ECE old 0.0506 new 0.0473 | MSE of mean old 38.422 new 38.551
+  pts_reb_ast n=   625 | count logloss old 3.4825 new 3.4893 d(new-old) +0.00681 [+0.00122,+0.01219] g=41
+              line-p Brier old 0.22411 new 0.22562 d +0.00151 [-0.00005,+0.00329] g=41 | line-p logloss d +0.00292 [-0.00050,+0.00647] g=41 | ECE old 0.0507 new 0.0424 | MSE of mean old 71.566 new 72.264
+  rebounds    n=   625 | count logloss old 2.2330 new 2.2372 d(new-old) +0.00417 [-0.00031,+0.00837] g=41
+              line-p Brier old 0.23541 new 0.23691 d +0.00150 [+0.00008,+0.00286] g=41 | line-p logloss d +0.00301 [-0.00006,+0.00603] g=41 | ECE old 0.0397 new 0.0465 | MSE of mean old 7.104 new 7.181
+  threes      n=   625 | count logloss old 1.2921 new 1.2912 d(new-old) -0.00098 [-0.00338,+0.00145] g=41
+              line-p Brier old 0.21511 new 0.21466 d -0.00045 [-0.00117,+0.00024] g=41 | line-p logloss d -0.00104 [-0.00268,+0.00061] g=41 | ECE old 0.0569 new 0.0626 | MSE of mean old 1.460 new 1.460
+    old OVER: [0.0,0.3) n=222 p=0.188 hit=0.185 gap=-0.003 | [0.3,0.4) n=405 p=0.359 hit=0.304 gap=-0.055 | [0.4,0.5) n=890 p=0.453 hit=0.399 gap=-0.054 | [0.5,0.6) n=898 p=0.548 hit=0.499 gap=-0.049 | [0.6,0.7) n=518 p=0.643 hit=0.625 gap=-0.018
+    old UNDER: [0.3,0.4) n=518 p=0.357 hit=0.375 gap=+0.018 | [0.4,0.5) n=898 p=0.452 hit=0.501 gap=+0.049 | [0.5,0.6) n=890 p=0.547 hit=0.601 gap=+0.054 | [0.6,0.7) n=405 p=0.641 hit=0.696 gap=+0.055
+    new OVER: [0.0,0.3) n=249 p=0.193 hit=0.193 gap=+0.000 | [0.3,0.4) n=392 p=0.356 hit=0.324 gap=-0.032 | [0.4,0.5) n=927 p=0.451 hit=0.400 gap=-0.051 | [0.5,0.6) n=877 p=0.548 hit=0.498 gap=-0.050 | [0.6,0.7) n=494 p=0.643 hit=0.636 gap=-0.007
+    new UNDER: [0.3,0.4) n=494 p=0.357 hit=0.364 gap=+0.007 | [0.4,0.5) n=877 p=0.452 hit=0.502 gap=+0.050 | [0.5,0.6) n=927 p=0.549 hit=0.600 gap=+0.051 | [0.6,0.7) n=392 p=0.644 hit=0.676 gap=+0.032
+
+== TEST non-NBA: n=252010 games=4967
+  ALL         n=252010 | count logloss old 2.1908 new 2.1891 d(new-old) -0.00174 [-0.00214,-0.00134] g=4967
+              line-p Brier old 0.22691 new 0.22635 d -0.00056 [-0.00067,-0.00046] g=4967 | line-p logloss d -0.00105 [-0.00128,-0.00082] g=4967 | ECE old 0.0122 new 0.0137 | MSE of mean old 17.073 new 16.963
+  assists     n= 50397 | count logloss old 1.6161 new 1.6152 d(new-old) -0.00091 [-0.00166,-0.00016] g=4967
+              line-p Brier old 0.23051 new 0.23011 d -0.00041 [-0.00060,-0.00021] g=4967 | line-p logloss d -0.00051 [-0.00098,-0.00002] g=4967 | ECE old 0.0111 new 0.0130 | MSE of mean old 2.651 new 2.634
+  points      n= 50445 | count logloss old 2.8797 new 2.8772 d(new-old) -0.00250 [-0.00314,-0.00185] g=4967
+              line-p Brier old 0.24018 new 0.23958 d -0.00060 [-0.00078,-0.00042] g=4967 | line-p logloss d -0.00108 [-0.00147,-0.00067] g=4967 | ECE old 0.0164 new 0.0181 | MSE of mean old 27.624 new 27.481
+  pts_reb_ast n= 50369 | count logloss old 3.2550 new 3.2516 d(new-old) -0.00336 [-0.00415,-0.00253] g=4967
+              line-p Brier old 0.22788 new 0.22679 d -0.00109 [-0.00130,-0.00089] g=4967 | line-p logloss d -0.00212 [-0.00257,-0.00162] g=4967 | ECE old 0.0223 new 0.0237 | MSE of mean old 48.504 new 48.134
+  rebounds    n= 50441 | count logloss old 2.0861 new 2.0848 d(new-old) -0.00136 [-0.00188,-0.00086] g=4967
+              line-p Brier old 0.23270 new 0.23229 d -0.00041 [-0.00057,-0.00025] g=4967 | line-p logloss d -0.00084 [-0.00118,-0.00053] g=4967 | ECE old 0.0221 new 0.0233 | MSE of mean old 5.530 new 5.509
+  threes      n= 50358 | count logloss old 1.1165 new 1.1160 d(new-old) -0.00058 [-0.00094,-0.00020] g=4967
+              line-p Brier old 0.20325 new 0.20294 d -0.00031 [-0.00039,-0.00023] g=4967 | line-p logloss d -0.00071 [-0.00094,-0.00047] g=4967 | ECE old 0.0107 new 0.0105 | MSE of mean old 1.061 new 1.060
+    old OVER: [0.0,0.3) n=30456 p=0.178 hit=0.196 gap=+0.018 | [0.3,0.4) n=32711 p=0.359 hit=0.373 gap=+0.014 | [0.4,0.5) n=72467 p=0.453 hit=0.459 gap=+0.005 | [0.5,0.6) n=68812 p=0.546 hit=0.558 gap=+0.012 | [0.6,0.7) n=35475 p=0.643 hit=0.661 gap=+0.018 | [0.7,0.8) n=11150 p=0.736 hit=0.754 gap=+0.018 | [0.8,1.0) n=939 p=0.823 hit=0.850 gap=+0.026
+    old UNDER: [0.0,0.3) n=12089 p=0.257 hit=0.238 gap=-0.018 | [0.3,0.4) n=35475 p=0.357 hit=0.339 gap=-0.018 | [0.4,0.5) n=68812 p=0.454 hit=0.442 gap=-0.012 | [0.5,0.6) n=72467 p=0.547 hit=0.541 gap=-0.005 | [0.6,0.7) n=32711 p=0.641 hit=0.627 gap=-0.014 | [0.7,0.8) n=13914 p=0.746 hit=0.725 gap=-0.021 | [0.8,1.0) n=16542 p=0.886 hit=0.870 gap=-0.016
+    new OVER: [0.0,0.3) n=31446 p=0.177 hit=0.198 gap=+0.021 | [0.3,0.4) n=33732 p=0.358 hit=0.370 gap=+0.012 | [0.4,0.5) n=70691 p=0.453 hit=0.461 gap=+0.008 | [0.5,0.6) n=68177 p=0.547 hit=0.561 gap=+0.014 | [0.6,0.7) n=35653 p=0.643 hit=0.662 gap=+0.019 | [0.7,0.8) n=11294 p=0.736 hit=0.755 gap=+0.019 | [0.8,1.0) n=1017 p=0.824 hit=0.851 gap=+0.027
+    new UNDER: [0.0,0.3) n=12311 p=0.257 hit=0.237 gap=-0.020 | [0.3,0.4) n=35653 p=0.357 hit=0.338 gap=-0.019 | [0.4,0.5) n=68177 p=0.453 hit=0.439 gap=-0.014 | [0.5,0.6) n=70691 p=0.547 hit=0.539 gap=-0.008 | [0.6,0.7) n=33732 p=0.642 hit=0.630 gap=-0.012 | [0.7,0.8) n=14308 p=0.746 hit=0.723 gap=-0.023 | [0.8,1.0) n=17138 p=0.887 hit=0.869 gap=-0.019
+
+== LATE holdout >=2026-10-01 all: n=150665 games=3092
+  ALL         n=150665 | count logloss old 2.1869 new 2.1845 d(new-old) -0.00239 [-0.00293,-0.00184] g=3092
+              line-p Brier old 0.22637 new 0.22569 d -0.00068 [-0.00081,-0.00054] g=3092 | line-p logloss d -0.00128 [-0.00159,-0.00097] g=3092 | ECE old 0.0138 new 0.0152 | MSE of mean old 17.004 new 16.861
+  assists     n= 30128 | count logloss old 1.6179 new 1.6164 d(new-old) -0.00159 [-0.00261,-0.00055] g=3092
+              line-p Brier old 0.23051 new 0.22995 d -0.00056 [-0.00082,-0.00030] g=3092 | line-p logloss d -0.00073 [-0.00137,-0.00007] g=3092 | ECE old 0.0149 new 0.0172 | MSE of mean old 2.677 new 2.651
+  points      n= 30176 | count logloss old 2.8713 new 2.8680 d(new-old) -0.00333 [-0.00415,-0.00252] g=3092
+              line-p Brier old 0.23912 new 0.23838 d -0.00074 [-0.00098,-0.00051] g=3092 | line-p logloss d -0.00131 [-0.00185,-0.00077] g=3092 | ECE old 0.0188 new 0.0206 | MSE of mean old 27.422 new 27.236
+  pts_reb_ast n= 30100 | count logloss old 3.2490 new 3.2444 d(new-old) -0.00466 [-0.00569,-0.00369] g=3092
+              line-p Brier old 0.22655 new 0.22521 d -0.00134 [-0.00163,-0.00108] g=3092 | line-p logloss d -0.00271 [-0.00331,-0.00210] g=3092 | ECE old 0.0240 new 0.0255 | MSE of mean old 48.352 new 47.870
+  rebounds    n= 30172 | count logloss old 2.0842 new 2.0826 d(new-old) -0.00160 [-0.00227,-0.00091] g=3092
+              line-p Brier old 0.23258 new 0.23218 d -0.00041 [-0.00060,-0.00022] g=3092 | line-p logloss d -0.00083 [-0.00128,-0.00043] g=3092 | ECE old 0.0236 new 0.0244 | MSE of mean old 5.537 new 5.516
+  threes      n= 30089 | count logloss old 1.1104 new 1.1097 d(new-old) -0.00075 [-0.00112,-0.00040] g=3092
+              line-p Brier old 0.20302 new 0.20270 d -0.00032 [-0.00043,-0.00022] g=3092 | line-p logloss d -0.00082 [-0.00107,-0.00057] g=3092 | ECE old 0.0131 new 0.0128 | MSE of mean old 1.043 new 1.041
+    old OVER: [0.0,0.3) n=18403 p=0.178 hit=0.195 gap=+0.017 | [0.3,0.4) n=19776 p=0.359 hit=0.369 gap=+0.010 | [0.4,0.5) n=43003 p=0.453 hit=0.461 gap=+0.008 | [0.5,0.6) n=40757 p=0.546 hit=0.562 gap=+0.016 | [0.6,0.7) n=21499 p=0.643 hit=0.664 gap=+0.021 | [0.7,0.8) n=6657 p=0.736 hit=0.752 gap=+0.016 | [0.8,1.0) n=570 p=0.823 hit=0.847 gap=+0.024
+    old UNDER: [0.0,0.3) n=7227 p=0.257 hit=0.240 gap=-0.017 | [0.3,0.4) n=21499 p=0.357 hit=0.336 gap=-0.021 | [0.4,0.5) n=40757 p=0.454 hit=0.438 gap=-0.016 | [0.5,0.6) n=43003 p=0.547 hit=0.539 gap=-0.008 | [0.6,0.7) n=19776 p=0.641 hit=0.631 gap=-0.010 | [0.7,0.8) n=8410 p=0.746 hit=0.723 gap=-0.023 | [0.8,1.0) n=9993 p=0.886 hit=0.875 gap=-0.012
+    new OVER: [0.0,0.3) n=18982 p=0.177 hit=0.195 gap=+0.018 | [0.3,0.4) n=20411 p=0.358 hit=0.368 gap=+0.010 | [0.4,0.5) n=41932 p=0.453 hit=0.463 gap=+0.009 | [0.5,0.6) n=40467 p=0.547 hit=0.565 gap=+0.019 | [0.6,0.7) n=21470 p=0.643 hit=0.664 gap=+0.021 | [0.7,0.8) n=6784 p=0.736 hit=0.755 gap=+0.020 | [0.8,1.0) n=619 p=0.824 hit=0.853 gap=+0.029
+    new UNDER: [0.0,0.3) n=7403 p=0.257 hit=0.237 gap=-0.020 | [0.3,0.4) n=21470 p=0.357 hit=0.336 gap=-0.021 | [0.4,0.5) n=40467 p=0.453 hit=0.435 gap=-0.019 | [0.5,0.6) n=41932 p=0.547 hit=0.537 gap=-0.009 | [0.6,0.7) n=20411 p=0.642 hit=0.632 gap=-0.010 | [0.7,0.8) n=8670 p=0.745 hit=0.723 gap=-0.022 | [0.8,1.0) n=10312 p=0.888 hit=0.873 gap=-0.015
+
+== LATE holdout NBA: n=3125 games=41
+  ALL         n=  3125 | count logloss old 2.3854 new 2.3871 d(new-old) +0.00170 [-0.00131,+0.00457] g=41
+              line-p Brier old 0.22907 new 0.22985 d +0.00078 [-0.00006,+0.00166] g=41 | line-p logloss d +0.00164 [-0.00023,+0.00344] g=41 | ECE old 0.0403 new 0.0347 | MSE of mean old 24.487 new 24.655
+  assists     n=   625 | count logloss old 1.8365 new 1.8343 d(new-old) -0.00225 [-0.00673,+0.00217] g=41
+              line-p Brier old 0.23233 new 0.23305 d +0.00073 [-0.00087,+0.00233] g=41 | line-p logloss d +0.00183 [-0.00168,+0.00516] g=41 | ECE old 0.0701 new 0.0711 | MSE of mean old 3.883 new 3.820
+  points      n=   625 | count logloss old 3.0826 new 3.0833 d(new-old) +0.00076 [-0.00363,+0.00490] g=41
+              line-p Brier old 0.23841 new 0.23902 d +0.00061 [-0.00102,+0.00226] g=41 | line-p logloss d +0.00148 [-0.00178,+0.00484] g=41 | ECE old 0.0506 new 0.0473 | MSE of mean old 38.422 new 38.551
+  pts_reb_ast n=   625 | count logloss old 3.4825 new 3.4893 d(new-old) +0.00681 [+0.00127,+0.01236] g=41
+              line-p Brier old 0.22411 new 0.22562 d +0.00151 [-0.00011,+0.00307] g=41 | line-p logloss d +0.00292 [-0.00036,+0.00662] g=41 | ECE old 0.0507 new 0.0424 | MSE of mean old 71.566 new 72.264
+  rebounds    n=   625 | count logloss old 2.2330 new 2.2372 d(new-old) +0.00417 [-0.00009,+0.00830] g=41
+              line-p Brier old 0.23541 new 0.23691 d +0.00150 [-0.00000,+0.00296] g=41 | line-p logloss d +0.00301 [-0.00022,+0.00614] g=41 | ECE old 0.0397 new 0.0465 | MSE of mean old 7.104 new 7.181
+  threes      n=   625 | count logloss old 1.2921 new 1.2912 d(new-old) -0.00098 [-0.00335,+0.00140] g=41
+              line-p Brier old 0.21511 new 0.21466 d -0.00045 [-0.00117,+0.00028] g=41 | line-p logloss d -0.00104 [-0.00268,+0.00057] g=41 | ECE old 0.0569 new 0.0626 | MSE of mean old 1.460 new 1.460
+    old OVER: [0.0,0.3) n=222 p=0.188 hit=0.185 gap=-0.003 | [0.3,0.4) n=405 p=0.359 hit=0.304 gap=-0.055 | [0.4,0.5) n=890 p=0.453 hit=0.399 gap=-0.054 | [0.5,0.6) n=898 p=0.548 hit=0.499 gap=-0.049 | [0.6,0.7) n=518 p=0.643 hit=0.625 gap=-0.018
+    old UNDER: [0.3,0.4) n=518 p=0.357 hit=0.375 gap=+0.018 | [0.4,0.5) n=898 p=0.452 hit=0.501 gap=+0.049 | [0.5,0.6) n=890 p=0.547 hit=0.601 gap=+0.054 | [0.6,0.7) n=405 p=0.641 hit=0.696 gap=+0.055
+    new OVER: [0.0,0.3) n=249 p=0.193 hit=0.193 gap=+0.000 | [0.3,0.4) n=392 p=0.356 hit=0.324 gap=-0.032 | [0.4,0.5) n=927 p=0.451 hit=0.400 gap=-0.051 | [0.5,0.6) n=877 p=0.548 hit=0.498 gap=-0.050 | [0.6,0.7) n=494 p=0.643 hit=0.636 gap=-0.007
+    new UNDER: [0.3,0.4) n=494 p=0.357 hit=0.364 gap=+0.007 | [0.4,0.5) n=877 p=0.452 hit=0.502 gap=+0.050 | [0.5,0.6) n=927 p=0.549 hit=0.600 gap=+0.051 | [0.6,0.7) n=392 p=0.644 hit=0.676 gap=+0.032
+
+##### (2) settled Superbet lines with live-model pre-game p (p recomputed by replay as of kickoff; both sides of each line)
+k: {'points': 0.1186, 'rebounds': 0.1163, 'assists': 0.1423, 'threes': 0.0613, 'pts_reb_ast': 0.1479}
+lines with form (>=5 prior games): 10482 games 188 | NBA lines 2058 games 26 | other 8424 games 162 | days 2026-10-03 2026-10-25
+
+== settled lines ALL basketball: n=10482 games=188
+  ALL         n=10482 Brier old 0.24657 new 0.24641 d -0.00016 [-0.00073,+0.00039] g=188 | logloss old 0.6870 new 0.6866 d -0.00038 [-0.00157,+0.00086] g=188
+  assists     n= 2290 Brier old 0.24511 new 0.24496 d -0.00015 [-0.00147,+0.00114] g=184 | logloss old 0.6847 new 0.6844 d -0.00029 [-0.00302,+0.00243] g=184
+  points      n= 3026 Brier old 0.25248 new 0.25204 d -0.00044 [-0.00138,+0.00055] g=188 | logloss old 0.6993 new 0.6983 d -0.00103 [-0.00317,+0.00101] g=188
+  pts_reb_ast n=  498 Brier old 0.24854 new 0.24874 d +0.00019 [-0.00243,+0.00299] g=36 | logloss old 0.6902 new 0.6906 d +0.00034 [-0.00525,+0.00600] g=36
+  rebounds    n= 2536 Brier old 0.24521 new 0.24547 d +0.00027 [-0.00066,+0.00114] g=184 | logloss old 0.6839 new 0.6844 d +0.00053 [-0.00144,+0.00245] g=184
+  threes      n= 2132 Brier old 0.24092 new 0.24054 d -0.00038 [-0.00103,+0.00022] g=177 | logloss old 0.6750 new 0.6742 d -0.00081 [-0.00217,+0.00049] g=177
+    old OVER: [0.0,0.3) n=275 p=0.248 hit=0.389 1/odds=0.494 | [0.3,0.4) n=991 p=0.358 hit=0.407 1/odds=0.510 | [0.4,0.5) n=1842 p=0.451 hit=0.447 1/odds=0.530 | [0.5,0.6) n=1466 p=0.545 hit=0.501 1/odds=0.562 | [0.6,0.7) n=570 p=0.639 hit=0.595 1/odds=0.602 | [0.7,0.8) n=95 p=0.727 hit=0.674 1/odds=0.620
+    new OVER: [0.0,0.3) n=258 p=0.253 hit=0.357 1/odds=0.493 | [0.3,0.4) n=999 p=0.359 hit=0.416 1/odds=0.507 | [0.4,0.5) n=1888 p=0.451 hit=0.443 1/odds=0.530 | [0.5,0.6) n=1478 p=0.545 hit=0.516 1/odds=0.564 | [0.6,0.7) n=539 p=0.639 hit=0.583 1/odds=0.606 | [0.7,0.8) n=78 p=0.726 hit=0.667 1/odds=0.627
+    old UNDER: [0.0,0.3) n=97 p=0.271 hit=0.330 1/odds=0.466 | [0.3,0.4) n=570 p=0.361 hit=0.405 1/odds=0.485 | [0.4,0.5) n=1466 p=0.455 hit=0.499 1/odds=0.524 | [0.5,0.6) n=1842 p=0.549 hit=0.553 1/odds=0.557 | [0.6,0.7) n=991 p=0.642 hit=0.593 1/odds=0.577 | [0.7,0.8) n=240 p=0.739 hit=0.608 1/odds=0.590 | [0.8,1.0) n=35 p=0.843 hit=0.629 1/odds=0.609
+    new UNDER: [0.0,0.3) n=79 p=0.273 hit=0.342 1/odds=0.460 | [0.3,0.4) n=539 p=0.361 hit=0.417 1/odds=0.480 | [0.4,0.5) n=1478 p=0.455 hit=0.484 1/odds=0.522 | [0.5,0.6) n=1888 p=0.549 hit=0.557 1/odds=0.557 | [0.6,0.7) n=999 p=0.641 hit=0.584 1/odds=0.580 | [0.7,0.8) n=230 p=0.735 hit=0.648 1/odds=0.590
+  threshold crossing (secondary): p>=0.70 and p*odds>=0.90
+   ALL         p>=.70 old 372 new 337 (newly 39, lost 74) | print old n=372 hit=0.626 1/odds=0.600 units/line=+0.054 [-0.045,+0.157] | print new n=337 hit=0.647 1/odds=0.601 units/line=+0.087 [-0.011,+0.187] | newly printed n=39 hit=0.692 1/odds=0.584 units/line=+0.200 [-0.061,+0.450]
+   assists     p>=.70 old 110 new 98 (newly 9, lost 21) | print old n=110 hit=0.664 1/odds=0.615 units/line=+0.095 [-0.052,+0.236] | print new n=98 hit=0.684 1/odds=0.617 units/line=+0.126 [-0.034,+0.276] | newly printed n=9 hit=0.778 1/odds=0.600 units/line=+0.351 [-0.167,+0.786]
+   points      p>=.70 old 81 new 75 (newly 11, lost 17) | print old n=81 hit=0.519 1/odds=0.552 units/line=-0.052 [-0.253,+0.153] | print new n=75 hit=0.520 1/odds=0.550 units/line=-0.042 [-0.239,+0.172] | newly printed n=11 hit=0.545 1/odds=0.546 units/line=+0.014 [-0.502,+0.535]
+   pts_reb_ast p>=.70 old 22 new 18 (newly 4, lost 8) | print old n=22 hit=0.591 1/odds=0.541 units/line=+0.099 [-0.291,+0.498] | print new n=18 hit=0.722 1/odds=0.540 units/line=+0.347 [-0.025,+0.751] | newly printed n=4
+   rebounds    p>=.70 old 75 new 64 (newly 8, lost 19) | print old n=75 hit=0.627 1/odds=0.579 units/line=+0.097 [-0.114,+0.309] | print new n=64 hit=0.656 1/odds=0.584 units/line=+0.137 [-0.065,+0.333] | newly printed n=8 hit=0.625 1/odds=0.585 units/line=+0.076 [-0.568,+0.608]
+   threes      p>=.70 old 84 new 82 (newly 7, lost 9) | print old n=84 hit=0.690 1/odds=0.659 units/line=+0.053 [-0.102,+0.197] | print new n=82 hit=0.695 1/odds=0.657 units/line=+0.061 [-0.094,+0.204] | newly printed n=7 hit=0.714 1/odds=0.651 units/line=+0.059 [-0.397,+0.504]
+
+== settled NBA: n=2058 games=26
+  ALL         n= 2058 Brier old 0.24604 new 0.24659 d +0.00056 [-0.00103,+0.00219] g=26 | logloss old 0.6866 new 0.6878 d +0.00119 [-0.00215,+0.00437] g=26
+  assists     n=  384 Brier old 0.25789 new 0.25692 d -0.00098 [-0.00363,+0.00163] g=26 | logloss old 0.7160 new 0.7140 d -0.00194 [-0.00740,+0.00399] g=26
+  points      n=  482 Brier old 0.24786 new 0.24876 d +0.00090 [-0.00202,+0.00360] g=26 | logloss old 0.6898 new 0.6919 d +0.00202 [-0.00393,+0.00762] g=26
+  pts_reb_ast n=  356 Brier old 0.24538 new 0.24672 d +0.00134 [-0.00152,+0.00436] g=26 | logloss old 0.6835 new 0.6861 d +0.00264 [-0.00406,+0.00882] g=26
+  rebounds    n=  448 Brier old 0.24743 new 0.24879 d +0.00136 [-0.00097,+0.00366] g=26 | logloss old 0.6881 new 0.6911 d +0.00299 [-0.00239,+0.00772] g=26
+  threes      n=  388 Brier old 0.23103 new 0.23103 d +0.00000 [-0.00102,+0.00106] g=26 | logloss old 0.6547 new 0.6546 d -0.00014 [-0.00248,+0.00194] g=26
+    old OVER: [0.0,0.3) n=56 p=0.238 hit=0.429 1/odds=0.500 | [0.3,0.4) n=157 p=0.356 hit=0.376 1/odds=0.504 | [0.4,0.5) n=359 p=0.452 hit=0.457 1/odds=0.519 | [0.5,0.6) n=327 p=0.546 hit=0.508 1/odds=0.545 | [0.6,0.7) n=117 p=0.642 hit=0.624 1/odds=0.579
+    new OVER: [0.0,0.3) n=59 p=0.245 hit=0.373 1/odds=0.500 | [0.3,0.4) n=174 p=0.356 hit=0.420 1/odds=0.506 | [0.4,0.5) n=373 p=0.453 hit=0.442 1/odds=0.520 | [0.5,0.6) n=305 p=0.546 hit=0.548 1/odds=0.548 | [0.6,0.7) n=107 p=0.641 hit=0.561 1/odds=0.580
+    old UNDER: [0.3,0.4) n=117 p=0.358 hit=0.376 1/odds=0.497 | [0.4,0.5) n=327 p=0.454 hit=0.492 1/odds=0.531 | [0.5,0.6) n=359 p=0.548 hit=0.543 1/odds=0.556 | [0.6,0.7) n=157 p=0.644 hit=0.624 1/odds=0.572 | [0.7,0.8) n=43 p=0.738 hit=0.535 1/odds=0.573
+    new UNDER: [0.3,0.4) n=107 p=0.359 hit=0.439 1/odds=0.496 | [0.4,0.5) n=305 p=0.454 hit=0.452 1/odds=0.528 | [0.5,0.6) n=373 p=0.547 hit=0.558 1/odds=0.556 | [0.6,0.7) n=174 p=0.644 hit=0.580 1/odds=0.570 | [0.7,0.8) n=48 p=0.734 hit=0.625 1/odds=0.573
+  threshold crossing (secondary): p>=0.70 and p*odds>=0.90
+   ALL         p>=.70 old 69 new 70 (newly 8, lost 7) | print old n=69 hit=0.594 1/odds=0.575 units/line=+0.035 [-0.244,+0.315] | print new n=70 hit=0.643 1/odds=0.577 units/line=+0.121 [-0.133,+0.384] | newly printed n=8 hit=0.750 1/odds=0.565 units/line=+0.320 [-0.182,+0.844]
+   assists     p>=.70 old 12 new 13 (newly 1, lost 0) | print old n=12 hit=0.417 1/odds=0.590 units/line=-0.306 [-0.723,+0.113] | print new n=13 hit=0.462 1/odds=0.592 units/line=-0.235 [-0.617,+0.172] | newly printed n=1
+   points      p>=.70 old 16 new 16 (newly 1, lost 1) | print old n=16 hit=0.562 1/odds=0.544 units/line=+0.038 [-0.428,+0.574] | print new n=16 hit=0.562 1/odds=0.544 units/line=+0.038 [-0.434,+0.501] | newly printed n=1
+   pts_reb_ast p>=.70 old 17 new 17 (newly 4, lost 4) | print old n=17 hit=0.588 1/odds=0.537 units/line=+0.094 [-0.372,+0.547] | print new n=17 hit=0.765 1/odds=0.538 units/line=+0.426 [+0.064,+0.856] | newly printed n=4
+   rebounds    p>=.70 old 12 new 11 (newly 1, lost 2) | print old n=12 hit=0.667 1/odds=0.572 units/line=+0.165 [-0.288,+0.599] | print new n=11 hit=0.636 1/odds=0.565 units/line=+0.119 [-0.402,+0.589] | newly printed n=1
+   threes      p>=.70 old 12 new 13 (newly 1, lost 0) | print old n=12 hit=0.750 1/odds=0.661 units/line=+0.158 [-0.234,+0.467] | print new n=13 hit=0.769 1/odds=0.662 units/line=+0.182 [-0.139,+0.531] | newly printed n=1
+
+== settled non-NBA: n=8424 games=162
+  ALL         n= 8424 Brier old 0.24670 new 0.24636 d -0.00034 [-0.00092,+0.00023] g=162 | logloss old 0.6871 new 0.6864 d -0.00077 [-0.00201,+0.00052] g=162
+  assists     n= 1906 Brier old 0.24253 new 0.24255 d +0.00002 [-0.00135,+0.00136] g=158 | logloss old 0.6784 new 0.6784 d +0.00005 [-0.00317,+0.00307] g=158
+  points      n= 2544 Brier old 0.25336 new 0.25267 d -0.00069 [-0.00178,+0.00039] g=162 | logloss old 0.7011 new 0.6995 d -0.00161 [-0.00390,+0.00060] g=162
+  rebounds    n= 2088 Brier old 0.24473 new 0.24476 d +0.00003 [-0.00093,+0.00100] g=158 | logloss old 0.6830 new 0.6830 d +0.00000 [-0.00202,+0.00203] g=158
+  threes      n= 1744 Brier old 0.24312 new 0.24265 d -0.00046 [-0.00116,+0.00020] g=151 | logloss old 0.6795 new 0.6786 d -0.00096 [-0.00247,+0.00053] g=151
+    old OVER: [0.0,0.3) n=219 p=0.250 hit=0.379 1/odds=0.493 | [0.3,0.4) n=834 p=0.358 hit=0.412 1/odds=0.511 | [0.4,0.5) n=1483 p=0.450 hit=0.445 1/odds=0.532 | [0.5,0.6) n=1139 p=0.545 hit=0.500 1/odds=0.567 | [0.6,0.7) n=453 p=0.638 hit=0.587 1/odds=0.607 | [0.7,0.8) n=82 p=0.726 hit=0.671 1/odds=0.627
+    new OVER: [0.0,0.3) n=199 p=0.256 hit=0.352 1/odds=0.490 | [0.3,0.4) n=825 p=0.360 hit=0.416 1/odds=0.507 | [0.4,0.5) n=1515 p=0.450 hit=0.443 1/odds=0.532 | [0.5,0.6) n=1173 p=0.545 hit=0.508 1/odds=0.568 | [0.6,0.7) n=432 p=0.638 hit=0.588 1/odds=0.613 | [0.7,0.8) n=67 p=0.724 hit=0.657 1/odds=0.635
+    old UNDER: [0.0,0.3) n=84 p=0.272 hit=0.333 1/odds=0.460 | [0.3,0.4) n=453 p=0.362 hit=0.413 1/odds=0.481 | [0.4,0.5) n=1139 p=0.455 hit=0.500 1/odds=0.522 | [0.5,0.6) n=1483 p=0.550 hit=0.555 1/odds=0.557 | [0.6,0.7) n=834 p=0.642 hit=0.588 1/odds=0.578 | [0.7,0.8) n=197 p=0.739 hit=0.624 1/odds=0.593
+    new UNDER: [0.0,0.3) n=68 p=0.275 hit=0.353 1/odds=0.453 | [0.3,0.4) n=432 p=0.362 hit=0.412 1/odds=0.476 | [0.4,0.5) n=1173 p=0.455 hit=0.492 1/odds=0.521 | [0.5,0.6) n=1515 p=0.550 hit=0.557 1/odds=0.557 | [0.6,0.7) n=825 p=0.640 hit=0.584 1/odds=0.582 | [0.7,0.8) n=182 p=0.735 hit=0.654 1/odds=0.594
+  threshold crossing (secondary): p>=0.70 and p*odds>=0.90
+   ALL         p>=.70 old 303 new 267 (newly 31, lost 67) | print old n=303 hit=0.634 1/odds=0.605 units/line=+0.059 [-0.044,+0.157] | print new n=267 hit=0.648 1/odds=0.608 units/line=+0.077 [-0.033,+0.175] | newly printed n=31 hit=0.677 1/odds=0.589 units/line=+0.169 [-0.146,+0.451]
+   assists     p>=.70 old 98 new 85 (newly 8, lost 21) | print old n=98 hit=0.694 1/odds=0.618 units/line=+0.144 [-0.013,+0.283] | print new n=85 hit=0.718 1/odds=0.620 units/line=+0.181 [+0.007,+0.342] | newly printed n=8 hit=0.750 1/odds=0.598 units/line=+0.318 [-0.325,+0.793]
+   points      p>=.70 old 65 new 59 (newly 10, lost 16) | print old n=65 hit=0.508 1/odds=0.554 units/line=-0.074 [-0.313,+0.168] | print new n=59 hit=0.508 1/odds=0.552 units/line=-0.064 [-0.280,+0.154] | newly printed n=10 hit=0.600 1/odds=0.548 units/line=+0.115 [-0.448,+0.675]
+   pts_reb_ast p>=.70 old 5 new 1 (newly 0, lost 4) | print old n=5 hit=0.600 1/odds=0.555 units/line=+0.116 [-0.634,+0.866] | print new n=1 | newly printed n=0
+   rebounds    p>=.70 old 63 new 53 (newly 7, lost 17) | print old n=63 hit=0.619 1/odds=0.580 units/line=+0.085 [-0.154,+0.323] | print new n=53 hit=0.660 1/odds=0.588 units/line=+0.141 [-0.081,+0.356] | newly printed n=7 hit=0.714 1/odds=0.590 units/line=+0.230 [-0.321,+0.753]
+   threes      p>=.70 old 72 new 69 (newly 6, lost 9) | print old n=72 hit=0.681 1/odds=0.659 units/line=+0.036 [-0.133,+0.194] | print new n=69 hit=0.681 1/odds=0.657 units/line=+0.038 [-0.128,+0.204] | newly printed n=6 hit=0.667 1/odds=0.646 units/line=-0.010 [-0.535,+0.515]

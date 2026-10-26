@@ -1185,6 +1185,15 @@ def build_result(
         h_reg, a_reg = sum(h_periods), sum(a_periods)
         for side, reg in ((home, h_reg), (away, a_reg)):
             normal = side.get("normaltime")
+            if (allow_final_only and isinstance(normal, int)
+                    and normal > side["current"]):
+                # Regulation cannot exceed the final score: that `normaltime`
+                # is a payload defect, not a result (2026-10-24: Golden State
+                # - Memphis 16824734, periods 108 / 111 = current, normaltime
+                # 182 / 189 - the whole game, 853 priced sides, refused
+                # DATA_MISMATCH). Read from the periods, SHADOW_SETTLE only:
+                # the history readers keep refusing such a game.
+                continue
             if normal is not None and normal != reg:
                 return None
         if h_cur < h_reg or a_cur < a_reg:
@@ -1417,6 +1426,18 @@ def _strip_suffix(name: str) -> str:
     return " ".join(t for t in tokens if t.lower() not in _NAME_SUFFIXES)
 
 
+def _bare_name(name: str) -> str:
+    """`_strip_suffix`, with adjacent single-letter tokens joined: "P.J.
+    Washington Jr." and "PJ Washington" both read "PJ Washington"."""
+    out: list[str] = []
+    for token in _strip_suffix(name).split():
+        if out and len(token) == 1 and len(out[-1]) == 1 and out[-1].isalpha():
+            out[-1] += token
+        else:
+            out.append(token)
+    return " ".join(out)
+
+
 def player_value(
     line: ShadowLine, box: PlayerBox, sport: ShadowSport
 ) -> float | Literal["DNP", "UNMATCHED", "NO_STAT"]:
@@ -1443,12 +1464,14 @@ def player_value(
     if matched is None:
         # "Alston Jr., Derrick" / "Derrick Samuel Alston Jr": the suffix is
         # punctuated differently on each side and breaks the token rule.
-        # Tried without generational suffixes, here only (football's shared
-        # rule feeds SAMPLES).
-        original = {_strip_suffix(k): k for k in box.players}
+        # Tried without generational suffixes and with initials joined
+        # ("PJ Washington" / "P.J. Washington Jr.", 2026-10-23..25: 8 NBA
+        # lines UNMATCHED with the player in the box), here only (football's
+        # shared rule feeds SAMPLES).
+        original = {_bare_name(k): k for k in box.players}
         if len(original) == len(box.players):
             bare = {b: box.players[k] for b, k in original.items()}
-            found = match_player_by_tokens(_strip_suffix(line.subject), bare)
+            found = match_player_by_tokens(_bare_name(line.subject), bare)
             matched = original[found] if found is not None else None
     if matched is None:
         return "UNMATCHED"

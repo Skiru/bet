@@ -1,0 +1,296 @@
+rows 3854351 players with feature rows 3150430
+excluded (<5 prior own games or <5 prior records, or sd=0) per family: {'player_points': 140785, 'player_assists': 140784, 'player_rebounds': 140785, 'player_threes': 140783, 'player_pts_reb_ast': 140784} of {'player_points': 770914, 'player_assists': 770865, 'player_rebounds': 770910, 'player_threes': 770825, 'player_pts_reb_ast': 770837}
+
+=== TEST split (>=2026-07-01), all basketball: n_pg=255135 games=5008
+resid~mean prev3 resid (raw)
+  points       n= 51070 g= 5008 slope=+0.1382 [+0.1226,+0.1538]
+  rebounds     n= 51066 g= 5008 slope=+0.1284 [+0.1114,+0.1454]
+  assists      n= 51022 g= 5008 slope=+0.1562 [+0.1369,+0.1765]
+  threes       n= 50983 g= 5008 slope=+0.0766 [+0.0587,+0.0947]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1755 [+0.1601,+0.1914]
+resid~mean prev5 resid (raw)
+  points       n= 51070 g= 5008 slope=+0.1474 [+0.1261,+0.1689]
+  rebounds     n= 51066 g= 5008 slope=+0.1246 [+0.1027,+0.1481]
+  assists      n= 51022 g= 5008 slope=+0.1653 [+0.1410,+0.1902]
+  threes       n= 50983 g= 5008 slope=+0.0747 [+0.0514,+0.0978]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1733 [+0.1523,+0.1943]
+z~mean prev3 z
+  POOLED       n=255135 g= 5008 slope=+0.1242 [+0.1142,+0.1343]
+  points       n= 51070 g= 5008 slope=+0.1290 [+0.1149,+0.1439]
+  rebounds     n= 51066 g= 5008 slope=+0.1234 [+0.1083,+0.1378]
+  assists      n= 51022 g= 5008 slope=+0.1208 [+0.1052,+0.1363]
+  threes       n= 50983 g= 5008 slope=+0.0817 [+0.0670,+0.0958]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1656 [+0.1502,+0.1803]
+z~mean prev5 z
+  POOLED       n=255135 g= 5008 slope=+0.1269 [+0.1136,+0.1392]
+  points       n= 51070 g= 5008 slope=+0.1329 [+0.1152,+0.1519]
+  rebounds     n= 51066 g= 5008 slope=+0.1224 [+0.1033,+0.1408]
+  assists      n= 51022 g= 5008 slope=+0.1256 [+0.1053,+0.1441]
+  threes       n= 50983 g= 5008 slope=+0.0897 [+0.0714,+0.1089]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1625 [+0.1427,+0.1810]
+resid~(raw last5 - exp)
+  points       n= 51070 g= 5008 slope=+0.1649 [+0.1373,+0.1903]
+  rebounds     n= 51066 g= 5008 slope=+0.1310 [+0.1014,+0.1588]
+  assists      n= 51022 g= 5008 slope=+0.1784 [+0.1491,+0.2064]
+  threes       n= 50983 g= 5008 slope=+0.0761 [+0.0479,+0.1048]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1940 [+0.1652,+0.2216]
+z~(raw5-exp)/sd
+  POOLED       n=255135 g= 5008 slope=+0.1338 [+0.1180,+0.1503]
+  points       n= 51070 g= 5008 slope=+0.1431 [+0.1171,+0.1680]
+  rebounds     n= 51066 g= 5008 slope=+0.1175 [+0.0935,+0.1418]
+  assists      n= 51022 g= 5008 slope=+0.1262 [+0.1019,+0.1513]
+  threes       n= 50983 g= 5008 slope=+0.1123 [+0.0871,+0.1354]
+  pts_reb_ast  n= 50994 g= 5008 slope=+0.1725 [+0.1451,+0.1997]
+
+--- decile check TEST split (>=2026-07-01), all basketball (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=25516 g=4446 hit=0.457 p=0.487 gap=-0.030 [-0.038,-0.023] | top: n=25516 g=4473 hit=0.553 p=0.487 gap=+0.066 [+0.059,+0.074]
+  points       bottom: n=5107 g=2993 hit=0.436 p=0.469 gap=-0.033 [-0.046,-0.019] | top: n=5107 g=3027 hit=0.564 p=0.485 gap=+0.079 [+0.066,+0.092]
+  rebounds     bottom: n=5107 g=2951 hit=0.536 p=0.551 gap=-0.015 [-0.029,-0.003] | top: n=5107 g=3059 hit=0.623 p=0.561 gap=+0.062 [+0.050,+0.075]
+  assists      bottom: n=5103 g=2934 hit=0.512 p=0.546 gap=-0.034 [-0.048,-0.021] | top: n=5103 g=2982 hit=0.575 p=0.519 gap=+0.056 [+0.044,+0.069]
+  threes       bottom: n=5099 g=3001 hit=0.454 p=0.486 gap=-0.032 [-0.045,-0.019] | top: n=5099 g=3077 hit=0.492 p=0.455 gap=+0.037 [+0.025,+0.050]
+  pts_reb_ast  bottom: n=5100 g=2958 hit=0.347 p=0.384 gap=-0.037 [-0.050,-0.024] | top: n=5100 g=2923 hit=0.512 p=0.414 gap=+0.098 [+0.085,+0.111]
+
+=== TEST split, NBA only (tournament 132): n_pg=3125 games=41
+resid~mean prev3 resid (raw)
+  points       n=   625 g=   41 slope=-0.0774 [-0.2056,+0.0509]
+  rebounds     n=   625 g=   41 slope=-0.1117 [-0.2808,+0.0626]
+  assists      n=   625 g=   41 slope=+0.2047 [+0.0773,+0.3352]
+  threes       n=   625 g=   41 slope=-0.0626 [-0.2177,+0.0821]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1032 [-0.2446,+0.0388]
+resid~mean prev5 resid (raw)
+  points       n=   625 g=   41 slope=-0.0798 [-0.2122,+0.0519]
+  rebounds     n=   625 g=   41 slope=-0.1918 [-0.4107,+0.0215]
+  assists      n=   625 g=   41 slope=+0.1769 [+0.0131,+0.3449]
+  threes       n=   625 g=   41 slope=-0.0220 [-0.2390,+0.1782]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1570 [-0.2971,-0.0007]
+z~mean prev3 z
+  POOLED       n=  3125 g=   41 slope=-0.0242 [-0.1059,+0.0713]
+  points       n=   625 g=   41 slope=-0.0813 [-0.1835,+0.0222]
+  rebounds     n=   625 g=   41 slope=-0.0740 [-0.2024,+0.0716]
+  assists      n=   625 g=   41 slope=+0.1409 [+0.0117,+0.3074]
+  threes       n=   625 g=   41 slope=+0.0122 [-0.1154,+0.1436]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1239 [-0.2486,+0.0097]
+z~mean prev5 z
+  POOLED       n=  3125 g=   41 slope=-0.0594 [-0.1472,+0.0413]
+  points       n=   625 g=   41 slope=-0.0815 [-0.1949,+0.0360]
+  rebounds     n=   625 g=   41 slope=-0.1393 [-0.3132,+0.0377]
+  assists      n=   625 g=   41 slope=+0.0591 [-0.0725,+0.2011]
+  threes       n=   625 g=   41 slope=+0.0423 [-0.1490,+0.2250]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1779 [-0.2940,-0.0509]
+resid~(raw last5 - exp)
+  points       n=   625 g=   41 slope=-0.1082 [-0.2568,+0.0479]
+  rebounds     n=   625 g=   41 slope=-0.1670 [-0.4232,+0.1026]
+  assists      n=   625 g=   41 slope=+0.1647 [-0.0186,+0.3759]
+  threes       n=   625 g=   41 slope=+0.0043 [-0.2281,+0.2270]
+  pts_reb_ast  n=   625 g=   41 slope=-0.2029 [-0.3658,-0.0175]
+z~(raw5-exp)/sd
+  POOLED       n=  3125 g=   41 slope=-0.0561 [-0.1731,+0.0591]
+  points       n=   625 g=   41 slope=-0.1044 [-0.2459,+0.0375]
+  rebounds     n=   625 g=   41 slope=-0.1075 [-0.3292,+0.1211]
+  assists      n=   625 g=   41 slope=+0.0552 [-0.0911,+0.2328]
+  threes       n=   625 g=   41 slope=+0.0754 [-0.1348,+0.2819]
+  pts_reb_ast  n=   625 g=   41 slope=-0.2288 [-0.3927,-0.0598]
+
+--- decile check TEST split, NBA only (tournament 132) (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=315 g=41 hit=0.511 p=0.519 gap=-0.008 [-0.081,+0.066] | top: n=315 g=41 hit=0.397 p=0.489 gap=-0.092 [-0.150,-0.025]
+  points       bottom: n=63 g=32 hit=0.476 p=0.486 gap=-0.010 [-0.130,+0.108] | top: n=63 g=32 hit=0.365 p=0.467 gap=-0.102 [-0.213,+0.007]
+  rebounds     bottom: n=63 g=32 hit=0.587 p=0.557 gap=+0.031 [-0.075,+0.150] | top: n=63 g=34 hit=0.397 p=0.553 gap=-0.157 [-0.253,-0.059]
+  assists      bottom: n=63 g=34 hit=0.540 p=0.583 gap=-0.044 [-0.179,+0.076] | top: n=63 g=30 hit=0.460 p=0.534 gap=-0.073 [-0.192,+0.046]
+  threes       bottom: n=63 g=30 hit=0.492 p=0.538 gap=-0.046 [-0.199,+0.097] | top: n=63 g=34 hit=0.429 p=0.459 gap=-0.030 [-0.148,+0.079]
+  pts_reb_ast  bottom: n=63 g=31 hit=0.460 p=0.431 gap=+0.030 [-0.082,+0.126] | top: n=63 g=32 hit=0.333 p=0.431 gap=-0.098 [-0.201,+0.032]
+
+=== LATE holdout (>=2026-10-01), all: n_pg=150665 games=3092
+resid~mean prev3 resid (raw)
+  points       n= 30176 g= 3092 slope=+0.1628 [+0.1414,+0.1843]
+  rebounds     n= 30172 g= 3092 slope=+0.1500 [+0.1287,+0.1727]
+  assists      n= 30128 g= 3092 slope=+0.1921 [+0.1673,+0.2168]
+  threes       n= 30089 g= 3092 slope=+0.0791 [+0.0559,+0.1036]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2108 [+0.1898,+0.2319]
+resid~mean prev5 resid (raw)
+  points       n= 30176 g= 3092 slope=+0.1768 [+0.1490,+0.2043]
+  rebounds     n= 30172 g= 3092 slope=+0.1292 [+0.1007,+0.1590]
+  assists      n= 30128 g= 3092 slope=+0.2158 [+0.1849,+0.2489]
+  threes       n= 30089 g= 3092 slope=+0.0778 [+0.0476,+0.1081]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2096 [+0.1820,+0.2369]
+z~mean prev3 z
+  POOLED       n=150665 g= 3092 slope=+0.1462 [+0.1334,+0.1596]
+  points       n= 30176 g= 3092 slope=+0.1511 [+0.1321,+0.1712]
+  rebounds     n= 30172 g= 3092 slope=+0.1469 [+0.1286,+0.1656]
+  assists      n= 30128 g= 3092 slope=+0.1439 [+0.1235,+0.1649]
+  threes       n= 30089 g= 3092 slope=+0.0849 [+0.0647,+0.1046]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2010 [+0.1816,+0.2197]
+z~mean prev5 z
+  POOLED       n=150665 g= 3092 slope=+0.1491 [+0.1321,+0.1662]
+  points       n= 30176 g= 3092 slope=+0.1584 [+0.1354,+0.1825]
+  rebounds     n= 30172 g= 3092 slope=+0.1378 [+0.1131,+0.1632]
+  assists      n= 30128 g= 3092 slope=+0.1522 [+0.1263,+0.1785]
+  threes       n= 30089 g= 3092 slope=+0.0914 [+0.0657,+0.1171]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2005 [+0.1777,+0.2238]
+resid~(raw last5 - exp)
+  points       n= 30176 g= 3092 slope=+0.1884 [+0.1527,+0.2235]
+  rebounds     n= 30172 g= 3092 slope=+0.1333 [+0.0982,+0.1716]
+  assists      n= 30128 g= 3092 slope=+0.2375 [+0.1989,+0.2753]
+  threes       n= 30089 g= 3092 slope=+0.0687 [+0.0307,+0.1088]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2255 [+0.1891,+0.2622]
+z~(raw5-exp)/sd
+  POOLED       n=150665 g= 3092 slope=+0.1549 [+0.1335,+0.1772]
+  points       n= 30176 g= 3092 slope=+0.1686 [+0.1347,+0.2018]
+  rebounds     n= 30172 g= 3092 slope=+0.1326 [+0.1005,+0.1653]
+  assists      n= 30128 g= 3092 slope=+0.1567 [+0.1247,+0.1903]
+  threes       n= 30089 g= 3092 slope=+0.1044 [+0.0702,+0.1379]
+  pts_reb_ast  n= 30100 g= 3092 slope=+0.2131 [+0.1765,+0.2468]
+
+--- decile check LATE holdout (>=2026-10-01), all (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=15068 g=2724 hit=0.460 p=0.490 gap=-0.030 [-0.040,-0.020] | top: n=15068 g=2755 hit=0.559 p=0.483 gap=+0.076 [+0.066,+0.086]
+  points       bottom: n=3018 g=1800 hit=0.440 p=0.469 gap=-0.030 [-0.047,-0.013] | top: n=3018 g=1822 hit=0.572 p=0.483 gap=+0.089 [+0.072,+0.107]
+  rebounds     bottom: n=3018 g=1785 hit=0.542 p=0.553 gap=-0.011 [-0.028,+0.007] | top: n=3018 g=1851 hit=0.629 p=0.562 gap=+0.067 [+0.051,+0.083]
+  assists      bottom: n=3013 g=1749 hit=0.510 p=0.546 gap=-0.036 [-0.054,-0.018] | top: n=3013 g=1810 hit=0.587 p=0.516 gap=+0.071 [+0.055,+0.089]
+  threes       bottom: n=3009 g=1801 hit=0.459 p=0.495 gap=-0.037 [-0.054,-0.020] | top: n=3009 g=1851 hit=0.481 p=0.444 gap=+0.037 [+0.020,+0.054]
+  pts_reb_ast  bottom: n=3010 g=1782 hit=0.347 p=0.386 gap=-0.039 [-0.055,-0.021] | top: n=3010 g=1754 hit=0.524 p=0.409 gap=+0.115 [+0.097,+0.133]
+
+=== LATE holdout NBA: n_pg=3125 games=41
+resid~mean prev3 resid (raw)
+  points       n=   625 g=   41 slope=-0.0774 [-0.2133,+0.0513]
+  rebounds     n=   625 g=   41 slope=-0.1117 [-0.2709,+0.0564]
+  assists      n=   625 g=   41 slope=+0.2047 [+0.0826,+0.3350]
+  threes       n=   625 g=   41 slope=-0.0626 [-0.2151,+0.0744]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1032 [-0.2316,+0.0364]
+resid~mean prev5 resid (raw)
+  points       n=   625 g=   41 slope=-0.0798 [-0.2127,+0.0645]
+  rebounds     n=   625 g=   41 slope=-0.1918 [-0.4072,+0.0317]
+  assists      n=   625 g=   41 slope=+0.1769 [+0.0199,+0.3499]
+  threes       n=   625 g=   41 slope=-0.0220 [-0.2431,+0.1793]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1570 [-0.2899,-0.0045]
+z~mean prev3 z
+  POOLED       n=  3125 g=   41 slope=-0.0242 [-0.1057,+0.0638]
+  points       n=   625 g=   41 slope=-0.0813 [-0.1850,+0.0245]
+  rebounds     n=   625 g=   41 slope=-0.0740 [-0.2104,+0.0741]
+  assists      n=   625 g=   41 slope=+0.1409 [+0.0079,+0.3020]
+  threes       n=   625 g=   41 slope=+0.0122 [-0.1203,+0.1403]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1239 [-0.2465,+0.0095]
+z~mean prev5 z
+  POOLED       n=  3125 g=   41 slope=-0.0594 [-0.1484,+0.0399]
+  points       n=   625 g=   41 slope=-0.0815 [-0.1876,+0.0407]
+  rebounds     n=   625 g=   41 slope=-0.1393 [-0.3140,+0.0455]
+  assists      n=   625 g=   41 slope=+0.0591 [-0.0672,+0.1952]
+  threes       n=   625 g=   41 slope=+0.0423 [-0.1427,+0.2220]
+  pts_reb_ast  n=   625 g=   41 slope=-0.1779 [-0.2958,-0.0591]
+resid~(raw last5 - exp)
+  points       n=   625 g=   41 slope=-0.1082 [-0.2563,+0.0549]
+  rebounds     n=   625 g=   41 slope=-0.1670 [-0.4113,+0.0853]
+  assists      n=   625 g=   41 slope=+0.1647 [-0.0130,+0.3677]
+  threes       n=   625 g=   41 slope=+0.0043 [-0.2360,+0.2330]
+  pts_reb_ast  n=   625 g=   41 slope=-0.2029 [-0.3722,-0.0090]
+z~(raw5-exp)/sd
+  POOLED       n=  3125 g=   41 slope=-0.0561 [-0.1716,+0.0653]
+  points       n=   625 g=   41 slope=-0.1044 [-0.2445,+0.0443]
+  rebounds     n=   625 g=   41 slope=-0.1075 [-0.3418,+0.1085]
+  assists      n=   625 g=   41 slope=+0.0552 [-0.0915,+0.2242]
+  threes       n=   625 g=   41 slope=+0.0754 [-0.1521,+0.2797]
+  pts_reb_ast  n=   625 g=   41 slope=-0.2288 [-0.3836,-0.0564]
+
+--- decile check LATE holdout NBA (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=315 g=41 hit=0.511 p=0.519 gap=-0.008 [-0.078,+0.065] | top: n=315 g=41 hit=0.397 p=0.489 gap=-0.092 [-0.148,-0.025]
+  points       bottom: n=63 g=32 hit=0.476 p=0.486 gap=-0.010 [-0.134,+0.105] | top: n=63 g=32 hit=0.365 p=0.467 gap=-0.102 [-0.204,+0.007]
+  rebounds     bottom: n=63 g=32 hit=0.587 p=0.557 gap=+0.031 [-0.075,+0.150] | top: n=63 g=34 hit=0.397 p=0.553 gap=-0.157 [-0.251,-0.057]
+  assists      bottom: n=63 g=34 hit=0.540 p=0.583 gap=-0.044 [-0.180,+0.090] | top: n=63 g=30 hit=0.460 p=0.534 gap=-0.073 [-0.199,+0.043]
+  threes       bottom: n=63 g=30 hit=0.492 p=0.538 gap=-0.046 [-0.189,+0.102] | top: n=63 g=34 hit=0.429 p=0.459 gap=-0.030 [-0.139,+0.084]
+  pts_reb_ast  bottom: n=63 g=31 hit=0.460 p=0.431 gap=+0.030 [-0.086,+0.132] | top: n=63 g=32 hit=0.333 p=0.431 gap=-0.098 [-0.204,+0.043]
+
+=== TRAIN (<2026-07-01; constants fitted here) all: n_pg=2895295 games=39080
+resid~mean prev3 resid (raw)
+  points       n=579059 g=39080 slope=+0.0974 [+0.0926,+0.1020]
+  rebounds     n=579059 g=39080 slope=+0.0968 [+0.0914,+0.1018]
+  assists      n=579059 g=39080 slope=+0.1152 [+0.1092,+0.1210]
+  threes       n=579059 g=39080 slope=+0.0539 [+0.0486,+0.0594]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1247 [+0.1198,+0.1295]
+resid~mean prev5 resid (raw)
+  points       n=579059 g=39080 slope=+0.1186 [+0.1128,+0.1243]
+  rebounds     n=579059 g=39080 slope=+0.1163 [+0.1097,+0.1227]
+  assists      n=579059 g=39080 slope=+0.1423 [+0.1347,+0.1495]
+  threes       n=579059 g=39080 slope=+0.0613 [+0.0542,+0.0685]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1479 [+0.1415,+0.1544]
+z~mean prev3 z
+  POOLED       n=2895295 g=39080 slope=+0.0907 [+0.0877,+0.0936]
+  points       n=579059 g=39080 slope=+0.0941 [+0.0896,+0.0987]
+  rebounds     n=579059 g=39080 slope=+0.0867 [+0.0824,+0.0909]
+  assists      n=579059 g=39080 slope=+0.0846 [+0.0803,+0.0892]
+  threes       n=579059 g=39080 slope=+0.0697 [+0.0650,+0.0741]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1191 [+0.1148,+0.1238]
+z~mean prev5 z
+  POOLED       n=2895295 g=39080 slope=+0.1081 [+0.1045,+0.1118]
+  points       n=579059 g=39080 slope=+0.1087 [+0.1031,+0.1144]
+  rebounds     n=579059 g=39080 slope=+0.1028 [+0.0972,+0.1085]
+  assists      n=579059 g=39080 slope=+0.1037 [+0.0983,+0.1093]
+  threes       n=579059 g=39080 slope=+0.0896 [+0.0838,+0.0950]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1356 [+0.1299,+0.1411]
+resid~(raw last5 - exp)
+  points       n=579059 g=39080 slope=+0.1487 [+0.1405,+0.1566]
+  rebounds     n=579059 g=39080 slope=+0.1367 [+0.1289,+0.1446]
+  assists      n=579059 g=39080 slope=+0.1703 [+0.1615,+0.1791]
+  threes       n=579059 g=39080 slope=+0.0728 [+0.0645,+0.0818]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1907 [+0.1825,+0.1984]
+z~(raw5-exp)/sd
+  POOLED       n=2895295 g=39080 slope=+0.1329 [+0.1280,+0.1374]
+  points       n=579059 g=39080 slope=+0.1351 [+0.1280,+0.1427]
+  rebounds     n=579059 g=39080 slope=+0.1158 [+0.1086,+0.1229]
+  assists      n=579059 g=39080 slope=+0.1263 [+0.1192,+0.1332]
+  threes       n=579059 g=39080 slope=+0.1181 [+0.1106,+0.1256]
+  pts_reb_ast  n=579059 g=39080 slope=+0.1741 [+0.1662,+0.1819]
+
+--- decile check TRAIN (<2026-07-01; constants fitted here) all (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=289530 g=37160 hit=0.462 p=0.486 gap=-0.024 [-0.026,-0.021] | top: n=289530 g=37324 hit=0.561 p=0.505 gap=+0.056 [+0.054,+0.058]
+  points       bottom: n=57906 g=28826 hit=0.449 p=0.469 gap=-0.020 [-0.024,-0.016] | top: n=57906 g=29222 hit=0.563 p=0.499 gap=+0.064 [+0.060,+0.068]
+  rebounds     bottom: n=57906 g=28870 hit=0.543 p=0.559 gap=-0.016 [-0.020,-0.012] | top: n=57906 g=29213 hit=0.613 p=0.559 gap=+0.054 [+0.050,+0.058]
+  assists      bottom: n=57906 g=28403 hit=0.513 p=0.540 gap=-0.027 [-0.032,-0.023] | top: n=57906 g=28829 hit=0.588 p=0.539 gap=+0.048 [+0.044,+0.052]
+  threes       bottom: n=57906 g=29097 hit=0.450 p=0.478 gap=-0.028 [-0.032,-0.024] | top: n=57906 g=29434 hit=0.518 p=0.487 gap=+0.031 [+0.027,+0.035]
+  pts_reb_ast  bottom: n=57906 g=28346 hit=0.357 p=0.384 gap=-0.027 [-0.031,-0.023] | top: n=57906 g=28576 hit=0.524 p=0.443 gap=+0.081 [+0.077,+0.085]
+
+=== TRAIN NBA: n_pg=114660 games=1184
+resid~mean prev3 resid (raw)
+  points       n= 22932 g= 1184 slope=+0.1337 [+0.1077,+0.1590]
+  rebounds     n= 22932 g= 1184 slope=+0.0966 [+0.0690,+0.1211]
+  assists      n= 22932 g= 1184 slope=+0.1664 [+0.1384,+0.1946]
+  threes       n= 22932 g= 1184 slope=+0.0921 [+0.0673,+0.1170]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.1592 [+0.1329,+0.1853]
+resid~mean prev5 resid (raw)
+  points       n= 22932 g= 1184 slope=+0.1614 [+0.1303,+0.1936]
+  rebounds     n= 22932 g= 1184 slope=+0.1123 [+0.0781,+0.1446]
+  assists      n= 22932 g= 1184 slope=+0.2074 [+0.1733,+0.2422]
+  threes       n= 22932 g= 1184 slope=+0.0936 [+0.0592,+0.1257]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.1917 [+0.1599,+0.2236]
+z~mean prev3 z
+  POOLED       n=114660 g= 1184 slope=+0.1267 [+0.1105,+0.1437]
+  points       n= 22932 g= 1184 slope=+0.1367 [+0.1125,+0.1606]
+  rebounds     n= 22932 g= 1184 slope=+0.1002 [+0.0781,+0.1228]
+  assists      n= 22932 g= 1184 slope=+0.1378 [+0.1163,+0.1593]
+  threes       n= 22932 g= 1184 slope=+0.0969 [+0.0742,+0.1196]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.1600 [+0.1320,+0.1860]
+z~mean prev5 z
+  POOLED       n=114660 g= 1184 slope=+0.1503 [+0.1294,+0.1698]
+  points       n= 22932 g= 1184 slope=+0.1558 [+0.1266,+0.1856]
+  rebounds     n= 22932 g= 1184 slope=+0.1172 [+0.0872,+0.1442]
+  assists      n= 22932 g= 1184 slope=+0.1736 [+0.1453,+0.1999]
+  threes       n= 22932 g= 1184 slope=+0.1135 [+0.0862,+0.1386]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.1874 [+0.1576,+0.2177]
+resid~(raw last5 - exp)
+  points       n= 22932 g= 1184 slope=+0.1799 [+0.1413,+0.2191]
+  rebounds     n= 22932 g= 1184 slope=+0.1118 [+0.0721,+0.1496]
+  assists      n= 22932 g= 1184 slope=+0.2326 [+0.1913,+0.2740]
+  threes       n= 22932 g= 1184 slope=+0.0957 [+0.0564,+0.1347]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.2189 [+0.1786,+0.2580]
+z~(raw5-exp)/sd
+  POOLED       n=114660 g= 1184 slope=+0.1657 [+0.1440,+0.1885]
+  points       n= 22932 g= 1184 slope=+0.1733 [+0.1359,+0.2110]
+  rebounds     n= 22932 g= 1184 slope=+0.1117 [+0.0762,+0.1465]
+  assists      n= 22932 g= 1184 slope=+0.1962 [+0.1621,+0.2290]
+  threes       n= 22932 g= 1184 slope=+0.1293 [+0.0955,+0.1631]
+  pts_reb_ast  n= 22932 g= 1184 slope=+0.2193 [+0.1807,+0.2589]
+
+--- decile check TRAIN NBA (feature = z-mean prev5; deciles within market)
+  POOLED       bottom: n=11470 g=1173 hit=0.475 p=0.503 gap=-0.028 [-0.040,-0.015] | top: n=11470 g=1176 hit=0.600 p=0.518 gap=+0.082 [+0.070,+0.094]
+  points       bottom: n=2294 g=995 hit=0.449 p=0.469 gap=-0.020 [-0.041,+0.002] | top: n=2294 g=982 hit=0.598 p=0.508 gap=+0.090 [+0.071,+0.110]
+  rebounds     bottom: n=2294 g=998 hit=0.528 p=0.550 gap=-0.022 [-0.041,-0.003] | top: n=2294 g=1012 hit=0.629 p=0.564 gap=+0.065 [+0.045,+0.083]
+  assists      bottom: n=2294 g=983 hit=0.513 p=0.561 gap=-0.049 [-0.068,-0.028] | top: n=2294 g=1016 hit=0.618 p=0.540 gap=+0.078 [+0.058,+0.097]
+  threes       bottom: n=2294 g=1008 hit=0.501 p=0.531 gap=-0.030 [-0.049,-0.010] | top: n=2294 g=1022 hit=0.577 p=0.518 gap=+0.059 [+0.039,+0.078]
+  pts_reb_ast  bottom: n=2294 g=978 hit=0.384 p=0.404 gap=-0.020 [-0.040,-0.000] | top: n=2294 g=964 hit=0.577 p=0.459 gap=+0.118 [+0.097,+0.138]

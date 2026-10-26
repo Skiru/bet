@@ -373,6 +373,15 @@ measurement of Superbet's price and feed nothing else.
   leagues (NCAA, `score_model.BB_HALVES_COMPETITIONS`) only under
   `BB_HALVES_LEAGUES` - OFF (P11: no NCAA basketball in Superbet's offer yet,
   halves not settleable).
+- SHADOW_SETTLE only (correctness fixes 2026-10-26, history readers unchanged): a
+  basketball / hockey `normaltime` above the final score is a payload defect and
+  the periods are read (`build_result(..., allow_final_only=True)`; Golden State -
+  Memphis 10-24 was a whole-game DATA_MISMATCH); a player name is also tried with
+  generational suffixes dropped and adjacent initials joined ("PJ Washington" /
+  "P.J. Washington Jr.", `shadow._bare_name`). A box that does not sum to the score
+  stays refused (Milwaukee - Chicago 10-23, 494 lines; `player_retry`). NBA player
+  model measurements and why no leg prints:
+  `docs/sofa/evidence/nba_player_model_2026-10-26.md`.
 - Basketball second half / Q4 grade on regulation periods (overtime does not
   count); full-game basketball markets include it.
 - A hockey / basketball game with no periods is graded from its final score
