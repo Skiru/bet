@@ -590,3 +590,151 @@ pre.textContent=JSON.stringify(out);document.body.appendChild(pre);
     assert len(out["unread"]) == 2 and not any("Noon" in u for u in out["unread"])
     assert out["blnotes"] == 1 and out["blunread"] == 1
     assert out["readonly"] == 1
+
+
+def _probe(page: str, probe: str, tmp_path: Path, phone: bool = False) -> Any:
+    """Run `probe` in the page in headless Chrome (a profile kept in tmp_path)
+    and return what it passes to done(). `phone`: the page sits in a 390 px
+    frame (an iPhone 13 Pro) - headless Chrome keeps a window >= 500 px."""
+    assert CHROME
+    done = ('const done=o=>{const t=JSON.stringify(o);if(parent!==window)'
+            'parent.postMessage(t,"*");else{const p=document.createElement("pre");'
+            'p.id="probe";p.textContent=t;document.body.appendChild(p)}};')
+    html = tmp_path / "probe.html"
+    html.write_text(page.replace("</body>", f"<script>{done}{probe}</script></body>"),
+                    encoding="utf-8")
+    url = html.as_uri()
+    if phone:
+        host = tmp_path / "host.html"
+        host.write_text(
+            '<body><script>addEventListener("message",e=>{const p=document.'
+            'createElement("pre");p.id="probe";p.textContent=e.data;document.body.'
+            'appendChild(p)})</script><iframe src="probe.html" style="border:0;'
+            'width:390px;height:844px"></iframe></body>', encoding="utf-8")
+        url = host.as_uri()
+    dom = subprocess.run(
+        [CHROME, "--headless=new", "--disable-gpu", "--window-size=1280,900",
+         f"--user-data-dir={tmp_path / 'prof'}", "--virtual-time-budget=10000",
+         "--dump-dom", url],
+        capture_output=True, text=True, timeout=60, check=True).stdout
+    m = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
+    assert m, "the page's script did not run"
+    import html as htmllib
+    return json.loads(htmllib.unescape(m.group(1)))
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_a_long_day_draws_in_chunks_and_loses_no_leg(tmp_path: Path) -> None:
+    # 450 legs: the page draws 200, the rest follows on "pokaż więcej"
+    page = ch.render_html("2026-10-08", ch.build_view(_synthetic(450), "2026-10-08"))
+    out = _probe(page, """
+const G=id=>document.getElementById(id);
+const n=()=>document.querySelectorAll("#body tr[data-id]").length;
+const out={first:n(),more:!!G("more")};
+for(let i=0;i<10&&G("more");i++)G("more").click();
+out.all=n();out.left=!!G("more");
+out.ids=new Set([...document.querySelectorAll("#body tr[data-id]")]
+ .map(t=>t.dataset.id)).size;
+done(out);
+""", tmp_path)
+    assert out["first"] <= 200 + 3 and out["more"]  # whole matches per chunk
+    assert out["all"] == 450 and out["ids"] == 450 and not out["left"]
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_chips_upcoming_and_saved_filters(tmp_path: Path) -> None:
+    doc = _synthetic()
+    page = ch.render_html("2026-10-08", ch.build_view(doc, "2026-10-08"))
+    sports = {s["sport"] for s in doc["singles"]}
+    out = _probe(page, """
+const G=id=>document.getElementById(id);
+const n=()=>document.querySelectorAll("#body tr[data-id]").length;
+const out={all:n(),chips:{}};
+document.querySelectorAll("#chips .chip[data-sport]").forEach(c=>{
+  if(!c.dataset.sport)return;
+  c.click();out.chips[c.dataset.sport]=[n(),G("sport").value,c.classList.contains("on")]});
+G("reset").click();
+// every start of 2026-10-08 is in the past: "nierozpoczęte" leaves nothing
+document.querySelector('#chips .chip[data-t="upcoming"]').click();
+out.upcoming=n();out.badge=G("fcount").textContent;
+G("reset").click();
+document.querySelector('#chips .chip[data-t="xone"]').click();
+out.xmin=G("xmin").value;
+out.saved=JSON.parse(localStorage.getItem("kupon:2026-10-08")).xmin;
+out.page_w=document.documentElement.scrollWidth;out.view_w=window.innerWidth;
+done(out);
+""", tmp_path, phone=True)
+    assert out["all"] == 90
+    assert set(out["chips"]) == sports
+    for sport, (n, chosen, on) in out["chips"].items():
+        assert n == sum(s["sport"] == sport for s in doc["singles"])
+        assert chosen == sport and on
+    assert out["upcoming"] == 0 and out["badge"] == "1"
+    assert out["xmin"] == "1.00" and out["saved"] == "1.00"
+    assert out["page_w"] <= out["view_w"]
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_saved_filters_are_restored_on_reopen(tmp_path: Path) -> None:
+    page = ch.render_html("2026-10-08", ch.build_view(_synthetic(), "2026-10-08"))
+    first = _probe(page, """
+const G=id=>document.getElementById(id);G("sport").value="hockey";
+G("sport").dispatchEvent(new Event("input"));
+done(document.querySelectorAll("#body tr[data-id]").length);
+""", tmp_path)
+    # the same profile opens the page again: the filter is back
+    again = _probe(page, """
+done([document.getElementById("sport").value,
+ document.querySelectorAll("#body tr[data-id]").length]);
+""", tmp_path)
+    assert again == ["hockey", first] and first < 90
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_review_fixes_hold_on_a_phone(tmp_path: Path) -> None:
+    page = ch.render_html("2026-10-08", ch.build_view(_synthetic(450), "2026-10-08"))
+    out = _probe(page, """
+const G=id=>document.getElementById(id);
+const n=()=>document.querySelectorAll("#body tr[data-id]").length;
+const out={};
+// coming back to the page keeps the drawn chunks and an open note
+G("more").click();out.before=n();
+const d=document.querySelector("#body details.rn");d.open=true;
+document.dispatchEvent(new Event("visibilitychange"));
+out.after=n();out.open=d.isConnected&&d.open;
+// a header click shows in the sort list
+document.querySelector('th[data-k="line"]').click();
+const so=G("sort");out.sort=so.options[so.selectedIndex].textContent;
+// ungrouped cards show their start time
+G("group").checked=false;G("group").dispatchEvent(new Event("input"));
+const ko=document.querySelector("#body tr[data-id] .c-ko");
+out.ko=getComputedStyle(ko).display!=="none"&&ko.textContent.length===5;
+out.badge=G("fcount").textContent;
+// an open panel is not stuck over the legs
+G("ftoggle").click();out.pos=getComputedStyle(G("tool")).position;
+out.page_w=document.documentElement.scrollWidth;out.view_w=window.innerWidth;
+done(out);
+""", tmp_path, phone=True)
+    assert out["after"] == out["before"] > 200 and out["open"]
+    assert out["sort"] == "linia ↑"
+    assert out["ko"] and out["badge"] == "1"
+    assert out["pos"] == "static"
+    assert out["view_w"] == 390 and out["page_w"] <= 390
+
+
+@pytest.mark.skipif(CHROME is None, reason="no headless Chrome here")
+def test_a_saved_family_filter_is_not_restored_without_a_record(
+        tmp_path: Path) -> None:
+    doc = _synthetic()
+    with_fam = ch.render_html("2026-10-08",
+                              ch.build_view(doc, "2026-10-08", None, _families()))
+    _probe(with_fam, """
+const c=document.getElementById("famplus");c.checked=true;
+c.dispatchEvent(new Event("input"));done(0);
+""", tmp_path)
+    # the same day rendered without family_record.json: the box is hidden
+    out = _probe(ch.render_html("2026-10-08", ch.build_view(doc, "2026-10-08")), """
+done([document.getElementById("famplus").checked,
+ document.querySelectorAll("#body tr[data-id]").length]);
+""", tmp_path)
+    assert out == [False, 90]

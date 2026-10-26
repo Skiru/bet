@@ -10,6 +10,7 @@ powyżej 0.5" on 2026-10-21, a market SHADOW never read.
 
 from __future__ import annotations
 
+import copy
 import importlib
 import json
 import sqlite3
@@ -291,16 +292,31 @@ def test_sport_confidence_takes_them_only_under_the_evidence_and_refuses_them(
         assert scf.family_of("basketball", mid, family) is None
     calibration = scf.SportCalibration.load(scf.calibration_path_for("2026-10-23"))
     assert calibration is not None
-    evidence = LineEvidence.load(v2=True, bucket_deff=True)
+    live = LineEvidence.load(v2=True, bucket_deff=True)
+    # the installed file gains settled lines every morning (10-26: free
+    # throws made); the families' own keys taken out = none settled yet
+    keys = {scf.curve_key(f, side) for f, _ in V2_FAMILIES.values()
+            for side in ("OVER", "UNDER")}
+    doc = copy.deepcopy(live.doc)
+    bb = (doc.get("keys") or {}).get("basketball") or {}
+    for k in keys:
+        bb.pop(k, None)
+    bare = LineEvidence(doc, live.v2, live.bucket_deff)
     for family, _ in V2_FAMILIES.values():
         for side in ("OVER", "UNDER"):
-            # no history curve and no settled line of the family: refused,
-            # whatever p - never a pooled offset or another family's curve
             for p in (0.55, 0.75, 0.95):
+                # no history curve and no settled line of the family: refused,
+                # whatever p - never a pooled offset or another family's curve
                 conf, offset, cap, why = rsc.read_confidence(
-                    calibration, evidence, "basketball", family, side, p, 1.5)
+                    calibration, bare, "basketball", family, side, p, 1.5)
                 assert (conf, offset, cap, why) == (None, 0.0, None,
                                                     "NO_LINE_EVIDENCE")
+                # with the installed lines: refused, or read from its own key
+                conf, _, _, why = rsc.read_confidence(
+                    calibration, live, "basketball", family, side, p, 1.5)
+                assert why == "NO_LINE_EVIDENCE" or (
+                    conf is not None and conf.calibrated_on
+                    == f"sb:basketball:{scf.curve_key(family, side)}")
 
 
 # --- the screen's words and the relations ---------------------------------------------

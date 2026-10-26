@@ -3261,6 +3261,27 @@ kolumny sortowalne; grupowanie po meczu. Mecz, którego start z
 FIXTURE_CHECK i godziną jego sprawdzenia (10-08: start z rana nie nadążał za
 przesunięciem meczu).
 
+**Wygląd pod iPhone'a i Maca (od 2026-10-26, operator).** Strona ma ciemny
+motyw (`color-scheme: dark`, marginesy bezpiecznego obszaru iPhone'a). Poniżej
+760 px szerokości każda noga to karta (rynek słowami Superbetu, tagi, odczyt,
+pewność / kurs / x, linia, kierunek, próbka, marża, pozycja, wynik), od 761 px
+zostaje tabela z przyklejonym nagłówkiem. Na górze przyklejony pasek:
+wyszukiwarka, przycisk „Filtry” z liczbą aktywnych filtrów (panel ze
+wszystkimi polami jest domyślnie zwinięty), lista sortowania (telefon nie ma
+nagłówków kolumn) i chipy: sport z liczbą nóg, „nierozpoczęte” (start z
+`kickoff_utc` przed chwilą otwarcia znika; także filtr w panelu), „przeczytane”,
+„x ≥ 1”, „bez zablokowanych”. Filtry i sortowanie zapisują się w przeglądarce
+(localStorage, klucz `kupon:<data>`) i wracają przy ponownym otwarciu tego
+samego dnia; „Wyczyść filtry” je kasuje. Pod pewnością pasek: wypełnienie
+= pewność (skala 50–100%), kreska = 1/kurs; zielony, gdy pewność × kurs ≥ 1 -
+tylko rysunek dwóch pól artefaktu. Mecz rozpoczęty jest przygaszony, mecz za
+≤ 90 min ma znacznik „za N min” (liczone przy otwarciu i po powrocie do
+karty). Strona rysuje po 200 nóg (całe mecze), resztę dokłada przy
+przewijaniu albo „pokaż więcej” - filtry, sortowanie i podsumowania liczą
+zawsze wszystkie nogi. Render z wynikami (`--with-results`) ma w nagłówku
+pasek weszło / nie weszło / nie wiadomo i trafność, jednostki, ROI z tabeli
+podsumowania; karta nogi ma kolor wyniku i słowo wyniku na wierzchu.
+
 **Notatki analityków (od 2026-10-22, tylko wyświetlanie).** Każdy odczyt z
 `reads.json`, który CONFIDENCE dołożył do nogi (`leg["reads"]`), jest na nodze:
 w HTML rozwijana notatka (werdykt, autor - analityk / weryfikator / automat -

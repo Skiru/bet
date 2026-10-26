@@ -296,6 +296,7 @@ def build_view(
             "event_id": str(b.get("sofascore_event_id") or ""),
             "match": str(b.get("match") or ""),
             "competition": str(b.get("competition") or ""),
+            "ko_utc": str(b.get("kickoff_utc") or ""),
             "ko_local": f"{ko:%Y-%m-%d %H:%M}" if ko else "",
             "ko_min": minutes_of_day(ko, day),
             "locked": bool(b.get("locked")),

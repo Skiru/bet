@@ -1,113 +1,297 @@
 <!doctype html>
 <html lang="pl"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kupon __DATE__ - widok z filtrami</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d131d">
+<meta name="format-detection" content="telephone=no">
+<title>Kupon __DATE__</title>
 <style>
-:root{--ink:#1d2330;--mut:#667085;--line:#e4e7ec;--bg:#f7f8fa;--acc:#1f5fa8;--warn:#b25b00;--bad:#b23b3b}
-*{box-sizing:border-box}body{margin:0;font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
-header{padding:12px 16px;background:#fff;border-bottom:1px solid var(--line)}
-h1{font-size:17px;margin:0 0 3px}.note{color:var(--mut);font-size:12px}
-.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-.bar label{display:flex;flex-direction:column;font-size:11px;color:var(--mut);gap:2px}
-.bar input,.bar select{font:inherit;padding:3px 5px;border:1px solid #cfd4dc;border-radius:4px;background:#fff;color:var(--ink)}
-.bar input[type=number]{width:70px}.bar input[type=time]{width:92px}.chk{flex-direction:row!important;align-items:center;gap:4px!important;color:var(--ink)!important;font-size:12px!important}
-button{font:inherit;padding:4px 10px;border:1px solid #cfd4dc;border-radius:4px;background:#fff;cursor:pointer}
-#count{padding:8px 16px;color:var(--mut)}
-table{border-collapse:collapse;width:100%;background:#fff}
-th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{position:sticky;top:var(--bh,0px);background:#f1f3f6;cursor:pointer;user-select:none;font-size:11px;color:var(--mut);white-space:nowrap}
-td.n,th.n{text-align:right}tr.m td{background:#eef3fa;font-weight:600}
-tr.lk td{color:var(--mut)}.tag{font-size:10.5px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);margin-left:4px;white-space:nowrap}
-.warn{color:var(--warn);border-color:var(--warn)}.bad{color:var(--bad);border-color:var(--bad)}.acc{color:var(--acc);border-color:var(--acc)}
-h2{font-size:14px;margin:18px 16px 6px}.bl{margin:0 16px 10px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:5px}
-.bl ul{margin:4px 0 0 16px;padding:0}
-tr.won td,li.won{background:#dcf2e3}tr.lost td,li.lost{background:#f8dcdc}tr.unknown td,tr.refund td,li.unknown,li.refund{background:#fff3c4}
-.rw{color:#1b7f4b;font-weight:600}.rl{color:#b23b3b;font-weight:600}.ru{color:#8a6d00;font-weight:600}
-.ok{color:#1b7f4b;border-color:#1b7f4b}details.rn{margin-top:3px;font-size:11.5px;font-weight:400;color:var(--ink)}details.rn summary{cursor:pointer;color:var(--mut)}details.rn div{margin:2px 0 0 12px;white-space:pre-wrap}details.an{margin:4px 0 0 12px;font-size:12px;font-weight:400;color:var(--ink)}details.an>summary{cursor:pointer;color:var(--acc)}.md{margin:4px 0 6px;padding:8px 10px;background:#fbfcfd;border:1px solid var(--line);border-radius:5px;max-width:980px;white-space:normal;overflow-x:auto}.md p{margin:4px 0}.md .h{font-weight:700;margin:8px 0 2px}.md table{width:auto;margin:4px 0}.md td,.md th{position:static;padding:2px 6px;font-size:11.5px;cursor:default}.md ul{margin:2px 0 2px 16px;padding:0}.md code{font-size:11px;background:#f1f3f6;padding:0 2px}.md .src{color:var(--mut);font-size:11px}.md pre{white-space:pre-wrap;font-size:11px;background:#f1f3f6;padding:4px 6px;margin:4px 0}
-.vK{color:#1b7f4b}.vW{color:var(--warn)}.vN{color:var(--bad)}.res{font-size:11.5px;white-space:nowrap}
-#summary{margin:0 16px 24px;overflow-x:auto}
-.tabs{display:flex;gap:4px;padding:8px 16px 0;background:#fff;border-bottom:1px solid var(--line)}
-.tabs button{border-bottom:none;border-radius:5px 5px 0 0;background:#f1f3f6;color:var(--mut)}.tabs button.on{background:#fff;color:var(--ink);font-weight:600;border-color:var(--acc)}
-.viewonly{margin:10px 16px;padding:10px 12px;border:2px solid var(--warn);border-radius:6px;background:#fff8ec;color:var(--ink)}
-.viewonly b{color:var(--warn)}.viewonly b.big{font-size:15px}
-#apager{display:flex;gap:8px;align-items:center;padding:8px 16px;color:var(--mut)}#acount{padding:8px 16px;color:var(--mut)}
-td.why{font-size:11.5px;color:var(--mut)}td.pr{font-weight:600;color:#1b7f4b}tr.ap td{background:#eef7f1}
-/* a phone: the wide table scrolls in its own box, the page never sideways
-   (the sticky header holds only where the page itself scrolls) */
-@media (max-width:900px){.tw{overflow-x:auto}.bar{position:static}th{position:static}body{overflow-x:hidden}}#summary table{width:auto}#summary td,#summary th{position:static;cursor:default}#summary tr:last-child td{font-weight:700}
+/* Night palette: the page is read on an iPhone in the evening and on a Mac.
+   One deliberate element - the confidence meter: its fill is the leg's
+   confidence, its tick the price's 1/odds (both fields of the artifact). */
+:root{
+ --bg:#0d131d;--s1:#141c29;--s2:#1a2434;--s3:#223047;--line:#26324a;--line2:#33415c;
+ --ink:#e6ebf3;--mut:#94a0b6;--dim:#66728a;
+ --acc:#7cc0ff;--good:#4fd18b;--bad:#ff7d7d;--warn:#f2b84b;
+ --t-good:rgba(79,209,139,.11);--t-bad:rgba(255,125,125,.11);--t-warn:rgba(242,184,75,.11);
+ --r:10px;--gut:max(12px,env(safe-area-inset-left));--gutr:max(12px,env(safe-area-inset-right));
+ color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+ font-variant-numeric:tabular-nums;padding-bottom:env(safe-area-inset-bottom);overflow-x:hidden}
+a{color:var(--acc)}code{font-size:.92em;background:var(--s2);padding:0 4px;border-radius:4px}
+button,input,select{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.note{color:var(--mut);font-size:12.5px}
+/* --- hero: the day at a glance ------------------------------------------- */
+.hero{padding:calc(14px + env(safe-area-inset-top)) var(--gutr) 12px var(--gut)}
+.hero h1{margin:0;font:600 26px/1.15 ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;letter-spacing:-.01em}
+.hero h1 small{font-size:15px;font-weight:500;color:var(--mut);margin-left:8px}
+.lede{margin:6px 0 0;color:var(--mut);font-size:13.5px;max-width:70ch}
+.lede b{color:var(--ink);font-weight:600}
+.tally{margin:12px 0 2px;max-width:560px}
+.tally .strip{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--s2)}
+.tally .strip i{display:block}
+.tally .nums{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13.5px}
+.tally .nums b{font:600 20px/1 ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;margin-right:4px}
+.about{margin-top:10px;font-size:12.5px;color:var(--mut)}
+.about summary{cursor:pointer;color:var(--acc);list-style:none}.about summary::-webkit-details-marker{display:none}
+.about summary::before{content:"ⓘ ";}
+.about>div{margin-top:6px;max-width:80ch}.about .note{margin:4px 0}
+/* --- tabs ------------------------------------------------------------------ */
+.tabs{display:flex;gap:4px;margin:0 var(--gutr) 0 var(--gut);padding:3px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);width:max-content;max-width:calc(100% - 24px)}
+.tabs button{border:0;background:none;padding:7px 14px;border-radius:7px;color:var(--mut);cursor:pointer;font-weight:500}
+.tabs button.on{background:var(--s3);color:var(--ink)}
+/* --- sticky tool row ---------------------------------------------------------- */
+.tool{position:sticky;top:0;z-index:20;background:rgba(13,19,29,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+ border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top)) var(--gutr) 8px var(--gut);margin-top:10px}
+.trow{display:flex;gap:8px;align-items:center}
+.trow input[type=search]{flex:1;min-width:0}
+input,select{background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;min-height:36px}
+input::placeholder{color:var(--dim)}
+input[type=number]{width:84px}input[type=time]{width:104px}
+select{padding-right:6px}
+.btn{background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;min-height:36px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--acc)}
+.btn.on{background:var(--s3);border-color:var(--acc)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--acc);color:#08111c;font-size:11.5px;font-weight:700;text-align:center}
+.badge:empty{display:none}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line2);background:var(--s1);color:var(--mut);border-radius:16px;padding:5px 11px;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#08111c;font-weight:600}
+.chip .n{opacity:.7;margin-left:3px}
+.sep{flex:none;width:1px;background:var(--line2);margin:4px 2px}
+.bar{display:none;flex-wrap:wrap;gap:10px 14px;align-items:end;padding:10px 0 4px}
+.tool.open .bar{display:flex}
+.bar label{display:flex;flex-direction:column;font-size:11.5px;color:var(--mut);gap:3px}
+.bar .chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:13px;min-height:36px}
+.chk input{width:18px;height:18px;min-height:0;accent-color:var(--acc)}
+.bar .acts{display:flex;gap:8px;flex-direction:row}
+#count{padding:10px var(--gutr) 6px var(--gut);color:var(--mut);font-size:12.5px}
+/* --- the legs: a table on a wide screen ------------------------------------- */
+.tw{padding:0 var(--gutr) 0 var(--gut)}
+table.legs{border-collapse:separate;border-spacing:0;width:100%}
+.legs th,.legs td{padding:7px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.legs th{position:sticky;top:var(--th,0px);z-index:5;background:var(--s1);color:var(--mut);font-size:11.5px;font-weight:600;cursor:pointer;user-select:none;white-space:nowrap}
+.legs th.sorted{color:var(--acc)}.legs th.sorted::after{content:attr(data-dir);margin-left:3px}
+.legs td.n,.legs th.n{text-align:right}
+.legs tbody tr[data-id]:not(.won):not(.lost):not(.unknown):not(.refund):hover td{background:rgba(124,192,255,.04)}
+tr.m td{background:var(--s1);border-top:12px solid var(--bg);padding:9px}
+tr.m td{border-radius:var(--r) var(--r) 0 0}
+tr.m .mt{font-weight:650;font-size:15px}tr.m .when{display:inline-block;min-width:52px;margin-right:8px}
+tr.m .when{font:600 15px ui-rounded,"SF Pro Rounded",-apple-system,sans-serif}
+tr.m.past .when,tr.m.past .mt{color:var(--mut)}
+tr.lk td{color:var(--mut)}
+tr.won td{background:var(--t-good)}tr.lost td{background:var(--t-bad)}tr.unknown td,tr.refund td{background:var(--t-warn)}
+.mkt{font-weight:550}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{display:inline-block;font-size:11.5px;line-height:1.35;padding:1px 7px;border-radius:9px;border:1px solid var(--line2);color:var(--mut);max-width:100%;overflow-wrap:anywhere;vertical-align:middle}
+.tag.warn{color:var(--warn);border-color:rgba(242,184,75,.45)}.tag.bad{color:var(--bad);border-color:rgba(255,125,125,.45)}
+.tag.acc{color:var(--acc);border-color:rgba(124,192,255,.45)}.tag.ok{color:var(--good);border-color:rgba(79,209,139,.45)}
+.tag.soon{background:var(--warn);border-color:var(--warn);color:#1a1205;font-weight:600}
+.conf b{font-size:15px;font-weight:650}
+.meter{position:relative;display:block;width:86px;height:6px;margin:5px 0 0 auto;border-radius:3px;background:var(--s3)}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--acc)}
+.meter.over i{background:var(--good)}
+.meter u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--ink);border-radius:1px}
+.rw{color:var(--good);font-weight:650}.rl{color:var(--bad);font-weight:650}.ru{color:var(--warn);font-weight:650}
+.res{font-size:12.5px}
+.vK{color:var(--good)}.vW{color:var(--warn)}.vN{color:var(--bad)}
+details.rn{margin-top:6px;font-size:12.5px;font-weight:400;color:var(--ink)}
+details.rn>summary{cursor:pointer;color:var(--mut);line-height:1.4}
+details.rn>div{margin:4px 0 0 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+details.an{margin:6px 0 0 12px;font-size:13px}details.an>summary{cursor:pointer;color:var(--acc)}
+.md{margin:6px 0;padding:10px 12px;background:var(--s1);border:1px solid var(--line);border-radius:8px;max-width:980px;white-space:normal;overflow-x:auto;overflow-wrap:anywhere}
+.md p{margin:5px 0}.md .h{font-weight:700;margin:10px 0 3px}.md table{border-collapse:collapse;margin:5px 0}
+.md td,.md th{padding:3px 7px;font-size:12px;border:1px solid var(--line);position:static;background:none;cursor:default;color:var(--ink)}
+.md ul{margin:3px 0 3px 18px;padding:0}.md .src{color:var(--dim);font-size:11.5px}
+.md pre{white-space:pre-wrap;font-size:11.5px;background:var(--s2);padding:6px 8px;margin:5px 0;border-radius:6px}
+tr.more td{text-align:center;color:var(--acc);cursor:pointer;padding:14px}
+/* --- builders, summary ---------------------------------------------------------- */
+h2{font:600 18px ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;margin:26px var(--gutr) 8px var(--gut)}
+.bl{margin:0 var(--gutr) 10px var(--gut);padding:12px 14px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r)}
+.bl.won{border-left:4px solid var(--good)}.bl.lost{border-left:4px solid var(--bad)}.bl.unknown,.bl.refund{border-left:4px solid var(--warn)}
+.bl .bh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.bl .bh b{font-size:15px}
+.bl ul{margin:8px 0 0;padding:0;list-style:none}
+.bl li{padding:7px 0 7px 10px;border-top:1px solid var(--line);border-left:3px solid transparent}
+li.won{border-left-color:var(--good);background:var(--t-good)}li.lost{border-left-color:var(--bad);background:var(--t-bad)}
+li.unknown,li.refund{border-left-color:var(--warn);background:var(--t-warn)}
+#summary{margin:0 var(--gutr) 30px var(--gut);overflow-x:auto}
+#summary table{border-collapse:collapse;margin-top:8px}
+#summary td,#summary th{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+#summary th{color:var(--mut);font-size:11.5px;font-weight:600}
+#summary .n{text-align:right}#summary tr:last-child td{font-weight:700;border-bottom:0}
+/* --- "Wszystkie wyceny" ------------------------------------------------------------ */
+.viewonly{margin:12px var(--gutr) 0 var(--gut);padding:12px 14px;border:1px solid rgba(242,184,75,.5);border-radius:var(--r);background:rgba(242,184,75,.07);font-size:13px;color:var(--mut)}
+.viewonly b{color:var(--warn)}.viewonly b.big{font-size:15px;display:block;margin-bottom:4px}
+#abar{display:flex}#paneA .tool{position:static}#paneA .legs th{top:0}
+#acount{padding:10px var(--gutr) 6px var(--gut);color:var(--mut);font-size:12.5px}
+#apager{display:flex;gap:10px;align-items:center;justify-content:center;padding:14px;color:var(--mut)}
+td.why{font-size:12.5px;color:var(--mut)}td.pr{font-weight:650;color:var(--good)}
+tr.ap td{background:var(--t-good)}
+.legs .sub{color:var(--mut);font-size:12px}
+/* --- a phone: every leg a card, no sideways scroll -------------------------------- */
+@media (max-width:760px){
+ body{font-size:15px}
+ input,select,.btn{font-size:16px}  /* iOS zooms into a field under 16px */
+ input[type=number]{width:96px}
+ .tool.open{position:static}
+ .bar label{flex:1 1 140px}.bar label.chk{flex:1 1 100%}
+ .bar label input,.bar label select{width:100%}
+ .tw{padding:0 var(--gutr) 0 var(--gut)}
+ table.legs,.legs tbody{display:block}
+ .legs thead{display:none}
+ .legs tr.m{display:block;margin-top:14px}
+ .legs tr.m td{display:block;border:0;padding:11px 12px 9px}
+ .a-ko{display:none!important}
+ .legs tr[data-id]{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));column-gap:8px;row-gap:4px;padding:10px 12px;
+  background:var(--s1);border-top:1px solid var(--line);grid-template-areas:"ko match match match match" "mkt mkt mkt mkt mkt" "conf conf conf odds x" "line dir smp mar pos" "res res res res res"}
+ .legs tr.m+tr[data-id]{border-top-color:var(--line2)}
+ .legs tr[data-id] td{display:block;padding:0;border:0;background:none!important;text-align:left!important;min-width:0}
+ .legs tr[data-id] td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--dim);font-weight:500;line-height:1.3}
+ .legs tr.won{background:var(--t-good)!important;box-shadow:inset 4px 0 var(--good)}
+ .legs tr.lost{background:var(--t-bad)!important;box-shadow:inset 4px 0 var(--bad)}
+ .legs tr.unknown,.legs tr.refund{background:var(--t-warn)!important;box-shadow:inset 4px 0 var(--warn)}
+ .c-ko{grid-area:ko;font-weight:600}
+ .c-match{grid-area:match;font-weight:600}
+ .legs.grouped .c-ko{display:none!important}
+ .legs.grouped .c-match{display:none!important}
+ .c-mkt{grid-area:mkt;font-size:15.5px}
+ .c-conf{grid-area:conf}.c-odds{grid-area:odds}.c-x{grid-area:x}
+ .c-line{grid-area:line}.c-dir{grid-area:dir}.c-smp{grid-area:smp}.c-mar{grid-area:mar}.c-pos{grid-area:pos}
+ .c-res{grid-area:res}.c-res:empty{display:none!important}
+ .c-conf b,.c-odds,.c-x{font-size:17px;font-weight:650}
+ .c-line,.c-dir,.c-smp,.c-mar,.c-pos{font-size:12.5px;color:var(--mut)}
+ .c-res .res{color:var(--mut)}
+ .meter{width:100%;margin:6px 0 2px;height:7px}
+ .legs tr.more{display:block}.legs tr.more td{display:block}
+ /* the priced tab's rows */
+ #abody tr[data-id]{grid-template-areas:"match match match match match" "mkt mkt mkt mkt mkt" "odds p conf pr pr" "why why why why why"}
+ .a-match{grid-area:match}.a-sport{display:none!important}.a-mkt{grid-area:mkt}.a-line,.a-dir{display:none!important}
+ .a-odds{grid-area:odds}.a-p{grid-area:p}.a-conf{grid-area:conf}.a-pr{grid-area:pr}.a-why{grid-area:why}
+ .a-why:empty{display:none!important}
+ #abody tr.ap{background:var(--t-good)}
+ .tabs{width:auto}.tabs button{flex:1}
+}
+@media (min-width:761px){
+ body{font-size:13.5px}
+ .hero{padding-top:22px}
+ .legs .c-match{max-width:260px}
+ .legs .c-res{min-width:200px}
+ .legs.grouped .c-ko,.legs.grouped .c-match,.legs.grouped th[data-k=ko_local],.legs.grouped th[data-k=match]{display:none}
+ tr.m .tags{padding-left:60px}
+}
+@media print{
+ :root{--bg:#fff;--s1:#f3f5f8;--s2:#eef1f5;--s3:#dde3ea;--line:#d5dbe3;--line2:#c4ccd7;--ink:#111;--mut:#555;--dim:#777;--acc:#1f5fa8;--good:#1b7f4b;--bad:#b23b3b;--warn:#8a5a00;color-scheme:light}
+ .tool,.tabs,tr.more,#apager{display:none!important}.legs th{position:static}details.rn>summary{color:var(--ink)}}
+@media (prefers-reduced-motion:no-preference){.chip,.btn,.tabs button{transition:background-color .12s,border-color .12s,color .12s}}
 </style></head><body>
-<header><h1>Kupon __DATE__ - widok z filtrami</h1>
-<div class="note">To jest widok nóg kuponu z <code>11_coupon.json</code>, nie osobny kupon: kuponem jest <b>KUPON___DATE__.pdf</b>.
-Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (builder: kursy nóg z Superbetu, kurs buildera sprawdź na ekranie).</div>
-<div class="note" id="meta"></div>
-<div class="note" id="famnote"></div></header>
-<nav class="tabs" id="tabs"><button id="tabK" class="on">Kupon (wydrukowane nogi)</button><button id="tabA">Wszystkie wyceny</button></nav>
+<header class="hero">
+<h1>Kupon __DATE__<small id="hday"></small></h1>
+<p class="lede" id="lede"></p>
+<div class="tally" id="tally" hidden></div>
+<details class="about"><summary>Co pokazuje ta strona</summary><div>
+<p class="note">To widok nóg kuponu z <code>11_coupon.json</code>, nie osobny kupon: kuponem jest <b>KUPON___DATE__.pdf</b>.
+Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (builder: kursy nóg z Superbetu, kurs buildera sprawdź na ekranie).</p>
+<p class="note">Pasek pod pewnością: wypełnienie to pewność (skala 50–100%), kreska to cena, czyli 1/kurs. Zielone wypełnienie: pewność × kurs ≥ 1.</p>
+<p class="note" id="meta"></p>
+<p class="note" id="famnote"></p>
+</div></details>
+</header>
+<nav class="tabs" id="tabs"><button id="tabK" class="on">Kupon</button><button id="tabA">Wszystkie wyceny</button></nav>
 <div id="paneK">
+<div class="tool" id="tool">
+<div class="trow">
+<input type="search" id="q" placeholder="Szukaj: mecz, zawodnik, rynek" autocomplete="off" enterkeyhint="search" aria-label="szukaj">
+<button class="btn" id="ftoggle" aria-expanded="false" aria-controls="bar">Filtry<span class="badge" id="fcount"></span></button>
+<select id="sort" aria-label="sortuj"></select>
+</div>
+<div class="chips" id="chips"></div>
 <div class="bar" id="bar">
 <label>od godziny<input type="time" id="t0"></label>
 <label>do godziny<input type="time" id="t1"></label>
-<label>min. pewność<input type="number" id="cmin" step="0.01" min="0" max="1" placeholder="0.70"></label>
-<label>min. x<input type="number" id="xmin" step="0.01" min="0" placeholder="1.00"></label>
-<label>kurs od<input type="number" id="o0" step="0.01" min="1"></label>
-<label>kurs do<input type="number" id="o1" step="0.01" min="1"></label>
+<label>min. pewność<input type="number" id="cmin" step="0.01" min="0" max="1" placeholder="0.70" inputmode="decimal"></label>
+<label>min. x<input type="number" id="xmin" step="0.01" min="0" placeholder="1.00" inputmode="decimal"></label>
+<label>kurs od<input type="number" id="o0" step="0.01" min="1" inputmode="decimal"></label>
+<label>kurs do<input type="number" id="o1" step="0.01" min="1" inputmode="decimal"></label>
 <label>sport<select id="sport"><option value="">wszystkie</option></select></label>
 <label>turniej<select id="comp"><option value="">wszystkie</option></select></label>
 <label>rynek<select id="fam"><option value="">wszystkie</option></select></label>
 <label>kierunek<select id="dir"><option value="">oba</option><option>OVER</option><option>UNDER</option></select></label>
-<label>szukaj<input type="search" id="q" placeholder="mecz, zawodnik, rynek"></label>
 <label id="reswrap">wynik<select id="res"><option value="">wszystkie</option><option value="won">weszło</option><option value="lost">nie weszło</option><option value="unknown">nie wiadomo / zwrot</option></select></label>
+<label class="chk"><input type="checkbox" id="upcoming">tylko nierozpoczęte</label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
 <label class="chk" id="famwrap"><input type="checkbox" id="famplus">tylko rodziny na plusie</label>
-<button id="best">x ≥ 1 i rodzina na plusie</button>
-<button id="reset">wyczyść filtry</button>
+<div class="acts"><button class="btn" id="best">x ≥ 1 i rodzina na plusie</button>
+<button class="btn" id="reset">Wyczyść filtry</button></div>
 </div>
-<div id="count"></div>
-<div class="tw"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
+</div>
+<div id="count" aria-live="polite"></div>
+<div class="tw"><table class="legs"><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
 <h2 id="bh">Bet Buildery</h2><div id="builders"></div>
 <h2 id="sh">Podsumowanie wyników</h2><div id="summary"></div>
 </div>
 <div id="paneA" hidden>
 <div class="viewonly"><b class="big">To nie kupon - podgląd wszystkich wycen.</b> Każdy wiersz, który pipeline tego dnia wycenił: piłka nożna i tenis z <code>05_sheet.json</code>, hokej / koszykówka / siatkówka / CS2 - każda strona rynku Superbetu, którą przeczytał SPORT_CONFIDENCE.
 Kolumna <b>druk</b> mówi, czy wiersz jest na kuponie (<code>11_coupon.json</code>); <b>powód</b> - na której bramce etap pewności go zatrzymał (<code>08_refusals.json</code>, <code>08_refusals_sports.json</code>). Kuponem jest wyłącznie <b>KUPON___DATE__.pdf</b>: tu nic się nie drukuje, nie ma stawek ani kursów łączonych, a <b>p</b> (statystyki, bez ceny) i <b>pewność</b> (krzywa kalibracji) to dwie różne liczby - pewność jest tylko tam, gdzie etap do niej doszedł.</div>
-<div class="bar" id="abar">
+<div class="tool"><div class="bar" id="abar">
 <label>sport<select id="asport"><option value="">wszystkie</option></select></label>
 <label>mecz<select id="amatch"><option value="">wszystkie</option></select></label>
 <label>rynek (rodzina)<select id="afam"><option value="">wszystkie</option></select></label>
 <label>druk<select id="aprinted"><option value="">wszystkie</option><option value="1">wydrukowane</option><option value="0">niewydrukowane</option></select></label>
 <label>powód<select id="areason"><option value="">wszystkie</option></select></label>
-<label>szukaj<input type="search" id="aq" placeholder="mecz, rynek, zawodnik"></label>
-<button id="areset">wyczyść filtry</button>
-</div>
+<label>szukaj<input type="search" id="aq" placeholder="mecz, rynek, zawodnik" autocomplete="off"></label>
+<div class="acts"><button class="btn" id="areset">Wyczyść filtry</button></div>
+</div></div>
 <div id="acount"></div>
-<div class="tw"><table><thead><tr id="ahead"></tr></thead><tbody id="abody"></tbody></table></div>
-<div id="apager"><button id="aprev">‹ poprzednia</button><span id="apage"></span><button id="anext">następna ›</button></div>
+<div class="tw"><table class="legs"><thead><tr id="ahead"></tr></thead><tbody id="abody"></tbody></table></div>
+<div id="apager"><button class="btn" id="aprev">‹ poprzednia</button><span id="apage"></span><button class="btn" id="anext">następna ›</button></div>
 </div>
 <script id="priced" type="text/plain">__PRICED__</script>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 "use strict";
-const V=JSON.parse(document.getElementById("data").textContent),R=V.rows,B=V.builders;
+const V=JSON.parse(document.getElementById("data").textContent),R=V.rows,B=V.builders,DAY="__DATE__";
 const $=id=>document.getElementById(id);
-const COLS=[["ko_local","godzina"],["match","mecz"],["market","rynek"],["line","linia"],["direction","kier."],
- ["confidence","pewność","n"],["odds","kurs","n"],["x","x","n"],["margin","marża","n"],["sample","próbka"],["position","#","n"]];
+// [key, header, numeric?, card label]
+const COLS=[["ko_local","godzina"],["match","mecz"],["market","rynek"],["line","linia","","linia"],["direction","kier.","","kier."],
+ ["confidence","pewność","n","pewność"],["odds","kurs","n","kurs"],["x","x","n","x"],["margin","marża","n","marża"],["sample","próbka","","próbka"],["position","#","n","#"]];
 // the settled result of each row (bet.sofa.coupon_results), once the day is settled
 const RES=V.meta.results;if(RES)COLS.push(["res_rank","wynik"]);
 const RC={won:"rw",lost:"rl",refund:"ru",unknown:"ru"};
-function resCell(x){if(!x)return "";return '<span class="res">typ: '+esc(x.claim)+'<br>było: <b>'+esc(x.actual)+'</b></span><br><span class="'+RC[x.status]+'">'+esc(x.word)+'</span>'}
+function resCell(x){if(!x)return "";return '<span class="'+RC[x.status]+'">'+esc(x.word)+'</span><br><span class="res">typ: '+esc(x.claim)+'<br>było: <b>'+esc(x.actual)+'</b></span>'}
 let sortKey="confidence",sortDir=-1;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const uniq=k=>[...new Set(R.map(r=>r[k]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
 function fill(id,vals){const s=$(id);vals.forEach(v=>{const o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)})}
 fill("sport",uniq("sport"));fill("comp",uniq("competition"));fill("fam",uniq("family"));
+const SPORT_PL={football:"piłka",tennis:"tenis",hockey:"hokej",basketball:"koszykówka",volleyball:"siatkówka",cs2:"CS2"};
+const plural=(n,a,b,c)=>n+" "+(n===1?a:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?b:c);
+// --- the hero ---------------------------------------------------------------
+(function(){const d=new Date(DAY+"T12:00:00Z");
+ if(!isNaN(d))$("hday").textContent=["niedziela","poniedziałek","wtorek","środa","czwartek","piątek","sobota"][d.getUTCDay()];
+ const ev=new Set(R.map(r=>r.event)).size;
+ let t='<b>'+plural(R.length,"noga","nogi","nóg")+'</b> w '+plural(ev,"meczu","meczach","meczach")+(B.length?', <b>'+plural(B.length,"builder","buildery","builderów")+'</b>':'')+'.';
+ if(V.meta.built_local)t+=' Zbudowany '+esc(V.meta.built_local)+(V.meta.fixture_check_local?', godziny startu sprawdzone '+esc(V.meta.fixture_check_local):'')+'.';
+ $("lede").innerHTML=t;
+ if(RES){const a=RES.summary[RES.summary.length-1],n=s=>parseInt(s,10)||0,w=n(a.won),l=n(a.lost),o=n(a.other),tot=Math.max(1,w+l+o);
+  $("tally").hidden=false;
+  $("tally").innerHTML='<div class="strip" role="img" aria-label="weszło '+w+', nie weszło '+l+', nie wiadomo lub zwrot '+o+'"><i style="width:'+(100*w/tot)+'%;background:var(--good)"></i><i style="width:'+(100*l/tot)+'%;background:var(--bad)"></i><i style="width:'+(100*o/tot)+'%;background:var(--warn)"></i></div>'+
+   '<div class="nums"><span class="rw"><b>'+w+'</b>weszło</span><span class="rl"><b>'+l+'</b>nie weszło</span><span class="ru"><b>'+o+'</b>nie wiadomo / zwrot</span>'+
+   '<span>trafność <b>'+esc(a.hit)+'</b></span><span>śr. pewność '+esc(a.conf)+'</span><span>jedn. '+esc(a.units)+' (ROI '+esc(a.roi)+')</span></div>'}
+})();
 $("meta").textContent="Zbudowany "+V.meta.built_local+" • godziny startu sprawdzone przez FIXTURE_CHECK o "+(V.meta.fixture_check_local||"—")+
- " • "+R.length+" nóg, "+B.length+" builderów. Start z rana mógł się przesunąć: oznaczone przy meczu. Kliknij nagłówek kolumny, by sortować (np. godzina rosnąco, pewność malejąco).";
+ " • "+R.length+" nóg, "+B.length+" builderów. Start z rana mógł się przesunąć: oznaczone przy meczu. Kliknij nagłówek kolumny albo wybierz sortowanie obok wyszukiwarki.";
 const F=V.meta.families;
 if(F){$("famnote").textContent="Rodzina = sport, rynek i kierunek. „Na plusie”: jej drukowane nogi z dni "+(F.span||"(brak dni)")+" dały zysk przy co najmniej "+F.min_legs+" nogach ("+F.on_plus+" rodzin). x = pewność × kurs. "+F.measured+" Przycisk „x ≥ 1 i rodzina na plusie” ustawia oba filtry, reszty nie rusza.";}
 else{$("famwrap").style.display="none";$("best").style.display="none";$("famnote").textContent="Brak rekordu rodzin (family_record.json) - filtr rodzin wyłączony.";}
 if(RES){const a=RES.summary[RES.summary.length-1];$("meta").textContent+=" • WYNIKI ("+RES.computed_utc+"Z): weszło "+a.won+", nie weszło "+a.lost+", nie wiadomo / zwrot "+a.other+" z "+a.legs+"; trafność "+a.hit+" przy śr. pewności "+a.conf+" - podsumowanie na końcu strony."}
 const hm=v=>{if(!v)return null;const[a,b]=v.split(":");return +a*60+ +b};
+const started=t=>{const s=Date.parse(t);return !isNaN(s)&&s<=Date.now()};
 function pass(r){
   const t0=hm($("t0").value),t1=hm($("t1").value);
   if(t0!=null&&r.ko_min<t0)return false;
@@ -124,6 +308,7 @@ function pass(r){
   if($("dir").value&&r.direction!==$("dir").value)return false;
   if($("nolock").checked&&r.locked)return false;
   if($("readonly").checked&&!r.read_done)return false;
+  if($("upcoming").checked&&started(r.ko_utc))return false;
   const rs=$("res").value;if(rs&&(!r.res||(rs==="unknown"?!(r.res.status==="unknown"||r.res.status==="refund"):r.res.status!==rs)))return false;
   const q=$("q").value.trim().toLowerCase();
   if(q&&!(r.match+" "+r.competition+" "+r.market+" "+r.family).toLowerCase().includes(q))return false;
@@ -134,13 +319,13 @@ function cmp(a,b){let x=sv(a,sortKey),y=sv(b,sortKey);
   return (typeof x==="number"?x-y:String(x).localeCompare(String(y)))*sortDir}
 const f3=v=>v==null?"—":v.toFixed(3),f2=v=>v==null?"—":v.toFixed(2);
 function tags(r){let t="";
-  if(r.peer)t+=' <span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
-  if(r.price_gap)t+=' <span class="tag warn">'+esc(r.price_gap)+'</span>';
-  if(r.fam_note)t+=' <span class="tag acc">'+esc(r.fam_note)+'</span>';
-  if(r.locked)t+=' <span class="tag">zablokowana</span>';
-  if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+=' <span class="tag bad">'+r.verdict+'</span>';
-  else if(r.read_done)t+=' <span class="tag ok">przeczytana</span>';
-  return t}
+  if(r.peer)t+='<span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
+  if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
+  if(r.fam_note)t+='<span class="tag acc">'+esc(r.fam_note)+'</span>';
+  if(r.locked)t+='<span class="tag">zablokowana</span>';
+  if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+='<span class="tag bad">'+r.verdict+'</span>';
+  else if(r.read_done)t+='<span class="tag ok">przeczytana</span>';
+  return t?'<div class="tags">'+t+'</div>':""}
 // the analysts' reads riding on the leg (reads.json): verdict, author, reason;
 // the first note's opening words stay visible, the full text unfolds
 const WHO={analyst:"analityk",verifier:"weryfikator",auto:"automat"},VC={KEEP:"vK",WATCH:"vW",NO_BET:"vN"};
@@ -152,7 +337,7 @@ function noteHead(n){return '<b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)
   (n.read_at_utc?", "+esc(hhmm(n.read_at_utc)):"")+(n.context?", "+esc(n.context):"")+')</span>'}
 function anHtml(ev){const a=AN[ev];if(!a||!a.length)return "";
   return a.map((x,i)=>'<details class="an" data-ev="'+esc(ev)+'" data-i="'+i+'"><summary>'+(i?"wcześniejsza ":"")+'analiza meczu - '+esc(WHO[x.author]||x.author)+
-   ', '+esc(hhmm(x.recorded_at_utc))+(x.web_tags?', źródła web: '+x.web_tags:'')+(x.context_pass?'':', <span class="bad">bez przeglądu kontekstu</span>')+
+   ', '+esc(hhmm(x.recorded_at_utc))+(x.web_tags?', źródła web: '+esc(x.web_tags):'')+(x.context_pass?'':', <span class="vN">bez przeglądu kontekstu</span>')+
    '</summary><div class="md"></div></details>').join("")}
 function notesHtml(ns,ev){const an=ev!=null?anHtml(ev):"";if((!ns||!ns.length)&&!an)return "";
   if(!ns||!ns.length)return '<details class="rn"><summary>bez odczytu tej nogi - analiza meczu</summary>'+an+'</details>';
@@ -179,18 +364,43 @@ document.addEventListener("toggle",e=>{const d=e.target;if(!d.classList||!d.clas
 // a match with no read leg in the artifact (printed or removed by a read)
 // carries a warning, whatever the filter shows
 const EVREAD=new Set(V.meta.read_events||R.filter(r=>r.read_done).map(r=>r.event));
+// minutes to the start, for a match starting within the next 90 minutes
+function soon(t){const s=Date.parse(t);if(isNaN(s))return "";const m=Math.round((s-Date.now())/60000);
+  return m>0&&m<=90?'<span class="tag soon">za '+m+' min</span>':""}
+const clock=t=>RES?"":started(t)?'<span class="tag">rozpoczęty</span>':soon(t);
+// back on the page: the clock tags move in place - the drawn chunks, the open
+// notes and the scroll stay; only the "nierozpoczęte" filter needs a redraw
+function tick(){if(RES)return;if($("upcoming").checked){render();return}
+  document.querySelectorAll("#body .clk").forEach(c=>{c.innerHTML=clock(c.dataset.ko);c.closest("tr").classList.toggle("past",started(c.dataset.ko))})}
+function when(r){return esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!==DAY?" ("+esc(r.ko_local.slice(5,10))+")":"")}
 function matchHead(g){const r=g[0];let n="";
-  if(r.clock_note)n=' <span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
-  if(!EVREAD.has(r.event))n+=' <span class="tag warn">nieczytany - żadna noga nie ma odczytu analityka</span>';
-  return '<tr class="m"><td>'+esc(r.ko_local.slice(11))+(r.ko_local.slice(0,10)!=="__DATE__"?" ("+esc(r.ko_local.slice(5,10))+")":"")+
-   '</td><td colspan="'+(COLS.length-1)+'">'+esc(r.match)+(r.res&&r.res.score?' <span class="tag">wynik '+esc(r.res.score)+'</span>':'')+' <span class="tag">'+esc(r.sport)+'</span> <span class="tag">'+esc(r.competition)+'</span>'+n+
-   ' <span class="tag">'+g.length+' nóg, śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></td></tr>'}
-function line(r){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
- return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td>'+esc(r.ko_local.slice(11))+'</td><td>'+esc(r.match)+'</td><td>'+esc(r.market)+tags(r)+notesHtml(r.notes,r.event_id)+
- '</td><td>'+esc(r.line)+'</td><td>'+esc(r.direction)+'</td><td class="n"><b>'+r.confidence_txt+'</b></td><td class="n">'+r.odds_txt+
- '</td><td class="n">'+r.x_txt+'</td><td class="n">'+r.margin_txt+'</td><td>'+esc(r.sample)+'</td><td class="n">'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td>'+resCell(r.res)+'</td>':'')+'</tr>'}
+  if(r.clock_note)n='<span class="tag warn">⚠ '+esc(r.clock_note)+' (sprawdzone '+esc(r.clock_checked)+') - sprawdź godzinę</span>';
+  if(!EVREAD.has(r.event))n+='<span class="tag warn">nieczytany - żadna noga nie ma odczytu analityka</span>';
+  const past=!RES&&started(r.ko_utc);
+  return '<tr class="m'+(past?' past':'')+'"><td colspan="'+COLS.length+'"><span class="when">'+when(r)+'</span><span class="mt">'+esc(r.match)+'</span>'+
+   '<div class="tags"><span class="clk" data-ko="'+esc(r.ko_utc)+'">'+clock(r.ko_utc)+'</span>'+(r.res&&r.res.score?'<span class="tag">wynik '+esc(r.res.score)+'</span>':'')+'<span class="tag">'+esc(SPORT_PL[r.sport]||r.sport)+'</span><span class="tag">'+esc(r.competition)+'</span>'+n+
+   '<span class="tag">'+plural(g.length,"noga","nogi","nóg")+', śr. pewność '+f3(g.reduce((s,x)=>s+x.confidence,0)/g.length)+'</span></div></td></tr>'}
+// fill = the confidence, tick = 1/odds, on a 50-100% scale
+const pos=v=>Math.max(0,Math.min(100,(v-.5)*200));
+function meter(r){if(r.odds==null)return '<span class="meter"><i style="width:'+pos(r.confidence)+'%"></i></span>';
+  const imp=1/r.odds;return '<span class="meter'+(r.confidence>=imp?' over':'')+'" title="pewność '+r.confidence_txt+', 1/kurs '+imp.toFixed(3)+'"><i style="width:'+pos(r.confidence)+'%"></i><u style="left:'+pos(imp)+'%"></u></span>'}
+const L=k=>{const c=COLS.find(c=>c[0]===k);return c&&c[3]?' data-l="'+c[3]+'"':""};
+function line(r,g){const cl=[r.locked?"lk":"",r.res?r.res.status:""].filter(Boolean).join(" ");
+ return '<tr data-id="'+r.id+'"'+(cl?' class="'+cl+'"':'')+'><td class="c-ko">'+(g?"":esc(r.ko_local.slice(11)))+'</td><td class="c-match">'+(g?"":esc(r.match))+'</td><td class="c-mkt"><span class="mkt">'+esc(r.market)+'</span>'+tags(r)+notesHtml(r.notes,r.event_id)+
+ '</td><td class="c-line"'+L("line")+'>'+esc(r.line||"—")+'</td><td class="c-dir"'+L("direction")+'>'+esc(r.direction||"—")+'</td><td class="n c-conf conf"'+L("confidence")+'><b>'+r.confidence_txt+'</b>'+meter(r)+'</td><td class="n c-odds"'+L("odds")+'>'+r.odds_txt+
+ '</td><td class="n c-x"'+L("x")+'>'+r.x_txt+'</td><td class="n c-mar"'+L("margin")+'>'+r.margin_txt+'</td><td class="c-smp"'+L("sample")+'>'+esc(r.sample)+'</td><td class="n c-pos"'+L("position")+'>'+(r.position==null?"—":r.position)+'</td>'+(RES?'<td class="c-res">'+resCell(r.res)+'</td>':'')+'</tr>'}
+// a long day (1,700+ legs) is drawn a chunk at a time: the rest follows as
+// the reader scrolls to the end (or taps "pokaż więcej")
+const CHUNK=200;let rest=[],io=null;
+function more(){const tb=$("body"),m=$("more");if(m)m.remove();let n=0,h="";
+  while(rest.length&&n<CHUNK){const p=rest.shift();h+=p.h;n+=p.n}
+  tb.insertAdjacentHTML("beforeend",h);
+  if(rest.length){const left=rest.reduce((s,p)=>s+p.n,0);
+    tb.insertAdjacentHTML("beforeend",'<tr class="more" id="more"><td colspan="'+COLS.length+'">pokaż więcej ('+plural(left,"noga","nogi","nóg")+')</td></tr>');
+    const el=$("more");el.onclick=more;if(io)io.observe(el)}}
+if("IntersectionObserver" in window)io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){io.disconnect();more()}},{rootMargin:"800px"});
 function render(){
-  const rows=R.filter(pass),g=$("group").checked;let h="";
+  const rows=R.filter(pass),g=$("group").checked;rest=[];
   if(g){
     const m=new Map();rows.forEach(r=>{if(!m.has(r.event))m.set(r.event,[]);m.get(r.event).push(r)});
     const groups=[...m.values()];
@@ -199,46 +409,98 @@ function render(){
     // legs follow that order
     groups.forEach(gr=>gr.sort(cmp));
     groups.sort((a,b)=>cmp(a[0],b[0]));
-    groups.forEach(gr=>{h+=matchHead(gr);gr.forEach(r=>h+=line(r))});
+    groups.forEach(gr=>rest.push({h:matchHead(gr)+gr.map(r=>line(r,true)).join(""),n:gr.length}));
     $("count").textContent=rows.length+" z "+R.length+" nóg, "+groups.length+" meczów (kolejność meczów: wg "+sortLabel()+")";
-  }else{rows.sort(cmp);rows.forEach(r=>h+=line(r));
-    $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów";}
-  $("body").innerHTML=h||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
+  }else{rows.sort(cmp);rows.forEach(r=>rest.push({h:line(r,false),n:1}));
+    $("count").textContent=rows.length+" z "+R.length+" nóg, "+new Set(rows.map(r=>r.event)).size+" meczów (wg "+sortLabel()+")";}
+  $("body").parentNode.classList.toggle("grouped",g);
+  $("body").innerHTML=rows.length?"":'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów. Wyczyść filtry albo poluzuj jeden z nich.</td></tr>';
+  if(io)io.disconnect();more();
   renderSummary(rows);
   const bs=B.filter(b=>{const t0=hm($("t0").value),t1=hm($("t1").value);
     if(t0!=null&&b.ko_min<t0)return false;if(t1!=null&&b.ko_min>t1)return false;
     if($("nolock").checked&&b.locked)return false;
+    if($("upcoming").checked&&started(b.ko_utc))return false;
     const q=$("q").value.trim().toLowerCase();return !q||(b.match+" "+b.competition).toLowerCase().includes(q)});
   $("bh").style.display=B.length?"":"none";
-  $("builders").innerHTML=bs.map(b=>'<div class="bl"><b>'+esc(b.no)+' '+esc(b.match)+'</b> <span class="tag">'+esc(b.ko_local.slice(11))+'</span> '+(b.locked?'<span class="tag">zablokowany</span>':'')+
-   (b.res?(b.res.score?'<span class="tag">wynik '+esc(b.res.score)+'</span> ':'')+'<span class="'+RC[b.res.status]+'">Builder: '+esc(b.res.word)+'</span>':'')+
-   '<span class="note"> '+esc(b.competition)+' • p łączne '+b.combined_txt+' • kurs buildera: sprawdź na ekranie Superbetu</span><ul>'+
-   b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'>'+esc(l.market)+' '+esc(l.line)+' '+esc(l.direction)+' - pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
-     (l.res?' • było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+
-     (l.notes&&l.notes.length?notesHtml(l.notes,b.event_id):' <span class="tag warn">nieczytana</span>'+notesHtml([],b.event_id))+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"")}
+  $("builders").innerHTML=bs.map(b=>'<div class="bl'+(b.res?' '+b.res.status:'')+'"><div class="bh"><b>'+esc(b.no)+' '+esc(b.match)+'</b><span class="tag">'+esc(b.ko_local.slice(11))+'</span>'+(b.locked?'<span class="tag">zablokowany</span>':'')+
+   (b.res?(b.res.score?'<span class="tag">wynik '+esc(b.res.score)+'</span>':'')+'<span class="'+RC[b.res.status]+'">Builder: '+esc(b.res.word)+'</span>':'')+
+   '</div><div class="note">'+esc(b.competition)+', p łączne '+b.combined_txt+'. Kurs buildera: sprawdź na ekranie Superbetu.</div><ul>'+
+   b.legs.map(l=>'<li'+(l.res?' class="'+l.res.status+'"':'')+'><span class="mkt">'+esc(l.market)+'</span> '+esc(l.line)+' '+esc(l.direction)+'<div class="note">pewność '+l.confidence_txt+', kurs nogi '+l.odds_txt+
+     (l.res?', było: <b>'+esc(l.res.actual)+'</b> <span class="'+RC[l.res.status]+'">'+esc(l.res.word)+'</span>':'')+'</div>'+
+     (l.notes&&l.notes.length?notesHtml(l.notes,b.event_id):'<div class="tags"><span class="tag warn">nieczytana</span></div>'+notesHtml([],b.event_id))+'</li>').join("")+'</ul></div>').join("")||(B.length?'<div class="note" style="margin:0 16px">Żaden builder nie spełnia filtrów.</div>':"");
+  syncUi();save()}
 const pc=(a,n)=>n?(100*a/n).toFixed(1)+"%":"—";
 function renderSummary(rows){
   if(!RES){$("sh").style.display="none";$("reswrap").style.display="none";return}
   const S=RES.summary,B2=RES.builders;
-  let h='<div class="note">Rozliczenie '+esc(RES.computed_utc)+'Z, to samo co w rejestrze wyników (audit_settlement 7c). Kolor wiersza: <span class="rw">zielony</span> weszło, <span class="rl">czerwony</span> nie weszło, <span class="ru">żółty</span> nie wiadomo (czeka na rozliczenie, nie rozliczono) albo zwrot (0 j.). <b>typ</b> - linia i strona nogi, <b>było</b> - co faktycznie policzył rynek (przy rynkach tak/nie wynik meczu). Trafność liczona na rozstrzygniętych nogach; średnia pewność to, ile kupon przewidywał. Jednostki płaskie po 1 j. po wydrukowanym kursie.</div>';
+  let h='<div class="note">Rozliczenie '+esc(RES.computed_utc)+'Z, to samo co w rejestrze wyników (audit_settlement 7c). Kolor: <span class="rw">zielony</span> weszło, <span class="rl">czerwony</span> nie weszło, <span class="ru">żółty</span> nie wiadomo (czeka na rozliczenie, nie rozliczono) albo zwrot (0 j.). <b>typ</b> - linia i strona nogi, <b>było</b> - co faktycznie policzył rynek (przy rynkach tak/nie wynik meczu). Trafność liczona na rozstrzygniętych nogach; średnia pewność to, ile kupon przewidywał. Jednostki płaskie po 1 j. po wydrukowanym kursie.</div>';
   h+='<table><tr><th>sport</th><th class="n">nóg</th><th class="n">weszło</th><th class="n">nie weszło</th><th class="n">nie wiadomo / zwrot</th><th class="n">trafność</th><th class="n">śr. pewność</th><th class="n">jedn.</th><th class="n">ROI</th></tr>'+
    S.map(l=>'<tr><td>'+esc(l.name)+'</td><td class="n">'+l.legs+'</td><td class="n">'+l.won+'</td><td class="n">'+l.lost+'</td><td class="n">'+l.other+'</td><td class="n">'+l.hit+'</td><td class="n">'+l.conf+'</td><td class="n">'+l.units+'</td><td class="n">'+l.roi+'</td></tr>').join("")+'</table>';
-  if(B.length)h+='<div class="note" style="margin-top:6px"><b>Bet Buildery ('+B.length+'):</b> weszło '+B2.won+', nie weszło '+B2.lost+', nie wiadomo / zwrot '+(B2.unknown+B2.refund)+' (kurs buildera to ekran Superbetu - sofa go nie wycenia).</div>';
+  if(B.length)h+='<div class="note" style="margin-top:8px"><b>Bet Buildery ('+B.length+'):</b> weszło '+B2.won+', nie weszło '+B2.lost+', nie wiadomo / zwrot '+(B2.unknown+B2.refund)+' (kurs buildera to ekran Superbetu - sofa go nie wycenia).</div>';
   const w=rows.filter(r=>r.res&&r.res.status==="won").length,l=rows.filter(r=>r.res&&r.res.status==="lost").length,d=w+l;
   const c=rows.filter(r=>r.res&&(r.res.status==="won"||r.res.status==="lost"));
-  h+='<div class="note" style="margin-top:6px"><b>W bieżącym filtrze ('+rows.length+' nóg):</b> weszło '+w+' ('+pc(w,rows.length)+'), nie weszło '+l+' ('+pc(l,rows.length)+'), nie wiadomo / zwrot '+(rows.length-d)+' • trafność rozstrzygniętych '+pc(w,d)+' przy średniej pewności '+(c.length?(100*c.reduce((s,r)=>s+r.confidence,0)/c.length).toFixed(1)+"%":"—")+'</div>';
+  h+='<div class="note" style="margin-top:8px"><b>W bieżącym filtrze ('+rows.length+' nóg):</b> weszło '+w+' ('+pc(w,rows.length)+'), nie weszło '+l+' ('+pc(l,rows.length)+'), nie wiadomo / zwrot '+(rows.length-d)+' • trafność rozstrzygniętych '+pc(w,d)+' przy średniej pewności '+(c.length?(100*c.reduce((s,r)=>s+r.confidence,0)/c.length).toFixed(1)+"%":"—")+'</div>';
   $("summary").innerHTML=h}
 const sortLabel=()=>(COLS.find(c=>c[0]===sortKey)||[0,sortKey])[1]+(sortDir<0?" malejąco":" rosnąco");
+const DESC=k=>k==="confidence"||k==="x"||k==="odds";
+function setSort(k,d){sortKey=k;sortDir=d;render()}
 $("head").innerHTML=COLS.map(c=>'<th class="'+(c[2]||"")+'" data-k="'+c[0]+'">'+c[1]+'</th>').join("");
 $("head").onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
-  if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=(k==="confidence"||k==="x"||k==="odds")?-1:1}render()};
-document.querySelectorAll("#bar input,#bar select").forEach(el=>el.addEventListener("input",render));
-$("reset").onclick=()=>{document.querySelectorAll("#bar input[type=time],#bar input[type=number],#bar input[type=search]").forEach(e=>e.value="");
-  document.querySelectorAll("#bar select").forEach(e=>e.value="");$("nolock").checked=false;$("readonly").checked=false;$("famplus").checked=false;$("group").checked=true;
+  if(sortKey===k)setSort(k,-sortDir);else setSort(k,DESC(k)?-1:1)};
+// the phone has no column headers: the same sort from a list
+$("sort").innerHTML=[["confidence",-1],["x",-1],["odds",-1],["ko_local",1],["odds",1],["margin",1],["match",1],["position",1]].concat(RES?[["res_rank",1]]:[])
+  .map(([k,d])=>'<option value="'+k+":"+d+'">'+(COLS.find(c=>c[0]===k)||[0,k])[1]+(d<0?" ↓":" ↑")+'</option>').join("");
+$("sort").addEventListener("change",e=>{const[k,d]=e.target.value.split(":");setSort(k,+d)});
+// quick chips: each sport with its legs, then the filters used most on a phone
+const CH=[["upcoming","nierozpoczęte"],["readonly","przeczytane"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]];
+function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0)+1));
+  let h='<button class="chip" data-sport="">wszystkie<span class="n">'+R.length+'</span></button>';
+  [...n.entries()].sort((a,b)=>b[1]-a[1]).forEach(([s,c])=>h+='<button class="chip" data-sport="'+esc(s)+'">'+esc(SPORT_PL[s]||s)+'<span class="n">'+c+'</span></button>');
+  h+='<span class="sep"></span>'+CH.map(([k,t])=>'<button class="chip" data-t="'+k+'">'+t+'</button>').join("");
+  $("chips").innerHTML=h}
+chips();
+$("chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;
+  if(b.dataset.sport!=null)$("sport").value=b.dataset.sport;
+  else if(b.dataset.t==="xone")$("xmin").value=parseFloat($("xmin").value)>=1?"":"1.00";
+  else{const c=$(b.dataset.t);c.checked=!c.checked}
+  render()};
+const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","famplus"];
+function syncUi(){
+  document.querySelectorAll("#chips .chip").forEach(b=>{let on;
+    if(b.dataset.sport!=null)on=$("sport").value===b.dataset.sport;
+    else if(b.dataset.t==="xone")on=parseFloat($("xmin").value)>=1;else on=$(b.dataset.t).checked;
+    b.classList.toggle("on",on)});
+  const n=FIELDS.filter(k=>k!=="q"&&$(k).value).length+CHECKS.filter(k=>$(k).checked).length+($("group").checked?0:1);
+  $("fcount").textContent=n?String(n):"";
+  const sv=sortKey+":"+sortDir,so=$("sort");let o=[...so.options].find(o=>o.value===sv);
+  if(!o){[...so.options].filter(o=>o.dataset.x).forEach(o=>o.remove());o=document.createElement("option");o.value=sv;o.dataset.x="1";
+    o.textContent=(COLS.find(c=>c[0]===sortKey)||[0,sortKey])[1]+(sortDir<0?" ↓":" ↑");so.appendChild(o)}
+  so.value=sv;
+  document.querySelectorAll("#head th").forEach(th=>{const on=th.dataset.k===sortKey;th.classList.toggle("sorted",on);th.dataset.dir=on?(sortDir<0?"↓":"↑"):""})}
+// the filters survive a reopen of the same day's page (this browser only)
+const KEY="kupon:"+DAY;
+function save(){try{const s={sortKey,sortDir,group:$("group").checked};FIELDS.forEach(k=>s[k]=$(k).value);CHECKS.forEach(k=>s[k]=$(k).checked);
+  localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
+function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(!s)return;
+  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="famplus"||!!F)});
+  if(typeof s.group==="boolean")$("group").checked=s.group;
+  if(s.sortKey&&COLS.some(c=>c[0]===s.sortKey)){sortKey=s.sortKey;sortDir=s.sortDir<0?-1:1}}catch(e){}}
+document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventListener("input",render));
+$("reset").onclick=()=>{FIELDS.forEach(k=>$(k).value="");CHECKS.forEach(k=>$(k).checked=false);$("group").checked=true;
   sortKey="confidence";sortDir=-1;render()};
 $("best").onclick=()=>{$("xmin").value="1.00";$("famplus").checked=true;render()};
-const setBar=()=>document.documentElement.style.setProperty("--bh",$("bar").offsetHeight+"px");
-window.addEventListener("resize",setBar);setBar();render();
+function openBar(o){$("tool").classList.toggle("open",o);$("ftoggle").setAttribute("aria-expanded",String(o));$("ftoggle").classList.toggle("on",o);setBar()}
+$("ftoggle").onclick=()=>openBar(!$("tool").classList.contains("open"));
+document.addEventListener("keydown",e=>{if(e.key==="/"&&!$("paneK").hidden&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="SELECT"){e.preventDefault();$("q").focus()}
+  else if(e.key==="Escape"&&document.activeElement===$("q")&&$("q").value){$("q").value="";render()}});
+// the column headers stick under the tool row
+const setBar=()=>document.documentElement.style.setProperty("--th",$("tool").offsetHeight+"px");
+window.addEventListener("resize",setBar);
+// back to the page after a while: the started matches and "za N min" move on
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});
+window.addEventListener("beforeprint",()=>{while(rest.length)more()});
+restore();render();openBar(false);
 </script>
 <script>
 "use strict";
@@ -296,15 +558,15 @@ function cmp(a,b){const x=a[sortK],y=b[sortK];if(x==null&&y==null)return a.id-b.
 const f=(v,n)=>v==null?"—":v.toFixed(n);
 function render(){if(!A)return;const rows=A.filter(pass).sort(cmp),pages=Math.max(1,Math.ceil(rows.length/PER));
  if(page>=pages)page=pages-1;const sl=rows.slice(page*PER,page*PER+PER);
- $("abody").innerHTML=sl.map(r=>'<tr'+(r.pr?' class="ap"':'')+' data-id="'+r.id+'"><td>'+esc(r.ko.slice(11))+(r.ko&&r.ko.slice(0,10)!=="__DATE__"?" ("+esc(r.ko.slice(5,10))+")":"")+'</td><td>'+esc(r.match)+
-  '<br><span class="note">'+esc(r.comp)+'</span></td><td>'+esc(r.sport)+'</td><td>'+esc(r.market)+'</td><td>'+esc(r.line)+'</td><td>'+esc(r.dir)+
-  '</td><td class="n">'+(r.odds==null?"—":r.odds)+'</td><td class="n">'+f(r.p,3)+'</td><td class="n">'+f(r.conf,3)+'</td><td'+(r.pr?' class="pr"':'')+'>'+PR[r.pr]+
-  '</td><td class="why"'+(GLOSS[r.reason]?' title="'+esc(GLOSS[r.reason])+'"':'')+'>'+esc(r.reason)+'</td></tr>').join("")||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
+ $("abody").innerHTML=sl.map(r=>'<tr'+(r.pr?' class="ap"':'')+' data-id="'+r.id+'"><td class="a-ko">'+esc(r.ko.slice(11))+(r.ko&&r.ko.slice(0,10)!=="__DATE__"?" ("+esc(r.ko.slice(5,10))+")":"")+'</td><td class="a-match"><b>'+esc(r.match)+
+  '</b><div class="sub">'+esc(r.ko.slice(11))+' '+esc(r.sport)+', '+esc(r.comp)+'</div></td><td class="a-sport">'+esc(r.sport)+'</td><td class="a-mkt">'+esc(r.market)+'</td><td class="a-line">'+esc(r.line)+'</td><td class="a-dir">'+esc(r.dir)+
+  '</td><td class="n a-odds" data-l="kurs">'+(r.odds==null?"—":r.odds)+'</td><td class="n a-p" data-l="p">'+f(r.p,3)+'</td><td class="n a-conf" data-l="pewność">'+f(r.conf,3)+'</td><td class="a-pr'+(r.pr?' pr':'')+'" data-l="druk">'+PR[r.pr]+
+  '</td><td class="why a-why"'+(GLOSS[r.reason]?' title="'+esc(GLOSS[r.reason])+'"':'')+'>'+esc(r.reason)+(GLOSS[r.reason]?'<div class="sub">'+esc(GLOSS[r.reason])+'</div>':'')+'</td></tr>').join("")||'<tr><td colspan="'+COLS.length+'">Nic nie spełnia filtrów.</td></tr>';
  const np=rows.filter(r=>r.pr).length;
  $("acount").textContent=rows.length+" z "+A.length+" wycen, w tym "+np+" na kuponie • "+new Set(rows.map(r=>r.ev)).size+" meczów • po "+PER+" na stronę";
  $("apage").textContent="strona "+(page+1)+" z "+pages;$("aprev").disabled=page===0;$("anext").disabled=page>=pages-1}
 document.querySelectorAll("#abar input,#abar select").forEach(el=>el.addEventListener("input",()=>{page=0;render()}));
-$("aprev").onclick=()=>{page--;render()};$("anext").onclick=()=>{page++;render()};
+$("aprev").onclick=()=>{page--;render();$("paneA").scrollIntoView()};$("anext").onclick=()=>{page++;render();$("paneA").scrollIntoView()};
 $("ahead").onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
  if(sortK===k)sortD=-sortD;else{sortK=k;sortD=(k==="conf"||k==="p"||k==="odds"||k==="pr")?-1:1}page=0;render()};
 $("areset").onclick=()=>{document.querySelectorAll("#abar select,#abar input").forEach(e=>e.value="");sortK="kmin";sortD=1;page=0;render()};
