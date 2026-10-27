@@ -14,7 +14,12 @@ analyst has read yet.
              the required ones; a buffer read now saves a C3 round later).
 --unread     only legs no analyst read covers (C3's own rule,
              `veto.matching_reads`); a re-read pass after a rebuild gives the
-             analysts the new legs only.
+             analysts the new legs only. It also leaves out a match starting
+             within confidence.MIN_MINUTES_TO_KICKOFF: its analyst skips it
+             at the decision point and a read could not change its legs (a
+             locked leg prints as it is, an unlocked one leaves as KICKED_OFF);
+             they are printed as `started:` - C3 still lists them (2026-10-27:
+             an analyst instance spent on one such match).
 --split K    a sport with more than K matches is written in parts of at most
              K whole matches (read_set_<sport>_<i>.json), one analyst each.
 
@@ -53,6 +58,7 @@ Exit 0 (an empty set too), 2 when 11_coupon.json is missing or unreadable.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -74,6 +80,7 @@ from bet.sofa import (  # noqa: E402
 )
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    MIN_MINUTES_TO_KICKOFF,
     group_key,
     legs_requiring_read,
     load_read_requests,
@@ -147,9 +154,16 @@ def analyst_read(leg: dict[str, Any], reads: list[Any]) -> bool:
         r.get("author") == "analyst" for r in carried)
 
 
-def read_set(run: Path, buffer: int = 0, unread: bool = False
+def read_set(run: Path, buffer: int = 0, unread: bool = False,
+             now: datetime.datetime | None = None,
+             started: list[dict[str, Any]] | None = None,
              ) -> dict[str, list[dict[str, Any]]]:
-    """{sport: [compact leg, ...]} - required legs first, then the buffer."""
+    """{sport: [compact leg, ...]} - required legs first, then the buffer.
+
+    With `now`, a leg whose match starts within MIN_MINUTES_TO_KICKOFF of it
+    is left out and appended to `started` instead."""
+    cutoff = (now + datetime.timedelta(minutes=MIN_MINUTES_TO_KICKOFF)
+              if now is not None else None)
     doc = json.loads((run / "11_coupon.json").read_text(encoding="utf-8"))
     requests = load_read_requests(run / "read_requests.json")
     fixtures_path = run / "02_fixtures.json"
@@ -183,6 +197,13 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False
         if "offered_odds" not in compact and compact.get("odds") is not None:
             compact["offered_odds"] = compact["odds"]
         compact.update(sport=sport, group_key=group_key(leg), in_set=why)
+        kickoff = compact.get("kickoff_utc")
+        if cutoff is not None and isinstance(kickoff, str) and (
+                datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
+                <= cutoff):
+            if started is not None:
+                started.append(compact)
+            continue
         prior = analyses.latest(store, leg["sofascore_event_id"], "analyst")
         if prior is not None:
             full = analyses.full_pass(store, leg["sofascore_event_id"]) or {}
@@ -226,8 +247,10 @@ def main(argv: list[str] | None = None) -> int:
         print(frozen, file=sys.stderr)
         return 2
     run = Path(args.runs_dir) / args.date
+    late: list[dict[str, Any]] = []
     try:
-        sets = read_set(run, args.buffer, args.unread)
+        sets = read_set(run, args.buffer, args.unread,
+                        timeutil.now() if args.unread else None, late)
     except (OSError, ValueError, KeyError) as exc:
         print(f"read_set: {run}: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
@@ -235,6 +258,11 @@ def main(argv: list[str] | None = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     for stale in out_dir.glob("read_set_*.json"):
         stale.unlink()
+    if late:
+        names = sorted({str(x.get("match") or x["group_key"]) for x in late})
+        print(f"started: {len(late)} legs, {len(names)} matches left out (kickoff "
+              f"within {MIN_MINUTES_TO_KICKOFF} min; C3 still lists them, a read "
+              f"cannot change them): {', '.join(names)}")
     if not sets:
         print("read set: empty")
     elif not args.no_dossier:

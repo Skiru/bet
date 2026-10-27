@@ -239,7 +239,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread -
 those files only (paths `_r<n>`); measured-sport files of at most 6 matches together go to
 one `sofa-analyst-sport` instance (`/sofa-analyze` step 3), and a leg of a match read
 earlier today carries `prior_analysis` (the analyst's delta pass). `read set: empty` while C3 is still red = a printed leg
-carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read.
+carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. A `started:` line names the matches a re-read pass left out (kickoff within the 15-min
+margin; their analyst would skip them and a read cannot change their legs): C3 keeps listing
+them - report them, never read them.
 At most 3 rounds, then report the C3 lines left. A WATCH / NO_BET on a builder leg makes
 that fixture's builder take its next candidate: in the re-read prompt add "also read every
 leg of this fixture's builder candidates in 08_confidence.json `builders`". A refusing read

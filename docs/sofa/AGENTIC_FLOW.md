@@ -27,7 +27,7 @@ Procedura jest zapisana raz. Komenda, która uruchamia agenta, mówi tylko,
 | komenda | co robi | sieć |
 |---|---|---|
 | `/sofa-day [data]` | most → `sofa-settler` (D-1) → dowody linii → BOARD…COUPON → CONFIDENCE → SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY → analitycy → `merge_reads.py` → `rebuild_day.py` (PDF) → pętla C3 → `sofa-verifier` → przebudowa → `day_status.py` → raport | Sofascore (most) + Superbet |
-| `/sofa-analyze [data] [dodatkowo: …]` | prośby operatora do `read_requests.json`, `read_set.py`, analitycy, `merge_reads.py`, przebudowa, pętla C3 | Superbet (gdy cena stara) |
+| `/sofa-analyze [data] [okno 14-17] [dodatkowo: …]` | prośby operatora do `read_requests.json` (okno: najpierw przebudowa ze świeżymi cenami, potem 20 najlepszych meczów okna, `window_reads.py`), `read_set.py`, analitycy, `merge_reads.py`, przebudowa, pętla C3 | Superbet (gdy cena stara) |
 | `/sofa-rebuild [data]` | przebudowa z artefaktów jednym poleceniem `rebuild_day.py` | Superbet (stara cena), most dla FIXTURE_CHECK / SPORT_IDENTITY |
 | `/sofa-verify [data]` | `sofa-verifier`, scalenie jego odczytów, przebudowa | Superbet (ceny na żywo) + web |
 | `/sofa-settle [data]` | `sofa-settler` dla dnia zakończonego | Sofascore (most) |
@@ -103,6 +103,23 @@ operator: /sofa-day 2026-10-20
    ├─ 9. stan          day_status.py; capture_closing tylko przy WARN; run_boosts.py
    └─ raport           wzór w części 8
 ```
+
+Okno godzin w ciągu dnia (`/sofa-analyze dzisiaj okno 14-17`, operator 2026-10-27):
+
+```
+ensure_bridge.py → rebuild_day.py (świeże ceny, PDF / HTML, iCloud)
+   → window_reads.py --start-from 14:00 --start-to 17:00
+       (20 najlepszych meczów okna wg read_value, wszystkie gdy mniej; start >= 30 min
+        od teraz = 15 min marginesu, w którym analityk mecz pomija, + 15 min na czytanie;
+        cały mecz, każdy rynek → read_requests.json) → build_coupon.py
+   → read_set.py --unread --buffer 0 --split 5 (części po 5 meczów, równolegle;
+        mecz startujący w ciągu 15 min pominięty, linia `started:`)
+   → analitycy → merge_reads.py → rebuild_day.py → pętla C3 (najwyżej 3 rundy)
+```
+
+Pierwszy przebieg (10-27, 12:21-13:20Z): 20 meczów okna, 17 przeczytanych w całości,
+3 mecze o 13:00Z wybrane o 12:48Z wróciły nieczytane (stąd margines 30 min);
+świeże ceny przesuwają też 20 najlepszych meczów dnia, więc pętla czyta i je.
 
 Polecenia z flagami są w `sofa-day.md`; najważniejsze:
 

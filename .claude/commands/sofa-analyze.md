@@ -1,6 +1,6 @@
 ---
-description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (20 best-value matches, printed builder legs, the operator's 'dodatkowo' positions) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES by hand."
-argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD [dodatkowo: <pozycje>]"
+description: "Run the sofa analysts over a day that already has 11_coupon.json - the C3 read set (20 best-value matches, printed builder legs, the operator's 'dodatkowo' positions, or with 'okno 14-17' the window's 20 best matches on fresh prices) - via read_set.py, merge their reports with merge_reads.py, rebuild with rebuild_day.py, repeat until C3 is clean. No SAMPLES by hand."
+argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD [okno <od>-<do>] [dodatkowo: <pozycje>]"
 ---
 
 Get the analysts' read of a built day into `vetoes.json` / `reads.json`. CONFIDENCE and COUPON_ASSEMBLY read both, so this always ends in a
@@ -10,9 +10,11 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 
 ## 0. Arguments and preconditions
 
-`$ARGUMENTS` = `<day> [dodatkowo: <n>, <n>, ...]`; day = `dzisiaj`/`today`,
+`$ARGUMENTS` = `<day> [okno <od>-<do>] [dodatkowo: <n>, <n>, ...]`; day = `dzisiaj`/`today`,
 `wczoraj`/`yesterday`, `YYYY-MM-DD`, empty = today (UTC). The numbers after
 `dodatkowo:` are coupon positions the operator wants read beyond the read set.
+`okno 14-17` (also `okno 14:30-17`) is a kickoff window in local time (Europe/Warsaw):
+step 1a.
 
 - No `runs/sofa/<date>/05_sheet.json` -> the day needs `/sofa-day`.
 - No `11_coupon.json` -> run `/sofa-rebuild` first: analysts read what the coupon prints.
@@ -39,6 +41,29 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
 
 `build_coupon.py` prints `UNMATCHED_READ_REQUEST` for a request that covers nothing -
 report each.
+
+## 1a. "okno" -> fresh prices, then the window's matches (before the analysts)
+
+The operator plays these hours, so they are read on fresh prices: rebuild first (it
+re-asks stale prices, then FIXTURE_CHECK .. PDF and the iCloud copy), then append the
+window's 20 best-value matches - every match when fewer are left, a match starting within
+30 min skipped (the 15-min kickoff margin at which an analyst skips a match + 15 min
+to read it) - as whole-match requests (every market), then re-assemble:
+
+```bash
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/window_reads.py --date <date> --start-from <od> --start-to <do>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <date>
+```
+
+`window_reads.py` lists the matches it chose (exit 1 = no match left in the window: say
+so and stop). Then step 2 with `--unread --buffer 0 --split 5` (legs read earlier today
+are not read again; the window's matches are now part of C3, beside whatever the fresh
+prices moved into the day's 20; parts of 5 matches read in parallel - a part of 86 legs
+took 8.6 min on 10-27, and the window's first kickoffs do not wait) and steps 3-6 as usual; the final
+rebuild re-renders the PDF / HTML and the iCloud copy. Report the window's matches by
+name with their read verdicts.
 
 ## 2. The read set
 
@@ -114,7 +139,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --unrea
 
 (`--buffer 5` while early kickoffs pull new matches in) and steps 3-4 on those files only
 (paths `_r<n>`) until C3 is clean. `read set: empty` with C3 still red = a printed leg carries
-WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. At most 3
+WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. A `started:` line names the matches a re-read pass left out (kickoff within the 15-min
+margin; their analyst would skip them and a read cannot change their legs): C3 keeps listing
+them - report them, never read them. At most 3
 rounds, then report the C3 lines left. A WATCH / NO_BET on a
 builder leg makes that fixture's builder take its next candidate: add to that re-read's
 prompt "also read every leg of this fixture's builder candidates in 08_confidence.json

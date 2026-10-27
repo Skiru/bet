@@ -73,6 +73,31 @@ def test_unread_drops_legs_an_analyst_read_and_keeps_verifier_only_ones(
     assert left == {2, 3}
 
 
+def test_unread_leaves_out_a_match_inside_the_kickoff_margin(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """2026-10-27: a re-read round handed an analyst one match already under
+    way; it skipped it, and a read could not have changed its legs."""
+    import datetime
+
+    early, late = leg(1, 0.80, 1.25), leg(2, 0.80, 1.25)
+    early["kickoff_utc"], late["kickoff_utc"] = ("2026-10-14T20:14:00Z",
+                                                 "2026-10-14T20:16:00Z")
+    run = day(tmp_path, [early, late])
+    now = datetime.datetime(2026, 10, 14, 20, 0, tzinfo=datetime.UTC)
+    started: list[dict[str, Any]] = []
+    sets = read_set.read_set(run, unread=True, now=now, started=started)
+    assert [x["sofascore_event_id"] for x in sets["football"]] == [2]
+    assert [x["sofascore_event_id"] for x in started] == [1]
+    # without a clock (and so a first read) nothing is left out
+    assert len(read_set.read_set(run, unread=True)["football"]) == 2
+    monkeypatch.setattr(read_set.timeutil, "now", lambda: now)
+    out = tmp_path / "out"
+    assert read_set.main(["--date", run.name, "--runs-dir", str(tmp_path),
+                          "--out-dir", str(out), "--unread", "--no-dossier"]) == 0
+    assert "started: 1 legs, 1 matches left out" in capsys.readouterr().out
+
+
 def test_read_set_cli_writes_one_file_per_sport_and_clears_stale_ones(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     run = day(tmp_path, [leg(1, 0.80, 1.25), leg(2, 0.8, 1.3, sport="tennis")])

@@ -379,7 +379,10 @@ następnych meczów w tej samej kolejności.
    rundzie **jedna** instancja `sofa-analyst-sport` (raport
    `<data>_analiza_sports_r<n>.md`); noga meczu przeczytanego wcześniej
    tego dnia ma `prior_analysis` i dostaje tylko przegląd delty. `read set: empty` przy czerwonym C3 = wydrukowana noga ma WATCH /
-   NO_BET albo brak `reads.json`: przebuduj, nie czytaj.
+   NO_BET albo brak `reads.json`: przebuduj, nie czytaj. Linia `started:` w
+   przebiegu `--unread` wymienia mecze pominięte, bo startują w ciągu 15 min
+   (analityk i tak by je pominął, odczyt nic by nie zmienił) - C3 dalej je
+   pokazuje; zgłoś je, nie czytaj.
 
 Noga sportu mierzonego schodzi odczytem `NO_BET` / `WATCH` (ma stronę i
 okres), nie wetem. `run_confidence.py` liczy go jako `reads_sport`, nigdy
@@ -392,6 +395,17 @@ Dodatkowe odczyty na życzenie operatora: `/sofa-analyze` „dodatkowo:
 teraz (`group_key`, `market`, `line`, `direction`; `{"position": n}` tylko
 gdy tam nic nie ma), z `requested_by` i `at_utc`. Prośba, która nic nie
 objęła, drukuje `UNMATCHED_READ_REQUEST`.
+
+Okno godzin (operator 2026-10-27): `/sofa-analyze dzisiaj okno 14-17` najpierw
+przebudowuje dzień (`rebuild_day.py` - świeże ceny, PDF / HTML, kopia na iCloud),
+potem `window_reads.py --start-from 14:00 --start-to 17:00` dopisuje do
+`read_requests.json` 20 najlepszych meczów okna (czasu polskiego) wg
+`confidence.read_value` - wszystkie, gdy jest ich mniej; mecz startujący za
+mniej niż 30 min pominięty (15 min marginesu startu, w którym analityk mecz
+pomija, + 15 min na czytanie) - jako prośby o cały mecz (każdy rynek), z polem
+`window`. Dalej `read_set.py --unread --buffer 0 --split 5` (części po 5 meczów,
+czytane równolegle), analitycy, scalenie i przebudowa
+aż C3 czyste. Prośba nie jest werdyktem; to, co drukuje, się nie zmienia.
 
 Ten krok wolno pominąć tylko na wyraźną prośbę operatora — i trzeba wtedy
 powiedzieć, że się go pominęło (C3 to pokaże).
@@ -668,7 +682,7 @@ CS2 45% / siatkówka 25% przy >= 10 meczach; duplikaty 1x1 CS2 nie liczą się).
 |---|---|
 | kupon wyszedł pusty | **Nie przebudowuj w kółko.** Powiedz, **która bramka** go opróżniła. Sprawdź `06_dropped.json` — na 2026-09-21 wszystkie 118 wierszy VALUE padło na `DISAGREES_WITH_PRICE` (84) i `KICKOFF_TOO_SOON` (34). |
 | zmienił się kod po zbudowaniu arkusza | `/sofa-rebuild` — przebudowa z artefaktów, bez SAMPLES (most tylko dla FIXTURE_CHECK). Napisz, **co** się zmieniło: przeliczony arkusz nie jest porównywalny z poprzednim. |
-| kupon jest, brakuje odczytu analityków albo operator chce więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
+| kupon jest, brakuje odczytu analityków albo operator chce więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” albo „okno 14-17” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
 | sport `NOT_CALIBRATED` / `NOT_IDENTIFIED` | Nogi tego sportu się nie drukują; kupon reszty jest ważny. Kalibrację fituje się tylko między dniami (`fit_sport_confidence.py --before <d>`); brak tożsamości — SPORT_IDENTITY jeszcze raz, gdy most żyje. |
 | po refitcie krzywych (piłka, tenis albo sporty) | Między dniami: `fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json` (ok. 15 min na sport, nic nie instaluje), potem `fit_line_evidence.py --before <d> --sport-rows-dir <dir>` — korekta liczona jest względem krzywych zainstalowanych **teraz**, więc stara korekta nie pasuje do nowych krzywych. |
 | dużo `NO_LINE_EVIDENCE` | Rynek bez krzywej czeka na >= 50 własnych rozliczonych linii w kubełku `p`; przybywa ich z każdym rozliczonym dniem (`refresh_line_evidence.py` co rano, krok 1a). To nie cięcie z nazwy, tylko brak pomiaru. |
