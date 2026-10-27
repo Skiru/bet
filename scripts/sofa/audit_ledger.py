@@ -149,7 +149,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
-                "od 10-27")
+                "od 10-27", "od 10-28")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -228,10 +228,18 @@ LIVE_ONLY_CURVE_EPOCH_FROM_DATE = "2026-10-24"
 # must name a dated fact or an artifact defect (report_check, contract) -
 # fewer legs read and fewer removed, so what prints changes: a new epoch.
 READ_SCOPE_EPOCH_FROM_DATE = "2026-10-27"
+# The confidence review of 2026-10-27 (operator "popraw wszystkie błędy"):
+# epochs.JOINT_FILLED_SIDE_CHAIN (R1) and TENNIS_SET_HANDICAP_NEIGHBOURS (R2)
+# from 2026-10-28 00:00Z, and the basketball / CS2 curves made monotone
+# (config/sofa_sport_confidence_calibration.next.2026-10-28.json) - p and
+# confidence move on what prints: a new epoch.
+CONFIDENCE_REVIEW_EPOCH_FROM_DATE = "2026-10-28"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= CONFIDENCE_REVIEW_EPOCH_FROM_DATE:
+            return "od 10-28"
         if str(row.get("date", "")) >= READ_SCOPE_EPOCH_FROM_DATE:
             return "od 10-27"
         if str(row.get("date", "")) >= LIVE_ONLY_CURVE_EPOCH_FROM_DATE:

@@ -142,6 +142,41 @@ UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, str, Callable[..., bool], str], ...]
 )
 
 
+# Review 2026-10-27 F3: the CS2 replay's Elo starts every team at ELO_START on
+# the first map of the LOOKBACK_DAYS history, while a live day's book has had
+# the whole lookback; --cs2-burn-in-days N fits nothing from the series of
+# the first N days (fitted_from.cs2_burn_in). Measured 2026-10-27 (fit for
+# 2026-10-28, DB copy, R4 off, series bootstrap): favourite map / match
+# winner realised - p over the first 90 days -1.8 / +1.4 / -2.9 pp per 30-day
+# block (each interval but one holding 0; later blocks -0.7..+1.5), no trend
+# by the pair's rated maps (10-20 -0.5, 20-40 +1.7, 40-80 -0.9, 80+ -0.7 pp);
+# a curve fitted after a burn-in reads the 30-day holdout worse - log loss
+# vs none +0.00006 (30 d) / +0.00019 [+0.00006, +0.00031] (90 d) / +0.00041
+# (150 d), printable gap +3.39 -> +3.30 pp. So the default stays 0 (off).
+CS2_BURN_IN_DAYS = 0
+
+
+def switch_mode(mode: str, sport: str, owner: str, before: str,
+                is_on: Callable[..., bool]) -> bool:
+    """A review-2026-10-27 replay switch (R3 / R4): `on` / `off` forced,
+    `auto` = the switch on `before`'s first build (00:00Z); False for any
+    sport but `owner`."""
+    if sport != owner:
+        return False
+    if mode != "auto":
+        return mode == "on"
+    return bool(is_on(before, datetime.strptime(before, "%Y-%m-%d").replace(
+        tzinfo=UTC)))
+
+
+def burn_in_start(fit_start: int, first_map_ts: int | None, days: int) -> int:
+    """F3: the CS2 fit window's start moved past the replay's Elo burn-in -
+    `days` after the history's first map (0 = unchanged)."""
+    if days <= 0 or first_map_ts is None:
+        return fit_start
+    return max(fit_start, first_map_ts + days * 86400)
+
+
 def unreplayed_switches(sport: str, before: str) -> list[str]:
     """The UNREPLAYED_AUDIT_SWITCHES of `sport` on for `before` (its first
     build, 00:00Z), each as a warning line."""
@@ -188,6 +223,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         args.vb_set_history or epochs.vb_set_history(before, first))
     hold_ts = before_ts - args.holdout_days * 86400
     fit_start = hold_ts - args.fit_days * 86400
+    # review 2026-10-27 R3 / R4: the switch of the day the fit is for, or forced
+    hk_late = switch_mode(args.hk_late_in_mean, sport, "hockey", before,
+                          epochs.hk_late_goal_in_mean)
+    decider = switch_mode(args.cs2_decider_posterior, sport, "cs2", before,
+                          epochs.cs2_decider_map_posterior)
+    burn_in: dict[str, Any] = {}
     dates = settled_dates(runs_dir, sport, before)
     rows: dict[str, list[scf.Row]] = {}
     market: dict[int, MarketLines] | None = None
@@ -199,13 +240,22 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         # epochs.CS2_SERIES_ROUNDS: the series rounds replayed for a day >= it
         series_rounds = epochs.cs2_series_rounds(
             before, datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=UTC))
+        # F3: no fit row from the replay's Elo burn-in
+        first_map = maps[0].start_ts if maps else None
+        start = burn_in_start(fit_start, first_map, args.cs2_burn_in_days)
+        burn_in = {"cs2_burn_in": {
+            "days": args.cs2_burn_in_days,
+            "history_first_map_utc": None if first_map is None else _iso(first_map),
+            "fit_start_utc": _iso(start)}}
+        fit_start = start
         rows["history_fit"] = scf.cs2_walk_forward_rows(
             maps, series, fit_start, hold_ts, "history_fit", race,
-            series_rounds=series_rounds)
+            series_rounds=series_rounds, decider_posterior=decider)
         rows["history_holdout"] = scf.cs2_walk_forward_rows(
             maps, series, hold_ts, before_ts, "history_holdout", race,
-            series_rounds=series_rounds)
-        rows["superbet_settled"] = scf.cs2_settled_rows(runs_dir, dates)
+            series_rounds=series_rounds, decider_posterior=decider)
+        rows["superbet_settled"] = scf.cs2_settled_rows(
+            runs_dir, dates, decider_posterior=decider)
         fit_dates: list[str] = []
         oos_dates = dates
         history_n = len({m.event_id for m in maps})
@@ -230,12 +280,14 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
             "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en,
-            vb_length, vb_sets, market, season_restart=restart)
+            vb_length, vb_sets, market, season_restart=restart,
+            late_in_mean=hk_late if sport == "hockey" else None)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
             pace, level, hk_shots, hk_en, vb_length, vb_sets, market,
-            season_restart=restart)
+            season_restart=restart,
+            late_in_mean=hk_late if sport == "hockey" else None)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -247,7 +299,9 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             hk_shots=args.hk_shots,
             hk_empty_net=True if args.hk_empty_net else None,
             set_length=True if args.vb_set_length else None,
-            season_restart=True if args.league_season_restart else None)
+            season_restart=True if args.league_season_restart else None,
+            # R3 forced by the flag on every settled day, else the day's own
+            late_in_mean={"on": True, "off": False}.get(args.hk_late_in_mean))
         only = scf.settled_only_families(sport, vb_sets)
         half = len(dates) // 2
         fit_dates, oos_dates = dates[:half], dates[half:]
@@ -257,7 +311,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             r for r in settled
             if r["family"] not in only or r["date"] in oos_dates]
     fit_rows = rows["history_fit"] + rows.get("settled_fit", [])
-    curves = scf.fit_curves(fit_rows)
+    curves = scf.fit_curves(fit_rows, effective_n=args.effective_n,
+                            monotone=args.monotone)
     only_now = (scf.settled_only_families(sport, vb_sets)
                 if sport in scf.ALLOWED_MARKETS else frozenset())
     source = {key: ("superbet_settled" if key.split("|")[0] in only_now
@@ -288,6 +343,12 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             "bb_freshness": fresh,
             "bb_overtime": overtime,
             "league_rate_rule": strict,
+            # review 2026-10-27 F1 / F2: how a bucket's confidence is read
+            "curve_rules": {"effective_n": bool(args.effective_n),
+                            "monotone": bool(args.monotone)},
+            **({"hk_late_goal_in_mean": True} if hk_late else {}),
+            **({"cs2_decider_map_posterior": True} if decider else {}),
+            **burn_in,
             **({"unreplayed_switches": unreplayed} if unreplayed else {}),
             **({"league_season_restart": True} if restart else {}),
             **({"bb_pace": True} if pace else {}),
@@ -429,6 +490,27 @@ def main() -> int:
                     "A7; backfill_event_odds.py cache); hockey: the regulation "
                     "total only; default: the --before day's rule "
                     "(epochs.MARKET_POSITIONED_LINES), basketball only")
+    ap.add_argument("--no-effective-n", dest="effective_n",
+                    action="store_false",
+                    help="read a bucket's Wilson bound and min_bucket on its "
+                    "rows, not the Kish effective n = n / deff by game "
+                    "(review 2026-10-27 F2; default: effective n)")
+    ap.add_argument("--no-monotone", dest="monotone", action="store_false",
+                    help="no pool-adjacent-violators pass over each key's "
+                    "buckets (review 2026-10-27 F1; default: monotone)")
+    ap.add_argument("--cs2-burn-in-days", type=int, default=CS2_BURN_IN_DAYS,
+                    help="CS2: no fit row from the first N days of the "
+                    "replayed Elo history (review 2026-10-27 F3; 0 = off)")
+    ap.add_argument("--hk-late-in-mean", choices=("auto", "on", "off"),
+                    default="auto",
+                    help="hockey: the late goal inside the third period's "
+                    "mean (review R3, epochs.HK_LATE_GOAL_IN_MEAN); auto = "
+                    "the --before day's rule (settled days: their own)")
+    ap.add_argument("--cs2-decider-posterior", choices=("auto", "on", "off"),
+                    default="auto",
+                    help="CS2: a decider map's p from the series Beta's "
+                    "posterior (review R4, epochs.CS2_DECIDER_MAP_POSTERIOR); "
+                    "auto = the --before day's rule")
     ap.add_argument("--fit-days", type=int, default=365)
     ap.add_argument("--sims", type=int, default=1000,
                     help=f"simulated games per forecast (pipeline: {N_SIMS})")

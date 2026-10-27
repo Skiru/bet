@@ -250,7 +250,7 @@ def _row(key_market: str, direction: str, subject: str, line: float, p: float,
 
 def replay_football(history: Sequence[fr.FootballResult],
                     records: Mapping[int, IncidentRecord], end: int,
-                    nb_r: float) -> list[dict[str, Any]]:
+                    nb_r: float, nb_exact: bool = False) -> list[dict[str, Any]]:
     """One row per (match, selection) SHEET would price, as of the match's
     UTC day: the book and the rates hold only earlier days' matches."""
     book = fr.RatingBook(shared_league_link=True)
@@ -283,7 +283,8 @@ def replay_football(history: Sequence[fr.FootballResult],
         away = fc.centre("goals_for", "side_b")
         if home is not None and away is not None:
             try:
-                probs = first_goal_probs(home[0], away[0], nb_r)
+                probs = first_goal_probs(home[0], away[0], nb_r,
+                                         exact=nb_exact)
             except ValueError:
                 probs = {}
             link = fc.fixture_link() if probs else ""
@@ -797,7 +798,8 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
               if "goals_for" in r.values and r.ts < final_before}
     records = load_records(str(db), wanted)
     nb_r = load_result_config().nb_r
-    rows = replay_football(history, records, final_before, nb_r)
+    rows = replay_football(history, records, final_before, nb_r,
+                           nb_exact=args.first_goal_nb_exact)
     note(f"football rows {len(rows)}")
     keys = (direction_key(FIRST_GOAL, "OVER"),
             direction_key(RED_CARDS, "OVER"), direction_key(RED_CARDS, "UNDER"),
@@ -819,6 +821,7 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
         "first_row_date": min((r["date"] for r in rows), default=None),
         "rows": len(rows), "curve_rows": sum(1 for r in rows if usable(r)),
         "incident_records": len(records),
+        "first_goal_nb_exact": bool(args.first_goal_nb_exact),
         "estimator": ("football_incidents.first_goal_probs on "
                       "FootballForecast.centre(goals_for) of the day-cut "
                       f"RatingBook (shared league link), NB r {nb_r}; "
@@ -999,6 +1002,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--card-terms", action="store_true",
                     help="card_halves: replay epochs.FOOTBALL_CARD_HALVES_TERMS "
                     "(live full-match centres, side events' game state)")
+    ap.add_argument("--first-goal-nb-exact", action="store_true",
+                    help="football_incidents: replay epochs.FIRST_GOAL_NB_EXACT "
+                    "(R5, the first goal's split as the NB race)")
     ap.add_argument("--regate", action="store_true",
                     help="no copy, no replay: re-gate the saved rows.csv")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,

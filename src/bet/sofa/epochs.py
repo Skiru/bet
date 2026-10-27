@@ -3316,3 +3316,83 @@ def tennis_rating_score_winner(date: str,
                                build_at: datetime | None = None) -> bool:
     """P14 (TENNIS_RATING_SCORE_WINNER_FROM_UTC)."""
     return _audit_1023_on(TENNIS_RATING_SCORE_WINNER_FROM_UTC, date, build_at)
+
+
+# Confidence review 2026-10-27 (operator: "popraw wszystkie błędy"; review of
+# football / tennis / measured sports / CS2 against the literature). Each
+# switch is owned by the fix it names, stays None (off) until that fix ships
+# with a test and its measurement is better out of sample, then is set to the
+# next day's 00:00Z (operator standing go 2026-10-15). Read on the day being
+# built and the build clock, like the audit-1023 switches.
+
+# R1 football: a joint's side with no quoted ladder gets the same centre chain
+# (opponent correction, venue prior, GAME_STATE, stretches, referee, season
+# phase) its marginal row would get - the chain the joint curves' replay
+# (calibrate_from_cache.live_centre) already applies. Measured on our settled
+# days 10-21..10-26 (scratch SHEET re-run, 4,102 filled-side joint rows in
+# 1,370 matches, match bootstrap): log loss on - off -0.0000 [-0.0025,
+# +0.0025] - neutral; on as a consistency fix (live = the curves' replay),
+# not an edge. Ledger group "od 10-28".
+JOINT_FILLED_SIDE_CHAIN_FROM_UTC: datetime | None = datetime(
+    2026, 10, 28, 0, 0, 0, tzinfo=UTC)
+
+
+def joint_filled_side_chain(date: str, build_at: datetime | None = None) -> bool:
+    """R1 (JOINT_FILLED_SIDE_CHAIN_FROM_UTC)."""
+    return _audit_1023_on(JOINT_FILLED_SIDE_CHAIN_FROM_UTC, date, build_at)
+
+
+# R2 tennis: per-set games handicap read from the rating neighbours' own set
+# scores instead of an independent (rho 0) joint of the two players' games.
+# Measured (match bootstrap): history 2026-08-28..10-26, 442,470 rows / 14,792
+# matches, log loss 0.5509 -> 0.4863, old - new +0.0646 [+0.0613, +0.0680];
+# settled Superbet lines 10-14..10-26, 5,260 lines / 399 matches, 0.6657 ->
+# 0.6215, +0.0442 [+0.0215, +0.0668]; bucket 0.70-0.75 realised 0.623 ->
+# 0.725 at p ~0.725. Calibration fix, no edge vs price. Ledger "od 10-28".
+TENNIS_SET_HANDICAP_NEIGHBOURS_FROM_UTC: datetime | None = datetime(
+    2026, 10, 28, 0, 0, 0, tzinfo=UTC)
+
+
+def tennis_set_handicap_neighbours(date: str,
+                                   build_at: datetime | None = None) -> bool:
+    """R2 (TENNIS_SET_HANDICAP_NEIGHBOURS_FROM_UTC)."""
+    return _audit_1023_on(TENNIS_SET_HANDICAP_NEIGHBOURS_FROM_UTC, date,
+                          build_at)
+
+
+# R3 hockey: the late (empty-net) goal is no longer added on top of a third
+# period whose mean already holds it (score_model._hockey).
+HK_LATE_GOAL_IN_MEAN_FROM_UTC: datetime | None = None
+
+
+def hk_late_goal_in_mean(date: str | None = None,
+                         build_at: datetime | None = None) -> bool:
+    """R3 (HK_LATE_GOAL_IN_MEAN_FROM_UTC); `date` None = the clock alone."""
+    if HK_LATE_GOAL_IN_MEAN_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is None:
+        return at >= HK_LATE_GOAL_IN_MEAN_FROM_UTC
+    return _audit_1023_on(HK_LATE_GOAL_IN_MEAN_FROM_UTC, date, build_at)
+
+
+# R4 CS2: a map played only from a level series (Bo3 map 3, Bo5 maps 4-5) is
+# priced with the series Beta's posterior given the level score
+# ((pK+1)/(K+2) at 1-1), not the plain map probability.
+CS2_DECIDER_MAP_POSTERIOR_FROM_UTC: datetime | None = None
+
+
+def cs2_decider_map_posterior(date: str,
+                              build_at: datetime | None = None) -> bool:
+    """R4 (CS2_DECIDER_MAP_POSTERIOR_FROM_UTC)."""
+    return _audit_1023_on(CS2_DECIDER_MAP_POSTERIOR_FROM_UTC, date, build_at)
+
+
+# R5 football: first-goal split computed exactly under the NB (gamma-mixed)
+# goals football_incidents uses, not by the Poisson ratio of the means.
+FIRST_GOAL_NB_EXACT_FROM_UTC: datetime | None = None
+
+
+def first_goal_nb_exact(date: str, build_at: datetime | None = None) -> bool:
+    """R5 (FIRST_GOAL_NB_EXACT_FROM_UTC)."""
+    return _audit_1023_on(FIRST_GOAL_NB_EXACT_FROM_UTC, date, build_at)

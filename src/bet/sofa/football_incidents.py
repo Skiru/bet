@@ -35,6 +35,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+
 from bet.sofa.football_result import ResultConfig
 from bet.sofa.market_mapper import fold
 from bet.sofa.metrics import (
@@ -315,9 +317,44 @@ def classify_incident(
     return None
 
 
-def first_goal_probs(lh: float, la: float, r: float) -> dict[str, float]:
+# R5 (epochs.FIRST_GOAL_NB_EXACT_FROM_UTC, review 2026-10-27): the NB goals
+# are gamma-mixed Poisson counts (a side's rate A ~ Gamma(r, lh / r)), so
+# "home scores first" is a race of two mixed Poisson processes over the
+# match, not the Poisson ratio lh / (lh + la) of the means. With the match
+# as t in [0, 1] and the sides independent,
+#     P(home first) = int_0^1 E[A e^{-A t}] E[e^{-B t}] dt
+#                   = int_0^1 lh (1 + lh t / r)^-(r+1) (1 + la t / r)^-r dt,
+# a smooth one-dimensional integral (Gauss-Legendre, FG_NB_NODES nodes;
+# exact to ~1e-12 on the means SHEET sees). P(none) is unchanged and the
+# away side takes the rest, so the three still sum to 1. The ratio
+# overstates the favourite: (1.8, 0.8) 0.628 vs 0.621, (2.6, 0.5) 0.784 vs
+# 0.774 (Monte Carlo 400k agrees with the integral).
+FG_NB_NODES = 48
+_GL_NODES, _GL_WEIGHTS = np.polynomial.legendre.leggauss(FG_NB_NODES)
+# mapped from [-1, 1] to [0, 1]
+_GL_T = 0.5 * (_GL_NODES + 1.0)
+_GL_W = 0.5 * _GL_WEIGHTS
+
+
+def _first_goal_home_nb(lh: float, la: float, r: float) -> float:
+    """P(home scores first) under independent NB(r) goals (the integral
+    above)."""
+    t = _GL_T
+    dens = lh * np.power(1.0 + lh * t / r, -(r + 1.0)) * np.power(
+        1.0 + la * t / r, -r)
+    return float(np.dot(_GL_W, dens))
+
+
+def first_goal_probs(
+    lh: float, la: float, r: float, exact: bool = False
+) -> dict[str, float]:
     """P(home first), P(away first), P(no goal) for expected goals `lh` /
-    `la`, NB with dispersion `r` per side, independent sides."""
+    `la`, NB with dispersion `r` per side, independent sides.
+
+    ``exact`` (epochs.first_goal_nb_exact, R5): the split of "someone
+    scores" is the race of the two gamma-mixed processes
+    (``_first_goal_home_nb``); False (the switch off) keeps the Poisson
+    ratio of the means, byte for byte as before."""
     if not (math.isfinite(lh) and math.isfinite(la) and lh > 0 and la > 0):
         raise ValueError(f"goal means must be positive, got {lh!r}, {la!r}")
     if not (math.isfinite(r) and r > 0):
@@ -325,6 +362,9 @@ def first_goal_probs(lh: float, la: float, r: float) -> dict[str, float]:
     p0h = math.exp(r * math.log(r / (r + lh)))
     p0a = math.exp(r * math.log(r / (r + la)))
     none = p0h * p0a
+    if exact:
+        home = min(max(_first_goal_home_nb(lh, la, r), 0.0), 1.0 - none)
+        return {FG_HOME: home, FG_AWAY: (1 - none) - home, FG_NONE: none}
     return {
         FG_HOME: (1 - none) * lh / (lh + la),
         FG_AWAY: (1 - none) * la / (lh + la),
@@ -433,6 +473,9 @@ class IncidentPricing:
 
     rates: IncidentRates
     result: ResultConfig
+    # R5 (epochs.first_goal_nb_exact on the day being built and the build
+    # clock): the first goal's split as the NB race (first_goal_probs exact)
+    nb_exact: bool = False
 
 
 def incident_note(market: str, subject: str, p: float, detail: str) -> str:

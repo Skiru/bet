@@ -211,6 +211,7 @@ class DbForecaster:
             from bet.sofa.score_model import (
                 build_model,
                 empty_net_params,
+                late_goal_in_mean_params,
                 load_box_scores,
                 load_events,
                 overtime_params,
@@ -249,12 +250,19 @@ class DbForecaster:
             if vb_length:
                 vb_extra.update(set_length=True,
                                 set_scores=scf.set_scores_of(history))
+            params = empty_net_params(
+                overtime_params(
+                    None, sport, epochs.bb_overtime(self.date, self.at)),
+                sport, hk_en)
+            if sport == "hockey":
+                # review 2026-10-27 R3: the late goal inside the third
+                # period's mean, by the built day and the build clock (forced
+                # either way: ScoreModel.simulate would read the clock alone)
+                params = late_goal_in_mean_params(
+                    params, sport,
+                    epochs.hk_late_goal_in_mean(self._day, self.at))
             model = build_model(
-                [g.rating for g in history], sp, cut,
-                empty_net_params(
-                    overtime_params(
-                        None, sport, epochs.bb_overtime(self.date, self.at)),
-                    sport, hk_en),
+                [g.rating for g in history], sp, cut, params,
                 shared_league_link=epochs.link_shared_league(self.date),
                 strict_league_rate=epochs.league_rate_rule(self.date, self.at),
                 pace=pace, pace_level=level, shots=hk_shots,
@@ -311,6 +319,16 @@ class DbForecaster:
             (str(ev.superbet_event_id), int(line.market_id), str(line.subject),
              line.line, str(line.side)))
 
+    def late_goal_rule(self, sport: str, line: Any) -> dict[str, str]:
+        """{score_model.HK_LATE_GOAL_IN_MEAN_RULE: the switch} for a hockey
+        score-model side priced under review R3, {} otherwise."""
+        if sport != "hockey" or shadow.is_player_line(sport, int(line.market_id)):  # type: ignore[arg-type]
+            return {}
+        from bet.sofa.score_model import late_goal_in_mean_marker
+
+        model, _ = self._shadow_model(sport)
+        return late_goal_in_mean_marker(model.params)
+
     def unrated_rule(self, sport: str, ev: Any, line: Any) -> bool:
         """True when this CS2 side's p was priced through the unrated pairs'
         lineup calibration (epochs.CS2_LINEUP_ELO_UNRATED, audit 2026-10-23
@@ -340,6 +358,11 @@ class DbForecaster:
             # nickname by prefix too (passed only when on: off = the old call)
             name_rules = ({"name_rules": True}
                           if epochs.name_rules_1023(self._day, self.at) else {})
+            # review 2026-10-27 R4: the decider map's posterior (passed only
+            # when on: off = the old call)
+            decider = ({"decider_posterior": True}
+                       if epochs.cs2_decider_map_posterior(str(self.date), self.at)
+                       else {})
             mp = cs2_engine.model_probability(
                 line, t1, t2, ev.team1, ev.team2, int(best_of or 3),
                 maps, ratings, bool(fixture["home_is_team1"]),
@@ -347,7 +370,7 @@ class DbForecaster:
                 map_identity=epochs.cs2_map_identity(str(self.date), self.at),
                 exposure=self._cs2_counts(maps),
                 series_rounds=epochs.cs2_series_rounds(str(self.date), self.at),
-                **name_rules)
+                **name_rules, **decider)
             if (mp is not None and getattr(ratings, "lineup_unrated", False)
                     and not ratings.book.rated(t1, t2)):
                 # audit 2026-10-23 P7: the side's number differs from (or does
@@ -362,7 +385,7 @@ class DbForecaster:
                     map_identity=epochs.cs2_map_identity(str(self.date), self.at),
                     exposure=self._cs2_counts(maps),
                     series_rounds=epochs.cs2_series_rounds(str(self.date), self.at),
-                    **name_rules)
+                    **name_rules, **decider)
                 if off is None or off.p != mp.p:
                     self._cs2_unrated.add(_cs2_side_key(ev, line))
             return None if mp is None else mp.p
@@ -699,11 +722,22 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.DC_PAIR_MARKETS.get(sport, {}):  # type: ignore[call-overload]
                 legs[-1]["dc_pair_rule"] = epochs.BASKETBALL_DC_PAIR
+            late_rule = getattr(forecaster, "late_goal_rule", None)
+            if late_rule is not None:
+                # review 2026-10-27 R3: hockey's late goal inside the mean
+                legs[-1].update(late_rule(sport, ln))
             unrated = getattr(forecaster, "unrated_rule", None)
             if unrated is not None and unrated(sport, ev, ln):
                 # audit 2026-10-23 P7: priced through the unrated pairs'
                 # lineup calibration (review R3 F10)
                 legs[-1]["lineup_unrated_rule"] = cs2_engine.LINEUP_UNRATED_RULE
+            if (sport == "cs2" and epochs.cs2_decider_map_posterior(date, at)
+                    and getattr(ln, "map_nr", None) is not None
+                    and cs2_engine.decider_map(
+                        int(fixture.get("best_of") or 0), int(ln.map_nr))):
+                # review 2026-10-27 R4: a map played only from a level series,
+                # priced with the series Beta's posterior
+                legs[-1]["decider_map_rule"] = cs2_engine.DECIDER_MAP_RULE
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.PLAYER_V2_MARKETS.get(sport, frozenset()):  # type: ignore[call-overload]
                 legs[-1]["player_v2_rule"] = epochs.BASKETBALL_PLAYER_V2

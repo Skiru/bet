@@ -69,11 +69,12 @@ from __future__ import annotations
 import bisect
 import json
 import math
+import re
 import sqlite3
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -152,6 +153,19 @@ SET_RATING_PRICED_MARKETS = frozenset(
 # games_total: the rating alone ties the NB (dLL -0.0002 [-0.0019, +0.0017]),
 # the 50/50 mix beats it (-0.0087 [-0.0099, -0.0075], both windows).
 W_GAMES_TOTAL_RATING = 0.5
+# Review 2026-10-27 R2 (epochs.TENNIS_SET_HANDICAP_NEIGHBOURS_FROM_UTC, off):
+# "N. set - handicap gemy" read from the subject's own set-N margin in the
+# rating's neighbours (MatchForecast.read_set_handicap), as handicap_games is
+# read from the match margin. The derived joint priced it as two independent
+# per-set game counts (rho 0): within a set the winner has 6 / 7 games, so a
+# level margin never happens (0.0002 on 60k set-1 scores) where independence
+# put 0.256 on it. Market -> set number.
+SET_HANDICAP_MARKETS: Mapping[str, int] = {
+    "handicap_games_won_set1": 1,
+    "handicap_games_won_set2": 2,
+}
+# The note a row priced so carries (derived.price_derived_rungs).
+SET_HANDICAP_NOTE = "SET_HANDICAP_NEIGHBOURS"
 # A per-subject market: the probability is read from the subject's side.
 _SUBJECT_MARKETS = frozenset(
     {"games_won_for", "games_won_set1_for", "games_won_set2_for",
@@ -628,6 +642,10 @@ class MatchForecast:
     # Which neighbour table the two pools were cut from: "pooled" (the one
     # global table), "tier" or "tier_gender" (epochs.TENNIS_SCOPED_TABLE).
     table_scope: str = "pooled"
+    # R2 (epochs.tennis_set_handicap_neighbours): SHEET's stats-only rating
+    # reader prices SET_HANDICAP_MARKETS through read_set_handicap. False =
+    # those rows keep the derived joint, as before.
+    set_handicap: bool = False
 
     def p_side_wins(self, side: str) -> float:
         return self.p_home if side == "side_a" else 1.0 - self.p_home
@@ -699,6 +717,34 @@ class MatchForecast:
         over = sum(1 for o in pool if value(o) > line)
         under = sum(1 for o in pool if value(o) < line)
         return (over if direction == "OVER" else under) / len(pool)
+
+    def with_set_handicap(self, on: bool) -> MatchForecast:
+        """This forecast with ``set_handicap`` set (itself when unchanged)."""
+        return self if on == self.set_handicap else replace(
+            self, set_handicap=on)
+
+    def read_set_handicap(
+        self, market: str, side: str | None, line: float, direction: str
+    ) -> float | None:
+        """P("X (line)" wins) on a per-set games handicap, read off X's own
+        neighbours exactly as ``read`` reads handicap_games: the selection
+        wins when X's margin in that set exceeds -line (an integer line
+        landing exactly is a push, not a win). Only the OVER side exists
+        (each player's handicap is its own rung). None for any other market,
+        an unknown side or an empty pool."""
+        number = SET_HANDICAP_MARKETS.get(market)
+        if number is None or direction != "OVER":
+            return None
+        if side not in ("side_a", "side_b"):
+            return None
+        pool = self.neighbours_home if side == "side_a" else self.neighbours_away
+        if not pool:
+            return None
+        wins = 0
+        for o in pool:
+            games_for, games_against = o.set1 if number == 1 else o.set2
+            wins += games_for - games_against > -line
+        return wins / len(pool)
 
     def p_side_wins_a_set(self, side: str) -> float:
         pool = self.neighbours_home if side == "side_a" else self.neighbours_away
@@ -909,23 +955,75 @@ def fit_tier_start(history: Iterable[TennisResult], cut_ts: int) -> dict[str, fl
     return {t: (sum(v) / len(v) - mean_all) if v else 0.0 for t, v in by.items()}
 
 
+def best_of(r: TennisResult) -> int | None:
+    """The format of a completed match from its own set score, the rule of
+    ``metrics.infer_best_of``: the winner's sets 3 -> best of five, 2 -> best
+    of three, else None (unknown, never guessed). A match tiebreak counts as
+    the set it decided."""
+    home_sets = sum(1 for h, a in r.sets if h > a)
+    away_sets = sum(1 for h, a in r.sets if a > h)
+    won = max(home_sets, away_sets)
+    return 5 if won == 3 else 3 if won == 2 else None
+
+
 def fit_coefficients(
     rated: Sequence[tuple[TennisResult, Mapping[str, float]]],
     names: Sequence[str] = FEATURES,
+    legacy_set_filter: bool = False,
 ) -> dict[str, dict[str, Any]]:
-    """One logistic calibration per tier group, with the evidence it came from."""
+    """One logistic calibration per tier group, with the evidence it came from.
+
+    The calibration is fitted on best-of-three matches only (``best_of`` 3).
+    Review 2026-10-27 (T-BO5): the old filter ``len(r.sets) <= 3`` - kept
+    for measurement as ``legacy_set_filter`` - dropped a best-of-five match
+    by its outcome: a 3-0 stayed in, a 3-1 / 3-2 went out, so the Grand Slam
+    favourites the fit saw won 78% where every best-of-five favourite won 63%
+    (selection on the dependent variable)."""
     out: dict[str, dict[str, Any]] = {}
     by_tier: dict[str, list[tuple[TennisResult, Mapping[str, float]]]] = (
         defaultdict(list)
     )
     for r, f in rated:
-        if len(r.sets) <= 3:
+        keep = len(r.sets) <= 3 if legacy_set_filter else best_of(r) == 3
+        if keep:
             by_tier[r.tier].append((r, f))
     for tier, rows in sorted(by_tier.items()):
         xs = [[f[name] for name in names] for _, f in rows]
         ys = [1.0 if r.home_won else 0.0 for r, _ in rows]
         out[tier] = {"coefficients": fit_logistic(xs, ys), "n": len(rows)}
     return out
+
+
+_DATED_CONFIG = re.compile(r"^tennis_rating\.next\.(\d{4}-\d{2}-\d{2})\.json$")
+
+
+def params_path_for(
+    date: str, at: datetime | None = None, config_dir: Path | None = None
+) -> Path:
+    """The calibration file a day's SHEET reads: the staged
+    ``tennis_rating.next.<YYYY-MM-DD>.json`` with the latest
+    ``effective_from`` at or before ``date`` whose day has begun on the clock
+    ``at`` (default now; a 10-28 sheet built on 10-27 still reads the
+    installed file), else the installed ``tennis_rating.json`` - the rule of
+    ``player_model.params_path_for``. A staged file whose ``effective_from``
+    disagrees with its name raises."""
+    from bet.sofa import timeutil
+
+    main = (config_dir / DEFAULT_CONFIG.name) if config_dir else config_path(
+        DEFAULT_CONFIG.name)
+    clock = (at or timeutil.now()).astimezone(UTC).strftime("%Y-%m-%d")
+    best: tuple[str, Path] | None = None
+    for path in sorted(main.parent.glob("tennis_rating.next.*.json")):
+        named = _DATED_CONFIG.match(path.name)
+        if not named:
+            continue
+        eff = json.loads(path.read_text(encoding="utf-8")).get("effective_from")
+        if eff != named.group(1):
+            raise ValueError(
+                f"{path.name}: effective_from {eff!r} disagrees with the file name")
+        if date >= eff and clock >= eff and (best is None or eff > best[0]):
+            best = (eff, path)
+    return best[1] if best else main
 
 
 def load_coefficients(

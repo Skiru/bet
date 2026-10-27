@@ -567,6 +567,9 @@ def attach_model(
     race = epochs.cs2_team_rounds_race(kickoff.strftime("%Y-%m-%d"), kickoff)
     # epochs.CS2_SERIES_ROUNDS: the series rounds' model_p, the day it was offered
     series_rounds = epochs.cs2_series_rounds(kickoff.strftime("%Y-%m-%d"), kickoff)
+    # review 2026-10-27 R4: the decider map's posterior, the day it was offered
+    decider = epochs.cs2_decider_map_posterior(kickoff.strftime("%Y-%m-%d"),
+                                               kickoff)
     for row in graded:
         if unknown_format:
             row["model_p"] = row["model_n"] = row["model"] = None
@@ -588,6 +591,7 @@ def attach_model(
             exposure=exposure,
             series_rounds=series_rounds,
             name_rules=name_rules,
+            decider_posterior=decider,
         )
         row["model_p"] = None if mp is None else round(mp.p, 4)
         row["model_n"] = None if mp is None else mp.n

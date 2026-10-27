@@ -48,6 +48,7 @@ from bet.sofa.comparability import (
 )
 from bet.sofa.cs2 import Cs2Line
 from bet.sofa.football_rating import FootballResult
+from bet.sofa.line_evidence import design_effect
 from bet.sofa.market_lines import MarketLines
 from bet.sofa.score_model import (
     ScoreModel,
@@ -56,6 +57,7 @@ from bet.sofa.score_model import (
     attach_hockey_shots,
     build_model,
     empty_net_params,
+    late_goal_in_mean_params,
     line_probability,
     overtime_minutes,
     overtime_params,
@@ -391,6 +393,50 @@ def wilson_lo(k: int, n: int, z: float = 1.959964) -> float:
     return max(0.0, c - m)
 
 
+def wilson_lo_rate(rate: float, n: float, z: float = 1.959964) -> float:
+    """wilson_lo for a rate on a (possibly fractional) effective n - the
+    Kish n / deff of rows that come clustered in games (review 2026-10-27
+    F2). Equal to wilson_lo(k, n) at rate = k / n, integer n."""
+    if n <= 0:
+        return 0.0
+    d = 1 + z * z / n
+    c = (rate + z * z / (2 * n)) / d
+    m = z * math.sqrt(max(rate * (1 - rate), 0.0) / n + z * z / (4 * n * n)) / d
+    return max(0.0, c - m)
+
+
+def monotone_curve(curve: dict[str, dict[str, Any]]) -> None:
+    """Review 2026-10-27 F1: pool adjacent violators over a key's buckets so
+    the confidence never falls as p rises (isotonic calibration, Zadrozny &
+    Elkan 2002; Niculescu-Mizil & Caruana 2005). Buckets in p order; a block
+    whose lower bound is below the block before it is merged with it - the
+    merged block's realised rate is the effective-n-weighted mean and its
+    bound is wilson_lo_rate on the pooled effective n - until no block falls.
+    In place: a pooled bucket's `realised_lo95` becomes its block's, the
+    bucket's own bound kept as `realised_lo95_bucket`, the block's edges as
+    `pooled` [first label, last label]. A monotone curve is unchanged."""
+    labels = sorted(curve, key=lambda lab: float(lab.split("-")[0]))
+    blocks: list[tuple[list[str], float, float, float]] = []  # labels, k, n, lo
+    for lab in labels:
+        e = curve[lab]
+        n = float(e.get("n_eff", e["n"]))
+        k = float(e["realised"]) * n
+        blocks.append(([lab], k, n, float(e["realised_lo95"])))
+        while len(blocks) >= 2 and blocks[-1][3] < blocks[-2][3]:
+            b2 = blocks.pop()
+            b1 = blocks.pop()
+            k, n = b1[1] + b2[1], b1[2] + b2[2]
+            blocks.append((b1[0] + b2[0], k, n, wilson_lo_rate(k / n, n)))
+    for labs, _, _, lo in blocks:
+        if len(labs) < 2:
+            continue
+        for lab in labs:
+            e = curve[lab]
+            e["realised_lo95_bucket"] = e["realised_lo95"]
+            e["realised_lo95"] = round(lo, 4)
+            e["pooled"] = [labs[0], labs[-1]]
+
+
 def side_class(side: str) -> str:
     """OVER / UNDER / DRAW / ODD / EVEN / YES / NO and an exact score ("3:1")
     keep their own curve; a team side is TEAM. A double chance's "12" (no
@@ -429,23 +475,45 @@ def family_of(sport: str, market_id: int | None, family: str,
 Row = dict[str, Any]
 
 
-def fit_curves(rows: Iterable[Row], min_bucket: int = MIN_BUCKET
+def fit_curves(rows: Iterable[Row], min_bucket: int = MIN_BUCKET,
+               effective_n: bool = False, monotone: bool = False,
                ) -> dict[str, dict[str, dict[str, Any]]]:
     """key -> bucket label -> {n, realised, realised_lo95}; buckets under
-    `min_bucket` rows are left out (unused)."""
-    counts: dict[str, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
+    `min_bucket` rows are left out (unused).
+
+    `effective_n` (review 2026-10-27 F2): one game / series gives a bucket
+    many nested lines, so the bucket's n is the Kish effective n = n / deff
+    (line_evidence.design_effect, cluster = the row's `game`): the Wilson
+    bound and `min_bucket` read it; the bucket carries `n_eff` and `deff`,
+    `n` stays the rows. `monotone` (F1): monotone_curve over each key. Both
+    off: the curves as before, byte for byte."""
+    counts: dict[str, dict[int, list[tuple[str, int]]]] = defaultdict(
+        lambda: defaultdict(list))
     for r in rows:
-        counts[r["key"]][bucket_of(float(r["p"]))].append(int(r["y"]))
+        counts[r["key"]][bucket_of(float(r["p"]))].append(
+            (str(r.get("game")), int(r["y"])))
     out: dict[str, dict[str, dict[str, Any]]] = {}
     for key, by_bucket in sorted(counts.items()):
         curve: dict[str, dict[str, Any]] = {}
-        for b, ys in sorted(by_bucket.items()):
-            if len(ys) < min_bucket:
+        for b, items in sorted(by_bucket.items()):
+            k, n = sum(y for _, y in items), len(items)
+            if not effective_n:
+                if n < min_bucket:
+                    continue
+                curve[bucket_label(b)] = {
+                    "n": n, "realised": round(k / n, 4),
+                    "realised_lo95": round(wilson_lo(k, n), 4)}
                 continue
-            k, n = sum(ys), len(ys)
+            deff = design_effect(items)
+            n_eff = n / deff
+            if n_eff < min_bucket:
+                continue
             curve[bucket_label(b)] = {
                 "n": n, "realised": round(k / n, 4),
-                "realised_lo95": round(wilson_lo(k, n), 4)}
+                "realised_lo95": round(wilson_lo_rate(k / n, n_eff), 4),
+                "n_eff": round(n_eff, 1), "deff": deff}
+        if curve and monotone:
+            monotone_curve(curve)
         if curve:
             out[key] = curve
     return out
@@ -928,6 +996,7 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       market_lines: Mapping[int, MarketLines] | None = None,
                       markets: Sequence[int] | None = None,
                       season_restart: bool = False,
+                      late_in_mean: bool | None = None,
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it. `markets`: the
@@ -962,6 +1031,10 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     them (thinned or not); None: today's synthetic replay.
     `season_restart` (epochs.LEAGUE_SEASON_RESTART_FROM_UTC): the league rate
     restarts after an off-season gap (RatingBook.season_restart).
+    `late_in_mean` (epochs.HK_LATE_GOAL_IN_MEAN_FROM_UTC, review 2026-10-27
+    R3): hockey's late goal taken out of the third period's mean, forced on
+    / off (score_model.late_goal_in_mean_params); None: the params as
+    before (ScoreModel.simulate reads the switch on the clock alone).
     """
     ratings = [g.rating for g in history]
     vb_len = set_length and sport.key == "volleyball"
@@ -982,10 +1055,12 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
         if model is None or ts >= next_rebuild:
             length_kw: dict[str, Any] = (
                 {"set_length": True, "set_scores": scores} if vb_len else {})
-            model = build_model(ratings, sport, ts,
-                                empty_net_params(
-                                    overtime_params(None, sport.key, overtime),
-                                    sport.key, hk_empty_net),
+            params = empty_net_params(
+                overtime_params(None, sport.key, overtime), sport.key,
+                hk_empty_net)
+            if late_in_mean is not None:
+                params = late_goal_in_mean_params(params, sport.key, late_in_mean)
+            model = build_model(ratings, sport, ts, params,
                                 strict_league_rate=strict_league_rate,
                                 pace=pace, pace_level=pace_level,
                                shots=hk_shots, season_restart=season_restart,
@@ -1024,6 +1099,12 @@ def day_ts(day: str) -> int:
     return int(datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
 
 
+def _day_end(day: str) -> datetime:
+    """The last second of `day` (UTC): a replayed settled day's rule is the
+    one its own builds could read, never the wall clock's."""
+    return datetime.fromtimestamp(day_ts(day) + 86399, UTC)
+
+
 def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                         events: Mapping[int, dict[str, Any]],
                         history: Sequence[HistoryGame], n_sims: int,
@@ -1034,7 +1115,8 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
                        hk_shots: str | None = None,
                        hk_empty_net: bool | None = None,
                        set_length: bool | None = None,
-                       season_restart: bool | None = None) -> list[Row]:
+                       season_restart: bool | None = None,
+                       late_in_mean: bool | None = None) -> list[Row]:
     """Superbet's settled lines of `dates` (runs/sofa/shadow/<sport>/<d>/
     settled.json), each with the model's probability from a model built
     strictly before the day - measure_score_model.py's reading. Only allowed
@@ -1045,7 +1127,9 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
     (audit B8, the history must carry shots); `hk_empty_net` None: the day's
     own epochs.hk_empty_net; `set_length` None: the day's own
     epochs.vb_set_length (audit B9); `season_restart` None: the day's own
-    epochs.league_season_restart."""
+    epochs.league_season_restart; `late_in_mean` None: the day's own
+    epochs.hk_late_goal_in_mean (review 2026-10-27 R3, forced into the
+    hockey params either way so the clock never decides a replayed day)."""
     ratings = [g.rating for g in history]
     scores: dict[int, tuple[Sequence[int], Sequence[int]]] | None = None
     rows: list[Row] = []
@@ -1080,10 +1164,14 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
             scores = set_scores_of(history)
         length_kw: dict[str, Any] = (
             {"set_length": True, "set_scores": scores} if day_length else {})
-        model = build_model(ratings, sport, day_ts(date),
-                            empty_net_params(
-                                overtime_params(None, sport.key, day_overtime),
-                                sport.key, day_en),
+        params = empty_net_params(
+            overtime_params(None, sport.key, day_overtime), sport.key, day_en)
+        if sport.key == "hockey":
+            params = late_goal_in_mean_params(
+                params, sport.key,
+                epochs.hk_late_goal_in_mean(date, _day_end(date))
+                if late_in_mean is None else late_in_mean)
+        model = build_model(ratings, sport, day_ts(date), params,
                             strict_league_rate=strict, pace=day_pace,
                             pace_level=day_level, shots=day_shots,
                             season_restart=day_restart,
@@ -1188,7 +1276,8 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
                           series_rounds: bool = False,
                           series_round_lines: Mapping[
                               int, Sequence[tuple[str, float, str, str]]]
-                          | None = None) -> list[Row]:
+                          | None = None,
+                          decider_posterior: bool = False) -> list[Row]:
     """CS2 rows for the series in [start_ts, end_ts), each from the engine's
     state at the series' start: the map and player Elo replayed in time
     order (cs2_engine.walk_forward_players), their logistic calibration
@@ -1200,7 +1289,13 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
     its own map's p. `series_rounds` (epochs.CS2_SERIES_ROUNDS): the series
     rounds on CS2_SERIES_ROUND_LINES too, and on `series_round_lines`
     (Sofascore event id -> (family, line, side, subject) in the home / away
-    orientation, subject T1 / T2 or "") with source `<source>_superbet`."""
+    orientation, subject T1 / T2 or "") with source `<source>_superbet`.
+    `decider_posterior` (epochs.CS2_DECIDER_MAP_POSTERIOR_FROM_UTC, review
+    2026-10-27 R4): a map played only from a level series reads its map p
+    through cs2_engine.decider_posterior_p, as model_probability does live
+    (map winner and the round race of map_team_rounds); off: as before.
+    Each row carries `rated_maps`: the fewer maps the two teams had in the
+    replayed Elo book at the series' start (the burn-in measurement, F3)."""
     book = cs2_engine.EloBook()
     players = cs2_engine.PlayerEloBook()
     points: list[tuple[float, float]] = []
@@ -1225,9 +1320,14 @@ def cs2_walk_forward_rows(maps: Sequence[cs2_engine.MapRow],
             next_refit = start + REFIT_DAYS_CS2 * 86400
         home, away = smaps[0].home_id, smaps[0].away_id
         if start_ts <= start < end_ts:
-            rows += _cs2_series_rows(eid, smaps, series.get(eid), model,
-                                     team_rounds, all_rounds, source,
-                                     team_rounds_race, map_identity)
+            new = _cs2_series_rows(eid, smaps, series.get(eid), model,
+                                   team_rounds, all_rounds, source,
+                                   team_rounds_race, map_identity,
+                                   decider_posterior)
+            rated = min(book.played[home], book.played[away])
+            for r in new:
+                r["rated_maps"] = rated
+            rows += new
             if series_rounds:
                 p_home = model.p_map(home, away, True)
                 if p_home is not None:
@@ -1414,16 +1514,20 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
                      team_rounds: Mapping[int, deque[int]],
                      all_rounds: Counter[int], source: str,
                      team_rounds_race: bool = False,
-                     map_identity: bool = False) -> list[Row]:
+                     map_identity: bool = False,
+                     decider_posterior: bool = False) -> list[Row]:
     home, away = smaps[0].home_id, smaps[0].away_id
     rows: list[Row] = []
     best_of = srow.best_of if srow is not None else smaps[0].best_of
 
     def p_of(m: cs2_engine.MapRow) -> float | None:
         # epochs.CS2_MAP_IDENTITY: the map's own p, as live
-        if map_identity:
-            return model.p_map_nr(home, away, True, best_of, m.order)
-        return p_map
+        pm = (model.p_map_nr(home, away, True, best_of, m.order) if map_identity
+              else p_map)
+        # review R4: a decider map's posterior, as model_probability live
+        if pm is not None and decider_posterior and m.order >= 1:
+            pm = cs2_engine.decider_posterior_p(pm, best_of, m.order)
+        return pm
 
     def add(family: str, map_nr: int, subject: str, line: float | None,
             side: str, p: float, y: bool) -> None:
@@ -1490,16 +1594,42 @@ def _cs2_series_rows(eid: int, smaps: Sequence[cs2_engine.MapRow],
     return rows
 
 
-def cs2_settled_rows(runs_dir: str, dates: Sequence[str]) -> list[Row]:
+def settled_best_of(maps: Sequence[Sequence[Any]] | None) -> int | None:
+    """A settled CS2 series' format read off its played maps' scores
+    ([[t1 rounds, t2 rounds], ...]): 1-1 over two maps is a best-of-2, else
+    best-of-(2 x the winner's maps - 1); None when it cannot be read."""
+    if not maps:
+        return None
+    try:
+        wins = [sum(1 for a, b in maps if int(a) > int(b)),
+                sum(1 for a, b in maps if int(b) > int(a))]
+    except (TypeError, ValueError):
+        return None
+    if len(maps) == 2 and wins == [1, 1]:
+        return 2
+    return 2 * max(wins) - 1 if max(wins) >= 1 else None
+
+
+def cs2_settled_rows(runs_dir: str, dates: Sequence[str],
+                     decider_posterior: bool = False) -> list[Row]:
     """Settled CS2 sides with the engine's pre-match `model_p`
-    (settle_cs2.attach_model), allowed families only; no price read."""
+    (settle_cs2.attach_model), allowed families only; no price read.
+    `decider_posterior` (review 2026-10-27 R4): on a day whose settle did not
+    apply it (epochs.cs2_decider_map_posterior off), a map_winner line of a
+    decider map (format read off the played maps, settled_best_of) reads
+    cs2_engine.decider_posterior_p of its stored `model_p` - the transform
+    model_probability applies live; other families keep their stored p (the
+    posterior moves them through a distribution the row does not hold)."""
     rows: list[Row] = []
     for date in dates:
         path = Path(runs_dir) / "cs2" / date / "settled.json"
         if not path.exists():
             continue
         doc = json.loads(path.read_text(encoding="utf-8"))
+        transform = decider_posterior and not epochs.cs2_decider_map_posterior(
+            date, _day_end(date))
         for sb_id, entry in (doc.get("events") or {}).items():
+            best_of = settled_best_of(entry.get("maps")) if transform else None
             for g in entry.get("graded") or []:
                 if g.get("outcome") not in ("WIN", "LOSS"):
                     continue
@@ -1509,14 +1639,22 @@ def cs2_settled_rows(runs_dir: str, dates: Sequence[str]) -> list[Row]:
                         | cs2_engine.SERIES_ROUND_FAMILIES \
                         or g.get("model_p") is None:
                     continue
+                p = float(g["model_p"])
+                map_nr = int(g.get("map_nr") or 0)
+                extra: dict[str, Any] = {}
+                if (transform and g["family"] == "map_winner"
+                        and cs2_engine.decider_map(best_of, map_nr)):
+                    p = round(cs2_engine.clamp(
+                        cs2_engine.decider_posterior_p(p, best_of, map_nr)), 4)
+                    extra["decider_posterior"] = True
                 rows.append({
                     "sport": "cs2", "family": g["family"], "market_id": None,
-                    "period": int(g.get("map_nr") or 0),
+                    "period": map_nr,
                     "subject": str(g.get("subject") or ""), "line": g.get("line"),
                     "side": str(g["side"]), "key": curve_key(g["family"], g["side"]),
-                    "p": float(g["model_p"]), "y": 1 if g["outcome"] == "WIN" else 0,
+                    "p": p, "y": 1 if g["outcome"] == "WIN" else 0,
                     "game": f"s:{date}:{sb_id}", "ts": day_ts(date), "date": date,
-                    "source": "superbet_settled"})
+                    "source": "superbet_settled", **extra})
     return rows
 
 

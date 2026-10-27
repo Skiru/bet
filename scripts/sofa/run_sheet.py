@@ -22,7 +22,14 @@ from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
-from bet.sofa.closeness_stretch import CLOSENESS_UNFITTED, ClosenessStretchTable
+from bet.sofa.centre_chain import (
+    JOINT_SIDE_CHAIN_NOTE,
+    CentreTerms,
+    apply_centre_chain,
+    apply_season_phase_term,
+    apply_team_terms,
+)
+from bet.sofa.closeness_stretch import ClosenessStretchTable
 from bet.sofa.closeness_stretch import load_table as load_closeness_stretch_table
 from bet.sofa.closeness_stretch import supremacy as closeness_supremacy
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
@@ -39,8 +46,7 @@ from bet.sofa.contracts import (
 )
 from bet.sofa.count_dispersion import Dispersion, DispersionTable
 from bet.sofa.count_dispersion import load_table as load_dispersion_table
-from bet.sofa.count_stretch import COUNT_STRETCH_UNFITTED, CountStretchTable
-from bet.sofa.count_stretch import is_total as count_stretch_is_total
+from bet.sofa.count_stretch import CountStretchTable
 from bet.sofa.count_stretch import load_table as load_count_stretch_table
 from bet.sofa.coupon import effective_kickoff
 from bet.sofa.cup_strength import load as load_cup_strength
@@ -126,7 +132,6 @@ from bet.sofa.football_rating import (
     RATED_SCOPE_MARKETS,
     RATING_UNFITTED,
     UNLINKED,
-    VENUE_PRIOR_MARKETS,
     W_FOOTBALL_RATING,
     FootballForecast,
     RatingBook,
@@ -147,12 +152,10 @@ from bet.sofa.football_score_markets import note as score_market_note
 from bet.sofa.football_score_markets import row_p as score_market_row_p
 from bet.sofa.football_score_markets import score_grid
 from bet.sofa.football_score_markets import valid_rung as score_market_rung
-from bet.sofa.game_state import GAME_STATE_UNFITTED, GameStateTable
+from bet.sofa.game_state import GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.goals_stretch import (
-    GOALS_STRETCH_UNFITTED,
     GoalsStretchTable,
-    stretch_supremacy,
 )
 from bet.sofa.goals_stretch import load_table as load_goals_stretch_table
 from bet.sofa.late_resolve import merge_by_event, parse_event_ids
@@ -183,19 +186,16 @@ from bet.sofa.rating_weight import blend as rating_blend
 from bet.sofa.rating_weight import load_table as load_rating_weight_table
 from bet.sofa.rating_weight import weight_for as rating_weight_for
 from bet.sofa.referees import (
-    REFEREE_UNFITTED,
     RefereeEffectTable,
     RefereeRead,
 )
 from bet.sofa.sample_age import stalest_side_newest_days
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
 from bet.sofa.season_phase import (
-    SEASON_PHASE_UNFITTED,
     SeasonPhaseIndex,
     SeasonPhaseTable,
     index_from_history,
 )
-from bet.sofa.season_phase import apply as apply_season_phase
 from bet.sofa.season_phase import load_table as load_season_phase_table
 from bet.sofa.shot_detail import FIT_FILE as SHOT_DETAIL_FIT_FILE
 from bet.sofa.shot_detail import METRICS as SHOT_DETAIL_METRICS
@@ -205,10 +205,13 @@ from bet.sofa.shot_detail import forecast as shot_detail_forecast
 from bet.sofa.shot_detail import load_fit as load_shot_detail_fit
 from bet.sofa.shot_detail import shrunk_mean as shot_detail_shrunk_mean
 from bet.sofa.stage import set_stage
-from bet.sofa.supremacy_stretch import stretch_supremacy as side_or_home_supremacy
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
+    DEFAULT_CONFIG as DEFAULT_TENNIS_RATING,
+)
+from bet.sofa.tennis_rating import (
     RATING_PRICED_MARKETS,
+    SET_HANDICAP_MARKETS,
     SET_RATING_PRICED_MARKETS,
     W_GAMES_TOTAL_RATING,
     W_TENNIS_RATING,
@@ -218,6 +221,7 @@ from bet.sofa.tennis_rating import (
     build_model,
     load_coefficients,
     load_history,
+    params_path_for,
     start_for_rule,
 )
 from bet.sofa.tennis_sets import (
@@ -953,7 +957,12 @@ def load_tennis_rating(
     fitted calibration. Ratings run over history strictly before the day."""
     if not any(f.sport == "tennis" for f in fixtures):
         return None
-    loaded = load_coefficients()
+    # the installed calibration, or a staged tennis_rating.next.<d>.json from
+    # its effective day on (tennis_rating.params_path_for; sheet_config hashes
+    # the same file)
+    rating_path = params_path_for(run_date)
+    loaded = (load_coefficients() if rating_path == DEFAULT_TENNIS_RATING
+              else load_coefficients(rating_path))
     if loaded is None:
         logger.warning("sheet: config/tennis_rating.json absent, tennis unrated")
         return None
@@ -1187,6 +1196,8 @@ def sheet_derived_margins(
     min_sample: int,
     rating_weights: RatingWeightTable | None = None,
     men_friendly_baseline: FriendlyBaseline | None = None,
+    centre_terms: CentreTerms | None = None,
+    sample_corrector: SampleCorrector | None = None,
 ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     """epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3). Fills, IN PLACE,
     `marginal_centres` for every side of a football joint's metric
@@ -1199,7 +1210,14 @@ def sheet_derived_margins(
     Returns (side metric -> notes, side metric -> unfitted constants) for the
     derived rows: the filled sides, and CROSS_LEAGUE_UNLINKED for every
     football joint whose metric the rating cannot link - CONFIDENCE refuses
-    those rows as it refuses the marginal rows of that fixture."""
+    those rows as it refuses the marginal rows of that fixture.
+
+    `centre_terms` (epochs.JOINT_FILLED_SIDE_CHAIN, review 2026-10-27 R1):
+    the filled side is priced as its marginal row is - the sample rescaled by
+    `sample_corrector` (epochs.SAMPLE_OPPONENT_CORRECTION) before its mean,
+    then sample_centre, then bet.sofa.centre_chain (venue prior, GAME_STATE,
+    count stretch, referee, closeness, goals stretch, season phase) - and its
+    rows carry JOINT_SIDE_CHAIN. None: sample_centre alone, as before."""
     notes: dict[str, list[str]] = {}
     unfitted: dict[str, list[str]] = {}
     side_metrics = sorted({
@@ -1233,7 +1251,15 @@ def sheet_derived_margins(
         ):
             if (side_metric, side) in marginal_centres:
                 continue
-            values = [o.value for o in obs]
+            priced = obs
+            if centre_terms is not None and sample_corrector is not None:
+                # the marginal row's corrected sample (process_fixture)
+                priced = sample_corrector.correct(
+                    obs, side_metric, team,
+                    fixture.away_entity_id if side == "side_a"
+                    else fixture.home_entity_id,
+                    today_competition=fixture.competition_id)
+            values = [o.value for o in priced]
             if len(values) < min_sample or all(v == 0.0 for v in values):
                 continue
             centre, _centre_notes, centre_unfitted, rated = sample_centre(
@@ -1256,6 +1282,13 @@ def sheet_derived_margins(
                 rating_weights=rating_weights,
                 men_friendly_baseline=men_friendly_baseline,
             )
+            chain = None
+            if centre_terms is not None:
+                chain = apply_centre_chain(
+                    centre, market=side_metric, side_key=side,
+                    venues=(o.venue for o in priced), rated=rated,
+                    sport=fixture.sport, terms=centre_terms)
+                centre = chain.centre
             marginal_centres[(side_metric, side)] = centre
             source = "rating at W_FOOTBALL_RATING" if rated is not None else "no rating"
             notes.setdefault(side_metric, []).append(
@@ -1264,6 +1297,19 @@ def sheet_derived_margins(
                 "epochs.DERIVED_SHEET_MARGINS)"
             )
             unfitted.setdefault(side_metric, []).extend(centre_unfitted)
+            if chain is not None:
+                moved = sum(1 for o, r in zip(priced, obs, strict=True)
+                            if abs(o.value - r.value) > 1e-9)
+                terms = "; ".join(
+                    ([f"{OPPONENT_NOTE}: {moved} of {len(values)} "
+                      "observations rescaled"] if moved else [])
+                    + [n.split(" (", 1)[0] for n in chain.notes])
+                notes[side_metric].append(
+                    f"{JOINT_SIDE_CHAIN_NOTE}: {side} {side_metric} centre "
+                    "carries its marginal row's terms"
+                    f"{' - ' + terms if terms else ' (none applied)'} "
+                    "(epochs.JOINT_FILLED_SIDE_CHAIN)")
+                unfitted[side_metric].extend(chain.unfitted)
     return notes, unfitted
 
 
@@ -1274,6 +1320,10 @@ def _stats_only_rating_p(
     def read(
         market: str, side: str | None, line: float, direction: str
     ) -> float | None:
+        # R2 (epochs.tennis_set_handicap_neighbours, carried on the forecast):
+        # the per-set games handicap from the neighbours' own set margins
+        if market in SET_HANDICAP_MARKETS and rating.set_handicap:
+            return rating.read_set_handicap(market, side, line, direction)
         if market not in RATING_PRICED_MARKETS or side not in ("side_a", "side_b"):
             return None
         return rating.read(market, side, line, direction)
@@ -1724,7 +1774,8 @@ def incident_rows(
                          "(thin team, friendly, no league rate)")]
         lh, la = home[0], away[0]
         try:
-            p = first_goal_probs(lh, la, incidents.result.nb_r)[rung.subject]
+            p = first_goal_probs(lh, la, incidents.result.nb_r,
+                                 exact=incidents.nb_exact)[rung.subject]
         except ValueError as exc:
             return [], [(rung, GapReason.NOT_RATED, str(exc))]
         if outside_model_resolution(p):
@@ -2331,6 +2382,7 @@ def process_fixture(
     aces_opponent_on: bool = False,
     referee_effect: RefereeEffectTable | None = None,
     referee_reads: Mapping[str, RefereeRead] | None = None,
+    joint_side_chain_on: bool = False,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2348,6 +2400,13 @@ def process_fixture(
     from (`corrected_sample`) for CONFIDENCE's gates. None: the raw sample."""
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
+    # the football centre terms after sample_centre (bet.sofa.centre_chain)
+    centre_terms = CentreTerms(
+        football=football, venue_prior_on=venue_prior_on,
+        game_state=game_state, count_stretch=count_stretch,
+        referee_effect=referee_effect, referee_reads=referee_reads,
+        closeness_stretch=closeness_stretch, goals_stretch=goals_stretch,
+        season_phase=season_phase, season_phase_label=season_phase_label)
 
     offer, in_play_keys = strip_in_play_prices(offer, fixture)
 
@@ -2744,109 +2803,16 @@ def process_fixture(
             extra_notes.extend(centre_notes)
             row_unfitted.extend(centre_unfitted)
             side_key = determine_side(rung.subject, fixture) if rung.subject else None
-            # epochs.FOOTBALL_VENUE_PRIOR (audit 2026-10-13 B2): a sample-only
-            # side centre reads the league's home / away rate as a multiplier
-            # - the sample is never split by venue.
-            if (venue_prior_on and football is not None and rated is None
-                    and side_key is not None
-                    and rung.market in VENUE_PRIOR_MARKETS):
-                v_mult = football.venue_multiplier(
-                    rung.market, side_key, (o.venue for o in obs))
-                if v_mult is not None:
-                    v_before = centre
-                    centre *= v_mult
-                    extra_notes.append(
-                        f"VENUE_PRIOR: centre {centre:.2f} = {v_before:.2f} x "
-                        f"{v_mult:.3f} (league rate at today's venue over the "
-                        "sample's venues; epochs.FOOTBALL_VENUE_PRIOR)")
-            # epochs.GAME_STATE (audit 2026-10-13 B1): the favourite /
-            # outsider term, exp(beta x the side's expected goal difference).
-            if game_state is not None and football is not None and side_key:
-                g_sup = football.supremacy(side_key)
-                g_mult = game_state.multiplier(rung.market, g_sup)
-                if g_mult is not None and g_sup is not None:
-                    g_before = centre
-                    centre *= g_mult
-                    row_unfitted.extend(GAME_STATE_UNFITTED)
-                    extra_notes.append(
-                        f"GAME_STATE: centre {centre:.2f} = {g_before:.2f} x "
-                        f"{g_mult:.3f} (expected goal difference {g_sup:+.2f}, "
-                        f"beta {game_state.betas[rung.market]:+.4f}; "
-                        "epochs.GAME_STATE)")
-            # epochs.FOOTBALL_COUNT_STRETCH: a count centre outside
-            # GAME_STATE x the supremacy stretch (side: exp(beta x s [+ beta2
-            # x s^2]); total: exp(g1 |s| + g2 s^2), s the home side's), after
-            # GAME_STATE and the venue prior, blended or sample-only.
-            if count_stretch is not None and football is not None:
-                cs_total = count_stretch_is_total(rung.market)
-                cs_sup = side_or_home_supremacy(football, side_key, cs_total)
-                cs_mult = count_stretch.multiplier(rung.market, cs_sup)
-                if cs_mult is not None and cs_sup is not None:
-                    cs_before = centre
-                    centre *= cs_mult
-                    row_unfitted.extend(COUNT_STRETCH_UNFITTED)
-                    extra_notes.append(
-                        f"COUNT_STRETCH: centre {centre:.2f} = {cs_before:.2f} x "
-                        f"{cs_mult:.3f} (expected goal difference {cs_sup:+.2f}"
-                        f"{' (home)' if cs_total else ''}, "
-                        f"{count_stretch.describe(rung.market)}; "
-                        "epochs.FOOTBALL_COUNT_STRETCH)")
-            # epochs.FOOTBALL_REFEREE: a cards / fouls centre x the fixture
-            # referee's as-of shrunk ratio ** beta (bet.sofa.referees), after
-            # GAME_STATE and the count stretch; no referee named (or none
-            # with a record in the history) leaves the centre as it is and
-            # says so on the row (referee_read.status).
-            if (referee_effect is not None and football is not None
-                    and fixture.sport == "football"):
-                fam = referee_terms.family_of(rung.market)
-                applied = referee_effect.apply(
-                    rung.market,
-                    (referee_reads or {}).get(fam) if fam is not None else None)
-                if applied is not None:
-                    r_mult, referee_info = applied
-                    if referee_info["status"] == "APPLIED":
-                        r_before = centre
-                        centre *= r_mult
-                        row_unfitted.extend(REFEREE_UNFITTED)
-                        extra_notes.append(
-                            f"REFEREE: centre {centre:.2f} = {r_before:.2f} x "
-                            f"{r_mult:.3f} (referee {referee_info['referee_id']}, "
-                            f"{referee_info['n']} matches, ratio "
-                            f"{referee_info['ratio']:.3f}; epochs.FOOTBALL_REFEREE)")
-            # epochs.FOOTBALL_CLOSENESS_STRETCH: a count centre x exp(g1 |s|
-            # + g2 s^2), s the home side's (|s|, s^2 even), after GAME_STATE
-            # and the count stretch, blended or sample-only.
-            if closeness_stretch is not None and football is not None:
-                cl_sup = closeness_supremacy(football)
-                cl_mult = closeness_stretch.multiplier(rung.market, cl_sup)
-                if cl_mult is not None and cl_sup is not None:
-                    cl_before = centre
-                    centre *= cl_mult
-                    row_unfitted.extend(CLOSENESS_UNFITTED)
-                    extra_notes.append(
-                        f"CLOSENESS_STRETCH: centre {centre:.2f} = "
-                        f"{cl_before:.2f} x {cl_mult:.3f} (expected goal "
-                        f"difference {cl_sup:+.2f} (home), "
-                        f"{closeness_stretch.describe(rung.market)}; "
-                        "epochs.FOOTBALL_CLOSENESS_STRETCH)")
-            # epochs.FOOTBALL_GOALS_STRETCH: a goals centre x the supremacy
-            # stretch (side: exp(beta x s); total: exp(g1 |s| + g2 s^2), s
-            # the home side's), on the same blended centre; a market with
-            # per-phase coefficients reads the fixture's season phase.
-            if goals_stretch is not None and football is not None:
-                st_sup = stretch_supremacy(football, rung.market, side_key)
-                st_mult = goals_stretch.multiplier(
-                    rung.market, st_sup, season_phase_label)
-                if st_mult is not None and st_sup is not None:
-                    st_before = centre
-                    centre *= st_mult
-                    row_unfitted.extend(GOALS_STRETCH_UNFITTED)
-                    extra_notes.append(
-                        f"GOALS_STRETCH: centre {centre:.2f} = {st_before:.2f} x "
-                        f"{st_mult:.3f} (expected goal difference {st_sup:+.2f}"
-                        f"{' (home)' if side_key is None else ''}, "
-                        f"{goals_stretch.describe(rung.market, season_phase_label)}; "
-                        "epochs.FOOTBALL_GOALS_STRETCH)")
+            # venue prior .. goals stretch (bet.sofa.centre_chain - one chain
+            # for this row and a joint's filled side, epochs.JOINT_FILLED_SIDE_CHAIN)
+            team_terms = apply_team_terms(
+                centre, market=rung.market, side_key=side_key,
+                venues=(o.venue for o in obs), rated=rated, sport=fixture.sport,
+                terms=centre_terms)
+            centre = team_terms.centre
+            extra_notes.extend(team_terms.notes)
+            row_unfitted.extend(team_terms.unfitted)
+            referee_info = team_terms.referee_info
             # epochs.FOOTBALL_PLAYER_SHARE: his shrunk share of his side's
             # team centre in place of his own mean (and of the stretch below,
             # which the team centre's game state already carries).
@@ -2876,18 +2842,12 @@ def process_fixture(
                         f"{ps_mult:.3f} (his side's expected goal difference "
                         f"{ps_sup:+.2f}, {player_stretch.describe(rung.market)}; "
                         "epochs.FOOTBALL_PLAYER_STRETCH)")
-            # epochs.SEASON_PHASE (audit 2026-10-13 C1): the goals centre x
-            # exp(c[market][phase]), the phase as of the day's cut.
-            if season_phase is not None and football is not None:
-                p_before = centre
-                centre, p_mult = apply_season_phase(
-                    centre, rung.market, season_phase_label, season_phase)
-                if p_mult is not None:
-                    row_unfitted.extend(SEASON_PHASE_UNFITTED)
-                    extra_notes.append(
-                        f"SEASON_PHASE: centre {centre:.2f} = {p_before:.2f} x "
-                        f"{p_mult:.3f} (phase {season_phase_label}; "
-                        "epochs.SEASON_PHASE)")
+            # epochs.SEASON_PHASE (audit 2026-10-13 C1), bet.sofa.centre_chain
+            phase_terms = apply_season_phase_term(
+                centre, market=rung.market, terms=centre_terms)
+            centre = phase_terms.centre
+            extra_notes.extend(phase_terms.notes)
+            row_unfitted.extend(phase_terms.unfitted)
             # epochs.TENNIS_ACES_OPPONENT: an aces centre x today's
             # returner's factor (bet.sofa.tennis_aces_opponent)
             if (aces_opponent_on and fixture.sport == "tennis"
@@ -3405,6 +3365,9 @@ def process_fixture(
             per_market_k_on=per_market_k_on, min_sample=config.min_sample,
             rating_weights=rating_weights,
             men_friendly_baseline=men_friendly_baseline,
+            # epochs.JOINT_FILLED_SIDE_CHAIN (review 2026-10-27 R1; off: None)
+            centre_terms=centre_terms if joint_side_chain_on else None,
+            sample_corrector=sample_corrector if joint_side_chain_on else None,
         )
     derived_rows, derived_skipped = price_derived_rungs(
         fixture=fixture,
@@ -3604,12 +3567,21 @@ def _main() -> int:
     # epochs.TENNIS_SET_RATING_PRICES (audit 2026-10-13 B5, off): rides on
     # the rating prices
     set_rating_prices = rating_prices and epochs.tennis_set_rating_prices(args.date)
+    # epochs.TENNIS_SET_HANDICAP_NEIGHBOURS (review 2026-10-27 R2, off): the
+    # per-set games handicap from the neighbours' set margins, not the joint
+    set_handicap_on = rating_prices and epochs.tennis_set_handicap_neighbours(
+        args.date)
     # epochs.TENNIS_ACES_OPPONENT: aces centres x the returner's factor
     aces_opponent_on = stats_only and epochs.tennis_aces_opponent(args.date)
     marginal_centres_on = stats_only and derived_marginal_centres_enabled(args.date)
     # epochs.DERIVED_SHEET_MARGINS (audit 2026-10-13 B3): a joint's side with
     # no quoted ladder priced by the SHEET formula (off: byte-identical)
     sheet_margins_on = marginal_centres_on and epochs.derived_sheet_margins(args.date)
+    # epochs.JOINT_FILLED_SIDE_CHAIN (review 2026-10-27 R1): that side also
+    # carries its marginal row's opponent correction and centre terms
+    # (bet.sofa.centre_chain; off: byte-identical)
+    joint_side_chain_on = (
+        sheet_margins_on and epochs.joint_filled_side_chain(args.date))
     # epochs.COUNT_DISPERSION: a missing / malformed config raises here (rc 2),
     # never a sheet that claims a rule it did not use
     epochs.require_k_with_dispersion(args.date)
@@ -3702,7 +3674,9 @@ def _main() -> int:
                 config.db_path, football_history,
                 int(datetime.strptime(args.date, "%Y-%m-%d")
                     .replace(tzinfo=UTC).timestamp())),
-            load_result_config())
+            load_result_config(),
+            # R5: the first goal's NB race (off: the Poisson ratio)
+            nb_exact=epochs.first_goal_nb_exact(args.date))
         if (stats_only and football_history is not None
             and epochs.football_incident_markets(args.date))
         else None)
@@ -3759,6 +3733,8 @@ def _main() -> int:
                 continue
 
             forecast = tennis_forecast(tennis_model, fixture)
+            if forecast is not None and set_handicap_on:
+                forecast = forecast.with_set_handicap(True)
             rated_fixtures += forecast is not None
             rows, skipped = process_fixture(
                 fixture,
@@ -3790,6 +3766,7 @@ def _main() -> int:
                 rating_prices=rating_prices,
                 marginal_centres_on=marginal_centres_on,
                 sheet_margins_on=sheet_margins_on,
+                joint_side_chain_on=joint_side_chain_on,
                 dispersion_table=dispersion_table,
                 per_market_k_on=per_market_k_on,
                 game_state=game_state_table,
@@ -3913,7 +3890,7 @@ def _main() -> int:
             for r in all_rows
         ]
         # the fitted config the rows were priced on (bet.sofa.sheet_config)
-        config_sha = sheet_config.fingerprint()
+        config_sha = sheet_config.fingerprint(date=args.date)
         all_rows = [r.model_copy(update={"config_sha": config_sha})
                     for r in all_rows]
 
@@ -4007,6 +3984,8 @@ def _main() -> int:
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),
+            **({"joint_side_chain_rule": JOINT_SIDE_CHAIN_NOTE}
+               if joint_side_chain_on else {}),
             "tennis_rated_fixtures": rated_fixtures,
             "verdicts": verdict_counts,
             # Every rung that produced no row says why (C8/L1).

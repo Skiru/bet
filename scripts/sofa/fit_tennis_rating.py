@@ -46,19 +46,46 @@ def main() -> int:
         "Stage it with --out <dir>/tennis_rating.json and SOFA_CONFIG_DIR; "
         "never over the live config without the operator's go",
     )
+    parser.add_argument(
+        "--score-winner", action="store_true",
+        help="read the history as SHEET does from "
+        "epochs.TENNIS_RATING_SCORE_WINNER (P14, 2026-10-24): an Ended match "
+        "with no winnerCode takes its winner from a complete set score")
+    parser.add_argument(
+        "--legacy-set-filter", action="store_true",
+        help="the pre-2026-10-27 fit population (len(sets) <= 3: keeps a "
+        "best-of-five 3-0, drops a 3-1 / 3-2) - for measurement only")
+    parser.add_argument(
+        "--effective-from", default=None, metavar="YYYY-MM-DD",
+        help="write effective_from into --out: a staged "
+        "config/tennis_rating.next.<YYYY-MM-DD>.json SHEET reads from that "
+        "day (tennis_rating.params_path_for)")
+    parser.add_argument("--db-path", default=None,
+                        help="the history DB (default SOFA_DB_PATH / data/sofa.db)")
     args = parser.parse_args()
 
     cut = datetime.strptime(args.cut, "%Y-%m-%d").replace(tzinfo=UTC)
     config = SofaConfig.from_env()
-    history = load_history(config.db_path)
+    history = load_history(args.db_path or config.db_path,
+                           score_winner=args.score_winner)
     tier_start = (
         fit_tier_start(history, int(cut.timestamp())) if args.tier_start else None)
     names = V5_FEATURES if args.tier_start else FEATURES
     _, rated = replay(history, int(cut.timestamp()), tier_start)
-    tiers = fit_coefficients(rated, names)
-    out = {
+    tiers = fit_coefficients(rated, names,
+                             legacy_set_filter=args.legacy_set_filter)
+    out: dict[str, object] = {}
+    if args.effective_from:
+        out["effective_from"] = args.effective_from
+    out |= {
         "fitted_from": {
             "source": "sofa_entity_events (kind=last), completed singles",
+            "db_path": str(args.db_path or config.db_path),
+            "score_winner": bool(args.score_winner),
+            "fit_population": ("len(sets) <= 3 (legacy)"
+                               if args.legacy_set_filter
+                               else "best of three only (tennis_rating.best_of; "
+                               "review 2026-10-27 T-BO5)"),
             "cut_utc": cut.isoformat(),
             "history_matches": sum(1 for r in history if r.ts < cut.timestamp()),
             "rated_matches": len(rated),

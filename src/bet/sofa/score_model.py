@@ -32,9 +32,11 @@ import random
 import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import epochs
 from bet.sofa.comparability import is_friendly_event
 from bet.sofa.football_rating import (
     ALPHA_BY_METRIC,
@@ -586,6 +588,13 @@ class SimParams:
     # hk_late_trail at both leads (the model as first built)
     hk_late_lead2: float | None = None
     hk_late_trail2: float | None = None
+    # hockey (confidence review 2026-10-27 R3, epochs.HK_LATE_GOAL_IN_MEAN):
+    # the late goal's expected mass taken out of the third period's mean
+    # before the draw, so the simulated regulation mean stays the rating's
+    # (late_goal_mass). None = the switch on the clock alone
+    # (epochs.hk_late_goal_in_mean(), read by ScoreModel.simulate); True /
+    # False = forced (late_goal_in_mean_params, a caller's day state).
+    hk_late_in_mean: bool | None = None
     # hockey: overtime winner pulled toward a coin by this factor (1 = none);
     # 467 overtime games: 0.2500 at 1.0 and 0.0, 0.2485 at 0.5
     hk_ot_strength: float = 0.5
@@ -900,6 +909,9 @@ class ScoreModel:
         rng = random.Random(seed)
         prm = self.params
         if self.sport.key == "hockey":
+            if prm.hk_late_in_mean is None:
+                prm = dataclasses.replace(
+                    prm, hk_late_in_mean=epochs.hk_late_goal_in_mean())
             return [_hockey(rng, mu1, mu2, prm) for _ in range(n)]
         if self.sport.key == "basketball":
             sd = self.period_sd * noise_mult
@@ -947,6 +959,93 @@ def _poisson(rng: random.Random, lam: float) -> int:
         k += 1
 
 
+# Confidence review 2026-10-27 R3 (epochs.HK_LATE_GOAL_IN_MEAN_FROM_UTC): the
+# rating's regulation scores and period shares are fitted on finished games,
+# so the third period's mean already holds the empty-net / 6-on-5 goals;
+# _hockey added its late goal on top (P3 mean 2.189 against 2.05 expected on
+# a seeded 200k run; March 2026 replay, 793 games: P3 2.230 simulated against
+# 2.154 realised). With the switch the late goal keeps its probabilities and
+# its shape (more 2- and 3-goal margins), and each side's expected late goal
+# - P(the regulation lead it would be drawn on) x its probability - leaves
+# that side's third period before the draw. The lead's distribution depends
+# on the reduced means, so the mass is the fixed point of a few iterations.
+LATE_MASS_ITERATIONS = 6
+# Skellam terms summed (goals of the trailing side); a game's mean is < 10
+_SKELLAM_TERMS = 40
+
+# (leader at 1, trailer at 1, leader at 2, trailer at 2)
+LateProbs = tuple[float, float, float, float]
+
+
+def _late_probs(prm: SimParams) -> LateProbs:
+    e, t = prm.hk_late_lead, prm.hk_late_trail
+    e2 = e if prm.hk_late_lead2 is None else prm.hk_late_lead2
+    t2 = t if prm.hk_late_trail2 is None else prm.hk_late_trail2
+    return e, t, e2, t2
+
+
+def _skellam(lam1: float, lam2: float, k: int) -> float:
+    """P(X1 - X2 = k), X1 ~ Poisson(lam1), X2 ~ Poisson(lam2)."""
+    if k < 0:
+        return _skellam(lam2, lam1, -k)
+    if lam1 <= 0:
+        return 1.0 if k == 0 and lam2 <= 0 else (
+            math.exp(-lam2) if k == 0 else 0.0)
+    if lam2 <= 0:
+        return math.exp(-lam1 + k * math.log(lam1) - math.lgamma(k + 1))
+    total = 0.0
+    for n in range(_SKELLAM_TERMS):
+        total += math.exp(-lam1 - lam2 + (n + k) * math.log(lam1)
+                          - math.lgamma(n + k + 1) + n * math.log(lam2)
+                          - math.lgamma(n + 1))
+    return total
+
+
+@lru_cache(maxsize=4096)
+def late_goal_mass(mu1: tuple[float, ...], mu2: tuple[float, ...],
+                   common: float, probs: LateProbs) -> tuple[float, float]:
+    """Each side's expected late goal (R3) when it is drawn on the margin of
+    periods whose last one is reduced by that same mass - the fixed point,
+    so the simulated regulation mean equals sum(mu). The common shock cancels
+    in the margin."""
+    e1, t1, e2, t2 = probs
+    l1 = l2 = 0.0
+    for _ in range(LATE_MASS_ITERATIONS):
+        a = sum(max(m - common, 0.0) for m in mu1[:-1]) + max(
+            max(mu1[-1] - l1, 0.0) - common, 0.0)
+        b = sum(max(m - common, 0.0) for m in mu2[:-1]) + max(
+            max(mu2[-1] - l2, 0.0) - common, 0.0)
+        p = {k: _skellam(a, b, k) for k in (-2, -1, 1, 2)}
+        l1 = p[1] * e1 + p[2] * e2 + p[-1] * t1 + p[-2] * t2
+        l2 = p[-1] * e1 + p[-2] * e2 + p[1] * t1 + p[2] * t2
+    return l1, l2
+
+
+def late_goal_in_mean_params(params: SimParams | None, sport_key: str,
+                             on: bool) -> SimParams | None:
+    """The hockey params with R3 forced to the caller's day state
+    (epochs.hk_late_goal_in_mean(date, build_at)); `params` unchanged
+    elsewhere. Without it ScoreModel.simulate reads the clock alone."""
+    if sport_key != "hockey":
+        return params
+    return dataclasses.replace(params or SimParams(), hk_late_in_mean=on)
+
+
+# the marker a hockey row priced under R3 carries (the switch's datetime)
+HK_LATE_GOAL_IN_MEAN_RULE = "hk_late_goal_in_mean_rule"
+
+
+def late_goal_in_mean_marker(params: SimParams) -> dict[str, str]:
+    """{HK_LATE_GOAL_IN_MEAN_RULE: the switch} for a row whose model priced
+    hockey under R3 (params as simulate resolves them), {} otherwise."""
+    on = (params.hk_late_in_mean if params.hk_late_in_mean is not None
+          else epochs.hk_late_goal_in_mean())
+    sw = epochs.HK_LATE_GOAL_IN_MEAN_FROM_UTC
+    if not on or sw is None:
+        return {}
+    return {HK_LATE_GOAL_IN_MEAN_RULE: sw.strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
 def _hockey(
     rng: random.Random, mu1: Sequence[float], mu2: Sequence[float],
     prm: SimParams = SimParams(),
@@ -958,9 +1057,16 @@ def _hockey(
         f2 = rng.gammavariate(shape, prm.hk_disp)
         mu1 = [m * f1 for m in mu1]
         mu2 = [m * f2 for m in mu2]
+    d1, d2 = mu1, mu2
+    if prm.hk_late_in_mean:
+        # R3: the late goal is part of the rating's regulation mean, so its
+        # expected mass leaves the third period before the draw
+        l1, l2 = late_goal_mass(tuple(mu1), tuple(mu2), c, _late_probs(prm))
+        d1 = [*mu1[:-1], max(mu1[-1] - l1, 0.0)]
+        d2 = [*mu2[:-1], max(mu2[-1] - l2, 0.0)]
     p1l: list[int] = []
     p2l: list[int] = []
-    for m1, m2 in zip(mu1, mu2, strict=True):
+    for m1, m2 in zip(d1, d2, strict=True):
         shared = _poisson(rng, c) if c > 0 else 0
         p1l.append(_poisson(rng, max(m1 - c, 0.0)) + shared)
         p2l.append(_poisson(rng, max(m2 - c, 0.0)) + shared)

@@ -17,6 +17,7 @@ every rebuild.
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from pathlib import Path
 
 from bet.sofa.config import config_dir
@@ -54,16 +55,33 @@ SHEET_OPTIONAL_FILES: tuple[str, ...] = (
     "sofa_player_share.json", "sofa_closeness_stretch.json",
     "sofa_referee_effect.json")
 DIGEST_CHARS = 16
+TENNIS_RATING_FILE = "tennis_rating.json"
 
 
-def fingerprint(directory: Path | None = None) -> str:
+def _read_path(base: Path, name: str, date: str | None,
+               at: datetime | None) -> Path:
+    """The file SHEET reads for ``name`` on ``date``: tennis_rating.json may
+    be replaced by a staged dated file (tennis_rating.params_path_for);
+    every other file, and any file without a date, is ``base / name``."""
+    if date is not None and name == TENNIS_RATING_FILE:
+        from bet.sofa.tennis_rating import params_path_for
+
+        return params_path_for(date, at, base)
+    return base / name
+
+
+def fingerprint(directory: Path | None = None, date: str | None = None,
+                at: datetime | None = None) -> str:
     """sha256 over the names and bytes of SHEET_CONFIG_FILES (a missing file
     counts as absent) and of the SHEET_OPTIONAL_FILES present, the first
-    DIGEST_CHARS hex characters."""
+    DIGEST_CHARS hex characters. With ``date`` (and the clock ``at``,
+    default now) the bytes of the file the day actually reads - a staged
+    dated tennis calibration from its day on - under the installed file's
+    name, so a day reading the installed files keeps its fingerprint."""
     base = directory if directory is not None else config_dir()
     h = hashlib.sha256()
     for name in SHEET_CONFIG_FILES:
-        path = base / name
+        path = _read_path(base, name, date, at)
         h.update(name.encode())
         h.update(b"\0")
         h.update(path.read_bytes() if path.is_file() else b"<absent>")

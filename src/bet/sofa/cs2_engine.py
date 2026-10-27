@@ -181,6 +181,48 @@ def series_distribution_mixed(p_map: float, best_of: int,
     return out
 
 
+# review 2026-10-27 R4 (epochs.CS2_DECIDER_MAP_POSTERIOR_FROM_UTC): a map
+# played only from a level series (Bo3 map 3 at 1-1, Bo5 map 4 at 2-1 / 1-2,
+# map 5 at 2-2) is priced with the series Beta's posterior given the states
+# that reach it, not the plain map p: under series_distribution_mixed the
+# series' own p ~ Beta(pK, (1 - p)K), and reaching 1-1 says the teams are
+# closer than p claims - E[q | 1-1] = (pK + 1) / (K + 2). Walk-forward
+# (300 days to 10-27) Bo3 map 3 map winner p >= 0.65 claimed 0.697,
+# realised 0.649 (-4.8 pp [-8.7, -1.0], n 610); map 1 calibrated. A leg so
+# priced carries `decider_map_rule` (run_sport_confidence).
+DECIDER_MAP_RULE = "cs2_decider_map_posterior_1027"
+
+
+def decider_map(best_of: int | None, map_nr: int) -> bool:
+    """True when map `map_nr` of a best-of-n is played only from some score
+    (a level one): beyond the first `need` maps of an odd race."""
+    if best_of is None or best_of < 3 or best_of % 2 == 0:
+        return False
+    return map_nr > best_of // 2 + 1 and map_nr <= best_of
+
+
+def decider_posterior_p(p_map: float, best_of: int | None, map_nr: int,
+                        kappa: float = SERIES_KAPPA) -> float:
+    """E[q | map `map_nr` is played] for q ~ Beta(p K, (1 - p) K): the
+    reaching states (a, b), a + b = map_nr - 1, neither at `need`, each
+    weighted by C(a + b, a) E[q^a (1 - q)^b]. Bo3 map 3 and Bo5 map 4 give
+    (pK + 1) / (K + 2), Bo5 map 5 (pK + 2) / (K + 4). A map always played
+    (or p at 0 / 1) returns p unchanged."""
+    if not decider_map(best_of, map_nr) or not 0.0 < p_map < 1.0:
+        return p_map
+    assert best_of is not None
+    need = best_of // 2 + 1
+    alpha, beta = p_map * kappa, (1.0 - p_map) * kappa
+    played = map_nr - 1
+    num = den = 0.0
+    for a in range(max(0, played - need + 1), min(played, need - 1) + 1):
+        b = played - a
+        w = math.comb(played, a)
+        num += w * _beta_moment(alpha, beta, a + 1, b)
+        den += w * _beta_moment(alpha, beta, a, b)
+    return num / den if den > 0 else p_map
+
+
 def series_side_p(dist: dict[tuple[int, int], float], family: str,
                   line: float | None, side: str, team_idx: int | None
                   ) -> float | None:
@@ -1436,6 +1478,7 @@ def model_probability(
     exposure: ExposureBook | None = None,
     series_rounds: bool = False,
     name_rules: bool = False,
+    decider_posterior: bool = False,
 ) -> ModelP | None:
     """The model's probability for this side of this line, or None.
     `team_rounds_race` (epochs.CS2_TEAM_ROUNDS_RACE_FROM_UTC): a team's
@@ -1449,7 +1492,11 @@ def model_probability(
     from series_rounds_side_p; without it they have no number.
     `name_rules` (epochs.NAME_RULES_1023_FROM_UTC): a player line's nickname
     by prefix too (player_id) - only when neither roster has it exactly, the
-    settlement's order (cs2.MapResult.player)."""
+    settlement's order (cs2.MapResult.player).
+    `decider_posterior` (epochs.CS2_DECIDER_MAP_POSTERIOR_FROM_UTC, review
+    R4): every map-level p (map winner, round race, round handicap, kills
+    exposure) of a map played only from a level series reads
+    decider_posterior_p; off = the old numbers."""
     fam = line.family
     subject = line.subject.strip()
     side_team = team1_id if subject == team1 else team2_id if subject == team2 else None
@@ -1489,8 +1536,12 @@ def model_probability(
                 pm = ratings.p_map_nr(team1_id, team2_id, team1_is_home, best_of,
                                       line.map_nr)
                 if pm is not None:
+                    if decider_posterior:
+                        pm = decider_posterior_p(pm, best_of, line.map_nr)
                     return ModelP(clamp(pm if line.side == "T1" else 1.0 - pm), n,
                                   "elo_map")
+            if decider_posterior and line.map_nr >= 1:
+                p = decider_posterior_p(p, best_of, line.map_nr)
             return ModelP(clamp(p if line.side == "T1" else 1.0 - p), n, "elo")
         try:
             dist = series_distribution(round(p, 6), best_of)
@@ -1519,7 +1570,7 @@ def model_probability(
     if fam == "map_rounds_handicap":
         # team1's round handicap on one map, graded on t1 - t2 rounds
         p = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
-                              line.map_nr, map_identity)
+                   line.map_nr, map_identity, decider_posterior)
         if p is None or line.line is None or line.side not in ("T1", "T2"):
             return None
         dist = map_distribution_for(p)
@@ -1550,7 +1601,7 @@ def model_probability(
             return None
         if fam == "map_team_rounds" and team_rounds_race:
             p = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
-                                  line.map_nr, map_identity)
+                       line.map_nr, map_identity, decider_posterior)
             if p is None:
                 return None
             idx = 0 if side_team == team1_id else 1
@@ -1565,7 +1616,8 @@ def model_probability(
             opp = team2_id if side_team == team1_id else team1_id
             mp = _exposure_line(exposure, ratings, team1_id, team2_id,
                                 team1_is_home, best_of, line, map_identity,
-                                side_team, opp, "kills", None, over)
+                                side_team, opp, "kills", None, over,
+                                decider_posterior)
             if mp is not None:
                 return mp
         return count_p(team_kills(history, side_team), line.line, over)
@@ -1584,7 +1636,8 @@ def model_probability(
                 opp = team2_id if team == team1_id else team1_id
                 mp = _exposure_line(exposure, ratings, team1_id, team2_id,
                                     team1_is_home, best_of, line, map_identity,
-                                    team, opp, stat, pid, over)
+                                    team, opp, stat, pid, over,
+                                    decider_posterior)
                 if mp is not None:
                     return mp
             return count_p(values, line.line, over)
@@ -1592,23 +1645,31 @@ def model_probability(
 
 
 def _p_for(ratings: RatingModel, team1: int, team2: int, team1_is_home: bool,
-           best_of: int | None, map_nr: int, map_identity: bool) -> float | None:
-    """p_map_nr under the switch on a numbered map, p_map otherwise."""
+           best_of: int | None, map_nr: int, map_identity: bool,
+           decider: bool = False) -> float | None:
+    """p_map_nr under the switch on a numbered map, p_map otherwise; with
+    `decider` (review R4) a map played only from a level series reads its
+    posterior (decider_posterior_p)."""
     if map_identity and map_nr >= 1:
-        return ratings.p_map_nr(team1, team2, team1_is_home, best_of, map_nr)
-    return ratings.p_map(team1, team2, team1_is_home)
+        p = ratings.p_map_nr(team1, team2, team1_is_home, best_of, map_nr)
+    else:
+        p = ratings.p_map(team1, team2, team1_is_home)
+    if p is not None and decider and map_nr >= 1:
+        p = decider_posterior_p(p, best_of, map_nr)
+    return p
 
 
 def _exposure_line(book: ExposureBook, ratings: RatingModel, team1_id: int,
                    team2_id: int, team1_is_home: bool, best_of: int,
                    line: Cs2Line, map_identity: bool, team: int, opp: int,
-                   stat: str, pid: int | None, over: bool) -> ModelP | None:
+                   stat: str, pid: int | None, over: bool,
+                   decider: bool = False) -> ModelP | None:
     """exposure_p for the line's team (pid None) or player, with the team's
     map-win probability from the ratings."""
     if line.line is None or (pid is None and stat != "kills"):
         return None
     p1 = _p_for(ratings, team1_id, team2_id, team1_is_home, best_of,
-                           line.map_nr, map_identity)
+                line.map_nr, map_identity, decider)
     if p1 is None:
         return None
     p_team = p1 if team == team1_id else 1.0 - p1

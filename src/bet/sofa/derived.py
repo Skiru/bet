@@ -74,7 +74,11 @@ from bet.sofa.market_mapper import (
     is_derived,
 )
 from bet.sofa.names import normalize_name
-from bet.sofa.tennis_rating import blend_with_price
+from bet.sofa.tennis_rating import (
+    SET_HANDICAP_MARKETS,
+    SET_HANDICAP_NOTE,
+    blend_with_price,
+)
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS
 
 CORRELATIONS_PATH = config_path("sofa_side_correlations.json")
@@ -776,6 +780,16 @@ def price_derived_rungs(
                 ]
                 if p_rated is not None and rating_note is not None:
                     notes.append(rating_note(side, p_rated, m_p))
+                if p_rated is not None and market in SET_HANDICAP_MARKETS:
+                    # R2: only epochs.tennis_set_handicap_neighbours makes the
+                    # rating price these rows; off, p_rated is None here.
+                    notes.append(
+                        f"{SET_HANDICAP_NOTE}: p {p_rated:.4f} is the "
+                        f"subject's set-{SET_HANDICAP_MARKETS[market]} margin "
+                        "in the rating's nearest historical matches; the "
+                        "joint above is not used "
+                        "(epochs.TENNIS_SET_HANDICAP_NEIGHBOURS_FROM_UTC)"
+                    )
                 if centre_shrunk_to is not None and p_rated is None:
                     notes.append(
                         "CENTRE_SHRUNK_TO_LADDER: sample difference "

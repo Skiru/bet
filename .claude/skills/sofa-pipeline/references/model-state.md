@@ -411,6 +411,15 @@ Wiring smoke (offline, 10-23 inputs copied, DB copy, P7 / P8 / P13 flipped on
 (hockey 513 / basketball 58 / volleyball 0 / CS2 6 legs at 08:51Z) - no unrated
 CS2 pair among that day's open identified series.
 
+### Confidence review 2026-10-27 (2026-10-28 00:00Z; operator 2026-10-27: fix every defect, refit what is needed, standing go of 10-15; ledger group "od 10-28")
+
+Literature review of every sport's confidence path, three passes each; report
+`docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`. On from 10-28 00:00Z:
+- `JOINT_FILLED_SIDE_CHAIN` (R1, `bet.sofa.centre_chain`): a football joint's side with no quoted ladder gets the centre chain its marginal row gets (opponent correction, venue prior, GAME_STATE, stretches, referee, season phase) - the chain the joint curves' replay already applied. Our settled days 10-21..10-26, 4,102 filled-side rows / 1,370 matches: log loss -0.0000 [-0.0025, +0.0025] - neutral, a consistency fix; rows carry `JOINT_SIDE_CHAIN`.
+- `TENNIS_SET_HANDICAP_NEIGHBOURS` (R2, `tennis_rating.read_set_handicap`): per-set games handicap from the rating neighbours' own set scores, not an independent (rho 0) joint (which put 0.256 on a level set margin, real 0.0002). History 442,470 rows / 14,792 matches log loss 0.5509 -> 0.4863 (+0.0646 [+0.0613, +0.0680]); settled Superbet lines 10-14..10-26 5,260 / 399 matches 0.6657 -> 0.6215 (+0.0442 [+0.0215, +0.0668]). No curve key exists; line evidence reads them. Rows carry `SET_HANDICAP_NEIGHBOURS`.
+- Basketball and CS2 curves with a pool-adjacent-violators pass only (no refit; `sport_confidence.monotone_curve`), `config/sofa_sport_confidence_calibration.next.2026-10-28.json`: Superbet lines log loss basketball -0.00012 [-0.00017, -0.00007], CS2 -0.00005 [-0.00009, -0.00001]; hockey / volleyball byte for byte the 10-24 curves.
+E2E: SHEET / CONFIDENCE / SPORT_CONFIDENCE / COUPON_ASSEMBLY of a scratch copy of 10-27 with the switches moved to 10-27 - all OK; vs a switches-off control only rows marked R1 (326, mean dp +0.0003) and R2 (1,012, mean dp +0.0008, p5..p95 -0.35..+0.35) move.
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -462,6 +471,15 @@ admit realised below their price (ROI -1.8% [-4.4, +0.7], `both_over_goals`
 until then `THIN_SAMPLE_FOR_BUILDER` refused every derived football row.
 
 ### Measured and not switched on
+
+Confidence review 2026-10-27 (code in, switch `None` / fit option default off;
+`docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`):
+- `HK_LATE_GOAL_IN_MEAN` (R3): the empty-net late goal was added on top of a P3 mean that holds it (P3 2.189 vs 2.05 simulated). Raw p: P3 better on the 30-day holdout (-0.00169 [-0.00318, -0.00040]), not over 12 months; full winner / handicap +0.0013 / +0.0006 worse on the holdout. The hockey refit with it on was worse than the 10-24 curve (holdout +0.00060 [+0.00030, +0.00092], Superbet +0.00139). Off.
+- `CS2_DECIDER_MAP_POSTERIOR` (R4): Bo3 map 3 at p is (pK+1)/(K+2) under the series Beta. Raw p calibrated (map 3 p>=0.65 gap -4.8 -> +0.15 pp; log loss -0.00243 [-0.00449, -0.00040] on 7,174 rows), but the CS2 refit with it on was not better than the 10-24 curve (holdout +0.00019 [-0.00004, +0.00041]); live p is read through a curve fitted on the old p, so off until a CS2 refit carries it and measures better.
+- `FIRST_GOAL_NB_EXACT` (R5): the first-goal split exact under NB goals (Poisson ratio overstated the favourite 0.7-0.9 pp). Raw p +1.7e-5 [-9.3e-5, +1.3e-4]; the refitted first_goal curve worse (+1.2e-3 [+0.7e-3, +1.7e-3]). Off.
+- Tennis rating fit on best-of-three only (`tennis_rating.fit_coefficients`; the old filter kept bo5 3-0 wins: selection on the outcome): winner log loss -0.9e-5 [-4.5e-5, +2.6e-5] - neutral, nothing staged; applies to the next tennis rating fit. Dated loader `tennis_rating.params_path_for` (`tennis_rating.next.<d>.json`) exists, none staged.
+- Sport curves with Kish effective n and PAV (`fit_sport_confidence.py` defaults on) refitted before 2026-10-28: none better than the 10-24 curves (basketball holdout -0.00028 but Superbet +0.00254; volleyball Superbet +0.00158) - not staged. CS2 Elo burn-in 30..150 days: holdout worse (90 d +0.00019 [+0.00006, +0.00031]), default 0.
+- Football / tennis curve PAV: -2e-8 [-1.6e-7, +1.3e-7] on 15.86M rows (10 keys non-monotone, 0.001-0.017) - not installed.
 
 | constant | measurement | evidence |
 |---|---|---|
@@ -860,6 +878,9 @@ Groups are never pooled.
 | "od 10-22" | 10-22 | SQUAD_SEARCH_RETRY 00:00Z (more reserve / youth fixtures) |
 | "od 10-24" | 10-24 .. | current; LIVE_ONLY_CURVE_REFUSED 00:00Z - 50 installed tennis curve keys fitted from live rows alone are not read (serve points, per-set aces / double faults, tiebreaks); the hockey refit of 2026-10-23 read from 00:00Z (`.next.2026-10-24.json`); the coverage audit's switches 00:00Z (P2 identity re-ask, P3 hockey + football any-team players, P5 football player slug, P1 ENTITY_CONFLICT sample cut, P4 volleyball query anchor, P7 CS2 unrated lineup rating, P8 name rules, P9 both-sides lists, P12 CS2 series-only `model_p` (evidence only), P13 volleyball golden set in the history, P14 tennis rating score winner) |
 | "od 10-23" | 10-23 | SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
+
+| "od 10-27" | 10-27 | the analyst audit's read scope (20 matches) and sourced removals |
+| "od 10-28" | 10-28 .. | current; confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 

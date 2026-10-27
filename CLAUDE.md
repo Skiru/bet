@@ -97,8 +97,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   staged `.next.json` is read from its `effective_from`, and a dated
   `.next.<YYYY-MM-DD>.json` from that day - a day reads the staged file with
   the latest `effective_from` <= it, `sport_confidence.calibration_path_for`;
-  10-14..10-23 read `.next.json`, from 2026-10-24 `.next.2026-10-24.json`
-  (hockey refit), so an edit for a coming day goes into the latest staged
+  10-14..10-23 read `.next.json`, 10-24..10-27 `.next.2026-10-24.json`
+  (hockey refit), from 2026-10-28 `.next.2026-10-28.json` (basketball / CS2
+  curves made monotone, review 10-27), so an edit for a coming day goes into the latest staged
   file, never into the installed one or a file a built day reads).
 - SHEET keeps the price out of `p_central`; the rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
@@ -166,6 +167,16 @@ and a miss recorded before a rule's switch never blocks that rule.
   (`SAMPLE_CONFLICT_CUT`; gap detail "sample cut at the clash"; fewer than 10
   after it = empty as before; two friendly tournaments excluded for it only,
   `excluded_from_sample_conflict_cut` in `config/sofa_friendly_competitions.json`).
+- **Confidence review 2026-10-27** (literature, every sport; report
+  `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`, model-state.md): from
+  2026-10-28 00:00Z a football joint's side with no quoted ladder gets its
+  marginal row's whole centre chain (`JOINT_FILLED_SIDE_CHAIN`,
+  `bet.sofa.centre_chain`, note `JOINT_SIDE_CHAIN`) and tennis per-set games
+  handicap reads the rating neighbours' own set scores
+  (`TENNIS_SET_HANDICAP_NEIGHBOURS`, note `SET_HANDICAP_NEIGHBOURS`). Coded and
+  off (measured not better): hockey late goal in the P3 mean
+  (`HK_LATE_GOAL_IN_MEAN`), CS2 decider-map posterior
+  (`CS2_DECIDER_MAP_POSTERIOR`), exact NB first goal (`FIRST_GOAL_NB_EXACT`).
 - What each estimator does today (ratings, dispersion, stretches, cup strength,
   opponent correction, new markets...) and when it switched on: model-state.md.
 
@@ -502,7 +513,7 @@ before a code change runs its old steps until it ends.
 | you want | use |
 |---|---|
 | a full betting day - D-1 settled and recorded, the coupon + PDF, reads, verification | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
-| the analysts' read of an existing coupon ("dodatkowo: <pozycje>" adds to `read_requests.json`) | `/sofa-analyze` |
+| the analysts' read of an existing coupon ("dodatkowo: <pozycje>" adds to `read_requests.json`; "okno 14-17" rebuilds on fresh prices, then asks for the window's 20 best-value matches, every market - `window_reads.py`) | `/sofa-analyze` |
 | coupon + PDF from artifacts on disk (`rebuild_day.py`) | `/sofa-rebuild` |
 | adversarial verification of a built day | `/sofa-verify` |
 | settle D-1 and decide about constants | `/sofa-settle` |

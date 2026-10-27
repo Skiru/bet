@@ -1470,6 +1470,22 @@ działającej bramce drabiny nie mogą dziś trafić do kuponu. To sufit, nie b�
 Notki: `DERIVED` (1002), `MARKET_MARGINAL_JOINT`, `NO_MARKET_MARGINAL`,
 `NO_MARKET_MARGINAL_CHECK`, `MARGINAL_DISAGREEMENT`.
 
+**Od 2026-10-28 00:00Z** (`epochs.JOINT_FILLED_SIDE_CHAIN`, przegląd pewności
+10-27): strona łącznika bez drabiny Superbetu (notka `SHEET_MARGIN`) dostaje
+cały łańcuch centrum swojego wiersza brzegowego - korekta rywala, prior
+miejsca, GAME_STATE, rozciągnięcia, sędzia, faza sezonu
+(`bet.sofa.centre_chain`), tak jak replay, na którym dopasowano krzywe
+łączników. Notka `JOINT_SIDE_CHAIN`. Wcześniej taka strona miała samo
+`sample_centre` (np. 10-26 kartki Lyonu: 1.67 zamiast ~1.58). Zmierzone na
+naszych dniach 10-21..10-26 neutralnie - poprawka spójności, nie przewaga.
+
+Tenis: handicap gemów w secie (`handicap_games_won_set1/_set2`) **od
+2026-10-28** czyta wyniki setów sąsiadów ratingu (`tennis_rating.read_set_handicap`,
+`epochs.TENNIS_SET_HANDICAP_NEIGHBOURS`, notka `SET_HANDICAP_NEIGHBOURS`),
+nie niezależny łącznik gemów obu graczy (rho 0 dawało remis w secie 0.256 przy
+realnym 0.0002; +1.5: 0.747 zamiast 0.574). Raport:
+`docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`.
+
 ### 7.4a Rynki zawodnicze — podmiotem jest człowiek
 
 Dwie rodziny, które wyglądają podobnie i podobne **nie są**.

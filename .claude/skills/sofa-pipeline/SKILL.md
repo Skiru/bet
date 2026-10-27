@@ -126,6 +126,23 @@ stage stops the stages after it (`SKIPPED`).
   football, tennis and, from 2026-10-21, CS2),
   `peer` (★ the surer of two same-price legs of a match), stakes flags,
   `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`).
+- **Confidence review 2026-10-27, live from 2026-10-28 00:00Z** (model-state.md;
+  `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`):
+  - a football joint (both_over / most / handicap / BTTS-type) whose one side
+    has no quoted Superbet ladder now gets that side's full centre chain
+    (opponent correction, venue, GAME_STATE, stretches, referee, season phase)
+    - sheet note `JOINT_SIDE_CHAIN` (`epochs.JOINT_FILLED_SIDE_CHAIN`); before
+    10-28 such a side was `sample_centre` alone - not a defect to report on a
+    day built under the new rule;
+  - tennis per-set games handicap (`handicap_games_won_set1/_set2`) reads the
+    rating neighbours' own set scores - note `SET_HANDICAP_NEIGHBOURS`
+    (`epochs.TENNIS_SET_HANDICAP_NEIGHBOURS`); before 10-28 it was an
+    independent joint that over-claimed (+1.5: 0.747 vs 0.574 real);
+  - basketball and CS2 curves are monotone in p
+    (`config/sofa_sport_confidence_calibration.next.2026-10-28.json`).
+  Coded and OFF (measured not better): `HK_LATE_GOAL_IN_MEAN`,
+  `CS2_DECIDER_MAP_POSTERIOR`, `FIRST_GOAL_NB_EXACT` - a leg priced without
+  them is the installed rule, not a defect. Ledger group "od 10-28".
 
 Refusals you will meet (named on the row; each is the code working):
 
@@ -181,7 +198,8 @@ clean. Never compute it by hand:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K]
-# -> runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json; --unread for every re-read pass; --split K = parts of <= K matches
+# -> runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json; --unread for every re-read pass (it leaves out a match starting within 15 min: `started:` line, C3 still lists it); --split K = parts of <= K matches
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/window_reads.py --date <d> --start-from 14:00 --start-to 17:00   # /sofa-analyze okno: the window's 20 best-value matches (local time, >= 30 min ahead) -> read_requests.json, every market
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/verify_legs.py --date <d> [--all] [--live]   # mechanical defect screen per leg; never redo its checks by hand
 # exit 0 merged, 1 merged with an UNMATCHED_VETO, 2 refused (nothing written)
