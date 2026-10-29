@@ -45,6 +45,9 @@ def main() -> int:
     ap.add_argument("--train-from", default="2024-10-01")
     ap.add_argument("--markets", nargs="+", default=list(sp.SEASON_PHASE_MARKETS))
     ap.add_argument("--history", help="the parsed history pickle (read-only)")
+    ap.add_argument("--awarded-excluded", action="store_true", help=(
+        "results awarded at the table out of the history (epochs."
+        "AWARDED_EXCLUDED, SHEET from 2026-10-30)"))
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_season_phase.json")
     args = ap.parse_args()
@@ -53,7 +56,8 @@ def main() -> int:
         print(f"not season-phase markets: {bad}", file=sys.stderr)
         return 2
     last_day = (date.fromisoformat(args.before) - timedelta(days=1)).isoformat()
-    history = load_history(Path(args.history) if args.history else None)
+    history = load_history(Path(args.history) if args.history else None,
+                           awarded_out=args.awarded_excluded)
     phases = sp.phases_by_event(history)
     rows = collect(history, args.train_from, last_day, args.markets)
     del history
@@ -76,6 +80,7 @@ def main() -> int:
         "fitted_from": {
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "train_from": args.train_from, "before": args.before,
+            "awarded_excluded": bool(args.awarded_excluded),
             "method": ("per phase log(sum y / sum centre) minus mid-season's; "
                        "centre = W_FOOTBALL_RATING blend (centre_replay)"),
             "evidence": EVIDENCE,

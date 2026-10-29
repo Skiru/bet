@@ -78,13 +78,17 @@ def months(start: str, end: str) -> list[tuple[str, int, int]]:
     return out
 
 
-def load_history(path: Path | None = None) -> list[fr.FootballResult]:
-    """The parsed history pickle SHEET keeps, read-only."""
+def load_history(path: Path | None = None,
+                 awarded_out: bool = False) -> list[fr.FootballResult]:
+    """The parsed history pickle SHEET keeps, read-only; `awarded_out`
+    (--awarded-excluded, epochs.AWARDED_EXCLUDED as SHEET from 2026-10-30)
+    leaves results awarded at the table out."""
     if path is None:
         cache = Path(SofaConfig.from_env().db_path).parent / "cache"
         path = cache / "football_history.pkl"
     _fp, history = pickle.loads(path.read_bytes())
-    return list(history)
+    out = list(history)
+    return fr.without_awarded(out) if awarded_out else out
 
 
 def k_table(markets: Iterable[str]) -> dict[str, float]:

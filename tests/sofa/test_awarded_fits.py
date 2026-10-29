@@ -131,6 +131,7 @@ def test_extract_played_drops_awarded_before_one_listing(tmp_path: Path) -> None
     "fit_game_state", "fit_player_stretch", "fit_joint_curves",
     "fit_double_chance_curve", "fit_result_1x2_dnb_curve",
     "fit_incident_set_curves", "fit_count_dispersion",
+    "fit_rating_weight", "fit_season_phase",
 ])
 def test_every_football_fit_records_the_flag(script: str) -> None:
     src = (REPO / "scripts" / "sofa" / f"{script}.py").read_text()
@@ -210,3 +211,19 @@ def test_prepare_refit_warns_on_count_dispersion_fitted_with_forfeits(
         _staged(**ON, count_dispersion=True),
         at=datetime(2026, 10, 29, 22, 0, tzinfo=UTC), config_dir=cfg)
     assert any("sofa_count_dispersion.json" in w for w in warnings)
+
+
+def test_season_phase_history_follows_the_flag(tmp_path: Path) -> None:
+    from scripts.sofa import measure_season_phase as msp
+    path = _history(tmp_path)
+    assert [r.event_id for r in msp.load_history(path)] == [1, 2]
+    assert [r.event_id for r in msp.load_history(path, awarded_out=True)] == [1]
+
+
+def test_score_market_curves_record_the_rows_rule(tmp_path: Path) -> None:
+    from scripts.sofa import fit_score_market_curves as fsm
+    rows = tmp_path / "rows.csv.gz"
+    assert fsm.rows_awarded_excluded(rows) is None
+    (tmp_path / "curves.json").write_text(
+        '{"fitted_from": {"awarded_excluded": true}}')
+    assert fsm.rows_awarded_excluded(rows) is True

@@ -135,6 +135,17 @@ def _ts(day: str) -> int:
     return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp())
 
 
+def rows_awarded_excluded(path: Path) -> bool | None:
+    """The awarded rule fit_result_1x2_dnb_curve's run made `path` under
+    (its curves.json beside the rows; None: not recorded)."""
+    doc = path.parent / "curves.json"
+    if not doc.exists():
+        return None
+    held = json.loads(doc.read_text(encoding="utf-8")).get("fitted_from") or {}
+    flag = held.get("awarded_excluded")
+    return flag if isinstance(flag, bool) else None
+
+
 def football_rows(path: Path, nb_r: float) -> dict[str, Rows]:
     lh, la, hg, ag, ts, ev, women, early = [], [], [], [], [], [], [], []
     with gzip.open(path, "rt") as fh:
@@ -327,7 +338,9 @@ def main() -> int:
         rows = football_rows(Path(args.football_rows), cfg.nb_r)
         result = fit_group(rows, (None, WOMEN, fsm.CLASS_SEASON_EARLY), h0, h1, cut)
         write_group(out / FOOTBALL_GROUP, FOOTBALL_GROUP, result,
-                    {**window, "rows": args.football_rows, "nb_r": cfg.nb_r})
+                    {**window, "rows": args.football_rows, "nb_r": cfg.nb_r,
+                     "awarded_excluded": rows_awarded_excluded(
+                         Path(args.football_rows))})
         summary[FOOTBALL_GROUP] = {k: g["pass"] for k, g in result["gate"].items()}
     if args.only in (None, "tennis"):
         rows = tennis_rows(Path(args.tennis_rows))
