@@ -45,6 +45,9 @@ def main() -> int:
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_game_state.json")
     add_rule_args(ap)
+    ap.add_argument("--awarded-excluded", action="store_true",
+                    help="football results awarded at the table (isAwarded) out of the "
+                    "history, as SHEET from epochs.AWARDED_EXCLUDED_FROM_UTC")
     args = ap.parse_args()
     bad = [m for m in args.markets if m not in gs.GAME_STATE_MARKETS]
     if bad:
@@ -54,6 +57,8 @@ def main() -> int:
     rules = rules_from_args(args, last_day)
     db = SofaConfig.from_env().db_path
     history = fr.load_history(db, Path(db).parent / "cache")
+    if args.awarded_excluded:
+        history = fr.without_awarded(history)
     rows = collect(history, args.train_from, last_day, tuple(args.markets), rules)
     markets = {}
     for m in args.markets:

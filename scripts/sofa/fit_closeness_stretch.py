@@ -131,6 +131,9 @@ def main() -> int:
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_closeness_stretch.json")
     add_rule_args(ap)
+    ap.add_argument("--awarded-excluded", action="store_true",
+                    help="football results awarded at the table (isAwarded) out of the "
+                    "history, as SHEET from epochs.AWARDED_EXCLUDED_FROM_UTC")
     args = ap.parse_args()
     bad = [m for m in args.markets if m not in cls.CLOSENESS_MARKETS]
     if bad:
@@ -147,6 +150,8 @@ def main() -> int:
     db = Path(args.db_path) if args.db_path else Path(SofaConfig.from_env().db_path)
     cache = Path(args.cache_dir) if args.cache_dir else db.parent / "cache"
     history = fr.load_history(db, cache)
+    if args.awarded_excluded:
+        history = fr.without_awarded(history)
     game_state = load_game_state()
     count_stretch = cst.load_table()
     table = fit_rows(walk(history, _ts(args.train_from), _ts(last_day) + 86400,

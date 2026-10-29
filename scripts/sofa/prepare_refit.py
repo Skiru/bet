@@ -111,7 +111,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
     "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
     "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
-    "player_coverage",
+    "player_coverage", "awarded_excluded",
 )
 
 
@@ -581,6 +581,7 @@ def rebuild_cache_rows(
     tennis_serve_markets: bool = False,
     closeness_stretch: bool = False,
     player_coverage: bool = False,
+    awarded_excluded: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -801,6 +802,10 @@ def rebuild_cache_rows(
         # epochs.FOOTBALL_PLAYER_COVERAGE (calibrate_from_cache
         # --player-coverage: a thin player sampled over the wide window)
         "player_coverage": player_coverage,
+        # epochs.AWARDED_EXCLUDED (calibrate_from_cache --awarded-excluded:
+        # results awarded at the table out of the team replay, the rating
+        # history and the player histories)
+        "awarded_excluded": awarded_excluded,
     }
     for name, on in new_flags.items():
         if on:
@@ -1974,6 +1979,7 @@ REPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
      "closeness_stretch"),
     ("FOOTBALL_PLAYER_COVERAGE", epochs.football_player_coverage,
      "player_coverage"),
+    ("AWARDED_EXCLUDED", epochs.awarded_excluded, "awarded_excluded"),
 )
 # Switches the replay cannot carry (no referee labels / no team centres for
 # the player share in calibrate_from_cache): an install fits those markets'
@@ -2004,9 +2010,6 @@ UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     ("TENNIS_RATING_SCORE_WINNER (P14)", epochs.tennis_rating_score_winner,
      "the tennis curves: the rating replay (RatingReplay.from_db) reads "
      "load_history without score_winner"),
-    ("AWARDED_EXCLUDED", epochs.awarded_excluded,
-     "every football curve: the cache replay's samples and rating keep "
-     "results awarded at the table (isAwarded forfeits / walkovers)"),
 )
 
 
@@ -2413,6 +2416,12 @@ def build_parser() -> argparse.ArgumentParser:
         "after the switch is on should carry it",
     )
     r.add_argument(
+        "--awarded-excluded", action="store_true",
+        help="epochs.AWARDED_EXCLUDED (calibrate_from_cache "
+        "--awarded-excluded: football results awarded at the table out of "
+        "the replay). Needed by an install while the switch is on",
+    )
+    r.add_argument(
         "--rating-weight", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_RATING_WEIGHT (audit "
         "B14; calibrate_from_cache --rating-weight; needs sofa_rating_weight."
@@ -2604,6 +2613,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     tennis_serve_markets=args.tennis_serve_markets,
                     closeness_stretch=args.closeness_stretch,
                     player_coverage=args.player_coverage,
+                    awarded_excluded=args.awarded_excluded,
                 )["exit"]
             )
         if args.command == "fit":

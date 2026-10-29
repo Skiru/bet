@@ -40,7 +40,7 @@ def test_the_replay_flag_keys_carry_both_switches() -> None:
     assert "player_coverage" in pr.REPLAY_FLAG_KEYS
     assert "closeness_stretch" in pr.REPLAY_FLAG_KEYS
     keys = {k for _, _, k in pr.REPLAYABLE_SWITCHES}
-    assert keys == {"player_coverage", "closeness_stretch"}
+    assert keys == {"player_coverage", "closeness_stretch", "awarded_excluded"}
     assert keys <= set(pr.REPLAY_FLAG_KEYS)
 
 

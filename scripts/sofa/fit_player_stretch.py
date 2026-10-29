@@ -165,6 +165,9 @@ def main() -> int:
                     help="the plain rating book, no cup league strength")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_player_stretch.json")
+    ap.add_argument("--awarded-excluded", action="store_true",
+                    help="football results awarded at the table (isAwarded) out "
+                    "of the rating history and the players' histories")
     args = ap.parse_args()
     bad = [m for m in args.markets if m not in pst.PLAYER_STRETCH_MARKETS]
     if bad:
@@ -178,12 +181,15 @@ def main() -> int:
     db = Path(args.db_path) if args.db_path else Path(config.db_path)
     to_ts = cfc.day_ts(args.before)
     assert to_ts is not None
+    # a player's history as calibrate_from_cache --awarded-excluded reads it
+    cfc.AWARDED_EXCLUDED = bool(args.awarded_excluded)
     obs, events = collect(
         db, markets, cfc.day_ts(args.train_from), to_ts,
         sample_n=config.sample_n, min_sample=config.min_sample,
         starts_only=not args.all_appearances)
     rules = book_rules(args.before, args.cup_strength, args.no_cup_strength)
-    football = cfc.FootballRatingReplay.from_db(db, rules)
+    football = cfc.FootballRatingReplay.from_db(
+        db, rules, awarded_out=args.awarded_excluded)
     supremacy = cfc.target_supremacy(list(events.values()), football)
     table = fit_observations(obs, supremacy, markets)
     doc = {

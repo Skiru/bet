@@ -352,6 +352,9 @@ def main() -> int:
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", help="default config/sofa_count_stretch.json")
     add_rule_args(ap)
+    ap.add_argument("--awarded-excluded", action="store_true",
+                    help="football results awarded at the table (isAwarded) out of the "
+                    "history, as SHEET from epochs.AWARDED_EXCLUDED_FROM_UTC")
     args = ap.parse_args()
     bad = [m for m in args.markets if m not in cst.COUNT_STRETCH_MARKETS]
     if bad:
@@ -367,6 +370,8 @@ def main() -> int:
     rules = rules_from_args(args, last_day)
     db = Path(args.db_path) if args.db_path else Path(SofaConfig.from_env().db_path)
     history = fr.load_history(db, db.parent / "cache")
+    if args.awarded_excluded:
+        history = fr.without_awarded(history)
     history, added = extend_history(history, db, extra_metrics(markets))
     print(f"history {len(history)}, read from sofa_event_stats: {added}",
           file=sys.stderr, flush=True)

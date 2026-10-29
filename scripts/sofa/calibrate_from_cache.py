@@ -94,6 +94,7 @@ from bet.sofa.closeness_stretch import supremacy as closeness_supremacy
 from bet.sofa.comparability import (
     SAME_COMPETITION_METRICS,
     MatchKind,
+    is_awarded_event,
     match_kind,
     pick_same_competition,
 )
@@ -129,6 +130,7 @@ from bet.sofa.football_rating import (
     FootballForecast,
     FootballResult,
     RatingBook,
+    without_awarded,
 )
 from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.game_state import GameStateTable
@@ -559,8 +561,15 @@ def load_cache(
     tennis_serve: bool = False,
     sports: tuple[str, ...] = (),
     read_only: bool = False,
+    awarded_out: bool = False,
 ) -> list[Played]:
     """Every finished cached match, one listing per match.
+
+    `awarded_out` (--awarded-excluded, epochs.AWARDED_EXCLUDED_FROM_UTC): a
+    football result awarded at the table (comparability.is_awarded_event) is
+    neither a side's history nor a target - SAMPLES leaves it out and SETTLE
+    never grades it (settle.is_settleable); its 0-0 / 3-0 came off the
+    listing's score.
 
     `dropped_out`, when given, receives the event ids the duplicate-listing
     collapse removed, so write_settled can delete the replay rows an earlier
@@ -662,6 +671,8 @@ def load_cache(
             continue
         sport = _event_sport(event)
         if sport not in REPLAYED_SPORTS:
+            continue
+        if awarded_out and sport == "football" and is_awarded_event(event):
             continue
         unique = ((event.get("tournament") or {}).get("uniqueTournament") or {}).get(
             "id"
@@ -1087,6 +1098,11 @@ TENNIS_SET_RATINGS = False
 # five-setter in the games sample, centre +1.97 games, log-loss +0.0445
 # (docs/sofa/evidence/tennis_replay_sample_scope_2026-10-16.md).
 TENNIS_SAMPLE_SCOPE = False
+# --awarded-excluded (epochs.AWARDED_EXCLUDED_FROM_UTC): a football result
+# awarded at the table leaves the team replay (load_cache), the football
+# rating history (without_awarded) and a player's history
+# (admitted_football_event), as SAMPLES / SHEET leave it from 2026-10-30.
+AWARDED_EXCLUDED = False
 
 
 def day_start(ts: int) -> int:
@@ -1127,9 +1143,12 @@ class FootballRatingReplay:
             else {})
 
     @classmethod
-    def from_db(cls, db_path: Path, rules: CentreRules) -> FootballRatingReplay:
-        # the history SHEET reads, through the same pickle cache next to the DB
-        return cls(load_football_history(db_path, db_path.parent / "cache"), rules)
+    def from_db(cls, db_path: Path, rules: CentreRules,
+                awarded_out: bool = False) -> FootballRatingReplay:
+        # the history SHEET reads, through the same pickle cache next to the
+        # DB; `awarded_out` as SHEET from epochs.AWARDED_EXCLUDED_FROM_UTC
+        history = load_football_history(db_path, db_path.parent / "cache")
+        return cls(without_awarded(history) if awarded_out else history, rules)
 
     def advance(self, cut_ts: int) -> None:
         """Update the book with every result that kicked off before cut_ts."""
@@ -1959,8 +1978,11 @@ def admitted_football_event(
     event: dict[str, Any], entity_id: int, kickoff_ts: int
 ) -> bool:
     """SAMPLES' admission of one listed event into a football side's history
-    (samples.get_historical_events, `admit`, the non-tennis branch)."""
+    (samples.get_historical_events, `admit`, the non-tennis branch; under
+    --awarded-excluded no result awarded at the table)."""
     if not is_completed_event(event):
+        return False
+    if AWARDED_EXCLUDED and is_awarded_event(event):
         return False
     start = event.get("startTimestamp")
     if not isinstance(start, int) or start >= kickoff_ts:
@@ -2705,6 +2727,14 @@ def main() -> int:
         "appearance",
     )
     parser.add_argument(
+        "--awarded-excluded",
+        action="store_true",
+        help="football results awarded at the table (Sofascore isAwarded: "
+        "forfeits, walkovers) out of the team replay, the rating history and "
+        "the player histories, as SAMPLES / SHEET under epochs."
+        "AWARDED_EXCLUDED_FROM_UTC (2026-10-30). Default off",
+    )
+    parser.add_argument(
         "--player-coverage",
         action="store_true",
         help="football player rows as SAMPLES builds them under epochs."
@@ -2963,7 +2993,8 @@ def main() -> int:
 
     global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
     global CENTRE_RULES, TENNIS_SET_RATINGS, TENNIS_SAMPLE_SCOPE
-    global TENNIS_ACES_OPPONENT, TENNIS_ACES_TIERS
+    global TENNIS_ACES_OPPONENT, TENNIS_ACES_TIERS, AWARDED_EXCLUDED
+    AWARDED_EXCLUDED = bool(args.awarded_excluded)
     CARDS_CORRELATION = bool(args.cards_correlation)
     PER_MARKET_K = bool(args.per_market_k)
     TENNIS_SET_RATINGS = bool(args.tennis_set_ratings)
@@ -3055,7 +3086,8 @@ def main() -> int:
             # a light smoke: the held history starts here, nothing after --to
             load_kw["since_ts"] = day_ts(args.history_from)
             load_kw["until_ts"] = day_ts(args.emit_to)
-        played = load_cache(db_path, dropped, **load_kw)
+        played = load_cache(db_path, dropped, awarded_out=AWARDED_EXCLUDED,
+                            **load_kw)
         if args.halves == "skip":
             played = without_halves(played)
     load_seconds = round((datetime.now(UTC) - t_load).total_seconds(), 1)
@@ -3069,6 +3101,8 @@ def main() -> int:
     if CENTRE_RULES.football_rating and (played or player_stretch_on):
         t_hist = datetime.now(UTC)
         football_history = load_football_history(db_path, db_path.parent / "cache")
+        if AWARDED_EXCLUDED:
+            football_history = without_awarded(football_history)
         football_seconds = round(
             (datetime.now(UTC) - t_hist).total_seconds(), 1)
 
@@ -3204,6 +3238,7 @@ def main() -> int:
                 "derived": sorted(joint_bases),
                 "player_starts_only": bool(args.player_starts_only),
                 "player_coverage": bool(args.player_coverage),
+                "awarded_excluded": AWARDED_EXCLUDED,
             },
             "football_rating_forecasts": football.forecasts if football else None,
             "football_history_results": football.seen if football else None,

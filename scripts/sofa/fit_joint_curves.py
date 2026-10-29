@@ -493,6 +493,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--played-cache", help="pickle of the loaded matches: "
                     "read when present, else written (a later group skips "
                     "the load)")
+    ap.add_argument("--awarded-excluded", action="store_true",
+                    help="football results awarded at the table (isAwarded) out "
+                    "of the replay (calibrate_from_cache --awarded-excluded)")
     args = ap.parse_args(argv)
     bases = [b for b in args.bases.split(",") if b]
     joint_metrics = {b for b in bases if f"{b}_for" in DERIVED_MARGINAL_CENTRES_METRICS}
@@ -505,14 +508,24 @@ def main(argv: list[str] | None = None) -> int:
     cache = Path(args.played_cache) if args.played_cache else None
     if cache is not None and cache.is_file():
         with cache.open("rb") as fh:
-            _PLAYED, classes = pickle.load(fh)
+            held = pickle.load(fh)
+        # a pickle written before --awarded-excluded holds (played, classes)
+        # loaded with the awarded results in
+        if bool(held[2] if len(held) > 2 else False) != args.awarded_excluded:
+            print(f"--played-cache {cache} was loaded with awarded_excluded="
+                  f"{not args.awarded_excluded}; delete it or drop the flag",
+                  file=sys.stderr)
+            return 2
+        _PLAYED, classes = held[0], held[1]
     else:
         _PLAYED = load_cache(Path(args.db_path), sports=("football",),
-                             until_ts=cut, read_only=True)
+                             until_ts=cut, read_only=True,
+                             awarded_out=args.awarded_excluded)
         classes = load_event_classes(args.db_path)
         if cache is not None:
             with cache.open("wb") as fh:
-                pickle.dump((_PLAYED, classes), fh, protocol=5)
+                pickle.dump((_PLAYED, classes, args.awarded_excluded), fh,
+                            protocol=5)
     print(f"loaded {len(_PLAYED)} football matches "
           f"({(datetime.now(UTC) - t0).seconds}s)", flush=True)
     _WOMEN = frozenset(e for e, k in classes.items() if k == CLASS_WOMEN)
