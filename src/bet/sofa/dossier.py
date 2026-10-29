@@ -1671,7 +1671,10 @@ def build(
         if isinstance(kickoff, int | float)
         else int((now or datetime.now(UTC)).timestamp())
     )
-    awarded_out = sport == "football" and awarded_out_at(kickoff_ts)
+    # the switch reads the fixture's day as SAMPLES does (02_fixtures
+    # kickoff_utc), so a match Sofascore moved across it agrees with its sample
+    switch_ts = _parse_ts(fixture.get("kickoff_utc")) or kickoff_ts
+    awarded_out = sport == "football" and awarded_out_at(switch_ts)
     home_t, away_t = detail.get("homeTeam") or {}, detail.get("awayTeam") or {}
     home_id = home_t.get("id") or fixture.get("home_entity_id") or pinned.get("home_id")
     away_id = away_t.get("id") or fixture.get("away_entity_id") or pinned.get("away_id")

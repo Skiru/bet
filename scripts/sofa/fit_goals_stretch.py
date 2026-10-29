@@ -273,6 +273,7 @@ def main() -> int:
                  "while epochs.FOOTBALL_GOALS_STRETCH_FROM_UTC is None. "
                  "Written by scripts/sofa/fit_goals_stretch.py."),
         "fitted_from": {
+            "awarded_excluded": bool(args.awarded_excluded),
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "train_from": args.train_from, "before": args.before,
             "db_path": str(db),

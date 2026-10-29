@@ -166,6 +166,7 @@ def main() -> int:
                  "epochs.FOOTBALL_CLOSENESS_STRETCH_FROM_UTC is None. Written "
                  "by scripts/sofa/fit_closeness_stretch.py."),
         "fitted_from": {
+            "awarded_excluded": bool(args.awarded_excluded),
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "train_from": args.train_from, "before": args.before,
             "db_path": str(db),

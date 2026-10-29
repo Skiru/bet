@@ -634,7 +634,8 @@ def test_on_the_dossier_marks_an_awarded_game_and_counts_it_nowhere(
     joint = dossier.joint_history(run, legs, db_path=db)
     assert (joint["k"], joint["n"]) == (4, 4)  # off: (4, 6), the 0-0s miss
     tags = dossier.matchups_for_legs(run, legs, db_path=db)
-    assert tags[dossier.matchup_key(legs[0])] == "zestawienie: Alfa 3/3, Beta oddaje 1/1"
+    assert tags[dossier.matchup_key(legs[0])] == (
+        "zestawienie: Alfa 3/3, Beta oddaje 1/1")
 
 
 def test_the_awarded_rule_reads_the_matchs_day(
@@ -665,3 +666,71 @@ def test_a_dossier_of_a_day_before_the_switch_is_byte_for_byte_the_old_one(
     new = Path(dossier.write_for_legs(run, [dict(one)], db_path=db, now=NOW,
                                       out_dir=tmp_path / "new")[500]).read_bytes()
     assert new == old and b'"awarded"' not in old
+
+
+def _played_then_awarded(tmp_path: Path) -> sqlite3.Connection:
+    """The awarded day, but 304 was played (statistics cached) and then
+    awarded at the table - the shape a style or league row could read."""
+    db, _, _ = _awarded_day(tmp_path)
+    con = sqlite3.connect(db)
+    con.execute(
+        "UPDATE sofa_event_stats SET statistics_json = ? "
+        "WHERE sofascore_event_id = 304",
+        (_stats((9, 9), (50, 50)),))
+    con.commit()
+    return con
+
+
+def test_on_style_and_league_rate_skip_a_played_then_awarded_game(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    con = _played_then_awarded(tmp_path)
+    off = dossier.style_profile(con, 1, KICK)
+    on = dossier.style_profile(con, 1, KICK, awarded_out=True)
+    assert (off["n"], on["n"]) == (4, 3)
+    assert [9.0, 9.0] in [g["corners"] for g in off["games"]]
+    assert [9.0, 9.0] not in [g["corners"] for g in on["games"]]
+    monkeypatch.setattr(dossier, "LEAGUE_RATE_MIN", 1)
+    comp = [(UT, SEASON, "Liga", 1)]
+    off_l = dossier.league_rates(con, comp, KICK, ["corners_for"])
+    on_l = dossier.league_rates(con, comp, KICK, ["corners_for"], awarded_out=True)
+    assert off_l["games"] == on_l["games"] + 1
+    assert [9, 9] in [list(v["corners_for"]) for v in off_l["values"]]
+    assert [9, 9] not in [list(v["corners_for"]) for v in on_l["values"]]
+
+
+def test_the_switch_never_touches_another_sports_dossier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db, run, _ = _awarded_day(tmp_path)
+    one = {"sofascore_event_id": 500, "sport": "hockey"}
+    _awarded_switch(monkeypatch, False)
+    old = Path(dossier.write_for_legs(run, [dict(one)], db_path=db, now=NOW,
+                                      out_dir=tmp_path / "old")[500]).read_bytes()
+    _awarded_switch(monkeypatch, True)
+    new = Path(dossier.write_for_legs(run, [dict(one)], db_path=db, now=NOW,
+                                      out_dir=tmp_path / "new")[500]).read_bytes()
+    assert new == old and b'"awarded"' not in new
+
+
+def test_the_switch_reads_the_fixtures_day_as_samples_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sofascore moved the match past the switch; RESOLVE's day (02_fixtures,
+    SAMPLES' clock) is before it: the dossier keeps the awarded game, as the
+    sample does."""
+    from bet.sofa import epochs
+    db, run, _ = _awarded_day(tmp_path)
+    con = sqlite3.connect(db)
+    moved = ev(500, KICK + 2 * DAY, 1, 2, 0, 0, status="notstarted")
+    con.execute("UPDATE sofa_event_detail SET detail_json = ? "
+                "WHERE sofascore_event_id = 500", (json.dumps({"event": moved}),))
+    con.commit()
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC",
+                        datetime(2026, 10, 21, tzinfo=UTC))
+    monkeypatch.setattr(epochs.timeutil, "now",
+                        lambda: datetime(2026, 10, 22, tzinfo=UTC))
+    doc = json.loads(Path(dossier.write_for_legs(
+        run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db,
+        now=NOW)[500]).read_text())
+    assert not any(g.get("awarded") for g in doc["sides"]["home"]["last_games"])

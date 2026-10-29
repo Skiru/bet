@@ -90,9 +90,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     scored = 0
     d_all: list[float] = []
     d_touched: list[float] = []
+    # a kick-off group is priced before any of it is fed (SHEET's book stands
+    # before the day)
+    pending: list[fr.FootballResult] = []
+
+    def feed() -> None:
+        for g in pending:
+            for team in (g.home_id, g.away_id):
+                recent[team].append(g.awarded)
+            with_book.update(g)
+            if not g.awarded:
+                without_book.update(g)
+        pending.clear()
+
     for r in history:
         if r.ts >= cut:
             break
+        if pending and r.ts != pending[0].ts:
+            feed()
         if r.ts >= start and not r.awarded:
             scored += 1
             hit = any(recent[r.home_id]) or any(recent[r.away_id])
@@ -117,11 +132,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     d_all.append(nll[1] - nll[0])
                     if hit:
                         d_touched.append(nll[1] - nll[0])
-        for team in (r.home_id, r.away_id):
-            recent[team].append(r.awarded)
-        with_book.update(r)
-        if not r.awarded:
-            without_book.update(r)
+        pending.append(r)
+    feed()
     awarded = sum(1 for r in history if r.awarded)
     report: dict[str, Any] = {
         "db_path": str(db), "from": args.from_day, "cut": args.cut,

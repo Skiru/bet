@@ -557,6 +557,9 @@ def main(argv: list[str] | None = None) -> int:
             "before": args.before,
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "script": "scripts/sofa/fit_joint_curves.py --stored-rows",
+            # the stored rows' samples are the installed replay's: the flag
+            # only drops the awarded targets (absent from ts_by_event)
+            "awarded_excluded": "targets only" if args.awarded_excluded else False,
             "replay": "the installed curves' replay rows (refit 2026-10-17, "
                       "--derived), women's matches only"}
         write_group(out / GROUP, keys, fitted_from, {})
@@ -589,6 +592,7 @@ def main(argv: list[str] | None = None) -> int:
         "holdout_to": args.holdout_to, "before": args.before,
         "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "script": "scripts/sofa/fit_joint_curves.py",
+        "awarded_excluded": bool(args.awarded_excluded),
         "replay": "calibrate_from_cache.football_joint_rows, raw samples "
                   "(no marginal centres), side correlations "
                   "side_correlations.json"}

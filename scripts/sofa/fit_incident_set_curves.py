@@ -786,12 +786,20 @@ def write_group(out: Path, group: str, rows: list[dict[str, Any]],
     return doc
 
 
+def _history(history: Any, args: argparse.Namespace) -> list[Any]:
+    """The parsed history; --awarded-excluded (epochs.AWARDED_EXCLUDED, as
+    SHEET's history from 2026-10-30) leaves results awarded at the table out
+    of the rating history and the targets."""
+    out = list(history)
+    return fr.without_awarded(out) if args.awarded_excluded else out
+
+
 def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
     out = Path(args.out_root) / "football_incidents"
     db, pkl = copy_football(source, Path(args.history), out)
     import pickle
     _fp, history = pickle.loads(pkl.read_bytes())
-    history = list(history)
+    history = _history(history, args)
     note(f"football history {len(history)} matches")
     final_before = day_ts(args.final_before)
     wanted = {r.event_id: r.values["goals_for"] for r in history
@@ -815,6 +823,7 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
         "history_pickle_source_mtime_utc": datetime.fromtimestamp(
             Path(args.history).stat().st_mtime, UTC).isoformat(timespec="seconds"),
         "source_db": source,
+        "awarded_excluded": bool(args.awarded_excluded),
         "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "train_before": args.train_before, "holdout_to": args.holdout_to,
         "final_before": args.final_before,
@@ -846,7 +855,7 @@ def run_card_halves(args: argparse.Namespace, source: str) -> dict[str, Any]:
                             Path(args.out_root) / "football_incidents")
     import pickle
     _fp, history = pickle.loads(pkl.read_bytes())
-    history = list(history)
+    history = _history(history, args)
     note(f"football history {len(history)} matches")
     final_before = day_ts(args.final_before)
     records = load_card_records(str(db), history)
@@ -870,6 +879,7 @@ def run_card_halves(args: argparse.Namespace, source: str) -> dict[str, Any]:
         "history_pickle_source_mtime_utc": datetime.fromtimestamp(
             Path(args.history).stat().st_mtime, UTC).isoformat(timespec="seconds"),
         "source_db": source,
+        "awarded_excluded": bool(args.awarded_excluded),
         "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "rows_from": args.card_from,
         "train_before": args.train_before, "holdout_to": args.holdout_to,
@@ -1007,6 +1017,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "(R5, the first goal's split as the NB race)")
     ap.add_argument("--regate", action="store_true",
                     help="no copy, no replay: re-gate the saved rows.csv")
+    ap.add_argument("--awarded-excluded", action="store_true", help=(
+        "football: results awarded at the table out of the rating history "
+        "and the targets (epochs.AWARDED_EXCLUDED, SHEET from 2026-10-30)"))
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
                     metavar="CONFIG", help="the football book with the cup "
                     "league strength (fit_double_chance_curve.set_cup)")

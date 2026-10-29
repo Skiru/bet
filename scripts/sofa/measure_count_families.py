@@ -890,6 +890,8 @@ def _lean(event: dict[str, Any], kind: Any) -> dict[str, Any]:
     return {
         "id": event.get("id"),
         "startTimestamp": event.get("startTimestamp"),
+        # comparability.is_awarded_event (--awarded-excluded)
+        "isAwarded": event.get("isAwarded"),
         "status": keep(event.get("status"), ("type", "code", "description")),
         "homeTeam": keep(event.get("homeTeam"), ("id", "name")),
         "awayTeam": keep(event.get("awayTeam"), ("id", "name")),
@@ -907,11 +909,14 @@ def _lean(event: dict[str, Any], kind: Any) -> dict[str, Any]:
     }
 
 
-def extract_played(db_path: Path) -> tuple[list[Any], dict[int, str]]:
+def extract_played(db_path: Path, awarded_out: bool = False,
+                   ) -> tuple[list[Any], dict[int, str]]:
     """calibrate_from_cache.load_cache for football, with lean events and a
     read-only connection: the same finished-copy rule, one listing per match,
-    completed matches only, the same match_values."""
-    from bet.sofa.comparability import match_kind
+    completed matches only, the same match_values; `awarded_out`
+    (--awarded-excluded) drops results awarded at the table before the one
+    listing per match, as load_cache."""
+    from bet.sofa.comparability import is_awarded_event, match_kind
     from bet.sofa.listing_index import listed_events_by_id
     from bet.sofa.samples import one_listing_per_match
     from bet.sofa.settle import is_completed_event
@@ -942,7 +947,10 @@ def extract_played(db_path: Path) -> tuple[list[Any], dict[int, str]]:
     finally:
         conn.close()
     played: list[Any] = []
-    for event in one_listing_per_match(list(identity.values())):
+    events = list(identity.values())
+    if awarded_out:
+        events = [e for e in events if not is_awarded_event(e)]
+    for event in one_listing_per_match(events):
         if not is_completed_event(event):
             continue
         home = (event.get("homeTeam") or {}).get("id")
@@ -1029,13 +1037,21 @@ def cmd_collect(args: argparse.Namespace) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     pkl = out / "played.pkl"
+    awarded_out = bool(getattr(args, "awarded_excluded", False))
     t0 = time.time()
     if pkl.exists() and not args.refresh:
-        played, names = pickle.loads(pkl.read_bytes())
+        held = pickle.loads(pkl.read_bytes())
+        # a pickle written before the flag existed holds (played, names): off
+        played, names = held[:2]
+        if (held[2] if len(held) > 2 else False) != awarded_out:
+            print(f"REFUSED: {pkl} was extracted under the other "
+                  "--awarded-excluded rule (--refresh)", file=sys.stderr)
+            return 2
     else:
-        played, names = extract_played(Path(args.db))
-        pkl.write_bytes(pickle.dumps((played, names)))
+        played, names = extract_played(Path(args.db), awarded_out)
+        pkl.write_bytes(pickle.dumps((played, names, awarded_out)))
     print(f"played {len(played)} matches ({time.time() - t0:.0f}s)", flush=True)
+    cc.AWARDED_EXCLUDED = awarded_out
     baselines = cc.load_baselines()
     collector = Collector(cc, baselines)
     cc._settle_sample = collector
@@ -1045,7 +1061,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
     sizes = collector.save(out)
     (out / "meta.json").write_text(json.dumps(
         {"names": {str(k): v for k, v in names.items()}, "sizes": sizes,
-         "matches": len(played),
+         "matches": len(played), "awarded_excluded": awarded_out,
          "first_ts": played[0].timestamp, "last_ts": played[-1].timestamp},
         ensure_ascii=False, indent=1))
     print(f"cases per market: {sizes} ({time.time() - t0:.0f}s)", flush=True)
@@ -1247,6 +1263,9 @@ def main() -> int:
     p.add_argument("--db", default=str(_REPO / "data" / "sofa.db"))
     p.add_argument("--out", required=True)
     p.add_argument("--refresh", action="store_true")
+    p.add_argument("--awarded-excluded", action="store_true", help=(
+        "results awarded at the table out of the histories and the cases "
+        "(epochs.AWARDED_EXCLUDED, SAMPLES from 2026-10-30)"))
     p.set_defaults(fn=cmd_collect)
     p = sub.add_parser("analyse")
     p.add_argument("--cases", required=True)

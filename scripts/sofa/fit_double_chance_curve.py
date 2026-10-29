@@ -219,6 +219,9 @@ def main() -> int:
     ap.add_argument("--holdout-to", default="2026-10-14")
     ap.add_argument("--before", default="2026-10-15")
     ap.add_argument("--result-config")
+    ap.add_argument("--awarded-excluded", action="store_true", help=(
+        "results awarded at the table out of the rating history and the "
+        "targets (epochs.AWARDED_EXCLUDED, SHEET from 2026-10-30)"))
     ap.add_argument("--regate", action="store_true",
                     help="no replay: re-gate the rows.csv.gz saved in --out-dir")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
@@ -233,6 +236,9 @@ def main() -> int:
         return regate(out, args)
     hist_path = Path(args.history or _REPO / "data" / "cache" / "football_history.pkl")
     fingerprint, history = pickle.loads(hist_path.read_bytes())
+    if args.awarded_excluded:
+        # epochs.AWARDED_EXCLUDED: as SHEET's history from 2026-10-30
+        history = fr.without_awarded(history)
     cfg_path = Path(args.result_config) if args.result_config else config_path(
         res.CONFIG_FILE)
     cfg = res.load_config(cfg_path)
@@ -249,6 +255,7 @@ def main() -> int:
         "window": [args.from_, args.before], "before": args.before,
         "fitted_at_utc": datetime.now(UTC).isoformat(),
         "script": "scripts/sofa/fit_double_chance_curve.py",
+        "awarded_excluded": bool(args.awarded_excluded),
         "estimator": "football_result.result_probs: NB goals on the pure "
                      "rating centres (FootballForecast.centre goals_for), "
                      f"nb_r {cfg.nb_r} from {cfg_path}",

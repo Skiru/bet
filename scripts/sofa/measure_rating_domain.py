@@ -119,11 +119,18 @@ def walk(history: Iterable[fr.FootballResult], arm: Arm, start: int, cut: int,
         last_dom: dict[int, int | None] = {}
         moved_left: dict[int, int] = defaultdict(int)
         moved: set[int] = set()
+        # a kick-off group is priced before any of it is fed, as SHEET's book
+        # stands before the day (measure_cup_supremacy_shrink.knockout_rows)
+        pending: list[fr.FootballResult] = []
         for r in history:
             if r.ts >= cut:
                 break
+            if pending and r.ts != pending[0].ts:
+                for g in pending:
+                    book.update(g)
+                pending.clear()
             if r.women or r.home_reserve or r.away_reserve:
-                book.update(r)
+                pending.append(r)
                 continue
             dh, da = book.domain(r.home_id), book.domain(r.away_id)
             for team, d in ((r.home_id, dh), (r.away_id, da)):
@@ -152,7 +159,9 @@ def walk(history: Iterable[fr.FootballResult], arm: Arm, start: int, cut: int,
             for team in (r.home_id, r.away_id):
                 if moved_left[team] > 0:
                     moved_left[team] -= 1
-            book.update(r)
+            pending.append(r)
+        for g in pending:
+            book.update(g)
         sigma = {
             name: (round(book.strength[(c, "goals_for")].sigma, 4),
                    book.strength[(c, "goals_for")].n)

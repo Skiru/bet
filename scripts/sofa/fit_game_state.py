@@ -74,6 +74,7 @@ def main() -> int:
                  "epochs.GAME_STATE_FROM_UTC is None. Written by "
                  "scripts/sofa/fit_game_state.py."),
         "fitted_from": {
+            "awarded_excluded": bool(args.awarded_excluded),
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "train_from": args.train_from, "before": args.before,
             "method": "Poisson pseudo-likelihood, log link, offset log centre",

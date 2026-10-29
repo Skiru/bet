@@ -2019,6 +2019,21 @@ def _flag_key(flag: str) -> str:
     return flag.strip().lstrip("-").replace("-", "_")
 
 
+# The fitted files the replay reads under its flag (flag key -> config file),
+# each fitted on the football history by its own fit_* script: under
+# AWARDED_EXCLUDED a file whose `fitted_from.awarded_excluded` is not true was
+# fitted with the forfeits in - warned (the replay itself carries the switch;
+# a refit of the file needs its own run and its own go), never refused.
+AWARDED_FITTED_CONFIGS: tuple[tuple[str, str, str], ...] = (
+    ("goals_stretch", "sofa_goals_stretch.json", "fit_goals_stretch.py"),
+    ("count_stretch", "sofa_count_stretch.json", "fit_count_stretch.py"),
+    ("player_stretch", "sofa_player_stretch.json", "fit_player_stretch.py"),
+    ("closeness_stretch", "sofa_closeness_stretch.json",
+     "fit_closeness_stretch.py"),
+    ("game_state", "sofa_game_state.json", "fit_game_state.py"),
+)
+
+
 def _on_through_next_day(is_on: Callable[..., bool], at: datetime) -> bool:
     """Is a switch on now or at any moment of the next UTC day (the day the
     installed curves first price whole)?"""
@@ -2065,6 +2080,16 @@ def replay_switch_gaps(
         if _on_through_next_day(is_on, at):
             warnings.append(
                 f"{name} is on and the replay cannot carry it: {what}")
+    if _on_through_next_day(epochs.awarded_excluded, at):
+        for key, cfg, by in AWARDED_FITTED_CONFIGS:
+            if not flags.get(key) or not (config_dir / cfg).exists():
+                continue
+            if (load_json(config_dir / cfg).get("fitted_from") or {}).get(
+                    "awarded_excluded") is not True:
+                warnings.append(
+                    f"AWARDED_EXCLUDED is on and {cfg} (read by --"
+                    f"{key.replace('_', '-')}) was fitted with results awarded "
+                    f"at the table in ({by} --awarded-excluded refits it)")
     return refusals, warnings
 
 

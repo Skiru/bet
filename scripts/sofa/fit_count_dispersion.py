@@ -202,6 +202,7 @@ def build_config(
     cases_dir: Path, max_case_ts: float, db_path: str | None,
     evidence: dict[str, Any] | None = None,
     fingerprint: str | None = None, min_case_ts: float | None = None,
+    awarded_excluded: bool = False,
 ) -> dict[str, Any]:
     markets: dict[str, dict[str, Any]] = {}
     not_admitted: list[str] = []
@@ -237,6 +238,7 @@ def build_config(
                 datetime.fromtimestamp(min_case_ts, UTC).date().isoformat()
                 if min_case_ts is not None else None),
             "cases_fingerprint_sha256": fingerprint,
+            "awarded_excluded": awarded_excluded,
             "method": METHOD,
             "evidence": EVIDENCE,
             "evidence_json": EVIDENCE_JSON,
@@ -288,6 +290,9 @@ def main() -> int:
     ap.add_argument("--evidence-json", default=str(_REPO / EVIDENCE_JSON), help=(
         "the measurement's results (admits a market only where the family "
         "used beat the sample variance out of sample); absent file = no gate"))
+    ap.add_argument("--awarded-excluded", action="store_true", help=(
+        "cases without results awarded at the table (epochs.AWARDED_EXCLUDED, "
+        "SAMPLES from 2026-10-30); held cases of the other rule are refused"))
     ap.add_argument("--markets", default="", help="comma list (a test run)")
     ap.add_argument("--write", action="store_true", help=(
         "write --out (default the live config path); without it: a dry run "
@@ -304,9 +309,17 @@ def main() -> int:
             print(f"REFUSED: {refusal}", file=sys.stderr, flush=True)
             return 2
         print(f"collecting cases into {cases_dir} (db read-only)", flush=True)
-        ns = argparse.Namespace(out=str(cases_dir), db=args.db, refresh=False)
+        ns = argparse.Namespace(out=str(cases_dir), db=args.db, refresh=False,
+                                awarded_excluded=args.awarded_excluded)
         if mcf.cmd_collect(ns) != 0:
             return 2
+    held = json.loads((cases_dir / "meta.json").read_text()).get(
+        "awarded_excluded", False)
+    if held != args.awarded_excluded:
+        print(f"REFUSED: {cases_dir} holds cases collected "
+              f"{'with' if held else 'without'} --awarded-excluded",
+              file=sys.stderr, flush=True)
+        return 2
     before_ts = _day_ts(args.before)
     val_start = val_start_for(args.before)
     val_ts = _day_ts(val_start)
@@ -335,7 +348,8 @@ def main() -> int:
         max_case_ts=max_ts, db_path=args.db,
         evidence=load_evidence(Path(args.evidence_json)),
         fingerprint=cases_fingerprint(cases_dir),
-        min_case_ts=min_ts if min_ts != float("inf") else None)
+        min_case_ts=min_ts if min_ts != float("inf") else None,
+        awarded_excluded=args.awarded_excluded)
     out = Path(args.out) if args.out else config_path(CONFIG_FILE)
     if args.dry_run or not args.write:
         print(f"dry run: {len(cfg['markets'])} markets, nothing written "

@@ -566,10 +566,11 @@ def load_cache(
     """Every finished cached match, one listing per match.
 
     `awarded_out` (--awarded-excluded, epochs.AWARDED_EXCLUDED_FROM_UTC): a
-    football result awarded at the table (comparability.is_awarded_event) is
-    neither a side's history nor a target - SAMPLES leaves it out and SETTLE
-    never grades it (settle.is_settleable); its 0-0 / 3-0 came off the
-    listing's score.
+    result awarded at the table (comparability.is_awarded_event, any sport,
+    as SAMPLES' admit) is neither a side's history nor a target - SAMPLES
+    leaves it out and SETTLE never grades it (settle.is_settleable); its
+    0-0 / 3-0 came off the listing's score. Dropped before one listing per
+    match is chosen, as SAMPLES drops it before finish_history.
 
     `dropped_out`, when given, receives the event ids the duplicate-listing
     collapse removed, so write_settled can delete the replay rows an earlier
@@ -647,6 +648,11 @@ def load_cache(
         for event in identity.values()
         if (event.get("status") or {}).get("type") == "finished"
     ]
+    if awarded_out:
+        # SAMPLES' admit drops an awarded result (any sport) before
+        # finish_history picks one listing per match: a match listed twice,
+        # once played and once awarded, keeps its played copy - so here too
+        finished = [e for e in finished if not is_awarded_event(e)]
     kept = one_listing_per_match(finished)
     if dropped_out is not None:
         kept_ids = {e.get("id") for e in kept}
@@ -671,8 +677,6 @@ def load_cache(
             continue
         sport = _event_sport(event)
         if sport not in REPLAYED_SPORTS:
-            continue
-        if awarded_out and sport == "football" and is_awarded_event(event):
             continue
         unique = ((event.get("tournament") or {}).get("uniqueTournament") or {}).get(
             "id"

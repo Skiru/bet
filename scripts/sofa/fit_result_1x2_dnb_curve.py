@@ -118,8 +118,17 @@ def _ts(day: str) -> int:
     return int(datetime(d.year, d.month, d.day, tzinfo=UTC).timestamp())
 
 
+AWARDED_TAG = "|awarded_excluded"
+
+
 def load_matches(hist_path: Path, from_ts: int, cut: int,
-                 cache: Path | None) -> tuple[str, list[PhasedMatch]]:
+                 cache: Path | None, awarded_out: bool = False,
+                 ) -> tuple[str, list[PhasedMatch]]:
+    """The replayed matches; `awarded_out` (--awarded-excluded,
+    epochs.AWARDED_EXCLUDED, as SHEET's history from 2026-10-30): results
+    awarded at the table are neither rating history nor targets. The
+    fingerprint carries AWARDED_TAG so a --matches-cache written under the
+    other rule is refused, never mixed."""
     if cache is not None and cache.exists():
         out: list[PhasedMatch] = []
         with gzip.open(cache, "rt") as fh:
@@ -131,8 +140,17 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
                     int(row["ts"]), int(row["event_id"]), row["women"] == "1",
                     row["link"], float(row["lh"]), float(row["la"]),
                     int(row["x"]), int(row["y"])), row["phase"] or None))
+        held = fp.endswith(AWARDED_TAG)
+        if held != awarded_out:
+            raise SystemExit(
+                f"{cache} was written {'with' if held else 'without'}"
+                " --awarded-excluded; this run asks the other rule - drop the "
+                "cache or match the flag")
         return fp, out
     fingerprint, history = pickle.loads(hist_path.read_bytes())
+    if awarded_out:
+        history = fr.without_awarded(history)
+        fingerprint = f"{fingerprint}{AWARDED_TAG}"
     phases = phases_by_event(history)
     matches = replay(history, from_ts, cut)
     del history
@@ -267,6 +285,9 @@ def main() -> int:
     ap.add_argument("--holdout-to", default="2026-10-14")
     ap.add_argument("--before", default="2026-10-15")
     ap.add_argument("--result-config")
+    ap.add_argument("--awarded-excluded", action="store_true", help=(
+        "results awarded at the table out of the rating history and the "
+        "targets (epochs.AWARDED_EXCLUDED, SHEET from 2026-10-30)"))
     ap.add_argument("--matches-cache", help="replayed matches (csv.gz): read "
                     "when present, else written")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
@@ -283,7 +304,8 @@ def main() -> int:
     h0, h1, cut = _ts(args.holdout_from), _ts(args.holdout_to), _ts(args.before)
     fingerprint, matches = load_matches(
         hist_path, _ts(args.from_), cut,
-        Path(args.matches_cache) if args.matches_cache else None)
+        Path(args.matches_cache) if args.matches_cache else None,
+        awarded_out=args.awarded_excluded)
     sels = price(matches, cfg.nb_r)
     result = run(sels, h0, h1, cut)
     passing = {k for k, g in result["gate"].items() if g["pass"]}
@@ -292,6 +314,7 @@ def main() -> int:
         "window": [args.from_, args.before], "before": args.before,
         "fitted_at_utc": datetime.now(UTC).isoformat(),
         "script": "scripts/sofa/fit_result_1x2_dnb_curve.py",
+        "awarded_excluded": bool(args.awarded_excluded),
         "estimator": "football_result.result_probs: NB goals on the pure "
                      "rating centres (FootballForecast.centre goals_for), "
                      f"nb_r {cfg.nb_r} from {cfg_path}; DNB = P(side | no draw)",
