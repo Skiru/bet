@@ -2295,6 +2295,10 @@ def player_targets(
         ):
             tally["target_not_completed"] += 1
             continue
+        if AWARDED_EXCLUDED and is_awarded_event(event):
+            # played, then awarded at the table: SETTLE refuses it
+            tally["target_awarded"] += 1
+            continue
         competition = _competition_id(event)
         if competition is not None and competition in FRIENDLY_COMPETITION_IDS:
             tally["target_friendly"] += 1
