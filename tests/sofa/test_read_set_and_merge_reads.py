@@ -297,3 +297,22 @@ def test_event_ids_read_every_unlocked_printed_leg_of_those_matches(
     assert read_set.main([*args, "--event-ids", "2,3"]) == 0
     assert read_set.main([*args, "--event-ids", "2,99"]) == 1
     assert read_set.main([*args, "--event-ids", "x"]) == 2
+
+
+def test_an_empty_reads_block_is_no_broken_contract(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """2026-10-29 verification: a report whose ```json reads block was []
+    (every leg vetoed) was told it "broke its contract"; only a report with
+    no reads block at all did."""
+    run = tmp_path / "2026-10-14"
+    run.mkdir()
+    vetoes_only = REPORT.split("```json reads")[0]
+    empty = tmp_path / "empty.md"
+    empty.write_text(vetoes_only + "```json reads\n[]\n```\n")
+    missing = tmp_path / "missing.md"
+    missing.write_text(vetoes_only)
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--dry-run"]
+    assert merge_reads.main([*args, "--report", str(empty)]) == 0
+    assert "broke its contract" not in capsys.readouterr().out
+    assert merge_reads.main([*args, "--report", str(missing)]) == 0
+    assert "broke its contract" in capsys.readouterr().out

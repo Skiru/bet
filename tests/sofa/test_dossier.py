@@ -516,3 +516,16 @@ def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
                             {"home": "Alfa", "away": "Beta"}) is True
     assert dossier._leg_hit(nie, {"corners_for": [3, 6]}, "home",
                             {"home": "Alfa", "away": "Beta"}) is False
+
+
+def test_one_match_listed_under_two_ids_is_one_game(tmp_path: Path) -> None:
+    """2026-10-29: Prat - Sant Rafel (Copa del Rey) sat twice in Prat's
+    last_games (17136469 and 17336477, same sides, start and score); the
+    form, the rebuilt table and the style rows read team_games."""
+    db = tmp_path / "s.db"
+    events = [ev(10, KICK - 3 * DAY, 1, 2, 5, 0),
+              ev(11, KICK - 3 * DAY, 1, 2, 5, 0, periods=((3, 0), (2, 0))),
+              ev(12, KICK - 10 * DAY, 2, 1, 1, 5)]
+    make_db(db, events, ev(99, KICK, 1, 2, 0, 0, status="notstarted"))
+    con = sqlite3.connect(db)
+    assert [g["id"] for g in dossier.team_games(con, 1, KICK, 10)] == [10, 12]

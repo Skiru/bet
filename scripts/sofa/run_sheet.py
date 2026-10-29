@@ -135,6 +135,7 @@ from bet.sofa.football_rating import (
     W_FOOTBALL_RATING,
     FootballForecast,
     RatingBook,
+    without_awarded,
 )
 from bet.sofa.football_rating import load_history as load_football_history
 from bet.sofa.football_rating import replay as replay_football
@@ -3522,6 +3523,10 @@ def _main() -> int:
         cut = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=UTC)
         football_history = load_football_history(
             config.db_path, Path(config.db_path).parent / "cache")
+        # epochs.AWARDED_EXCLUDED_FROM_UTC: a result awarded at the table is
+        # no observation for the rating, the referee, the incident rates
+        if epochs.awarded_excluded(args.date):
+            football_history = without_awarded(football_history)
         # also the as-of phase of a 1X2 / DNB row (epochs.FOOTBALL_RESULT_1X2_DNB)
         # and of a score-market row (epochs.FOOTBALL_SCORE_MARKETS)
         # and of a goals-stretch row (epochs.FOOTBALL_GOALS_STRETCH: a

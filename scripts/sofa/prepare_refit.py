@@ -2004,6 +2004,9 @@ UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     ("TENNIS_RATING_SCORE_WINNER (P14)", epochs.tennis_rating_score_winner,
      "the tennis curves: the rating replay (RatingReplay.from_db) reads "
      "load_history without score_winner"),
+    ("AWARDED_EXCLUDED", epochs.awarded_excluded,
+     "every football curve: the cache replay's samples and rating keep "
+     "results awarded at the table (isAwarded forfeits / walkovers)"),
 )
 
 

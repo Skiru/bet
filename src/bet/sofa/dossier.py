@@ -60,6 +60,7 @@ from bet.sofa.players import (
     match_player_by_tokens,
     match_player_by_transliteration,
 )
+from bet.sofa.samples import one_listing_per_match
 from bet.sofa.settle import venue_timezone
 
 # 2 (2026-10-29): football `style` with league rate, xG / blocked shots / long
@@ -166,7 +167,10 @@ def team_games(
 ) -> list[dict[str, Any]]:
     """The newest `limit` cached games of one side before `before_ts`, newest
     first: the listing index, then the side's raw `last` pages (a page not yet
-    indexed). Unfinished games are left out; friendlies kept (marked)."""
+    indexed). Unfinished games are left out; friendlies kept (marked). One
+    entry per physical match (samples.one_listing_per_match): 2026-10-29
+    Prat - Sant Rafel (Copa del Rey, 10-11) was listed under 17136469 and
+    17336477 and stood twice in the form, the table and the style rows."""
     found: dict[int, dict[str, Any]] = {}
     if has_index(con):
         for event in entity_indexed_events(con, team_id, "last", before_ts, limit * 2):
@@ -188,13 +192,13 @@ def team_games(
         for event in events:
             if isinstance(event, dict) and isinstance(event.get("id"), int):
                 found.setdefault(event["id"], event)
-    games = [
+    games = one_listing_per_match([
         e
         for e in found.values()
         if isinstance(e.get("startTimestamp"), int)
         and e["startTimestamp"] < before_ts
         and (e.get("status") or {}).get("type") == "finished"
-    ]
+    ])
     games.sort(key=lambda e: (e["startTimestamp"], e["id"]), reverse=True)
     return games[:limit]
 

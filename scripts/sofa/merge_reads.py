@@ -131,6 +131,11 @@ def parse_report(text: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
     return found["vetoes"], found["reads"]
 
 
+def has_reads_block(text: str) -> bool:
+    """Does the report carry a ```json reads block (empty or not)?"""
+    return any(label.lower() == "reads" for label, _ in _FENCE.findall(text))
+
+
 def _key(entry: dict[str, Any]) -> str:
     """The entry without its merge stamp: a read merged twice is one read."""
     return json.dumps({k: v for k, v in entry.items() if k != "read_at_utc"},
@@ -172,9 +177,12 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
                 + "\n  ".join(blocking))
         report_v, report_r = parse_report(text)
         print(f"{path}: {len(report_v)} vetoes, {len(report_r)} reads")
-        if not report_r:
-            print(f"  WARNING: {path} holds no reads - an analyst / verifier "
-                  "report without its reads block broke its contract")
+        # An empty ```json reads [] is a report that read nothing (every leg
+        # under a veto, a re-read round with nothing left) - its contract
+        # kept; only a report with no reads block at all broke it.
+        if not report_r and not has_reads_block(text):
+            print(f"  WARNING: {path} holds no reads block - an analyst / "
+                  "verifier report without its reads block broke its contract")
         fresh_v += report_v
         fresh_r += report_r
     if author is not None:

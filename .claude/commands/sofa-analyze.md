@@ -89,7 +89,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffe
 One instance per file, **all in one message, foreground** (`run_in_background: false`):
 `football` -> `sofa-analyst-football`, `tennis` -> `sofa-analyst-tennis`, `hockey` /
 `basketball` / `volleyball` / `cs2` -> `sofa-analyst-sport`. A sport without a file gets no
-analyst; say so. **A re-read round** (`--unread`, step 5) whose measured-sport files hold at
+analyst; say so. If an analyst still comes back as a background task (the harness can detach it despite the flag; 2026-10-29), **wait for its completion notification** and check the report file it names exists before `merge_reads.py` - never merge, rebuild or launch the next round while an analyst of this round runs. **A re-read round** (`--unread`, step 5) whose measured-sport files hold at
 most 6 matches together gives them to **one** `sofa-analyst-sport` instance (`sport` = the
 list, every file named, one report `runs/sofa/<date>/<date>_analiza_sports_r<n>.md`): each
 instance costs its whole preloaded contract before the first leg, and a round of 1-2 matches

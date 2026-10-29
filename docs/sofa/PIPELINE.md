@@ -2386,6 +2386,16 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   najnowsze 10 meczów po starciu zamiast pustej próbki
   (`SAMPLE_CONFLICT_CUT`; `find_friendly_competitions.py` traktuje klucz
   `excluded_from_sample_conflict_cut` jako przejrzany).
+- **Wyniki przyznane przy zielonym stoliku** (`AWARDED_EXCLUDED`, od
+  2026-10-30 00:00Z; weryfikacja 10-29): mecz z `isAwarded` Sofascore (walkower
+  po wycofaniu drużyny, wynik 3:0 / 0:0 bez połów i statystyk;
+  `comparability.is_awarded_event`) wypada z próbek piłki (luka
+  EVENT_NOT_FINISHED „awarded”) i z historii ratingu piłkarskiego w SHEET.
+  Przypadek: walkowery Maardu 0:0 w próbkach goli Kalev i Kalju U21. SETTLE
+  odrzucał je już wcześniej; model wyników hokeja / kosza / siatkówki nie
+  czyta ich (brak tercji / kwart / setów). Krzywe piłki dopasowano z nimi -
+  `prepare_refit` ostrzega. Grupa księgi „od 10-30”. Dossier (`team_games`)
+  liczy też jeden listing na mecz (Prat - Sant Rafel pod dwoma id).
 - **Refit a te przełączniki**: instalacja przy włączonych P1 / P3 (piłka) /
   P5 / P14 ostrzega (`replay_switch_warnings`) - `calibrate_from_cache`
   żadnego z nich nie odtwarza; `fit_sport_confidence.py` ostrzega dla P7

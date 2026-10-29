@@ -44,6 +44,7 @@ from typing import Any
 
 from bet.sofa import epochs
 from bet.sofa.atomic import write_bytes_atomic
+from bet.sofa.comparability import is_awarded_event
 from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import index_fingerprint, iter_indexed_events
 from bet.sofa.metrics import (
@@ -270,6 +271,11 @@ class FootballResult:
     home_reserve: bool = False
     away_reserve: bool = False
 
+    # A result awarded at the table (comparability.is_awarded_event): kept in
+    # the parsed history (a league table counts it), dropped by SHEET under
+    # epochs.AWARDED_EXCLUDED_FROM_UTC (without_awarded).
+    awarded: bool = False
+
 
 def _unit(r: FootballResult, home: bool) -> int:
     """The league unit a side played this match in - the competition unless
@@ -349,7 +355,15 @@ def parse_event(
         == "W",
         season_id=season if isinstance(season, int) else None,
         stage_id=stage if isinstance(stage, int) else None,
+        awarded=is_awarded_event(event),
     )
+
+
+def without_awarded(history: list[FootballResult]) -> list[FootballResult]:
+    """The history less results awarded at the table
+    (epochs.AWARDED_EXCLUDED_FROM_UTC): a forfeit's 3-0 / 0-0 is no
+    observation of either side's attack or defence."""
+    return [r for r in history if not r.awarded]
 
 
 # Bump when parse_event / the metrics it reads change meaning: a cached
@@ -372,7 +386,8 @@ def parse_event(
 # set score when gamesWon disagrees with it.
 # 2026-10-04.4: tennis tiebreaks_total counted off the set score.
 # 2026-10-04.5: a "Coverage canceled" finish is no completed match.
-HISTORY_PARSER_VERSION = "2026-10-04.5"
+# 2026-10-29.1: a result carries `awarded` (Sofascore isAwarded).
+HISTORY_PARSER_VERSION = "2026-10-29.1"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------

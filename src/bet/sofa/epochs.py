@@ -3396,3 +3396,24 @@ FIRST_GOAL_NB_EXACT_FROM_UTC: datetime | None = None
 def first_goal_nb_exact(date: str, build_at: datetime | None = None) -> bool:
     """R5 (FIRST_GOAL_NB_EXACT_FROM_UTC)."""
     return _audit_1023_on(FIRST_GOAL_NB_EXACT_FROM_UTC, date, build_at)
+
+
+# A result awarded at the table (comparability.is_awarded_event, Sofascore
+# `isAwarded`: forfeits, walkovers after a withdrawal - status 100 "Ended"
+# with an unplayed 3-0 / 0-0) leaves the football samples (samples.admit and
+# peer_history: EVENT_NOT_FINISHED, detail "awarded") and the football rating
+# history SHEET replays (FootballResult.awarded filtered out). Correctness
+# fix of the 2026-10-29 verification (Maardu's 0-0 walkovers in Kalev's and
+# Kalju U21's goal samples, 15514355 / 15514366); 6,065 such football events
+# in the cached listings on 10-29. It moves samples and centres, so it is a
+# switch from the next day's 00:00Z. The measured sports' score model already
+# drops them (no periods); tennis reads Walkover as not completed. The
+# installed football curves were fitted with them in (calibrate_from_cache):
+# prepare_refit warns (UNREPLAYED_AUDIT_SWITCHES). Ledger group "od 10-30".
+AWARDED_EXCLUDED_FROM_UTC: datetime | None = datetime(
+    2026, 10, 30, 0, 0, 0, tzinfo=UTC)
+
+
+def awarded_excluded(date: str, build_at: datetime | None = None) -> bool:
+    """AWARDED_EXCLUDED_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(AWARDED_EXCLUDED_FROM_UTC, date, build_at)

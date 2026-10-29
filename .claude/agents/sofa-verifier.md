@@ -119,9 +119,16 @@ values (`opponent_correction.gate_values`).
   forecast_p`; a football one recomputes from its note's centres
   `python -c "from bet.sofa.football_score_markets import row_p, score_grid; print(row_p('<m>','<subj>',<line>,score_grid(<lh>,<la>,7.586)))"`
   (r = `nb_r`, `config/sofa_football_result.json`).
-- Tennis `games_won_for` / `handicap_games` / `most_games`: `p_central ==
-  forecast_p` (`tennis_rating`); `games_total` = 0.5 rating + 0.5 NB; a
-  `TENNIS_RATING` note elsewhere is a defect; tour / Challenger neighbours
+- Tennis `games_won_for` / `handicap_games` / `most_games`
+  (`tennis_rating.RATING_PRICED_MARKETS`) and, since
+  `epochs.TENNIS_SET_RATING_PRICES_FROM_UTC` (2026-10-13 18:10Z), the per-set
+  games and `sets_total` (`SET_RATING_PRICED_MARKETS`: `games_set1/2_total`,
+  `games_won_set1/2/3_for`, `sets_total`; the row carries `tennis_set_rule`
+  and its note names `epochs.TENNIS_SET_RATING_PRICES`): `p_central ==
+  forecast_p` (`tennis_rating`); `games_total` = 0.5 rating + 0.5 NB. A
+  `TENNIS_RATING` note on any other non-rating-only tennis market is a
+  defect - a set-games note is the installed rule, never a finding (verifier
+  2026-10-29 called it one). Tour / Challenger neighbours
   hold no match-tiebreak decider (`tennis_rating.Outcome.match_tiebreak`).
 - Derived joints (`both_over_`, `most_`, `handicap_`): not reproducible;
   both sides' marginal rows must stand in the sheet.

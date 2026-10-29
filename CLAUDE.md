@@ -167,6 +167,12 @@ and a miss recorded before a rule's switch never blocks that rule.
   (`SAMPLE_CONFLICT_CUT`; gap detail "sample cut at the clash"; fewer than 10
   after it = empty as before; two friendly tournaments excluded for it only,
   `excluded_from_sample_conflict_cut` in `config/sofa_friendly_competitions.json`).
+  From 2026-10-30 00:00Z a result awarded at the table (Sofascore
+  `isAwarded`: forfeits, walkovers after a withdrawal, an unplayed 3-0 / 0-0)
+  leaves the samples and the football rating SHEET replays
+  (`AWARDED_EXCLUDED`, `comparability.is_awarded_event`; gap "awarded";
+  Maardu's 0-0s in Kalev's / Kalju U21's goal samples, 10-29); SETTLE
+  refused it already.
 - **Confidence review 2026-10-27** (literature, every sport; report
   `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`, model-state.md): from
   2026-10-28 00:00Z a football joint's side with no quoted ladder gets its

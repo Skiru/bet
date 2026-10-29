@@ -140,7 +140,7 @@ _READABLE_MARKETS = RATED_MARKETS | {
 # Priced by the neighbours alone (no price) once epochs.tennis_rating_prices;
 # draw of most_games was not measured and stays on the sample.
 RATING_PRICED_MARKETS = frozenset({"games_won_for", "handicap_games", "most_games"})
-# Audit 2026-10-13 B5 (epochs.TENNIS_SET_RATING_PRICES_FROM_UTC, off): the
+# Audit 2026-10-13 B5 (epochs.TENNIS_SET_RATING_PRICES_FROM_UTC, on 10-13 18:10Z): the
 # per-set games and the number of sets read off the same neighbours instead of
 # the players' own samples shrunk to a global prior, with no opponent
 # (docs/sofa/evidence/tennis_set_markets_2026-10-13.md). Set three is read

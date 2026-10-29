@@ -420,6 +420,26 @@ Literature review of every sport's confidence path, three passes each; report
 - Basketball and CS2 curves with a pool-adjacent-violators pass only (no refit; `sport_confidence.monotone_curve`), `config/sofa_sport_confidence_calibration.next.2026-10-28.json`: Superbet lines log loss basketball -0.00012 [-0.00017, -0.00007], CS2 -0.00005 [-0.00009, -0.00001]; hockey / volleyball byte for byte the 10-24 curves.
 E2E: SHEET / CONFIDENCE / SPORT_CONFIDENCE / COUPON_ASSEMBLY of a scratch copy of 10-27 with the switches moved to 10-27 - all OK; vs a switches-off control only rows marked R1 (326, mean dp +0.0003) and R2 (1,012, mean dp +0.0008, p5..p95 -0.35..+0.35) move.
 
+### Results awarded at the table out (2026-10-30 00:00Z; verification of 2026-10-29, correctness; ledger group "od 10-30")
+
+`AWARDED_EXCLUDED` (`comparability.is_awarded_event` = Sofascore `isAwarded`
+true): a forfeit / walkover after a withdrawal - status 100 "Ended", an
+unplayed 3-0 / 0-0, no periods, no statistics - leaves the football samples
+(`samples.admit` and `peer_history`, gap EVENT_NOT_FINISHED "awarded") and the
+football history SHEET replays (`FootballResult.awarded`,
+`football_rating.without_awarded`: rating, referee, incident rates). Case:
+Maardu Linnameeskond withdrew from the Esiliiga; 15514355 / 15514366 stood as
+0-0 in Tallinna Kalev's and Nomme Kalju U21's goal samples (Kalev's mean 3.20
+instead of 3.56). 6,065 such football events in the cached listings on 10-29
+(most 3-0 / 0-3). No measurement (a correctness fix); a switch because it moves
+samples and centres. SETTLE refused the flag already (`settle.is_settleable`);
+the measured sports' score model never read them (no periods; tested); tennis
+reads Walkover as not completed. No SHEET marker (built after 00:00Z). The
+installed football curves were fitted with them in: `prepare_refit` warns
+(`UNREPLAYED_AUDIT_SWITCHES`). The dossier's `team_games` also keeps one
+listing per match (`samples.one_listing_per_match`; Prat - Sant Rafel listed
+twice, 17136469 / 17336477) - display, live at once.
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -647,6 +667,21 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- football cup ties across a large tier gap "rated too shallow" (verifier
+  2026-10-29: Prat - Athletic log gap -0.56, Ribadesella - Racing; Superbet's
+  ladders steeper): not confirmed (read-only replay of
+  `data/cache/football_history.pkl` as SHEET builds its book, KNOCKOUT +
+  LINKED_BY_STRENGTH from 2025-07-01, 12,825 domestic cup ties, goals_for
+  centre, match bootstrap). Realised minus predicted margin by predicted
+  supremacy: 1.5-2 (Prat - Athletic's 1.69) +0.03 [-0.13, +0.19] N 1,204;
+  >= 2 -0.46 [-0.58, -0.33] N 2,008 (total -0.56 [-0.67, -0.46]) - at the
+  largest gaps the rating is too steep, not too shallow; slope 0.90
+  [0.87, 0.94]; Copa del Rey alone N 108 -0.39 [-0.77, -0.01]. Our settled
+  knockout legs with a strength gap >= 0.3 (2026 days before 10-29): 738 legs
+  / 75 matches, hit minus confidence -0.001 [-0.042, +0.037] (printed 546 /
+  55: +0.004 [-0.048, +0.051]); gap < 0.3: -0.058 [-0.090, -0.027]. If
+  anything, a cup shrink of supremacy above ~2 goals (open, (e)).
+
 - football team-side legs against the opponent's concede profile (2026-10-29,
   after the operator's slips of 10-28: Panathinaikos corners over 3.5 - own
   9/10, Aris conceded it 3/10 - lost with 2; read-only,
@@ -796,6 +831,22 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (e) Open questions, not modelled yet, before the next refit
 
+- **A promoted / relegated side's league in the rating (2026-10-29)**:
+  `RatingBook.domain` is the modal competition of the side's last 40 matches
+  within 365 days (`TEAM_COMP_MEMORY`, `LINK_WINDOW_S`), so on 10-29 Arka
+  (Betclic 1. Liga from 2026-07-24) still read Ekstraklasa (202:21 vs 229:12)
+  and Deportivo (LaLiga from 2026-08-17) LaLiga 2 (54:27 vs 8:10): Arka - Stal
+  priced cross-league though both play 229; ~18-20 matches in the new league
+  before the switch. By design (`LINK_SHARED_LEAGUE` row above), never
+  measured (grid {180, 365, 730} d x {20, 40, 80} proposed in
+  `docs/sofa/evidence/model_defects_2026-10-05.md`). Candidate: the latest
+  season's league once >= 3 matches there; measure walk-forward log loss on
+  promoted / relegated sides' first 20 matches, sigma and UNLINKED counts;
+  a switch and a refit with the operator's go.
+- **Cup favourites at a predicted supremacy >= 2 goals** realise -0.46
+  [-0.58, -0.33] goals of margin and -0.56 of total below the rating ((d),
+  2026-10-29) - a knockout shrink is a candidate, unmeasured as a price.
+
 - **NBA player lines (2026-10-26)**: why no leg prints (p sits at the median by the book's construction, new markets have ~25 games of lines, p overconfident in the top buckets) is in `docs/sofa/evidence/nba_player_model_2026-10-26.md`; open: re-measure at ~200 NBA 2026-27 games; NBA-specific calibration term; a box that sums to the score +-1 point (Milwaukee - Chicago 10-23, 494 lines ungraded; today refused by design); `NOT_IN_HISTORY` outside the NBA.
 - **Open checks on new data**: `T-PEER-CHOICE-edge`, `T-FAMILY-SELECTION`,
   `T-LINE-CURVES`, `T-PLAYER-SAMPLE-GATES`, `T-SCORE-MARKETS-superbet`,
@@ -904,7 +955,8 @@ Groups are never pooled.
 | "od 10-23" | 10-23 | SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
 
 | "od 10-27" | 10-27 | the analyst audit's read scope (20 matches) and sourced removals |
-| "od 10-28" | 10-28 .. | current; confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
+| "od 10-30" | 10-30 .. | current; AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating |
+| "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".
 

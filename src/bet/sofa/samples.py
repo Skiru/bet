@@ -18,6 +18,7 @@ from bet.sofa.client import SofascoreClient
 from bet.sofa.comparability import (
     FRIENDLIES_PATH,
     SAME_COMPETITION_METRICS,
+    is_awarded_event,
     is_friendly_event,
     is_knockout,
     pick_same_competition,
@@ -133,6 +134,13 @@ def conflict_cut_on(fixture: Fixture) -> bool:
     """epochs.sample_conflict_cut for the fixture's (UTC) day at the build
     clock - the day a football fixture is SAMPLES' day."""
     return epochs.sample_conflict_cut(fixture.kickoff_utc.strftime("%Y-%m-%d"))
+
+
+def awarded_out_on(fixture: Fixture) -> bool:
+    """epochs.awarded_excluded for the fixture's (UTC) day at the build
+    clock: a result awarded at the table (comparability.is_awarded_event)
+    is out of the sample, the pool and the peers' histories."""
+    return epochs.awarded_excluded(fixture.kickoff_utc.strftime("%Y-%m-%d"))
 
 
 def _team_id(team: Mapping[str, Any]) -> int | None:
@@ -375,6 +383,7 @@ def get_historical_events(
     """
     if conflict_cut is None:
         conflict_cut = sport == "football" and conflict_cut_on(fixture)
+    awarded_out = awarded_out_on(fixture)
     events: list[dict[str, Any]] = []
     # The pool's friendly matches (pool_friendly_competition), kept apart from
     # the sample proper.
@@ -419,6 +428,23 @@ def get_historical_events(
                         detail=(
                             f"event {event.get('id')} {what} "
                             f"excluded from entity {entity_id} sample"
+                        ),
+                    )
+                )
+            return False
+        # epochs.AWARDED_EXCLUDED_FROM_UTC: status 100 "Ended" with a score
+        # awarded at the table (Maardu's 0-0 walkovers, 2026-10-29) - no
+        # match was played, so it is no observation of either side.
+        if awarded_out and is_awarded_event(event):
+            if gaps is not None and report:
+                gaps.append(
+                    GapEntry(
+                        reason=GapReason.EVENT_NOT_FINISHED,
+                        metric="all",
+                        detail=(
+                            f"event {event.get('id')} awarded (isAwarded, "
+                            "not played) excluded from entity "
+                            f"{entity_id} sample"
                         ),
                     )
                 )
@@ -1687,11 +1713,13 @@ def peer_history(
     kickoff_ts: int,
     *,
     conflict_cut: bool,
+    awarded_out: bool = False,
 ) -> list[dict[str, Any]]:
     """One peer's listed events admitted as a football sample proper admits
     them (get_historical_events' `admit`, then finish_history): finished
     normally, before kick-off, the peer one of the sides, no friendly (and,
-    under ``conflict_cut``, none of CONFLICT_CUT_FRIENDLY_IDS); then one
+    under ``conflict_cut``, none of CONFLICT_CUT_FRIENDLY_IDS; under
+    ``awarded_out``, no result awarded at the table); then one
     listing per match, the second squad's matches out (RESERVE_SQUAD), one
     squad per id (a clash cuts the peer at the clash under ``conflict_cut``,
     else empties it) - newest FOREIGN_PEER_GAMES. The live any-team top-up
@@ -1704,7 +1732,8 @@ def peer_history(
         if (not isinstance(event.get("id"), int)
                 or not isinstance(start, int) or start >= kickoff_ts
                 or not is_completed_event(event)
-                or is_friendly_event(event, "football")):
+                or is_friendly_event(event, "football")
+                or (awarded_out and is_awarded_event(event))):
             continue
         if conflict_cut and _competition_id(event) in CONFLICT_CUT_FRIENDLY_IDS:
             continue
@@ -1757,7 +1786,8 @@ def _foreign_side_results(
             listed = cache.get_listed_events(
                 peer, "last", kickoff_ts, PEER_LISTING_LIMIT)
             for event in peer_history(listed, peer, kickoff_ts,
-                                      conflict_cut=conflict_cut):
+                                      conflict_cut=conflict_cut,
+                                      awarded_out=awarded_out_on(fixture)):
                 eid = int(event["id"])
                 start = int(event["startTimestamp"])
                 if (eid, peer) in seen:

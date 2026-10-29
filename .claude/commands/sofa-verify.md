@@ -18,7 +18,9 @@ reads and rebuilds.
    free `_r<n>` (`_r1`, `_r2`, ...) when it exists - never overwrite.
 2. Launch `sofa-verifier` in the **foreground** with `<d>` and that path.
    It writes the report itself and returns <= 12 lines with the path it
-   **actually wrote**; never re-type its report or its JSON.
+   **actually wrote**; never re-type its report or its JSON. If it still
+   comes back as a background task, wait for its completion notification
+   and check the report file exists before step 3 (2026-10-29).
 3. Merge its reads from that returned path (dry run first):
 
 ```bash

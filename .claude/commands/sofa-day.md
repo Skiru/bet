@@ -197,7 +197,9 @@ buffer) -> <file>` - the required / buffer counts are legs. A sport without a fi
 analyst. Run id: the one BOARD minted.
 
 Launch one instance per file, **all in one message, in the foreground** - nothing wakes
-you if they run in the background. `football` -> `sofa-analyst-football`, `tennis` ->
+you if they run in the background; if one still comes back as a background task, **wait for its
+completion notification** and check its report file exists before `merge_reads.py` - never
+merge or rebuild while an analyst of the round runs (2026-10-29). `football` -> `sofa-analyst-football`, `tennis` ->
 `sofa-analyst-tennis`, `hockey` / `basketball` / `volleyball` / `cs2` -> `sofa-analyst-sport`.
 Give the path `runs/sofa/<D>/<D>_analiza_<sport>[_<i>].md` (next free `_r<n>` if it exists;
 never overwrite). Prompt, nothing else - no opinion of yours about any fixture:

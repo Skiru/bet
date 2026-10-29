@@ -159,6 +159,18 @@ def is_friendly_event(event: Mapping[str, Any], sport: str | None = None) -> boo
     return False
 
 
+def is_awarded_event(event: Mapping[str, Any]) -> bool:
+    """A result awarded at the table (Sofascore ``isAwarded``): a forfeit, a
+    walkover after a withdrawal - status 100 "Ended" with a score nobody
+    played (3-0, 0-0, 20-0), no periods, no statistics. 2026-10-29: Maardu
+    Linnameeskond withdrew from the Esiliiga and its unplayed games (15514355
+    vs Tallinna Kalev, 15514366 vs Nomme Kalju U21) entered both sides' goal
+    samples as 0-0. SETTLE refuses the same flag (settle.is_settleable);
+    samples and the football rating read it under
+    epochs.AWARDED_EXCLUDED_FROM_UTC."""
+    return event.get("isAwarded") is True
+
+
 def is_knockout(event: Mapping[str, Any]) -> bool:
     """A cup round, a play-off or a qualifier - not a league round."""
     info = event.get("roundInfo")
