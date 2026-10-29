@@ -1029,6 +1029,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = {}
         for group in GROUPS:
             if args.group in (group, "all"):
+                held = json.loads((Path(args.out_root) / group / "curves.json")
+                                  .read_text(encoding="utf-8"))["fitted_from"]
+                if (group != "tennis_sets" and bool(held.get("awarded_excluded"))
+                        != bool(args.awarded_excluded)):
+                    print(f"REFUSED: {group} was fitted with awarded_excluded="
+                          f"{bool(held.get('awarded_excluded'))}; --regate "
+                          "cannot change that", file=sys.stderr)
+                    return 2
                 doc = regate(Path(args.out_root), group)
                 result[group] = {k: g["pass"] for k, g in doc["gate"].items()}
         print(json.dumps(result, indent=1))

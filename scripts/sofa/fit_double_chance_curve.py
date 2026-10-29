@@ -300,6 +300,11 @@ def regate(out: Path, args: argparse.Namespace) -> int:
     """Re-decide a saved run under today's gate from its rows.csv.gz."""
     old = json.loads((out / "curves.json").read_text(encoding="utf-8"))
     ff = old["fitted_from"]
+    if bool(ff.get("awarded_excluded")) != bool(args.awarded_excluded):
+        print(f"REFUSED: {out} was fitted with awarded_excluded="
+              f"{bool(ff.get('awarded_excluded'))}; --regate re-decides its "
+              "rows and cannot change that", file=sys.stderr)
+        return 2
     priced: list[Priced] = []
     with gzip.open(out / "rows.csv.gz", "rt", newline="") as fh:
         for r in csv.DictReader(fh):

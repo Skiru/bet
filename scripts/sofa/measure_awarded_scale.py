@@ -90,8 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     scored = 0
     d_all: list[float] = []
     d_touched: list[float] = []
-    # a kick-off group is priced before any of it is fed (SHEET's book stands
-    # before the day)
+    # a kick-off group is priced before any of it is fed: no match sees a
+    # result of its own kick-off
     pending: list[fr.FootballResult] = []
 
     def feed() -> None:

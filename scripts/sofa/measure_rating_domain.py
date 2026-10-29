@@ -119,8 +119,9 @@ def walk(history: Iterable[fr.FootballResult], arm: Arm, start: int, cut: int,
         last_dom: dict[int, int | None] = {}
         moved_left: dict[int, int] = defaultdict(int)
         moved: set[int] = set()
-        # a kick-off group is priced before any of it is fed, as SHEET's book
-        # stands before the day (measure_cup_supremacy_shrink.knockout_rows)
+        # a kick-off group is priced before any of it is fed
+        # (measure_cup_supremacy_shrink.knockout_rows): no match sees a result
+        # of its own kick-off
         pending: list[fr.FootballResult] = []
         for r in history:
             if r.ts >= cut:

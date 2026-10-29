@@ -141,7 +141,7 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
                     row["link"], float(row["lh"]), float(row["la"]),
                     int(row["x"]), int(row["y"])), row["phase"] or None))
         held = fp.endswith(AWARDED_TAG)
-        if held != awarded_out:
+        if out and held != awarded_out:  # no rows: no rule to disagree with
             raise SystemExit(
                 f"{cache} was written {'with' if held else 'without'}"
                 " --awarded-excluded; this run asks the other rule - drop the "

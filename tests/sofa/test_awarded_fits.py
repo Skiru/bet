@@ -157,3 +157,56 @@ def test_prepare_refit_warns_on_a_stretch_fitted_with_forfeits(
     # the stretch not replayed: nothing to say
     _, warnings = pr.replay_switch_gaps(_staged(**ON), at=eve, config_dir=cfg)
     assert not any("awarded at the table in" in w for w in warnings)
+
+
+def test_an_empty_1x2_cache_reads_under_either_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(f1x2, "replay", lambda *a: [])
+    monkeypatch.setattr(f1x2, "phases_by_event", lambda h: {})
+    cache = tmp_path / "m.csv.gz"
+    f1x2.load_matches(_history(tmp_path), 0, 2**31, cache, awarded_out=True)
+    for rule in (True, False):
+        assert f1x2.load_matches(_history(tmp_path), 0, 2**31, cache,
+                                 awarded_out=rule)[1] == []
+
+
+def test_a_played_pickle_with_the_flag_is_refused_without_it(tmp_path: Path) -> None:
+    out = tmp_path / "cases"
+    out.mkdir()
+    (out / "played.pkl").write_bytes(pickle.dumps(([], {}, True)))
+    ns = argparse.Namespace(out=str(out), db="x", refresh=False)  # pre-flag ns: off
+    assert mcf.cmd_collect(ns) == 2
+
+
+def test_count_dispersion_refuses_cases_of_the_other_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.sofa import fit_count_dispersion as fcd
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    (cases / "meta.json").write_text('{"names": {}, "sizes": {}}')  # pre-flag
+    monkeypatch.setattr("sys.argv", ["fit_count_dispersion.py", "--before",
+                                     "2026-10-30", "--cases", str(cases),
+                                     "--awarded-excluded"])
+    assert fcd.main() == 2
+
+
+def test_double_chance_regate_cannot_change_the_rule(tmp_path: Path) -> None:
+    from scripts.sofa import fit_double_chance_curve as fdc
+    (tmp_path / "curves.json").write_text('{"fitted_from": {}}')
+    ns = argparse.Namespace(awarded_excluded=True)
+    assert fdc.regate(tmp_path, ns) == 2
+
+
+def test_prepare_refit_warns_on_count_dispersion_fitted_with_forfeits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC",
+                        datetime(2026, 10, 30, tzinfo=UTC))
+    cfg = _cfg(tmp_path)
+    (cfg / "sofa_count_dispersion.json").write_text('{"fitted_from": {}}')
+    _, warnings = pr.replay_switch_gaps(
+        _staged(**ON, count_dispersion=True),
+        at=datetime(2026, 10, 29, 22, 0, tzinfo=UTC), config_dir=cfg)
+    assert any("sofa_count_dispersion.json" in w for w in warnings)

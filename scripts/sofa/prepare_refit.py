@@ -2031,6 +2031,7 @@ AWARDED_FITTED_CONFIGS: tuple[tuple[str, str, str], ...] = (
     ("closeness_stretch", "sofa_closeness_stretch.json",
      "fit_closeness_stretch.py"),
     ("game_state", "sofa_game_state.json", "fit_game_state.py"),
+    ("count_dispersion", "sofa_count_dispersion.json", "fit_count_dispersion.py"),
 )
 
 
