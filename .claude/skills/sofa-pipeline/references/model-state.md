@@ -436,11 +436,18 @@ samples and centres. SETTLE refused the flag already (`settle.is_settleable`);
 the measured sports' score model never read them (no periods; tested); tennis
 reads Walkover as not completed. No SHEET marker (built after 00:00Z). The
 installed football curves were fitted with them in; the replay carries the
-rule (`calibrate_from_cache --awarded-excluded`: load_cache, the rating
-history, a player's history; the goals / count / closeness / game-state /
-player stretch and joint-curve fits take the same flag) and `prepare_refit
-install` refuses a replay without it while the switch is on
-(`REPLAYABLE_SWITCHES`). No refit for it alone (2026-10-29,
+rule (`calibrate_from_cache --awarded-excluded`: load_cache drops an
+awarded result of any sport before one listing per match, as SAMPLES' admit
+before finish_history; the rating history, a player's history, the team and
+player targets) and every football fit takes the same flag and records it
+as `fitted_from.awarded_excluded` (goals / count / closeness / player
+stretch, game state, joint curves, rating weight, season phase, count
+dispersion, 1X2 / DNB, double chance, incident sets; score-market curves copy
+their rows' rule; a cache or `--regate` of the other rule is refused).
+`prepare_refit install` refuses a replay without it while the switch is on
+(`REPLAYABLE_SWITCHES`) and warns on a replayed fitted file whose
+`fitted_from.awarded_excluded` is not true (`AWARDED_FITTED_CONFIGS`: today
+every one - each needs its own fit and go). No refit for it alone (2026-10-29,
 `scripts/sofa/measure_awarded_scale.py`, DB copy, 2025-10-01..10-28): 30,511
 of 427,264 matches (7.1%) hold an awarded result in a side's last 10; the
 rating's goals_for one step ahead without them +0.00011 [+0.00003, +0.00019]

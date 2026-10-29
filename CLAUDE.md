@@ -174,7 +174,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   Maardu's 0-0s in Kalev's / Kalju U21's goal samples, 10-29); SETTLE
   refused it already. The dossier leaves it out of its counts by the same
   switch; a refit replays it with `--awarded-excluded` (an install while the
-  switch is on refuses a replay without it).
+  switch is on refuses a replay without it), every football fit takes the
+  flag and records it (`fitted_from.awarded_excluded`; prepare_refit warns
+  on a replayed fitted file without it).
 - **Confidence review 2026-10-27** (literature, every sport; report
   `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`, model-state.md): from
   2026-10-28 00:00Z a football joint's side with no quoted ladder gets its

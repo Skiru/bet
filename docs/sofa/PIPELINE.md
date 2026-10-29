@@ -2394,11 +2394,16 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   Przypadek: walkowery Maardu 0:0 w próbkach goli Kalev i Kalju U21. SETTLE
   odrzucał je już wcześniej; model wyników hokeja / kosza / siatkówki nie
   czyta ich (brak tercji / kwart / setów). Krzywe piłki dopasowano z nimi;
-  powtórka krzywych zna regułę (`calibrate_from_cache --awarded-excluded`,
-  także `fit_goals_stretch` / `fit_count_stretch` / `fit_closeness_stretch` /
-  `fit_game_state` / `fit_player_stretch` / `fit_joint_curves`), a
+  powtórka krzywych zna regułę (`calibrate_from_cache --awarded-excluded`:
+  walkower dowolnego sportu wypada przed wyborem jednej kopii meczu, jak w
+  SAMPLES; także cele drużyn i graczy) i każdy fit piłki ma tę flagę i
+  zapisuje ją w `fitted_from.awarded_excluded` (rozciągnięcia, stan gry,
+  krzywe łączone, waga ratingu, faza sezonu, dyspersja, 1X2 / DNB, podwójna
+  szansa, incydenty; cache lub `--regate` innej reguły odmawia).
   `prepare_refit install` przy włączonym przełączniku odmawia powtórki bez
-  tej flagi (`REPLAYABLE_SWITCHES`). Osobnego refitu nie było: 7,1% meczów
+  tej flagi (`REPLAYABLE_SWITCHES`) i ostrzega o czytanym pliku dopasowanym
+  z walkowerami (`AWARDED_FITTED_CONFIGS`; dziś każdy - każdy wymaga
+  własnego fitu i zgody). Osobnego refitu nie było: 7,1% meczów
   (30 511 z 427 264, 2025-10-01..2026-10-28) ma walkower w ostatnich 10
   jednej ze stron, a rating goli bez walkowerów jest o +0,00011 [+0,00003;
   +0,00019] log-loss gorszy (`measure_awarded_scale.py`). Grupa księgi

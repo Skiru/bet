@@ -140,18 +140,76 @@ Ribadesella - Racing 17259846), `run_sheet.py` (cały dzień),
   11:46Z (md5 w `data/refit_2026-10-30/md5_real_after_e2e.txt`). Kopia
   iCloud z 11:46Z (render głównego drzewa).
 
+## Przegląd iteracyjny (4 rundy, niezależni recenzenci) i poprawki
+
+- Runda 1: mecz rozegrany, a potem przyznany przy stoliku, zostawał celem
+  gracza w powtórce (`player_targets`) - poprawione (commit 9526cc88).
+- Runda 2 (trzech recenzentów: A, B, C/D):
+  - A: dossier liczył dzień przełącznika z obecnego startu Sofascore, SAMPLES
+    z `02_fixtures` - teraz oba z `02_fixtures.kickoff_utc` (mecz
+    przesunięty przez północ przełącznika zgadza się z próbką); testy stawki
+    ligi, stylu i innego sportu (wcześniej nie ćwiczone).
+  - B: `fit_result_1x2_dnb_curve`, `fit_double_chance_curve`,
+    `fit_incident_set_curves`, `fit_count_dispersion` nie znały flagi;
+    `_lean` w `measure_count_families` gubił `isAwarded` (złapane testem);
+    powtórka wybierała jedną kopię meczu przed odrzuceniem walkoweru (SAMPLES
+    odwrotnie) i tylko w piłce (SAMPLES każdy sport); żaden plik fitu nie
+    zapisywał reguły. Wszystko poprawione, `fitted_from.awarded_excluded`
+    w każdym fitcie, cache innej reguły odmawia.
+  - C/D: bez defektów (stary i nowy `football_rating` na 30 000 syntetycznych
+    wynikach: 0 różnic domeny / linku / centrów przy wyłączonym C). Skrypty
+    pomiarowe wyceniają grupę meczów o tej samej godzinie przed jej
+    wczytaniem (jak `measure_cup_supremacy_shrink`).
+- Runda 3: ostrzeżenie `prepare_refit` pomijało dyspersję; pusty cache 1X2
+  odmawiał sam sobie; `--regate` mógł zmienić regułę - poprawione.
+- Runda 4: `fit_rating_weight` / `fit_season_phase` bez flagi - poprawione,
+  krzywe rynków wyniku zapisują regułę swoich wierszy. Poza tym recenzent:
+  nic nie zmienia druku dnia zbudowanego ani sportów, brak ryzyka awarii w
+  ścieżkach żywych.
+
+`prepare_refit` ostrzega teraz o każdym czytanym przez powtórkę pliku
+dopasowanym z walkowerami (`AWARDED_FITTED_CONFIGS`) - dziś to wszystkie
+zainstalowane pliki; każdy wymaga własnego fitu i zgody operatora.
+
+## E2E 2 (po przeglądzie): stary kod, nowy kod, nowy kod z przełącznikiem na 10-29
+
+Kopie bazy (VACUUM INTO, klony APFS), kopie `runs/sofa/2026-10-29`, zegar
+zamrożony na 2026-10-29T11:39:40Z (moment prawdziwej przebudowy, więc bez
+STALE_PRICE), `SOFA_ICLOUD_KUPONY_DIR=` puste. Etapy jak wyżej; stary kod =
+662087a9 (main przed tą pracą).
+
+- **Stary vs nowy kod (przełącznik od 10-30, jak w produkcji):**
+  `03_samples.json`, `05_sheet.json`, `08_confidence.json`, `11_coupon.json`
+  **identyczne bajt w bajt** (md5). Dossier całego zestawu do czytania (41
+  plików, każdy sport) i `read_set_*.json` identyczne poza ścieżką scratch.
+- **Nowy kod z przełącznikiem na 10-29:** SHEET 9 977 wierszy p w 148
+  meczach, tylko piłka (Δp p5 -0,0036, p95 +0,0036, max 0,075); pewność
+  zmieniona w 19 nogach 15 meczów; kupon 2 446 -> 2 451 nóg (+10 / -5, np.
+  Kalev - Kalju U21: wypadają `result_handicap` „2” 2.5 i `result_or_under`
+  „2” 4.5, wchodzi `both_over_goals_1h` 0.5 UNDER); buildery i odczyty bez
+  zmian. Dossier: zmienia się jeden mecz (Gençlerbirliği - Karaköprü:
+  walkower Karaköprü oznaczony, forma n 10 -> 9).
+- `merge_reads --dry-run` każdego raportu piłki 10-29 (11) na zestawie
+  nowym i przesuniętym: te same kody; dwa raporty pierwotne odmawiają
+  („removals without a fact”) tak samo na starym kodzie - ich wersje r1
+  przechodzą.
+- Prawdziwe `11_coupon.json` / `KUPON_2026-10-29.pdf` / `reads.json` po
+  E2E: md5 bez zmian.
+
 ## Czego nie sprawdziłem
 
 - Pełnego `rebuild_day.py` w scratch nie puściłem: plan żądał LATE_RESOLVE,
   OFFER (263 mecze), SHADOW (15,5 h) i FIXTURE_CHECK na żywo, dwa razy;
   etapy offline zamiast niego.
-- SPORT_CONFIDENCE nie był liczony w E2E; nietkniętość sportów przez C
-  pokazują test i to, że C jest wyłączone (książka sportów nie zbiera
-  `team_leagues`).
+- SPORT_CONFIDENCE nie był liczony w E2E; sporty: dossier identyczne w E2E 2,
+  test i to, że C jest wyłączone (książka sportów nie zbiera `team_leagues`).
+- Pomiarów C i skali B po poprawce grupowania meczów o tej samej godzinie nie
+  powtórzyłem (recenzent: przeciek dotyczył obu ramion, C daleko poza nim);
+  liczby w tabelach są z pierwszego przebiegu.
 - Kontroli D względem ceny na rozliczonych liniach Superbetu nie robiłem
   (nic do włączenia).
 - Refitu nie było, więc nie było instalacji ani E2E krzywych.
 
 ## Bramki
 
-`pytest tests/sofa` 6202 passed / 8 skipped, `ruff` czysto, `mypy --strict` czysto (358 plików), `check_test_registry.py` 0 uwag.
+`pytest tests/sofa` 6231 passed / 8 skipped (po przeglądzie), `ruff` czysto, `mypy --strict` czysto (358 plików), `check_test_registry.py` 0 uwag.
