@@ -162,7 +162,7 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
 | verdict | effect |
 |---|---|
 | `KEEP` | stays; records the read (a leg in the set without a read fails C3) |
-| `WATCH` | removed into `removed_by_reads` - a fact newer than the price on one domain, or an opinion, acting through the leg's variable by a named mechanism; a `DEFEKT:`; or (football, reports of 2026-10-30 on) a `RYNEK:` at its threshold (below) |
+| `WATCH` | removed into `removed_by_reads` - a fact newer than the price on one domain, or an opinion, acting through the leg's variable by a named mechanism; a `DEFEKT:`; or (football, reports of 2026-10-29 on) a `RYNEK:` at its threshold (below) |
 | `NO_BET` | removed - a defect, or a fact confirmed by two domains |
 
 - **Vetoes** (football / tennis only): a sample that does not describe the
@@ -192,7 +192,7 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
      or a rating you disagree with (`FOOTBALL_RATING` ratios, strength gap,
      domains, `cup_strength_rule`) is not a defect: a note, and a "do
      zrobienia" line in your summary;
-  3. (**football only**, reports of 2026-10-30 on, **WATCH only, never
+  3. (**football only**, reports of 2026-10-29 on, **WATCH only, never
      NO_BET or a veto**) market-driver evidence written `RYNEK: <driver>:
      <k/n from the dossier>`, read `context: "MARKET"`. It stands only at
      one of two thresholds:

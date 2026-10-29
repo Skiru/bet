@@ -193,7 +193,7 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
    (`_weryfikacja`) - do poprawy, gdy:
    - WATCH / NO_BET nie nazywa faktu nowszego niż cena (datowany tag
      `[WEB: domena, publ. <data>, fetched <czas>]`) ani defektu artefaktu
-     (`DEFEKT: …`); od raportów z 2026-10-30 w piłce sam WATCH (nigdy NO_BET ani weto) może
+     (`DEFEKT: …`); od raportów z 2026-10-29 w piłce sam WATCH (nigdy NO_BET ani weto) może
      też stać na sterowniku rynku rodziny nogi
      (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
      `RYNEK: <sterownik>: <liczby z k/n z dossier>`, `context: "MARKET"`
@@ -204,11 +204,11 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
    - pozostałe ustalenia (nazwa = początek komunikatu hooka): KONTEKST
      (brak „Kontekst (web)”), DOSSIER, SEKCJA BEZ TOKENU (nagłówek bez
      `sofa:<id>`, także u weryfikatora), TAG WEB BEZ DATY, FAKTY ZABÓJCZE,
-     W SKRÓCIE (od 10-30; weryfikator też), ZESTAWIENIE (od 10-30, piłka),
-     PRZECIW BEZ ODCZYTU (od 10-30), KEEP ZBIORCZY (od 10-27), KEEP BEZ
+     W SKRÓCIE (od 10-29; weryfikator też), ZESTAWIENIE (od 10-29, piłka),
+     PRZECIW BEZ ODCZYTU (od 10-29), KEEP ZBIORCZY (od 10-27), KEEP BEZ
      UZASADNIENIA, USUNIĘCIE BEZ FAKTU (od 10-27; RYNEK dla WATCH w piłce od
      10-30), RYNEK TYLKO WATCH, RYNEK BEZ TAGU, ŹRÓDŁO, WETO BEZ FAKTU (od
-     10-30). RYNEK jest tylko piłkarski i tylko dla WATCH; weto nigdy nie
+     10-29; operator przesunął z 10-30). RYNEK jest tylko piłkarski i tylko dla WATCH; weto nigdy nie
      stoi na RYNKU. Kod sprawdza każdy WATCH `RYNEK:` z wierszem
      `style.matchup` jego nogi w dossier (schemat >= 3,
      `report_check.market_findings`): RYNEK ZAKAZANY (h2h / forma / seria /
@@ -346,7 +346,7 @@ stronę `subject` i tożsamość meczu sportu, dopytuje Superbet o żywą cenę 
 samym klientem, testuje rozkłady dnia pod kątem antyselekcji. Produktem jest
 lista nóg, których **nie** postawiłby — w raporcie i jako blok odczytów,
 na tych samych zasadach zdjęcia co analitycy (`NO_BET` za `DEFEKT: …`,
-`WATCH` za datowany `[WEB:]`, `DEFEKT` albo od 2026-10-30 `RYNEK:`; luka
+`WATCH` za datowany `[WEB:]`, `DEFEKT` albo od 2026-10-29 `RYNEK:`; luka
 model-próbka nie jest powodem - piłkarskie `MODEL_ABOVE_OWN_SAMPLE` zdejmuje
 się samo). Noga zablokowana to zapis wydruku,
 nie defekt. Żadnej rekomendacji stawki.

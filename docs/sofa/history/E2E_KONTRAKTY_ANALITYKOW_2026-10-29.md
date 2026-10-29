@@ -65,7 +65,11 @@ dossier zbudowane nowym kodem - `read_set.py` / `build_slip.py` budują je
 przy każdym odczycie.
 
 Nic z tego nie zmienia pewności, bramek ani tego, co drukuje kupon: dossier to
-podgląd, a reguły raportu wiążą raporty od 2026-10-30.
+podgląd. Reguły raportu (W SKRÓCIE, ZESTAWIENIE, PRZECIW, RYNEK, WETO BEZ
+FAKTU) operator przesunął po teście z raportów od 2026-10-30 na raporty od
+2026-10-29 („od dzisiaj”): odczyty 10-29 nie były jeszcze scalone, a
+analitycy dnia zostali anulowani - czytają od nowa na nowych regułach
+(`report_check.READABLE_SECTION_DATE`).
 
 ## Weryfikacja po poprawkach (żywe artefakty 10-29, scratch)
 

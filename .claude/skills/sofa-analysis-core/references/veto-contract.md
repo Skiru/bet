@@ -149,7 +149,7 @@ Football / tennis read:
   "context": "ABSENCES", "reason": "obaj podstawowi stoperzy Chaves zawieszeni (komunikat ligi) [WEB: ligaportugal.pt, publ. 2026-10-05 14:00Z, fetched 2026-10-06 08:40Z]; Chaves w ostatnich czterech 4/5/4/5 goli - nota, nie powód"}]
 ```
 
-Football market-driver WATCH (reports from 2026-10-30; pewność 0.79, conceded
+Football market-driver WATCH (reports from 2026-10-29; pewność 0.79, conceded
 3/10 = 0.30, gap 0.49 >= 0.25, n 10 >= 8 - core threshold (a)):
 
 ```json

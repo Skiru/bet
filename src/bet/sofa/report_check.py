@@ -45,8 +45,10 @@ STYLE_MARK = re.compile(r"styl gry i zestawienie", re.I)
 TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$", re.M)
 # The readable section (operator 2026-10-29: the reports were unreadable and
 # never set a team's count against what its opponent concedes) binds reports
-# of days from 2026-10-30 - a process rule, never a gate.
-READABLE_SECTION_DATE = "2026-10-30"
+# of days from 2026-10-29 (operator 2026-10-29, after the E2E test: "od
+# dzisiaj" - moved from 10-30 into the day, whose reads were not yet merged)
+# - a process rule, never a gate.
+READABLE_SECTION_DATE = "2026-10-29"
 # The two rules that change a verdict (a sourced removal, no match-wide KEEP)
 # bind the reports of days from the analyst audit's switch (epochs
 # READ_SCOPE_DATE, 2026-10-27, operator's go 10-26) - never mid-day.

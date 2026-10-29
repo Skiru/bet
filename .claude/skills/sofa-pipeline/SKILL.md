@@ -204,7 +204,7 @@ back). A WATCH / NO_BET reason names one of:
   scope, surface, format, another squad / class, a placeholder, a mis-sided
   subject). A correct value the model does not use (rest, back-to-back, form,
   h2h, table, rating) or a rating one disagrees with is a note, not a defect;
-- football only, from reports dated 2026-10-30, for a **WATCH only** (never
+- football only, from reports dated 2026-10-29, for a **WATCH only** (never
   NO_BET, never a veto), a market driver of the leg's family
   (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
   `RYNEK: <driver>: <numbers with k/n from the dossier>`, read `context: "MARKET"`.

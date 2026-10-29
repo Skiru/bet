@@ -2419,7 +2419,7 @@ niego 08).
   `coupon_sports.apply_reads` (z `period`).
   Podstawa zdjęcia (`report_check`, hook odsyła raport): od raportów z
   2026-10-27 fakt nowszy niż cena (`[WEB: domena, publ. <data>, fetched]`)
-  albo defekt artefaktu (`DEFEKT: …`); od raportów z 2026-10-30 (operator
+  albo defekt artefaktu (`DEFEKT: …`); od raportów z 2026-10-29 (operator
   2026-10-29: czynników rynku nie wolno pomijać) także - tylko dla WATCH -
   czynnik rynku z liczbami z dossier (`RYNEK: <czynnik>: <k/n>`,
   `context: "MARKET"`, rozliczany w księdze osobno): udział meczów, w których
@@ -2805,7 +2805,7 @@ runs/sofa/<data>/
                                           posiadaniu < 50% / 50%+ - koszyk < 4 meczów to notatka), `league` (stopa ligi) i `matchup`:
                                           każda noga rynku liczbowego - własne k/n obok tego, na ile pozwala rywal, dla sumy mecze obu
                                           stron, udział ligi; ten sam tekst to znacznik „zestawienie” przy nodze w KUPON html (pomiar
-                                          10-29: podejrzenie; od raportów 10-30 podstawa WATCH „RYNEK:”, nigdy NO_BET);
+                                          10-29: podejrzenie; od raportów 10-29 podstawa WATCH „RYNEK:”, nigdy NO_BET);
                                           `build_slip.py --check` - własny builder operatora noga po nodze + łączne k/n nóg w meczach stron
   h2h.json                                h2h Sofascore każdego czytanego meczu (bet.sofa.h2h; --no-h2h pomija) - tylko dla dossier
   lineups_prematch.json                   skład Sofascore przed meczem (przewidywany / potwierdzony) i absencje (missingPlayers: missing / doubtful)

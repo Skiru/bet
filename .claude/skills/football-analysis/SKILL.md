@@ -164,7 +164,7 @@ Template and step table: `references/event-protocol.md`.
   side can destroy the total alone).
 - A team-corner OVER against an opponent that concedes few (`style.matchup`
   `opponent_conceded` 3/10 against pewność 0.79) read only on the subject's
-  own sample - from 2026-10-30 a WATCH `RYNEK: …` at core's threshold, not
+  own sample - from 2026-10-29 a WATCH `RYNEK: …` at core's threshold, not
   a silent KEEP.
 - "Każda z drużyn powyżej 1.5 rożnych" with one side that will be without
   the ball: PAOK 1 corner at 36% possession against AEK (10-28) - its own

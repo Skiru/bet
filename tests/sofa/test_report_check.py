@@ -203,13 +203,13 @@ def test_a_section_opens_plainly_and_sets_team_legs_against_the_opponent() -> No
     assert any(f.startswith("W SKRÓCIE: mecze 1")
                for f in findings(report([keep(1, DEEP)], bare), "2026-10-30"))
     # reports of days before the rule keep the old shape
-    assert findings(report([team_leg], bare), "2026-10-29") == []
+    assert findings(report([team_leg], bare), "2026-10-28") == []
 
 
 def test_a_market_driver_watch_carries_its_numbers_and_its_tag() -> None:
     """Operator 2026-10-29: a style / concession signal is never skipped - a
     WATCH may rest on "RYNEK: ..." with k/n numbers from the dossier, tagged
-    MARKET; a NO_BET never; before 2026-10-30 the old rule stands."""
+    MARKET; a NO_BET never; before 2026-10-29 the old rule stands."""
     reason = ("RYNEK: Persijap oddaje rywalom >= 4 rożne w 3/10, liga 51%; Dewa "
               "przy posiadaniu < 50% bez danych - mało piłki, mało rożnych")
     leg = dict(keep(1, DEEP), market="corners_for", subject="dewa", line=3.5)
@@ -225,7 +225,7 @@ def test_a_market_driver_watch_carries_its_numbers_and_its_tag() -> None:
     assert any(f.startswith("USUNIĘCIE BEZ FAKTU")
                for f in findings(report([bare], GOOD_BODY), "2026-10-30"))
     assert any(f.startswith("USUNIĘCIE BEZ FAKTU")
-               for f in findings(report([watch], GOOD_BODY), "2026-10-29"))
+               for f in findings(report([watch], GOOD_BODY), "2026-10-28"))
 
 
 def test_vetoes_are_sourced_and_the_verifier_and_other_sports_are_checked_too(

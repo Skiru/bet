@@ -296,7 +296,7 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
   back-to-back, form, h2h, table) or a rating you disagree with is a note,
   never a `DEFEKT`. `WATCH` = a dated `[WEB: domena, publ. <data>, fetched
   <czas>]` fact newer than the price, a `DEFEKT: ...`, or - football only,
-  reports dated from 2026-10-30 - `RYNEK: <driver>: <numbers with k/n from
+  reports dated from 2026-10-29 - `RYNEK: <driver>: <numbers with k/n from
   the dossier>` (`context: "MARKET"`; WATCH only, never a veto). Never a
   removal: h2h alone, form / a streak, the table, a model-vs-sample gap
   (football `MODEL_ABOVE_OWN_SAMPLE` already removes those), `price_gap`, a

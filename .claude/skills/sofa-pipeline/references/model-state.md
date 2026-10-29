@@ -664,7 +664,7 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   [-9.6, +2.8]. A suspicion: no gate, no removal; shown as the dossier's
   `style.matchup` and the KUPON html "zestawienie" tag. Re-measure out of
   sample (from 10-28) before any gate, `corners_1h_for` first. Operator
-  2026-10-29: such a signal is never skipped - from reports of 2026-10-30 an
+  2026-10-29: such a signal is never skipped - from reports of 2026-10-29 (moved from 10-30 by the operator) an
   analyst / verifier WATCH may rest on it (`RYNEK: ... k/n`, `context:
   "MARKET"`, share >= 0.25 below confidence or the < 50% possession bucket on
   >= 4 games; never NO_BET; `report_check`). No gate, no confidence change; the
