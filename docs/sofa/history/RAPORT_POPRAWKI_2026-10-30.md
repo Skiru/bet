@@ -45,7 +45,7 @@ ostrzeżeń `UNMATCHED_READ` zawężonego zestawu (tak samo w kontroli).
 
 `calibrate_from_cache --awarded-excluded`: `load_cache` pomija mecz
 przyznany przy stoliku (historia i cel), historia ratingu przez
-`without_awarded`, historia gracza przez `admitted_football_event`; zapisane
+`without_awarded`, historia gracza przez `admitted_football_event`, cele gracza w `player_targets` (poprawka po przeglądzie kodu); zapisane
 w `replay_rules`. Ta sama flaga w `fit_goals_stretch`, `fit_count_stretch`,
 `fit_closeness_stretch`, `fit_game_state`, `fit_player_stretch`,
 `fit_joint_curves` (pickle `--played-cache` pamięta flagę). `prepare_refit`:
@@ -154,5 +154,4 @@ Ribadesella - Racing 17259846), `run_sheet.py` (cały dzień),
 
 ## Bramki
 
-`pytest tests/sofa`, `ruff`, `mypy --strict`, `check_test_registry.py` -
-wyniki w commicie / raporcie końcowym sesji.
+`pytest tests/sofa` 6202 passed / 8 skipped, `ruff` czysto, `mypy --strict` czysto (358 plików), `check_test_registry.py` 0 uwag.
