@@ -39,9 +39,9 @@ from zoneinfo import ZoneInfo
 
 from rapidfuzz import fuzz
 
+from bet.sofa import epochs, prematch_lineups
 from bet.sofa import h2h as h2h_fetch
-from bet.sofa import prematch_lineups
-from bet.sofa.comparability import is_friendly_event
+from bet.sofa.comparability import is_awarded_event, is_friendly_event
 from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import entity_indexed_events, has_index
 from bet.sofa.metrics import (
@@ -203,6 +203,18 @@ def team_games(
     return games[:limit]
 
 
+def awarded_out_at(kickoff_ts: int) -> bool:
+    """epochs.awarded_excluded for the match's (UTC) day at the build clock,
+    as SAMPLES reads it (samples.awarded_out_on): a result awarded at the
+    table (comparability.is_awarded_event - Maardu's unplayed 0-0s, 10-29)
+    is then no game for the counts the dossier gives as SETTLE counts them
+    (style, matchup, the league rate, h2h metrics, joint history) nor for
+    the form summary; the form row stays, marked `awarded`, and the rebuilt
+    table keeps its points (the league counts them)."""
+    return epochs.awarded_excluded(
+        datetime.fromtimestamp(kickoff_ts, UTC).strftime("%Y-%m-%d"))
+
+
 def _periods(score: Mapping[str, Any]) -> list[int]:
     out: list[int] = []
     for n in range(1, 10):
@@ -313,11 +325,14 @@ def head_to_head(
     fetched: Sequence[Mapping[str, Any]] = (),
     metrics: Sequence[str] = (),
     sport: str = "football",
+    awarded_out: bool = False,
 ) -> list[dict[str, Any]]:
     """The newest meetings from `a`'s view: the cached listings' and those
     Sofascore's h2h route returned (`bet.sofa.h2h`, `fetched`), one row per
     game; with `metrics`, each row carries the legs' metrics read off the
-    meeting's cached statistics (a `_for` metric as [a, b])."""
+    meeting's cached statistics (a `_for` metric as [a, b]). With
+    `awarded_out` a meeting awarded at the table is marked `awarded` and
+    carries no metrics."""
     games: dict[int, Mapping[str, Any]] = {
         int(g["id"]): g
         for g in team_games(con, a, before_ts, H2H_SCAN)
@@ -333,6 +348,10 @@ def head_to_head(
     rows = []
     for g in ordered[:H2H_N]:
         row = game_row(g, a)
+        if awarded_out and is_awarded_event(g):
+            row["awarded"] = True
+            rows.append(row)
+            continue
         values = meeting_metrics(con, g, a, metrics, sport)
         if values:
             row["metrics"] = values
@@ -700,7 +719,8 @@ def _hits(values: Sequence[float], line: float, direction: str) -> int:
 
 
 def style_profile(
-    con: sqlite3.Connection, team_id: int, kickoff_ts: int
+    con: sqlite3.Connection, team_id: int, kickoff_ts: int,
+    awarded_out: bool = False,
 ) -> dict[str, Any]:
     """One side's last STYLE_N competitive games with cached statistics: how
     it plays (possession, crosses, box touches, shots inside the box) beside
@@ -711,7 +731,7 @@ def style_profile(
     for event in team_games(con, team_id, kickoff_ts, STYLE_SCAN):
         if len(rows) >= STYLE_N:
             break
-        if is_friendly_event(event):
+        if is_friendly_event(event) or (awarded_out and is_awarded_event(event)):
             continue
         found = con.execute(
             "SELECT statistics_json FROM sofa_event_stats WHERE sofascore_event_id = ?",
@@ -821,15 +841,18 @@ def _metric_games(
     kickoff_ts: int,
     metrics: Sequence[str],
     cache: dict[tuple[int, int], dict[str, Any]],
+    awarded_out: bool = False,
 ) -> list[dict[str, Any]]:
     """The side's newest STYLE_N competitive games with cached statistics,
     each {metric: value from the side's view} (a `_for` metric as [own,
-    opponent]); a value the extractor refuses is left out."""
+    opponent]); a value the extractor refuses is left out. With
+    `awarded_out` a result awarded at the table is no game (SETTLE never
+    grades one; its 0-0 / 3-0 is read off the listing's score)."""
     out: list[dict[str, Any]] = []
     for event in team_games(con, team_id, kickoff_ts, STYLE_SCAN):
         if len(out) >= STYLE_N:
             break
-        if is_friendly_event(event):
+        if is_friendly_event(event) or (awarded_out and is_awarded_event(event)):
             continue
         key = (int(event["id"]), team_id)
         if key not in cache:
@@ -878,14 +901,18 @@ def league_rates(
     competitions: Sequence[tuple[int, int, str | None, int]],
     kickoff_ts: int,
     metrics: Sequence[str],
+    awarded_out: bool = False,
 ) -> dict[str, Any]:
     """The league's own values of the legs' metrics: the first competition
     of `competitions` ((ut, season, name, seed team)) whose season gives
     LEAGUE_RATE_MIN games with statistics - the match's own competition
-    first, then each side's league (a cup tie reads its sides' leagues)."""
+    first, then each side's league (a cup tie reads its sides' leagues).
+    With `awarded_out` a result awarded at the table is no game."""
     for ut, season, name, seed in competitions:
         games, _ = _season_games(con, ut, season, [seed], kickoff_ts)
-        newest = sorted(games.values(), key=lambda g: g["startTimestamp"],
+        newest = sorted((g for g in games.values()
+                         if not (awarded_out and is_awarded_event(g))),
+                        key=lambda g: g["startTimestamp"],
                         reverse=True)[:LEAGUE_RATE_GAMES]
         per_game: list[dict[str, Any]] = []
         for g in newest:
@@ -1083,8 +1110,11 @@ def joint_history(
     cache: dict[tuple[int, int], dict[str, Any]] = {}
     con = connect(db_path)
     try:
-        lists = {"home": _metric_games(con, home, kickoff, metrics, cache),
-                 "away": _metric_games(con, away, kickoff, metrics, cache)}
+        awarded_out = awarded_out_at(kickoff)
+        lists = {"home": _metric_games(con, home, kickoff, metrics, cache,
+                                       awarded_out),
+                 "away": _metric_games(con, away, kickoff, metrics, cache,
+                                       awarded_out)}
     finally:
         con.close()
     unread = [x for x in legs if leg_metric(str(x.get("market"))) is None]
@@ -1167,8 +1197,11 @@ def matchups_for_legs(
                 continue
             metrics = sorted({found[0] for x in these
                               if (found := leg_metric(str(x.get("market"))))})
-            games = {"home": _metric_games(con, home, kickoff, metrics, cache),
-                     "away": _metric_games(con, away, kickoff, metrics, cache)}
+            awarded_out = awarded_out_at(kickoff)
+            games = {"home": _metric_games(con, home, kickoff, metrics, cache,
+                                          awarded_out),
+                     "away": _metric_games(con, away, kickoff, metrics, cache,
+                                          awarded_out)}
             names = {"home": fx.get("home_name"), "away": fx.get("away_name")}
             for row, leg in matchup_rows(these, games, names):
                 text = matchup_text(row)
@@ -1638,6 +1671,7 @@ def build(
         if isinstance(kickoff, int | float)
         else int((now or datetime.now(UTC)).timestamp())
     )
+    awarded_out = sport == "football" and awarded_out_at(kickoff_ts)
     home_t, away_t = detail.get("homeTeam") or {}, detail.get("awayTeam") or {}
     home_id = home_t.get("id") or fixture.get("home_entity_id") or pinned.get("home_id")
     away_id = away_t.get("id") or fixture.get("away_entity_id") or pinned.get("away_id")
@@ -1726,6 +1760,12 @@ def build(
             continue
         games = team_games(con, team, kickoff_ts, FORM_N)
         rows = [game_row(g, team) for g in games]
+        played = list(zip(rows, games, strict=True))
+        if awarded_out:
+            for row, g in played:
+                if is_awarded_event(g):
+                    row["awarded"] = True
+            played = [(r, g) for r, g in played if not r.get("awarded")]
         info: dict[str, Any] = {
             "name": side_names[label],
             "id": team,
@@ -1736,7 +1776,8 @@ def build(
         )
         if ranking:
             info["ranking"] = ranking
-        info["summary"] = side_summary(rows, games, kickoff_ts)
+        info["summary"] = side_summary(
+            [r for r, _ in played], [g for _, g in played], kickoff_ts)
         info["last_games"] = rows
         if not rows:
             info["missing"] = "brak meczów w cache listingów"
@@ -1757,7 +1798,7 @@ def build(
     if isinstance(home_id, int) and isinstance(away_id, int):
         doc["head_to_head"] = head_to_head(
             con, home_id, away_id, kickoff_ts, h2h_asked.get("meetings") or (),
-            h2h_metrics(sport, legs), sport)
+            h2h_metrics(sport, legs), sport, awarded_out)
         doc["head_to_head_source"] = {
             "sofascore_h2h": h2h_asked.get("status") or "NOT_ASKED",
             "fetched_at_utc": h2h_asked.get("fetched_at_utc"),
@@ -1775,21 +1816,23 @@ def build(
         doc["samples"] = samples_block(samples.get(event_id), legs)
     if sport == "football" and isinstance(home_id, int) and isinstance(away_id, int):
         profiles = {
-            "home": style_profile(con, home_id, kickoff_ts),
-            "away": style_profile(con, away_id, kickoff_ts),
+            "home": style_profile(con, home_id, kickoff_ts, awarded_out),
+            "away": style_profile(con, away_id, kickoff_ts, awarded_out),
         }
         metrics = sorted({found[0] for x in legs
                           if (found := leg_metric(str(x.get("market"))))})
         cache: dict[tuple[int, int], dict[str, Any]] = {}
         side_games = {
-            "home": _metric_games(con, home_id, kickoff_ts, metrics, cache),
-            "away": _metric_games(con, away_id, kickoff_ts, metrics, cache),
+            "home": _metric_games(con, home_id, kickoff_ts, metrics, cache,
+                                  awarded_out),
+            "away": _metric_games(con, away_id, kickoff_ts, metrics, cache,
+                                  awarded_out),
         }
         league = league_rates(
             con, _competitions_for(detail, side_games,
                                    {"home": home_id, "away": away_id},
                                    con, kickoff_ts),
-            kickoff_ts, metrics) if metrics and detail else {}
+            kickoff_ts, metrics, awarded_out) if metrics and detail else {}
         doc["style"] = {
             "source": "statystyki Sofascore ostatnich meczów o stawkę (bez "
             "towarzyskich), [za, przeciw] z perspektywy drużyny; crosses = "

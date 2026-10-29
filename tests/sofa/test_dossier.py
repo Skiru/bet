@@ -529,3 +529,139 @@ def test_one_match_listed_under_two_ids_is_one_game(tmp_path: Path) -> None:
     make_db(db, events, ev(99, KICK, 1, 2, 0, 0, status="notstarted"))
     con = sqlite3.connect(db)
     assert [g["id"] for g in dossier.team_games(con, 1, KICK, 10)] == [10, 12]
+
+
+def _awarded_day(tmp_path: Path) -> tuple[Path, Path, list[dict[str, Any]]]:
+    """Alfa (1) played three league games and has one 0-0 awarded at the
+    table (Maardu's shape, 10-29: Ended, isAwarded, no periods, a stats row
+    with no statistics); Beta (2) met Alfa in an awarded game too."""
+    events = [
+        ev(301, KICK - 3 * DAY, 1, 3, 3, 1),
+        ev(302, KICK - 6 * DAY, 4, 1, 1, 2),
+        ev(303, KICK - 9 * DAY, 1, 4, 2, 2),
+        ev(304, KICK - 2 * DAY, 1, 4, 0, 0),  # awarded
+        ev(305, KICK - 12 * DAY, 2, 1, 0, 0),  # awarded meeting
+        ev(306, KICK - 5 * DAY, 2, 3, 2, 2),
+    ]
+    for e in events:
+        if e["id"] in (304, 305):
+            e["isAwarded"] = True
+    detail = ev(500, KICK, 1, 2, 0, 0, status="notstarted")
+    db = tmp_path / "sofa.db"
+    make_db(db, events, detail)
+    con = sqlite3.connect(db)
+    for eid in (301, 302, 303, 306):
+        con.execute(
+            "INSERT INTO sofa_event_stats (sofascore_event_id, fetched_at, "
+            "statistics_json, status_type) VALUES (?, ?, ?, ?)",
+            (eid, "2026-10-20T08:00:00+00:00", _stats((5, 3), (55, 45)),
+             "finished"))
+    for eid in (304, 305):  # fetched, Sofascore had nothing
+        con.execute(
+            "INSERT INTO sofa_event_stats (sofascore_event_id, fetched_at, "
+            "statistics_json, status_type) VALUES (?, ?, NULL, ?)",
+            (eid, "2026-10-20T08:00:00+00:00", "finished"))
+    con.commit()
+    con.close()
+    run = tmp_path / "runs" / "2026-10-20"
+    run.mkdir(parents=True)
+    legs = [{"sofascore_event_id": 500, "sport": "football", "match": "Alfa - Beta",
+             "market": "goals_for", "subject": "alfa", "line": 0.5,
+             "direction": "OVER", "confidence": 0.8, "offered_odds": 1.2},
+            {"sofascore_event_id": 500, "sport": "football", "match": "Alfa - Beta",
+             "market": "goals_total", "subject": "", "line": 1.5,
+             "direction": "OVER", "confidence": 0.8, "offered_odds": 1.3}]
+    (run / "11_coupon.json").write_text(
+        json.dumps({"singles": legs, "removed_by_reads": []}))
+    (run / "02_fixtures.json").write_text(json.dumps([{
+        "sofascore_event_id": 500, "home_entity_id": 1, "away_entity_id": 2,
+        "home_name": "Alfa", "away_name": "Beta",
+        "kickoff_utc": "2026-10-20T12:00:00Z"}]))
+    return db, run, legs
+
+
+def _awarded_switch(monkeypatch: pytest.MonkeyPatch, on: bool) -> None:
+    from bet.sofa import epochs
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC", datetime(
+        2026, 10, 20, tzinfo=UTC) if on else None)
+    monkeypatch.setattr(epochs.timeutil, "now", lambda: NOW)
+
+
+def test_off_the_dossier_counts_an_awarded_game_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _awarded_switch(monkeypatch, False)
+    db, run, legs = _awarded_day(tmp_path)
+    written = dossier.write_for_legs(
+        run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db, now=NOW)
+    doc = json.loads(Path(written[500]).read_text())
+    alfa = doc["sides"]["home"]
+    assert not any("awarded" in g for g in alfa["last_games"])
+    assert alfa["summary"]["n"] == 5 and alfa["summary"]["rest_days"] == 2.0
+    (own, total) = doc["style"]["matchup"]
+    # the 0-0s are read off the listing's score: Alfa 0 in 304 and 305
+    assert own["sides"][0]["own_values"] == [0, 3, 2, 2, 0]
+    assert not any("awarded" in g for g in doc["head_to_head"])
+
+
+def test_on_the_dossier_marks_an_awarded_game_and_counts_it_nowhere(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """From AWARDED_EXCLUDED (the match's day, the build clock): the form row
+    stays marked `awarded` and leaves the summary; matchup, the h2h metrics
+    and the joint history skip it (SETTLE never grades one); the rebuilt
+    table keeps its points (the league counts them)."""
+    _awarded_switch(monkeypatch, True)
+    db, run, legs = _awarded_day(tmp_path)
+    written = dossier.write_for_legs(
+        run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db, now=NOW)
+    doc = json.loads(Path(written[500]).read_text())
+    alfa = doc["sides"]["home"]
+    flagged = [g["score"] for g in alfa["last_games"] if g.get("awarded")]
+    assert flagged == [[0, 0], [0, 0]] and len(alfa["last_games"]) == 5
+    assert alfa["summary"]["n"] == 3 and alfa["summary"]["form"] == "WWR"
+    assert alfa["summary"]["rest_days"] == 3.0
+    assert alfa["summary"]["avg_for"] == round((3 + 2 + 2) / 3, 2)
+    (own, total) = doc["style"]["matchup"]
+    assert own["sides"][0]["own_values"] == [3, 2, 2]
+    assert own["sides"][0]["own"] == "3/3"
+    assert total["sides"][0]["values"] == [4, 3, 4]
+    assert total["sides"][1]["values"] == [4]  # Beta: 306 only
+    (meeting,) = doc["head_to_head"]
+    assert meeting["awarded"] is True and "metrics" not in meeting
+    rows = {r["team"]: r for r in doc["table"]["rows"]}
+    assert rows["Alfa"]["pts"] == 3 + 3 + 1 + 1 + 1  # awarded 0-0s counted
+    joint = dossier.joint_history(run, legs, db_path=db)
+    assert (joint["k"], joint["n"]) == (4, 4)  # off: (4, 6), the 0-0s miss
+    tags = dossier.matchups_for_legs(run, legs, db_path=db)
+    assert tags[dossier.matchup_key(legs[0])] == "zestawienie: Alfa 3/3, Beta oddaje 1/1"
+
+
+def test_the_awarded_rule_reads_the_matchs_day(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bet.sofa import epochs
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC",
+                        datetime(2026, 10, 21, tzinfo=UTC))
+    monkeypatch.setattr(epochs.timeutil, "now",
+                        lambda: datetime(2026, 10, 22, tzinfo=UTC))
+    assert not dossier.awarded_out_at(KICK)  # a 10-20 match: before the switch
+    assert dossier.awarded_out_at(KICK + 2 * DAY)
+
+
+def test_a_dossier_of_a_day_before_the_switch_is_byte_for_byte_the_old_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bet.sofa import epochs
+    db, run, legs = _awarded_day(tmp_path)
+    one = {"sofascore_event_id": 500, "sport": "football"}
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC", None)
+    old = Path(dossier.write_for_legs(run, [dict(one)], db_path=db, now=NOW,
+                                      out_dir=tmp_path / "old")[500]).read_bytes()
+    monkeypatch.setattr(epochs, "AWARDED_EXCLUDED_FROM_UTC",
+                        datetime(2026, 10, 21, tzinfo=UTC))
+    monkeypatch.setattr(epochs.timeutil, "now",
+                        lambda: datetime(2026, 10, 22, tzinfo=UTC))
+    new = Path(dossier.write_for_legs(run, [dict(one)], db_path=db, now=NOW,
+                                      out_dir=tmp_path / "new")[500]).read_bytes()
+    assert new == old and b'"awarded"' not in old
