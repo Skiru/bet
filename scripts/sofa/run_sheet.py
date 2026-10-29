@@ -3558,6 +3558,9 @@ def _main() -> int:
             shared_league_link=link_shared,
             # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
             unit_strength_from_parent=epochs.unit_strength_from_parent(args.date),
+            # epochs.RATING_DOMAIN_CURRENT_LEAGUE: a side's domain is the
+            # league it plays now (a promoted / relegated side)
+            current_league_domain=epochs.rating_domain_current_league(args.date),
             # epochs.FOOTBALL_CUP_STRENGTH: the league strength learnt in
             # international club cups (a missing / malformed file raises, rc 2)
             **cup_book_args(cup_strength_on),

@@ -3417,3 +3417,24 @@ AWARDED_EXCLUDED_FROM_UTC: datetime | None = datetime(
 def awarded_excluded(date: str, build_at: datetime | None = None) -> bool:
     """AWARDED_EXCLUDED_FROM_UTC on the day being built and the build clock."""
     return _audit_1023_on(AWARDED_EXCLUDED_FROM_UTC, date, build_at)
+
+
+# The football rating's domain is the league a side plays NOW
+# (football_rating.RatingBook.current_league_domain, DOMAIN_ACTIVE_S): of the
+# league units (non-knockout matches, FootballResult.knockout) it played in
+# within the last DOMAIN_ACTIVE_S, the one with the most matches of its
+# newest season once that reaches LINK_MIN_MATCHES; the modal rule of 40
+# matches in 365 days otherwise. 2026-10-29 verification: Arka (Betclic 1.
+# Liga from 2026-07-24) still read Ekstraklasa twelve games in, Deportivo
+# (LaLiga from 2026-08-17) LaLiga 2, and Arka - Stal (both 229) was priced
+# as a cross-league pair. Football only (score_model's books never set it).
+# SHEET passes the day being built and the build clock; no sheet marker (a
+# day built before the switch keeps the modal rule, as P1 / P3).
+RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC: datetime | None = None
+
+
+def rating_domain_current_league(date: str,
+                                 build_at: datetime | None = None) -> bool:
+    """RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC on the day being built and the
+    build clock."""
+    return _audit_1023_on(RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC, date, build_at)

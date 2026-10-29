@@ -44,7 +44,7 @@ from typing import Any
 
 from bet.sofa import epochs
 from bet.sofa.atomic import write_bytes_atomic
-from bet.sofa.comparability import is_awarded_event
+from bet.sofa.comparability import is_awarded_event, is_knockout
 from bet.sofa.contracts import GapReason
 from bet.sofa.listing_index import index_fingerprint, iter_indexed_events
 from bet.sofa.metrics import (
@@ -197,6 +197,16 @@ _RATIO_BOUNDS = (0.2, 5.0)
 LINK_WINDOW_S = 365 * 86400
 LINK_MIN_MATCHES = 3
 TEAM_COMP_MEMORY = 40
+# epochs.RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC (RatingBook.current_league_
+# domain): a side's domain is the league it plays NOW - among the league units
+# (non-knockout matches, RatingBook.team_leagues) it played in within the last
+# DOMAIN_ACTIVE_S, the one with the most matches of its newest season, once
+# that is LINK_MIN_MATCHES; otherwise the modal rule above. The modal rule
+# kept a promoted / relegated side in its old league for ~18-20 matches
+# (2026-10-29: Arka in Ekstraklasa twelve games into the Betclic 1. Liga,
+# Deportivo in LaLiga 2 ten games into LaLiga). Chosen on the walk-forward
+# grid of scripts/sofa/measure_rating_domain.py.
+DOMAIN_ACTIVE_S = 60 * 86400
 ALPHA_STRENGTH = 0.02
 MIN_STRENGTH_LINKS = 10
 _STRENGTH_BOUNDS = (-2.0, 2.0)
@@ -275,6 +285,10 @@ class FootballResult:
     # the parsed history (a league table counts it), dropped by SHEET under
     # epochs.AWARDED_EXCLUDED_FROM_UTC (without_awarded).
     awarded: bool = False
+    # A cup round, a play-off or a qualifier (comparability.is_knockout, the
+    # rule samples reads a fixture's round by): never a league for
+    # RatingBook.current_league_domain.
+    knockout: bool = False
 
 
 def _unit(r: FootballResult, home: bool) -> int:
@@ -356,6 +370,7 @@ def parse_event(
         season_id=season if isinstance(season, int) else None,
         stage_id=stage if isinstance(stage, int) else None,
         awarded=is_awarded_event(event),
+        knockout=is_knockout(event),
     )
 
 
@@ -387,7 +402,8 @@ def without_awarded(history: list[FootballResult]) -> list[FootballResult]:
 # 2026-10-04.4: tennis tiebreaks_total counted off the set score.
 # 2026-10-04.5: a "Coverage canceled" finish is no completed match.
 # 2026-10-29.1: a result carries `awarded` (Sofascore isAwarded).
-HISTORY_PARSER_VERSION = "2026-10-29.1"
+# 2026-10-30.1: a result carries `knockout` (comparability.is_knockout).
+HISTORY_PARSER_VERSION = "2026-10-30.1"
 
 
 # --- Regional groups (2026-10-02) -------------------------------------------
@@ -762,6 +778,14 @@ class RatingBook:
     # unit is the competition unless it is split into regional groups
     team_comps: dict[int, deque[tuple[int, int]]] = field(
         default_factory=lambda: defaultdict(lambda: deque(maxlen=TEAM_COMP_MEMORY)))
+    # team -> its last TEAM_COMP_MEMORY non-knockout (ts, league unit,
+    # season id): what current_league_domain reads
+    team_leagues: dict[int, deque[tuple[int, int, int | None]]] = field(
+        default_factory=lambda: defaultdict(lambda: deque(maxlen=TEAM_COMP_MEMORY)))
+    # epochs.RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC (football only): a side's
+    # domain is the league it plays now (DOMAIN_ACTIVE_S), the modal rule
+    # only when it has none
+    current_league_domain: bool = False
     strength: dict[tuple[int, str], _Strength] = field(
         default_factory=lambda: defaultdict(_Strength))
     last_ts: int = 0
@@ -805,8 +829,37 @@ class RatingBook:
         since = self.last_ts - LINK_WINDOW_S
         return Counter(c for ts, c in self.team_comps.get(team, ()) if ts >= since)
 
+    def current_league(self, team: int) -> int | None:
+        """The league unit the team plays now: of the units it played a
+        non-knockout match in within DOMAIN_ACTIVE_S, the one with the most
+        matches of its newest season (a tie: the most recent), when that is
+        LINK_MIN_MATCHES; else None."""
+        entries = self.team_leagues.get(team)
+        if not entries:
+            return None
+        since = self.last_ts - DOMAIN_ACTIVE_S
+        newest: dict[int, tuple[int, int | None]] = {}
+        for ts, unit, season in entries:
+            newest[unit] = (ts, season)
+        best: tuple[int, int, int] | None = None
+        for unit, (ts, season) in newest.items():
+            if ts < since:
+                continue
+            n = sum(1 for _t, u, se in entries if u == unit and se == season)
+            key = (n, ts, unit)
+            if best is None or key[:2] > best[:2]:
+                best = key
+        if best is None or best[0] < LINK_MIN_MATCHES:
+            return None
+        return best[2]
+
     def domain(self, team: int) -> int | None:
-        """The team's modal league unit inside the window, None if unseen."""
+        """The team's modal league unit inside the window, None if unseen;
+        with current_league_domain the league it plays now first."""
+        if self.current_league_domain:
+            now = self.current_league(team)
+            if now is not None:
+                return now
         counts = self._comp_counts(team)
         if not counts:
             return None
@@ -996,8 +1049,10 @@ class RatingBook:
                 self.global_league[self._global_key(metric, women)].update(vh, va)
             if not home_reserve:
                 self.team_comps[r.home_id].append((r.ts, r.competition_id))
+                self._note_league(r, r.home_id, r.competition_id)
             if not away_reserve:
                 self.team_comps[r.away_id].append((r.ts, r.competition_id))
+                self._note_league(r, r.away_id, r.competition_id)
             return
         dh, da = self.domain(r.home_id), self.domain(r.away_id)
         linked = self._linked(r.home_id, r.away_id, dh, da)
@@ -1080,6 +1135,14 @@ class RatingBook:
                 self.unit_comp[unit] = r.competition_id
         self.team_comps[r.home_id].append((r.ts, _unit(r, True)))
         self.team_comps[r.away_id].append((r.ts, _unit(r, False)))
+        self._note_league(r, r.home_id, _unit(r, True))
+        self._note_league(r, r.away_id, _unit(r, False))
+
+    def _note_league(self, r: FootballResult, team: int, unit: int) -> None:
+        # a cup round / play-off is no league (read only by current_league)
+        if self.current_league_domain and not getattr(r, "knockout", False):
+            self.team_leagues[team].append(
+                (r.ts, unit, getattr(r, "season_id", None)))
 
 
 def replay(
@@ -1088,10 +1151,13 @@ def replay(
     unit_strength_from_parent: bool = False,
     cup_competitions: frozenset[int] = frozenset(),
     cup_eta: Mapping[str, float] | None = None,
+    current_league_domain: bool = False,
 ) -> RatingBook:
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     book.unit_strength_from_parent = unit_strength_from_parent
+    # epochs.RATING_DOMAIN_CURRENT_LEAGUE (football only)
+    book.current_league_domain = current_league_domain
     # epochs.FOOTBALL_CUP_STRENGTH (bet.sofa.cup_strength)
     book.cup_competitions = cup_competitions
     book.cup_eta = dict(cup_eta or {})

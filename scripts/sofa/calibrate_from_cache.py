@@ -3082,12 +3082,13 @@ def main() -> int:
             load_kw["tennis_serve"] = True
         if TENNIS_SET_RATINGS:
             load_kw["tennis_sets"] = True
+        if AWARDED_EXCLUDED:
+            load_kw["awarded_out"] = True
         if args.history_from is not None:
             # a light smoke: the held history starts here, nothing after --to
             load_kw["since_ts"] = day_ts(args.history_from)
             load_kw["until_ts"] = day_ts(args.emit_to)
-        played = load_cache(db_path, dropped, awarded_out=AWARDED_EXCLUDED,
-                            **load_kw)
+        played = load_cache(db_path, dropped, **load_kw)
         if args.halves == "skip":
             played = without_halves(played)
     load_seconds = round((datetime.now(UTC) - t_load).total_seconds(), 1)
