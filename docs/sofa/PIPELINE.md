@@ -2393,9 +2393,31 @@ stare wywołanie. Grupa księgi „od 10-24” (bez dnia mieszanego).
   EVENT_NOT_FINISHED „awarded”) i z historii ratingu piłkarskiego w SHEET.
   Przypadek: walkowery Maardu 0:0 w próbkach goli Kalev i Kalju U21. SETTLE
   odrzucał je już wcześniej; model wyników hokeja / kosza / siatkówki nie
-  czyta ich (brak tercji / kwart / setów). Krzywe piłki dopasowano z nimi -
-  `prepare_refit` ostrzega. Grupa księgi „od 10-30”. Dossier (`team_games`)
-  liczy też jeden listing na mecz (Prat - Sant Rafel pod dwoma id).
+  czyta ich (brak tercji / kwart / setów). Krzywe piłki dopasowano z nimi;
+  powtórka krzywych zna regułę (`calibrate_from_cache --awarded-excluded`,
+  także `fit_goals_stretch` / `fit_count_stretch` / `fit_closeness_stretch` /
+  `fit_game_state` / `fit_player_stretch` / `fit_joint_curves`), a
+  `prepare_refit install` przy włączonym przełączniku odmawia powtórki bez
+  tej flagi (`REPLAYABLE_SWITCHES`). Osobnego refitu nie było: 7,1% meczów
+  (30 511 z 427 264, 2025-10-01..2026-10-28) ma walkower w ostatnich 10
+  jednej ze stron, a rating goli bez walkowerów jest o +0,00011 [+0,00003;
+  +0,00019] log-loss gorszy (`measure_awarded_scale.py`). Grupa księgi
+  „od 10-30”. Dossier (`team_games`) liczy też jeden listing na mecz (Prat -
+  Sant Rafel pod dwoma id), a dla meczów od 10-30 mecz przyznany przy
+  stoliku zostaje w `last_games` z flagą `awarded`, ale wypada z
+  podsumowania formy, stylu, zestawienia (`style.matchup`, podstawa WATCH
+  `RYNEK:`), stawki ligi, metryk h2h i `joint_history`; tabela liczy jego
+  punkty.
+- **Liga drużyny po awansie / spadku w ratingu** (`RATING_DOMAIN_CURRENT_LEAGUE`,
+  wyłączony): reguła „liga, w której drużyna gra teraz” (`RatingBook.
+  current_league_domain`) zmierzona gorzej (`measure_rating_domain.py`,
+  poza próbą 2026-07-01..10-28, pierwsze 20 meczów po zmianie ligi:
+  log-loss goli +0,0177 [+0,0156; +0,0199], N 30 681); siatka okna × pamięci
+  reguły modalnej też nie lepsza. Opóźnienie chroni: współczynniki awansowanej
+  drużyny są zarobione w starej lidze.
+- **Ściąganie przewagi faworyta w pucharze** (niewłączone): próg 2,0 / k 0,45
+  dopasowane do 2026-06-30, poza próbą (puchary krajowe, N 4 166) bez
+  poprawy z przedziałem bez zera (`measure_cup_supremacy_shrink.py`).
 - **Refit a te przełączniki**: instalacja przy włączonych P1 / P3 (piłka) /
   P5 / P14 ostrzega (`replay_switch_warnings`) - `calibrate_from_cache`
   żadnego z nich nie odtwarza; `fit_sport_confidence.py` ostrzega dla P7

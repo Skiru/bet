@@ -3408,8 +3408,14 @@ def first_goal_nb_exact(date: str, build_at: datetime | None = None) -> bool:
 # in the cached listings on 10-29. It moves samples and centres, so it is a
 # switch from the next day's 00:00Z. The measured sports' score model already
 # drops them (no periods); tennis reads Walkover as not completed. The
-# installed football curves were fitted with them in (calibrate_from_cache):
-# prepare_refit warns (UNREPLAYED_AUDIT_SWITCHES). Ledger group "od 10-30".
+# installed football curves were fitted with them in; the replay carries it
+# (calibrate_from_cache --awarded-excluded) and prepare_refit's install
+# refuses a replay without it while this is on (REPLAYABLE_SWITCHES). The
+# dossier reads it by the match's day (dossier.awarded_out_at: an awarded
+# game marked, out of style / matchup / league rate / h2h metrics / joint
+# history). No refit for it alone: 7.1% of 427,264 matches touched, the
+# rating's goals log-loss without them +0.00011 [+0.00003, +0.00019]
+# (scripts/sofa/measure_awarded_scale.py). Ledger group "od 10-30".
 AWARDED_EXCLUDED_FROM_UTC: datetime | None = datetime(
     2026, 10, 30, 0, 0, 0, tzinfo=UTC)
 

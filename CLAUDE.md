@@ -172,7 +172,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   leaves the samples and the football rating SHEET replays
   (`AWARDED_EXCLUDED`, `comparability.is_awarded_event`; gap "awarded";
   Maardu's 0-0s in Kalev's / Kalju U21's goal samples, 10-29); SETTLE
-  refused it already.
+  refused it already. The dossier leaves it out of its counts by the same
+  switch; a refit replays it with `--awarded-excluded` (an install while the
+  switch is on refuses a replay without it).
 - **Confidence review 2026-10-27** (literature, every sport; report
   `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`, model-state.md): from
   2026-10-28 00:00Z a football joint's side with no quoted ladder gets its
@@ -514,8 +516,9 @@ The shape above stays; it is improved, not rebuilt.
 
 A refit replays every rule the installed curves carry
 (`fitted_from.replay_rules.flags` of `config/sofa_confidence_calibration.json`:
-today the 10-16b flags plus `--goals-stretch --count-stretch --player-stretch`)
-and never `--tennis-serve-markets` / `--tennis-aces-opponent` (model-state.md).
+today the 10-16b flags plus `--goals-stretch --count-stretch --player-stretch`;
+from 2026-10-30 also `--awarded-excluded`, which `install` requires while
+`AWARDED_EXCLUDED` is on) and never `--tennis-serve-markets` / `--tennis-aces-opponent` (model-state.md).
 Every SHEET row carries `config_sha` (`bet.sofa.sheet_config`, the fitted
 files SHEET reads); a sheet priced on other constants gets a `CONFIG_CHANGED`
 note but is **not** re-run - an install is undated and never goes into a built

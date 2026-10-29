@@ -26,7 +26,7 @@ switch went into an already built day the day is mixed (section f).
 | `AMPERSAND_SUBJECTS_FROM_UTC` | 10-06 00:00 | a club with "&" in its name is a subject of its own markets when it equals a listing participant (`market_mapper.subject_is_combination`); 37 occurrences 09-18..10-05 | F1.1 |
 | `POOL_NEIGHBOUR_CAP_FROM_UTC` | 10-06 00:00 | K13b: a pooled read capped by the market's nearest own bucket below (goals_1h_total O0.5 printed 0.815 vs own 0.709 / 0.731; 57 rows / 48 matches -12.6 pp [-24.1, -1.2], capped +3.1 [-8.4, +14.4]; a market with no own bucket read off the pool -14.1 pp [-21.0, -7.2], 290 rows, not touched) | `scripts/sofa/measure_pool_holes.py` |
 | `NATIONAL_SAMPLE_AGE_FROM_UTC` | 10-06 00:00 | national-team fixtures judged by sample count, not the 180-day `SAMPLE_CROSSES_SEASON` age | - |
-| `LINK_SHARED_LEAGUE_FROM_UTC` | 10-07 06:45 | a football pair is LINKED only when both sides' leagues are the competition they share (else `CROSS_LEAGUE_UNLINKED`); the hockey / basketball / volleyball score model reads the same book; rows carry `link_rule`; a promoted side is cross-league until its new league is its modal one | - |
+| `LINK_SHARED_LEAGUE_FROM_UTC` | 10-07 06:45 | a football pair is LINKED only when both sides' leagues are the competition they share (else `CROSS_LEAGUE_UNLINKED`); the hockey / basketball / volleyball score model reads the same book; rows carry `link_rule`; a promoted side is cross-league until its new league is its modal one (by design: the "league it plays now" rule and the window x memory grid measured worse 2026-10-29, (d)) | - |
 | `LINE_EVIDENCE_FROM_UTC` | 10-07 10:55 | line evidence: offset + price-band cap + Wilson bound for keys without a curve (rules: arithmetic.md, Chain 2) | `docs/sofa/evidence/discrimination_within_price_2026-10-07.md` |
 | `LINE_EVIDENCE_V2_FROM_UTC` | 10-07 13:42 | `LineEvidence.v2` rules (need the evidence file's `games` field; an older file reads nothing for a key without a curve) | - |
 | `TENNIS_RATING_PRICES_FROM_UTC` | 10-07 14:05 | `games_won_for`, `handicap_games`, `most_games` (not its draw) priced by the rating alone, no price; `games_total` = 50/50 mix of NB and rating | `docs/sofa/history/AUDYT_MODELI_2026-10-07.md` |
@@ -435,10 +435,24 @@ instead of 3.56). 6,065 such football events in the cached listings on 10-29
 samples and centres. SETTLE refused the flag already (`settle.is_settleable`);
 the measured sports' score model never read them (no periods; tested); tennis
 reads Walkover as not completed. No SHEET marker (built after 00:00Z). The
-installed football curves were fitted with them in: `prepare_refit` warns
-(`UNREPLAYED_AUDIT_SWITCHES`). The dossier's `team_games` also keeps one
+installed football curves were fitted with them in; the replay carries the
+rule (`calibrate_from_cache --awarded-excluded`: load_cache, the rating
+history, a player's history; the goals / count / closeness / game-state /
+player stretch and joint-curve fits take the same flag) and `prepare_refit
+install` refuses a replay without it while the switch is on
+(`REPLAYABLE_SWITCHES`). No refit for it alone (2026-10-29,
+`scripts/sofa/measure_awarded_scale.py`, DB copy, 2025-10-01..10-28): 30,511
+of 427,264 matches (7.1%) hold an awarded result in a side's last 10; the
+rating's goals_for one step ahead without them +0.00011 [+0.00003, +0.00019]
+Poisson log-loss per side (345,861 matches; touched +0.00074 [-0.00015,
++0.00164]) - no better, see (e). The dossier's `team_games` keeps one
 listing per match (`samples.one_listing_per_match`; Prat - Sant Rafel listed
-twice, 17136469 / 17336477) - display, live at once.
+twice, 17136469 / 17336477) - display, live at once - and, by the same
+switch on the match's day, marks an awarded game `awarded` in `last_games`
+and leaves it out of the form summary, `style`, `style.matchup` (what a
+`RYNEK:` WATCH is checked against), the league rate, the h2h metrics and
+`joint_history`; the rebuilt table keeps its points (dossier schema 3
+unchanged; E2E 10-29: Kalev's 2nd-half goals matchup 8/9 -> 9/10).
 
 ### Measured sports - other live facts
 
@@ -491,6 +505,14 @@ admit realised below their price (ROI -1.8% [-4.4, +0.7], `both_over_goals`
 until then `THIN_SAMPLE_FOR_BUILDER` refused every derived football row.
 
 ### Measured and not switched on
+
+Verification follow-ups 2026-10-29 (report
+`docs/sofa/history/RAPORT_POPRAWKI_2026-10-30.md`):
+- `RATING_DOMAIN_CURRENT_LEAGUE` (`RatingBook.current_league_domain`, football):
+  a side's domain = the league unit it plays now (most matches of its newest
+  season among units played in the last `DOMAIN_ACTIVE_S`, >= 3), else the
+  modal rule. Worse: (d).
+- Cup knockout supremacy shrink: no switch written; measured, (d).
 
 Confidence review 2026-10-27 (code in, switch `None` / fit option default off;
 `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`):
@@ -667,6 +689,35 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- **A promoted / relegated side's league "now" in the rating** (2026-10-29,
+  `scripts/sofa/measure_rating_domain.py`, DB copy, awarded out, walk-forward
+  one step ahead, Poisson log-loss per side, match bootstrap; select
+  2025-07-01..2026-06-30, test 2026-07-01..10-28; candidate minus the modal
+  365 d x 40 rule, + = worse). `RATING_DOMAIN_CURRENT_LEAGUE` (D = 60 d),
+  test: goals_for all +0.0063 [+0.0056, +0.0072] (86,042), a side's first 20
+  matches after its domain moved +0.0179 [+0.0158, +0.0199] (30,182), domain
+  changed +0.0287; 1X2 moved20 +0.0174; corners moved20 +0.012; shots +0.03;
+  cards -0.0017 [-0.0029, -0.0004] alone better; D = 30 / 90 alike. LINKED
+  pairs rise 62.7k -> 74.5k. The modal grid: 180 d x 20 / 40 +0.0071 /
+  +0.0065 (moved20), 365 d x 20 +0.0035, 730 d x 40 +0.0022, 365 d x 80
+  -0.0001 [-0.0004, +0.0002]. The current rule is the best of the grid. Why:
+  a promoted side's ratios were earned in its old league; the lag prices it
+  through the league strength until they adapt (Arka - Stal cross-league is
+  the rule working, not a defect). Code kept off (`RATING_DOMAIN_CURRENT_
+  LEAGUE_FROM_UTC = None`).
+- **A knockout shrink of the favourite's goal supremacy** (2026-10-29,
+  `scripts/sofa/measure_cup_supremacy_shrink.py`, DB copy, KNOCKOUT +
+  LINKED_BY_STRENGTH rating centres from 2025-07-01, awarded out;
+  favourite's goals = underdog + T + k(s - T) above T, fitted to 2026-06-30
+  by NB likelihood). Domestic cups: T 2.0, k 0.45 (8,508 train); out of
+  sample 2026-07-01..10-28 (4,166 ties) goals_for -0.0020 [-0.0043, +0.0003],
+  goals_total -0.0025 [-0.0061, +0.0011], 1X2 -0.0017 [-0.0038, +0.0002],
+  favourite -2.5 -0.0011 [-0.0039, +0.0018] - every interval holds 0;
+  international club cups (T 0.5, k 0.7, 554 test) worse, +0.0020..+0.0051.
+  The bias itself stands out of sample (margin at s >= 2 -0.50 [-0.68,
+  -0.30], N 908). Not switched; the price check on settled Superbet lines
+  was not run (nothing to switch).
+
 - football cup ties across a large tier gap "rated too shallow" (verifier
   2026-10-29: Prat - Athletic log gap -0.56, Ribadesella - Racing; Superbet's
   ladders steeper): not confirmed (read-only replay of
@@ -680,7 +731,8 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   knockout legs with a strength gap >= 0.3 (2026 days before 10-29): 738 legs
   / 75 matches, hit minus confidence -0.001 [-0.042, +0.037] (printed 546 /
   55: +0.004 [-0.048, +0.051]); gap < 0.3: -0.058 [-0.090, -0.027]. If
-  anything, a cup shrink of supremacy above ~2 goals (open, (e)).
+  anything, a cup shrink of supremacy above ~2 goals - measured 10-29, no
+  better out of sample (the entry above).
 
 - football team-side legs against the opponent's concede profile (2026-10-29,
   after the operator's slips of 10-28: Panathinaikos corners over 3.5 - own
@@ -831,21 +883,13 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (e) Open questions, not modelled yet, before the next refit
 
-- **A promoted / relegated side's league in the rating (2026-10-29)**:
-  `RatingBook.domain` is the modal competition of the side's last 40 matches
-  within 365 days (`TEAM_COMP_MEMORY`, `LINK_WINDOW_S`), so on 10-29 Arka
-  (Betclic 1. Liga from 2026-07-24) still read Ekstraklasa (202:21 vs 229:12)
-  and Deportivo (LaLiga from 2026-08-17) LaLiga 2 (54:27 vs 8:10): Arka - Stal
-  priced cross-league though both play 229; ~18-20 matches in the new league
-  before the switch. By design (`LINK_SHARED_LEAGUE` row above), never
-  measured (grid {180, 365, 730} d x {20, 40, 80} proposed in
-  `docs/sofa/evidence/model_defects_2026-10-05.md`). Candidate: the latest
-  season's league once >= 3 matches there; measure walk-forward log loss on
-  promoted / relegated sides' first 20 matches, sigma and UNLINKED counts;
-  a switch and a refit with the operator's go.
-- **Cup favourites at a predicted supremacy >= 2 goals** realise -0.46
-  [-0.58, -0.33] goals of margin and -0.56 of total below the rating ((d),
-  2026-10-29) - a knockout shrink is a candidate, unmeasured as a price.
+- **Results awarded at the table in the football rating (2026-10-29)**:
+  `AWARDED_EXCLUDED` drops them from the rating history too, but the rating
+  read without them is no better one step ahead (+0.00011 [+0.00003,
+  +0.00019] goals_for log-loss per side, `measure_awarded_scale.py`; a
+  withdrawn side's forfeits may say something about it). The samples' part is
+  correctness (SETTLE never grades one); whether the rating should keep them
+  is open - a measurement on the price, then a decision.
 
 - **NBA player lines (2026-10-26)**: why no leg prints (p sits at the median by the book's construction, new markets have ~25 games of lines, p overconfident in the top buckets) is in `docs/sofa/evidence/nba_player_model_2026-10-26.md`; open: re-measure at ~200 NBA 2026-27 games; NBA-specific calibration term; a box that sums to the score +-1 point (Milwaukee - Chicago 10-23, 494 lines ungraded; today refused by design); `NOT_IN_HISTORY` outside the NBA.
 - **Open checks on new data**: `T-PEER-CHOICE-edge`, `T-FAMILY-SELECTION`,
