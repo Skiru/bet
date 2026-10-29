@@ -23,11 +23,14 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 from bet.sofa import analyses
-from bet.sofa.dossier import leg_metric
+from bet.sofa.dossier import STYLE_POSSESSION_MIN, dossier_path, leg_metric
 from bet.sofa.epochs import READ_SCOPE_DATE
+from bet.sofa.price_gap import GAP
 
 CONTEXT_MARK = re.compile(r"kontekst\s*\(web\)", re.IGNORECASE)
 DOSSIER_MARK = re.compile(r"dossier", re.IGNORECASE)
@@ -65,6 +68,17 @@ FALSE_DEFECT = re.compile(
     # a rating one disagrees with (10-29: ~30 removals "DEFEKT: 05_sheet
     # FOOTBALL_RATING ... log strength gap") is the forbidden cross-league basis
     r"FOOTBALL_RATING|FOOTBALL_SCORE_MARKETS|strength gap|cup_strength|rating", re.I)
+# The two thresholds a `RYNEK:` WATCH stands on (sofa-analysis-core, "What a
+# removal's reason must name" 3), checked against the leg's own row of the
+# dossier's `style.matchup` (schema >= MARKET_DOSSIER_SCHEMA) - a k/n written
+# into the reason is never trusted on its own (E2E 2026-10-29: "RYNEK: h2h:
+# 0/4" and a 9/10 above the confidence both merged).
+MARKET_GAP = 0.25
+MARKET_MIN_N = 8
+MARKET_DOSSIER_SCHEMA = 3
+MARKET_POSSESSION_MARKET = "corners_for"  # (b): full-match corners OVER only
+MARKET_BLOCKING = ("RYNEK ZAKAZANY", "RYNEK BEZ LINII", "RYNEK BEZ DOSSIER",
+                   "RYNEK BEZ WIERSZA", "RYNEK PONIŻEJ PROGU", "RYNEK INNE LICZBY")
 CONTRA_ROW = re.compile(r"^\s*\|.*ZESTAWIENIE PRZECIW.*\|\s*$", re.M)
 # A KEEP reason shorter than this cannot carry an expectation, a dossier fact
 # and a context finding (the contract's example runs ~120 characters).
@@ -121,6 +135,13 @@ def report_kind(name: str) -> dict[str, Any]:
     return {"verifier": False, "sport": m.group(1) if m else None}
 
 
+def report_run(path: Path) -> Path | None:
+    """The run a report sits in (runs/sofa/<d>/<d>_analiza_*.md: the
+    directory holding 11_coupon.json); None for a report written elsewhere."""
+    parent = path.resolve().parent
+    return parent if (parent / "11_coupon.json").exists() else None
+
+
 def report_day(name: str) -> str | None:
     """The day a report file is of ("2026-10-27_analiza_football.md")."""
     m = REPORT_DAY.search(name)
@@ -130,6 +151,7 @@ def report_day(name: str) -> str | None:
 def findings(
     text: str, day: str | None = None, *, verifier: bool = False,
     sport: str | None = None,
+    dossiers: Mapping[int, Mapping[str, Any] | None] | None = None,
 ) -> list[str]:
     """Every depth problem of one report, in Polish (the analyst reads them).
     `day`: the report's day; before SOURCED_REMOVALS_DATE the verdict rules
@@ -137,11 +159,16 @@ def findings(
     verifier's report (`_weryfikacja_`) - the same removal and summary rules,
     no context pass, kill facts or style table (it rebuilds legs, it does not
     read matches). `sport`: the analyst's sport (`report_kind`); the style
-    table binds football reports only (None: treated as football)."""
+    table binds football reports only (None: treated as football).
+    `dossiers`: {event id: dossier or None} (`load_dossiers`) - with it every
+    `RYNEK:` WATCH is checked against its leg's `style.matchup` row
+    (`market_findings`); merge_reads always passes it."""
     sourced = day is None or day >= SOURCED_REMOVALS_DATE
     readable = day is None or day >= READABLE_SECTION_DATE
     reads = reads_block(text)
     out: list[str] = []
+    if dossiers is not None and readable and sport in (None, "football"):
+        out += market_findings(reads, dossiers)
     if readable:
         for v in vetoes_block(text):
             reason = str(v.get("reason") or "")
@@ -320,4 +347,210 @@ def _verdicts(
                 f"ŹRÓDŁO: {label}: {r.get('verdict')} z tagiem {r.get('context')} "
                 "bez [WEB: domena, publ., fetched] / „niepotwierdzone” / „opinia”"
             )
+    return out
+
+
+def market_reads(reads: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The reads whose removal rests on a market driver (`RYNEK:`, no dated
+    web fact or real defect beside it)."""
+    return [r for r in reads if r.get("verdict") in ("WATCH", "NO_BET")
+            and MARKET_MARK.search(str(r.get("reason") or ""))
+            and not fact_sourced(str(r.get("reason") or ""))]
+
+
+def load_dossiers(
+    run: Path, event_ids: Iterable[Any],
+    read_set_legs: Iterable[Mapping[str, Any]] = (),
+) -> dict[int, dict[str, Any] | None]:
+    """{event id: football dossier or None}: the path a read-set leg names
+    (`dossier`, a scratch dossier dir included) first, else
+    `<run>/dossier/football_<id>.json`. Unreadable = None, never a guess."""
+    named: dict[int, Path] = {}
+    for leg in read_set_legs:
+        eid, path = leg.get("sofascore_event_id"), leg.get("dossier")
+        if isinstance(eid, int) and isinstance(path, str) and path:
+            named.setdefault(eid, Path(path))
+    out: dict[int, dict[str, Any] | None] = {}
+    for raw in event_ids:
+        if not isinstance(raw, int):
+            continue
+        path = named.get(raw) or dossier_path(run, "football", raw)
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            doc = None
+        out[raw] = doc if isinstance(doc, dict) else None
+    return out
+
+
+def _share(cell: object) -> tuple[float, int] | None:
+    m = re.fullmatch(r"\s*(\d+)\s*/\s*(\d+)\s*", str(cell or ""))
+    if not m or int(m.group(2)) == 0:
+        return None
+    return int(m.group(1)) / int(m.group(2)), int(m.group(2))
+
+
+def _row_for(
+    doc: Mapping[str, Any], read: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    """The leg's own `style.matchup` row (market, subject, line, direction)."""
+    rows: list[Mapping[str, Any]] = (doc.get("style") or {}).get("matchup") or []
+    for row in rows:
+        if (row.get("market") == read.get("market")
+                and str(row.get("subject") or "").casefold()
+                == str(read.get("subject") or "").casefold()
+                and row.get("direction") == read.get("direction")
+                and isinstance(row.get("line"), int | float)
+                and abs(float(row["line"]) - float(read["line"])) < 1e-9):
+            return row
+    return None
+
+
+def _possession_side(doc: Mapping[str, Any], team: object) -> str | None:
+    for side in ("home", "away"):
+        if team and (doc.get("sides") or {}).get(side, {}).get("name") == team:
+            return side
+    return None
+
+
+def _win_prices(doc: Mapping[str, Any]) -> dict[str, float]:
+    """Superbet's home / away win prices from the dossier's ladder (the
+    double chance X2 "no" is the home win, 1X "no" the away win)."""
+    out: dict[str, float] = {}
+    for rung in (doc.get("market") or {}).get("rungs_of_leg_markets") or []:
+        if rung.get("market") != "double_chance":
+            continue
+        side = {"X2": "home", "1X": "away"}.get(str(rung.get("subject")))
+        price = rung.get("under_odds")
+        if side and isinstance(price, int | float):
+            out[side] = float(price)
+    return out
+
+
+def market_threshold(
+    doc: Mapping[str, Any], row: Mapping[str, Any],
+) -> tuple[bool, list[str], str]:
+    """Whether the row clears threshold (a) or (b), the dossier's k/n the
+    reason must cite (empty for (b)) and what was computed (Polish)."""
+    implied = row.get("implied")
+    ref = (float(implied) + GAP if row.get("price_gap") and isinstance(
+        implied, int | float) else float(row.get("confidence") or 0.0))
+    bar = ref - MARKET_GAP
+    sides = row.get("sides") or []
+    league = row.get("league") or {}
+    basis = " (1/kurs + 0.03, price_gap)" if row.get("price_gap") else " (pewność)"
+    notes = [f"odniesienie {ref:.3f}{basis}, próg <= {bar:.3f}, n >= {MARKET_MIN_N}"]
+    passed, cited = False, []
+    if sides and all("opponent_conceded" in c for c in sides) and not row.get("joint"):
+        cell = sides[0]
+        got = _share(cell.get("opponent_conceded"))
+        notes.append(f"{cell.get('opponent')} oddaje {cell.get('opponent_conceded')}")
+        if got and got[1] >= MARKET_MIN_N and got[0] <= bar + 1e-9:
+            passed, cited = True, [str(cell["opponent_conceded"])]
+        if (row.get("market") == MARKET_POSSESSION_MARKET
+                and row.get("direction") == "OVER"):
+            ok_b, note_b = _threshold_b(doc, row, cell)
+            notes.append(note_b)
+            if ok_b and not passed:
+                passed, cited = True, []
+    else:
+        games = [_share(c.get("games")) for c in sides]
+        share = league.get("share")
+        notes.append(" · ".join(f"mecze {c.get('team')} {c.get('games')}"
+                                for c in sides)
+                     + f" · liga {share} (n={league.get('n')})")
+        if (len(games) == 2 and all(g and g[1] >= MARKET_MIN_N and g[0] <= bar + 1e-9
+                                    for g in games)
+                and isinstance(share, int | float) and share <= bar + 1e-9
+                and int(league.get("n") or 0) >= MARKET_MIN_N):
+            passed, cited = True, [str(c["games"]) for c in sides]
+    return passed, cited, "; ".join(notes)
+
+
+def _threshold_b(
+    doc: Mapping[str, Any], row: Mapping[str, Any], cell: Mapping[str, Any],
+) -> tuple[bool, str]:
+    """(b): corners OVER on the side that will not have the ball - possession
+    mean < 50 and the longer win price (a cup tie: the price alone) - whose
+    corners at < 50 % possession average under the line on >= 4 games."""
+    side = _possession_side(doc, cell.get("team"))
+    if side is None:
+        return False, "(b): strona nogi nie znaleziona w dossier"
+    style = (doc.get("style") or {}).get(side) or {}
+    possession = (style.get("means") or {}).get("possession")
+    split = (style.get("corners_by_own_possession") or {}).get(
+        "posiadanie_ponizej_50") or {}
+    prices = _win_prices(doc)
+    other = "away" if side == "home" else "home"
+    longer = (prices[side] > prices[other]
+              if side in prices and other in prices else None)
+    cup = (doc.get("header") or {}).get("competition") != (
+        (doc.get("style") or {}).get("league") or {}).get("competition")
+    no_ball = (longer is True and cup) or (
+        isinstance(possession, int | float) and possession < 50 and longer is not False)
+    n, mean = int(split.get("n") or 0), split.get("srednia")
+    line = float(row["line"])
+    ok = bool(no_ball and n >= STYLE_POSSESSION_MIN
+              and isinstance(mean, int | float) and mean < line)
+    return ok, (f"(b): posiadanie {possession}, kurs na wygraną {prices.get(side)} vs "
+                f"{prices.get(other)}, rożne przy posiadaniu < 50: średnia {mean} "
+                f"(n={n}) wobec linii {line}")
+
+
+def market_findings(
+    reads: Iterable[Mapping[str, Any]],
+    dossiers: Mapping[int, Mapping[str, Any] | None],
+) -> list[str]:
+    """Every `RYNEK:` removal checked against the dossier: no forbidden
+    basis after the mark, a line, the leg's own `style.matchup` row, threshold
+    (a) or (b) cleared and the reason citing the dossier's own k/n."""
+    out: list[str] = []
+    for r in market_reads(reads):
+        reason = str(r.get("reason") or "")
+        label = (f"{r.get('sofascore_event_id')} {r.get('market')} "
+                 f"{r.get('subject') or ''} {r.get('line')} {r.get('direction')}"
+                 ).replace("  ", " ")
+        mark = MARKET_MARK.search(reason)
+        after = reason[mark.end():] if mark else reason
+        if FALSE_DEFECT.search(after):
+            out.append(
+                f"RYNEK ZAKAZANY: {label}: „RYNEK:” na h2h / formie / serii / "
+                "tabeli / odpoczynku / ratingu - to notatka, nie czynnik rynku "
+                "(czynnik to wiersz `style.matchup` dossier albo rożne przy "
+                "posiadaniu < 50)")
+            continue
+        if not isinstance(r.get("line"), int | float):
+            out.append(
+                f"RYNEK BEZ LINII: {label}: WATCH „RYNEK:” dotyczy jednej nogi z "
+                "linią (próg liczy się dla linii), nigdy całej rodziny")
+            continue
+        eid = r.get("sofascore_event_id")
+        doc = dossiers.get(eid) if isinstance(eid, int) else None
+        if not doc or int(doc.get("schema") or 0) < MARKET_DOSSIER_SCHEMA:
+            out.append(
+                f"RYNEK BEZ DOSSIER: {label}: brak dossier piłkarskiego meczu w "
+                f"schemacie >= {MARKET_DOSSIER_SCHEMA} - przebuduj go "
+                "(`read_set.py` / `build_slip.py`); bez wiersza `style.matchup` "
+                "„RYNEK:” niczego nie zdejmuje")
+            continue
+        row = _row_for(doc, r)
+        if row is None:
+            out.append(
+                f"RYNEK BEZ WIERSZA: {label}: dossier nie ma wiersza "
+                "`style.matchup` tej nogi (rynek, strona, linia, kierunek) - "
+                "„RYNEK:” stoi tylko na liczbach z dossier")
+            continue
+        passed, cited, computed = market_threshold(doc, row)
+        if not passed:
+            out.append(
+                f"RYNEK PONIŻEJ PROGU: {label}: {computed} - ani próg (a), ani "
+                "(b) nie zachodzi; kod (próbka, MODEL_ABOVE_OWN_SAMPLE) już "
+                "zdecydował - zapisz to jako notatkę i KEEP")
+            continue
+        compact = re.sub(r"\s+", "", reason)
+        if cited and not any(c.replace(" ", "") in compact for c in cited):
+            out.append(
+                f"RYNEK INNE LICZBY: {label}: powód nie cytuje k/n z dossier "
+                f"({' / '.join(cited)}) - przepisz liczby z `style.matchup`, "
+                "nie licz ich sam")
     return out

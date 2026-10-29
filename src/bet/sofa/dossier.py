@@ -63,8 +63,11 @@ from bet.sofa.players import (
 from bet.sofa.settle import venue_timezone
 
 # 2 (2026-10-29): football `style` with league rate, xG / blocked shots / long
-# balls / throw-ins / goal kicks and `matchup[].metric`; an older dossier lacks them
-SCHEMA_VERSION = 2
+# balls / throw-ins / goal kicks and `matchup[].metric`; an older dossier lacks them.
+# 3 (2026-10-29): `matchup[]` rows carry the leg's key, `joint` and `price_gap`,
+# a joint read as min(own, rival) as SETTLE grades it - a `RYNEK:` WATCH is
+# checked against its row only from schema 3
+SCHEMA_VERSION = 3
 FORM_N = 10  # last games per side
 H2H_N = 6
 H2H_SCAN = 200  # a side's listed games searched for the opponent
@@ -941,7 +944,12 @@ def matchup_rows(
     under it; the league's share. A sample of the subject's own games alone
     does not see an opponent that gives nothing away (2026-10-28:
     Panathinaikos corners over 3.5 - own 9/10, Aris conceded it 3/10; lost
-    with 2)."""
+    with 2). A "każda z drużyn" joint (both_over_*) reads like a total on
+    min(own, rival) per game, as SETTLE grades it (`run_settle.py`): OVER =
+    both above the line, UNDER = not both - never each side's own count.
+    Each row carries the leg's key (market / subject / line / direction),
+    `joint` and `price_gap`, so a `RYNEK:` WATCH is checked against its own
+    row (`bet.sofa.report_check.market_findings`)."""
     out: list[tuple[dict[str, Any], Mapping[str, Any]]] = []
     seen: set[tuple[Any, ...]] = set()
     league_values = (league or {}).get("values") or []
@@ -966,27 +974,38 @@ def matchup_rows(
             if isinstance(leg.get("offered_odds"), int | float)
             and leg["offered_odds"] > 1 else None,
             "sides": [],
+            "market": market,
+            "subject": leg.get("subject") or "",
+            "line": line,
+            "direction": direction,
         }
+        if both:
+            row["joint"] = True
+        if leg.get("price_gap"):
+            row["price_gap"] = True
         def hits(values: Sequence[float]) -> str | None:
             return (f"{_hits(values, float(line), direction)}/{len(values)}"
                     if values else None)
-        if metric.endswith("_for"):
-            if both:
-                sides = ["home", "away"]
-            else:
-                side = _side_of_subject(str(leg.get("subject") or ""), names)
-                if side is None:
-                    continue
-                sides = [side]
-            for side in sides:
-                opp = "away" if side == "home" else "home"
-                own = [g[metric][0] for g in games.get(side, ()) if metric in g]
-                conceded = [g[metric][1] for g in games.get(opp, ()) if metric in g]
-                cell = {"team": names.get(side), "opponent": names.get(opp),
-                        "own": hits(own), "own_values": own,
-                        "opponent_conceded": hits(conceded),
-                        "conceded_values": conceded}
+        if both:
+            for side in ("home", "away"):
+                totals = [min(g[metric]) for g in games.get(side, ()) if metric in g]
+                cell = {"team": names.get(side), "games": hits(totals),
+                        "values": totals}
                 row["sides"].append({k: v for k, v in cell.items() if v})
+            pool = [min(g[metric]) for g in league_values if metric in g]
+        elif metric.endswith("_for"):
+            found_side = _side_of_subject(str(leg.get("subject") or ""), names)
+            if found_side is None:
+                continue
+            side = found_side
+            opp = "away" if side == "home" else "home"
+            own = [g[metric][0] for g in games.get(side, ()) if metric in g]
+            conceded = [g[metric][1] for g in games.get(opp, ()) if metric in g]
+            cell = {"team": names.get(side), "opponent": names.get(opp),
+                    "own": hits(own), "own_values": own,
+                    "opponent_conceded": hits(conceded),
+                    "conceded_values": conceded}
+            row["sides"].append({k: v for k, v in cell.items() if v})
             pool = [v for g in league_values if metric in g for v in g[metric]]
         else:
             for side in ("home", "away"):
@@ -1027,7 +1046,8 @@ def _leg_hit(
         return hit(float(g[metric]))
     own, conceded = float(g[metric][0]), float(g[metric][1])
     if both:
-        return hit(own) and hit(conceded)
+        # as SETTLE grades it: min of the two counts (UNDER = not both over)
+        return hit(min(own, conceded))
     side = _side_of_subject(str(leg.get("subject") or ""), names)
     if side is None:
         return None
@@ -1093,7 +1113,7 @@ def matchup_key(leg: Mapping[str, Any]) -> str:
 
 def matchup_text(row: Mapping[str, Any]) -> str:
     """One matchup row as the page shows it beside the leg."""
-    parts = []
+    parts = ["noga łączna (min obu stron)"] if row.get("joint") else []
     for cell in row.get("sides") or []:
         if "games" in cell:
             parts.append(f"mecze {cell.get('team')} {cell['games']}")
@@ -1823,10 +1843,13 @@ def write_for_legs(
     *,
     db_path: str | Path = DB_PATH,
     now: datetime | None = None,
+    out_dir: Path | None = None,
 ) -> dict[int, str]:
     """Write one dossier per match of `legs`, set each leg's `dossier` to its
     path; returns {event id: path}. A match whose dossier fails keeps no
-    `dossier` field and is listed on stderr by the caller - never a guess."""
+    `dossier` field and is listed on stderr by the caller - never a guess.
+    `out_dir` writes them there instead of `<run>/dossier` (a test or a
+    scratch read never overwrites the day's dossiers)."""
     legs = list(legs)
     by_event: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for leg in legs:
@@ -1880,7 +1903,8 @@ def write_for_legs(
                 h2h_entries=h2h_entries,
                 lineup_entries=lineup_entries,
             )
-            path = dossier_path(run, sport, event_id)
+            path = (out_dir / f"{sport}_{event_id}.json" if out_dir is not None
+                    else dossier_path(run, sport, event_id))
             path.parent.mkdir(parents=True, exist_ok=True)
             tmp = path.with_suffix(".json.tmp")
             tmp.write_text(
@@ -1900,6 +1924,7 @@ def attach(
     legs: Iterable[dict[str, Any]],
     db_path: str | Path | None = None,
     now: datetime | None = None,
+    out_dir: Path | None = None,
 ) -> str:
     """write_for_legs for a read-set writer: one line for its output. A
     failure is reported, never raised - a read set without dossiers is still
@@ -1908,7 +1933,7 @@ def attach(
     if not path.exists():
         return f"dossier: brak bazy {path} - nogi bez dossier"
     try:
-        written = write_for_legs(run, legs, db_path=path, now=now)
+        written = write_for_legs(run, legs, db_path=path, now=now, out_dir=out_dir)
     except (sqlite3.Error, OSError, ValueError, KeyError, TypeError) as exc:
         return f"dossier: BŁĄD {type(exc).__name__}: {exc} - nogi bez dossier"
-    return f"dossier: {len(written)} meczów -> {run / 'dossier'}"
+    return f"dossier: {len(written)} meczów -> {out_dir or run / 'dossier'}"

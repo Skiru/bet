@@ -108,7 +108,7 @@ match started is excluded from the grade.
 | `verdict` | `KEEP \| WATCH \| NO_BET` | |
 | `author` | `analyst \| verifier` | you are `"analyst"` |
 | `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries one of the marks of core "What a removal's reason must name" (`report_check`) |
-| `context` | a `context` tag above, or `MARKET` (a football `RYNEK:` WATCH - required there), optional | leave it out when none fits |
+| `context` | a `context` tag above, or `MARKET` (a football `RYNEK:` WATCH - required there), optional | exactly one of `MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`, `CONDITIONS`, `MORALE`, `MARKET`, or null / left out when none fits - anything else (`"OTHER"`, `"NONE"`) fails validation and merge_reads refuses the report (E2E 10-29) |
 
 A WATCH / NO_BET copies `market` / `subject` / `line` / `direction` /
 `period` from the read-set leg, never retyped from the PDF.

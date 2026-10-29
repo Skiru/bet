@@ -292,3 +292,180 @@ def test_a_rating_opinion_is_no_defect_and_a_contra_rung_is_read_alone() -> None
                for f in findings(report([family], contra), "2026-10-30"))
     assert not any(f.startswith("PRZECIW")
                    for f in findings(report([keep(1, DEEP)], contra), "2026-10-30"))
+
+
+def matchup_dossier(**over: object) -> dict[str, object]:
+    """A football dossier (schema 3) holding one side row, one total row and
+    one joint row of Dewa - Persijap, and Dewa's corners split by possession."""
+    side = {"leg": "Dewa - liczba rzutów rożnych: powyżej 3.5", "metric": "corners_for",
+            "market": "corners_for", "subject": "dewa", "line": 3.5,
+            "direction": "OVER", "confidence": 0.79, "implied": 0.8,
+            "sides": [{"team": "Dewa", "opponent": "Persijap", "own": "8/10",
+                       "opponent_conceded": "3/10"}],
+            "league": {"competition": "Liga 1", "share": 0.6, "n": 300}}
+    total = {"leg": "Liczba rzutów rożnych: powyżej 7.5", "metric": "corners_total",
+             "market": "corners_total", "subject": "", "line": 7.5,
+             "direction": "OVER", "confidence": 0.8, "implied": 0.79,
+             "sides": [{"team": "Dewa", "games": "5/10"},
+                       {"team": "Persijap", "games": "5/10"}],
+             "league": {"competition": "Liga 1", "share": 0.52, "n": 150}}
+    joint = {**total, "market": "both_over_corners", "metric": "corners_for",
+             "line": 2.5, "joint": True, "leg": "Każda z drużyn: tak",
+             "sides": [{"team": "Dewa", "games": "9/10"},
+                       {"team": "Persijap", "games": "8/10"}]}
+    doc: dict[str, object] = {
+        "schema": 3,
+        "header": {"competition": "Liga 1"},
+        "sides": {"home": {"name": "Dewa"}, "away": {"name": "Persijap"}},
+        "style": {"league": {"competition": "Liga 1"},
+                  "home": {"means": {"possession": 44.0},
+                           "corners_by_own_possession": {"posiadanie_ponizej_50": {
+                               "n": 5, "srednia": 2.8}}},
+                  "matchup": [side, total, joint]},
+        "market": {"rungs_of_leg_markets": [
+            {"market": "double_chance", "subject": "X2", "under_odds": 3.4},
+            {"market": "double_chance", "subject": "1X", "under_odds": 2.1}]},
+    }
+    doc.update(over)
+    return doc
+
+
+def market_watch(**over: object) -> dict[str, object]:
+    watch: dict[str, object] = {
+        "sofascore_event_id": 1, "market": "corners_for", "subject": "dewa",
+        "line": 3.5, "direction": "OVER", "verdict": "WATCH", "author": "analyst",
+        "context": "MARKET",
+        "reason": "RYNEK: Persijap oddaje rywalom >= 4 rożne w 3/10 "
+                  "(style.matchup), pewność 0.79. Mechanizm: mało dośrodkowań"}
+    watch.update(over)
+    return watch
+
+
+def test_a_market_watch_is_checked_against_its_dossier_row() -> None:
+    """E2E 2026-10-29: "RYNEK: h2h: 0/4" and a k/n above the confidence both
+    merged - the mark and any count were all the check read. From now on a
+    RYNEK removal stands only on its leg's own style.matchup row clearing
+    threshold (a) or (b), citing the dossier's k/n."""
+    from bet.sofa.report_check import market_findings
+    doc = matchup_dossier()
+    ok = market_watch()
+    assert market_findings([ok], {1: doc}) == []
+    assert findings(report([ok], GOOD_BODY), "2026-10-30", dossiers={1: doc}) == []
+
+    def first(read: dict[str, object], d: object = doc) -> str:
+        found = market_findings([read], {1: d})  # type: ignore[dict-item]
+        assert len(found) == 1, found
+        return found[0]
+
+    assert first(market_watch(reason="RYNEK: h2h: Dewa 0/4 w h2h")).startswith(
+        "RYNEK ZAKAZANY")
+    assert first(market_watch(reason="RYNEK: seria 1/5 i forma")).startswith(
+        "RYNEK ZAKAZANY")
+    assert first(market_watch(line=None)).startswith("RYNEK BEZ LINII")
+    assert first(market_watch(), None).startswith("RYNEK BEZ DOSSIER")
+    assert first(market_watch(), {**doc, "schema": 2}).startswith("RYNEK BEZ DOSSIER")
+    assert first(market_watch(line=4.5)).startswith("RYNEK BEZ WIERSZA")
+    assert first(market_watch(reason="RYNEK: Persijap oddaje 2/10 (style.matchup)")
+                 ).startswith("RYNEK INNE LICZBY")
+    # the concession 6/10 = 0.60 is not 0.25 below 0.79
+    style = doc["style"]
+    assert isinstance(style, dict)
+    side = dict(style["matchup"][0])
+    weak = {**doc, "style": {**style, "matchup": [
+        {**side, "market": "corners_for", "line": 3.5, "subject": "dewa",
+         "sides": [{**side["sides"][0], "opponent_conceded": "6/10"}]}]}}
+    poss = {**doc["style"]["home"], "means": {"possession": 55.0}}  # type: ignore[index]
+    weak["style"]["home"] = poss  # type: ignore[index]
+    found = first(market_watch(reason="RYNEK: Persijap oddaje 6/10"), weak)
+    assert found.startswith("RYNEK PONIŻEJ PROGU") and "6/10" in found
+    # n < 8 never stands
+    thin = {**weak, "style": {**weak["style"], "matchup": [  # type: ignore[dict-item]
+        {**side, "sides": [{**side["sides"][0], "opponent_conceded": "1/6"}]}]}}
+    assert first(market_watch(reason="RYNEK: Persijap oddaje 1/6"), thin).startswith(
+        "RYNEK PONIŻEJ PROGU")
+    # a NO_BET on RYNEK is refused by the verdict rule and checked here too
+    assert findings(report([market_watch(verdict="NO_BET")], GOOD_BODY),
+                    "2026-10-30", dossiers={1: doc})
+    # a dated web fact beside the mark is not a market removal
+    web = market_watch(reason="RYNEK: x [WEB: a.pl, publ. 2026-10-30, fetched 08:00Z]")
+    assert market_findings([web], {1: None}) == []
+
+
+def test_market_thresholds_for_a_total_a_joint_a_price_gap_and_possession() -> None:
+    from bet.sofa.report_check import market_threshold
+    doc = matchup_dossier()
+    style = doc["style"]
+    assert isinstance(style, dict)
+    side, total, joint = style["matchup"]
+    # a total: both sides 5/10 and the league 0.52 <= 0.80 - 0.25
+    assert market_threshold(doc, total)[:2] == (True, ["5/10", "5/10"])
+    assert not market_threshold(doc, {**total, "league": {"share": 0.6, "n": 150}})[0]
+    assert not market_threshold(doc, {**total, "sides": [
+        {"team": "Dewa", "games": "5/10"}, {"team": "Persijap", "games": "8/10"}]})[0]
+    # a joint reads like a total on min(own, rival): 9/10 and 8/10 stand
+    assert not market_threshold(doc, joint)[0]
+    # price_gap: compared with 1/odds + 0.03 (0.83 - 0.25 = 0.58), not 0.95
+    # (Dewa with the ball here, so (b) cannot stand in)
+    with_ball = {**doc, "style": {**style, "home": {"means": {"possession": 58.0}}}}
+    gap = {**side, "confidence": 0.95, "price_gap": True,
+           "sides": [{**side["sides"][0], "opponent_conceded": "6/10"}]}
+    assert not market_threshold(with_ball, gap)[0]
+    assert market_threshold(with_ball, {**gap, "sides": [
+        {**side["sides"][0], "opponent_conceded": "5/10"}]})[0]
+    assert market_threshold(with_ball, {**gap, "price_gap": False})[0]
+    # (b): Dewa 44 % possession, the longer win price (3.40 vs 2.10), 2.8
+    # corners on 5 games without the ball - under 3.5
+    no_a = {**side, "sides": [{**side["sides"][0], "opponent_conceded": "9/10"}]}
+    ok_b, cited, note = market_threshold(doc, no_a)
+    assert ok_b and cited == [] and "(b)" in note
+    assert not market_threshold(doc, {**no_a, "line": 2.5})[0]
+    assert not market_threshold(doc, {**no_a, "direction": "UNDER"})[0]
+    favourite = {**doc, "market": {"rungs_of_leg_markets": [
+        {"market": "double_chance", "subject": "X2", "under_odds": 1.6},
+        {"market": "double_chance", "subject": "1X", "under_odds": 5.0}]}}
+    assert not market_threshold(favourite, no_a)[0]
+    few = {**doc, "style": {**style, "home": {
+        "means": {"possession": 44.0},
+        "corners_by_own_possession": {
+            "posiadanie_ponizej_50": {"n": 3, "srednia": 1.0}}}}}
+    assert not market_threshold(few, no_a)[0]
+
+
+def test_cli_checks_a_market_watch_with_the_days_dossiers(tmp_path: Path) -> None:
+    run = tmp_path / "2026-10-30"
+    (run / "dossier").mkdir(parents=True)
+    (run / "dossier" / "football_1.json").write_text(json.dumps(matchup_dossier()))
+    good = tmp_path / "2026-10-30_analiza_football.md"
+    good.write_text(report([market_watch()], GOOD_BODY))
+    bad = tmp_path / "2026-10-30_analiza_football_2.md"
+    bad.write_text(report([market_watch(reason="RYNEK: h2h 0/4")], GOOD_BODY))
+    base = ["--runs-dir", str(tmp_path), "--date", run.name]
+    assert check_analyst_report.main([*base, "--report", str(good)]) == 0
+    assert check_analyst_report.main([*base, "--report", str(bad)]) == 1
+    # a report sitting in its run finds the dossiers itself
+    (run / "11_coupon.json").write_text("{}")
+    inside = run / "2026-10-30_analiza_football.md"
+    inside.write_text(report([market_watch(reason="RYNEK: h2h 0/4")], GOOD_BODY))
+    assert check_analyst_report.main(["--report", str(inside)]) == 1
+    # a read set's dossier path wins over the run's
+    other = tmp_path / "scratch_football_1.json"
+    other.write_text(json.dumps(matchup_dossier(schema=2)))
+    legs = tmp_path / "rs.json"
+    legs.write_text(json.dumps([{"sofascore_event_id": 1, "dossier": str(other)}]))
+    assert check_analyst_report.main(
+        [*base, "--report", str(good), "--read-set", str(legs)]) == 1
+
+
+def test_hook_checks_a_market_watch_of_a_report_in_its_run(tmp_path: Path) -> None:
+    run = tmp_path / "2026-10-30"
+    (run / "dossier").mkdir(parents=True)
+    (run / "11_coupon.json").write_text("{}")
+    (run / "dossier" / "football_1.json").write_text(json.dumps(matchup_dossier()))
+    path = run / "2026-10-30_analiza_football.md"
+    command = f"cat > {path} <<'MD'\n...\nMD"
+    path.write_text(report([market_watch(reason="RYNEK: h2h 0/4")], GOOD_BODY))
+    done = run_hook({"tool_name": "Bash", "tool_input": {"command": command}})
+    assert done.returncode == 2 and "RYNEK ZAKAZANY" in done.stderr
+    path.write_text(report([market_watch()], GOOD_BODY))
+    assert run_hook({"tool_name": "Bash",
+                     "tool_input": {"command": command}}).returncode == 0

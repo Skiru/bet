@@ -2425,7 +2425,11 @@ niego 08).
   `context: "MARKET"`, rozliczany w księdze osobno): udział meczów, w których
   rywal pozwolił na linię (dla sumy: mecze obu stron), co najmniej 0,25 poniżej
   pewności nogi, albo dla OVER drużyny bez piłki jej rożne przy posiadaniu
-  < 50% poniżej linii na >= 4 meczach. Każdy analityk sprawdza czynniki rynku
+  < 50% poniżej linii na >= 4 meczach - **sprawdza to kod** z wierszem
+  `style.matchup` nogi w dossier (schemat >= 3; `report_check.market_findings`,
+  merge_reads odmawia całego raportu: RYNEK ZAKAZANY / BEZ LINII / BEZ DOSSIER /
+  BEZ WIERSZA / PONIŻEJ PROGU / INNE LICZBY; noga łączna „każda z drużyn”
+  liczona jak suma na min(własne, rywala), jak w SETTLE). Każdy analityk sprawdza czynniki rynku
   każdej rodziny (`.claude/skills/sofa-analysis-core/references/market-drivers.md`,
   z literatury); h2h, forma, tabela, luka model-próbka i `price_gap` nadal
   nie zdejmują nogi. Weto - te same źródła (`WETO BEZ FAKTU`); raport
@@ -2792,7 +2796,9 @@ runs/sofa/<data>/
   vetoes.json          Veto[]             kanał analityka; [] w większość dni
   reads.json           LegRead[]          werdykty o nogach (KEEP / WATCH / NO_BET)
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
-  dossier/<sport>_<id>.json               teczka meczu dla analityków (bet.sofa.dossier, read_set.py / build_slip.py) - tylko podgląd, nigdy bramka
+  dossier/<sport>_<id>.json               teczka meczu dla analityków (bet.sofa.dossier, read_set.py / build_slip.py) - tylko podgląd, nigdy bramka;
+                                          schemat 3 (10-29): wiersz style.matchup niesie klucz nogi, joint i price_gap (podstawa sprawdzenia RYNEK:);
+                                          read_set.py --event-ids <id,...> --dossier-dir <katalog>: wybrane mecze, teczki poza katalogiem dnia (test, scratch)
                                           piłka: blok `style` - ostatnie 10 meczów o stawkę ze statystykami każdej strony (rożne / strzały
                                           za i przeciw, dośrodkowania, kontakty w polu karnym, strzały zablokowane, xG, wielkie szanse,
                                           wejścia w tercję, długie piłki, wrzuty z autu, wybicia od bramki, posiadanie, rożne przy

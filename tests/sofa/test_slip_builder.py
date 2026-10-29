@@ -830,6 +830,12 @@ def test_check_reads_the_operators_own_builder_leg_by_leg() -> None:
     assert "Liczba goli|poniżej 4.5 - nie ma na kuponie dnia" in text
     assert "razem w 9 z 20 ostatnich meczów" in text
     assert "Iloczyn" not in text  # never the product of chances (skill rule)
+    # the column and the headline read one rule: measured chance vs 1/odds
+    # (E2E 2026-10-29: a confidence above 1/odds showed "nie" beside a
+    # headline counting the leg below price)
+    assert "| szansa zmierzona < 1/kurs |" in text
+    rows = [x for x in text.splitlines() if x.startswith("| Liczba ")]
+    assert len(rows) == 2 and all("| **tak** |" in x for x in rows)
     assert "1/kurs 61,7%" in text
     # a leg refused or removed says why it is not on the coupon
     why = sb.render_check(

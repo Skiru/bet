@@ -103,6 +103,9 @@ Template and step table: `references/event-protocol.md`.
 8. **Referee** (cards, fouls). The named referee's shrunk rate is in the
    cards / fouls centre since 2026-10-21 (`referee_rule` on the row); only a
    referee **change** against the dossier is new (`sources-football.md`).
+   Quote the factor the model applies - `05_sheet.json` `referee_read.multiplier`
+   (the shrunk one) - never the raw `ratio` as "the model's" (E2E 10-29: 0.839
+   written where the model applied 0.901).
 9. **Absences and lineups.** The dossier's `lineups` block first:
    Sofascore's XI (`confirmed` false = **predicted, not confirmed** - say
    which, with `asked_at_utc`), `missing_players` (missing / doubtful),
@@ -147,9 +150,13 @@ Template and step table: `references/event-protocol.md`.
   as the leg writes him. Details: `references/market-playbook.md`.
 - **Derived joints** (`both_over_*`, `most_*`, `handicap_*`): priced from
   the sides' marginals and read through their own per-line curves (live
-  since 2026-10-21); never multiply. A `both_over_*` leg: one table row per
-  team from `style.matchup`; `most_*` / `handicap_*` have no matchup row -
-  both sides' style means, "bez zestawienia".
+  since 2026-10-21); never multiply. A `both_over_*` leg ("każda z drużyn",
+  "obie strzelą" of a half) is a **joint**: its `style.matchup` row
+  (`joint: true`, dossier schema 3) reads like a total on min(own, rival)
+  per game, as SETTLE grades it - "nie" = not both over, never "both under"
+  and never each side's own count - so its RYNEK threshold is the total's;
+  `most_*` / `handicap_*` have no matchup row - both sides' style means,
+  "bez zestawienia".
 
 ## Kill cases this repo has paid for
 

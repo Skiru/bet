@@ -208,7 +208,16 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
        line with n >= 4.
 
      For a `price_gap` leg compare with 1/odds + 0.03 instead of pewność (it
-     realises at its price). One mechanism sentence citing a `style` value
+     realises at its price). A `both_over_*` joint ("każda z drużyn",
+     "obie strzelą" of a half; `joint: true`) is read as a **total**: its
+     row's `games` are min(own, rival) per game, as SETTLE grades it.
+     **The code checks it** (`report_check.market_findings`, merge_reads
+     refuses the whole report otherwise): the WATCH names one leg with its
+     `line` (never a family), the match's dossier is schema >= 3 with the
+     leg's own `style.matchup` row, that row clears (a) or (b) as computed
+     from the dossier, the reason quotes the row's k/n as the dossier writes
+     it ("5/10", for (a)), and nothing after `RYNEK:` rests on h2h, form, a
+     streak, the table, rest or a rating (`RYNEK ZAKAZANY`). One mechanism sentence citing a `style` value
      (the opponent's crosses, possession against ...), never an invented
      one. A k/n at (a) / (b) is the evidence whatever the mechanism's
      literature grade; a driver without such a k/n: S / M a note, W / F

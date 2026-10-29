@@ -258,3 +258,42 @@ def test_a_removal_without_a_fact_is_refused_whole(tmp_path: Path) -> None:
     args = ["--date", run.name, "--runs-dir", str(tmp_path), "--report", str(report)]
     assert merge_reads.main(args) == 2
     assert not (run / "reads.json").exists()
+
+
+def test_a_market_watch_merges_only_on_its_dossier_row(tmp_path: Path) -> None:
+    """E2E 2026-10-29: merge_reads refuses a RYNEK WATCH whose leg's
+    style.matchup row does not clear the threshold (nothing written)."""
+    from tests.sofa.test_report_check import GOOD_BODY, market_watch, matchup_dossier
+    from tests.sofa.test_report_check import report as md
+    run = tmp_path / "2026-10-30"
+    (run / "dossier").mkdir(parents=True)
+    (run / "dossier" / "football_1.json").write_text(json.dumps(matchup_dossier()))
+    good = tmp_path / "2026-10-30_analiza_football_1.md"
+    good.write_text(md([market_watch()], GOOD_BODY))
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--dry-run"]
+    assert merge_reads.main([*args, "--report", str(good)]) == 0
+    for reason in ("RYNEK: h2h: Dewa 0/4", "RYNEK: Persijap oddaje 2/10"):
+        bad = tmp_path / "2026-10-30_analiza_football_2.md"
+        bad.write_text(md([market_watch(reason=reason)], GOOD_BODY))
+        assert merge_reads.main([*args, "--report", str(bad)]) == 2
+    (run / "dossier" / "football_1.json").unlink()
+    assert merge_reads.main([*args, "--report", str(good)]) == 2
+    assert not (run / "reads.json").exists()
+
+
+def test_event_ids_read_every_unlocked_printed_leg_of_those_matches(
+    tmp_path: Path,
+) -> None:
+    singles = [leg(i, 0.95 - i / 100, 1.2) for i in range(1, 4)]
+    singles += [leg(i, 0.9, 1.2, line=6.5) for i in range(1, 3)]
+    run = day(tmp_path, singles)
+    sets = read_set.read_set(run, events={2})
+    assert {x["sofascore_event_id"] for x in sets["football"]} == {2}
+    assert len(sets["football"]) == 2
+    assert {x["in_set"] for x in sets["football"]} == {"required"}
+    out = tmp_path / "rs"
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--out-dir", str(out),
+            "--no-dossier"]
+    assert read_set.main([*args, "--event-ids", "2,3"]) == 0
+    assert read_set.main([*args, "--event-ids", "2,99"]) == 1
+    assert read_set.main([*args, "--event-ids", "x"]) == 2

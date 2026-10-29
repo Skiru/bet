@@ -66,8 +66,15 @@ from bet.sofa import analyses, timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
+from bet.sofa.report_check import (  # noqa: E402
+    MARKET_BLOCKING,
+    load_dossiers,
+    market_reads,
+    reads_block,
+    report_day,
+    report_kind,
+)
 from bet.sofa.report_check import findings as report_findings  # noqa: E402
-from bet.sofa.report_check import report_day, report_kind  # noqa: E402
 from bet.sofa.slip_builder import row_key  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import find_unmatched_vetoes, veto_matches  # noqa: E402
@@ -137,19 +144,26 @@ def _leg_key(entry: dict[str, Any]) -> tuple[Any, ...]:
 
 SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
 # report_check findings that make a removal unfounded (operator 2026-10-26 /
-# 2026-10-29): such a report is refused whole, never merged in part
+# 2026-10-29): such a report is refused whole, never merged in part; a
+# `RYNEK:` WATCH is checked against its leg's dossier row (E2E 2026-10-29)
 BLOCKING_FINDINGS = ("USUNIĘCIE BEZ FAKTU", "RYNEK TYLKO WATCH", "RYNEK BEZ TAGU",
-                     "WETO BEZ FAKTU")
+                     "WETO BEZ FAKTU", *MARKET_BLOCKING)
 
 
 def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
           slip: bool = False, read_sets: list[Path] | None = None) -> int:
     fresh_v: list[dict[str, Any]] = []
     fresh_r: list[dict[str, Any]] = []
+    set_legs = [leg for p in read_sets or []
+                for leg in json.loads(p.read_text(encoding="utf-8"))]
     for path in reports:
         text = path.read_text(encoding="utf-8")
         day = report_day(path.name) or run.name  # the merge's day otherwise
-        blocking = [f for f in report_findings(text, day, **report_kind(path.name))
+        dossiers = load_dossiers(
+            run, {r.get("sofascore_event_id") for r in market_reads(reads_block(text))},
+            set_legs)
+        blocking = [f for f in report_findings(text, day, **report_kind(path.name),
+                                               dossiers=dossiers)
                     if f.startswith(BLOCKING_FINDINGS)]
         if blocking:
             raise ReportError(

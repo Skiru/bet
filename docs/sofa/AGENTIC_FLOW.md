@@ -209,14 +209,22 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
      UZASADNIENIA, USUNIĘCIE BEZ FAKTU (od 10-27; RYNEK dla WATCH w piłce od
      10-30), RYNEK TYLKO WATCH, RYNEK BEZ TAGU, ŹRÓDŁO, WETO BEZ FAKTU (od
      10-30). RYNEK jest tylko piłkarski i tylko dla WATCH; weto nigdy nie
-     stoi na RYNKU. `DEFEKT:` = wartość artefaktu błędna na dziś
+     stoi na RYNKU. Kod sprawdza każdy WATCH `RYNEK:` z wierszem
+     `style.matchup` jego nogi w dossier (schemat >= 3,
+     `report_check.market_findings`): RYNEK ZAKAZANY (h2h / forma / seria /
+     tabela / odpoczynek / rating po znaczniku), RYNEK BEZ LINII (jedna noga z
+     linią, nigdy rodzina), RYNEK BEZ DOSSIER, RYNEK BEZ WIERSZA, RYNEK
+     PONIŻEJ PROGU (próg (a) / (b) przeliczony z wiersza), RYNEK INNE LICZBY
+     (powód nie cytuje k/n wiersza). Noga łączna („każda z drużyn”,
+     `both_over_*`, `joint: true`) liczy się jak suma na min(własne, rywala),
+     tak jak rozlicza ją SETTLE („nie” = nie obie powyżej); `DEFEKT:` = wartość artefaktu błędna na dziś
      (tożsamość, zakres, nawierzchnia, format, inny skład / klasa,
      placeholder, podmiot po złej stronie); poprawna wartość, której model
      nie używa (odpoczynek, back-to-back, forma, h2h, tabela), albo rating, z
      którym się nie zgadzasz, to uwaga, nie defekt;
    - `merge_reads.py` **odmawia** (exit 2, nic nie scala) raportu z
-     USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU lub WETO BEZ
-     FAKTU: zlecający uruchamia analityka ponownie z ustaleniami i kolejnym
+     USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ
+     FAKTU lub którymkolwiek z ustaleń RYNEK ... powyżej: zlecający uruchamia analityka ponownie z ustaleniami i kolejnym
      `_r<n>`. Poprawka własnego raportu po uwadze hooka nadpisuje tę samą
      ścieżkę.
 

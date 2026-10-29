@@ -103,7 +103,9 @@ Superbet lines. `UNFITTED_CONSTANTS` stays on every leg and in the report.
    **Kluczowe przed meczem**), then what the dossier raises. Up to ~6
    searches / fetches; a blocked source is not retried.
 8. **Write and validate** per the core's output contract: the report ends
-   with ` ```json reads ` only (no vetoes block). Then
+   with ` ```json reads ` only (no vetoes block); `context` is one of
+   MOTIVATION / ROTATION / ABSENCES / DERBY / SCHEDULE / CONDITIONS / MORALE
+   or null (never "OTHER"; MARKET is football's). Then
    `merge_reads.py ... --read-set <your read-set file> --dry-run` and
    `check_analyst_report.py --report <path>`; fix what it names; return.
 

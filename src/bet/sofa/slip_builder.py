@@ -1029,7 +1029,7 @@ def render_check(
     plus = frozenset(
         k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e))
     lines = ["| zakład (słowami Superbetu) | kurs | 1/kurs | pewność | szansa "
-             "zmierzona | pewność < 1/kurs | rodzina (trafione vs cena, n) | "
+             "zmierzona | szansa zmierzona < 1/kurs | rodzina (trafione vs cena, n) | "
              "zestawienie |", "|---|---|---|---|---|---|---|---|"]
     below: list[str] = []
     missing: list[str] = []
@@ -1051,8 +1051,11 @@ def render_check(
         mc = measured_chance(g, odds, fam, sport, tier(g, plus))
         chance = mc[0] if mc else None
         name = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
-        is_below = float(g["confidence"]) < 1 / odds
-        if (chance if chance is not None else float(g["confidence"])) < 1 / odds:
+        # one rule for the column and the headline (E2E 2026-10-29: a leg
+        # whose confidence clears 1/odds but measured chance does not read
+        # "nie" in a column beside "poniżej ceny" in the headline)
+        is_below = (chance if chance is not None else float(g["confidence"])) < 1 / odds
+        if is_below:
             below.append(name)
         lines.append(
             f"| {name} | {odds:.2f} | {_pct(1 / odds)} | "

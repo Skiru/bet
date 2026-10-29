@@ -444,6 +444,13 @@ def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
     written = dossier.write_for_legs(
         run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db, now=NOW)
     style = json.loads(Path(written[500]).read_text())["style"]
+    # a scratch dossier dir: the day's dossier stays as it is
+    scratch = tmp_path / "scratch"
+    moved = dossier.write_for_legs(
+        run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db,
+        now=NOW, out_dir=scratch)
+    assert moved[500] == str(scratch / "football_500.json")
+    assert json.loads(Path(moved[500]).read_text())["schema"] == dossier.SCHEMA_VERSION
     alfa = style["home"]
     assert alfa["n"] == 3  # the friendly is out
     assert [g["corners"] for g in alfa["games"]] == [[8, 2], [6, 3], [2, 5]]
@@ -465,8 +472,14 @@ def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
     assert cell["team"] == "Alfa" and cell["own"] == "2/3"
     assert cell["opponent"] == "Beta" and cell["opponent_conceded"] == "1/2"
     assert cell["conceded_values"] == [2, 4]
+    assert team_leg["market"] == "corners_for" and team_leg["subject"] == "alfa"
+    assert (team_leg["line"], team_leg["direction"]) == (3.5, "OVER")
+    assert "joint" not in team_leg and "price_gap" not in team_leg
+    # a joint reads like a total on min(own, rival), as SETTLE grades it
+    assert both["joint"] is True
     assert [c["team"] for c in both["sides"]] == ["Alfa", "Beta"]
-    assert both["sides"][1]["own"] == "2/2"
+    assert both["sides"][0]["values"] == [2, 3, 2]
+    assert [c["games"] for c in both["sides"]] == ["3/3", "2/2"]
     # the HTML view's tag: every printed team-side leg, teams from 02_fixtures
     (run / "02_fixtures.json").write_text(json.dumps([{
         "sofascore_event_id": 500, "home_entity_id": 1, "away_entity_id": 2,
@@ -476,8 +489,8 @@ def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
         **legs[0], "market": "player_shots_for"}], db_path=db)
     assert tags == {
         dossier.matchup_key(legs[0]): "zestawienie: Alfa 2/3, Beta oddaje 1/2",
-        dossier.matchup_key(legs[1]): "zestawienie: Alfa 3/3, Beta oddaje 2/2"
-        " · Beta 2/2, Alfa oddaje 3/3",
+        dossier.matchup_key(legs[1]): "zestawienie: noga łączna (min obu stron)"
+        " · mecze Alfa 3/3 · mecze Beta 2/2",
     }
     assert dossier.matchups_for_legs(run, legs, db_path=tmp_path / "none.db") == {}
     # every leg together: Alfa's games 201 / 202 (203: 2 corners), Beta's
@@ -487,3 +500,19 @@ def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
     assert (joint["k"], joint["n"], joint["legs_read"]) == (3, 5, 2)
     assert len(joint["legs_without_history"]) == 1
     assert "missing" in dossier.joint_history(run, legs, db_path=tmp_path / "x.db")
+    # "każda z drużyn powyżej 2.5 - nie" = not both over: min under the line
+    # (Alfa's mins 2, 3, 2; Beta's 2, 3) - never "both under"
+    nie = {**legs[1], "line": 2.5, "direction": "UNDER"}
+    rows = dossier.matchup_rows(
+        [nie], {"home": [{"corners_for": [2, 5]}, {"corners_for": [3, 6]}],
+                "away": [{"corners_for": [2, 2]}]},
+        {"home": "Alfa", "away": "Beta"},
+        {"competition": "L", "values": [{"corners_for": [1, 9]},
+                                        {"corners_for": [4, 4]}]})
+    ((row, _),) = rows
+    assert [c["games"] for c in row["sides"]] == ["1/2", "1/1"]
+    assert row["league"]["share"] == 0.5
+    assert dossier._leg_hit(nie, {"corners_for": [2, 5]}, "home",
+                            {"home": "Alfa", "away": "Beta"}) is True
+    assert dossier._leg_hit(nie, {"corners_for": [3, 6]}, "home",
+                            {"home": "Alfa", "away": "Beta"}) is False

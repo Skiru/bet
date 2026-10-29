@@ -8,6 +8,7 @@ analyst has read yet.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> \\
         [--buffer N] [--unread] [--split K] [--out-dir <dir>]
+        [--event-ids ID[,ID...]] [--dossier-dir <dir>]
 
 --buffer N   also the next N matches after the required matches, in the order
              legs_requiring_read ranks them (a provisional build reshuffles
@@ -22,6 +23,13 @@ analyst has read yet.
              an analyst instance spent on one such match).
 --split K    a sport with more than K matches is written in parts of at most
              K whole matches (read_set_<sport>_<i>.json), one analyst each.
+--event-ids  only these Sofascore matches: their C3 legs and every other
+             unlocked printed single of theirs, all `required` (a re-read of
+             chosen matches, a contract test); an id the coupon does not
+             print is named and the run exits 1.
+--dossier-dir  write the dossiers there instead of runs/sofa/<d>/dossier (a
+             scratch read never overwrites the day's dossiers; h2h.json /
+             lineups_prematch.json still go to the day, they are its cache).
 
 The operator's requests are read from runs/sofa/<d>/read_requests.json (the
 file the next rebuild applies); audit C3 reads the copy 11_coupon.json
@@ -157,11 +165,14 @@ def analyst_read(leg: dict[str, Any], reads: list[Any]) -> bool:
 def read_set(run: Path, buffer: int = 0, unread: bool = False,
              now: datetime.datetime | None = None,
              started: list[dict[str, Any]] | None = None,
+             events: set[int] | None = None,
              ) -> dict[str, list[dict[str, Any]]]:
     """{sport: [compact leg, ...]} - required legs first, then the buffer.
 
     With `now`, a leg whose match starts within MIN_MINUTES_TO_KICKOFF of it
-    is left out and appended to `started` instead."""
+    is left out and appended to `started` instead. With `events`, only those
+    matches: their C3 legs and every other unlocked printed single, all
+    `required` (no buffer)."""
     cutoff = (now + datetime.timedelta(minutes=MIN_MINUTES_TO_KICKOFF)
               if now is not None else None)
     doc = json.loads((run / "11_coupon.json").read_text(encoding="utf-8"))
@@ -174,7 +185,14 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False,
     builder_of = {int(b["sofascore_event_id"]): b for b in doc.get("builders") or []
                   if b.get("sofascore_event_id") is not None}
     legs = [(x, "required") for x in legs_requiring_read(doc, requests)]
-    legs += [(x, "buffer") for x in buffer_legs(doc, buffer)]
+    if events is not None:
+        legs = [(x, why) for x, why in legs
+                if int(x["sofascore_event_id"]) in events]
+        legs += [(x, "required") for x in printed_singles(doc)
+                 if not x.get("locked")
+                 and int(x["sofascore_event_id"]) in events]
+    else:
+        legs += [(x, "buffer") for x in buffer_legs(doc, buffer)]
     reads = load_reads(run / "reads.json") if unread else []
     store = analyses.load(run)
     out: dict[str, list[dict[str, Any]]] = {}
@@ -241,7 +259,17 @@ def main(argv: list[str] | None = None) -> int:
                     help="dossiers from the cache only, no Sofascore h2h request")
     ap.add_argument("--no-lineups", action="store_true",
                     help="no Sofascore pre-match line-up request")
+    ap.add_argument("--event-ids", default=None,
+                    help="only these Sofascore event ids (comma-separated)")
+    ap.add_argument("--dossier-dir", default=None,
+                    help="write dossiers here, not runs/sofa/<d>/dossier")
     args = ap.parse_args(argv)
+    try:
+        events = ({int(x) for x in args.event_ids.split(",") if x.strip()}
+                  if args.event_ids else None)
+    except ValueError:
+        print(f"read_set: --event-ids {args.event_ids!r}: not ids", file=sys.stderr)
+        return 2
     frozen = timeutil.frozen_clock_refusal(args.runs_dir)
     if frozen:
         print(frozen, file=sys.stderr)
@@ -250,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     late: list[dict[str, Any]] = []
     try:
         sets = read_set(run, args.buffer, args.unread,
-                        timeutil.now() if args.unread else None, late)
+                        timeutil.now() if args.unread else None, late, events)
     except (OSError, ValueError, KeyError) as exc:
         print(f"read_set: {run}: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
@@ -271,7 +299,9 @@ def main(argv: list[str] | None = None) -> int:
             print(h2h.fetch_for_legs(run, every))
         if not args.no_lineups:
             print(prematch_lineups.fetch_for_legs(run, every))
-        print(dossier.attach(run, every, args.db_path))
+        print(dossier.attach(
+            run, every, args.db_path,
+            out_dir=Path(args.dossier_dir) if args.dossier_dir else None))
     for sport, all_legs in sorted(sets.items()):
         chunks = parts(all_legs, args.split)
         for i, legs in enumerate(chunks, 1):
@@ -283,6 +313,14 @@ def main(argv: list[str] | None = None) -> int:
             matches = len({x["group_key"] for x in legs})
             print(f"{sport}: {len(legs)} legs, {matches} matches "
                   f"({why['required']} required, {why['buffer']} buffer) -> {path}")
+    if events is not None:
+        found = {int(x["sofascore_event_id"]) for legs in sets.values() for x in legs}
+        found |= {int(x["sofascore_event_id"]) for x in late}
+        missing = sorted(events - found)
+        if missing:
+            print("--event-ids: no unlocked printed leg for "
+                  + ", ".join(str(e) for e in missing), file=sys.stderr)
+            return 1
     return 0
 
 

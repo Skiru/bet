@@ -210,8 +210,13 @@ back). A WATCH / NO_BET reason names one of:
   `RYNEK: <driver>: <numbers with k/n from the dossier>`, read `context: "MARKET"`.
 
 `merge_reads.py` refuses a whole report (exit 2, nothing merged) on any of
-USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU: the
-caller relaunches the analyst with the findings and the next `_r<n>`.
+USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU, and on
+a `RYNEK:` WATCH its leg's dossier row does not carry (RYNEK ZAKAZANY - h2h /
+form / rating after the mark; RYNEK BEZ LINII; RYNEK BEZ DOSSIER - no schema
+>= 3 dossier; RYNEK BEZ WIERSZA; RYNEK PONIŻEJ PROGU - threshold (a) / (b)
+recomputed from the row; RYNEK INNE LICZBY - the reason does not quote the
+row's k/n; `report_check.market_findings`): the caller relaunches the analyst
+with the findings and the next `_r<n>`.
 
 Never a removal on its own: h2h, form / a streak, the table, a model-vs-sample
 gap (football `MODEL_ABOVE_OWN_SAMPLE` already removes automatically),
