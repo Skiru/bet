@@ -3428,8 +3428,19 @@ def awarded_excluded(date: str, build_at: datetime | None = None) -> bool:
 # Liga from 2026-07-24) still read Ekstraklasa twelve games in, Deportivo
 # (LaLiga from 2026-08-17) LaLiga 2, and Arka - Stal (both 229) was priced
 # as a cross-league pair. Football only (score_model's books never set it).
-# SHEET passes the day being built and the build clock; no sheet marker (a
-# day built before the switch keeps the modal rule, as P1 / P3).
+# Measured 2026-10-29 and NOT switched on (scripts/sofa/measure_rating_domain
+# .py on a DB copy, walk-forward, one step ahead, match bootstrap; select
+# 2025-07-01..2026-06-30, test 2026-07-01..10-28, awarded results out):
+# goals_for Poisson log-loss candidate minus modal, test - all +0.0063
+# [+0.0056, +0.0072] (86,063 matches), a side's first 20 matches after its
+# domain moved +0.0177 [+0.0156, +0.0199] (30,681), 1X2 +0.0172; corners
+# moved20 +0.011; cards -0.0017 [-0.0030, -0.0005] alone better. The grid of
+# the modal rule (LINK_WINDOW_S x TEAM_COMP_MEMORY) is no better either:
+# 180 d / 20-40 matches +0.0065..+0.0071, 365 d x 20 +0.0035, 730 d x 40
+# +0.0022 (moved20), 365 d x 80 -0.0001 [-0.0004, +0.0002]. The lag protects:
+# a promoted side's ratios were earned in its old league and are priced
+# through the league strength until they adapt. Would SHEET pass it: the day
+# and the build clock, no sheet marker.
 RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC: datetime | None = None
 
 

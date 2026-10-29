@@ -204,8 +204,13 @@ TEAM_COMP_MEMORY = 40
 # that is LINK_MIN_MATCHES; otherwise the modal rule above. The modal rule
 # kept a promoted / relegated side in its old league for ~18-20 matches
 # (2026-10-29: Arka in Ekstraklasa twelve games into the Betclic 1. Liga,
-# Deportivo in LaLiga 2 ten games into LaLiga). Chosen on the walk-forward
-# grid of scripts/sofa/measure_rating_domain.py.
+# Deportivo in LaLiga 2 ten games into LaLiga). Measured WORSE and off
+# (scripts/sofa/measure_rating_domain.py, 2026-10-29, test 2026-07-01..10-28):
+# goals_for Poisson log-loss on a side's first 20 matches after its domain
+# moved +0.018 [+0.016, +0.020] (D 30 / 60 / 90 alike) - the side's ratios
+# were earned in the old league, and the modal rule's lag prices it through
+# the league strength until they adapt. Kept for the record; not a constant
+# SHEET reads while the switch is None.
 DOMAIN_ACTIVE_S = 60 * 86400
 ALPHA_STRENGTH = 0.02
 MIN_STRENGTH_LINKS = 10
