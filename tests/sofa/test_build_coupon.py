@@ -249,3 +249,35 @@ def test_c3_reads_a_line_less_sport_leg_by_its_period(tmp_path):
     found = audit_reads(tmp_path, doc, "official")
     # the period-1 WATCH neither refuses nor reads the period-2 leg
     assert found == ["C3 official A - B winner None: printed without an analyst's read"]
+
+
+def test_the_pdf_header_counts_locked_singles_only(tmp_path, monkeypatch, capsys):
+    """'N pojedynczych (w tym M w grze)' - M counted singles and builders
+    together (10-28: 3954 = 3947 singles + 7 builders)."""
+    from scripts.sofa import build_coupon_pdf
+
+    runs = _three_matches(tmp_path)
+    assert _run(runs, monkeypatch) == 0
+    assert _build_coupon(runs, monkeypatch) == 1
+    path = runs / DAY / "11_coupon.json"
+    doc = _coupon(runs)
+    doc["singles"][0]["locked"] = True
+    s1 = doc["singles"][1]
+    leg = {"market": s1["market"], "subject": s1.get("subject") or "",
+           "line": s1["line"], "direction": s1["direction"],
+           "odds": s1["offered_odds"], "confidence": s1["confidence"]}
+    doc["builders"] = [{
+        "sofascore_event_id": s1["sofascore_event_id"], "match": s1.get("match"),
+        "kickoff_utc": s1["kickoff_utc"], "legs": [leg, leg],
+        "n_legs": 2, "combined_probability": 0.75, "product_probability": 0.83,
+        "fair_odds": 1.33, "odds_if_product": 1.49, "ev_if_product_priced": 0.23,
+        "haircut": 0.12, "odds_after_haircut": 1.309, "ev_after_haircut": -0.018,
+        "stakeable_rule": "x>=0.90", "best_for_fixture": True, "builder_no": "B1",
+        "locked": True}]
+    path.write_text(json.dumps(doc))
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "argv", [
+        "build_coupon_pdf.py", "--date", DAY, "--runs-dir", str(runs)])
+    assert build_coupon_pdf.main() in (0, 1)
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["metrics"]["locked"] == 1

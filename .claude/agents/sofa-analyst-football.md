@@ -35,35 +35,50 @@ return that in one line.
    for k,v in m.items(): print(k,v[0]['match'],v[0]['kickoff_utc'],'legs=%d'%len(v),','.join(sorted({x['in_set'] for x in v})),'locked=%d'%sum(bool(x.get('locked')) for x in v))" <read-set file>
    ```
    (keeps the read-set order - never re-sort with `group_by` / `unique_by`).
-   If the report path exists, take the next free `_r<n>` suffix.
+   If the report path exists, take the next free `_r<n>` suffix. Then,
+   **before the first match**, read
+   `.claude/skills/football-analysis/references/event-protocol.md` (the
+   section template and the leg table),
+   `.claude/skills/sofa-analysis-core/references/veto-contract.md` and of
+   `market-drivers.md` only the intro and §1 Football:
+   `sed -n '1,274p' .claude/skills/sofa-analysis-core/references/market-drivers.md`.
 2. **Decision point, before any web tool.** Per match: both clocks
-   (`02_fixtures.json`), `fixture_status.json`, `now` (`date -u`), the delta.
+   (`02_fixtures.json`), `fixture_status.json` (absent before the first
+   rebuild - then the two clocks only), `now` (`date -u`), the delta.
    A started match is dropped and listed.
 3. **Per match, in the read-set order** - the protocol of `football-analysis`:
    - a leg with `prior_analysis`: the match's earlier section first
      (`analyses.json`, core "Artifacts"), then only what changed - the delta
      pass;
-   - the match's **dossier** (the leg's `dossier` file: form, rest, table,
-     head-to-head, venue / city / local hour, referee, lineups, every
-     metric's values per side, the ladder, the web checklist);
+   - the match's **dossier** through the fixed `jq` set of
+     `.claude/skills/sofa-analysis-core/references/dossier.md` (header,
+     `sides.*.summary`, `table.positions`, `lineups`, `samples.gaps`,
+     `style`) - never `cat`;
    - the match's legs from `11_coupon.json` (the lookup in
      `sofa-analysis-core`), the sheet rows behind them (`05_sheet.json`
      filtered with `jq` to the event id and market), the observations
      (`03_samples.json`, the `jq` in `.claude/skills/sofa-analysis-core/references/evidence-rules.md`);
-   - the **kill facts** in one line, then the **context pass on the web,
+   - **market drivers, every leg**: per family the drivers of
+     `market-drivers.md` with their dossier values; the **Styl gry i
+     zestawienie** paragraph and leg table (event-protocol, "The leg table";
+     a `RYNEK:` WATCH only at core's threshold);
+   - the **kill facts** in one line, printed before the match's first
+     WebSearch, then the **context pass on the web,
      every match**: the mandatory checks of
      `.claude/skills/sofa-analysis-core/references/sources-football.md`
      (is it on, who plays - every prop's player -, second leg / dead rubber
      through the lineup, a referee change for card / foul legs, extreme
      conditions), local press in the clubs' language; up to ~6 searches;
      tagged, weighted as `context-pass.md` says ("Kontekst (web)");
-   - a verdict per leg; a veto where the sample itself is broken.
+   - a verdict per leg; a veto where the sample itself is broken (a leg
+     under your veto takes no read).
 4. **If the file is larger than you can read well**, keep its order but put
    first: matches behind a printed builder, then legs on `*_1h_*` / `*_2h_*`
    markets, then the rest. A leg you did not reach gets no read and is named
    in the summary - never a KEEP you did not earn.
 5. **Write and validate** per the core's output contract (one heredoc,
-   `merge_reads.py --dry-run`), then return.
+   `merge_reads.py --read-set <your read-set file> --dry-run`, then
+   `check_analyst_report.py --report <path>`), then return.
 
 ## Output contract
 
@@ -83,15 +98,16 @@ do zrobienia: <a match moved / an artifact defect / none>
   compare the names, never call it confirmed, never veto on the word.
 - History is deep (730 days backfilled): "the sample is short" is a claim to
   check, not an assumption.
-- `CROSS_LEAGUE_UNLINKED` never prints - no veto needed. A
-  `LINKED_BY_STRENGTH` pair (the row's `link_rule`) still reads ratios earned
-  in another league: when the rating makes the side from the weaker league
-  the stronger one, say so and veto on CONTEXT.
+- `CROSS_LEAGUE_UNLINKED` never prints - no veto needed. A pair linked by
+  strength shows it in the `FOOTBALL_RATING` note text ("cross-league:
+  domains A vs B, log strength gap g"; `link_rule` is `shared_league` on
+  every row): a rating you disagree with is a note and a "do zrobienia"
+  line, never a `DEFEKT:` (core, "What a removal's reason must name").
 - `MODEL_ABOVE_OWN_SAMPLE` is applied in code (automatic WATCH): read the
   flag, do not re-veto it; a smaller model-minus-sample gap is still yours
   to weigh.
 - A player leg's read keys `subject` to the player exactly as the leg writes
-  him, never null (null would also remove the team legs of the match).
+  him, never null (null would cover every player of that market).
 - A goal sample of a LEAGUE fixture holding a cup or friendly observation is
   a defect to report; a knockout fixture's newest-ten sample is the rule.
 - The market knows lineups and absences we do not - our centre is evidence,

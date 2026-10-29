@@ -531,6 +531,25 @@ def test_day_status_reads_every_source(
     )
 
 
+def test_clv_leaves_out_one_sided_legs_priced_without_a_partner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A one-sided rung (OVER-only score market, player prop) is closed with
+    no partner price - nothing to devig - so it is counted apart, not as a
+    capture hole (10-27: 854 of 886 legs 'without a close')."""
+    monkeypatch.setenv("SOFA_CONFIG_DIR", str(tmp_path / "noconfig"))
+    runs = _runs(tmp_path)
+    closing = runs / D / "closing.jsonl"
+    rec = {"variant": "official", "leg_key": "2|goals_total||2.5|OVER",
+           "sofascore_event_id": 2, "odds_taken": 1.8, "odds_close": 1.7,
+           "partner_close": None, "fetched_at_utc": "2026-10-06T10:50:00+00:00",
+           "minutes_before": 10.0}
+    closing.write_text(closing.read_text() + json.dumps(rec) + "\n")
+    got = _by_name(runs)["clv"]
+    assert got.status == day_status.OK
+    assert got.detail.startswith("1/1 ") and "1 one-sided, no devig" in got.detail
+
+
 def test_day_status_breaks_on_a_mismatch_and_a_stale_coupon(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

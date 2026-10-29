@@ -9,10 +9,14 @@ market is priced by a negative binomial with a fitted dispersion
 
 ## Corners - `corners_total`, `corners_for`, `corners_1h_*`, `corners_2h_*`
 
-- **Drivers:** attacking volume and width (crosses, full-backs); the
-  opponent's block depth (blocked shots become corners); game state (a
-  trailing side wins corners without winning); wind down. Goals and corners
-  are ~uncorrelated.
+- **Drivers** (the full list per family: core
+  `references/market-drivers.md`; values in the dossier's `style`):
+  possession / territory, crosses attempted and wide vs central play (box
+  touches), blocked shots (they become corners), the opponent's concession
+  (`style.matchup`), game state (a trailing side wins corners without
+  winning), the league rate (`style.league`). Realised goals and corners
+  barely co-move, but the price's implied goal total predicts corners -
+  read the goals ladder.
 - **Base:** ~9.5 per match, ~4.8 per team. `corners_total` and the half
   totals are unrated (sample centre only); the side markets are rated.
 - **Kill cases:** a team-corner OVER with a total-corner UNDER without a tail
@@ -25,20 +29,22 @@ market is priced by a negative binomial with a fitted dispersion
 - **Measures:** booking points (yellow 1, red 2, second yellow 3), not cards.
 - **Drivers, in order:** the referee (a third of a line between officials of
   one league; apparent home bias in cards is referee behaviour), fouls
-  volume, stakes (derby, knockout, relegation), game state (0-0 late in a
+  volume, stakes (knockout, relegation), game state (0-0 late in a
   knockout), each side's discipline, red-card propensity (+2 / +3 at once).
+  Derby: fouls up in one EPL sample (W), cards mixed - a note, never a
+  reason.
 - **Base:** ~4.5 points per match, ~2.25 per team. K = 25 for
   `cards_points_for` (the sample owns little of a thin row).
-- The referee is not in the centre and is usually absent: it is entirely
-  your contribution, and its absence is normal, not a defect.
-- **Kill cases:** no referee in a high-spread league on a tight line; a line
+- The named referee's shrunk rate is in the cards / fouls centre since
+  2026-10-21 (`referee_rule` on the row); only a referee change is new.
+- **Kill cases:** a referee changed since the price on a tight line; a line
   on the mode; a red in a derby second leg; an official with 3-4 matches
   behind his rate; an UNDER in a tie that can go to extra time.
 
 ## Fouls - `fouls_total`, `fouls_for`, `fouls_1h_*`
 
 - **Drivers:** the referee's tolerance, the league (league means differ more
-  than teams), pressing and duel intensity, derby or knockout, game state (a
+  than teams), pressing and duel intensity, a knockout, game state (a
   side protecting a lead fouls to stop transitions). Fouls run mildly against
   goals.
 - **Base:** ~24.7 per match, ~12.4 per team. K = 2 for `fouls_total` (almost
@@ -79,8 +85,8 @@ variance - a note in the section; a removal needs what any removal needs
 
 Unrated, zeros often untracked (data inventory): check the sample for gaps
 before trusting a low mean. Saves follow the opponent's shots on target and
-the keeper in goal tonight, which nothing on disk names (a changed keeper is
-a CONTEXT veto).
+the keeper in goal tonight (dossier `lineups` when published; a changed
+keeper newer than the price is a dated-source WATCH).
 
 ## xG
 
@@ -160,21 +166,24 @@ him; the sample sits in `03_samples.json` `players["<market>|<subject>"]`.
 
 ## Derived joints - `both_over_*`, `most_*`, `handicap_*`
 
-Functions of two sides' marginals and a measured side correlation
+Priced from the two sides' marginals and a measured side correlation
 (`config/sofa_side_correlations.json`; corners residual r = -0.145, goals
-~0), not sampled; no history curve (derived curves are off), so confidence
-is the Wilson bound of the key's own settled Superbet lines, else
-`NO_LINE_EVIDENCE`. The sheet notes say how far the market checked the row
-(`NO_MARKET_MARGINAL`, `ONE_SIDED_LADDER`, `MARGINAL_DISAGREEMENT`). If one
-is in your file, report the two `*_for` rows and refuse the multiplication.
+~0) and read through their own per-line curves (live since 2026-10-21; a
+side with no quoted ladder gets its marginal row's centre chain from
+2026-10-28, note `JOINT_SIDE_CHAIN`). The sheet notes say how far the market
+checked the row (`NO_MARKET_MARGINAL`, `ONE_SIDED_LADDER`,
+`MARGINAL_DISAGREEMENT`). Never multiply; a `both_over_*` leg: one
+`style.matchup` row per team; `most_*` / `handicap_*`: no matchup row -
+both sides' style means, "bez zestawienia".
 
 ## Per-team markets in general - `*_for`
 
 - Tonight's venue vs the sample's mix: eight away matches ahead of a home
   fixture is a thinner sample than n=8 looks.
-- `h2h` never reaches a `*_for` row. What the opponent concedes is its own
-  observations' `against`; the rating's defence ratio and the opponent
-  correction (`opponent_rule`) are the built-in adjustments.
+- h2h is not pooled into a `*_for` sample or centre; read it as a note. What
+  the opponent concedes is its own observations' `against` and the dossier's
+  `style.matchup` `opponent_conceded`; the rating's defence ratio and the
+  opponent correction (`opponent_rule`) are the built-in adjustments.
 
 ## Bet Builders
 

@@ -33,7 +33,8 @@ by a named mechanism.
    view, and the expectation in the market's units (dossier / samples).
 2. **Kill facts before the search** (premortem). Per match, write in one line
    which facts would break its legs ("Union bez Biondica -> gole Union 2.5
-   OVER; deszcz nie zmienia nic"). Search for those. More information raises
+   OVER; deszcz nie zmienia nic") and **print that line in your output before
+   the match's first WebSearch**. Search for those. More information raises
    confidence faster than accuracy - a list fixed before the search is what
    keeps the pass honest.
 3. **Search** (budget below), starting from the dossier's `web_checklist` and
@@ -50,7 +51,9 @@ by a named mechanism.
 | a fact on one domain (named reporter / official channel), or a reasoned opinion, acting through **this leg's variable** by a named mechanism | at most `WATCH` |
 | a mood report, a narrative, a derby, "they need the points" (`MORALE` / `MOTIVATION` / `DERBY`) | at most `WATCH`, only through the leg's variable by a named mechanism (operator 2026-10-20); the literature measures ~0 here - name it, KEEP by default |
 | a tipster's pick, a preview's prediction | nothing - a lead to verify |
-| what the model already carries (home advantage, the referee's rate, form, table, rest days in `schedule`, closeness) | nothing, unless the **input changed** (a new referee, a neutral venue, closed doors) |
+| what the price / model already carries (home advantage, the named referee's rate - football cards / fouls since 2026-10-21, form, table, closeness) | nothing, unless the **input changed** (a new referee, a neutral venue, closed doors) |
+| rest, back-to-back | a note: rest is in no model (football / tennis show it in `schedule` / `context_flags`), the price probably holds it; a WATCH only through who rests, announced since the price |
+| market-driver evidence from the dossier (`style.matchup`) | football only: at most `WATCH` as `RYNEK:` (core, "What a removal's reason must name") - not a web finding, written in **Styl gry i zestawienie** |
 | nothing relevant | KEEP, with "nic istotnego dla tych nóg" in the section |
 
 Source rank: the league / club / federation's own channel > a named beat
@@ -85,7 +88,8 @@ shots"), never the mood alone.
   are inherited (restate them only when one changed). A full pass under
   1 h old with no lineup / goalie / five due since: no search at all - the
   delta reads only the dossier's fresh fields (`lineups` asked_at, line
-  moves) and says so ("delta: pełny przegląd <czas>, nic nowego do sprawdzenia"). The new legs still each get their own verdict.
+  moves) and says so in its **Kontekst (web).** line ("delta: pełny przegląd
+  <czas>, nic nowego"). The new legs still each get their own verdict.
 - Queries that cannot return a scoreline (the fact and its period, never the
   two names alone). Pages published before the start only; a leaked result
   is named and the claim marked `CANNOT VERIFY`.
@@ -129,10 +133,27 @@ tabela 2. vs 18.; skład bez zmian, pogoda bez opadów [WEB: bmkg.go.id, publ.
 
 ## The check
 
-`scripts/sofa/check_analyst_report.py --report <path>` (`bet.sofa.report_check`)
-lists what is missing: a KEEP match without "Kontekst (web)", a report that
-never mentions the dossier, a KEEP reason that is a bare count or under 40
-characters, a context removal without a source, a read match whose section
-heading lacks its `sofa:<id>` token. The project's PostToolUse hook runs the
-same check on every report written and sends the findings back - rewrite
-the report until it is clean, then validate with `merge_reads.py --dry-run`.
+`scripts/sofa/check_analyst_report.py --report <path>` (`bet.sofa.report_check`;
+analysts' and verifier's `_weryfikacja` reports) lists, by the label it
+prints:
+
+| finding | what is wrong |
+|---|---|
+| `KONTEKST` | a match with a KEEP has no "Kontekst (web)" |
+| `DOSSIER` | the report never mentions the dossier |
+| `SEKCJA BEZ TOKENU` | a read match's heading lacks its `sofa:<id>` |
+| `TAG WEB BEZ DATY` | a `[WEB: …]` tag without `publ. <data>` |
+| `FAKTY ZABÓJCZE` | a full section without its kill facts (a delta inherits them) |
+| `W SKRÓCIE` | a read section, a delta included, without `**W skrócie:**` |
+| `ZESTAWIENIE` | a full football section with a count-market read lacks the **Styl gry i zestawienie** paragraph and its table |
+| `PRZECIW BEZ ODCZYTU` | a table row `ZESTAWIENIE PRZECIW` with no read of that match carrying a `line` |
+| `KEEP ZBIORCZY` | a KEEP with `market: null` - one read per family |
+| `KEEP BEZ UZASADNIENIA` | a KEEP reason that is a bare count or under 40 characters |
+| `USUNIĘCIE BEZ FAKTU` | a WATCH / NO_BET without a dated WEB tag, a real `DEFEKT:` or (football WATCH) `RYNEK:` with a k/n - outside football `RYNEK:` counts as none, so does a `DEFEKT:` citing rest_days / games_7d / back-to-back / 2. noc / form / seria / h2h / tabela / a rating counts as none |
+| `RYNEK TYLKO WATCH` | a NO_BET resting on `RYNEK:` |
+| `RYNEK BEZ TAGU` | a `RYNEK:` WATCH without `context: "MARKET"` |
+| `ŹRÓDŁO` | a context removal without a source |
+| `WETO BEZ FAKTU` | a veto without a dated WEB tag or a real `DEFEKT:` (`RYNEK:` never) |
+
+Order: write the report -> `check_analyst_report.py` until clean ->
+`merge_reads.py --dry-run --read-set <file>` (core, "Output contract").

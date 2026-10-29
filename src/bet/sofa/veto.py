@@ -14,6 +14,7 @@ singles, which the runbook says are not the coupon — and never reached
 The only structured output an analyst had could not touch the product.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -160,6 +161,16 @@ def read_note(read: LegRead) -> dict[str, Any]:
     if read.context:
         note["context"] = read.context
     return note
+
+
+def removal_context(leg: Mapping[str, Any]) -> str:
+    """The context tags of the WATCH / NO_BET reads riding on a removed leg
+    ("MARKET", "ABSENCES+MORALE"); "-" when none carries one (a defect, the
+    automatic MODEL_ABOVE_OWN_SAMPLE)."""
+    tags = sorted({str(r.get("context")) for r in leg.get("reads") or []
+                   if isinstance(r, Mapping) and r.get("context")
+                   and r.get("verdict") in ("WATCH", "NO_BET")})
+    return "+".join(tags) or "-"
 
 
 def read_refusal(reads: list[LegRead]) -> str | None:

@@ -823,7 +823,11 @@ def leg_dict(sport: str, ev: Any, fixture: Mapping[str, Any], ln: Any,
         "sample_k": k,
         "sample_n": n,
         "forecast_p": round(p, 4),
-        "forecast_source": "cs2_engine" if sport == "cs2" else "score_model",
+        # a hockey / basketball player line's p is player_model's (SHADOW's
+        # player_model.jsonl), never the score model's - a label only
+        "forecast_source": "cs2_engine" if sport == "cs2" else (
+            "player_model" if shadow.is_player_line(sport, int(ln.market_id))  # type: ignore[arg-type]
+            else "score_model"),
         "odds": ln.odds,
         "x": round(conf.value * ln.odds, 4),
         "overround": round(margin, 4),

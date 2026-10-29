@@ -2417,6 +2417,19 @@ niego 08).
   WATCH / NO_BET albo automatyczny `MODEL_ABOVE_OWN_SAMPLE`, z `reason`
   (`analyst` / `verifier` / `auto`). Dla nóg sportów weta i odczyty stosuje tu
   `coupon_sports.apply_reads` (z `period`).
+  Podstawa zdjęcia (`report_check`, hook odsyła raport): od raportów z
+  2026-10-27 fakt nowszy niż cena (`[WEB: domena, publ. <data>, fetched]`)
+  albo defekt artefaktu (`DEFEKT: …`); od raportów z 2026-10-30 (operator
+  2026-10-29: czynników rynku nie wolno pomijać) także - tylko dla WATCH -
+  czynnik rynku z liczbami z dossier (`RYNEK: <czynnik>: <k/n>`,
+  `context: "MARKET"`, rozliczany w księdze osobno): udział meczów, w których
+  rywal pozwolił na linię (dla sumy: mecze obu stron), co najmniej 0,25 poniżej
+  pewności nogi, albo dla OVER drużyny bez piłki jej rożne przy posiadaniu
+  < 50% poniżej linii na >= 4 meczach. Każdy analityk sprawdza czynniki rynku
+  każdej rodziny (`.claude/skills/sofa-analysis-core/references/market-drivers.md`,
+  z literatury); h2h, forma, tabela, luka model-próbka i `price_gap` nadal
+  nie zdejmują nogi. Weto - te same źródła (`WETO BEZ FAKTU`); raport
+  weryfikatora (`_weryfikacja`) sprawdzany tymi samymi regułami zdjęcia.
 - Kopia `read_requests` i zbiór do przeczytania
   (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie; od 2026-10-14 00:00Z, `READ_BY_VALUE_FROM_UTC`, 30 meczów o najwyższej wartości: pewność x kurs najlepszej niezablokowanej nogi meczu, pewność nogi piłkarskiej / tenisowej liczona najwyżej 1/kurs + 0,03, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13)
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z
@@ -2527,10 +2540,13 @@ niego 08).
 
 `scripts/sofa/run_fixture_check.py --date <d>` (albo `run_pipeline.py --only
 FIXTURE_CHECK`), **most**, w przebudowie po OFFER, przed CONFIDENCE.
-`/event/{id}` dla meczów drukowanych i przesuniętych zegarów →
-**`runs/sofa/<d>/fixture_status.json`**. postponed / canceled / abandoned →
-`FIXTURE_NOT_AS_SCHEDULED` (odmowa w CONFIDENCE). Świeży start zastępuje
-zamrożony zegar RESOLVE dla bramki, blokady i `capture_closing` (K12). Bez
+`/event/{id}` dla meczów drukowanych, kandydatów najbliższej budowy (F0.4) i
+przesuniętych zegarów → **`runs/sofa/<d>/fixture_status.json`**. postponed /
+canceled / abandoned → `FIXTURE_NOT_AS_SCHEDULED` (odmowa w CONFIDENCE). Świeży
+start zastępuje zamrożone zegary RESOLVE dla bramki, blokady i
+`capture_closing` (K12); bramka bierze wcześniejszy z niego i najnowszego
+zegara Superbetu (`locked_print.kickoff_clocks`), więc mecz przesunięty na
+później nie jest blokowany porannym startem. Bez
 mostu: `UNVERIFIED` (pokazane, bez odmowy), kod 1. Odmowa (403 / 429, HTML
 zamiast JSON, bezpiecznik otwarty albo wyzwolony) przerywa od razu, reszta
 `NOT_ASKED`. Błąd przejściowy na jednym meczu (timeout mostu / 504, 5xx) —
@@ -2777,6 +2793,14 @@ runs/sofa/<data>/
   reads.json           LegRead[]          werdykty o nogach (KEEP / WATCH / NO_BET)
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
   dossier/<sport>_<id>.json               teczka meczu dla analityków (bet.sofa.dossier, read_set.py / build_slip.py) - tylko podgląd, nigdy bramka
+                                          piłka: blok `style` - ostatnie 10 meczów o stawkę ze statystykami każdej strony (rożne / strzały
+                                          za i przeciw, dośrodkowania, kontakty w polu karnym, strzały zablokowane, xG, wielkie szanse,
+                                          wejścia w tercję, długie piłki, wrzuty z autu, wybicia od bramki, posiadanie, rożne przy
+                                          posiadaniu < 50% / 50%+ - koszyk < 4 meczów to notatka), `league` (stopa ligi) i `matchup`:
+                                          każda noga rynku liczbowego - własne k/n obok tego, na ile pozwala rywal, dla sumy mecze obu
+                                          stron, udział ligi; ten sam tekst to znacznik „zestawienie” przy nodze w KUPON html (pomiar
+                                          10-29: podejrzenie; od raportów 10-30 podstawa WATCH „RYNEK:”, nigdy NO_BET);
+                                          `build_slip.py --check` - własny builder operatora noga po nodze + łączne k/n nóg w meczach stron
   h2h.json                                h2h Sofascore każdego czytanego meczu (bet.sofa.h2h; --no-h2h pomija) - tylko dla dossier
   lineups_prematch.json                   skład Sofascore przed meczem (przewidywany / potwierdzony) i absencje (missingPlayers: missing / doubtful)
                                           każdego czytanego, nierozpoczętego meczu piłki / hokeja / koszykówki (bet.sofa.prematch_lineups,

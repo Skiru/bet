@@ -49,25 +49,31 @@ concedes; compare them with this side's `value`s, raw (not opponent-adjusted).
 | `round_number`, `round_name`, `cup_round_type` | good | league round vs knockout |
 | `previous_leg_event_id` | when Sofascore linked it | it *is* a second leg - not the aggregate |
 | `venue_name` | few | |
-| `referee` (`RefereeRecord`: `name`, `games`, `yellow_cards`, `red_cards`, `yellow_red_cards`) | small minority, announced late | a rate, not in the centre |
+| `referee` (`RefereeRecord`: `name`, `games`, `yellow_cards`, `red_cards`, `yellow_red_cards`) | from the cached `/event`, named ~48 h before kick-off | its shrunk rate is in the cards / fouls centre since 2026-10-21 (`referee_rule`); only a change is new |
 | `default_period_count` | full | the number of halves - says nothing |
 | `identity` | full | `CONFIRMED` or `FUZZY` - never call `FUZZY` confirmed |
 | `national_teams`, `sofascore_status`, `kickoff_disagreement_h`, `superbet_kickoff_utc` | full | two national sides are judged on count, not age; the clocks |
 
-## Not in the artifacts at all
+## In the dossier, and what only the web has
 
-Each is a CONTEXT opening - source it and tag it:
+The dossier (core `references/dossier.md`) holds the rebuilt table
+(`table`, not official), the first leg's score (`header.first_leg`),
+Sofascore's pre-match lineup (`lineups`, predicted or confirmed, missing /
+doubtful), the referee (`header`), the `style` block (possession, crosses,
+box touches, blocked shots, the match-up) and the league rate
+(`style.league`; a second source, read-only:
+`jq '.<market>["<competition_id>"]' config/sofa_league_baselines.json`).
+The web holds what changed since - each a CONTEXT opening, sourced and
+tagged:
 
-- league table, points, dead rubber, relegation or promotion stakes (beyond
-  the `stakes` flag);
-- the first leg's score;
-- availability, suspensions, injuries, a rested XI;
-- *why* a make-up fixture was postponed (that it is one, and each side's rest
-  and load, **are** on disk: `schedule`, `context_flags`);
+- a late absence, a suspension, a confirmed or rested XI newer than the
+  dossier's lineup;
+- *why* a make-up fixture was postponed (that it is one, and each side's
+  rest and load, are on disk: `schedule`, `context_flags`);
 - the manager, or a change inside the sample window;
+- a referee change against the dossier;
 - weather, pitch;
-- whether a match is a derby;
-- whether a player starts tonight (his row carries only past minutes).
+- whether a match is a derby.
 
 ## Sample construction
 
@@ -83,8 +89,8 @@ Three buckets per metric: `side_a`, `side_b`, `h2h`; each observation carries
 - A LEAGUE fixture's goal markets read the side's newest REGULAR matches of
   the same competition when there are five or more; a knockout fixture keeps
   the newest ten.
-- **`h2h` never reaches a `*_for` row** - a pairing fact is not a claim about
-  one side. A `*_total` pools `side_a + side_b + h2h`, deduplicated, with no
+- **h2h is not pooled into a `*_for` sample or centre** - a pairing fact is
+  not a claim about one side; read it as a note. A `*_total` pools `side_a + side_b + h2h`, deduplicated, with no
   age rule of its own.
 - A sheet row carrying `opponent_rule` was centred on the side's sample
   rescaled to a neutral opponent and today's league (`corrected_sample` on

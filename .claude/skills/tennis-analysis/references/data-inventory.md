@@ -22,13 +22,14 @@ sampled, `src/bet/sofa/derived.py`): `most_games`, `most_aces`,
 |---|---|---|
 | `games_won_for`; `games_set1/2_total`, `games_won_set1/2/3_for`, `sets_total` (`tennis_rating.SET_RATING_PRICED_MARKETS`, row marker `tennis_set_rule`); `match_won_for`, `set1/2_won_for`, `set_score`, `set_score_not` | the rating's neighbours alone | equal to `p_central` |
 | `handicap_games`, `most_games` (not the draw) | the neighbours, through `derived.py` | none |
+| `handicap_games_won_set1/2` | from 2026-10-28 the neighbours' own set-N margin (`tennis_rating.SET_HANDICAP_MARKETS`, note `SET_HANDICAP_NEIGHBOURS`); earlier the rho-0 joint of the two players' set games | none |
 | `games_total` | `W_GAMES_TOTAL_RATING` 0.5 x neighbours + 0.5 x the NB count model | the rating alone |
 | aces, double faults, serve points, `most_aces`, `most_serve_points`, `handicap_aces` | count model on the sample (derived: joint of the two samples) | none |
 | `tiebreaks_total` | normal CDF without a Poisson floor (`NORMAL_NON_COUNT_METRICS`) | none |
 
 "The rating reads the match" = best of three (`default_period_count` 3 or
 null), both players with >= `MIN_RATED` (10) rated matches, a fitted tier
-(`run_sheet.tennis_forecast`). The neighbours come from the tier x gender
+(`tennis_forecast` in `scripts/sofa/run_sheet.py`). The neighbours come from the tier x gender
 cell (tier, then the pooled table, when a cell holds < 1200 outcomes; row
 marker `tennis_table_rule`). Where the rating does not read the match, a
 rating-priced family falls back to the sample's estimator and has no

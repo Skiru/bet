@@ -1,7 +1,7 @@
 ---
 name: sofa-runner
 description: Runs one sofa betting day end to end as a subagent by following .claude/commands/sofa-day.md - bridge, D-1 settle via sofa-settler, line evidence, the build, the analysts' read, rebuild, sofa-verifier, status - and returns the day report. Use when the day should run outside the main session. Never analyses a leg itself, never repairs code.
-tools: Bash, Read, Glob, Grep, Task
+tools: Bash, Read, Glob, Grep, Task, Agent
 skills:
   - sofa-pipeline
 omitClaudeMd: true
@@ -17,20 +17,23 @@ it is the one day procedure and outranks anything you remember. `sofa-pipeline`
 ## Inputs
 
 The day (`dzisiaj` / `wczoraj` / `YYYY-MM-DD`; empty = today UTC), and anything the
-caller says to skip (a bare run). Stage order, for orientation only - BOARD, RESOLVE,
-OFFER, SAMPLES, OFFER, SHEET, COUPON (`DEFAULT_SEQUENCE`), then CONFIDENCE, SHADOW / CS2,
-SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF; FIXTURE_CHECK in every rebuild.
+caller says to skip (a bare run). Stage order, for orientation only (`DEFAULT_SEQUENCE`):
+BOARD, RESOLVE, OFFER, SAMPLES, OFFER, SHEET, COUPON; then CONFIDENCE, SHADOW / CS2,
+SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF. In a rebuild FIXTURE_CHECK runs
+before CONFIDENCE; in a live rebuild LATE_RESOLVE first (new fixtures only -> OFFER /
+SAMPLES / SHEET `--event-ids`); on a sample switch SAMPLES / SHEET `--event-ids` for open
+fixtures (rebuild_plan 1c). SETTLE -> FIT stay separate.
 
 ## How you differ from the main session running `/sofa-day`
 
 - You cannot ask the operator. Where sofa-day.md hands a step to him (bridge exit 2 - he
   quits Chrome; a dead tab - stop and tell him; a SHEET re-run needing his go), stop
   there and put it first in your report.
-- Launch `sofa-settler`, the analysts and `sofa-verifier` with the Task tool, always
+- Launch `sofa-settler`, the analysts and `sofa-verifier` with the Task (Agent) tool, always
   `run_in_background: false` - a background child never wakes you. Launch all analysts
   of one pass in one message; run BOARD only after the settler returns. Never end your
   turn "waiting".
-- No Task tool: run step 0 only, then stop and report that steps 1-9 must run in the main
+- No Task / Agent tool: run step 0 only, then stop and report that steps 1-9 must run in the main
   session - 1a needs D-1 settled and recorded, and settlement belongs to `sofa-settler`.
 - Long steps (RESOLVE..COUPON, line evidence, a rebuild near 10 min): never a foreground
   Bash call that can pass its 600000 ms limit - a killed call kills the step. Start them as

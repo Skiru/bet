@@ -17,8 +17,9 @@ nothing new. Locked legs are never a defect.
 ## Inputs
 
 - `<d>` - the day (`runs/sofa/<d>/`); `<report>` - the path to write,
-  `runs/sofa/<d>/<d>_weryfikacja[_r<n>].md`. If it exists, never overwrite:
-  take the next free `_r<n>`.
+  `runs/sofa/<d>/<d>_weryfikacja[_r<n>].md`. A new round never overwrites an
+  earlier report: take the next free `_r<n>`. Rewriting your own report after
+  a hook finding overwrites the same path.
 - **The PDF is the coupon, `11_coupon.json` is what it prints**
   (`confidence.coupon_artifact()`). `06_coupon.json` (`p_bar`,
   `required_odds`, surplus) is the old priced selector: audit it, never call
@@ -67,8 +68,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <d> --ou
 ### 2. Per-leg checks on the read set
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> --out-dir "<S>/read_set"
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> --out-dir "<S>/read_set" --no-dossier --no-h2h --no-lineups
 ```
+
+(`--no-dossier --no-h2h --no-lineups`: no Sofascore request and nothing
+written under `runs/`; the analysts' dossiers are already in
+`runs/sofa/<d>/dossier/` - read them, never rewrite them.)
 
 One `read_set_<sport>.json` per sport (the 20 best-value matches' unlocked
 legs, printed builder legs, `read_requests.json`). Then the deterministic
@@ -120,9 +125,11 @@ values (`opponent_correction.gate_values`).
   hold no match-tiebreak decider (`tennis_rating.Outcome.match_tiebreak`).
 - Derived joints (`both_over_`, `most_`, `handicap_`): not reproducible;
   both sides' marginal rows must stand in the sheet.
-- SHEET markers: `verify_legs.py` runs `rebuild_plan.audit_sheet_stale`;
-  also any `cards_rule` while `epochs.CARDS_CORRELATION_FROM_UTC` is `None`
-  = defect. The SHEET re-run is the caller's.
+- SHEET markers: `verify_legs.py` runs `rebuild_plan.audit_sheet_stale`
+  (judged by the build clock: a sheet built under
+  `epochs.cards_correlation_enabled(date, at)` carries `cards_rule:
+  "cards_correlation"` on every row, `epochs.sheet_cards_correlation`). The
+  SHEET re-run is the caller's.
 - `calibrated_on` is a curve source - `market:`, `line:` (keys of
   `config/sofa_line_curves.json`, own line bucket), `pooled:`,
   `<sport>:<key>`, class prefixes `women:` / `season_early:` /
@@ -188,8 +195,12 @@ PY
   `runs/sofa/shadow/<sport>/<source_date>/snapshots.jsonl`, CS2
   `runs/sofa/cs2/<source_date>/snapshots.jsonl`).
 
-**2d. Start clocks** (`verify_legs.py` checks every clock; the gate takes the
-earliest). Judge its clock-gap NOTEs both ways: ITF clocks differ up to 11 h
+**2d. Start clocks** (`verify_legs.py` checks every clock). Start clock =
+earliest of RESOLVE's clocks and Superbet's (`superbet_kickoff_seen_utc`), or -
+once FIXTURE_CHECK read a fresh `/event` start - of that start and Superbet's
+newest clock (it replaces RESOLVE's frozen ones, `locked_print.kickoff_clocks`:
+a match moved later is not gated on its dawn start); Superbet's start signal
+(`superbet_started_utc`) counts as started. Judge its clock-gap NOTEs both ways: ITF clocks differ up to 11 h
 and Sofascore's can be the wrong *earlier* one - count legs refused on a
 wrong clock. `UNVERIFIED` = start not re-checked, say so. Name every PDF mark
 `start przed renderem PDF`.
@@ -229,8 +240,9 @@ distribution separately.
 
 ### 4. External confirmation
 
-Only for a leg whose model disagrees with its sample or whose sport identity /
-format is in doubt, after the decision point is fixed; a started fixture is
+Only for a leg whose sport identity / format is in doubt or where a dated
+fact newer than the price could make it wrong as printed (a model-vs-sample
+gap alone removes nothing), after the decision point is fixed; a started fixture is
 not a research subject. Queries must not be able to return a scoreline; a
 leak is named and the claim is CANNOT VERIFY. Tennis is largely unverifiable
 (ITF stats are not free) - say so. Sofascore and Superbet are the only data
@@ -252,7 +264,10 @@ Write the whole report in Polish to `<report>` with ONE Bash heredoc
    deliverable: one section per match, heading
    `### <Gospodarz> – <Gość> — <rozgrywki> · sofa:<sofascore_event_id>` (the
    token files it in `analyses.json`; the HTML / PDF show it at the legs),
-   each leg in Superbet's words with the evidence - a few lines, no tables.
+   opening with `**W skrócie:**` (2-3 plain sentences), then each leg in
+   Superbet's words with the evidence - a few lines, no tables (no style
+   table or kill facts needed). Every `[WEB:]` tag is dated. The hook
+   (`report_check`) checks this report like an analyst's and sends it back.
 6. Verdict, no stake recommendation.
 
 End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
@@ -261,10 +276,10 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 ```json reads
 [{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
   "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "verifier",
-  "reason": "model 0.786 vs own sample 14/20", "context": null, "period": null},
+  "reason": "[WEB: example.pl, publ. 2026-10-30 09:10, fetched 11:02] dwóch środkowych obrońców gospodarzy wykluczonych po rozgrzewce", "context": "ABSENCES", "period": null},
  {"sofascore_event_id": 16310568, "market": "total", "subject": "",
   "line": 3.5, "direction": "OVER", "verdict": "NO_BET", "author": "verifier",
-  "reason": "home_is_team1 false, Superbet T1 is home", "context": null, "period": 0}]
+  "reason": "DEFEKT: home_is_team1 false - Superbet T1 to gospodarz, noga po złej stronie", "context": null, "period": 0}]
 ```
 
 - `author` always `"verifier"`; key exactly (`subject` as the sheet wrote it,
@@ -272,13 +287,25 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 - Sport leg: `market` = `family`, `direction` = `side` (`OVER` `UNDER` `T1`
   `T2` `DRAW` `ODD` `EVEN` `YES` `NO` `1X` `X2` `12` or `"3:1"`), `period`
   its period / quarter / set / map (`0` whole match).
-- `NO_BET` = defect (wrong side / identity, stale / vanished / wrong price,
-  arithmetic not reproducing, fresh leg on a started match, a guard that
-  should have fired). `WATCH` = judgement (weak evidence, sample not
-  describing the fixture, model well above its sample). Both move the leg to
-  `removed_by_reads`, graded apart. Add no other removal reasons.
-- `context` only for a CONTEXT judgement (`MOTIVATION | ROTATION | ABSENCES |
-  DERBY | SCHEDULE | CONDITIONS`), else `null`. Never a read on a locked leg.
+- The removal rules are the analysts' (`sofa-pipeline` "What may remove a
+  leg"). `NO_BET` = a defect, reason `DEFEKT: ...`: an artifact value wrong
+  for tonight (identity, scope, surface, format, another squad / class, a
+  placeholder, a mis-sided subject; stale / vanished / wrong price,
+  arithmetic not reproducing, a fresh leg on a started match, a guard that
+  should have fired). A correct value the model does not use (rest,
+  back-to-back, form, h2h, table) or a rating you disagree with is a note,
+  never a `DEFEKT`. `WATCH` = a dated `[WEB: domena, publ. <data>, fetched
+  <czas>]` fact newer than the price, a `DEFEKT: ...`, or - football only,
+  reports dated from 2026-10-30 - `RYNEK: <driver>: <numbers with k/n from
+  the dossier>` (`context: "MARKET"`; WATCH only, never a veto). Never a
+  removal: h2h alone, form / a streak, the table, a model-vs-sample gap
+  (football `MODEL_ABOVE_OWN_SAMPLE` already removes those), `price_gap`, a
+  cross-league bridge. Both verdicts move the leg to `removed_by_reads`,
+  graded apart; `merge_reads.py` refuses the whole report (exit 2) on a
+  removal without a fact.
+- `context`: `MARKET` for a RYNEK reason, a CONTEXT signal (`MOTIVATION |
+  ROTATION | ABSENCES | DERBY | SCHEDULE | CONDITIONS | MORALE`) for a web
+  fact, else `null`. Never a read on a locked leg.
 
 Return to the caller only (<= 12 lines): the report path you actually wrote;
 legs verified / printed beyond the set; the `verify_legs.py --all` line

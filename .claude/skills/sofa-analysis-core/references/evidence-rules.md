@@ -60,8 +60,9 @@ sample`, with `w` per market from `config/sofa_rating_weight.json` (else
 the sample centre it replaced. Further centre terms (game state, season
 phase, opponent correction, supremacy stretches) each leave a note or a
 `*_rule` marker on the row - read them, do not re-derive them. State `w_c`
-for any row you grade, twice for a `*_1h_*` / `*_2h_*` row (the half
-baselines are fitted on a smaller population).
+(and football's `W`) once per market family in the section's **Szczegóły
+techniczne** line, the half rows' apart (the half baselines are fitted on a
+smaller population).
 
 Where the football prior came from is on the row: no note = the fitted
 league entry; `PRIOR_FROM_DAY_SAMPLES`; `PRIOR_FROM_TEAMS_LEAGUES` (a cup tie
@@ -82,7 +83,7 @@ sample, not an absence.
 | `competition_name`, `category_name`, `competition_id`, `season_id` | which competition, which tier | |
 | `round_number`, `round_name`, `cup_round_type` | knockout vs league, which round | often null for tennis |
 | `previous_leg_event_id` | this is a second leg | not the aggregate |
-| `referee` (`RefereeRecord`: `name`, `games`, yellow / red / second-yellow counts) | the official's rate | filled on a small minority of fixtures; absence is the default |
+| `referee` (`RefereeRecord`: `name`, `games`, yellow / red / second-yellow counts) | the official's rate | football: named ~48 h before kick-off (dossier `header`); its shrunk rate is in the cards / fouls centre since 2026-10-21 (`referee_rule` on the row) - only a change is new |
 | `venue_name` | home / away / neutral | few fixtures |
 | `ground_type` | tennis surface | null at the thin end of the calendar |
 | `default_period_count` | tennis best-of (3 or 5) | for football the number of halves - says nothing |
@@ -100,9 +101,12 @@ your decision point; quote both when they differ by more than an hour.
 
 ## What the pipeline does not know, and you might
 
-The dossier holds part of it (`lineups` - predicted / confirmed XI, missing
-/ doubtful; `header.first_leg` - a second leg's aggregate); the rest is a
-CONTEXT opening, the absences and the XI first (`references/literature.md`):
+The dossier holds much of it: the rebuilt table (`table`), the first leg's
+score (`header.first_leg`), Sofascore's pre-match lineup (`lineups` -
+predicted / confirmed XI, missing / doubtful), the referee (`header`),
+football's `style` block and league rate (`style.league`). The web holds
+what changed since - a CONTEXT opening, the absences and the XI first
+(`references/literature.md`):
 
 - absences, suspensions, a rested XI newer than the dossier's lineup;
 - what is at stake beyond the `stakes` flag - a dead rubber, a decided tie,

@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from bet.sofa import coupon_html as ch
+from bet.sofa import dossier
 from bet.sofa import family_record as fr
 from scripts.sofa import build_family_record as bfr
 
@@ -201,3 +202,12 @@ def test_the_page_renders_scripts_call_ensure_before_the_html() -> None:
     assert _calls_only_under_out_none(pdf, "ensure_family_record")
     html = (root / "scripts/sofa/build_coupon_html.py").read_text()
     assert html.index("ensure_family_record(") < html.index("write_html(run, doc")
+
+
+def test_the_view_carries_a_team_side_legs_matchup() -> None:
+    doc = _doc()
+    key = dossier.matchup_key(doc["singles"][1])
+    view = ch.build_view(doc, "2026-10-18", None, None, None, None,
+                         {key: "zestawienie: A 9/10, B oddaje 3/10"})
+    assert [r["matchup"] for r in view["rows"]] == [
+        "", "zestawienie: A 9/10, B oddaje 3/10", ""]

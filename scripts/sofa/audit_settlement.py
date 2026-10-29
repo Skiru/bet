@@ -50,6 +50,7 @@ from bet.sofa.settle import (  # noqa: E402
     refund_event_ids,
     void_leg_keys,
 )
+from bet.sofa.veto import removal_context  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
 from scripts.sofa.audit_niches import latest_artifact as latest_niches  # noqa: E402
@@ -422,6 +423,16 @@ def render_removed_by_reads(
         rows.append([reason, len(group), f"{g['won']} / {g['lost']}",
                      f"{g['units']:+.2f} j."])
     out.append(_table(["kto zdjął", "nóg", "weszło / nie", "wynik"], rows))
+    out.append("")
+    # by the removing reads' tag: MARKET (a market-driver WATCH, operator
+    # 2026-10-29) is measured apart from a dated fact or a defect
+    rows = []
+    for tag in sorted({removal_context(r) for r in removed}):
+        group = [r for r in removed if removal_context(r) == tag]
+        g = settle_singles(group, by_key)
+        rows.append([tag, len(group), f"{g['won']} / {g['lost']}",
+                     f"{g['units']:+.2f} j."])
+    out.append(_table(["tag kontekstu", "nóg", "weszło / nie", "wynik"], rows))
     out.append("")
     return out
 

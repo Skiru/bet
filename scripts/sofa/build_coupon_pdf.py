@@ -667,7 +667,9 @@ def main() -> int:
         picks.sort(key=lambda b: (not b.get("locked"), -b["combined_probability"]))
     else:
         picks.sort(key=lambda b: (not b.get("locked"), -b[ev_key]))
-    n_locked = sum(1 for x in [*singles, *picks] if x.get("locked"))
+    # the header names it inside the singles' clause: singles only (10-28
+    # read 3954 = 3947 singles + 7 builders)
+    n_locked = sum(1 for x in singles if x.get("locked"))
 
     ss = getSampleStyleSheet()
     h1 = ParagraphStyle("H1", parent=ss["Title"], fontName=BOLD, fontSize=19,

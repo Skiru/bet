@@ -339,6 +339,7 @@ function tags(r){let t="";
   if(r.peer)t+='<span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
   if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
   if(r.fam_note)t+='<span class="tag acc">'+esc(r.fam_note)+'</span>';
+  if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+='<span class="tag bad">'+r.verdict+'</span>';
   else if(r.read_done)t+='<span class="tag ok">przeczytana</span>';

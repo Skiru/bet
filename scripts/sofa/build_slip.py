@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """A chat slip (AKO) to a target price from the day's coupon
-(bet.sofa.slip_builder) - outside the pipeline, read-only, no network.
+(bet.sofa.slip_builder) - outside the pipeline. It prints no price of ours
+and sizes no stake, but it is not read-only: it refreshes family_record.json
+and, with --read-set-dir, asks Sofascore (bridge) for h2h and pre-match
+lineups and writes dossiers (--no-h2h / --no-lineups / --no-dossier skip).
 
 Fewest legs that reach the target with the highest measured chance, one leg
-per match, families on the plus first; the first line says how many of the
-requested slips the day supports. No slip price, no stake.
+per match (families on the plus first, or every market with --any-family);
+the first line always says how many of the requested slips stand on
+families on the plus alone ("say no first"). No slip price, no stake.
+
+--check "<mecz>|<rynek Superbetu>|<wybór>" (repeat per leg) [--screen-odds X]:
+the operator's own Bet Builder of one match against our numbers instead
+(each leg's measured chance beside 1/odds, family, match-up, the legs' joint
+history in both sides' games, the screen price); read-only.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
         --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--allow-rest] \\
@@ -25,8 +34,9 @@ the buffer a refusal falls back on) as read_set_slip_<sport>.json in
 read_set.py's compact form, for one analyst per sport; stale files of an
 earlier call are removed.
 
-Exit 0: every requested slip is supported; 1: fewer (the answer says so);
-2: no 11_coupon.json, no family_record.json or bad arguments.
+Exit 0: every requested slip is supported (--any-family: found); 1: fewer
+(the answer says so); 2: no 11_coupon.json, no family_record.json or bad
+arguments. --check: 0.
 """
 
 from __future__ import annotations
@@ -37,6 +47,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -44,15 +55,18 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import (  # noqa: E402
+from bet.sofa import (  # noqa: E402  # noqa: E402
     dossier,
     h2h,
     prematch_lineups,
+    priced_rows,
+    priced_view,
     timeutil,  # noqa: E402
 )
 from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
+from bet.sofa.superbet_names import board_sides, names  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 from scripts.sofa.build_family_record import ensure_quietly  # noqa: E402
@@ -60,6 +74,35 @@ from scripts.sofa.merge_reads import SLIP_READS, SLIP_VETOES  # noqa: E402
 from scripts.sofa.read_set import FIELDS  # noqa: E402
 
 LOCAL = ZoneInfo("Europe/Warsaw")
+
+
+def not_printed(run: Path, coupon: dict[str, Any]) -> list[dict[str, Any]]:
+    """The day's legs that are not on the coupon, each with `why`: removed by
+    a read (its reasons), or refused by a gate (08_refusals*.json, named in
+    Superbet's words) - `--check` says why a leg of the operator's builder is
+    missing instead of only that it is."""
+    out: list[dict[str, Any]] = []
+    for g in coupon.get("removed_by_reads") or []:
+        why = "; ".join(f"{r.get('verdict')} {r.get('author')}: {r.get('reason')}"
+                        for r in g.get("reads") or []
+                        if r.get("verdict") in ("WATCH", "NO_BET"))
+        out.append({**g, "why": "zdjęta odczytem - " + (why or str(g.get("refusal")))})
+    sides = board_sides(run)
+    for name in (priced_rows.FILE, priced_rows.SPORTS_FILE):
+        doc = priced_rows.load(run / name)
+        for row in priced_rows.rows_as_dicts(doc) if doc else []:
+            if not row.get("reason"):
+                continue
+            leg = priced_view._named(row, sides)
+            eid = row.get("sofascore_event_id")
+            got = names(leg, sides.get(eid) if isinstance(eid, int) else None)
+            if got is None:
+                continue
+            out.append({**leg, "superbet_market": got[0], "superbet_selection": got[1],
+                        "why": f"odrzucona: {row['reason']} (kurs {row.get('odds')}"
+                        + (f", pewność {row['confidence']}"
+                           if row.get("confidence") is not None else "") + ")"})
+    return out
 
 
 def parse_hhmm(raw: str) -> tuple[int, int]:
@@ -140,7 +183,8 @@ def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--date", required=True)
-    ap.add_argument("--target", type=float, required=True)
+    ap.add_argument("--target", type=float, default=None,
+                    help="the slip's target price (required unless --check)")
     ap.add_argument("--slips", type=int, default=1)
     ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS)
     ap.add_argument("--min-odds", type=float, default=sb.MIN_LEG_ODDS)
@@ -183,12 +227,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--md-out", default=None)
+    ap.add_argument("--check", action="append", default=[],
+                    help="'<mecz>|<rynek Superbetu>|<wybór>': a leg of the operator's "
+                    "own builder (repeat); prints the check instead of a slip")
+    ap.add_argument("--screen-odds", type=float, default=None,
+                    help="--check: the builder's price on Superbet's screen")
     args = ap.parse_args(argv)
     frozen = timeutil.frozen_clock_refusal(args.runs_dir)
     if frozen:
         print(frozen, file=sys.stderr)
         return 2
-    if args.target <= 1.0 or args.slips < 1 or args.max_legs < 1 or args.reserve < 0:
+    if args.target is None and not args.check:
+        ap.error("--target is required (unless --check)")
+    if ((args.target is not None and args.target <= 1.0) or args.slips < 1
+            or args.max_legs < 1 or args.reserve < 0):
         ap.error("--target > 1, --slips >= 1, --max-legs >= 1, --reserve >= 0")
     if not 1.0 < args.min_odds <= args.max_odds:
         ap.error("1 < --min-odds <= --max-odds")
@@ -216,6 +268,26 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+    singles = coupon.get("singles") or []
+    if args.check:
+        try:
+            picked = [g for spec in args.check
+                      if (g := sb.find_leg(singles, spec)[0]) is not None]
+        except ValueError as exc:
+            ap.error(str(exc))
+        if len({g.get("sofascore_event_id") for g in picked}) > 1:
+            ap.error("--check: nogi z różnych meczów - builder jest z jednego "
+                     "meczu; podaj pełną nazwę meczu")
+        db = args.db_path or dossier.DB_PATH
+        matchups = dossier.matchups_for_legs(run, picked, db_path=db)
+        joint = dossier.joint_history(run, picked, db_path=db) if picked else None
+        text = sb.render_check(args.check, singles, record, args.screen_odds,
+                               matchups, joint, not_printed(run, coupon))
+        if args.md_out:
+            Path(args.md_out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.md_out).write_text(text, encoding="utf-8")
+        print(text)
+        return 0 if len(picked) == len(args.check) else 1
     result = sb.build(
         coupon.get("singles") or [],
         record,
@@ -243,8 +315,13 @@ def main(argv: list[str] | None = None) -> int:
         record=record,
         now=now,
         built_at=coupon.get("created_at_utc"),
+        matchups=dossier.matchups_for_legs(
+            run, [g for s in result.slips + result.reserve for x in s.legs
+                  for g in sb.leg_rows(x)],
+            db_path=args.db_path or dossier.DB_PATH),
     )
     if args.md_out:
+        Path(args.md_out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.md_out).write_text(text, encoding="utf-8")
     print(text)
     if args.read_set_dir:

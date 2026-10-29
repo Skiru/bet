@@ -19,12 +19,14 @@ answer for the six.
 3. **Calendar** - a league game wedged between CEV games, an early CEV round
    (rest), the start of the season after national-team summers.
 
+**Removals**: the removal table of `.claude/agents/sofa-analyst-sport.md` - a dated `[WEB: domena, publ. <data>, fetched <czas>]` fact newer than the price or a real `DEFEKT:`; a schedule fact known before the price is a note.
+
 ## Checklist
 
 | item | moves | evidence | carries |
 |---|---|---|---|
 | **Regular opposite / setter / main outside hitter out or rested** | favourite's set handicap and win ↓; sets / total points ↑; 3:0 ↓ | F (direction certain) | WATCH through the leg's variable; NO_BET only when confirmed on two domains and the leg needs the favourite to dominate |
-| **CEV double week / early CEV round rest** | as above | E- | WATCH |
+| **CEV double week / early CEV round rest** | as above | E- | note; WATCH only through a rest announced since the price (dated) |
 | **Import rules** (SuperLega: ≥ 3 Italians on court; Sultanlar Ligi: 3 foreigners on court; PlusLiga: not found) | limits a rotation when an import is out | A (press, not rulebooks) | note |
 | **Travel** (CEV away, Russian / Brazilian distances) | away side ↓ | F | note |
 | **Dead rubber / seeding settled** | rotation, var ↑ | F | through who plays |

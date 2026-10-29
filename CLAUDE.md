@@ -53,7 +53,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts (each stamped `read_at_utc` by `merge_reads.py`), vetoes, the operator's extra positions |
 | `analyses.json` | the analysts' and the verifier's match sections by Sofascore id, newest first (`bet.sofa.analyses`): cut from each report at its `sofa:<id>` heading (else both team names) by every coupon `merge_reads.py`; `build_analyses.py --date <d>` rebuilds it from the reports on disk. Read by the HTML / PDF and by `read_set.py` (a re-read leg's `prior_analysis` -> the analyst's delta pass) - display / process only, never a gate |
 | `read_set/read_set_<sport>[_<i>].json` | C3's read set as compact legs (`read_set.py`) |
-| `dossier/<sport>_<event id>.json` | the analysts' match fact sheet (`bet.sofa.dossier`, offline, written by `read_set.py` / `build_slip.py`, path on each leg's `dossier`): form with periods, rest, rebuilt table, h2h (cached meetings + `h2h.json`, each with the legs' metrics; `head_to_head_source` says what was asked and how far the cache reaches), Sofascore's pre-match lineup (`lineups`: predicted / confirmed, XI, missing / doubtful, each prop's player XI / bench / missing / not listed, each side's regulars not in the XI), venue city / local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, the web checklist - **display only**, never a gate |
+| `dossier/<sport>_<event id>.json` | the analysts' match fact sheet (`bet.sofa.dossier`, offline, written by `read_set.py` / `build_slip.py`, path on each leg's `dossier`): form with periods, rest, rebuilt table, h2h (cached meetings + `h2h.json`, each with the legs' metrics; `head_to_head_source` says what was asked and how far the cache reaches), Sofascore's pre-match lineup (`lineups`: predicted / confirmed, XI, missing / doubtful, each prop's player XI / bench / missing / not listed, each side's regulars not in the XI), venue city / local hour, referee / ranking / CS2 roster and map pool, Superbet line moves, the web checklist, football `style` (each side's last 10 competitive games with stats: corners / shots won and conceded, crosses attempted, box touches, blocked shots, xG, big chances, final-third entries, long balls, throw-ins, goal kicks, possession, corners by own possession - a bucket under 4 games marked a note; the league's rate of the legs' metrics, `style.league`; `matchup`: every count leg - side legs own k/n beside what the opponent conceded, totals both sides' games, league share - counted as SETTLE counts, `metrics.extract_metric`; measured 10-29 as a suspicion, model-state.md (d), the basis of a `RYNEK:` WATCH from 10-30; the same text is the KUPON html "zestawienie" tag on every printed football count leg, `dossier.matchups_for_legs`; `dossier.joint_history` is `build_slip.py --check`'s k/n of a builder's legs together) - **display only**, never a gate |
 | `h2h.json` | every read match's head-to-head asked of Sofascore (`/event/{customId}/h2h/events`, `bet.sofa.h2h`) by `read_set.py` / `build_slip.py` before the dossiers (`--no-h2h` skips; operator 2026-10-21: always), the meetings' statistics into the cache; an OK answer is not re-asked that day; a failure leaves the dossier `NOT_ASKED` / `FAILED` and an h2h line on its web checklist - display only, SAMPLES never reads it |
 | `lineups_prematch.json` | Sofascore's pre-match lineup (`/event/{id}/lineups`, `bet.sofa.prematch_lineups`) of every read football / hockey / basketball match not yet started, asked by `read_set.py` / `build_slip.py` before the dossiers (`--no-lineups` skips): `asked_at_utc`, status OK / NOT_PUBLISHED (404) / FAILED / NOT_ASKED (breaker), `confirmed`, formation, starters, substitutes, `missingPlayers` (missing / doubtful, reason copied); a confirmed answer is final, an unconfirmed one re-asked after 30 min, a failure keeps the earlier answer. **Never written to the cache** (`sofa_event_stats.lineups_json` is the post-match lineup player samples and SETTLE read); display only, SAMPLES / SHEET / CONFIDENCE never read it |
 | `late_resolve.json` | the late RESOLVE passes (`epochs.LATE_RESOLVE_FROM_UTC`, `bet.sofa.late_resolve`): board entries the morning could not bridge re-asked while open; only new fixtures added, every old row kept |
@@ -225,9 +225,12 @@ and a miss recorded before a rule's switch never blocks that rule.
   marks a sample that IS used; `samples.any_team_sample`). Players'
   zero offsides from a team's rebuilt 0-0 (`PLAYER_OMITTED_ZERO`) measured
   worse and off.
-- **Start clock** = earliest of RESOLVE's clock, Superbet's start signal
-  (`superbet_started_utc`, `superbet_kickoff_seen_utc`; in-play odds dropped for
-  every reader) and FIXTURE_CHECK's fresh `/event` start. A postponed /
+- **Start clock** = earliest of RESOLVE's clocks and Superbet's
+  (`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh `/event`
+  start - of that start and Superbet's newest clock (it replaces RESOLVE's
+  frozen ones, `locked_print.kickoff_clocks`: a match moved later is not
+  gated on its dawn start); Superbet's start signal (`superbet_started_utc`;
+  in-play odds dropped for every reader) counts as started. A postponed /
   cancelled printed match is FIXTURE_NOT_AS_SCHEDULED; no bridge = UNVERIFIED,
   nothing refused. A transient error on one fixture (504 / timeout / 5xx) is
   retried once, then that fixture is UNVERIFIED and the check goes on; a
@@ -282,8 +285,21 @@ and a miss recorded before a rule's switch never blocks that rule.
   names a dated fact newer than the price (`[WEB: ..., publ. ...]`) or an
   artifact defect (`DEFEKT: ...`) - h2h, form, table, a model-sample gap,
   `price_gap` never remove a leg - and a KEEP is per market family
-  (`report_check`, the hook sends a report back). `sofa-analyst-sport` runs
-  on Sonnet (operator 10-26: cost).
+  (`report_check`, the hook sends a report back). From reports of
+  2026-10-30 (operator 2026-10-29: a market's drivers are never skipped)
+  every leg's market drivers are checked per family
+  (`sofa-analysis-core/references/market-drivers.md`, from the literature);
+  a WATCH - never a NO_BET - may also rest on one with the dossier's numbers
+  (`RYNEK: <driver>: <k/n>`, `context: "MARKET"`, ledger-graded by tag; the
+  opponent-concession / both-sides share >= 0.25 below the leg's confidence,
+  or an OVER side's corners below 50% own possession under the line on >= 4
+  games); a veto is sourced alike (`WETO BEZ FAKTU`); every section opens
+  with `**W skrócie:**`, a football count-market read carries the
+  "Styl gry i zestawienie" table. The hook checks the verifier's
+  `_weryfikacja` reports too (same removal rules). The concession signal
+  measured 10-29 was not robust (model-state.md (d)) - the MARKET removals
+  are its out-of-sample measurement. `sofa-analyst-sport` runs on Sonnet
+  (operator 10-26: cost).
 
 ### Measured sports (hockey, basketball, volleyball, CS2)
 
@@ -519,6 +535,7 @@ before a code change runs its old steps until it ends.
 | settle D-1 and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 | a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) | `/kupon 11-13 [~4] [x2]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
+| check the operator's own Bet Builder from a screenshot (each leg's measured chance vs 1/odds, family, zestawienie, the legs' joint k/n in both sides' games, the screen price) | `build_slip.py --date <d> --check "<mecz>\|<rynek>\|<wybór>" [--check ...] [--screen-odds X] --no-refresh-record` (read-only with that flag) |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
 `sofa-analyst-sport` (one instance per measured sport), `sofa-verifier`,

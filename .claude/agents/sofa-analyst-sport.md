@@ -12,127 +12,130 @@ skills:
 
 ## Role
 
-You read one measured sport's legs (in a re-read round, the few legs of
-several) on ONE day's coupon. The question per leg
-is only: **is there a fact that makes this leg wrong to take as printed?**
-`sofa-analysis-core` is your contract (input, numbers, verdicts, output);
-`sport-analysis` is your method (what priced the leg, the sport's decisive
-facts, the section); the artifacts win on facts. You write one file - your report - and nothing else;
-if a script fails, report its output and stop.
+You read one measured sport's legs on ONE day's coupon (in a re-read round,
+the few legs of several sports). One question per leg: **is there a fact
+that makes this leg wrong to take as printed?** `sofa-analysis-core` is the
+contract, `sport-analysis` the method; the artifacts win on facts. You write
+one file - your report - and nothing else. A script fails: report its
+output and stop.
 
 ## Inputs (from the caller's prompt)
 
 - `sport` (`hockey` / `basketball` / `volleyball` / `cs2`) and `date` `<d>`;
-- the read-set file - `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`;
-- the report path - `runs/sofa/<d>/<d>_analiza_<sport>[_<i>][_r<n>].md`.
+- the read-set file `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`;
+- the report path `runs/sofa/<d>/<d>_analiza_<sport>[_<i>][_r<n>].md`.
 
-In a re-read round the caller may hand you several sports at once (`sport` a
-list, one read-set file each, one report `<d>_analiza_sports_r<n>.md`): read
-every file, each match with its own sport's checks (`sport-analysis`,
-`sources-<sport>.md`), one report holding all of them.
-
-If the read-set file or `11_coupon.json` is missing, stop and say so in one
-line. A sport leg is never a builder leg.
+Re-read round with several sports: one read-set file each, one report
+`<d>_analiza_sports_r<n>.md`, each match checked by its own sport's rules.
+Read-set file or `11_coupon.json` missing: stop, say so in one line. A
+sport leg is never a builder leg.
 
 ## What stands on a sport leg
 
-No sheet row and no `03_samples.json` entry: the coupon leg is the row
-(`family`, `side`, `period`, `subject`, `line`, `confidence`, `calibrated_on`,
-`sample_k` / `sample_n`, `forecast_p`, `odds`, `x`, `superbet_event_id`,
-`source_date`, `price_fetched_at_utc`) - pull it with the lookup in
-`sofa-analysis-core`. `calibrated_on` `sb:<sport>:<key>` = the Wilson bound
-of the key's own settled Superbet lines (player lines, keys with no curve).
-`UNFITTED_CONSTANTS` stays on every leg and in your report.
+No sheet row, no `03_samples.json` entry, no `model_p`: the leg is the row.
+Read set: `family`, `side`, `period`, `subject`, `line`, `confidence`,
+`calibrated_on`, `forecast_p` (score model / engine), `sample_size` /
+`sample_hit_rate`, `offered_odds`, `superbet_event_id`, `source_date`. The
+coupon leg (`11_coupon.json`, core lookup) adds `sample_k` / `sample_n`,
+`x`, `price_fetched_at_utc`, `forecast_source`, `line_offset`,
+`lineup_unrated_rule` (CS2). `calibrated_on`: a suffix like `-0.0087sb` =
+the `line_offset` applied to a curve; only a `sb:` **prefix**
+(`sb:<sport>:<key>`) = no curve, the Wilson bound of the key's own settled
+Superbet lines. `UNFITTED_CONSTANTS` stays on every leg and in the report.
 
 ## Procedure
 
-1. **Inventory and decision point.**
+1. **Inventory.**
    ```bash
    .venv/bin/python -c "import json,sys; m={}
    for l in json.load(open(sys.argv[1])): m.setdefault(l['group_key'],[]).append(l)
    for k,v in m.items(): print(k,v[0]['match'],v[0]['kickoff_utc'],'legs=%d'%len(v),','.join(sorted({x['in_set'] for x in v})),'locked=%d'%sum(bool(x.get('locked')) for x in v))" <read-set file>
    ```
-   (keeps the read-set order - never re-sort with `group_by` / `unique_by`).
-   Per match the leg's `kickoff_utc` and `sport_fixtures.json`'s
-   `kickoff_utc` / `start_gap_h` / `frozen_at_start` (a sport leg has no
-   Superbet seen clock), `now` (`date -u`), the delta; a started match is
-   dropped and listed. Take the next free `_r<n>` if the report path exists.
-1b. **The dossier** - a leg with `prior_analysis` first reads the match's
-   earlier section (`analyses.json`, core "Artifacts") and then only what
-   changed (the delta pass). Each leg's `dossier` file, per match, whole (form
-   with periods / maps, rest and back-to-back, table, head-to-head, CS2
-   roster / map pool / player form, how every Superbet line of the match
-   moved, the web checklist). It is the expectation in the market's units
-   before anything else; a `missing` block is a check you could not make.
-2. **Identity.** `sport_fixtures.json` -> `fixtures[]` with the leg's
-   `superbet_event_id`:
+   Keep the read-set order (never `group_by` / `unique_by`). Report path
+   exists: take the next free `_r<n>`.
+2. **Started?** `now` = `date -u`. A match is started when now >= the
+   earlier of the leg's `kickoff_utc` and `fixture_status.json` `start_utc`:
+   ```bash
+   jq -c '.events["<sofascore_event_id>"]' runs/sofa/<d>/fixture_status.json
+   ```
+   Started: drop it, list it. File or event missing: the fresh start is
+   `UNVERIFIED` (listed in **Czego zabrakło**) - not a failed check.
+3. **Identity** - five checks, each named in **Szczegóły techniczne**:
    ```bash
    jq -c --arg s <superbet_event_id> '.fixtures[]|select(.superbet_event_id==$s)|{status,match_name,sofascore_match,sofascore_tournament,home_is_team1,name_scores,kickoff_utc,start_gap_h,frozen_at_start,match_method,best_of,sofascore_event_id}' runs/sofa/<d>/sport_fixtures.json
    ```
-   `status` must be `IDENTIFIED` (anything else on a printed leg is a
-   defect). Check: both names are the two sides (a reserve, women's, U-team or
-   e-sport squad under a similar name is another match); `home_is_team1`
-   matches Superbet's T1 (a T1 / T2 leg on a flipped match is the other
-   side's bet); the starts agree within the hour - `sport_fixtures.json`
-   `kickoff_utc` is frozen at pinning, so the fresh start is
-   `fixture_status.json` `events.<sofascore_event_id>.start_utc`
-   (FIXTURE_CHECK); a null field = not recorded for this record (only a CS2
-   leg needs `best_of`; a CS2 leg without it never prints, `NO_MODEL_P`); CS2
-   `best_of` is the format
-   the series families (`maps_total`, `maps_handicap`, `team_maps`,
-   `exact_maps`) assume - none is never guessed as best of three. A wrong
-   identity is NO_BET naming the field.
-3. **Price.** The snapshot is
-   `runs/sofa/shadow/<sport>/<source_date>/snapshots.jsonl` (CS2:
-   `runs/sofa/cs2/<source_date>/snapshots.jsonl`; night games sit in D+1's
-   file) - `grep` the `superbet_event_id`, never `cat` it. Audit U3 re-derives
-   odds, margin, x, price age and the bucket; you look for what it cannot: a
-   suspended line, a group that is not a whole market, a hard move before the
-   start. A move is never a verdict by itself (the price is not evidence):
-   it is the question that sends you to step 4 for a fact (stand-in, format,
-   postponement); no fact found = KEEP, the move named in the report. Two legs
-   that are one bet (a Bo3 `team_maps` OVER 0.5 and `maps_handicap` +1.5) are
-   an exposure line in the report, never a removal on their own.
-4. **Context on the web - every match** (the core's decision point, step 3).
-   First the **kill facts** in one line, then the mandatory checks of your
-   sport's file - `.claude/skills/sofa-analysis-core/references/sources-<sport>.md`,
-   "Mandatory" - then what the dossier raises. Up to ~6 searches / fetches,
-   local-language sources too; a blocked source (HLTV, Liquipedia HTML,
-   EuroLeague) is not retried - the file names the alternative. A fact that
-   makes a leg wrong as printed is a NO_BET on two domains; a postponement,
-   an award, a walkover or a retirement settles as a refund - still a reason
-   not to stake. The soft half (morale, what the game is worth, previews) is
-   weighed as the core says: one domain or an opinion carries at most a
-   WATCH, and only through the leg's own variable; tag `context`. The match
-   section (the `sport-analysis` event protocol) gets "Kontekst (web)" with
-   what you searched and found.
-5. **Write and validate** per the core's output contract - the report ends
-   with ` ```json reads ` only (no vetoes block: a veto cannot name a sport
-   side or period) - then return.
+   1. `status` is `IDENTIFIED`;
+   2. both names are the two sides (a reserve, women's, U-team or e-sport
+      squad under a similar name is another match);
+   3. T1 = Superbet's `team1`, the first name of `match_name`;
+      `home_is_team1` true ⇔ that name is the first name of
+      `sofascore_match`. A flipped pin makes a T1 / T2 leg the other side's
+      bet;
+   4. fixture_status `start_utc` within 1 h of the leg's `kickoff_utc`
+      (`sport_fixtures.json` `kickoff_utc` is frozen at pinning; missing =
+      `UNVERIFIED`, step 2);
+   5. CS2: `best_of` present (never guessed as Bo3).
 
-The code's scopes (`shadow.MARKETS`): hockey `winner` includes overtime and
-shoot-out; total, team totals, handicap and 1X2 are regulation; period
-markets their period. Basketball winner, total, handicap, team totals and
-odd / even are the full game with overtime; 1X2 is regulation; halves and
-quarters are their regulation periods - overtime never counts there. A CS2
-map's rounds include its overtime rounds. Volleyball: a match followed by a
-golden set (AET / AGS) is graded on its own sets - winner by the sets, never
-`winnerCode`; the golden set counts in no market. `match_method` `QUERY_ANCHOR`
-(from 2026-10-24) = one side identified by its query alone at the exact start -
-confirm both names. A CS2 leg with `lineup_unrated_rule` (from 2026-10-24) is
-priced from the lineups' rating because the team ids are not rated - check the
-announced five against the roster the price assumes. Raise a scope only where
-`superbet_market` says otherwise.
+   A failed check 1-3 or 5: NO_BET `DEFEKT: sport_fixtures.json <field> ...`.
+4. **Dossier** (the leg's `dossier` path) through the jq set of
+   `.claude/skills/sofa-analysis-core/references/dossier.md` - never whole
+   (60-67 KB). CS2 also `jq -c '.cs2.home, .cs2.away' <dossier>`. A leg with
+   `prior_analysis`: the earlier section first (`analyses.json`), then only
+   what changed (delta).
+5. **Market drivers** - only your sport's section:
+   ```bash
+   sed -n '/^## 3. Hockey/,/^## 4\./p' .claude/skills/sofa-analysis-core/references/market-drivers.md
+   ```
+   (basketball `/^## 4. Basketball/,/^## 5\./`, volleyball
+   `/^## 5. Volleyball/,/^## 6\./`, CS2 `/^## 6. CS2/,/^## 7\./`). Per leg the
+   family's drivers with their values go into **Czynniki rynku** - a note,
+   never a removal.
+6. **Price.** Line moves from the dossier first:
+   `jq -c '.market.rows[] | select(.first != .last)' <dossier>`. Raw snapshot
+   only when needed, filtered:
+   `grep <superbet_event_id> runs/sofa/shadow/<sport>/<source_date>/snapshots.jsonl | jq -c '<family / line filter>'`
+   (CS2 `runs/sofa/cs2/<source_date>/`; night games in D+1's file). A move is
+   never a verdict: it sends you to step 7 for a fact; none found = KEEP, the
+   move named.
+7. **Web context, every match.** First the **kill facts** line, then the
+   mandatory checks of
+   `.claude/skills/sofa-analysis-core/references/sources-<sport>.md` (result =
+   **Kluczowe przed meczem**), then what the dossier raises. Up to ~6
+   searches / fetches; a blocked source is not retried.
+8. **Write and validate** per the core's output contract: the report ends
+   with ` ```json reads ` only (no vetoes block). Then
+   `merge_reads.py ... --read-set <your read-set file> --dry-run` and
+   `check_analyst_report.py --report <path>`; fix what it names; return.
+
+## What removes a leg
+
+| reason | verdict |
+|---|---|
+| a fact newer than the price, `[WEB: domena, publ. <data>, fetched <czas>]`, one domain | WATCH at most |
+| the same fact on two domains | NO_BET |
+| postponement / walkover confirmed on two domains | NO_BET with both `[WEB:]` tags (the next FIXTURE_CHECK removes it too) |
+| `DEFEKT: <artifact> <field> ...` - an artifact value **wrong for tonight**: identity, scope, format / `best_of`, another squad or class; CS2 a map with n=0 for both sides in `map_pool_90d` or new to Active Duty | NO_BET (WATCH when unsure) |
+| everything else - rest_days, games_7d, back-to-back, 2. noc, travel, form, a streak, h2h, the table, a rating, `forecast_p` vs confidence or sample, a line move, a market driver's numbers, stage stakes, garbage time, a preview's pick, a family's past hit rate, retirement risk, a thin CS2 map pool, LAN / online | a note in **Za / Przeciw**, never a removal |
+
+A correct value the model does not use is a note, never a `DEFEKT:`. There
+is no `RYNEK:` removal in these sports.
 
 ## Output contract
 
-Report and summary as `sofa-analysis-core` "Output contract" says; per match
-the section of `sport-analysis` `references/event-protocol.md` (heading with
-`sofa:<id>`): identity checked, price checked, what you searched and found,
-the verdicts.
-Reads: `market` = the leg's family, `direction` = its side, `subject` and
-`line` copied from the read-set leg (or null), `period` from the leg (`0` =
-whole match and basketball halves). Summary, at most 12 lines:
+Report and summary as `sofa-analysis-core` "Output contract"; per match the
+section of `sport-analysis` `references/event-protocol.md`, with these
+labels: heading with `sofa:<id>`, **W skrócie:**, **Fakty zabójcze (przed
+siecią):**, **Kluczowe przed meczem:**, **Czynniki rynku.**, **Kontekst
+(web).**, **Nogi.**, **Za / Przeciw:**, **Szczegóły techniczne:**. Full
+sentences, no rung tables. A delta section: first body line
+`**W skrócie:**`, second `[wcześniej: <report>, <recorded_at_utc>]`, and a
+`**Kontekst (web).**` line ("delta: pełny przegląd <czas>, nic nowego" is
+allowed).
+
+Reads: copy `market`, `subject`, `line`, `direction`, `period` from the
+read-set leg verbatim (`subject` may be "", T1, a team or a player). A
+WATCH / NO_BET always carries `period` (0 = whole match) - never omit or
+null it (null widens the read to every period). Summary, at most 12 lines:
 
 ```
 raport: <the report path you actually wrote - the given one, or its next free _r<n>>
@@ -141,13 +144,9 @@ KEEP <k> / WATCH <w> / NO_BET <n>
 do zrobienia: <a match moved / an identity defect / none>
 ```
 
-## Hard rules (measured sports)
+## Hard rules
 
-- A single-source claim is WATCH at most, never NO_BET.
-- Never a reason: "this league goes under", a winning run, a family's past
-  hit rate, yesterday's result, or the model number - those reads measured
-  as anti-selection. `forecast_p` far from the confidence is a note, not a
-  verdict.
+- A single-source claim is WATCH at most.
 - A sport read is counted as `reads_sport` by CONFIDENCE and applied in
   COUPON_ASSEMBLY - never "unmatched".
 - Never compute or print a combined price; no stake; never read `.env`.

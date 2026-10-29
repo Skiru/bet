@@ -58,6 +58,7 @@ from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import leg_key, printed_leg_keys  # noqa: E402
 from bet.sofa.settleability import date_range  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
+from bet.sofa.veto import removal_context  # noqa: E402
 from scripts.sofa import audit_settlement as settle_audit  # noqa: E402
 from scripts.sofa.audit_settlement import summarize_units  # noqa: E402
 
@@ -271,6 +272,13 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
                     [s for s in r_singles if s["source"].get("reason") == reason])
                 for reason in sorted(
                     {str(s["source"].get("reason")) for s in r_singles})
+            }
+            # by the removing reads' context tag (MARKET: a market-driver
+            # WATCH, operator 2026-10-29 - its own out-of-sample measurement)
+            row["by_context"] = {
+                tag: summarize_units(
+                    [s for s in r_singles if removal_context(s["source"]) == tag])
+                for tag in sorted({removal_context(s["source"]) for s in r_singles})
             }
         out.append(row)
     return out

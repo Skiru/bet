@@ -16,7 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from bet.sofa.report_check import findings, report_day  # noqa: E402
+from bet.sofa.report_check import (  # noqa: E402
+    findings,
+    report_day,
+    report_kind,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             print(f"{path}: nie do odczytu: {exc}", file=sys.stderr)
             return 2
-        found = findings(text, report_day(path.name))
+        found = findings(text, report_day(path.name), **report_kind(path.name))
         if not found:
             print(f"{path}: OK")
             continue

@@ -375,3 +375,115 @@ def test_cs2_dossier_flags_a_new_name_in_the_roster(tmp_path: Path) -> None:
     assert alfa["series"][0]["maps"] == [2, 1]
     assert doc["header"]["best_of"] == 3 and "table" not in doc
     assert any("stand-in" in x for x in doc["web_checklist"])
+
+
+def _stats(corners: tuple[int, int], possession: tuple[int, int],
+           crosses: tuple[int, int] = (20, 10)) -> str:
+    items = [
+        {"key": "cornerKicks", "homeValue": corners[0], "awayValue": corners[1]},
+        {"key": "ballPossession", "homeValue": possession[0],
+         "awayValue": possession[1]},
+        {"key": "accurateCross", "homeValue": 5, "awayValue": 3,
+         "homeTotal": crosses[0], "awayTotal": crosses[1]},
+        {"key": "expectedGoals", "homeValue": 1.25, "awayValue": 0.5},
+        {"key": "accurateLongBalls", "homeValue": 20, "awayValue": 10,
+         "homeTotal": 40, "awayTotal": 30},
+    ]
+    return json.dumps({"statistics": [
+        {"period": "ALL", "groups": [{"groupName": "x", "statisticsItems": items}]},
+        {"period": "1ST", "groups": [{"groupName": "x", "statisticsItems": [
+            {"key": "cornerKicks", "homeValue": 1, "awayValue": 0}]}]},
+    ]})
+
+
+def test_style_block_sets_own_corners_against_what_the_opponent_concedes(
+    tmp_path: Path,
+) -> None:
+    # Alfa (1) wins plenty of corners; Beta (2) concedes few. A friendly and a
+    # partial feed's 0 / 0 possession never count.
+    events = [
+        ev(201, KICK - 3 * DAY, 1, 3, 1, 0),
+        ev(202, KICK - 6 * DAY, 4, 1, 0, 2),
+        ev(203, KICK - 9 * DAY, 1, 4, 2, 2),
+        ev(204, KICK - 2 * DAY, 1, 3, 3, 0, friendly=True),
+        ev(205, KICK - 4 * DAY, 2, 3, 0, 0),
+        ev(206, KICK - 8 * DAY, 4, 2, 1, 1),
+    ]
+    detail = ev(500, KICK, 1, 2, 0, 0, status="notstarted")
+    db = tmp_path / "sofa.db"
+    make_db(db, events, detail)
+    stats = {
+        201: _stats((8, 2), (65, 35)),
+        202: _stats((3, 6), (40, 60)),  # Alfa away: 6 corners, 60 %
+        203: _stats((2, 5), (0, 0)),  # placeholder possession
+        204: _stats((15, 0), (80, 20)),  # friendly
+        205: _stats((5, 2), (55, 45)),  # Beta home concedes 2
+        206: _stats((4, 3), (50, 50)),  # Beta away concedes 4
+    }
+    con = sqlite3.connect(db)
+    for eid, payload in stats.items():
+        con.execute(
+            "INSERT INTO sofa_event_stats (sofascore_event_id, fetched_at, "
+            "statistics_json, status_type) VALUES (?, ?, ?, ?)",
+            (eid, "2026-10-20T08:00:00+00:00", payload, "finished"))
+    con.commit()
+    run = tmp_path / "runs" / "2026-10-20"
+    run.mkdir(parents=True)
+    legs = [
+        {"sofascore_event_id": 500, "sport": "football", "match": "Alfa - Beta",
+         "market": "corners_for", "subject": "alfa", "line": 3.5,
+         "direction": "OVER", "confidence": 0.8, "offered_odds": 1.25,
+         "superbet_market": "Alfa - liczba rzutów rożnych",
+         "superbet_selection": "powyżej 3.5"},
+        {"sofascore_event_id": 500, "sport": "football", "match": "Alfa - Beta",
+         "market": "both_over_corners", "subject": "", "line": 1.5,
+         "direction": "OVER", "confidence": 0.85, "offered_odds": 1.15},
+    ]
+    (run / "11_coupon.json").write_text(
+        json.dumps({"singles": legs, "removed_by_reads": []}))
+    written = dossier.write_for_legs(
+        run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db, now=NOW)
+    style = json.loads(Path(written[500]).read_text())["style"]
+    alfa = style["home"]
+    assert alfa["n"] == 3  # the friendly is out
+    assert [g["corners"] for g in alfa["games"]] == [[8, 2], [6, 3], [2, 5]]
+    assert "possession" not in alfa["games"][2]
+    assert alfa["means"]["possession"] == 62.5
+    assert alfa["corners_by_own_possession"]["posiadanie_50_plus"]["rozne_za"] == [
+        8, 6]
+    assert alfa["games"][0]["crosses"] == [20, 10]
+    assert alfa["games"][0]["corners_1h"] == [1, 0]
+    assert alfa["games"][0]["xg"] == [1.25, 0.5]
+    assert alfa["games"][1]["long_balls"] == [30, 40]  # attempted, Alfa away
+    assert alfa["means"]["xg"]["za"] == round((1.25 + 0.5 + 1.25) / 3, 2)
+    # 2 games at >= 50 %: a note, never a RYNEK WATCH
+    assert "uwaga" in alfa["corners_by_own_possession"]["posiadanie_50_plus"]
+    team_leg, both = style["matchup"]
+    assert team_leg["leg"] == "Alfa - liczba rzutów rożnych: powyżej 3.5"
+    assert team_leg["implied"] == 0.8
+    (cell,) = team_leg["sides"]
+    assert cell["team"] == "Alfa" and cell["own"] == "2/3"
+    assert cell["opponent"] == "Beta" and cell["opponent_conceded"] == "1/2"
+    assert cell["conceded_values"] == [2, 4]
+    assert [c["team"] for c in both["sides"]] == ["Alfa", "Beta"]
+    assert both["sides"][1]["own"] == "2/2"
+    # the HTML view's tag: every printed team-side leg, teams from 02_fixtures
+    (run / "02_fixtures.json").write_text(json.dumps([{
+        "sofascore_event_id": 500, "home_entity_id": 1, "away_entity_id": 2,
+        "home_name": "Alfa", "away_name": "Beta",
+        "kickoff_utc": "2026-10-20T12:00:00Z"}]))
+    tags = dossier.matchups_for_legs(run, legs + [{
+        **legs[0], "market": "player_shots_for"}], db_path=db)
+    assert tags == {
+        dossier.matchup_key(legs[0]): "zestawienie: Alfa 2/3, Beta oddaje 1/2",
+        dossier.matchup_key(legs[1]): "zestawienie: Alfa 3/3, Beta oddaje 2/2"
+        " · Beta 2/2, Alfa oddaje 3/3",
+    }
+    assert dossier.matchups_for_legs(run, legs, db_path=tmp_path / "none.db") == {}
+    # every leg together: Alfa's games 201 / 202 (203: 2 corners), Beta's
+    # 206 (205: Beta conceded 2) - Alfa's side leg read as what Beta conceded
+    joint = dossier.joint_history(run, legs + [{
+        **legs[0], "market": "player_shots_for"}], db_path=db)
+    assert (joint["k"], joint["n"], joint["legs_read"]) == (3, 5, 2)
+    assert len(joint["legs_without_history"]) == 1
+    assert "missing" in dossier.joint_history(run, legs, db_path=tmp_path / "x.db")

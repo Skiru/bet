@@ -63,23 +63,22 @@ latter is where your contribution is.
   and `sofa` encodes it only through the rating's league home / away rate on
   the markets the rating prices; `cards_points_for` and the corners rows are
   unrated, so there the sample's own `venue` field, which you must read, is
-  all there is. The referee is the single largest unmodelled input on any
-  card row (two officials of one league can differ by a third of a line).
-- **Referee heterogeneity** means a card row without a named official is
-  missing its biggest driver. **`sofa` does nothing about this** — there is no
-  tier to cap and no `k` to double, and the referee is present on ~9% of
-  fixtures. So the absence is the normal case and the judgement is entirely
-  yours. With an official named, `games` is the sample size: 5.75 over 4
-  matches is four numbers.
+  all there is. The referee is the single largest input on a card row (two
+  officials of one league can differ by a third of a line).
+- **Referee heterogeneity**: the named referee's shrunk rate is in the
+  cards / fouls centre since 2026-10-21 (`bet.sofa.referees`, `referee_rule`
+  on the row; the referee is named ~48 h before kick-off, none = x1). With an
+  official named, `games` is his sample size. Only a referee **change**
+  against the dossier is new information.
 
 ## 3. Game state drives counts, and the direction is not symmetric
 
 Score effects (StatsBomb 2013; later replications): the trailing side takes
 more shots of lower quality, holds more possession, wins more corners; the
-leading side shoots less and better. Corners split almost evenly between
-winner and loser over a match (4.70 vs 4.78 in an earlier sample), which is why
-goals ↔ corners is ~0 while goals ↔ SOT is clearly positive (earlier
-measurements: +0.04 and +0.55). *Implication:* the method's GAME SCRIPT
+leading side shoots less and better. Realised goals and corners barely
+co-move (corners split ~evenly between winner and loser), but the price's
+implied goal total predicts corners (+16.7% per implied goal, Yip et al.
+2024) - read the goals ladder; goals ↔ SOT is clearly positive. *Implication:* the method's GAME SCRIPT
 A-D scenarios (favourite ahead / underdog ahead / 0-0 to 60' / level) are the
 practical form of this; weight them from Superbet's own ladders in
 `04_offer.json` (`result_1x2`, `double_chance`, each side's `goals_for`,
@@ -97,17 +96,18 @@ underdog; a 0-0 to 60' inflates fouls and cards in a knockout.
   Brasil from the R16 straight to penalties) — settlement rules for counting
   markets follow the competition. *Implication:* `previous_leg_event_id`,
   `round_name` and `cup_round_type` are the highest-value context fields in
-  `sofa` and all three are on `Fixture` directly. What is **not** there is the
-  first leg's *score* — follow `previous_leg_event_id` yourself. Nor is the
+  `sofa` and all three are on `Fixture` directly; the first leg's *score* is
+  in the dossier (`header.first_leg`). What is **not** there is the
   competition's extra-time rule, which decides what "90 minutes" means for
   every counting UNDER.
-- **Derbies** raise fouls and cards materially (Buraimo et al. controlled for
-  it because it matters). **`sofa` has no derby flag at all.** Name the derby
-  yourself and say how you know.
+- **Derbies:** fouls up in one EPL sample (W), cards mixed - a note, never
+  a reason. `sofa` has no derby flag; name the derby yourself and say how
+  you know.
 - **Dead rubbers, relegation six-pointers, cup rotation** change the XI and
-  the tempo. The table is on disk only as the leg's `stakes` flag
-  (six-pointer / top-4 race, measured small: +0.2 cards, +0.9 fouls, -0.15
-  goals per match); read the rest on the web (two domains, tagged) before
+  the tempo. The leg's `stakes` flag (six-pointer / top-4 race, measured
+  small: +0.2 cards, +0.9 fouls, -0.15 goals per match) and the dossier's
+  rebuilt `table` (not official) are on disk; what changed since (a coach
+  naming reserves) is on the web (two domains, tagged) - read it before
   believing "last ten" describes tonight, or write `UNVERIFIED`.
 
 ## 5. Fixture congestion and fatigue
@@ -140,8 +140,8 @@ in that match - so what tonight's opponent concedes is its own observations'
 `FOOTBALL_RATING` note, absent on unrated markets such as `corners_total`)
 and the opponent correction (`opponent_rule`, `corrected_sample`: a side's
 sample rescaled to a neutral opponent; goals and players excluded). You also
-have is each observation's `opponent` field: the sample's opponents are visible, so "these
-four highest values were all against continental sides" is checkable.
+have each observation's `opponent` field: the sample's opponents are
+visible, so "these four highest values were all against continental sides" is checkable.
 
 ## 8. Recency and weighting
 
@@ -160,22 +160,7 @@ rating is the exception: it is an exponentially smoothed history (a per-metric
 `sample_newest_days` is on the row; the observations' own `match_date_utc`
 gives you the span.
 
-## 9. Price, edge, and market efficiency
-
-- Implied probability = 1/odds; remove the overround before comparing.
-  `sofa` uses a **power devig**, not a proportional one: proportional
-  overstated long shots by ~7 pp and understated favourites by ~7 pp.
-  Superbet is a soft book, and it is the only price `sofa` has or may quote;
-  no other bookmaker or aggregator is a reference here.
-- Edge exists only when `fair probability > implied`, with a fair estimate of
-  adequate quality (the method's edge definition). Per-team "to score" and 0.5 lines are house
-  markets that sit at or under consensus (ledger 2026-08-30/31: −0.1 to −5.6pp
-  on five such legs).
-- On the coupon none of this is evidence for a leg: the price is only the
-  betting condition (x = confidence x odds >= 0.90, ladder margin <= 15%).
-- Kelly / stake sizing is deliberately out of scope for every agent.
-
-## 10. Correlation and slips
+## 9. Correlation and slips
 
 Positive dependence among same-match legs makes the product of leg
 probabilities too **low** for shots-and-goals and about right for corners
@@ -190,17 +175,6 @@ estimate. The contradiction test as a *scenario* test and the tail-risk read are
 yours; the builder's price is not - sofa does not price a builder, the
 operator reads it off Superbet's screen, and the 12% haircut is internal and
 never quoted.
-
-## 11. Post-mortem discipline
-
-Attribute every settled row to `MODEL-CONSISTENT / MODEL-SURPRISING /
-PURE VARIANCE` (the method's post-mortem list) and to one error category. A category that
-wins 84% produces losses; three of them in a row is not evidence the category
-is broken. In `sofa` the post-mortem
-tools are `audit_settlement.py` (how much came in, and which of it was a bet —
-**section 7c is the PDF coupon's real result**) and `audit_day_deep.py` (was
-the miss systematic or dispersion, and would today's gates still have made
-yesterday's bet). Use them on a class of read, never on one row.
 
 ## Sources
 

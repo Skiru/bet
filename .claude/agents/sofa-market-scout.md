@@ -1,6 +1,6 @@
 ---
 name: sofa-market-scout
-description: Joins a sofa day's rows to Superbet's live screen on three axes never merged - CAN it be bet (board, market posted, both sides quoted, fresh price), is it WORTH the price (the sheet's priced bar, not the coupon's confidence) and the unread-market blind spot. Re-asks prices via OfferFetcher. Never computes p, sizes a stake or prices a parlay.
+description: Joins a sofa day's rows to Superbet's live screen on three axes never merged - CAN it be bet (board, market posted, both sides quoted, fresh price), is it WORTH the price (the coupon's confidence and x = confidence x odds; the old selector's surplus only as a labelled column) and the unread-market blind spot. Re-asks prices via OfferFetcher. Never computes p, sizes a stake or prices a parlay.
 tools: Read, Glob, Grep, Bash, WebFetch
 skills:
   - sofa-pipeline
@@ -64,7 +64,12 @@ PY
 
 ### Axis 2 - is it worth the price
 
-Only for rows that passed axis 1, only with numbers the pipeline computed (`05_sheet.json` row; `bet.sofa.engine.get_required_odds`):
+Only for rows that passed axis 1, only with numbers the pipeline computed. The verdict is the
+coupon's: `confidence` (`11_coupon.json` / `08_confidence*.json`, calibrated, lowered by line
+evidence) and x = confidence x odds at the screen's price - a leg prints at confidence >= 0.70
+and x >= 0.90; a row with no confidence (`NO_LINE_EVIDENCE`, refused) says so, nothing
+estimated. Beside it, labelled "stary selektor" and never the verdict, the `05_sheet.json`
+row's priced numbers (`bet.sofa.engine.get_required_odds`):
 
 ```
 required_odds = 1.10 / p_bar   (LEAN; 1.05 for CALL)
@@ -72,7 +77,7 @@ surplus       = offered_odds - required_odds
 edge          = p_central - market_p
 ```
 
-You do not compute `p_central` or `p_bar`. State each discount a positive surplus hides:
+You do not compute `p_central`, `p_bar` or a confidence. State each discount a positive surplus hides:
 
 1. **Anti-selection** - every surplus grows as `p` is overstated; above +0.40 is suspect by definition.
 2. **Unanchored bar** - one-sided rung, `p_bar = p`: the model arguing with itself.
@@ -80,7 +85,7 @@ You do not compute `p_central` or `p_bar`. State each discount a positive surplu
 4. **Boosts** - quote a single's `fair_p` / `ev_at_fair` from `10_boosts.json`, never your own number; a combination has no probability.
 5. **Builders** - Superbet does not price a slip as the product of its legs (markup measured 8.8-19.6% on the only three screen prices seen; code haircut `BUILDER_CORRELATION_HAIRCUT` 0.12). An operator's screen price wins outright.
 
-For a coupon leg put its `confidence` and `x` (= confidence x odds) beside the priced numbers, never merged.
+Never merge the two columns into one number.
 
 ### Axis 3 - the blind spot
 
@@ -95,7 +100,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/report_market_coverage.py --date 
    - **Yes** - name the metric and what it takes: mapping in `classify_market` (`src/bet/sofa/market_mapper.py`), a curve for the key, and its own settled Superbet lines (`NO_LINE_EVIDENCE` until a `p` bucket holds 50). A size hint only if labelled outside the pipeline and uncalibrated.
    - **No** - say so and stop. Never estimate from a related metric.
 4. `04_offer.json` is football / tennis only; a measured sport's reads are `sport_confidence.EXTENDED_MARKETS` / `CS2_EXTENDED_FAMILIES`, its unread names `report_market_coverage.py --date <date> --sports`.
-5. Comparative markets (`both_over_*`, `most_*`, `handicap_*`) are not a gap: `src/bet/sofa/derived.py` prices them from `config/sofa_side_correlations.json`. Report what they carry: `ONE_SIDED_LADDER` / `NO_MARKET_MARGINAL`, no curve read (`DERIVED_CURVES_FROM_UTC` off), `NO_LINE_EVIDENCE` until 50 settled lines a bucket; quote side correlations from the config.
+5. Comparative markets (`both_over_*`, `most_*`, `handicap_*`) are not a gap: `src/bet/sofa/derived.py` prices them from `config/sofa_side_correlations.json`. Report what they carry: `ONE_SIDED_LADDER` / `NO_MARKET_MARGINAL`, curves read since 2026-10-21 (`DERIVED_CURVES_FROM_UTC` on), `NO_LINE_EVIDENCE` until 50 settled lines a bucket; quote side correlations from the config.
 6. "... w obramowanie bramki" is woodwork, not a side (`market_mapper._SUBJECT_IS_NOT_A_SIDE`): blind spot.
 
 ## Output contract
@@ -105,8 +110,8 @@ Polish, three sections, never merged:
 ```
 1. MOŻNA POSTAWIĆ   per row: na tablicy / rynek wystawiony / obie strony / wiek ceny;
                     odmowy z polem, które odmówiło; CANNOT VERIFY z fetcher.errors.
-2. WARTO POSTAWIĆ   tylko ocalałe: required, offered, surplus (wycenione, selektor VALUE)
-                    i każdy dyskont; dla nogi kuponu jej pewność i x obok, nie razem.
+2. WARTO POSTAWIĆ   tylko ocalałe: pewność i x = pewność x kurs (>= 0.90 drukuje);
+                    osobna kolumna „stary selektor”: required, offered, surplus i dyskonty.
 3. POZA ZASIĘGIEM   rodziny nieczytane wg wolumenu i etykiety; które próbka sięga,
                     których nie; czego to wymaga.
 ```

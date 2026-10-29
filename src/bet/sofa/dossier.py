@@ -37,6 +37,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from rapidfuzz import fuzz
+
 from bet.sofa import h2h as h2h_fetch
 from bet.sofa import prematch_lineups
 from bet.sofa.comparability import is_friendly_event
@@ -60,7 +62,9 @@ from bet.sofa.players import (
 )
 from bet.sofa.settle import venue_timezone
 
-SCHEMA_VERSION = 1
+# 2 (2026-10-29): football `style` with league rate, xG / blocked shots / long
+# balls / throw-ins / goal kicks and `matchup[].metric`; an older dossier lacks them
+SCHEMA_VERSION = 2
 FORM_N = 10  # last games per side
 H2H_N = 6
 H2H_SCAN = 200  # a side's listed games searched for the opponent
@@ -70,6 +74,15 @@ MARKET_ROWS_MAX = 160  # Superbet line rows per match
 CS2_SERIES_N = 10
 CS2_MAP_DAYS = 90
 CS2_ROSTER_SERIES = 6
+# style block (football): competitive games with statistics per side, how far
+# back a side's listing is walked for them, and the subject-to-side match
+STYLE_N = 10
+STYLE_SCAN = 30
+STYLE_SIDE_MATCH = 70
+STYLE_POSSESSION_MIN = 4  # a possession bucket below it is a note, never a RYNEK WATCH
+# a league's rate of a leg's metric: the newest games of the season walked
+LEAGUE_RATE_GAMES = 200
+LEAGUE_RATE_MIN = 30
 LOCAL_ZONE = ZoneInfo("Europe/Warsaw")
 DB_PATH = os.environ.get("SOFA_DB_PATH", "data/sofa.db")
 # Indoor sports: a weather line says nothing of the court.
@@ -416,21 +429,7 @@ def league_table(
         or not isinstance(away, int)
     ):
         return {"missing": "brak turnieju / sezonu w payloadzie meczu"}
-    queue, seen_teams = [home, away], {home, away}
-    games: dict[int, dict[str, Any]] = {}
-    walked = 0
-    while queue and walked < TABLE_MAX_TEAMS:
-        team = queue.pop(0)
-        walked += 1
-        for g in team_games(con, team, before_ts, TABLE_SCAN):
-            if _competition_key(g) != (ut, season) or is_friendly_event(g):
-                continue
-            games[g["id"]] = g
-            for side in ("homeTeam", "awayTeam"):
-                tid = (g.get(side) or {}).get("id")
-                if isinstance(tid, int) and tid not in seen_teams:
-                    seen_teams.add(tid)
-                    queue.append(tid)
+    games, walked = _season_games(con, ut, season, [home, away], before_ts)
     if not games:
         return {"missing": "brak meczów tego sezonu w cache listingów"}
     table: dict[int, dict[str, Any]] = {}
@@ -642,6 +641,518 @@ def samples_block(
         "metrics": metrics,
         "players": players,
     }
+
+
+def _stat_items(statistics: Mapping[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """{period: {key: item}} of a /statistics payload, raw items kept: the
+    flat extractor drops `homeTotal` (crosses attempted)."""
+    out: dict[str, dict[str, Any]] = {}
+    for period in (statistics or {}).get("statistics") or []:
+        bucket = out.setdefault(str(period.get("period", "ALL")), {})
+        for group in period.get("groups") or []:
+            for item in group.get("statisticsItems") or []:
+                if isinstance(item, Mapping) and item.get("key"):
+                    bucket.setdefault(str(item["key"]), dict(item))
+    return out
+
+
+def _pair(
+    items: Mapping[str, Mapping[str, Any]], key: str, home: bool, field: str = "Value"
+) -> list[float] | None:
+    """[own, opponent] of one statistic from one side's view; None when the
+    payload does not carry it (never a zero)."""
+    item = items.get(key)
+    if not item:
+        return None
+    own, opp = ("home", "away") if home else ("away", "home")
+    a, b = item.get(own + field), item.get(opp + field)
+    if not isinstance(a, int | float) or not isinstance(b, int | float):
+        return None
+    return [float(a), float(b)]
+
+
+def _side_of_subject(subject: str, names: Mapping[str, str | None]) -> str | None:
+    """'home' / 'away' for a Superbet team name, None when unclear (never the
+    home side by default)."""
+    norm = normalize_name(subject)
+    if not norm:
+        return None
+    scores = {
+        side: fuzz.token_sort_ratio(norm, normalize_name(name or ""))
+        for side, name in names.items()
+    }
+    best = max(scores, key=lambda s: scores[s])
+    other = min(scores, key=lambda s: scores[s])
+    if scores[best] < STYLE_SIDE_MATCH or scores[best] - scores[other] < 15:
+        return None
+    return best
+
+
+def _hits(values: Sequence[float], line: float, direction: str) -> int:
+    return sum((v > line) if direction == "OVER" else (v < line) for v in values)
+
+
+def style_profile(
+    con: sqlite3.Connection, team_id: int, kickoff_ts: int
+) -> dict[str, Any]:
+    """One side's last STYLE_N competitive games with cached statistics: how
+    it plays (possession, crosses, box touches, shots inside the box) beside
+    what it wins and concedes (corners, shots), and its corners split by its
+    own possession - a side whose corners vanish when it does not have the
+    ball is a different bet against a possession side."""
+    rows: list[dict[str, Any]] = []
+    for event in team_games(con, team_id, kickoff_ts, STYLE_SCAN):
+        if len(rows) >= STYLE_N:
+            break
+        if is_friendly_event(event):
+            continue
+        found = con.execute(
+            "SELECT statistics_json FROM sofa_event_stats WHERE sofascore_event_id = ?",
+            (event["id"],),
+        ).fetchone()
+        try:
+            payload = json.loads(found[0]) if found and found[0] else None
+        except (TypeError, ValueError):
+            payload = None
+        periods = _stat_items(payload)
+        full = periods.get("ALL") or {}
+        home = (event.get("homeTeam") or {}).get("id") == team_id
+        corners = _pair(full, "cornerKicks", home)
+        if corners is None:
+            continue
+        possession = _pair(full, "ballPossession", home)
+        # a partial feed sends possession 0 / 0: a placeholder, not a game
+        if possession is not None and not 98 <= sum(possession) <= 102:
+            possession = None
+        row: dict[str, Any] = {
+            "date": (_iso(event.get("startTimestamp")) or "")[:10],
+            "opponent": _name(event.get("awayTeam" if home else "homeTeam")),
+            "venue": "dom" if home else "wyjazd",
+            "competition": ((event.get("tournament") or {}).get("uniqueTournament")
+                            or {}).get("name"),
+            "corners": corners,
+            "possession": possession[0] if possession else None,
+            "crosses": _pair(full, "accurateCross", home, "Total"),
+            "box_touches": _pair(full, "touchesInOppBox", home),
+            "shots_inside_box": _pair(full, "totalShotsInsideBox", home),
+            "shots": _pair(full, "totalShotsOnGoal", home),
+            "shots_on_target": _pair(full, "shotsOnGoal", home),
+        }
+        for period, label in (("1ST", "corners_1h"), ("2ND", "corners_2h")):
+            half = _pair(periods.get(period) or {}, "cornerKicks", home)
+            if half is not None:
+                row[label] = half
+        for stat_key, label, field in (
+                ("offsides", "offsides", "Value"), ("fouls", "fouls", "Value"),
+                ("goalkeeperSaves", "saves", "Value"),
+                ("blockedScoringAttempt", "blocked_shots", "Value"),
+                ("totalShotsOutsideBox", "shots_outside_box", "Value"),
+                ("bigChanceCreated", "big_chances", "Value"),
+                ("expectedGoals", "xg", "Value"),
+                ("finalThirdEntries", "final_third_entries", "Value"),
+                ("accurateLongBalls", "long_balls", "Total"),
+                ("throwIns", "throw_ins", "Value"),
+                ("goalKicks", "goal_kicks", "Value")):
+            got = _pair(full, stat_key, home, field)
+            if got is not None:
+                row[label] = got
+        rows.append({k: v for k, v in row.items() if v is not None})
+    out: dict[str, Any] = {"n": len(rows), "games": rows}
+    if not rows:
+        out["missing"] = "brak statystyk meczów w cache"
+        return out
+    means: dict[str, Any] = {}
+    for label in ("corners", "crosses", "box_touches", "shots_inside_box", "shots",
+                  "shots_on_target", "blocked_shots", "shots_outside_box",
+                  "big_chances", "xg", "final_third_entries", "long_balls"):
+        pairs = [r[label] for r in rows if label in r]
+        digits = 2 if label == "xg" else 1
+        if pairs:
+            means[label] = {
+                "za": round(statistics.fmean(p[0] for p in pairs), digits),
+                "przeciw": round(statistics.fmean(p[1] for p in pairs), digits),
+                "n": len(pairs),
+            }
+    poss = [r["possession"] for r in rows if "possession" in r]
+    if poss:
+        means["possession"] = round(statistics.fmean(poss), 1)
+    out["means"] = means
+    split: dict[str, Any] = {}
+    for label, below in (("posiadanie_ponizej_50", True),
+                         ("posiadanie_50_plus", False)):
+        part = [r["corners"][0] for r in rows
+                if "possession" in r and (r["possession"] < 50) == below]
+        if part:
+            split[label] = {"n": len(part), "rozne_za": part,
+                            "srednia": round(statistics.fmean(part), 1)}
+            if len(part) < STYLE_POSSESSION_MIN:
+                split[label]["uwaga"] = (f"n < {STYLE_POSSESSION_MIN} - notatka, "
+                                         "nigdy podstawa usunięcia")
+    if split:
+        out["corners_by_own_possession"] = split
+    return out
+
+
+def leg_metric(market: str) -> tuple[str, bool] | None:
+    """(metric, both sides) a football leg is counted by - its own market as
+    SAMPLES and SETTLE read it (`metrics.extract_metric`), a "każda z drużyn"
+    market as its side metric; None for a market with no per-match count
+    (score markets, players)."""
+    known = set(FOOTBALL_METRICS) | set(CARD_INCIDENT_SCOPES)
+    if market in known:
+        return market, False
+    if market.startswith("both_over_"):
+        side = market[len("both_over_"):] + "_for"
+        if side in known:
+            return side, True
+    return None
+
+
+def _metric_games(
+    con: sqlite3.Connection,
+    team_id: int,
+    kickoff_ts: int,
+    metrics: Sequence[str],
+    cache: dict[tuple[int, int], dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """The side's newest STYLE_N competitive games with cached statistics,
+    each {metric: value from the side's view} (a `_for` metric as [own,
+    opponent]); a value the extractor refuses is left out."""
+    out: list[dict[str, Any]] = []
+    for event in team_games(con, team_id, kickoff_ts, STYLE_SCAN):
+        if len(out) >= STYLE_N:
+            break
+        if is_friendly_event(event):
+            continue
+        key = (int(event["id"]), team_id)
+        if key not in cache:
+            cache[key] = meeting_metrics(con, event, team_id, metrics, "football")
+        values = cache[key]
+        if not values:
+            continue
+        out.append({"_event": int(event["id"]),
+                    **{m: v for m, v in values.items() if _numeric(v)}})
+    return out
+
+
+def _numeric(value: Any) -> bool:
+    if isinstance(value, list):
+        return all(isinstance(v, int | float) for v in value)
+    return isinstance(value, int | float)
+
+
+def _season_games(
+    con: sqlite3.Connection, ut: int, season: int, seeds: Sequence[int],
+    before_ts: int,
+) -> tuple[dict[int, dict[str, Any]], int]:
+    """Every cached game of one season of one competition reachable from the
+    seed teams' listings (then their opponents'), and how many listings were
+    walked."""
+    queue, seen_teams = list(seeds), set(seeds)
+    games: dict[int, dict[str, Any]] = {}
+    walked = 0
+    while queue and walked < TABLE_MAX_TEAMS:
+        team = queue.pop(0)
+        walked += 1
+        for g in team_games(con, team, before_ts, TABLE_SCAN):
+            if _competition_key(g) != (ut, season) or is_friendly_event(g):
+                continue
+            games[g["id"]] = g
+            for side in ("homeTeam", "awayTeam"):
+                tid = (g.get(side) or {}).get("id")
+                if isinstance(tid, int) and tid not in seen_teams:
+                    seen_teams.add(tid)
+                    queue.append(tid)
+    return games, walked
+
+
+def league_rates(
+    con: sqlite3.Connection,
+    competitions: Sequence[tuple[int, int, str | None, int]],
+    kickoff_ts: int,
+    metrics: Sequence[str],
+) -> dict[str, Any]:
+    """The league's own values of the legs' metrics: the first competition
+    of `competitions` ((ut, season, name, seed team)) whose season gives
+    LEAGUE_RATE_MIN games with statistics - the match's own competition
+    first, then each side's league (a cup tie reads its sides' leagues)."""
+    for ut, season, name, seed in competitions:
+        games, _ = _season_games(con, ut, season, [seed], kickoff_ts)
+        newest = sorted(games.values(), key=lambda g: g["startTimestamp"],
+                        reverse=True)[:LEAGUE_RATE_GAMES]
+        per_game: list[dict[str, Any]] = []
+        for g in newest:
+            home = (g.get("homeTeam") or {}).get("id")
+            if not isinstance(home, int):
+                continue
+            values = meeting_metrics(con, g, home, metrics, "football")
+            values = {m: v for m, v in values.items() if _numeric(v)}
+            if values:
+                per_game.append(values)
+        if len(per_game) >= LEAGUE_RATE_MIN:
+            return {"competition": name, "games": len(per_game),
+                    "values": per_game}
+    return {}
+
+
+def _competitions_for(
+    detail: Mapping[str, Any], games: Mapping[str, Sequence[Mapping[str, Any]]],
+    ids: Mapping[str, Any], con: sqlite3.Connection, kickoff_ts: int,
+) -> list[tuple[int, int, str | None, int]]:
+    """The match's competition, then each side's most frequent competition
+    of its newest games (its league when tonight is a cup tie)."""
+    out: list[tuple[int, int, str | None, int]] = []
+    ut, season = _competition_key(detail)
+    home = ids.get("home")
+    if ut is not None and season is not None and isinstance(home, int):
+        out.append((ut, season, (
+            (detail.get("tournament") or {}).get("uniqueTournament") or {}
+        ).get("name"), home))
+    for side in ("home", "away"):
+        team = ids.get(side)
+        if not isinstance(team, int):
+            continue
+        counts: dict[tuple[int, int], int] = defaultdict(int)
+        names: dict[tuple[int, int], str | None] = {}
+        for event in team_games(con, team, kickoff_ts, STYLE_SCAN):
+            key = _competition_key(event)
+            if key[0] is None or key[1] is None or is_friendly_event(event):
+                continue
+            k = (int(key[0]), int(key[1]))
+            counts[k] += 1
+            names[k] = ((event.get("tournament") or {}).get("uniqueTournament")
+                        or {}).get("name")
+        if counts:
+            best = max(counts, key=lambda k: counts[k])
+            if all((best[0], best[1]) != (c[0], c[1]) for c in out):
+                out.append((best[0], best[1], names[best], team))
+    return out
+
+
+def matchup_rows(
+    legs: Sequence[Mapping[str, Any]],
+    games: Mapping[str, Sequence[Mapping[str, Any]]],
+    names: Mapping[str, str | None],
+    league: Mapping[str, Any] | None = None,
+) -> list[tuple[dict[str, Any], Mapping[str, Any]]]:
+    """Every football count leg against both histories and the league: a
+    side leg - how often the side reached the line and how often tonight's
+    opponent CONCEDED it; a total - how often each side's games went over /
+    under it; the league's share. A sample of the subject's own games alone
+    does not see an opponent that gives nothing away (2026-10-28:
+    Panathinaikos corners over 3.5 - own 9/10, Aris conceded it 3/10; lost
+    with 2)."""
+    out: list[tuple[dict[str, Any], Mapping[str, Any]]] = []
+    seen: set[tuple[Any, ...]] = set()
+    league_values = (league or {}).get("values") or []
+    for leg in legs:
+        market = str(leg.get("market") or "")
+        found = leg_metric(market)
+        line, direction = leg.get("line"), str(leg.get("direction") or "")
+        if found is None or not isinstance(line, int | float) or direction not in (
+                "OVER", "UNDER"):
+            continue
+        metric, both = found
+        key = (market, leg.get("subject"), line, direction)
+        if key in seen:
+            continue
+        seen.add(key)
+        row: dict[str, Any] = {
+            "leg": f"{leg.get('superbet_market') or market}: "
+                   f"{leg.get('superbet_selection') or f'{direction} {line}'}",
+            "metric": metric,
+            "confidence": leg.get("confidence"),
+            "implied": round(1 / float(leg["offered_odds"]), 3)
+            if isinstance(leg.get("offered_odds"), int | float)
+            and leg["offered_odds"] > 1 else None,
+            "sides": [],
+        }
+        def hits(values: Sequence[float]) -> str | None:
+            return (f"{_hits(values, float(line), direction)}/{len(values)}"
+                    if values else None)
+        if metric.endswith("_for"):
+            if both:
+                sides = ["home", "away"]
+            else:
+                side = _side_of_subject(str(leg.get("subject") or ""), names)
+                if side is None:
+                    continue
+                sides = [side]
+            for side in sides:
+                opp = "away" if side == "home" else "home"
+                own = [g[metric][0] for g in games.get(side, ()) if metric in g]
+                conceded = [g[metric][1] for g in games.get(opp, ()) if metric in g]
+                cell = {"team": names.get(side), "opponent": names.get(opp),
+                        "own": hits(own), "own_values": own,
+                        "opponent_conceded": hits(conceded),
+                        "conceded_values": conceded}
+                row["sides"].append({k: v for k, v in cell.items() if v})
+            pool = [v for g in league_values if metric in g for v in g[metric]]
+        else:
+            for side in ("home", "away"):
+                totals = [g[metric] for g in games.get(side, ()) if metric in g]
+                cell = {"team": names.get(side), "games": hits(totals),
+                        "values": totals}
+                row["sides"].append({k: v for k, v in cell.items() if v})
+            pool = [g[metric] for g in league_values if metric in g]
+        if pool:
+            row["league"] = {
+                "competition": (league or {}).get("competition"),
+                "share": round(_hits(pool, float(line), direction) / len(pool), 3),
+                "n": len(pool),
+                "mean": round(statistics.fmean(pool), 2),
+            }
+        out.append(({k: v for k, v in row.items() if v is not None}, leg))
+    return out
+
+
+def _leg_hit(
+    leg: Mapping[str, Any], g: Mapping[str, Any], owner: str,
+    names: Mapping[str, str | None],
+) -> bool | None:
+    """Whether one leg hit in one past game of the `owner` side's list: a
+    total reads the game, a side leg the owner's own value when it is the
+    leg's side, else what the owner conceded; None when the game cannot say."""
+    found = leg_metric(str(leg.get("market") or ""))
+    line, direction = leg.get("line"), str(leg.get("direction") or "")
+    if found is None or not isinstance(line, int | float) or direction not in (
+            "OVER", "UNDER"):
+        return None
+    metric, both = found
+    if metric not in g:
+        return None
+    def hit(v: float) -> bool:
+        return v > line if direction == "OVER" else v < line
+    if not metric.endswith("_for"):
+        return hit(float(g[metric]))
+    own, conceded = float(g[metric][0]), float(g[metric][1])
+    if both:
+        return hit(own) and hit(conceded)
+    side = _side_of_subject(str(leg.get("subject") or ""), names)
+    if side is None:
+        return None
+    return hit(own if side == owner else conceded)
+
+
+def joint_history(
+    run: Path,
+    legs: Sequence[Mapping[str, Any]],
+    *,
+    db_path: str | Path = DB_PATH,
+) -> dict[str, Any]:
+    """How often EVERY leg of one match hit together in the two sides' last
+    games (a side's leg read as its own count in its games and as what the
+    opponent conceded in the opponent's): k/n games, the legs it could not
+    read named. A frequency over ~20 games, never a probability or a price."""
+    event = next((x.get("sofascore_event_id") for x in legs), None)
+    fx = next((f for f in _load(run / "02_fixtures.json") or []
+               if isinstance(f, Mapping) and f.get("sofascore_event_id") == event),
+              None) or {}
+    home, away = fx.get("home_entity_id"), fx.get("away_entity_id")
+    kickoff = _parse_ts(fx.get("kickoff_utc"))
+    if (not isinstance(home, int) or not isinstance(away, int) or kickoff is None
+            or not Path(db_path).exists()):
+        return {"missing": "brak meczu w 02_fixtures.json albo bazy"}
+    names = {"home": fx.get("home_name"), "away": fx.get("away_name")}
+    metrics = sorted({found[0] for x in legs
+                      if (found := leg_metric(str(x.get("market"))))})
+    cache: dict[tuple[int, int], dict[str, Any]] = {}
+    con = connect(db_path)
+    try:
+        lists = {"home": _metric_games(con, home, kickoff, metrics, cache),
+                 "away": _metric_games(con, away, kickoff, metrics, cache)}
+    finally:
+        con.close()
+    unread = [x for x in legs if leg_metric(str(x.get("market"))) is None]
+    read = [x for x in legs if x not in unread]
+    k = n = 0
+    seen: set[int] = set()
+    for owner, games in lists.items():
+        for g in games:
+            if g["_event"] in seen:
+                continue
+            seen.add(g["_event"])
+            hits = [_leg_hit(x, g, owner, names) for x in read]
+            if not read or any(h is None for h in hits):
+                continue
+            n += 1
+            k += all(hits)
+    return {
+        "k": k, "n": n,
+        "legs_read": len(read),
+        "legs_without_history": [
+            f"{x.get('superbet_market')}: {x.get('superbet_selection')}"
+            for x in unread],
+    }
+
+
+def matchup_key(leg: Mapping[str, Any]) -> str:
+    return "|".join(str(leg.get(k)) for k in (
+        "sofascore_event_id", "market", "subject", "line", "direction"))
+
+
+def matchup_text(row: Mapping[str, Any]) -> str:
+    """One matchup row as the page shows it beside the leg."""
+    parts = []
+    for cell in row.get("sides") or []:
+        if "games" in cell:
+            parts.append(f"mecze {cell.get('team')} {cell['games']}")
+        else:
+            parts.append(f"{cell.get('team')} {cell.get('own') or '?'}, "
+                         f"{cell.get('opponent')} oddaje "
+                         f"{cell.get('opponent_conceded') or '?'}")
+    league = row.get("league")
+    if league:
+        parts.append(f"liga {round(100 * league['share'])}% (n={league['n']})")
+    return "zestawienie: " + " · ".join(parts) if parts else ""
+
+
+def matchups_for_legs(
+    run: Path,
+    legs: Iterable[Mapping[str, Any]],
+    *,
+    db_path: str | Path = DB_PATH,
+) -> dict[str, str]:
+    """{matchup_key(leg): text} for every football count leg of `legs` (the
+    HTML view: every printed leg, read or not; no league rate - that walks a
+    season per match). Teams from 02_fixtures.json; a match without both
+    ids gets nothing - never a guess."""
+    by_event: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
+    for leg in legs:
+        if (leg.get("sport") or "football") == "football" and leg_metric(
+                str(leg.get("market"))) is not None and isinstance(
+                leg.get("sofascore_event_id"), int):
+            by_event[int(leg["sofascore_event_id"])].append(leg)
+    if not by_event or not Path(db_path).exists():
+        return {}
+    fixtures = {
+        int(f["sofascore_event_id"]): f
+        for f in _load(run / "02_fixtures.json") or []
+        if isinstance(f, Mapping) and isinstance(f.get("sofascore_event_id"), int)
+    }
+    out: dict[str, str] = {}
+    cache: dict[tuple[int, int], dict[str, Any]] = {}
+    con = connect(db_path)
+    try:
+        for event_id, these in by_event.items():
+            fx = fixtures.get(event_id) or {}
+            home, away = fx.get("home_entity_id"), fx.get("away_entity_id")
+            kickoff = _parse_ts(fx.get("kickoff_utc"))
+            if (not isinstance(home, int) or not isinstance(away, int)
+                    or kickoff is None):
+                continue
+            metrics = sorted({found[0] for x in these
+                              if (found := leg_metric(str(x.get("market"))))})
+            games = {"home": _metric_games(con, home, kickoff, metrics, cache),
+                     "away": _metric_games(con, away, kickoff, metrics, cache)}
+            names = {"home": fx.get("home_name"), "away": fx.get("away_name")}
+            for row, leg in matchup_rows(these, games, names):
+                text = matchup_text(row)
+                if text:
+                    out[matchup_key(leg)] = text
+    finally:
+        con.close()
+    return out
 
 
 def market_block(
@@ -1238,6 +1749,35 @@ def build(
             doc["cs2"] = cs2_block(con, home_id, away_id, kickoff_ts)
     if sport in ("football", "tennis"):
         doc["samples"] = samples_block(samples.get(event_id), legs)
+    if sport == "football" and isinstance(home_id, int) and isinstance(away_id, int):
+        profiles = {
+            "home": style_profile(con, home_id, kickoff_ts),
+            "away": style_profile(con, away_id, kickoff_ts),
+        }
+        metrics = sorted({found[0] for x in legs
+                          if (found := leg_metric(str(x.get("market"))))})
+        cache: dict[tuple[int, int], dict[str, Any]] = {}
+        side_games = {
+            "home": _metric_games(con, home_id, kickoff_ts, metrics, cache),
+            "away": _metric_games(con, away_id, kickoff_ts, metrics, cache),
+        }
+        league = league_rates(
+            con, _competitions_for(detail, side_games,
+                                   {"home": home_id, "away": away_id},
+                                   con, kickoff_ts),
+            kickoff_ts, metrics) if metrics and detail else {}
+        doc["style"] = {
+            "source": "statystyki Sofascore ostatnich meczów o stawkę (bez "
+            "towarzyskich), [za, przeciw] z perspektywy drużyny; crosses = "
+            "dośrodkowania próbowane; matchup liczy rynek nogi tak jak SETTLE "
+            "(metrics.extract_metric)",
+            "home": profiles["home"],
+            "away": profiles["away"],
+            "league": {k: v for k, v in league.items() if k != "values"}
+            or {"missing": "liga bez 30 meczów ze statystykami w cache"},
+            "matchup": [row for row, _ in matchup_rows(
+                legs, side_games, side_names, league)],
+        }
     doc["market"] = market_block(run, sport, legs, offer, event_id)
     if sport in TEAM_SPORTS:
         doc["lineups"] = lineups_block(

@@ -29,7 +29,11 @@ typo is a validation error). The day is **UTC**; datetimes are UTC ISO with
 | `KUPON_<d>.pdf`, `KUPON_<d>.html` | PDF | **the product**; the HTML is a filterable view of the same legs |
 | `12_printed.json`, `printed/<ts>.json` | PDF | the print record |
 | `vetoes.json`, `reads.json`, `read_requests.json` | analysts / verifier / operator | the channels (SKILL.md) |
-| `analyses.json` | `merge_reads.py` (`bet.sofa.analyses`) | the analysts' match sections by match - display / `prior_analysis` |
+| `analyses.json` | `merge_reads.py` (`bet.sofa.analyses`) | the analysts' and the verifier's match sections by match, newest first - display / `prior_analysis` |
+| `dossier/<sport>_<event id>.json` | `read_set.py` / `build_slip.py` (`bet.sofa.dossier`) | the analysts' match fact sheet (form, rest, table, h2h, lineups, football `style` block with `style.matchup`, referee, line moves, web checklist); path on each leg's `dossier` - display only |
+| `h2h.json` | `read_set.py` / `build_slip.py` (`bet.sofa.h2h`) | Sofascore head-to-head of every read match (`--no-h2h` skips); display only |
+| `lineups_prematch.json` | `read_set.py` / `build_slip.py` (`bet.sofa.prematch_lineups`) | Sofascore pre-match lineup per read football / hockey / basketball match (OK / NOT_PUBLISHED / FAILED / NOT_ASKED); never cached; display only |
+| `late_resolve.json` | LATE_RESOLVE in a live rebuild (`bet.sofa.late_resolve`) | board entries re-asked while open; only new fixtures added |
 | `read_set/read_set_<sport>[_<i>].json` | `read_set.py` | the legs an analyst instance reads |
 | `<d>_analiza_<sport>[_<part>][_r<n>].md`, `<d>_weryfikacja[_r<n>].md` | analysts / verifier | their reports, merged by `merge_reads.py` |
 | `07_settled.json`, `07_settle_skips.json`, `07_settled_printed.json` | SETTLE (D-1) | grades, skips / refunds, printed legs without a sheet row |
@@ -41,6 +45,7 @@ typo is a validation error). The day is **UTC**; datetimes are UTC ISO with
 | `closing.jsonl` | `capture_closing.py` | closing price of every printed leg |
 | `unmapped_prices/<ts>.jsonl.gz` | OFFER | prices of markets OFFER does not read - read by nothing |
 | `entity_queue.md` | `report_entity_queue.py` | sport-identity alias queue for the operator |
+| `reads_slip.json`, `vetoes_slip.json`, `slips/<HHMM>[_check].md`, `read_set_slip/read_set_slip_<sport>.json`, `<d>_analiza_<sport>_kupon_<hhmm>_<round>.md` | `merge_reads.py --slip` / `build_slip.py` / analysts | chat slip only (`/kupon`, `--check`); the coupon never reads them (`analyses.json` skips `_kupon_` reports) |
 
 ## `01_board.json` - `BoardFixture[]`
 
@@ -92,8 +97,12 @@ observation.
 (`PricedRung`: `market`, `subject`, `line`, `over_odds`, `under_odds`,
 `fetched_at_utc` - per rung, what the 45-minute staleness gate reads; one side
 `null` = one-sided, no devig), `unmapped_markets[]`, `price_collisions[]`,
-`superbet_started_utc`, `superbet_kickoff_seen_utc` (start signals; the start
-clock is the earliest of all).
+`superbet_started_utc`, `superbet_kickoff_seen_utc` (start signals). Start clock = earliest of RESOLVE's clocks and Superbet's
+(`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh `/event`
+start - of that start and Superbet's newest clock (it replaces RESOLVE's
+frozen ones, `locked_print.kickoff_clocks`: a match moved later is not gated
+on its dawn start); Superbet's start signal (`superbet_started_utc`) counts
+as started.
 
 ## `05_sheet.json` - `SheetRow[]`
 
@@ -138,7 +147,7 @@ Top level: `created_at_utc`, `profile`, `epoch`, `confidence_floor`,
 the lock keys below.
 
 A **leg**: identity + `sport`, `match`, `competition`, `kickoff_utc` (the
-earliest clock), `model_p` (= `p_central`), **`confidence`** (the number),
+start clock, `04_offer.json` above), `model_p` (= `p_central`), **`confidence`** (the number),
 `calibrated_on` (`market:<m>`, `line:<m>|<DIR>@<line>`,
 `market_thin:<m>|<DIR>`, `pooled:<sport>`, `<class>:...`, `...<offset>sb`,
 `...|cap:<cell>`, `sb:<sport>:<key>`), `calibration_n`, `sample_size`,

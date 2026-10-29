@@ -626,15 +626,22 @@ def test_confidence_reads_the_installed_slice_curves(
     # The live evidence file is refitted every morning: once the score
     # markets' own lines settle (from 10-17) their keys exist and the refused
     # slice reads them. This test pins the state it describes - no own lines
-    # yet - by dropping the score markets' keys from the loaded evidence.
+    # yet - by dropping the score markets' keys (and their band cells) from
+    # the loaded evidence, and pins football's pooled 1.30-1.60 band at 0.69
+    # (the live cell drifts across 0.70 as lines settle: 0.697 on 10-27's
+    # file, 0.7005 on 10-28's).
     real_load = run_confidence.LineEvidence.load
 
     def load_without_score_keys(*a: Any, **k: Any) -> Any:
         ev = real_load(*a, **k)
-        for sport_keys in (ev.doc.get("keys") or {}).values():
-            for key in [x for x in sport_keys
-                        if x.split(":")[-1].split("|")[0] in fsm.MARKETS]:
-                del sport_keys[key]
+        for section in ("keys", "bands"):
+            for sport_keys in (ev.doc.get(section) or {}).values():
+                for key in [x for x in sport_keys
+                            if x.split(":")[-1].split("|")[0] in fsm.MARKETS]:
+                    del sport_keys[key]
+        pooled = ev.doc["bands"]["football"]["*"]["1.30-1.60"]
+        for label in pooled:
+            pooled[label] = {"n": 1000, "k": 690}
         return ev
 
     monkeypatch.setattr(run_confidence.LineEvidence, "load",
@@ -664,7 +671,7 @@ def test_confidence_reads_the_installed_slice_curves(
     ("result_or_btts", "X", 0.5, "remis lub obie drużyny strzelą gola (Tak)"),
     ("result_or_clean_sheet", "1", 0.5,
      "Hoffenheim wygra lub którakolwiek drużyna zachowa czyste konto (Tak)"),
-    ("result_handicap", "2", 1.5, "Handicap: Besiktas (+1.5)"),
+    ("result_handicap", "2", 1.5, "Handicap: Besiktas (1.5)"),
     ("dc_and_over", "12", 2.5, "Podwójna szansa & liczba goli: 12 & powyżej 2.5"),
     ("dc_and_under", "1X", 4.5, "Podwójna szansa & liczba goli: 1X & poniżej 4.5"),
     ("set_score_not", "Daniil Medvedev 0:2", 0.5, "Daniil Medvedev wygra seta (Tak)"),
@@ -675,6 +682,18 @@ def test_the_coupon_names_the_leg_in_superbets_words(
     leg = {"market": market, "subject": subject, "line": line,
            "match": "Hoffenheim - Besiktas"}
     assert fsm.display_market(leg) == want
+
+
+@pytest.mark.parametrize("sel", ["Besiktas (1.5)", "Hoffenheim (-1.5)",
+                                 "Hoffenheim (2.5)", "Besiktas (-2.5)"])
+def test_a_handicap_leg_is_named_as_superbet_wrote_it(sel: str) -> None:
+    """Classify Superbet's selection, name the leg back: the same words (no
+    "+", the UNDER as the other side's -L)."""
+    [(market, subject, line, direction)] = fsm.classify(
+        "Handicap", sel, "Hoffenheim", "Besiktas")
+    leg = {"market": market, "subject": subject, "line": line,
+           "direction": direction, "match": "Hoffenheim - Besiktas"}
+    assert fsm.display_market(leg) == f"Handicap: {sel}"
 
 
 # --- the rebuild of the mixed day 10-16 ------------------------------------------

@@ -68,18 +68,21 @@ name with their read verdicts.
 ## 2. The read set
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffer 25 --split 12
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffer 25 --split 6
 ```
 
 - `--buffer 25` on a provisional build (the rebuild reshuffles the 20 best-value matches;
   legs read now save a C3 round); `--buffer 0` on a final rebuild; `--unread` on every
   re-read pass (step 5).
-- `--split 12`: parts of <= 12 whole matches, one analyst each.
+- `--split 6`: parts of <= 6 whole matches, one analyst each (operator 2026-10-29; the
+  flag applies to every sport - tennis / measured-sport parts are small anyway).
 - Output: one line per sport / part, `<sport>: <n> legs, <n> matches (<n> required, <n>
   buffer) -> runs/sofa/<date>/read_set/read_set_<sport>[_<i>].json` (required / buffer are
   legs). `read set: empty` = nothing to read.
 - Run id: the day's, from its build log:
-  `grep -o '"run_id": "[0-9a-f]*"' runs/sofa/<date>/pipeline_resolve.log | tail -1`.
+  `grep -ho '"run_id": "[0-9a-f]*"' runs/sofa/<date>/pipeline_board.log runs/sofa/<date>/pipeline_resolve.log 2>/dev/null | tail -1`.
+  If absent (neither log), skip it: write `run_id -` in the prompt (the analysts do not use it).
 
 ## 3. Launch the analysts
 
@@ -121,8 +124,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
   sections in `analyses.json` (the HTML / PDF show them at the legs); `NO_SECTIONS: <file>`
   = no heading carried `sofa:<id>` - report it, the merge stands.
 - `merge_reads.py`: exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing -
-  report it); 2 refused, nothing written - relaunch that instance with the refusal line and a
-  new `_r<n>` path (never fix its JSON yourself; after 2 relaunches report the failure). It carries earlier vetoes over and only appends reads (WATCH / NO_BET
+  report it); 2 refused, nothing written (also a removal without a fact: USUNIĘCIE BEZ
+  FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU) - relaunch that instance with the
+  refusal line / findings and a new `_r<n>` path (never fix its JSON yourself; after 2 relaunches report the failure). It carries earlier vetoes over and only appends reads (WATCH / NO_BET
   win over KEEP). A report without a reads block broke its contract: say so, never invent reads.
 - `rebuild_day.py`: `/sofa-rebuild` owns its plan. Report every `UNMATCHED_READ` (a read that
   did nothing); a measured-sport read counts as `reads_sport` and acts in COUPON_ASSEMBLY -
@@ -134,7 +138,8 @@ The rebuild ends with `audit_variants`; C3 fails a read-set leg without an analy
 printed leg carrying WATCH / NO_BET. Positions moved, so:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --unread --split 12
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --unread --split 6
 ```
 
 (`--buffer 5` while early kickoffs pull new matches in) and steps 3-4 on those files only
@@ -147,6 +152,11 @@ builder leg makes that fixture's builder take its next candidate: add to that re
 prompt "also read every leg of this fixture's builder candidates in 08_confidence.json
 `builders`". A refusing read on a locked leg is a note, not a defect.
 
+Last: `PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <date>` -> `icloud`
+must be OK (md5 local = iCloud copy of KUPON pdf + html); a WARN = re-copy with
+`build_coupon_html.py --date <date>` (safe on a results day: it keeps the results) and check again; say it in the report (SKIPPED /
+NOT_CHECKED named).
+
 ## 6. Report
 
 ```
@@ -156,6 +166,7 @@ WETA:     <n> zastosowanych, <n> bez dopasowania
 READS:    KEEP <n> / WATCH <n> / NO_BET <n> · UNMATCHED_READ <n> · reads_sport <n> · rundy C3 <n> (C3 musi być 0)
 KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — pozycje <n> → <n>, buildery <n> → <n>, zablokowane <n>
 ZDJĘTE:   <removed_by_reads: noga, odczyt, autor>
+iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK / WARN / SKIPPED> (day_status icloud)
 NIE PRZECZYTANO: <nogi zbioru C3 bez odczytu i dlaczego>
 ```
 

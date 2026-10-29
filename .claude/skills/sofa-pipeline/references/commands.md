@@ -20,10 +20,10 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/cs2_daily.py --date <d> --chain >> runs/sofa/cs2/daily_<d>.log 2>&1 &   # the CS2 loop; a second loop for the date refuses
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <d> --loop >> runs/sofa/<d>/capture_closing.log 2>&1 &   # closing prices -> closing.jsonl; normally started by the loops (capture_closing.ensure_loop), not by hand; stops after 12 failed passes; started before the build it waits for 11_coupon.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <d>         # Superbet boosts snapshot (not the coupon); exit 2 on an open breaker
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K] [--out-dir <dir>] [--no-dossier] [--db-path <db>]   # C3's read set as compact per-sport files under runs/sofa/<d>/read_set/; also each match's dossier (runs/sofa/<d>/dossier/, bet.sofa.dossier, offline) and the leg's `dossier` path
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K] [--out-dir <dir>] [--no-dossier] [--no-h2h] [--no-lineups] [--db-path <db>]   # C3's read set as compact per-sport files under runs/sofa/<d>/read_set/ (--split K: parts of <= K matches, every sport; the day's commands use 6); NOT offline: asks Sofascore (bridge) for h2h.json / lineups_prematch.json and writes each match's dossier (runs/sofa/<d>/dossier/) and the leg's `dossier` path - --no-h2h / --no-lineups / --no-dossier skip (all three: no request, nothing under runs/ but --out-dir)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/window_reads.py --date <d> --start-from 14:00 --start-to 17:00 [--top 20] [--dry-run]   # the window's (local time) best-value matches, all when fewer, appended to read_requests.json as whole-match requests (bet.sofa.window_reads; /sofa-analyze okno); exit 1 = none in the window
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_analyst_report.py --report <md> [--report <md>]   # depth check of an analyst report (Kontekst (web), dossier, KEEP reasons); exit 1 = rewrite; the PostToolUse hook (.claude/hooks/check_analyst_report.py) runs it on every report written
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--author analyst] [--dry-run]   # merge a report's json vetoes / reads arrays into vetoes.json / reads.json; exit 2 = refused
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_analyst_report.py --report <md>   # depth check of an analyst or verifier report (bet.sofa.report_check: Kontekst (web), dossier, sofa:<id> headings, KEEP reasons, sourced removals); exit 1 = rewrite; the PostToolUse hook (.claude/hooks/check_analyst_report.py) runs it on every report written
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run] [--slip] [--read-set <file> ...]   # a report's json vetoes / reads into vetoes.json / reads.json (--slip: *_slip.json); exit 1 = merged with a fresh UNMATCHED_VETO (--read-set: UNMATCHED_READ / LEG_WITHOUT_READ); exit 2 = refused, nothing written - also a report with USUNIĘCIE BEZ FAKTU / RYNEK TYLKO WATCH / RYNEK BEZ TAGU / WETO BEZ FAKTU (relaunch the analyst with the findings, next _r<n>)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/verify_legs.py --date <d> [--all] [--live [--limit-fixtures N]] [--out-dir <dir>]   # deterministic per-leg defect screen (sheet row, side, notes, own sample, clocks, sport identity, live price); --all = every printed leg; exit 1 = findings
 ```
 
@@ -38,7 +38,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_confidence.py --date <d>   # SPORT_CONFIDENCE -> 08_confidence_sports.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>        # COUPON_ASSEMBLY -> 11_coupon.json; exit 1 while 08_confidence_sports.json is absent
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>    # KUPON_<d>.pdf + .html
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <d>   # the HTML view alone
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <d>   # the HTML view alone (+ iCloud copy); a finished day keeps its results (13_results.json)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_analyses.py --date <d> [--dry-run]   # rebuild analyses.json (the match sections) from the day's reports; then build_coupon_html.py to show them
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_family_record.py --date <d>  # family_record.json for the HTML filter
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>        # the old VALUE selector (06_coupon.json): structure, arithmetic, anti-selection
@@ -170,10 +170,17 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p13_golden_set.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p14_tennis_rating.py --db-path <copy> --date <d>   # coverage audit P14 (read-only; DB copy)
 ```
 
-## Chat slip to a target price (outside the pipeline; read-only, no network)
+## Chat slip to a target price (outside the pipeline; NOT read-only)
+
+A slip build refreshes `family_record.json` (`--no-refresh-record` skips) and, with
+`--read-set-dir`, asks Sofascore through the bridge (h2h, pre-match lineups) and writes
+dossiers (`--no-h2h` / `--no-lineups` / `--no-dossier` skip) - run `ensure_bridge.py`
+first. Always pass `--md-out` so a staked slip can be traced.
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target 4 [--start-from 10:00 --start-to 12:00] [--slips N] [--competition "Champions League"] [--allow-rest | --any-family] [--builders] [--max-legs 10] [--reserve 1] --read-set-dir runs/sofa/<d>/read_set_slip   # bet.sofa.slip_builder: exact knapsack, refused reads drop out; loop: bet-slip-audit skill; exit 0 / 1 fewer supported / 2 no coupon, no family record or bad arguments
+mkdir -p runs/sofa/<d>/slips
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target 4 [--start-from 10:00 --start-to 12:00] [--slips N] [--competition "Champions League"] [--allow-rest | --any-family] [--builders] [--max-legs 10] [--reserve 1] --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md   # bet.sofa.slip_builder: exact knapsack, refused reads drop out; loop: bet-slip-audit skill; exit 0 all supported (--any-family: all found) / 1 fewer / 2 no coupon, no family record or bad arguments
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --check "<mecz>|<superbet_market>|<superbet_selection>" [--check ...] [--screen-odds 2.25] --no-refresh-record --md-out runs/sofa/<d>/slips/<HHMM>_check.md   # the operator's OWN Bet Builder from a screenshot (one match; more = error): each leg looked up in 11_coupon.json singles, then removed_by_reads, then 08_confidence*.json (a refused / removed leg prints its refusal or read reason); per leg measured chance vs 1/odds, the legs' joint k/n in both sides' games (a frequency, never a probability), the screen price's 1/kurs; no product of chances; no --target; read-only with --no-refresh-record (always pass it); exit 0 all legs found, 1 some leg not found, 2 failure
 ```
 
 ## Gates before a commit

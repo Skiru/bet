@@ -376,7 +376,13 @@ def display_market(leg: Mapping[str, Any]) -> str | None:
         return (f"{name} {'' if subject == 'X' else 'wygra '}lub którakolwiek "
                 "drużyna zachowa czyste konto (Tak)")
     if market == HANDICAP_RESULT:
-        return f"Handicap: {name} (+{line})"
+        # Superbet writes the side's own handicap with no plus sign
+        # ("Besiktas (1.5)", "Hoffenheim (-1.5)"); an UNDER is the other
+        # side's -L, as `classify` reads it.
+        if str(leg.get("direction") or "OVER") == "UNDER":
+            other = {"1": away, "2": home}.get(subject, name)
+            return f"Handicap: {other} (-{line})"
+        return f"Handicap: {name} ({line})"
     if market == DC_AND_OVER:
         return f"Podwójna szansa & liczba goli: 12 & powyżej {line}"
     return f"Podwójna szansa & liczba goli: 1X & poniżej {line}"

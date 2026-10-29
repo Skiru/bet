@@ -42,6 +42,7 @@ The cheapest context is on disk and cannot leak a result:
 | who plays (football / hockey / basketball) | dossier `lineups` (Sofascore pre-match: predicted or confirmed, missing / doubtful, `regulars_not_in_xi`, each prop's player status) | `ABSENCES`, `ROTATION` |
 | CS2 roster change | dossier `cs2.roster_new_vs_previous` | `ABSENCES` |
 | referee (football) | dossier `header` referee + games / cards; the sheet's `REFEREE` note | - (already in the model) |
+| football market drivers (possession, crosses, box touches, blocked shots, the opponent's concession, league rate) | dossier `style`, `style.matchup`, `style.league` (`market-drivers.md`) | - (`RYNEK:` WATCH only at its threshold, core) |
 | line moves | dossier `market` | a question for the web, never a verdict |
 | venue, city, local hour, coordinates | dossier `header` | the weather hour |
 

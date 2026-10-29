@@ -12,7 +12,8 @@ question: *given these rows, does the sample describe tonight's match?*
 | reference | read it when |
 |---|---|
 | `references/data-inventory.md` | you need what is measured, from which Sofascore field, and what is absent |
-| `references/market-playbook.md` | you grade a specific market: drivers, kill cases, score markets, player props, builders |
+| `.claude/skills/sofa-analysis-core/references/market-drivers.md` | **before the first match, and per market family before its verdict**: the drivers you must check and write (mandatory, operator 2026-10-29) |
+| `references/market-playbook.md` | you grade a specific market: base rates, kill cases, score markets, player props, builders |
 | `references/methodology.md` | you need the model behind a claim: counts, referee bias, game state, two-legged ties, congestion, shrinkage |
 | `references/event-protocol.md` | you write a match section (the Polish template) |
 
@@ -22,14 +23,15 @@ behaviour from it.
 
 ## What `sofa` holds and what it does not
 
-On disk: the fixture's identity, round and both clocks; a referee on a small
-minority of fixtures; a venue on few; **the raw observations**; the schedule
-block; the table-stakes flag; and the rating behind the centre (its ratios
-are in the row's `FOOTBALL_RATING` note). Not on disk: standings, aggregates,
-absences, lineups, manager changes, weather, derby status, any 1X2 consensus.
-That half comes from the open web - every match gets a context pass (SKILL
-core, decision point step 3: news, weather, morale and the backstage,
-opinions; tagged, weighted) - or is `UNVERIFIED`.
+On disk: the fixture's identity, round and both clocks; **the raw
+observations**; the schedule block; the table-stakes flag; the rating behind
+the centre (its ratios in the row's `FOOTBALL_RATING` note); and the
+dossier - the rebuilt table, the first leg's score, Sofascore's pre-match
+lineup, the referee (named ~48 h before kick-off), the `style` block and the
+league rate (`style.league`). The web holds what changed since (a late
+absence, a confirmed XI, a referee change), plus manager changes, weather,
+derby status - every match gets a context pass (core, decision point step 3;
+tagged, weighted) - or it is `UNVERIFIED`.
 
 ## What the code already does - do not re-derive or veto for it
 
@@ -40,7 +42,8 @@ opinions; tagged, weighted) - or is `UNVERIFIED`.
   `FOOTBALL_RATING` note; goals_for 0.95). `corners_total` and the corners
   half totals stay unrated. Game state, season phase, the opponent correction
   of the sample and the supremacy stretches each leave a note or `*_rule`
-  marker. Current switches: `.claude/skills/sofa-pipeline/references/model-state.md`.
+  marker. Cards / fouls carry the named referee's shrunk rate since
+  2026-10-21 (`referee_rule`). Current switches: `.claude/skills/sofa-pipeline/references/model-state.md`.
 - **Spread.** A fitted negative-binomial dispersion per competition
   (`config/sofa_count_dispersion.json`, `dispersion_rule`) - `sample_sd` is
   not what `p` was built from; `shots_total` uses a normal.
@@ -77,19 +80,29 @@ Template and step table: `references/event-protocol.md`.
    the mean? do `X_for(A) + X_for(B)` land near `X_total`'s mean? does
    `subject` resolve to the side you think? a cup or friendly observation in
    a league fixture's goal sample (a defect)? a placeholder 0-0?
-5. **Shrinkage share.** State `w_c` and the rating's `W`; twice for a half
-   row (half baselines rest on smaller populations).
+5. **Shrinkage share.** `w_c` and the rating's `W`, once per market family
+   in **Szczegóły techniczne**; the half rows apart (half baselines rest on
+   smaller populations).
 6. **Distribution.** min, max, median, **mode**, where the line sits. A line
    beyond the sample's extreme is extrapolation; a line on the mode is a coin
    flip dressed as a lean.
-7. **Opponent and venue.** Tonight's venue vs the sample's mix. Every `_for`
-   observation carries `against` (the opponent's value in that match): the
-   other side's `against` values are what tonight's opponent concedes. Built
-   in already: the rating's defence ratio and the opponent correction
-   (`opponent_rule`, `corrected_sample` on the row).
-8. **Referee** (cards, fouls). `RefereeRecord` is a rate with `games` as its
-   n; not in the centre; absence is normal - say what it costs on a tight
-   line in a high-spread league.
+7. **Market drivers, opponent, style and venue** (mandatory, every leg).
+   Tonight's venue vs the sample's mix. Per market family, the drivers of
+   `market-drivers.md` §1, read from the dossier's `style` (core
+   `references/dossier.md` `jq`): possession, crosses, box touches and
+   shots inside the box, blocked shots, what the opponent **concedes**, who
+   has the ball, the league rate. `style.matchup` sets each count leg it
+   lists against the opponent's concession (a total: both sides' games) in
+   the leg's direction - a sample of the subject's own games does not see
+   an opponent that concedes nothing (10-28: Panathinaikos corners over 3.5,
+   own 9/10, Aris conceded it 3/10; lost with 2). Table and `ocena`:
+   `references/event-protocol.md`, "The leg table"; the thresholds: core,
+   "What a removal's reason must name". Built in already: the rating's
+   defence ratio and the opponent correction (`opponent_rule`,
+   `corrected_sample`) - say whether they moved the leg.
+8. **Referee** (cards, fouls). The named referee's shrunk rate is in the
+   cards / fouls centre since 2026-10-21 (`referee_rule` on the row); only a
+   referee **change** against the dossier is new (`sources-football.md`).
 9. **Absences and lineups.** The dossier's `lineups` block first:
    Sofascore's XI (`confirmed` false = **predicted, not confirmed** - say
    which, with `asked_at_utc`), `missing_players` (missing / doubtful),
@@ -104,18 +117,17 @@ Template and step table: `references/event-protocol.md`.
     level. Weight it from Superbet's own ladders in `04_offer.json`
     (`goals_for`, `double_chance`, `result_1x2`, `handicap_corners`, `most_*`)
     or say it is unweighted; name the script that kills the leg.
-11. **The ladder.** Every rung of the market with pewność, próbka, model,
-    odds; why this rung. `NO_LADDER_CHECK` / `LADDER_DISAGREES` are the old
+11. **The ladder.** Why this rung, in a sentence (the line against the
+    distribution); no rung list - the page shows the numbers. `NO_LADDER_CHECK` / `LADDER_DISAGREES` are the old
     selector's notes - CONFIDENCE does not gate on them; weigh them. A leg
     whose `peer.best` is another, surer leg of the match at a similar price:
     say why you keep the weaker one beside it.
 12. **Correlation** (builder legs): the shared mechanism and the one scenario
     that kills every leg. Never multiply.
-13. **Buy case / kill case -> verdict.** A KEEP unless the kill case rests on
-    a fact newer than the price or a `DEFEKT:` (core, "What a removal's reason
-    must name"); a balanced case from the statistics is a KEEP with the
-    doubt written in the section. The price is the filter the code applied,
-    never a reason.
+13. **Buy case / kill case -> verdict.** A KEEP unless the kill case carries
+    a mark of core "What a removal's reason must name"; a balanced case from
+    the statistics is a KEEP with the doubt written in the section. The price
+    is the filter the code applied, never a reason.
 
 ## Markets with their own reading
 
@@ -133,14 +145,24 @@ Template and step table: `references/event-protocol.md`.
   `PLAYER_NAME_SURNAME`: is `matched_name` the same person?), set pieces,
   opponent style, the referee for fouls. Key the read to the player exactly
   as the leg writes him. Details: `references/market-playbook.md`.
-- **Derived joints** (`both_over_*`, `most_*`, `handicap_*`): no sample of
-  their own. If one is in your file, report the two `*_for` rows and refuse
-  the multiplication.
+- **Derived joints** (`both_over_*`, `most_*`, `handicap_*`): priced from
+  the sides' marginals and read through their own per-line curves (live
+  since 2026-10-21); never multiply. A `both_over_*` leg: one table row per
+  team from `style.matchup`; `most_*` / `handicap_*` have no matchup row -
+  both sides' style means, "bez zestawienia".
 
 ## Kill cases this repo has paid for
 
 - A team-corner OVER with a total-corner UNDER and no tail test (12-2: one
   side can destroy the total alone).
+- A team-corner OVER against an opponent that concedes few (`style.matchup`
+  `opponent_conceded` 3/10 against pewność 0.79) read only on the subject's
+  own sample - from 2026-10-30 a WATCH `RYNEK: …` at core's threshold, not
+  a silent KEEP.
+- "Każda z drużyn powyżej 1.5 rożnych" with one side that will be without
+  the ball: PAOK 1 corner at 36% possession against AEK (10-28) - its own
+  corners below 50% possession were 5, 3, 2, 1 (mean 2.75, above the 1.5
+  line: a note, not core's threshold (b)).
 - The misses are the h2h: 19/21 pooled, 1/3 in this pairing.
 - A line on the mode (cards 7.5 with five 7s and two 8s).
 - One observation deciding the bar (6 vs 8 on one match moved 19/21 to 20/21).
@@ -160,7 +182,9 @@ Template and step table: `references/event-protocol.md`.
 
 ## Football output requirements
 
-Per match, always state - even when the answer is "brak": round and stakes
-and where you read them; the referee with `games`, or that there is none;
+Per match, always state - even when the answer is "brak": the **Styl gry i
+zestawienie** paragraph with the market drivers checked per family (and its
+leg table when `style.matchup` lists a read leg); round
+and stakes and where you read them; the referee and whether it changed;
 absences per side and how you checked; the venue; the modal game script;
-`w_c` and `W`; which gates the code already applied.
+`w_c` and `W` per family; which gates the code already applied.

@@ -89,7 +89,7 @@ leaves the audits out and says so - a skipped audit is not a passed one.
   day runs to D+1 05:00Z (`sport_identity.day_window`), so the plan's SHADOW / CS2 refresh
   reaches the games after midnight UTC (on file in D+1's snapshots) and SPORT_IDENTITY pins
   them; their legs carry `window: "late"`. Report how many late legs were added per sport;
-  re-read with `read_set.py --unread` until C3 is clean.
+  re-read (`ensure_bridge.py`, then `read_set.py --unread`) until C3 is clean.
 - `build_coupon_pdf.py` refuses `STALE_CONFIDENCE` / `STALE_COUPON`: fix the cause and re-run
   the whole rebuild, never only the PDF.
 - SPORT_CONFIDENCE exit 1 = a sport `NOT_CALIBRATED` or without `sport_fixtures.json`;
@@ -105,8 +105,13 @@ Never run `refresh_line_evidence.py`, `prepare_refit.py` or a `fit_*` in a rebui
 
 `audit_variants` (C1-C3, U1-U3) and `audit_coupon` must be clean. A C3 finding (a moved
 position put an unread leg into the read set) goes to `/sofa-analyze`'s C3 loop
-(`read_set.py --date <date> --unread --split 12`), not its whole pass. Then hand the day to `/sofa-verify` unless the operator asked for
+(`ensure_bridge.py`, then `read_set.py --date <date> --unread --split 6`), not its whole pass. Then hand the day to `/sofa-verify` unless the operator asked for
 a bare rebuild.
+
+Last: `PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <date>` -> `icloud`
+must be OK (md5 local = iCloud copy of KUPON pdf + html); a WARN = re-copy with
+`build_coupon_html.py --date <date>` (safe on a results day: it keeps the results) and check again; say it in the report (SKIPPED /
+NOT_CHECKED named).
 
 ## Report
 
@@ -117,6 +122,7 @@ SPORTY:   hokej <n> · kosz <n> · siatka <n> · CS2 <n> nóg · <sport>: NOT_CA
 START:    FIXTURE_CHECK <OK | UNVERIFIED> · FIXTURE_NOT_AS_SCHEDULED <n>
 READS:    weta <n> (bez dopasowania <n>) · KEEP/WATCH/NO_BET <n/n/n> · removed_by_reads <n> · UNMATCHED_READ <n> · C3 <n>
 CENA:     oferta z <ts>, wiek <n> min
+iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK / WARN / SKIPPED> (day_status icloud)
 ZMIANA:   <co się ruszyło i dlaczego — kod, weta, odczyty, cena>
 ```
 

@@ -6,30 +6,32 @@ description: Price a Superbet single, Bet Builder or SUPERBETS boost before reco
 # Audit the price before the fixture
 
 You are in the main session. This skill is **outside the pipeline**: no stage
-calls it, and your answer says so. For a Bet Builder, first run the builder
-method (`docs/sofa/SUPERBET_BET_BUILDER_METHOD_v3.md` §39-§44: correlation,
-contradiction test, common-outcome test, builder score - never the product of
-leg probabilities); a slip correctly priced but internally contradictory is
-still not a bet.
+calls it, and your answer says so. Operator's own Bet Builder (screenshot) ->
+`build_slip.py --check` first (section below); the method doc
+(`docs/sofa/SUPERBET_BET_BUILDER_METHOD_v3.md` §39-§44) only for its
+contradiction / common-outcome tests - a slip correctly priced but internally
+contradictory is still not a bet.
 
 ## Data rule
 
 Sofascore and Superbet only. An outside number (a consensus 1X2, a totals
 line) is used **only when the operator types it in**, and the answer labels it
 "podane przez operatora". Never fetch one: no bzzoiro MCP tool, no bzzoiro API,
-no other bookmaker feed. `scripts/sofa/audit_slip.py` does no network (its
-docstring still names bzzoiro as the source of the numbers - ignore that; the
-operator-typed rule governs). With no typed number and no sample, the answer is
+no other bookmaker feed - bzzoiro is never a source in the sofa flow
+(Sofascore and Superbet only). `scripts/sofa/audit_slip.py` does no network and
+takes an operator-typed consensus only (its docstring's bzzoiro wording is the
+archived pipeline's). With no typed number and no sample, the answer is
 **"brak dowodu"** - never a league-wide constant dressed as a read.
 
 ## Chat slips (CLAUDE.md hard rules, restated for this use)
 
 A slip assembled in chat is not a coupon and has no gates.
 
-1. **Say no first.** When the operator asks for N slips, a target price or
-   disjoint slips and the day supports fewer, the first line says so ("dzień
-   cienki - masz jeden kupon" / "dziś żadnego"). Never fill the request with
-   weaker legs.
+1. **Say no first - in every mode, `--any-family` included.** `build_slip.py`'s
+   first line always says how many slips stand on families on the plus; when
+   the day supports fewer than asked, that line is the answer's first line
+   ("dzień cienki - masz jeden kupon" / "dziś żadnego"). Never fill the
+   request with weaker legs without saying so.
 2. **"Supports" is measured.** Scan the whole window for legs of families whose
    printed legs realised at or above their price on the latest settled days -
    `runs/sofa/<d>/family_record.json` (`units`, `roi`, `hit` vs `implied`, 14
@@ -45,7 +47,10 @@ A slip assembled in chat is not a coupon and has no gates.
    artifact), never a paraphrase like "Seattle +1.5 w 3. tercji".
 5. **Never a combined / Bet Builder / parlay price**, never `odds_if_product`
    as one - Superbet does not price a slip as the product of its legs (markup
-   measured 8.8-19.6%).
+   measured 8.8-19.6%). One exception (operator 2026-10-26): a chat slip's
+   builder row reads "<product> iloczyn" and the target is counted on that
+   product - relayed as printed, never called "kurs", never our price; "kurs
+   buildera: sprawdź na ekranie Superbetu". `--check` prints no product.
 6. **No stake sizing, no placement.** The stake is the operator's.
 7. **Judge the decision, never the result.** A settled win or loss never enters
    the next decision.
@@ -58,16 +63,46 @@ have every leg read, and relay the script's first line first. Operator
 2026-10-20: search **every market**, the analysts read the
 chosen legs, a refused leg is replaced by the next best and that one is read.
 Operator 2026-10-26: `--any-family` (one pass over every leg, families on the
-plus not preferred - the first line says so instead of "say no first"),
-`--builders` (the day's Bet Builders as one option of their match; its odds in
+plus not preferred - the first line still says how many slips stand on
+families on the plus), `--builders` (the day's Bet Builders as one option of their match; its odds in
 the search are the product of its legs' single prices - the operator's rule;
 the table says Superbet prices a builder lower and the screen decides; its
 chance = `combined_probability` lowered by each leg's measured shortfall;
 its legs go to the analysts and a refusal of any leg drops it) and
-`--max-legs 10` (with legs of ~1.2-1.5 five legs rarely reach ~10).
+`--max-legs 10` (with legs of ~1.2-1.5 five legs rarely reach ~10). A builder
+row reads "<product> iloczyn"; the target uses the product (operator's rule
+2026-10-26), and the script's builder line says Superbet paid 0.85-0.99 of the
+product (measured 2026-10-28).
+
+**What the script shows** (read every column into the answer): per leg
+measured chance beside 1/odds, "pewność < 1/kurs" (confidence below the
+price), the family's hit vs price with n, the dossier's "zestawienie"
+(`style.matchup`: own k/n vs what the opponent concedes / both sides' games /
+league share); a leg starting within 45 min is marked ⚠ (a read round takes
+20-30 min). The slip header gives the measured chance beside 1/price and
+"zwrot wg naszych liczb" (chance x payout; with a builder "najwyżej", counted
+on the product - Superbet pays less). A family off the plus never reads better than the plus tier's
+-1.6 pp.
+
+**Before running it:** `build_slip.py` is NOT read-only - it refreshes
+`family_record.json` and, with `--read-set-dir`, asks Sofascore through the
+bridge (h2h, lineups) and writes dossiers. Run `.venv/bin/python
+scripts/sofa/ensure_bridge.py` first, and always pass `--md-out
+runs/sofa/<d>/slips/<HHMM>.md` (`mkdir -p runs/sofa/<d>/slips`) so a staked
+slip can be traced.
+
+**Measured facts to carry into the answer** (printed legs, days
+2026-10-14..10-27; never a result argument): the goal UNDER families
+realised below their price - `goals_total` UNDER -4.6 pp on 1,765 legs,
+`goals_2h_total` UNDER -5.5 pp on 1,541, `goals_1h_total` UNDER -2.8 pp on
+1,398 - as did `corners_total` UNDER -4.6 pp and `corners_1h_total` OVER -3.4 /
+UNDER -4.2 pp, while `corners_total` OVER, `corners_for` OVER,
+`both_over_corners` OVER and `shots_on_target_total` OVER sat about at price.
+Superbet's Bet Builder price was 0.85-0.99 of the singles' product. One family
+in twenty clearing zero is what chance gives.
 
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
-singles, not started (10 min margin), odds 1.10-2.00, one per match; a leg's
+singles, not started (15 min margin, = the analysts' started-skip), odds 1.10-2.00, one per match; a leg's
 measured chance = min(confidence, price for a `price_gap` leg, 1/odds + its
 family's measured shortfall; a family on the plus reads its tier's
 walk-forward shortfall, never a surplus). An exact multiple-choice knapsack
@@ -77,14 +112,18 @@ picks the fewest legs (every odds band loses about alike per leg,
 `reads.json`, the slip's `*_slip.json`, or carried) never enters, so a re-run after a merge takes the
 next best leg (a refusal also drops the refused leg's harder rungs).
 
-**The loop** (main session; at most 3 rounds; `<hhmm>` = the request's
-local time, so a second slip of the day never collides with the first):
+**The loop** (main session; at most 3 rounds). Two clocks: `<hhmm>` of the
+analysts' reports = the request's local time, fixed for all its rounds (a
+second slip of the day never collides with the first); `<HHMM>` of `--md-out`
+= now, local, each round.
 
-1. Build and write the read set:
+1. Build and write the read set (`ensure_bridge.py` first):
    ```bash
+   .venv/bin/python scripts/sofa/ensure_bridge.py
+   mkdir -p runs/sofa/<d>/slips
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> \
        [--start-from HH:MM --start-to HH:MM] [--slips N] --any-family --builders --max-legs 10 \
-       --read-set-dir runs/sofa/<d>/read_set_slip
+       --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md
    ```
    (`--reserve 1` also reads the next disjoint slip ahead; off by default -
    the knapsack re-optimises globally, so a replacement rarely comes from it.)
@@ -95,11 +134,11 @@ local time, so a second slip of the day never collides with the first):
    the first line and stop. Otherwise, for each `read_set_slip_<sport>.json`
    it lists, spawn that sport's analyst (`sofa-analyst-football` /
    `sofa-analyst-tennis` / `sofa-analyst-sport` with the sport named) in the
-   **foreground**, independent sports in one message, naming the file and the
-   report path `runs/sofa/<d>/<d>_analiza_<sport>_kupon_<hhmm>_<round>.md`,
-   and telling it: "kupon z czatu - waliduj z `--slip`; gdy powód dotyczy
-   zmiennej, nie progu, daj odczyt dla progu, który czytasz (wyższe progi tej
-   samej zmiennej wypadną same)".
+   **foreground**, independent sports in one message, with exactly this
+   prompt and nothing else:
+   ```
+   date <d>; run_id -; sport <s>; read set: runs/sofa/<d>/read_set_slip/read_set_slip_<s>.json; write your report to: runs/sofa/<d>/<d>_analiza_<s>_kupon_<hhmm>_<round>.md; kupon z czatu - waliduj z --slip; gdy powód dotyczy zmiennej, nie progu, daj odczyt dla progu, który czytasz
+   ```
 3. Merge what each analyst wrote - **the path on its `raport:` line**, never
    the one you named (it writes `_r<n>` on a collision):
    `merge_reads.py --date <d> --slip --author analyst --report <path> [--report ...] --read-set <each read_set_slip_<sport>.json>`.
@@ -107,7 +146,8 @@ local time, so a second slip of the day never collides with the first):
    them, the coupon never reads them (a picks request does not touch the
    coupon). Exit 1 with `UNMATCHED_READ` / `LEG_WITHOUT_READ` = a read keyed
    to no leg or a leg without a read: send that analyst the listed legs again
-   (same round).
+   (same round). Exit 2 = refused, nothing merged (a removal without a fact):
+   relaunch that analyst with the findings and the next `_r<n>`.
 4. Back to 1. A refused leg is gone, and so are its harder rungs (a WATCH on
    OVER 7.5 also drops OVER 8.5); the knapsack searches first over the legs
    this slip's read kept, and takes a leg still to read only when those
@@ -117,7 +157,10 @@ local time, so a second slip of the day never collides with the first):
 **Relay** (Polish): line 1 = the script's first line (the "say no first"
 answer about families on the plus); line 2 = a warning when the window starts
 < 30 min from the request. Then each slip's table as printed - Superbet's
-words, start in local time, measured chance beside 1/odds, the read
+words, start in local time (⚠ within 45 min), measured chance beside 1/odds,
+"pewność < 1/kurs", family hit vs price with n, zestawienie, the header's
+chance vs 1/price and "zwrot wg naszych liczb", a builder's "<product>
+iloczyn" with the 0.85-0.99 line, the `--md-out` path, the read
 ("KEEP" = read for this slip within 3 h; "KEEP (10:42)" = a slip read of an
 earlier request at that time; "KEEP (kupon dnia)" = the day's morning read -
 both possibly before lineups, so neither counts as read: the script hands both
@@ -128,16 +171,44 @@ coupon is never rebuilt for a chat slip), and which legs fell out on which
 read and what replaced them. No slip price and no stake: the script's "Cel ~X
 osiągnięty" line carries no number; "kurs kuponu: sprawdź na ekranie
 Superbetu". No "na minusie" labels. The family selection's advantage is not
-yet shown (T-FAMILY-SELECTION). Exit 0 all supported, 1 fewer, 2 no coupon /
-no family record / bad arguments. Tests `tests/sofa/test_slip_builder.py`.
+yet shown (T-FAMILY-SELECTION). Exit 0 = all slips supported (`--any-family`:
+all found), 1 = fewer, 2 = no coupon / no family record / bad arguments.
+Tests `tests/sofa/test_slip_builder.py`.
 
-## Three cases
+## Checking the operator's own Bet Builder (`--check`)
+
+When the operator sends a screenshot of a Bet Builder they built themselves, never
+multiply confidences by hand - run:
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> \
+    --check "<mecz>|<superbet_market>|<superbet_selection>" [--check ...] [--screen-odds 2.25] \
+    --no-refresh-record --md-out runs/sofa/<d>/slips/<HHMM>_check.md
+```
+
+No `--target`; one match only (legs of several matches = an error).
+`--no-refresh-record` always (then read-only; it writes no read set). Each leg
+is looked up in `11_coupon.json` singles, then `removed_by_reads`, then
+`08_confidence*.json` legs - a refused / removed leg prints its refusal or read
+reason. Per leg: measured chance vs 1/odds, family, zestawienie; the legs'
+joint k/n in both sides' games where all hit together - **a frequency, never
+a probability**; the screen price's 1/kurs. **No product of chances.** A leg
+found nowhere has no numbers - "brak dowodu", never filled in. Exit 0 all legs
+found, 1 some leg not found, 2 failure.
+
+**Relay:** first line = the script's bold line; then its table as printed;
+then the legs whose measured chance is below 1/odds, named in Superbet's
+words. Never "dobre" / "warto": the screen price decides, our numbers say
+which legs sit below their price. Analysts only if the operator asks.
+
+## Four cases
 
 | the leg is | the number to compare with |
 |---|---|
 | a row of the day (`runs/sofa/<d>/11_coupon.json` leg, or a `05_sheet.json` rung) | its `confidence` (calibrated, lowered by line evidence) and x = confidence x `offered_odds` (>= 0.90 prints), at the price on the screen; `forecast_p` is "model", uncalibrated; sample k/n beside. `p_bar`, `required_odds`, `surplus` are the old VALUE selector's numbers, anti-selective (surplus > +0.40 suspect) - never the verdict |
 | not a row (unread market, see `market_coverage.md`) | only an operator-typed consensus through `audit_slip.py`, or `--market sample` on a Sofascore k/n from `03_samples.json`; label it outside the pipeline |
-| a Bet Builder | sofa prints no builder price: legs, `combined_probability` (the lower of the product and the empirical joint) and "kurs buildera: sprawdź na ekranie Superbetu". `odds_after_haircut` / `ev_after_haircut` are internal (stakeable test, `BUILDER_CORRELATION_HAIRCUT` 0.12), never quoted as a price. A screen price the operator gives wins outright (`confidence.builder_odds`): `combined_probability x screen_odds - 1`, shown as his note |
+| the operator's own Bet Builder (screenshot) | `build_slip.py --check` (section above) - never the product of confidences by hand |
+| a Bet Builder of the day | sofa prints no builder price: legs, `combined_probability` (the lower of the product and the empirical joint) and "kurs buildera: sprawdź na ekranie Superbetu". `odds_after_haircut` / `ev_after_haircut` are internal (stakeable test, `BUILDER_CORRELATION_HAIRCUT` 0.12), never quoted as a price. A screen price the operator gives wins outright (`confidence.builder_odds`): `combined_probability x screen_odds - 1`, shown as his note |
 
 ## Order of operations
 

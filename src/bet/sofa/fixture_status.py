@@ -7,10 +7,11 @@ both were seen on 10-05:
   to 07:30Z; a rebuild at 06:12Z refused Cui, Vukic and Svrcina's singles as
   "starting soon" and their closing prices were taken ~80 min early. The
   earliest clock stays the gate's rule (it protects against a late clock),
-  but RESOLVE's Sofascore clock is replaced by a fresh `/event/{id}`
-  `startTimestamp` where one was read - only for the matches whose
-  Superbet clock (superbet_kickoff_seen_utc) has moved more than
-  CLOCK_GAP_MIN from it.
+  but RESOLVE's frozen clocks are replaced by a fresh `/event/{id}`
+  `startTimestamp` wherever one was read (`locked_print.kickoff_clocks`:
+  the fresh start and Superbet's newest clock). The check asks every match
+  `events_to_check` names: a Superbet clock moved more than CLOCK_GAP_MIN,
+  a printed match, a candidate of the coming build (F0.4).
 * the status (K14). A printed match postponed, cancelled or abandoned after
   the print is not a bet to make: CONFIDENCE refuses it as
   FIXTURE_NOT_AS_SCHEDULED. A leg already locked (its match had started) stays

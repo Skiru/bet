@@ -20,6 +20,7 @@ import copy
 import datetime
 import json
 import os
+import sqlite3
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -29,8 +30,8 @@ from bet.sofa import analyses as an
 from bet.sofa import confidence as cf
 from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
+from bet.sofa import dossier, priced_view
 from bet.sofa import family_record as fr
-from bet.sofa import priced_view
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
@@ -202,8 +203,11 @@ def build_view(
     families: Mapping[str, Any] | None = None,
     results: Mapping[str, Any] | None = None,
     analyses: Mapping[str, Any] | None = None,
+    matchups: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Rows of the page: the singles the PDF prints and its builders.
+    `matchups` is bet.sofa.dossier.matchups_for_legs: a team-side count leg
+    shows the side's own hits beside what the opponent conceded (display).
     `analyses` is the day's analyses.json (bet.sofa.analyses): the page
     carries the full match sections of its matches, folded under each leg.
     `families` is the day's bet.sofa.family_record (None: the page has no
@@ -278,6 +282,7 @@ def build_view(
             # before were on the plus (a selection aid, never a gate)
             "fam_plus": fam_plus,
             "fam_note": fr.label(fam) if fam and fam_plus else "",
+            "matchup": (matchups or {}).get(dossier.matchup_key(leg), ""),
             "res": res,
             "res_rank": None if res is None else _RES_RANK[res["status"]],
         })
@@ -386,8 +391,13 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str,
     # every row the day priced, printed or not (a view, never the coupon)
     priced = priced_view.build(run, named, day, sides, to_local,
                                minutes_of_day)
+    # read-only and display only: a failed read leaves the tags out
+    try:
+        matchups = dossier.matchups_for_legs(run, cf.printed_singles(named))
+    except (sqlite3.Error, OSError, ValueError, KeyError, TypeError):
+        matchups = {}
     tmp.write_text(render_html(day, build_view(named, day, status, families,
-                                               results, store), priced),
+                                               results, store, matchups), priced),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

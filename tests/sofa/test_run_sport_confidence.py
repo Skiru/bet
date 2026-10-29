@@ -395,3 +395,22 @@ def test_a_started_game_is_kicked_off_not_unidentified(tmp_path: Path):
     doc, _ = _build(tmp_path, _calibration(tmp_path))
     assert doc["sports"]["hockey"]["refused"] == {
         "MARKET_NOT_ALLOWED": 1, "KICKED_OFF": 4}
+
+
+def test_a_player_line_is_labelled_player_model_not_score_model() -> None:
+    """A hockey / basketball player line's p comes from SHADOW's
+    player_model.jsonl; the leg's label says so (display only)."""
+    from types import SimpleNamespace
+
+    from bet.sofa import sport_confidence as scf_mod
+    from bet.sofa import shadow
+
+    market_id = sorted(shadow.PLAYER_MARKETS["hockey"])[0]
+    ev = SimpleNamespace(superbet_event_id=1, team1="A", team2="B",
+                         tournament="NHL", source_date=DATE)
+    ln = SimpleNamespace(market_id=market_id, period=0, subject="Gracz", line=2.5,
+                         side="OVER", odds=1.5)
+    conf = scf_mod.Confidence(value=0.7, calibrated_on="x", n=60)
+    leg = rsc.leg_dict("hockey", ev, {"sofascore_event_id": 9}, ln, "player",
+                       conf, 0.7, 0, 0, 0.05, AT, "t")
+    assert leg["forecast_source"] == "player_model"

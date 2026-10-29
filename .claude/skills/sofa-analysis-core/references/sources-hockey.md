@@ -16,21 +16,24 @@ arithmetic, **F** folklore.
    day - one season seen; SHL: the line-up ~1 h before; KHL: none) - write
    `UNVERIFIED`.
 3. **Back-to-back / travel** - dossier `rest_days` / `games_7d`; the goalie
-   who played last night.
+   who played last night. The dossier's `lineups.*.starters` is the dressed
+   roster with both goalies - never the starting goalie.
 4. **Absences** of top-6 forwards, top-4 D, the PP1 quarterback - and for a
    **player prop**: is he dressed, which line, which PP unit.
+
+**Removals**: the removal table of `.claude/agents/sofa-analyst-sport.md` - a dated `[WEB: domena, publ. <data>, fetched <czas>]` fact newer than the price or a real `DEFEKT:`; a schedule fact known before the price is a note.
 
 ## Checklist
 
 | item | moves | evidence | carries |
 |---|---|---|---|
-| **Backup / call-up / emergency goalie** starting | opponent's team total ↑, match total ↑, favourite's handicap / winner ↓, opponent player points ↑ | E- (sv% .905 → .897 on 1 day's rest) | WATCH; NO_BET when a goalie-dependent line (UNDER, favourite -1.5) and the backup is confirmed on two domains |
-| **Second night of a back-to-back** (same goalie both nights) | tired side's goals against ↑, shots ↓ | E- (mostly through the goalie) | WATCH on legs needing the tired side to defend / produce |
-| **Travel west / long trips / KHL time zones** | away side ↓ | E (17,088 NHL games, 2013-20) | WATCH on the away side's output |
+| **Backup / call-up / emergency goalie** starting | opponent's team total ↑, match total ↑, favourite's handicap / winner ↓, opponent player points ↑ | E- (sv% .905 → .897 on 1 day's rest) | WATCH when announced since the price (dated); NO_BET when a goalie-dependent line (UNDER, favourite -1.5) and the backup is confirmed on two domains |
+| **Second night of a back-to-back** (same goalie both nights) | tired side's goals against ↑, shots ↓ | E- (mostly through the goalie) | note; WATCH only through the goalie announced since the price |
+| **Travel west / long trips / KHL time zones** | away side ↓ | E (17,088 NHL games, 2013-20) | note (known before the price) |
 | **Top player out / scratched** | team total ↓; teammates' PP points shift | F (direction certain) | WATCH through the team's own line |
 | **Line / PP unit change** for a prop's player | player points / SOG ↑ / ↓ | F | WATCH the prop; NO_BET if not dressed on two domains, else WATCH |
 | **AHL call-up / assignment** | AHL team total ↓ when its best player is recalled | F | WATCH |
-| **Late season: eliminated / clinched** | backup goalie starts, var ↑ | F | through the goalie only |
+| **Late season: eliminated / clinched** | backup goalie starts, var ↑ | F | note; through the goalie announcement only |
 | **Outdoor game** | pace ↓ claimed, ice / wind | F | note |
 | **Empty net / score effects** | late total ↑, favourite -1.5 ↑ | A | note (team-specific) |
 | **International break / Olympic window** | European leagues pause; returning fatigue | F | note |

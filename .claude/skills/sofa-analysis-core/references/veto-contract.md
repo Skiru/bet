@@ -16,7 +16,7 @@ Both files live in `runs/sofa/<d>/` and are written only by
 | `direction` | `"OVER"` \| `"UNDER"` \| null | yes | null = both. No other side and no period - a measured-sport leg takes a read, not a veto |
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | Polish; the operator reads it |
-| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS \| MORALE`; on any other class it fails validation |
+| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS \| MORALE`; on any other class it fails validation (`MARKET` exists for reads only) |
 
 All seven required keys must be present, the null ones included. An invented
 key (`action`, `player`, `event_id`) fails the whole file; `merge_reads.py`
@@ -58,8 +58,8 @@ applies to a read with a null field.
 
 | class | use when | example |
 |---|---|---|
-| `SAMPLE_UNINFORMATIVE` | the observations do not measure this match: wrong squad, surface, format, class of opponent, a placeholder 0-0 | "dziewięć z dziesięciu meczów w drugiej lidze; dziś puchar z drużyną z ekstraklasy" |
-| `CONTEXT` | the sample is fine and the world has changed | "4-0 w pierwszym meczu; obaj trenerzy wystawiają rezerwy" |
+| `SAMPLE_UNINFORMATIVE` | the observations do not measure this match: wrong squad, surface, format, a placeholder 0-0 (a `DEFEKT:` - core, "What a removal's reason must name") | "DEFEKT: 03_samples corners_for Lech Poznań - próbka z meczów U19" |
+| `CONTEXT` | the sample is fine and the world has changed | "4-0 w pierwszym meczu; obaj trenerzy wystawiają rezerwy [WEB: sportsmole.co.uk, publ. 2026-10-27, fetched 2026-10-28 07:10Z]" |
 | `PRICE` | the rung is unbettable as quoted (a side missing on the screen) | "OVER nie jest notowany na ekranie" |
 | `OTHER` | none of the above - say why | |
 
@@ -78,9 +78,13 @@ Set it on every CONTEXT veto; the settlement audit grades each tag apart
 | `CONDITIONS` | weather, pitch, altitude, indoor / outdoor | "ulewa, podtopione boisko" |
 | `MORALE` | dressing room, conflict, unpaid wages, a sacked coach, a boycott, fan protest | "piłkarze od trzech miesięcy bez pensji, zapowiedź bojkotu treningów" |
 
-A CONTEXT `reason` names the source domain and its publication time, before
-the decision point: `"[sportsmole.co.uk, publ. 2026-09-22 09:14 UTC] ..."`. A
-veto written after its match started is excluded from the grade.
+**A veto is sourced** (core, "What a removal's reason must name"): its
+`reason` carries a real `DEFEKT: <artifact, field, what is wrong>` or a
+dated tag (a CONTEXT veto always the tag, `[WEB: sportsmole.co.uk, publ.
+2026-10-27, fetched 2026-10-28 07:10Z]`) - never `RYNEK:`, which is a
+leg-level WATCH read only. `report_check` flags anything else (`WETO BEZ
+FAKTU`). A leg under your veto takes no read. A veto written after its
+match started is excluded from the grade.
 
 ### What a veto may never be
 
@@ -103,8 +107,11 @@ veto written after its match started is excluded from the grade.
 | `period` | int \| null, optional | hockey period, quarter, set, CS2 map; `0` the whole match (and basketball halves); null covers every period |
 | `verdict` | `KEEP \| WATCH \| NO_BET` | |
 | `author` | `analyst \| verifier` | you are `"analyst"` |
-| `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries a dated `[WEB: …, publ. …]` tag or `DEFEKT: …` (`report_check`) |
-| `context` | a `context` tag above, optional | leave it out when none fits |
+| `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries one of the marks of core "What a removal's reason must name" (`report_check`) |
+| `context` | a `context` tag above, or `MARKET` (a football `RYNEK:` WATCH - required there), optional | leave it out when none fits |
+
+A WATCH / NO_BET copies `market` / `subject` / `line` / `direction` /
+`period` from the read-set leg, never retyped from the PDF.
 
 Eight keys are required (`sofascore_event_id`, `market`, `subject`, `line`,
 `direction`, `verdict`, `author`, `reason`); `period` and `context` may be
@@ -131,7 +138,7 @@ Veto, the normal broad shape:
 ```json
 [{"sofascore_event_id": 15275920, "market": "corners_total", "subject": null,
   "line": null, "direction": null, "reason_class": "SAMPLE_UNINFORMATIVE",
-  "reason": "siedem z dziesięciu obserwacji sprzed zmiany trenera 12.08; trzy od tego czasu: 4, 5, 6"}]
+  "reason": "DEFEKT: 03_samples corners_total side_a - trzy z dziesięciu obserwacji to walkowery 0-0 bez statystyk (placeholder), nie mecze"}]
 ```
 
 Football / tennis read:
@@ -140,6 +147,15 @@ Football / tennis read:
 [{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
   "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "analyst",
   "context": "ABSENCES", "reason": "obaj podstawowi stoperzy Chaves zawieszeni (komunikat ligi) [WEB: ligaportugal.pt, publ. 2026-10-05 14:00Z, fetched 2026-10-06 08:40Z]; Chaves w ostatnich czterech 4/5/4/5 goli - nota, nie powód"}]
+```
+
+Football market-driver WATCH (reports from 2026-10-30; pewność 0.79, conceded
+3/10 = 0.30, gap 0.49 >= 0.25, n 10 >= 8 - core threshold (a)):
+
+```json
+[{"sofascore_event_id": 15275921, "market": "corners_for", "subject": "Panathinaikos",
+  "line": 3.5, "direction": "OVER", "verdict": "WATCH", "author": "analyst",
+  "context": "MARKET", "reason": "RYNEK: Aris oddaje rywalom ≥4 rożne w 3/10 (style.matchup), pewność 0.79. Mechanizm: rywale Arisu dośrodkowują średnio 11 razy na mecz (style.away.means crosses przeciw), mniej niż liga - linia 3.5 wymaga rywala, który rożne oddaje"}]
 ```
 
 Measured-sport read (`period` 0 = whole match):

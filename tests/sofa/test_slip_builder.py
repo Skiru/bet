@@ -110,7 +110,8 @@ def test_price_gap_leg_is_read_at_its_price_and_confidence_bounds_from_above() -
     )
     got = sb.measured_chance(leg, 1.25, fam, sport)
     assert got is not None and got[1] == "rodzina"
-    assert got[0] == pytest.approx(0.80)
+    # a family off the plus never reads better than the plus tier's -1.6 pp
+    assert got[0] == pytest.approx(0.80 + sb.TIER_SHORTFALL[sb.TIER_FAMILY_PLUS])
     low = _leg(2, 1.25, 0.70, market="goals_total", direction="UNDER")
     got = sb.measured_chance(low, 1.25, fam, sport)
     assert got is not None and got[1] == "pewność"
@@ -743,7 +744,7 @@ def test_any_family_searches_every_leg_in_one_pass() -> None:
     assert [x.leg["sofascore_event_id"] for x in tiered.slips[0].legs] == [1]
     assert [x.leg["sofascore_event_id"] for x in one.slips[0].legs] == [2]
     assert one.any_family
-    assert "rodziny na plusie bez pierwszeństwa" in sb.render(
+    assert "nie stoi na samych rodzinach na plusie" in sb.render(
         one, day="2026-10-20", target=1.9, record=record, now=NOW
     )
 
@@ -783,7 +784,10 @@ def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
                    builders=[_builder(1, a, b, p=0.6)])
     assert res.slips and res.slips[0].legs[0].leg["market"] == sb.BUILDER_MARKET
     text = sb.render(res, day="2026-10-20", target=2.0, record=record, now=NOW)
-    assert "iloczyn kursów jego nóg" in text
+    assert "iloczynem kursów nóg (zasada operatora 26.10)" in text
+    # the product, labelled, never a builder price of ours (CLAUDE.md)
+    assert "2.10 iloczyn |" in text and "ekran ~" not in text
+    assert "zwrot wg naszych liczb najwyżej" in text
 
 
 def test_builder_with_a_refused_leg_never_enters() -> None:
@@ -799,3 +803,37 @@ def test_builder_with_a_refused_leg_never_enters() -> None:
                                           max_odds=5.0, slip_reads=[watch])
     assert pool == []
     assert refused == {"builder: noga odrzucona przez analityka": 1}
+
+
+def test_check_reads_the_operators_own_builder_leg_by_leg() -> None:
+    # A builder from the screen: two legs on the day's coupon, one not. The
+    # check names the legs below price by the measured chance, says what the
+    # missing leg's match offers, and never calls the product a joint chance.
+    singles = [
+        _leg(1, 1.12, 0.84),
+        _leg(1, 1.31, 0.78, market="cards_total", direction="UNDER", line=6.5,
+             superbet_market="Liczba kartek", superbet_selection="poniżej 6.5"),
+    ]
+    record = _record({MINUS: _fam(200, 0.76, 0.80)})
+    assert sb.find_leg(singles, "a1|LICZBA KARTEK|poniżej 6.5")[0] is singles[1]
+    missing, near = sb.find_leg(singles, "A1|Liczba goli|poniżej 4.5")
+    assert missing is None and len(near) == 2
+    with pytest.raises(ValueError):
+        sb.find_leg(singles, "A1|Liczba goli")
+    text = sb.render_check(
+        ["A1|Liczba rzutów rożnych|powyżej 7.5", "A1|Liczba kartek|poniżej 6.5",
+         "A1|Liczba goli|poniżej 4.5"],
+        singles, record, 1.62, {},
+        {"k": 9, "n": 20, "legs_read": 2, "legs_without_history": []})
+    assert text.startswith("**Builder: 2 z 3 nóg na kuponie dnia, 2 z szansą "
+                           "zmierzoną poniżej ceny.**")
+    assert "Liczba goli|poniżej 4.5 - nie ma na kuponie dnia" in text
+    assert "razem w 9 z 20 ostatnich meczów" in text
+    assert "Iloczyn" not in text  # never the product of chances (skill rule)
+    assert "1/kurs 61,7%" in text
+    # a leg refused or removed says why it is not on the coupon
+    why = sb.render_check(
+        ["A1|Liczba goli|poniżej 4.5"], singles, record, None, {}, None,
+        [{"match": "A1 - B1", "superbet_market": "Liczba goli",
+          "superbet_selection": "poniżej 4.5", "why": "odrzucona: ODDS_TOO_LOW"}])
+    assert "poniżej 4.5 - nie na kuponie: odrzucona: ODDS_TOO_LOW" in why

@@ -243,3 +243,18 @@ def test_a_builder_leg_has_the_same_shape_as_a_single(
     got = read_set.read_set(run)["football"][0]
     assert (got["kickoff_utc"], got["competition"], got["match"],
             got["offered_odds"]) == ("2026-10-26T18:00:00Z", "Liga", "A - B", 1.4)
+
+
+def test_a_removal_without_a_fact_is_refused_whole(tmp_path: Path) -> None:
+    """Operator 2026-10-26 / 10-29: an unsourced WATCH is never merged - the
+    hook only advises, merge_reads refuses (nothing written)."""
+    run = tmp_path / "2026-10-30"
+    run.mkdir()
+    read = {"sofascore_event_id": 1, "market": "corners_total", "subject": "",
+            "line": 7.5, "direction": "OVER", "verdict": "WATCH",
+            "author": "analyst", "reason": "seria 0/4 w h2h, słaba forma"}
+    report = tmp_path / "2026-10-30_analiza_football_1.md"
+    report.write_text("```json reads\n" + json.dumps([read]) + "\n```\n")
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--report", str(report)]
+    assert merge_reads.main(args) == 2
+    assert not (run / "reads.json").exists()

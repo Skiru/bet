@@ -59,7 +59,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import epochs, timeutil  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
-from bet.sofa.clv import CLOSE_MIN_MINUTES  # noqa: E402
+from bet.sofa.clv import CLOSE_MIN_MINUTES, is_close  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
 from bet.sofa.icloud_sync import differences as icloud_differences  # noqa: E402
@@ -376,9 +376,36 @@ def clv_coverage(runs: Path, date: str, now: datetime) -> dict[str, Any]:
     past = {(v, leg_key(leg)) for v, leg in legs
             if minutes_to(leg["kickoff_utc"], now) < CLOSE_MIN_MINUTES}
     closed = {(r.variant, r.leg) for r in closing_rows(runs, date)}
+    # A one-sided rung (score-market OVER-only rungs, player props) is priced
+    # at the close with no partner: there is nothing to devig, so it never
+    # has a usable close and is not a capture hole (10-27: 854 of 886).
+    one_sided = (past - closed) & one_sided_closes(closing)
     return {"date": date, "built": True, "closing_file": closing.exists(),
             "printed": len({(v, leg_key(leg)) for v, leg in legs}),
-            "past_window": len(past), "with_close": len(past & closed)}
+            "past_window": len(past - one_sided), "with_close": len(past & closed),
+            "one_sided": len(one_sided)}
+
+
+def one_sided_closes(closing: Path) -> set[tuple[str, str]]:
+    """(variant, leg key) of closing.jsonl legs priced inside the window and
+    never with a partner price."""
+    priced: set[tuple[str, str]] = set()
+    paired: set[tuple[str, str]] = set()
+    if not closing.exists():
+        return priced
+    for line in closing.read_text(encoding="utf-8").splitlines():
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if (not is_close(rec.get("minutes_before")) or rec.get("missing")
+                or rec.get("error") or rec.get("odds_close") is None):
+            continue
+        key = (rec["variant"], rec["leg_key"])
+        priced.add(key)
+        if rec.get("partner_close") is not None:
+            paired.add(key)
+    return priced - paired
 
 
 def clv_check(runs: Path, date: str, now: datetime) -> Check:
@@ -386,7 +413,9 @@ def clv_check(runs: Path, date: str, now: datetime) -> Check:
     if not c["built"]:
         return Check("clv", WARN, "day not built (no 02_fixtures.json)")
     detail = (f"{c['with_close']}/{c['past_window']} printed official legs past their "
-              f"window have a close ({c['printed']} printed); closing.jsonl "
+              f"window have a close ({c['printed']} printed"
+              + (f"; {c['one_sided']} one-sided, no devig" if c["one_sided"] else "")
+              + "); closing.jsonl "
               + ("present" if c["closing_file"] else "ABSENT"))
     if c["past_window"] and not c["closing_file"]:
         return Check("clv", BROKEN, detail)

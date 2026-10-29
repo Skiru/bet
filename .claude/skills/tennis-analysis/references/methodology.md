@@ -98,8 +98,9 @@ latter is where your contribution is.
 ## 5. H2H decays and is a supporting prior (method §65, §107)
 
 Weights 1.0 (0–90 d), 0.75 (91–180), 0.50 (181–365), 0.25 (>365), and
-surface-matched or not. An old H2H that contradicts current surface form is a
-**conflict → downgrade**, never a tiebreaker toward the H2H side.
+surface-matched or not. An old H2H that contradicts current surface form is
+a note in **Za / Przeciw**, never a removal by itself and never a tiebreaker
+toward the H2H side.
 
 **`sofa` does not filter H2H by age.** `STALE_H2H` was the retired pipeline's
 gate and has no equivalent here: `samples.py` builds the `h2h` bucket from
@@ -121,7 +122,8 @@ evidence of level than two easy wins. A recent retirement or medical time-out
 is a **void risk** for length markets: a retirement (Sofascore
 status "Retired") and a walkover are refunds (0 u., `settle.RETIRED` /
 `settle.WALKOVER`; operator's rule) - say the risk, do not price it - and a
-fitness asymmetry is a kill-case for any OVER built on competitiveness. A
+fitness asymmetry under an OVER built on competitiveness is a note in
+**Za / Przeciw**, never a removal by itself. A
 retired match does not enter a sample, and the rating counts it as time on
 court only.
 
@@ -147,7 +149,7 @@ the mean; the median is the two-set world.
 ## 9. Small samples and identity (method §87, §98)
 
 Per-player form is ten matches; after the surface and format scope it is often
-3–7, and **a side with 0–3 is not a sample**. Identical `p_central` across
+3–7; a thin side is the code's job, never a veto by count. Identical `p_central` across
 neighbouring rungs means the sample has no observation between them — the model
 separates the prices, not the evidence.
 

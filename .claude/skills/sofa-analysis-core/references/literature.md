@@ -39,7 +39,7 @@ yet.**
 | Crowd / closed doors: away yellows ↑ with fans (~+⅓ card) | real | priced except for novel shocks | S | a fan ban / closed doors is new information for cards |
 | Home advantage | real, shrinking | priced, in the model | S | never a reason |
 | Altitude (~0.5 goal of home goal difference per 1,000 m; Denver ~66% vs equal) | real | priced | M | only a big gap (> ~2,000 m) on away-output legs |
-| Travel east / west, time zones; NBA back-to-back (~2.3 pts); goalie on 1 day's rest (sv% .905 → .897) | real | partly | M | WATCH legs that need the tired side to produce |
+| Travel east / west, time zones; NBA back-to-back (~2.3 pts); goalie on 1 day's rest (sv% .905 → .897) | real | partly | M | a note (rest is in no model; the price probably holds it); a WATCH only through who rests, announced since the price |
 | Tennis: a long previous match | real (Elo-adjusted, 61% after < 1 h 30 vs 32% after > 4 h 30, men's Slams) | partly | W-M | WATCH legs needing the tired player to win games |
 | New coach: "bounce" is regression to the mean; odds may under-price the team in its first 1-4 games | S / M | — | may carry a WATCH on a leg **against** that team, through its variable; no reason for a leg on it |
 | Motivation / dead rubber | through lineups only | priced by the close | M | WATCH only when it makes rotation likely and the leg needs starters |

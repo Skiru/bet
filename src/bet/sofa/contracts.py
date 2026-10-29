@@ -498,6 +498,9 @@ ContextSignal = Literal[
     "SCHEDULE",  # fatigue, travel, back-to-back days, a long previous match
     "CONDITIONS",  # weather, pitch, altitude, indoor/outdoor switch
     "MORALE",  # dressing room, conflict, unpaid wages, a sacked coach, fan protest
+    # a market driver read from the dossier with numbers (style.matchup k/n,
+    # corners by own possession): a WATCH only, reason "RYNEK: ..." (2026-10-30)
+    "MARKET",
 ]
 
 

@@ -96,7 +96,7 @@ confidence = min( curve + offset(key),  price_band_cap(key, p, odds) )       off
              / the design effect (>= MIN_EVIDENCE_BUCKET 50 lines, MIN_EVIDENCE_GAMES 15 games), else NO_LINE_EVIDENCE
 x          = confidence * offered_odds          prints at >= 0.90 (else NEGATIVE_LEG_EV)
 condition  : confidence >= 0.70, ladder margin <= 15% (single_is_fairly_priced), odds >= MIN_ODDS_FOR_CEILING 1.0867,
-             not started (MIN_MINUTES_TO_KICKOFF 15 before the earliest clock), price <= 45 min old
+             not started (MIN_MINUTES_TO_KICKOFF 15 before the start clock, SKILL.md), price <= 45 min old
 order      = confidence desc, kickoff asc, match, market, line   (confidence.coupon_order / coupon_sort_key) - no price, no EV
 ```
 
@@ -145,8 +145,9 @@ built). Key = `market|DIRECTION`, `<class>:`-prefixed for a class.
 
 ```
 p_model    = score_model (hockey, basketball, volleyball) / cs2_engine (CS2) / player_model.jsonl (player lines) - no price
-curve      = realised_lo95 of p_model's bucket in sport_confidence.calibration_path_for(date)
-             (main file, or the staged .next.json from its effective_from); a bucket with n < MIN_BUCKET 200 is unused
+curve      = realised_lo95 of p_model's bucket in the file sport_confidence.calibration_path_for(date) returns
+             (the staged file with the latest effective_from <= date; from 2026-10-28 .next.2026-10-28.json);
+             a bucket with n < MIN_BUCKET 200 is unused
 confidence = the same min(curve + offset, band cap) / stand-in as Chain 2
 print      : confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x >= 0.90, price <= 3 h old (sport_day.MAX_PRICE_AGE)
 ```
@@ -157,7 +158,11 @@ print      : confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x >= 0.90,
 
 `odds_product`, `odds_after_haircut`, `ev_after_haircut`, `odds_if_product`,
 `ev_if_product_priced` are internal - **never printed, never reported as a
-price**.
+price**. One exception (operator, 2026-10-26): a chat slip
+(`build_slip.py --builders`) shows a builder as "<product> iloczyn" (the
+product of its legs' single prices) and counts the slip's target on it -
+never called "kurs", never our price; `build_slip.py --check` prints no
+product at all.
 
 ```
 legs        : one per quantity family (goals, corners, fouls, cards, shots, offsides, games, aces, double_faults;
@@ -191,7 +196,7 @@ times. The 12% haircut is the middle of Superbet's measured markup
 | `CONFIDENCE_CEILING` * | 0.9202 | `bet.sofa.confidence` | top of the curves; `MIN_ODDS_FOR_CEILING` = 1/0.9202 = 1.0867 |
 | `K_PRICE` * | 10.0 | `bet.sofa.engine` | old bar's blend weight, NOT_FITTED |
 | `MAX_OWN_SAMPLE_GAP` | 0.15 | `bet.sofa.confidence` | `MODEL_ABOVE_OWN_SAMPLE` |
-| `READ_REQUIRED_EVENTS` / `READ_REQUIRED_SINGLES` | 30 / 30 | `bet.sofa.confidence` | the read set (matches / positions on older days) |
+| `READ_REQUIRED_EVENTS` / `READ_REQUIRED_SINGLES` | 20 from 2026-10-27 (`read_events` on the artifact); 30 / 30 before | `bet.sofa.confidence` | the read set (matches / positions on older days) |
 | `MIN_MINUTES_TO_KICKOFF` | 15 | `bet.sofa.confidence` | kickoff margin (sports: `sport_day.KICKOFF_MARGIN`) |
 | `price_max_age_min` | 45 | `bet.sofa.config` | football / tennis `STALE_PRICE` |
 | `MAX_PRICE_AGE` | 3 h | `bet.sofa.sport_day` | measured sports' `STALE_PRICE` |

@@ -13,9 +13,19 @@ when the operator asked for a bare run, and name the skip in the report.
 `12_printed.json` is the print record the next rebuild locks started legs from.
 `06_coupon.json` and `08_confidence.json` are inputs, never the coupon.
 
-**Stages.** `DEFAULT_SEQUENCE` (`scripts/sofa/run_pipeline.py`): BOARD, RESOLVE,
-OFFER, SAMPLES, OFFER, SHEET, COUPON; then CONFIDENCE, SHADOW / CS2, SPORT_IDENTITY,
-SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, and in a rebuild FIXTURE_CHECK; SETTLE grades D-1.
+**Stages** (order: `DEFAULT_SEQUENCE` in `scripts/sofa/run_pipeline.py`):
+
+```
+BOARD → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON
+                                          ↘ CONFIDENCE ─────────────┐
+   SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE ────────────────┤
+                                   COUPON_ASSEMBLY (11_coupon.json) → PDF
+   in a rebuild, before CONFIDENCE: FIXTURE_CHECK
+   in a live rebuild, first:        LATE_RESOLVE (new fixtures only → OFFER/SAMPLES/SHEET --event-ids)
+   in a rebuild, on a sample switch: SAMPLES/SHEET --event-ids for open fixtures (rebuild_plan 1c)
+   deliberately separate:           SETTLE → FIT
+```
+
 Exit codes: 0 OK, 1 PARTIAL (normal on RESOLVE / OFFER / SAMPLES), 2 FAILED.
 Python: `PYTHONPATH=src:. .venv/bin/python`.
 
@@ -74,14 +84,7 @@ Name a non-zero `exit` (no bridge, a refusal); the fits run on what is cached. W
 `BRIDGE_PART_DONE` is in the log (never earlier - two writers on the bridge and the DB),
 start step 2's RESOLVE.
 
-**2026-10-24 only (coverage audit P12), after the settler has returned and before the fits:**
-give the CS2 series settled from their result alone their `model_p` (offline, files only,
-~10 min, idempotent; always `run_in_background: true` - ~10 min is the foreground limit -
-and wait for its `attach exit` line):
-`PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_cs2.py --attach-series-only-model --sweep-from 2026-09-28 --sweep-to 2026-10-23 > runs/sofa/<D>/cs2_series_only_model.log 2>&1; echo "attach exit $?"`.
-Each date prints `"stage": "CS2_SERIES_ONLY_MODEL"`; `SWITCH_OFF` on any date = the clock is
-before 2026-10-24 00:00Z - stop and report; `NO_FILE` is normal for a date without CS2.
-Report the summed `with_model_p` / `errors`. Only then start the fits beside RESOLVE:
+Then start the fits beside RESOLVE:
 
 ```bash
 nohup sh -c 'PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_line_evidence.py --before <D> --skip-history; echo "EXIT $?"' > runs/sofa/<D>/refresh_line_evidence.log 2>&1 &
@@ -147,7 +150,11 @@ After step 2 and step 1a's `EXIT` line:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <D>
 ```
 
-Exit 2 = the sheet is not stats-only: re-run SHEET (step 7). Report `refused` counts, every
+Exit 2 = refused, nothing written - read the `REFUSED` / stderr line: a frozen
+`SOFA_NOW`, `--calibration` on the real runs dir, `02_fixtures.json.INCOMPLETE` (re-run
+RESOLVE, step 2), an unreadable previous coupon or print record (stop and report - it is
+the record of what was printed). Only `REFUSED: this is a stats-only build and
+05_sheet.json was not built under that rule` means re-run SHEET (step 7). Report `refused` counts, every
 `UNMATCHED_VETO` / `UNMATCHED_READ` and a `LINE_EVIDENCE_NOT_FITTED` (evidence file missing).
 
 ## 4. Measured sports and the coupon (provisional)
@@ -156,26 +163,33 @@ Exit 2 = the sheet is not stats-only: re-run SHEET (step 7). Report `refused` co
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SHADOW
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only CS2
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D+1> --only CS2
+.venv/bin/python scripts/sofa/ensure_bridge.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SPORT_IDENTITY
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only SPORT_CONFIDENCE
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only COUPON_ASSEMBLY
 ```
 
+- `ensure_bridge.py` right before SPORT_IDENTITY (a dead bridge lost 10 h of identities on
+  10-20); exit 2 = stop and tell the operator.
 - SPORT_IDENTITY (bridge): exit 1 = an event not identified or a refusal (off the coupon);
   2 = no snapshot of any sport. A 403 stops it - never retry into a refusal.
 - SPORT_CONFIDENCE exit 1 = a sport `NOT_CALIBRATED` or without `sport_fixtures.json`; the
   rest still builds. Report each sport's `status` and `refused` from `11_coupon.json` `sports`.
-- COUPON_ASSEMBLY exit 2 = `08_confidence.json` not the standard profile, not stats-only or stale.
+- COUPON_ASSEMBLY exit 1 = `08_confidence_sports.json` absent (football / tennis only - say
+  so); exit 2 = `08_confidence.json` not the standard profile, not stats-only or stale.
 - **No PDF here** - a provisional PDF would lock every leg whose match starts, read or not;
   the first PDF comes from step 7.
 
 ## 5. Analysts
 
-`/sofa-analyze`'s pass (it owns the details). Buffer 25 (the rebuild reshuffles the 30
-best-value matches; legs read now save a C3 round), parts of <= 12 matches:
+`/sofa-analyze`'s pass (it owns the details). Buffer 25 (the rebuild reshuffles the 20
+best-value matches - 20 since 2026-10-27, `READ_SCOPE_FROM_UTC`; legs read now save a C3
+round), parts of <= 6 matches (`--split` applies to every sport; tennis / sport parts are
+small anyway):
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --buffer 25 --split 12
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --buffer 25 --split 6
 ```
 
 It prints one line per sport / part: `<sport>: <n> legs, <n> matches (<n> required, <n>
@@ -207,7 +221,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --autho
 ```
 
 Exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing - report it); 2 refused,
-nothing written: relaunch that instance with the refusal line and a new `_r<n>` path -
+nothing written (also a removal without a fact - USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH,
+RYNEK BEZ TAGU, WETO BEZ FAKTU): relaunch that instance with the refusal line and a new `_r<n>` path -
 never fix its JSON yourself; after 2 relaunches report the failure and go on. A report with
 no reads block broke the contract - say so, never invent reads. List every WATCH / NO_BET
 it prints.
@@ -217,9 +232,11 @@ it prints.
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D> --dry-run
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
 
-`/sofa-rebuild` owns the plan. Never run stage scripts by hand for a rebuild (a CONFIDENCE
+`/sofa-rebuild` owns the plan. After every `rebuild_day.py` (step 7, C3 rounds, step 8) the
+`icloud` line is read; the last state goes into the report. Never run stage scripts by hand for a rebuild (a CONFIDENCE
 on a >45 min offer empties 08 to the locked legs). SHEET re-runs
 itself only on the epoch / link rule / a switch's missing marker; after a SHEET code change
 or a `CONFIG_CHANGED` note the operator approved, run
@@ -232,12 +249,21 @@ first and say why. Read the CONFIDENCE `refused` counts; a sport read counts as
 analyst read (positions moved) or a printed leg carrying WATCH / NO_BET. Then:
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread --split 12
+.venv/bin/python scripts/sofa/ensure_bridge.py
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread --split 6
 ```
 
-(add `--buffer 5` while early kickoffs keep pulling new matches in) and repeat steps 5-7 on
-those files only (paths `_r<n>`); measured-sport files of at most 6 matches together go to
-one `sofa-analyst-sport` instance (`/sofa-analyze` step 3), and a leg of a match read
+(add `--buffer 5` while early kickoffs keep pulling new matches in), then repeat step 5's
+launch and steps 6 and 7 on those files only (paths `_r<n>`) - never step 5's full
+`read_set.py` line; measured-sport files of at most 6 matches together go to
+one `sofa-analyst-sport` instance with this prompt:
+
+```
+date <D>; run_id <id>; sport <s1>,<s2>; read set: runs/sofa/<D>/read_set/read_set_<s1>.json, runs/sofa/<D>/read_set/read_set_<s2>.json;
+write your report to: runs/sofa/<D>/<D>_analiza_sports_r<n>.md
+```
+
+and a leg of a match read
 earlier today carries `prior_analysis` (the analyst's delta pass). `read set: empty` while C3 is still red = a printed leg
 carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. A `started:` line names the matches a re-read pass left out (kickoff within the 15-min
 margin; their analyst would skip them and a read cannot change their legs): C3 keeps listing
@@ -256,12 +282,16 @@ mechanically (`scripts/sofa/verify_legs.py --all`) besides the read set, and ret
 screen's line (legs, DEFECT / NOTE). Then, with the path it **returned**:
 
 ```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --report <returned path> --author verifier --dry-run
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --report <returned path> --author verifier
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
 
-Exit 2 = relaunch the verifier with the refusal line (at most 2 relaunches, then report
-it). No verifier reads = no rebuild; say so. After the rebuild C1 and C3 must be clean (a
+merge_reads: exit 0 merged, 1 merged with an `UNMATCHED_VETO`, 2 refused (nothing written; a
+removal without a fact too) = relaunch the verifier with the refusal line / findings and the next `_r<n>` path (at most 2 relaunches,
+then report it). No verifier reads = no rebuild; say so. The rebuild ends with the audits -
+do not re-run them. After the rebuild C1 and C3 must be clean (a
 C3 finding goes back through the C3 loop). Any other `audit_variants` / `audit_coupon`
 finding is a defect to fix before reporting; lines under `notes (not defects):` are
 listed, not fixed.
@@ -282,7 +312,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
   (`bet.sofa.icloud_sync`; the PDF stage's JSON line carries `icloud`). `day_status.py`
   `icloud` must be OK (byte-equal); a WARN (missing / differs) = re-copy with
   `PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <D>` (no print
-  record) and check again; SKIPPED / NOT_CHECKED (no iCloud Drive) is named in the report.
+  record; safe on a results day - it keeps `13_results.json`'s colours) and check again; SKIPPED / NOT_CHECKED (no iCloud Drive) is named in the report.
 - `capture_closing.py`: a missing close is a CLV hole, not a zero. `run_boosts.py`: a few
   times a day.
 
@@ -300,7 +330,11 @@ report, say the evening rebuild is still to come.
 
 - Positions move on every rebuild: name a leg by `group_key`, market, line, direction;
   in chat in Superbet's words (`superbet_market: superbet_selection`).
-- Tennis clock gaps up to 11 h (ITF) are structural; the gate takes the earliest clock.
+- Tennis clock gaps up to 11 h (ITF) are structural. Start clock = earliest of RESOLVE's
+  clocks and Superbet's (`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh
+  `/event` start - of that start and Superbet's newest clock (it replaces RESOLVE's frozen
+  ones, `locked_print.kickoff_clocks`: a match moved later is not gated on its dawn start);
+  Superbet's start signal (`superbet_started_utc`) counts as started.
 - Check a subagent's number locally where you can.
 - No curve or constant is refitted or installed from a day's run (operator's go only;
   `refresh_line_evidence.py` never touches a curve).

@@ -108,11 +108,17 @@ stage stops the stages after it (`SKIPPED`).
 - `forecast_p` ("model") is the rating's uncalibrated number, `sample_hit_rate`
   / k/n ("próbka") the raw sample: both shown, never gates.
 - **A leg prints** when confidence >= 0.70, x = confidence x odds >= 0.90,
-  ladder margin <= 15%, odds >= 1/0.9202 = 1.0867, not started (the earliest
-  of RESOLVE's, Superbet's and FIXTURE_CHECK's clocks, 15 min margin), fresh
+  ladder margin <= 15%, odds >= 1/0.9202 = 1.0867, not started (15 min
+  margin; start clock below), fresh
   price (football / tennis 45 min, measured sports 3 h; a moved price
   re-prices the leg). Every passing single prints - no page limit. Order:
   confidence, then earlier start, one match's legs together.
+- **Start clock** = earliest of RESOLVE's clocks and Superbet's
+  (`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh `/event`
+  start - of that start and Superbet's newest clock (it replaces RESOLVE's
+  frozen ones, `locked_print.kickoff_clocks`: a match moved later is not gated
+  on its dawn start); Superbet's start signal (`superbet_started_utc`) counts
+  as started.
 - **Day window:** football / tennis the UTC day; hockey / basketball /
   volleyball / CS2 from 2026-10-23 [end(D-1), D+1 05:00Z)
   (`sport_identity.day_window`) - a game after midnight UTC is D's leg
@@ -149,7 +155,7 @@ Refusals you will meet (named on the row; each is the code working):
 | name | meaning |
 |---|---|
 | `BELOW_CONFIDENCE_FLOOR` / `NEGATIVE_LEG_EV` / `ODDS_TOO_LOW` | under 0.70 / x < 0.90 / odds < 1.0867 (sports: `BELOW_FLOOR`, `BELOW_MIN_X`, `MARGIN_TOO_HIGH`) |
-| `KICKED_OFF`, `STALE_PRICE` | started (earliest clock) / price too old |
+| `KICKED_OFF`, `STALE_PRICE` | started (start clock above) / price too old |
 | `NO_LINE_EVIDENCE` | no curve at p and too few own settled lines - not measured yet, never a defect |
 | `NOT_CALIBRATED` | no usable curve (a sport without one: exit 1, the rest builds) |
 | `NO_CLASS_CURVE` | women's football / tennis, tennis team cups read only their class's curves |
@@ -190,6 +196,32 @@ Nothing can **promote** a leg.
   "sofa:<id>", "market"?, "line"?, "direction"?}` (or `{"position": n}`), each
   with `requested_by`, `at_utc`. Prefer `group_key`: positions shift every rebuild.
 
+**What may remove a leg** (analysts and the verifier alike; `report_check`,
+run by the hook on every `_analiza` and `_weryfikacja` report, sends a report
+back). A WATCH / NO_BET reason names one of:
+- a dated fact newer than the price: `[WEB: <domena>, publ. <data>, fetched <czas>]`;
+- an artifact defect: `DEFEKT: <what>` - a value wrong for tonight (identity,
+  scope, surface, format, another squad / class, a placeholder, a mis-sided
+  subject). A correct value the model does not use (rest, back-to-back, form,
+  h2h, table, rating) or a rating one disagrees with is a note, not a defect;
+- football only, from reports dated 2026-10-30, for a **WATCH only** (never
+  NO_BET, never a veto), a market driver of the leg's family
+  (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
+  `RYNEK: <driver>: <numbers with k/n from the dossier>`, read `context: "MARKET"`.
+
+`merge_reads.py` refuses a whole report (exit 2, nothing merged) on any of
+USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU: the
+caller relaunches the analyst with the findings and the next `_r<n>`.
+
+Never a removal on its own: h2h, form / a streak, the table, a model-vs-sample
+gap (football `MODEL_ABOVE_OWN_SAMPLE` already removes automatically),
+`price_gap`, a cross-league bridge. The football dossier's `style` block
+(possession, crosses, box touches, blocked shots, corners by own possession,
+league rate; `style.matchup`: each count leg's own k/n vs the opponent's
+conceded k/n / both sides' games / league share) is the usual RYNEK source;
+KUPON html shows it as a "zestawienie" tag beside every printed football
+count leg.
+
 **The read set** (`confidence.legs_requiring_read`, audit C3): every unlocked
 leg of the **20 best-value matches** (30 on a coupon built before 2026-10-27; the artifact's `read_events`) (value = best leg's confidence x odds, a
 `price_gap` leg's confidence capped at 1/odds + 0.03), every printed builder
@@ -200,21 +232,24 @@ clean. Never compute it by hand:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K]
 # -> runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json; --unread for every re-read pass (it leaves out a match starting within 15 min: `started:` line, C3 still lists it); --split K = parts of <= K matches
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/window_reads.py --date <d> --start-from 14:00 --start-to 17:00   # /sofa-analyze okno: the window's 20 best-value matches (local time, >= 30 min ahead) -> read_requests.json, every market
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run]
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <md> [--report <md> ...] [--author analyst|verifier] [--dry-run] [--slip] [--read-set <file> ...]
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/verify_legs.py --date <d> [--all] [--live]   # mechanical defect screen per leg; never redo its checks by hand
-# exit 0 merged, 1 merged with an UNMATCHED_VETO, 2 refused (nothing written)
+# exit 0 merged, 1 merged with a fresh UNMATCHED_VETO (--slip --read-set: UNMATCHED_READ / LEG_WITHOUT_READ), 2 refused (nothing written; a removal finding of report_check too)
 ```
 
 **Report-file contract.** Write the whole Polish report to the path the
-caller gives with ONE Bash heredoc (`cat > <path> <<'MD' ... MD`); a re-read
-pass appends `_r<n>` - never overwrite another report, take the next free
-suffix.
+caller gives with ONE Bash heredoc (`cat > <path> <<'MD' ... MD`); a new
+round (re-read pass) takes the next free `_r<n>` and never overwrites another
+report; rewriting your own report after a hook finding overwrites the same path.
 
 - Analyst: `runs/sofa/<d>/<d>_analiza_<sport>[_<part>].md`, ending with
   ` ```json vetoes ` (football / tennis only) and ` ```json reads `; no other file.
-- Verifier: `runs/sofa/<d>/<d>_weryfikacja.md`, one ` ```json reads ` block
-  (author `verifier`); it may also write `read_set.py` / `verify_legs.py`
-  outputs under its own scratch `--out-dir`.
+- Verifier: `runs/sofa/<d>/<d>_weryfikacja[_r<n>].md`, one ` ```json reads `
+  block (author `verifier`); every match section has a `sofa:<id>` heading
+  (SEKCJA BEZ TOKENU otherwise) and opens with `**W skrócie:**` (2-3
+  plain sentences), every `[WEB:]` dated, every removal sourced as above (no
+  style table, no kill facts); it may also write `read_set.py` /
+  `verify_legs.py` outputs under its own scratch `--out-dir`.
 - Both: no other ```json array in the report (`merge_reads.py` refuses an
   unclassifiable one); a report without a reads block breaks the contract.
   Return only the path, legs read, KEEP / WATCH / NO_BET counts, the veto
@@ -250,7 +285,11 @@ suffix.
   say so (`UNVERIFIED`, "nie do zweryfikowania").
 - Never print a combined / Bet Builder / parlay price, and never present
   `odds_if_product` (or `ev_if_product_priced`) as one - Superbet does not
-  price a slip as the product of its legs (markup 8.8-19.6%).
+  price a slip as the product of its legs (markup 8.8-19.6%). One exception
+  (operator, 2026-10-26): a chat slip (`build_slip.py --builders`) shows a
+  builder as "<product> iloczyn" and counts its target on that product -
+  never called "kurs", never our price. `build_slip.py --check` prints no
+  product at all.
 - No stake sizing, no automated placement. The stake is the operator's.
 - Name a leg shown to the operator in Superbet's words:
   `superbet_market: superbet_selection` from `11_coupon.json`

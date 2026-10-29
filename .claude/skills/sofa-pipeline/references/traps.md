@@ -17,7 +17,7 @@ measured incident; the rule it left is in bold.
   `locked_late_refusals`, never acted on). Early kickoffs lock unread legs
   (10-11: 22). **Render the PDF when the coupon is meant, and read a buffer of
   the next matches** (`read_set.py --buffer N`) so a rebuild that reshuffles
-  the top 30 does not print unread legs (10-18: 101).
+  the top 20 matches (30 before 2026-10-27) does not print unread legs (10-18: 101).
 - **Positions shift after every rebuild.** Name a leg by `group_key` + market +
   line + direction, never by position, unless the request is against the
   build the operator is looking at.
@@ -98,10 +98,15 @@ measured incident; the rule it left is in bold.
 
 - **Two clocks, and the error runs the wrong way.** On ITF tennis Sofascore
   publishes local time as UTC (gaps to 11 h) - a finished match looks
-  upcoming. The start clock is the earliest of all clocks, deliberately.
+  upcoming. Start clock = earliest of RESOLVE's clocks and Superbet's
+  (`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh `/event`
+  start - of that start and Superbet's newest clock (it replaces RESOLVE's
+  frozen ones, `locked_print.kickoff_clocks`: a match moved later is not gated
+  on its dawn start); Superbet's start signal (`superbet_started_utc`) counts
+  as started.
 - **RESOLVE's clock goes stale during the day** (Superbet moves a match);
   FIXTURE_CHECK re-reads `/event/{id}` before CONFIDENCE. Without the bridge
-  the events are `UNVERIFIED` and the frozen clock stands.
+  the events are `UNVERIFIED` and RESOLVE's frozen clocks stand.
 - **Board size is the calendar**: 1,040 football fixtures on a Sunday, 102 on
   a Monday. The coverage floor is weekday-blind; **judge matching by the
   RESOLVE rate (72-90% is healthy)**.

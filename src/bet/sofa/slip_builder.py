@@ -81,7 +81,9 @@ MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
 CROWD_LEGS = 3  # a slip with this many legs of one family is named
-START_MARGIN = datetime.timedelta(minutes=10)
+START_MARGIN = datetime.timedelta(minutes=15)  # = the analysts' started-skip
+# a leg starting sooner is marked: an analyst round takes ~20-30 min
+READ_MARGIN = datetime.timedelta(minutes=45)
 STEP = 0.0001
 LOCAL = ZoneInfo("Europe/Warsaw")  # the operator's clock
 # The pipeline's own price-age limits: CONFIDENCE refuses a football / tennis
@@ -144,6 +146,17 @@ class Slip:
     def supported(self) -> bool:
         return all(x.tier < TIER_REST for x in self.legs)
 
+    @property
+    def has_builder(self) -> bool:
+        return any(x.leg.get("builder_legs") for x in self.legs)
+
+    @property
+    def value(self) -> float:
+        """Measured chance x the product of the legs' prices: the return per
+        unit staked by our own numbers (below 1 = the slip loses by them); with
+        a builder an upper bound - Superbet pays a builder below the product."""
+        return self.chance * math.prod(x.odds for x in self.legs)
+
 
 @dataclass
 class Result:
@@ -190,9 +203,15 @@ def measured_chance(
         # measured shortfall is carried forward, never the family's surplus
         short, source = TIER_SHORTFALL[tier_], "selekcja (walk-forward)"
     elif key in fam:
-        short, source = min(fam[key], 0.0), "rodzina"
+        # a family off the plus never reads better than the families on it
+        # did walk-forward (2026-10-29: corners_total OVER, units -15.9, read
+        # -0.8 pp while a family on the plus read -1.6 pp)
+        short = min(fam[key], TIER_SHORTFALL[TIER_FAMILY_PLUS], 0.0)
+        source = "rodzina"
     elif key.split("|", 1)[0] in sport:
-        short, source = min(sport[key.split("|", 1)[0]], 0.0), "sport"
+        short = min(sport[key.split("|", 1)[0]], TIER_SHORTFALL[TIER_FAMILY_PLUS],
+                    0.0)
+        source = "sport"
     else:
         return None
     base = 1.0 / odds + short
@@ -718,12 +737,23 @@ def concentration(slip: Slip) -> tuple[str, int] | None:
     win or lose together more than the measured chance says (one selection,
     one model), so the answer names it - a warning, never a gate."""
     count: dict[str, int] = defaultdict(int)
-    for x in slip.legs:
-        count[fr.family_key(x.leg)] += 1
+    rows = [g for x in slip.legs for g in leg_rows(x)]
+    for g in rows:
+        count[fr.family_key(g)] += 1
     fam, n = max(count.items(), key=lambda kv: kv[1], default=("", 0))
-    if n >= CROWD_LEGS or (n == len(slip.legs) >= 2):
+    if n >= CROWD_LEGS or (n == len(rows) >= 2):
         return fam, n
     return None
+
+
+def family_text(leg: Mapping[str, Any], record: Mapping[str, Any] | None) -> str:
+    """A leg's family on the printed legs of the record's days: hit vs
+    implied over N legs - the measured chance's evidence, beside the leg."""
+    e = ((record or {}).get("families") or {}).get(fr.family_key(leg))
+    if not e:
+        return "brak"
+    return (f"{_pct(float(e['hit']))} vs {_pct(float(e['implied']))} "
+            f"(n={int(e['legs'])})")
 
 
 def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
@@ -775,9 +805,13 @@ def render(
     record: Mapping[str, Any] | None,
     now: datetime.datetime,
     built_at: str | None = None,
+    matchups: Mapping[str, str] | None = None,
 ) -> str:
     """Polish markdown for the operator. The first line answers the request
-    ("say no first"); no slip price, no stake."""
+    ("say no first", in every mode); no slip price, no stake. `matchups`:
+    bet.sofa.dossier.matchups_for_legs, shown beside each single."""
+    from bet.sofa.dossier import matchup_key
+
     lines: list[str] = []
     n_ok = result.supported
     if result.any_family:
@@ -788,9 +822,19 @@ def render(
             if n < result.requested
             else ""
         )
+        # say no first in this mode too (CLAUDE.md): how many slips stand on
+        # families on the plus alone, before the every-market answer
+        first = (
+            f"**Dziś żaden kupon na ~{target:g} nie stoi na samych rodzinach na "
+            "plusie**" if n_ok == 0
+            else f"**Dzień cienki - w pełni poparte (rodziny na plusie): {n_ok} z "
+            f"{result.requested}**" if n_ok < result.requested
+            else f"**W pełni poparte (rodziny na plusie): {n_ok} z "
+            f"{result.requested}**"
+        )
         lines.append(
-            f"**Kupon na ~{target:g}: {n} z {result.requested} - każdy rynek kuponu "
-            f"dnia, rodziny na plusie bez pierwszeństwa**{reach}."
+            f"{first}. Kupon na ~{target:g} z każdego rynku kuponu dnia: {n} z "
+            f"{result.requested}{reach}."
         )
     elif n_ok >= result.requested:
         lines.append(
@@ -830,26 +874,55 @@ def render(
             if s.supported or result.any_family
             else " - **poza poparciem (reszta kuponu)**"
         )
+        product = math.prod(x.odds for x in s.legs)
         head = (
             f"### Kupon {i}: {legs_pl(len(s.legs))}, szansa zmierzona {_pct(s.chance)}"
+            + (f" - zwrot wg naszych liczb najwyżej {_pct(s.value)} stawki (liczony "
+               "na iloczynie; za builder Superbet płaci mniej)" if s.has_builder
+               else f" przy 1/kurs {_pct(1 / product)} - zwrot wg naszych liczb "
+               f"{_pct(s.value)} stawki")
         )
         lines += [
             head + tag,
             "",
             "| start | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
-            "szansa | źródło | pewność | grupa | czytana | cena sprzed |",
-            "|---|---|---|---|---|---|---|---|---|---|---|",
+            "szansa | źródło | pewność | pewność < 1/kurs | rodzina (trafione vs "
+            "cena, n) | zestawienie | grupa | czytana | cena sprzed |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for x in s.legs:
             g = x.leg
             read = x.read
             start = _local(g.get("kickoff_utc"))
+            to_start = (datetime.datetime.fromisoformat(
+                str(g.get("kickoff_utc")).replace("Z", "+00:00")) - now
+                if g.get("kickoff_utc") else None)
+            if to_start is not None and to_start < READ_MARGIN:
+                start += f" ⚠ za {int(to_start.total_seconds() // 60)} min"
             bet = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
+            if g.get("builder_legs"):
+                odds, implied = f"{x.odds:.2f} iloczyn", "—"
+                below = ", ".join(
+                    f"{b.get('superbet_market')}: {b.get('superbet_selection')}"
+                    for b in g["builder_legs"]
+                    if float(b["confidence"]) < 1 / float(b["offered_odds"]))
+                below = f"tak: {below}" if below else "nie"
+                family = "; ".join(family_text(b, record) for b in g["builder_legs"])
+                matchup = "; ".join(
+                    t for b in g["builder_legs"]
+                    if (t := (matchups or {}).get(matchup_key(b))))
+            else:
+                odds, implied = f"{x.odds:.2f}", _pct(1 / x.odds)
+                below = ("**tak**" if float(g["confidence"]) < 1 / x.odds
+                         else "nie")
+                family = family_text(g, record)
+                matchup = (matchups or {}).get(matchup_key(g), "")
             lines.append(
-                f"| {start} | {g.get('match')} | {bet} | {x.odds:.2f} | "
-                f"{_pct(1 / x.odds)} | {_pct(x.chance)} | {x.chance_source} | "
-                f"{_pct(float(g['confidence']))} | {TIER_NAMES[x.tier]} | {read} | "
-                f"{_age(x)} |"
+                f"| {start} | {g.get('match')} | {bet} | {odds} | "
+                f"{implied} | {_pct(x.chance)} | {x.chance_source} | "
+                f"{_pct(float(g['confidence']))} | {below} | {family} | "
+                f"{matchup.removeprefix('zestawienie: ') or '—'} | "
+                f"{TIER_NAMES[x.tier]} | {read} | {_age(x)} |"
             )
         lines += [
             "",
@@ -858,9 +931,15 @@ def render(
         ]
         if any(x.leg.get("builder_legs") for x in s.legs):
             lines.append(
-                "Kurs buildera w tabeli = iloczyn kursów jego nóg (zasada operatora "
-                "26.10); Superbet liczy buildera niżej (markup 8,8-19,6%) - kurs "
-                "buildera sprawdź na ekranie."
+                "Builder: cel liczony iloczynem kursów nóg (zasada operatora 26.10), "
+                "ale Superbet płaci mniej - zmierzone 0,85-0,99 iloczynu (28.10), "
+                "markup 8,8-19,6%; iloczyn to nie kurs buildera. Kurs buildera "
+                "sprawdź na ekranie Superbetu."
+            )
+        if s.value < 1.0:
+            lines.append(
+                f"Wg naszych liczb ten kupon zwraca {_pct(s.value)} stawki - "
+                "poniżej ceny (każda noga liczona nie wyżej niż jej cena)."
             )
         crowd = concentration(s)
         if crowd is not None:
@@ -908,3 +987,99 @@ def render(
             + ", ".join(f"{k} {v}" for k, v in sorted(result.refused.items()))
         )
     return "\n".join(lines) + "\n"
+
+
+def find_leg(
+    singles: Sequence[Mapping[str, Any]], spec: str,
+) -> tuple[Mapping[str, Any] | None, list[Mapping[str, Any]]]:
+    """A coupon single by "<match fragment>|<superbet_market>|<selection>"
+    (Superbet's words, case folded); else None and the same match's legs of
+    that market (what the operator may have meant)."""
+    parts = [p.strip().casefold() for p in spec.split("|")]
+    if len(parts) != 3:
+        raise ValueError(f"--check: '{spec}' - podaj 'mecz|rynek|wybór'")
+    match, market, selection = parts
+    same = [g for g in singles if match in str(g.get("match") or "").casefold()]
+    for g in same:
+        if (str(g.get("superbet_market") or "").casefold().strip() == market
+                and str(g.get("superbet_selection") or "").casefold().strip()
+                == selection):
+            return g, []
+    near = [g for g in same
+            if str(g.get("superbet_market") or "").casefold().strip() == market]
+    return None, near or same[:8]
+
+
+def render_check(
+    specs: Sequence[str],
+    singles: Sequence[Mapping[str, Any]],
+    record: Mapping[str, Any] | None,
+    screen_odds: float | None,
+    matchups: Mapping[str, str],
+    joint: Mapping[str, Any] | None,
+    others: Sequence[Mapping[str, Any]] = (),
+) -> str:
+    """The operator's own Bet Builder of one match, leg by leg, against our
+    numbers: each leg's measured chance beside 1/odds, its family and
+    match-up, the legs' joint history in the two sides' games, and the
+    screen price. No price of ours, no stake (CLAUDE.md hard rules)."""
+    from bet.sofa.dossier import matchup_key
+
+    fam, sport = shortfalls(record)
+    plus = frozenset(
+        k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e))
+    lines = ["| zakład (słowami Superbetu) | kurs | 1/kurs | pewność | szansa "
+             "zmierzona | pewność < 1/kurs | rodzina (trafione vs cena, n) | "
+             "zestawienie |", "|---|---|---|---|---|---|---|---|"]
+    below: list[str] = []
+    missing: list[str] = []
+    for spec in specs:
+        g, near = find_leg(singles, spec)
+        if g is None and others:
+            other, _ = find_leg(others, spec)
+            if other is not None:
+                missing.append(f"{spec} - nie na kuponie: {other.get('why')}")
+                continue
+        if g is None:
+            hint = "; ".join(
+                f"{x.get('superbet_market')}: {x.get('superbet_selection')}"
+                for x in near[:6])
+            missing.append(f"{spec} - nie ma na kuponie dnia"
+                           + (f" (w tym meczu: {hint})" if hint else ""))
+            continue
+        odds = float(g["offered_odds"])
+        mc = measured_chance(g, odds, fam, sport, tier(g, plus))
+        chance = mc[0] if mc else None
+        name = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
+        is_below = float(g["confidence"]) < 1 / odds
+        if (chance if chance is not None else float(g["confidence"])) < 1 / odds:
+            below.append(name)
+        lines.append(
+            f"| {name} | {odds:.2f} | {_pct(1 / odds)} | "
+            f"{_pct(float(g['confidence']))} | "
+            f"{_pct(chance) if chance is not None else 'brak pomiaru'} | "
+            f"{'**tak**' if is_below else 'nie'} | {family_text(g, record)} | "
+            f"{(matchups.get(matchup_key(g)) or '—').removeprefix('zestawienie: ')} |")
+    out = [f"**Builder: {len(specs) - len(missing)} z {len(specs)} nóg na kuponie "
+           f"dnia, {len(below)} z szansą zmierzoną poniżej ceny.**", ""] + lines + [""]
+    if missing:
+        out.append("Nie na kuponie (bez szansy zmierzonej - nie dopisuj jej): "
+                   + " | ".join(missing))
+    if joint and joint.get("n"):
+        out.append(
+            f"Historia łączna: wszystkie {joint['legs_read']} nogi z historią weszły "
+            f"razem w {joint['k']} z {joint['n']} ostatnich meczów obu drużyn "
+            "(częstość, nie prawdopodobieństwo)"
+            + (f"; bez historii: {', '.join(joint['legs_without_history'])}"
+               if joint.get("legs_without_history") else "") + ".")
+    elif joint and joint.get("missing"):
+        out.append(f"Historia łączna: {joint['missing']}.")
+    if screen_odds:
+        out.append(
+            f"Ekran Superbetu: {screen_odds:.2f} -> 1/kurs {_pct(1 / screen_odds)}. "
+            "Builder ma sens tylko wtedy, gdy łączna szansa przekracza 1/kurs; "
+            "każda noga w cenie lub poniżej jej tylko ją obniża.")
+    if below:
+        out.append("Szansa zmierzona poniżej 1/kurs (zamień albo usuń): "
+                   + "; ".join(below) + ".")
+    return "\n".join(out) + "\n"

@@ -2,7 +2,8 @@
 
 build_coupon_pdf.py already writes it after every PDF; this is for the HTML
 alone (a changed page, no new print record); the iCloud copy follows it
-(bet.sofa.icloud_sync). Exit 0 OK, 1 the iCloud copy failed, 2 failed."""
+(bet.sofa.icloud_sync). A day marked with results (13_results.json) keeps
+them. Exit 0 OK, 1 the iCloud copy failed, 2 failed."""
 
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ import os
 import sys
 from pathlib import Path
 
+from bet.sofa import coupon_results as cr
 from bet.sofa.confidence import coupon_artifact
 from bet.sofa.coupon_html import write_html
 from bet.sofa.icloud_sync import sync_day
@@ -34,7 +36,15 @@ def main() -> int:
     fam_error = ensure_family_record(args.runs_dir, args.date)
     if fam_error:
         print(f"family_record.json NOT refreshed: {fam_error}", file=sys.stderr)
-    out = write_html(run, doc, args.date)
+    # a day already marked keeps its results (a plain render would drop the
+    # colours, and the iCloud copy with them); like --with-results it is a
+    # view, so the page's mtime - read as "printed" - is kept
+    results = cr.load(run)
+    html_out = run / f"KUPON_{args.date}.html"
+    kept = html_out.stat().st_mtime if results and html_out.exists() else None
+    out = write_html(run, doc, args.date, results)
+    if kept is not None:
+        os.utime(out, (kept, kept))
     icloud = sync_day(args.runs_dir, args.date)
     if icloud.status == "FAILED":
         print(f"iCloud copy NOT written: {icloud.detail}", file=sys.stderr)

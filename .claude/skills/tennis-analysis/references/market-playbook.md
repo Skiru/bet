@@ -40,8 +40,7 @@ prices each market: SKILL.md and `data-inventory.md`.
 - They share the games builder family with every other games market.
 - Per-player set games OVER realised below confidence on the printed legs of
   10-09..10-16 (-7.1 / -6.6 pp, intervals touching zero; open check
-  `T-TENNIS-SET-GAMES-OVER`): run the scoreline arithmetic of an OVER rung
-  with that in mind.
+  `T-TENNIS-SET-GAMES-OVER`) - a note, never a WATCH.
 
 ## `sets_total`
 
@@ -65,7 +64,7 @@ read the `tennis_women:` curve. The risk
 is a one-sided match: a big rating gap, an out-of-form or retirement-prone
 underdog, a surface that kills his serve. Its legs realised below confidence
 on 10-14..10-15 (27 legs, interval through zero; open check
-`T-SCORE-MARKETS-superbet`) - read them, do not wave them through.
+`T-SCORE-MARKETS-superbet`) - a note, never a WATCH.
 
 ## Aces, double faults - `aces_*`, `double_faults_*`
 
@@ -103,7 +102,10 @@ of ace counts.
 
 Functions of two sides (`config/sofa_side_correlations.json`), not sampled.
 `handicap_games` and `most_games` (not the draw) are priced by the
-neighbours; `most_aces`, `most_serve_points`, `handicap_aces` by the joint of
+neighbours, and from 2026-10-28 so is the per-set games handicap
+(`handicap_games_won_set1/2`, the neighbours' own set-N margin, note
+`SET_HANDICAP_NEIGHBOURS`; earlier a rho-0 joint that put ~0.26 on a level
+set margin that never happens); `most_aces`, `most_serve_points`, `handicap_aces` by the joint of
 the two samples. With no history curve a derived key reads its own Superbet
 lines or is `NO_LINE_EVIDENCE`. `handicap_games` competes with `games_total`
 and `games_won_for` for the one games slot a builder allows.

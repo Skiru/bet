@@ -31,9 +31,11 @@ Procedura jest zapisana raz. Komenda, która uruchamia agenta, mówi tylko,
 | `/sofa-rebuild [data]` | przebudowa z artefaktów jednym poleceniem `rebuild_day.py` | Superbet (stara cena), most dla FIXTURE_CHECK / SPORT_IDENTITY |
 | `/sofa-verify [data]` | `sofa-verifier`, scalenie jego odczytów, przebudowa | Superbet (ceny na żywo) + web |
 | `/sofa-settle [data]` | `sofa-settler` dla dnia zakończonego | Sofascore (most) |
+| `/kupon 11-13 [~4] [x2]` | kupon z czatu (AKO) na okno startów: `build_slip.py --any-family --builders --max-legs 10`, analitycy czytają każdą nogę (`merge_reads.py --slip`), odrzuconą zastępuje następna; skill `bet-slip-audit`. Kuponu dnia nie dotyka | Sofascore (most: h2h, składy) |
 
-Argument: `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty = dzisiaj. **Doba
-kuponu jest w UTC dla każdego sportu.**
+Argument: `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty = dzisiaj. Piłka i
+tenis: doba UTC; hokej / kosz / siatka / CS2 od 2026-10-23: [koniec(D-1),
+D+1 05:00Z) (`sport_identity.day_window`).
 
 ### Agenci
 
@@ -41,7 +43,7 @@ kuponu jest w UTC dla każdego sportu.**
 |---|---|---|---|
 | `sofa-runner` | dzień jako podagent: czyta i wykonuje `sofa-day.md`, zwraca raport dnia | sesji | dane tylko przez skrypty |
 | `sofa-analyst-football` / `-tennis` | odczyt nóg ze swojego pliku `read_set`, weta + jeden odczyt na nogę | sesji | **tylko swój raport** |
-| `sofa-analyst-sport` | to samo dla sportu mierzonego (hokej / kosz / siatka / CS2; w rundzie re-read kilka małych plików sportów naraz); tylko odczyty (strona, okres); model Sonnet (operator 2026-10-26: koszt) | sesji | tylko swój raport |
+| `sofa-analyst-sport` | to samo dla sportu mierzonego (hokej / kosz / siatka / CS2; w rundzie re-read kilka małych plików sportów naraz); tylko odczyty (strona, okres) | `sonnet` (operator 2026-10-26: koszt) | tylko swój raport |
 | `sofa-verifier` | adwersaryjna weryfikacja zbudowanego dnia; nogi, których by nie postawił, jako odczyty `author: "verifier"` | sesji | tylko swój raport |
 | `sofa-settler` | rozliczenie D-1, audyty, dziennik, opinia o refitowaniu (domyślnie „nie”) | `sonnet` | nic |
 | `sofa-market-scout` | czy da się postawić i czy warto tej ceny; ślepa plama `unmapped_markets` | `sonnet` | `runs/sofa/<d>/market_coverage.json` / `.md` przez `report_market_coverage.py` (gdy ich brak) |
@@ -54,7 +56,9 @@ kuponu jest w UTC dla każdego sportu.**
   `CLAUDE.md` jest dla sesji głównej.
 - **Routing modeli:** `sofa-settler` i `sofa-market-scout` biegną na
   `sonnet` (uruchamianie skryptów i raport; refit i tak wymaga zgody
-  operatora). Analitycy i weryfikator — na modelu sesji (bez linii `model:`).
+  operatora), `sofa-analyst-sport` też (operator 2026-10-26: koszt).
+  Analitycy piłki i tenisa oraz weryfikator — na modelu sesji (bez linii
+  `model:`).
 - Definicje agentów i skille wczytują się na starcie sesji: poprawka wchodzi
   w **następnej** sesji — nie pisz, że „już działa”.
 
@@ -66,7 +70,7 @@ kuponu jest w UTC dla każdego sportu.**
 | `sofa-analysis-core` | kontrakt analityka: plik `read_set`, kolejność artefaktów, punkt decyzyjny, bloki JSON, raport do pliku | trzech analityków |
 | `football-analysis` / `tennis-analysis` | metoda sportowa | analityk danego sportu |
 | `sport-analysis` | metoda sportów mierzonych: co wyceniło nogę (model wyniku, silnik CS2, model zawodnika, dowód linii), tożsamość i zakres, decydujące fakty przedmeczowe sportu (bramkarz, raport kontuzji i back-to-back, szóstka, piątka i pula map), sekcja meczu (od 2026-10-26) | `sofa-analyst-sport` |
-| `bet-slip-audit` | wycena slipa z ekranu operatora | na żądanie |
+| `bet-slip-audit` | wycena slipa z ekranu operatora; własny Bet Builder operatora (zrzut) -> najpierw `build_slip.py --check --no-refresh-record` (szansa nogi vs 1/kurs, wspólne k/n nóg - częstość, nie prawdopodobieństwo; bez iloczynu szans); pętla `/kupon` | na żądanie |
 
 Gdy dwa źródła mówią co innego: **kod > artefakt > skill > plik agenta**.
 
@@ -91,16 +95,16 @@ operator: /sofa-day 2026-10-20
    ├─ 2. dzisiaj       run_pipeline.py: BOARD (nadaje run_id, odczyt z linii SOFA_SUMMARY)
    │                   → RESOLVE → OFFER → SAMPLES → OFFER → SHEET → COUPON (nohup, log, krótkie grep)
    ├─ 3. CONFIDENCE    run_confidence.py (tymczasowy)
-   ├─ 4. sporty        SHADOW, CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (11)
+   ├─ 4. sporty        SHADOW, CS2 → ensure_bridge.py → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (11)
    │                   bez PDF: wydruk tymczasowy zablokowałby nieprzeczytane nogi
-   ├─ 5. analitycy     read_set.py --buffer 25 --split 12 → jedna instancja na plik,
+   ├─ 5. analitycy     read_set.py --buffer 25 --split 6 → jedna instancja na plik,
    │                   wszystkie w JEDNEJ wiadomości, na pierwszym planie
    ├─ 6. scalenie      merge_reads.py --report <ścieżka ZWRÓCONA przez analityka> [--report …] --author analyst
    ├─ 7. przebudowa    rebuild_day.py (pierwszy PDF) → audit_variants C3;
-   │                   pętla: read_set.py --unread --split 12 → analitycy (_r<n>) → scalenie
+   │                   pętla: read_set.py --unread --split 6 → analitycy (_r<n>) → scalenie
    │                   → przebudowa; najwyżej 3 rundy
-   ├─ 8. weryfikacja   Task → sofa-verifier → merge_reads.py --author verifier → rebuild_day.py
-   ├─ 9. stan          day_status.py; capture_closing tylko przy WARN; run_boosts.py
+   ├─ 8. weryfikacja   Task → sofa-verifier → merge_reads.py --author verifier (--dry-run najpierw) → rebuild_day.py
+   ├─ 9. stan          day_status.py (icloud OK: md5 lokalnie = iCloud); capture_closing tylko przy WARN; run_boosts.py
    └─ raport           wzór w części 8
 ```
 
@@ -141,7 +145,7 @@ pozycja, `group_key`, mecz, rynek, linia, kierunek, okres, nazwa Superbetu,
 pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
 
 - `--buffer N` — także N kolejnych meczów w tej samej kolejności; przebudowa
-  tasuje trzydziestkę, więc bufor przeczytany teraz oszczędza rundę C3
+  tasuje dwudziestkę (od 2026-10-27; wcześniej 30), więc bufor przeczytany teraz oszczędza rundę C3
   (25 na budowie tymczasowej, 0 na końcowej);
 - `--split K` — części po najwyżej K całych meczów, jedna instancja
   analityka na część (dwa krótkie konteksty są tańsze niż jeden długi);
@@ -185,17 +189,36 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
    niesie token `sofa:<id>` (sprawdza go `check_analyst_report.py` i hook);
    raport bez żadnej sekcji to `NO_SECTIONS` w wyjściu - nie odmowa. Sekcje
    widać przy nogach w HTML (rozwijane) i w aneksie PDF.
-6. Hook (`report_check`) odsyła raport analitykowi do poprawy, gdy:
+6. Hook (`report_check`) odsyła raport analitykowi - i weryfikatorowi
+   (`_weryfikacja`) - do poprawy, gdy:
    - WATCH / NO_BET nie nazywa faktu nowszego niż cena (datowany tag
-     `[WEB: …, publ. …]`) ani defektu artefaktu (`DEFEKT: …`); h2h, forma,
-     seria, tabela, luka model-próbka, `price_gap` ani słaby most ratingu nie
-     zdejmują nogi (10-26: 19 z 24 WATCH było tego rodzaju; pomiar
-     10-13..10-25 nie pokazał, by takie zdjęcia cokolwiek dawały);
-   - tag `[WEB:]` nie ma daty publikacji;
-   - sekcja czytanego meczu nie ma linii „Fakty zabójcze” (sekcja delty je
-     dziedziczy);
-   - KEEP jest zbiorczy (`market: null`) - jeden odczyt na rodzinę (rynek,
-     kierunek).
+     `[WEB: domena, publ. <data>, fetched <czas>]`) ani defektu artefaktu
+     (`DEFEKT: …`); od raportów z 2026-10-30 w piłce sam WATCH (nigdy NO_BET ani weto) może
+     też stać na sterowniku rynku rodziny nogi
+     (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
+     `RYNEK: <sterownik>: <liczby z k/n z dossier>`, `context: "MARKET"`
+     (operator 2026-10-29); h2h sam, forma, seria, tabela, luka model-próbka,
+     `price_gap` ani most między ligami nie zdejmują nogi (10-26: 19 z 24
+     WATCH było tego rodzaju; pomiar 10-13..10-25 nie pokazał, by takie
+     zdjęcia cokolwiek dawały);
+   - pozostałe ustalenia (nazwa = początek komunikatu hooka): KONTEKST
+     (brak „Kontekst (web)”), DOSSIER, SEKCJA BEZ TOKENU (nagłówek bez
+     `sofa:<id>`, także u weryfikatora), TAG WEB BEZ DATY, FAKTY ZABÓJCZE,
+     W SKRÓCIE (od 10-30; weryfikator też), ZESTAWIENIE (od 10-30, piłka),
+     PRZECIW BEZ ODCZYTU (od 10-30), KEEP ZBIORCZY (od 10-27), KEEP BEZ
+     UZASADNIENIA, USUNIĘCIE BEZ FAKTU (od 10-27; RYNEK dla WATCH w piłce od
+     10-30), RYNEK TYLKO WATCH, RYNEK BEZ TAGU, ŹRÓDŁO, WETO BEZ FAKTU (od
+     10-30). RYNEK jest tylko piłkarski i tylko dla WATCH; weto nigdy nie
+     stoi na RYNKU. `DEFEKT:` = wartość artefaktu błędna na dziś
+     (tożsamość, zakres, nawierzchnia, format, inny skład / klasa,
+     placeholder, podmiot po złej stronie); poprawna wartość, której model
+     nie używa (odpoczynek, back-to-back, forma, h2h, tabela), albo rating, z
+     którym się nie zgadzasz, to uwaga, nie defekt;
+   - `merge_reads.py` **odmawia** (exit 2, nic nie scala) raportu z
+     USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU lub WETO BEZ
+     FAKTU: zlecający uruchamia analityka ponownie z ustaleniami i kolejnym
+     `_r<n>`. Poprawka własnego raportu po uwadze hooka nadpisuje tę samą
+     ścieżkę.
 
 ### Kanały do produktu
 
@@ -228,7 +251,7 @@ trzeci jest prośbą, nie werdyktem:
 `audit_variants` C3 (na końcu każdej przebudowy) sprawdza, że każda noga
 zbioru ma odczyt `author: "analyst"` i żadna wydrukowana nie niesie WATCH /
 NO_BET. Przebudowa przesuwa pozycje, więc po każdej: `read_set.py --date <d>
---unread --split 12` (`--buffer 5`, gdy wczesne mecze wciągają nowe) →
+--unread --split 6` (`--buffer 5`, gdy wczesne mecze wciągają nowe) →
 analitycy tylko na tych plikach → scalenie → przebudowa, aż C3 czyste,
 najwyżej 3 rundy. Pusty zbiór przy czerwonym C3 znaczy, że wydrukowana noga
 niesie WATCH / NO_BET albo brak `reads.json` — wtedy `rebuild_day.py`, nie
@@ -270,7 +293,12 @@ Właściciel: skill `sofa-analysis-core` i pliki `sofa-analyst-*`. W skrócie:
   nie ma w XI; brak danych = `missing`, nigdy zgadywanie. Przewidywany skład
   to nie potwierdzony; nieobecny podstawowy daje najwyżej WATCH przez zmienną
   nogi, nigdy promocję), stadion z miastem i godziną lokalną, sędzia, ranking,
-  CS2: skład i nowe nazwisko, pula map, forma graczy; ruch linii Superbetu
+  CS2: skład i nowe nazwisko, pula map, forma graczy; w piłce blok `style`
+  (posiadanie, dośrodkowania, dotknięcia w polu karnym, zablokowane strzały,
+  rożne wg własnego posiadania, stawka ligi; `style.matchup`: k/n nogi drużyny
+  wobec k/n tego, co traci rywal / meczów obu stron / udziału ligi - w KUPON
+  html tag „zestawienie” przy każdej wydrukowanej nodze liczbowej piłki,
+  źródło powodu `RYNEK:`); ruch linii Superbetu
   przez dzień; lista kontrolna webu z wpisanymi nazwami — tylko podgląd,
   nigdy bramka; KEEP podaje oczekiwanie w jednostkach rynku, fakt z dossier
   i ustalenie z kontekstu, nigdy samo „15/18”;
@@ -308,8 +336,11 @@ Właściciel: `sofa-verifier.md` (protokół: [`VERIFY_PROTOCOL.md`](VERIFY_PROT
 Robi to, czego skrypt nie umie: odtwarza nogi z `03_samples.json`, sprawdza
 stronę `subject` i tożsamość meczu sportu, dopytuje Superbet o żywą cenę tym
 samym klientem, testuje rozkłady dnia pod kątem antyselekcji. Produktem jest
-lista nóg, których **nie** postawiłby — w raporcie i jako blok odczytów
-(`NO_BET` za defekt, `WATCH` za osąd). Noga zablokowana to zapis wydruku,
+lista nóg, których **nie** postawiłby — w raporcie i jako blok odczytów,
+na tych samych zasadach zdjęcia co analitycy (`NO_BET` za `DEFEKT: …`,
+`WATCH` za datowany `[WEB:]`, `DEFEKT` albo od 2026-10-30 `RYNEK:`; luka
+model-próbka nie jest powodem - piłkarskie `MODEL_ABOVE_OWN_SAMPLE` zdejmuje
+się samo). Noga zablokowana to zapis wydruku,
 nie defekt. Żadnej rekomendacji stawki.
 
 ## 5. Kontrakt rozliczającego
@@ -325,8 +356,9 @@ w środku dnia i nigdy z przebiegu dnia. Higiena konfiguracji:
 
 `sofa-market-scout` rozdziela dwie osie, których nie wolno łączyć: **czy da
 się to postawić** (mecz na tablicy, rynek, kierunek, obie strony wycenione)
-i **czy warto tej ceny** (`required_odds`, nadwyżka — arytmetyka selektora
-VALUE z `06_coupon.json`, nie pewność kuponu). Czyta też `unmapped_markets`.
+i **czy warto tej ceny** (pewność kuponu i x = pewność x kurs, >= 0,90
+drukuje; `required_odds` i nadwyżka selektora VALUE tylko w osobnej kolumnie
+„stary selektor”, nigdy werdykt). Czyta też `unmapped_markets`.
 
 ## 7. Zasady wspólne
 
@@ -362,6 +394,7 @@ D-1:      7c per sport · 7i osobno · zwroty · tożsamość · MISMATCH · CLV
 STATUS:   day_status · pętle · UNVERIFIED · mostek NOT_CHECKED
 AUDYT:    audit_coupon · audit_variants (C3 0)
 WERYFIKACJA: arytmetyka · ceny na żywo · odrzucone (w reads.json i przebudowane: tak/nie) · verify_legs --all: nogi, DEFECT, NOTE
+iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK/WARN/NOT_CHECKED>
 UWAGA:    największa słabość dnia
 ```
 

@@ -686,3 +686,17 @@ done({li:li.querySelector(".mkt").textContent+" | "+
     assert out["hockey"] == 0 and out["football"] == 1
     mkt, note = out["li"].split(" | ")
     assert "8.5" not in mkt and note.startswith("linia 8.5 OVER, pewność 0.850")
+
+
+def test_a_removed_leg_is_grouped_by_its_removing_reads_context() -> None:
+    """Operator 2026-10-29: a market-driver WATCH (context MARKET) is its own
+    measurement - the ledger splits removed legs by the removing reads' tag."""
+    from bet.sofa.veto import removal_context
+
+    leg = {"reads": [
+        {"verdict": "KEEP", "context": "ABSENCES"},
+        {"verdict": "WATCH", "context": "MARKET"},
+    ]}
+    assert removal_context(leg) == "MARKET"
+    assert removal_context({"reads": [{"verdict": "WATCH"}]}) == "-"
+    assert removal_context({}) == "-"

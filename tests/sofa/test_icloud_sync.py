@@ -108,7 +108,7 @@ def test_html_render_alone_refreshes_the_copy(
     run = _day(runs)
     (run / "11_coupon.json").write_text("{}")
 
-    def page(run_dir: Path, doc: object, date: str) -> Path:
+    def page(run_dir: Path, doc: object, date: str, results: object = None) -> Path:
         out = run_dir / f"KUPON_{date}.html"
         out.write_text("<new page>")
         return out
@@ -121,3 +121,18 @@ def test_html_render_alone_refreshes_the_copy(
     out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert out["icloud"]["status"] == ic.OK
     assert (cloud / "25.10.2026" / f"KUPON_{D}.html").read_text() == "<new page>"
+    # a day marked with results keeps them in the page (and in the copy) and
+    # keeps the page's mtime - a view, not a print
+    seen: list[object] = []
+
+    def marked(run_dir: Path, doc: object, date: str, results: object = None) -> Path:
+        seen.append(results)
+        return page(run_dir, doc, date)
+
+    monkeypatch.setattr(build_coupon_html, "write_html", marked)
+    (run / "13_results.json").write_text(json.dumps({"schema": "CouponResults.v1"}))
+    html = run / f"KUPON_{D}.html"
+    os.utime(html, (1_000_000, 1_000_000))
+    assert build_coupon_html.main() == 0
+    assert seen == [{"schema": "CouponResults.v1"}]
+    assert html.stat().st_mtime == 1_000_000

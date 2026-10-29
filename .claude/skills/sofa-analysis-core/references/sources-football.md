@@ -22,7 +22,10 @@ the most it may carry (`context-pass.md` decides the rest).
    model).
 5. **Outdoor conditions** - only when the forecast is extreme.
 
-Everything else below only when the dossier or the legs raise it.
+Everything else below only when the dossier or the legs raise it. The
+market drivers (possession, crosses, box touches, blocked shots, the
+opponent's concession, the league rate) are read from the dossier's `style`
+block, never searched (`market-drivers.md`).
 
 ## Checklist
 
@@ -32,7 +35,7 @@ Everything else below only when the dossier or the legs raise it.
 | **Rotated / weakened XI** (cup priority, congestion, decided tie) | the weakened side's shots / SOT / corners / goals ↓, the opponent's ↑ | E~ (our 10-23 measurement: the real XI added nothing on team counts) | WATCH through the side's own count, with the names |
 | **Key absence since the price** (striker, CB, GK) | side's goals / shots ↓ (striker), opponent's goals ↑ (CB / GK) | E~ (ratings absorb part) | WATCH; NO_BET only on two domains and when it breaks the leg's premise |
 | **Suspension risk** (a player on the card threshold) | cards ↓ / tactical fifth yellow | F | note |
-| **Referee change** vs the dossier | cards, card points, fouls, penalties | E+ (referees differ, stable - Dawson et al. 2007) | WATCH on card / foul legs (the model's rate was the named referee's; a new name is a changed input - no outside rate is quoted) |
+| **Referee change** vs the dossier | cards, card points, fouls, penalties | E+ (referees differ, stable - Dawson et al. 2007) | WATCH on card / foul legs (the model's rate was the named referee's; a new name is a changed input - no outside rate is quoted; the named referee's shrunk rate is in the centre since 2026-10-21, `referee_rule`) |
 | **Fan ban / closed doors / away-fan ban** | away yellows ↑ with a crowd (~+⅓ card), so closed doors lower away cards | E+ (Bryson et al. 2021; Reade et al.) | WATCH on away-card legs |
 | **Heat** (very hot kickoff) | passes, counter-attack shots ↓ | M (UCL, Bundesliga studies) | WATCH on shot / SOT OVER only when extreme |
 | **Rain / wind / snow** | unmeasured on goals, corners, shots | F | note; a postponement risk is a fact (refund) |

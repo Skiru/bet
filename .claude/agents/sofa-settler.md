@@ -94,7 +94,9 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
      2 = crash / missing DB (nothing written). It also marks each recorded day's coupon
      (`mark_coupon_results.py`: `13_results.json`, KUPON pdf / html coloured; `--no-mark`
      skips). A `results on KUPON_<d>: FAILED` / `RENDER_FAILED` line (stderr) is a defect to
-     name, not a ledger failure.
+     name, not a ledger failure. Each results render replaces the iCloud copy: for every
+     day it marked, `PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d> | grep -i icloud`
+     -> `icloud` OK (md5 local = iCloud); a WARN / SKIPPED is named in the report.
    - Ledger variants (`runs/sofa/ledger/results.jsonl`, one row per date x variant, re-run
      replaces): `official` (the coupon, 7c), `official:pre_stats_only`, `removed:reads` (7i),
      `measure:<sport>` (Superbet's price vs outcome, evidence). `wariant` / `multi` /
@@ -133,9 +135,10 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
    changed, the history grew materially, a coherence check fails or a baseline is
    demonstrably wrong - with the evidence. You never run it: it needs the operator's go,
    never mid-day / into a built day, and runs on a **copy** of the DB (`VACUUM INTO`
-   `data/refit_<date>/`, then `prepare_refit.py --db-path <copy> ... --without-db-backup`;
-   steps backup / rebuild-cache-rows / fit / compare / install, `install --confirm` runs
-   `tests/sofa` and restores on failure). The measured sports' curves
+   `data/refit_<date>/`; every step `prepare_refit.py --db-path <copy> <step>`;
+   only `rebuild-cache-rows --confirm --without-db-backup` takes the backup flag -
+   backup / fit / compare take none; `install --confirm` runs `tests/sofa` and
+   restores on failure). The measured sports' curves
    (`fit_sport_confidence.py --before <d>`) follow the same rule. `refresh_line_evidence.py
    --before <D>` (every morning after this settle and the ledger) is not a refit: it never
    touches a curve.
@@ -147,8 +150,8 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
 | `config/sofa_league_baselines.json` | `fitted_from`, `half_match_coherence` (a failure is real: half priors fit a smaller population), an entry for tonight's competitions |
 | `config/sofa_market_reliability.json` | written by `fit_constants.py` only, never by `calibrate_from_cache.py --out` |
 | `config/sofa_confidence_calibration.json` | `fitted_from` (`db_path`, `max_settled_run_date`, `replay_rules`), `by_class_fitted_from`, `new_market_curves_fitted_from`, `line_curves_fitted_from`; operator keys (`fit_meta.OPERATOR_KEYS`) carried over |
-| `config/sofa_sport_confidence_calibration.json` / `.next.json` | the `.next.json` is in force from its `effective_from` (`sport_confidence.calibration_path_for`): check that file's `fitted_from`; a sport absent = `NOT_CALIBRATED`, prints no legs |
-| `config/sofa_superbet_line_evidence.json` | `fitted_from.before` = the day about to be built, `sheet_days` reaching D-1, `sport_source`; refitted after every curve install |
+| `config/sofa_sport_confidence_calibration*.json` | the file `sport_confidence.calibration_path_for(<D>)` returns is in force (the staged file with the latest `effective_from` <= D; from 2026-10-28 `.next.2026-10-28.json`): check that file's `fitted_from`; a sport absent = `NOT_CALIBRATED`, prints no legs |
+| `config/sofa_superbet_line_evidence.json` | at settle time `fitted_from.before` still reads D-1 (today's refit runs after you, sofa-day 1a, which checks `<D>`); `sheet_days` reaching D-2, `sport_source`; refitted after every curve install |
 | `config/tennis_rating.json`, `config/sofa_count_dispersion.json`, `config/sofa_settleability.json` | `fitted_from` before the day they price |
 
 A market with its own curve never borrows the pooled curve above its measured range.
@@ -163,6 +166,7 @@ SPORTY:    hokej / kosz / siatka / CS2: <w>/<n> · <u> j. · pending <n> · NOT_
 ZDJĘTE:    7i · <w>/<n> · <u> j. (osobno, nie kupon)
 SETTLE:    <D-1> · <verdict> · nierozliczone <n> (powody) · zwroty per powód · FINISHED_ABNORMALLY <n> · sweep <exit, dni>
 NIEZGODNOŚCI: MISMATCH <n> · audit_settle_identity <n> (<check>: <n>) · PLAYER_AMBIGUOUS <n> · oznaczenie KUPON FAILED / RENDER_FAILED <n>
+iCloud:    dni oznaczone wynikami: icloud <OK / WARN / SKIPPED> (day_status)
 LEDGER:    official / removed:reads / measure:* per grupa epoki, ROI [95%], nigdy sumowane
 CLV:       <x%> [lo; hi], n nóg
 RYNKI:     rodziny, które przegrały: systematycznie / rozrzut

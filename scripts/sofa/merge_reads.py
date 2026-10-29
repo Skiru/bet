@@ -66,6 +66,8 @@ from bet.sofa import analyses, timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
+from bet.sofa.report_check import findings as report_findings  # noqa: E402
+from bet.sofa.report_check import report_day, report_kind  # noqa: E402
 from bet.sofa.slip_builder import row_key  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import find_unmatched_vetoes, veto_matches  # noqa: E402
@@ -134,6 +136,10 @@ def _leg_key(entry: dict[str, Any]) -> tuple[Any, ...]:
 
 
 SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
+# report_check findings that make a removal unfounded (operator 2026-10-26 /
+# 2026-10-29): such a report is refused whole, never merged in part
+BLOCKING_FINDINGS = ("USUNIĘCIE BEZ FAKTU", "RYNEK TYLKO WATCH", "RYNEK BEZ TAGU",
+                     "WETO BEZ FAKTU")
 
 
 def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
@@ -141,7 +147,16 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     fresh_v: list[dict[str, Any]] = []
     fresh_r: list[dict[str, Any]] = []
     for path in reports:
-        report_v, report_r = parse_report(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        day = report_day(path.name) or run.name  # the merge's day otherwise
+        blocking = [f for f in report_findings(text, day, **report_kind(path.name))
+                    if f.startswith(BLOCKING_FINDINGS)]
+        if blocking:
+            raise ReportError(
+                f"{path}: removals without a fact - nothing merged; relaunch the "
+                "analyst with these findings and the next _r<n>:\n  "
+                + "\n  ".join(blocking))
+        report_v, report_r = parse_report(text)
         print(f"{path}: {len(report_v)} vetoes, {len(report_r)} reads")
         if not report_r:
             print(f"  WARNING: {path} holds no reads - an analyst / verifier "

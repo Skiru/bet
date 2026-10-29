@@ -26,24 +26,41 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 
 ## Run
 
-The skill's loop, with `--start-from <HH:MM> --start-to <HH:MM> --target <X>
-[--slips N] --any-family --builders --max-legs 10 --read-set-dir runs/sofa/<date>/read_set_slip`
+First `.venv/bin/python scripts/sofa/ensure_bridge.py` (build_slip.py asks Sofascore for
+h2h / lineups and writes dossiers and `family_record.json` - not read-only) and
+`mkdir -p runs/sofa/<date>/slips`. Then the skill's loop, with `--start-from <HH:MM>
+--start-to <HH:MM> --target <X> [--slips N] --any-family --builders --max-legs 10
+--read-set-dir runs/sofa/<date>/read_set_slip --md-out runs/sofa/<date>/slips/<HHMM>.md`
+(`<HHMM>` = now, local, each round - always, so a staked slip can be traced)
 (operator 2026-10-26: every market in one pass, families on the plus not
 preferred; the day's Bet Builders as an option of their match, priced as the
 product of their legs - the table says Superbet prices a builder lower), the
 analysts' reports at `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<hhmm>_<round>.md`
-(`<hhmm>` = now, local) and `merge_reads.py --slip --author analyst ...
+(`<hhmm>` = the request's local time, fixed for all its rounds) and `merge_reads.py --slip --author analyst ...
 --read-set <file>` - every step as the skill states it. Narrate a line per
 step.
 
 - The window starts less than 30 min from now: warn in the answer's second
-  line (legs that start while the analysts read drop out) and go on.
+  line (legs that start while the analysts read drop out) and go on. A leg
+  marked ⚠ starts within 45 min (a read round takes 20-30 min): name it.
+- The operator sends their own Bet Builder (screenshot) instead of hours: the
+  skill's `--check` mode (one `--check` per leg in Superbet's words,
+  `--screen-odds` from the screen, `--no-refresh-record`) and its `--check`
+  relay, never confidences multiplied by hand.
 - No slip at all: relay the script's first line (with the reachable price) and
   offer a lower target or a wider window - never fill with legs outside the
   window.
 
 ## Answer (Polish)
 
-Exactly the skill's **Relay**: line 1 the script's first line, then the
-tables, the reads, what fell out and what replaced it, unread legs named as
-unread. No slip price, no stake, no "na minusie" labels.
+Exactly the skill's **Relay**: line 1 the script's first line - how many slips
+stand on families on the plus ("say no first", `--any-family` too) - then the
+tables with every column read (measured chance vs 1/kurs, "pewność < 1/kurs",
+family hit vs price with n, zestawienie, ⚠, the header's chance vs 1/price and
+"zwrot wg naszych liczb", a builder's "<product> iloczyn" with "Superbet
+płacił 0,85-0,99 iloczynu (28.10)"), the reads, what fell out and what
+replaced it, unread legs named as unread, the `--md-out` path. Carry the
+skill's measured facts where a leg's family is among them (goal UNDER families
+below price 10-14..10-27, e.g. `goals_total` UNDER -4.6 pp on 1,765 legs) - as
+measurements with days and N, never as a result argument. No slip price, no
+stake, no "na minusie" labels.

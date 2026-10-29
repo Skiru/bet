@@ -647,6 +647,30 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- football team-side legs against the opponent's concede profile (2026-10-29,
+  after the operator's slips of 10-28: Panathinaikos corners over 3.5 - own
+  9/10, Aris conceded it 3/10 - lost with 2; read-only,
+  scratchpad `opp_concede.py`): printed football `corners_for` /
+  `corners_1h_for` / `shots_for` / `shots_on_target_for` / `both_over_corners`
+  singles 10-13..10-27 with WIN / LOSS, 2,314 legs / 615 matches; opp_rate =
+  share of the opponent's last 10 competitive games with stats in which ITS
+  opponent reached the leg's line. Flag opp_rate < confidence - 0.15: 411 legs
+  (18%, ~27 a day) realised -4.8 pp vs confidence [-10.2, +0.3], -6.1 pp vs
+  1/odds [-11.3, -1.2]; flagged minus unflagged -6.5 pp [-12.0, -1.0] vs
+  confidence; own-sample control +0.2 [-8.5, +8.3]. **Not robust**: tertiles
+  of opp_rate do not rise, the logistic term (logit(conf) + rate - conf) is
+  +0.46 [-0.49, +1.31], the pooled effect is carried by `corners_1h_for` (71
+  legs, -13.2 pp [-23.9, -2.5], one cell of ~30), `corners_for` -3.3 pp
+  [-9.6, +2.8]. A suspicion: no gate, no removal; shown as the dossier's
+  `style.matchup` and the KUPON html "zestawienie" tag. Re-measure out of
+  sample (from 10-28) before any gate, `corners_1h_for` first. Operator
+  2026-10-29: such a signal is never skipped - from reports of 2026-10-30 an
+  analyst / verifier WATCH may rest on it (`RYNEK: ... k/n`, `context:
+  "MARKET"`, share >= 0.25 below confidence or the < 50% possession bucket on
+  >= 4 games; never NO_BET; `report_check`). No gate, no confidence change; the
+  MARKET-tagged `removed_by_reads` legs graded in the ledger are the
+  out-of-sample measurement (a removal of a leg that would have won costs its
+  price) - audit them by tag before widening it.
 - basketball player model, three corrections measured offline 2026-10-26 (operator: "wazne jest aby rozliczac rynki nba wszystkie"; `docs/sofa/evidence/nba_player_model_2026-10-26.md`): a **form term** (mean model residual of the last 5 games, slope +0.13 [+0.11, +0.14] on 255k test player-games, log-loss -0.0017, but NBA 2026-27 -0.06 [-0.15, +0.04], 41 games, and p >= 0.70 lines 372 -> 337), a **directional calibration** per market and side (test log-loss -0.0010, NBA 2026-27 +0.0026 with the CI off zero, Superbet lines no gain, UNDER >= 0.7 still overconfident) and a **top-up for movers** (own sample < 5 -> up to 20 appearances of the same player id for other teams: 59% of thin player-games priced, 94% in NBA 2026-27, beats the pool mean by -0.132 log-loss, but 0.663 vs 0.645 for normal p, and on settled Superbet lines log-loss 0.719 > 0.693). None installed. Re-measure with the same scripts when NBA 2026-27 has ~200 games (late November 2026), NBA and other basketball apart.
 - the football / tennis curves refitted on the fuller history (2026-10-22/23,
   operator's go ~21:30Z "install where measurement shows improvement"; replay

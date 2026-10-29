@@ -37,18 +37,26 @@ return that in one line.
    (keeps the read-set order - never re-sort with `group_by` / `unique_by`).
    If the report path exists, take the next free `_r<n>` suffix.
 2. **Format and surface, per match** (`02_fixtures.json`
-   `default_period_count`, `ground_type`): a null in either means the scope
-   did not run as intended - those matches first.
-3. **Decision point, before any web tool.** Both clocks (the ITF gap reaches
-   11 h - take the earlier), `fixture_status.json`, `now` (`date -u`), the
-   delta. A started match is dropped and listed.
+   `default_period_count` - the only format field, the dossier has none -
+   and `ground_type`): a null in either means the scope did not run as
+   intended - those matches first. Before the first match read only §2
+   Tennis of the market drivers:
+   `sed -n '/^## 2. Tennis/,/^## 3\./p' .claude/skills/sofa-analysis-core/references/market-drivers.md`.
+3. **Decision point, before any web tool.** `now` = `date -u`. Clocks:
+   `02_fixtures.json` `kickoff_utc`, `superbet_kickoff_utc`,
+   `kickoff_disagreement_h` (the ITF gap reaches 11 h), and
+   `jq -c '.events["<sofascore_event_id>"]' runs/sofa/<d>/fixture_status.json`
+   (`start_utc`). Started = now >= the earliest of them: dropped and listed.
+   A file or event missing = `UNVERIFIED` in **Czego zabrakło**, not a
+   failed check.
 4. **Per match, in the read-set order** - the protocol of `tennis-analysis`:
    - a leg with `prior_analysis`: the match's earlier section first
      (`analyses.json`, core "Artifacts"), then only what changed - the delta
      pass;
    - the match's **dossier** (the leg's `dossier` file: rankings, last 10
      matches with set scores, rest, head-to-head, venue / local hour,
-     surface, every metric's values per side, the ladder, the web checklist);
+     surface, every metric's values per side, the ladder, the web checklist;
+     no format - that is `02_fixtures.json`);
    - the match's legs from `11_coupon.json` (the lookup in
      `sofa-analysis-core`); which estimator priced each (`model_p` vs
      `forecast_p`); the observations per side (`03_samples.json`, the `jq` in
@@ -62,20 +70,35 @@ return that in one line.
      ITF / low Challengers: what exists is usually only that - `UNVERIFIED`
      for the rest, never a removal by itself; tagged, weighted as
      `context-pass.md` says ("Kontekst (web)");
-   - scoreline arithmetic for every rung; a verdict per leg; a veto where
-     the sample itself is broken.
+   - per family the market drivers with their values (**Czynniki rynku**);
+     scoreline arithmetic in prose for the rungs read; a verdict per leg; a
+     veto where the sample itself is broken. A removal or veto only by the
+     "Removals" table of `tennis-analysis`: a dated
+     `[WEB: domena, publ. <data>, fetched <czas>]` fact newer than the price
+     or a real `DEFEKT: <artifact> ...` (a value wrong for tonight). A
+     schedule fact known before the price, a market driver's numbers, form,
+     h2h, ranking - a note. Withdrawal / walkover confirmed on two domains:
+     NO_BET with both tags; retirement risk: a note.
 5. **If the file is larger than you can read well**, keep its order but put
    first: matches behind a printed builder, then null scope fields, then
    confident `games_won_for` legs. A leg you did not reach gets no read and
    is named in the summary.
-6. **Write and validate** per the core's output contract (one heredoc,
-   `merge_reads.py --dry-run`), then return.
+6. **Write and validate** per the core's output contract (one heredoc;
+   `merge_reads.py ... --read-set <your read-set file> --dry-run`, a slip
+   also `--slip`; then `check_analyst_report.py --report <path>`), then
+   return.
 
 ## Output contract
 
 The report and the summary exactly as `sofa-analysis-core` "Output contract"
-says. The header states once that tennis has no source of record. Summary,
-at most 12 lines:
+says; per match the section of `tennis-analysis`
+`references/event-protocol.md` (labels listed in `tennis-analysis` "Tennis
+output requirements"; a delta: first body line `**W skrócie:**`, second
+`[wcześniej: <report>, <recorded_at_utc>]`, and a `**Kontekst (web).**`
+line). The header states once that tennis has no
+source of record. Reads: copy `market`, `subject`, `line`, `direction`,
+`period` from the read-set leg verbatim (`subject` may be "" or a player);
+never null a field on a WATCH / NO_BET. Summary, at most 12 lines:
 
 ```
 raport: <the report path you actually wrote - the given one, or its next free _r<n>>
@@ -86,20 +109,13 @@ do zrobienia: <a match moved / a scope field null / none>
 
 ## Hard rules (tennis)
 
-- A side with 0-3 scoped observations is not a sample; a total with one side
-  at zero is one player's history wearing a match's name.
+- A thin side is the code's job, never a veto by count. A veto reason
+  starts `DEFEKT: 03_samples.json <metric> <side> …` (another surface,
+  format or class, placeholders; a total with one side at zero).
 - Never present a `FUZZY` tennis identity as confirmed - names collide.
-- `forecast_p` equal to `p_central` on a rating-priced family is not
-  corroboration - it is the same number; the próbka k/n is the independent
-  check, and that comparison is yours (`MODEL_ABOVE_OWN_SAMPLE` is
-  football-only).
-- Two UNDERs of one match are one bet with two prices: sets, games, aces,
-  double faults and serve points all resolve through match length.
-- A retirement or walkover is a refund (0 u.), never a loss: a void risk, not
-  a loss risk. How a refunded leg inside a builder grades is not verified
-  here - do not assert it.
-- A leg a 10-point match tiebreak could decide: name the open question
-  (code counts one game; Superbet unverified), do not decide it.
+- Rating vs próbka, two UNDERs as one bet, retirement / walkover as a
+  refund, the match tiebreak question: `tennis-analysis` - notes, never a
+  removal by themselves.
 - Never call bzzoiro or any provider other than Sofascore and Superbet; never
   quote another bookmaker's price. ITF game-level statistics are not free -
   write `UNVERIFIED` rather than manufacture a source.
