@@ -112,7 +112,11 @@ and a miss recorded before a rule's switch never blocks that rule.
     printable lines; needs `MIN_OFFSET_ROWS` 50 lines and `MIN_OFFSET_GAMES` 30
     games, else the sport's pooled offset with `MIN_SPORT_OFFSET_GAMES` 20;
     never above 0; the pooled offset excludes a key holding more than
-    `CONCENTRATION_MAX` 50% of the lines - which can raise another CS2 key), and
+    `CONCENTRATION_MAX` 50% of the lines - which can raise another CS2 key;
+    football / tennis / hockey from 2026-10-30 08:45Z read the offset by the
+    leg's d = curve - 1/odds bucket instead, `PRICE_GAP_OFFSET`: the key's
+    printable lines in that bucket shrunk to the sport's, K 200, never above 0;
+    printed calibration +1-2 pp out of sample, ROI unchanged - 10-30 mixed), and
   - the **price-band cap** (`PRICE_BANDS` 1.30 / 1.60 / 2.20, cell
     `MIN_CAP_CELL` 20): what the key's lines at this `p` realised in this band,
     applied only where below the confidence; a thin cell widens downward in

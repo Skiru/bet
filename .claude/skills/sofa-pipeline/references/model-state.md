@@ -461,6 +461,33 @@ and leaves it out of the form summary, `style`, `style.matchup` (what a
 `joint_history`; the rebuilt table keeps its points (dossier schema 3
 unchanged; E2E 10-29: Kalev's 2nd-half goals matchup 8/9 -> 9/10).
 
+### Line evidence offset by d = curve - 1/odds (2026-10-30 08:45Z into the built day; operator's go 2026-10-30 "od dzisiaj"; ledger group "10-30 mieszany", then "od 10-31")
+
+`PRICE_GAP_OFFSET` (`LineEvidence.gap_offset`, football / tennis / hockey,
+`epochs.PRICE_GAP_OFFSET_SPORTS`): a leg's line-evidence offset is read by
+its d = curve - 1/odds bucket (`line_evidence.PRICE_GAP_EDGES` -0.05 / 0 /
+0.03 / 0.06) - the key's mean gap on its printable lines (curve >= 0.70) in
+that bucket, shrunk toward the sport's (every key pooled) with
+`PRICE_GAP_SHRINK_K` 200 lines, never above 0; the price-band cap
+unchanged; source tag `sbd<bucket>`. Basketball / volleyball / CS2 and a leg
+with no price keep the key's one offset; an evidence file without
+`sport_printable_by_gap` too. Why: the key offset was measured over every
+printable line, but x >= 0.90 prints mostly d >= -0.05, where the lines
+realise below the curve (football 10-05..10-29: +3.0 / -1.4 / -4.9 / -8.2 /
+-15.3 pp by bucket); printed goals_for OVER 10-13..10-29 -6.2 pp [-8.9,
+-3.5] against the curve, its unprinted lines +0.4. Measured 2026-10-30 out
+of sample (`fit_line_evidence`'s own rows, fitted on train, simulated print
+gates, game bootstrap paired vs the key offset; train < 10-22 / test
+10-22..10-29): printed realised - confidence football +1.31 pp [+1.19,
++1.45], tennis +0.97 [+0.43, +1.51], hockey +1.99 [+1.24, +2.75]; Brier on
+every printable test line lower (-1.0e-3 / -1.4e-3 / -1.7e-3); split
+< 10-18 alike; ROI unchanged on every sport (football -0.04 pp [-0.22,
++0.13]) - a calibration fix, not an edge. Gate-population offset (one
+number on x >= 0.90 lines) no better; cap conf <= 1/odds + k ~85% of the
+gain. Basketball too thin (68-259 printed legs), volleyball lost ROI in one
+split (-2.95 pp [-5.86, -0.12]), CS2 not measurable. Report
+`docs/sofa/history/OFFSET_WG_ODLEGLOSCI_OD_CENY_2026-10-30.md`.
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -1006,7 +1033,9 @@ Groups are never pooled.
 | "od 10-23" | 10-23 | SPORT_LATE_WINDOW 00:00Z - a day's measured-sport legs run to D+1 05:00Z (the evening rebuild's), a scope change of the coupon; LEAGUE_SEASON_RESTART 00:00Z - basketball's league rate restarts after an off-season (basketball p moves) |
 
 | "od 10-27" | 10-27 | the analyst audit's read scope (20 matches) and sourced removals |
-| "od 10-30" | 10-30 .. | current; AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating |
+| "od 10-30" | none | holds no day (AWARDED_EXCLUDED 00:00Z falls in "10-30 mieszany") |
+| "10-30 mieszany" | 10-30 | AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating; PRICE_GAP_OFFSET 08:45Z into the built day (line evidence offset by d, football / tennis / hockey) |
+| "od 10-31" | 10-31 .. | current; PRICE_GAP_OFFSET from the day's start |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

@@ -101,7 +101,9 @@ stage stops the stages after it (`SKIPPED`).
   `p_central`; CONFIDENCE / SPORT_CONFIDENCE map it through history curves
   (fitted on replayed history, never on our own settled days) to a calibrated
   lower bound. Line evidence (each key's own settled Superbet lines) can only
-  **lower** it: an offset and a price-band cap. A key with no curve reads the
+  **lower** it: an offset (football / tennis / hockey from 2026-10-30 08:45Z
+  by the leg's d = curve - 1/odds bucket, `PRICE_GAP_OFFSET`, source tag
+  `sbd<bucket>`) and a price-band cap. A key with no curve reads the
   Wilson bound of its own lines, else `NO_LINE_EVIDENCE`.
 - **The price is only the betting condition** and may only lower a confidence.
   Disagreement with the price is never evidence either way.

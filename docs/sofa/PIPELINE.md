@@ -1874,6 +1874,22 @@ line evidence jest reguła dnia `--before` (`fit_line_evidence`,
 `docs/sofa/evidence/line_curves_2026-10-18.md` - kalibracja lepsza, ROI bez
 zmian; sprawdzian `T-LINE-CURVES`.
 
+**Offset line evidence według odległości od ceny** (`epochs.PRICE_GAP_OFFSET_FROM_UTC`,
+2026-10-30 08:45Z, decyzja operatora „od dzisiaj" - 10-30 to dzień mieszany,
+grupa ledgera „10-30 mieszany", potem „od 10-31"): piłka, tenis i hokej czytają
+offset klucza według przedziału d = krzywa − 1/kurs (< −0,05 / −0,05..0 /
+0..0,03 / 0,03..0,06 / ≥ 0,06), a nie jedną liczbą z wszystkich drukowalnych
+linii. Średnia luka klucza w przedziale jest ściągana do puli sportu z wagą 200
+linii, nigdy powyżej zera; limit pasma kursu bez zmian; źródło nogi
+`...sbd<przedział>`. Powód: kupon drukuje tylko x ≥ 0,90, czyli prawie same
+linie z d ≥ −0,05, a te realizują poniżej krzywej (piłka: +3,0 / −1,4 / −4,9 /
+−8,2 / −15,3 pp w kolejnych przedziałach); wydrukowane `goals_for` OVER
+10-13..10-29 −6,2 pp [−8,9; −3,5] wobec krzywej. Poza próbą (uczenie < 10-22,
+test 10-22..10-29): kalibracja wydrukowanych piłka +1,3 pp, tenis +1,0, hokej
++2,0 (przedziały nad zerem), Brier niższy, **ROI bez zmian** - poprawka
+kalibracji, nie przewaga. Koszykówka, siatkówka, CS2 zostają przy jednym
+offsecie klucza. Raport: `docs/sofa/history/OFFSET_WG_ODLEGLOSCI_OD_CENY_2026-10-30.md`.
+
 COUPON pyta „czy to warte ceny". CONFIDENCE pyta **inne pytanie**: „jak często
 to się w ogóle zdarza". Na 6187 wierszach z realną ceną model **przegrywa**
 pierwszy spór z samą ceną (Brier 0,2067 wobec 0,1845), a na 1 868 474
