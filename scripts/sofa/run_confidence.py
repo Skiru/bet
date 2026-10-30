@@ -435,7 +435,8 @@ def main() -> int:
     # (bet.sofa.line_evidence). None: the by-name gates as before.
     evidence = (LineEvidence.load(
         v2=line_evidence_v2(args.date, now),
-        bucket_deff=epochs.bucket_design_effect(args.date, now))
+        bucket_deff=epochs.bucket_design_effect(args.date, now),
+        price_gap_sports=epochs.price_gap_offset_sports(args.date, now))
                 if line_evidence(args.date, now) else None)
     if evidence is not None and not evidence.fitted:
         print(

@@ -444,7 +444,9 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
 
     cal = scf.SportCalibration.load(scf.calibration_path_for(date))
     evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at),
-                                  bucket_deff=epochs.bucket_design_effect(date, at))
+                                  bucket_deff=epochs.bucket_design_effect(date, at),
+                                  price_gap_sports=epochs.price_gap_offset_sports(
+                                      date, at))
                 if epochs.line_evidence(date, at) else None)
     out: list[str] = []
     events: dict[str, dict[str, Any]] = {}

@@ -3455,3 +3455,35 @@ def rating_domain_current_league(date: str,
     """RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC on the day being built and the
     build clock."""
     return _audit_1023_on(RATING_DOMAIN_CURRENT_LEAGUE_FROM_UTC, date, build_at)
+
+
+# Line evidence's offset read by the leg's d = curve - 1/odds bucket
+# (LineEvidence.gap_offset, line_evidence.PRICE_GAP_EDGES / _SHRINK_K)
+# instead of the key's one number measured over every printable line. The
+# printable lines realise against their curve by d (football 10-05..10-21:
+# +2.7 / -1.2 / -4.3 / -6.7 / -14.2 pp), the coupon prints x >= 0.90 only, so
+# the one offset was measured mostly on lines that never print (goals_for
+# OVER printed 10-13..10-29: -6.2 pp [-8.9, -3.5] vs the curve, unprinted
+# +0.4). Measured 2026-10-30 out of sample (train < 10-22, test 10-22..10-29;
+# again < 10-18 / 10-18..10-29), simulated printed set, game bootstrap, paired
+# vs the installed rule: realised - confidence football +1.31 pp [+1.19,
+# +1.45], tennis +0.97 [+0.43, +1.51], hockey +1.99 [+1.24, +2.75]; Brier on
+# every printable test line -1.0e-3 / -1.4e-3 / -1.7e-3, intervals below 0;
+# both splits alike. ROI unchanged on every sport (football -0.04 pp [-0.22,
+# +0.13]): a calibration fix, never an edge. Basketball too thin, volleyball
+# lost ROI in one split, CS2 not measurable - they keep the key offset.
+# Operator's go 2026-10-30 and moved into that day ("od dzisiaj"): 10-30 is
+# mixed, ledger group "od 10-31" after it
+# (docs/sofa/history/OFFSET_WG_ODLEGLOSCI_OD_CENY_2026-10-30.md).
+PRICE_GAP_OFFSET_FROM_UTC: datetime | None = datetime(
+    2026, 10, 30, 8, 45, 0, tzinfo=UTC)
+PRICE_GAP_OFFSET_SPORTS: frozenset[str] = frozenset({"football", "tennis", "hockey"})
+
+
+def price_gap_offset_sports(date: str,
+                            build_at: datetime | None = None) -> frozenset[str]:
+    """The sports whose line-evidence offset is read by d bucket
+    (PRICE_GAP_OFFSET_FROM_UTC on the day being built and the build clock)."""
+    if not _audit_1023_on(PRICE_GAP_OFFSET_FROM_UTC, date, build_at):
+        return frozenset()
+    return PRICE_GAP_OFFSET_SPORTS

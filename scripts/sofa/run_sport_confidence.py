@@ -853,7 +853,9 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     v2 = epochs.line_evidence_v2(date, at)
     path = evidence_path if evidence_path is not None else DEFAULT_EVIDENCE
     evidence = (LineEvidence.load(path, v2=v2,
-                                  bucket_deff=epochs.bucket_design_effect(date, at))
+                                  bucket_deff=epochs.bucket_design_effect(date, at),
+                                  price_gap_sports=epochs.price_gap_offset_sports(
+                                      date, at))
                 if epochs.line_evidence(date, at) else None)
     fixture_status = fs.load(Path(runs_dir) / date)
     doc: dict[str, Any] = {

@@ -263,6 +263,7 @@ def main() -> int:
                                per_line))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
+    sport_by_gap = dict(fitted["sport_printable_by_gap"])
     design_effect = dict(fitted["design_effect"])
     sport_cal = scf.SportCalibration.load(
         Path(args.sport_calibration) if args.sport_calibration
@@ -276,6 +277,7 @@ def main() -> int:
             keys.update(sport_fit["keys"])
             bands.update(sport_fit["bands"])
             sport_printable.update(sport_fit["sport_printable"])
+            sport_by_gap.update(sport_fit["sport_printable_by_gap"])
             design_effect.update(sport_fit["design_effect"])
             sport_source = f"rows:{args.sport_rows_dir}"
         else:
@@ -302,9 +304,13 @@ def main() -> int:
         "printable_from": le.PRINTABLE_FROM,
         "unfitted_constants": list(le.UNFITTED_CONSTANTS),
         "price_bands": [list(b) for b in le.PRICE_BANDS],
+        # epochs.PRICE_GAP_OFFSET: the d = curve - 1/odds buckets
+        "price_gap_edges": list(le.PRICE_GAP_EDGES),
+        "price_gap_shrink_k": le.PRICE_GAP_SHRINK_K,
         "keys": keys,
         "bands": bands,
         "sport_printable": sport_printable,
+        "sport_printable_by_gap": sport_by_gap,
         "design_effect": design_effect,
     }
     summary = {

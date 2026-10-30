@@ -386,7 +386,9 @@ def sport_day(runs_dir: Path, date: str, doc: dict[str, Any],
     if at is not None:
         cal = scf.SportCalibration.load(scf.calibration_path_for(date))
         evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at),
-                                      bucket_deff=epochs.bucket_design_effect(date, at))
+                                      bucket_deff=epochs.bucket_design_effect(date, at),
+                                      price_gap_sports=epochs.price_gap_offset_sports(
+                                          date, at))
                     if epochs.line_evidence(date, at) else None)
         if cal is not None:
             def read(sport: str, family: str, side: str, p: float,

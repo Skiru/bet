@@ -149,7 +149,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-13 mieszany", "10-14 mieszany", "od 10-15", "10-16 mieszany",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
-                "od 10-27", "od 10-28", "od 10-30")
+                "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -238,10 +238,21 @@ CONFIDENCE_REVIEW_EPOCH_FROM_DATE = "2026-10-28"
 # (epochs.AWARDED_EXCLUDED_FROM_UTC, 2026-10-30 00:00Z; verification of
 # 2026-10-29) - football p moves on what prints: a new epoch.
 AWARDED_EXCLUDED_EPOCH_FROM_DATE = "2026-10-30"
+# Line evidence's offset by d = curve - 1/odds (epochs.PRICE_GAP_OFFSET_FROM_UTC),
+# moved by the operator into the built day 2026-10-30 at 08:45Z ("od
+# dzisiaj"): its legs printed before stay locked on the key offset, so 10-30
+# is mixed - its own group, summed with neither "od 10-30" (which therefore
+# holds no day) nor "od 10-31".
+PRICE_GAP_OFFSET_1030_MIXED_DATE = "2026-10-30"
+PRICE_GAP_OFFSET_EPOCH_FROM_DATE = "2026-10-31"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= PRICE_GAP_OFFSET_EPOCH_FROM_DATE:
+            return "od 10-31"
+        if str(row.get("date", "")) == PRICE_GAP_OFFSET_1030_MIXED_DATE:
+            return "10-30 mieszany"
         if str(row.get("date", "")) >= AWARDED_EXCLUDED_EPOCH_FROM_DATE:
             return "od 10-30"
         if str(row.get("date", "")) >= CONFIDENCE_REVIEW_EPOCH_FROM_DATE:

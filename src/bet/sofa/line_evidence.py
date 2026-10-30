@@ -98,12 +98,24 @@ PRINTABLE_FROM = 0.70
 # key).
 MIN_EVIDENCE_GAMES = 15
 CONCENTRATION_MAX = 0.5
+# epochs.PRICE_GAP_OFFSET_FROM_UTC: the offset read by d = curve - 1/odds.
+# The printable lines realise against their curve by d (football 10-05..10-21:
+# +2.7 / -1.2 / -4.3 / -6.7 / -14.2 pp in these buckets), and the coupon
+# prints only x >= 0.90, which cuts most of the d < -0.05 lines that carried
+# the one per-key offset. A key's mean gap in its d bucket is shrunk toward
+# the sport's (all keys' printable lines in that bucket) with weight
+# PRICE_GAP_SHRINK_K lines; never above 0. K from {0 .. 2000, pool only} by
+# Brier on the last 5 train days: flat from 100 to pool only on football /
+# tennis / hockey (docs/sofa/history/OFFSET_WG_ODLEGLOSCI_OD_CENY_2026-10-30.md).
+PRICE_GAP_EDGES: tuple[float, ...] = (-0.05, 0.0, 0.03, 0.06)
+PRICE_GAP_SHRINK_K = 200
 BOOTSTRAP = 2000
 NO_LINE_EVIDENCE = "NO_LINE_EVIDENCE"
 SPORT_SCOPE = "*"  # the sport's lines of every key, in the `bands` section
 UNFITTED_CONSTANTS = ("MIN_EVIDENCE_BUCKET", "MIN_CAP_CELL", "MIN_OFFSET_ROWS",
                       "MIN_OFFSET_GAMES", "MIN_SPORT_OFFSET_GAMES", "PRICE_BANDS",
-                      "MIN_EVIDENCE_GAMES", "CONCENTRATION_MAX")
+                      "MIN_EVIDENCE_GAMES", "CONCENTRATION_MAX", "PRICE_GAP_EDGES",
+                      "PRICE_GAP_SHRINK_K")
 
 
 def bucket_of(p: float) -> int:
@@ -145,6 +157,13 @@ def wilson_hi(k: int, n: int, z: float = 1.959964) -> float:
     return min(1.0, c + m)
 
 
+def price_gap_bucket(curve: float, odds: float) -> str:
+    """The d = curve - 1/odds bucket's label: how many PRICE_GAP_EDGES lie at
+    or below d ("0" = d < -0.05 .. "4" = d >= 0.06)."""
+    d = float(curve) - 1.0 / float(odds)
+    return str(sum(1 for e in PRICE_GAP_EDGES if d >= e))
+
+
 def evidence_key(key: str, klass: str | None = None) -> str:
     """A class leg (women's football, ...) keeps its own evidence."""
     return f"{klass}:{key}" if klass else key
@@ -168,15 +187,19 @@ class LineEvidence:
     # (fit's `deff`), not the whole sport's - in a bucket where every game
     # gives one line it is 1. An older file without `deff`: the sport's.
     bucket_deff: bool = False
+    # epochs.price_gap_offset_sports: the sports whose offset is read by the
+    # leg's d bucket (gap_offset) instead of the key's one number.
+    price_gap_sports: frozenset[str] = frozenset()
 
     @staticmethod
     def load(path: Path | str = DEFAULT_EVIDENCE, v2: bool = False,
-             bucket_deff: bool = False) -> LineEvidence:
+             bucket_deff: bool = False,
+             price_gap_sports: frozenset[str] = frozenset()) -> LineEvidence:
         p = Path(path)
         if not p.exists():
-            return LineEvidence({}, v2, bucket_deff)
+            return LineEvidence({}, v2, bucket_deff, price_gap_sports)
         return LineEvidence(json.loads(p.read_text(encoding="utf-8")), v2,
-                            bucket_deff)
+                            bucket_deff, price_gap_sports)
 
     def deff_for(self, sport: str, key: str, p: float) -> float:
         """The design effect a no-curve key's bucket is divided by."""
@@ -226,6 +249,24 @@ class LineEvidence:
         pooled = self._measured(
             pool, int(self.doc.get("min_sport_offset_games", MIN_SPORT_OFFSET_GAMES)))
         return pooled if pooled is not None else 0.0
+
+    def gap_offset(self, sport: str, key: str, curve: float, odds: float
+                   ) -> tuple[float, str] | None:
+        """(<= 0 offset, d bucket) of a leg at `curve` priced `odds`: the key's
+        mean gap in the bucket shrunk toward the sport's; None - the file has
+        no sport pool for that bucket (an older fit), the key's one offset
+        stands."""
+        label = price_gap_bucket(curve, odds)
+        pool = ((self.doc.get("sport_printable_by_gap") or {}).get(sport)
+                or {}).get(label)
+        if not pool:
+            return None
+        cell = (self._entry(sport, key).get("printable_by_gap") or {}).get(label) or {}
+        n = int(cell.get("n") or 0)
+        k = int(self.doc.get("price_gap_shrink_k", PRICE_GAP_SHRINK_K))
+        mean = (float(cell.get("gap_sum") or 0.0) + k * float(pool["gap"])) / (n + k) \
+            if n + k > 0 else float(pool["gap"])
+        return round(min(mean, 0.0), 4), label
 
     def bucket(self, sport: str, key: str, p: float) -> tuple[int, int] | None:
         b = (self._entry(sport, key).get("buckets") or {}).get(
@@ -307,9 +348,12 @@ class LineEvidence:
         NO_LINE_EVIDENCE. `base` is the curve's (value, source, n) at p."""
         offset = 0.0
         if base is not None:
-            offset = self.offset(sport, key)
+            by_gap = self.gap_offset(sport, key, float(base[0]), float(odds)) \
+                if sport in self.price_gap_sports and odds else None
+            offset = by_gap[0] if by_gap is not None else self.offset(sport, key)
             value = round(max(float(base[0]) + offset, 0.0), 4)
-            source = f"{base[1]}{offset:+.4f}sb" if offset < 0.0 else base[1]
+            tag = f"sbd{by_gap[1]}" if by_gap is not None else "sb"
+            source = f"{base[1]}{offset:+.4f}{tag}" if offset < 0.0 else base[1]
             n = int(base[2])
         else:
             hit = self.bucket(sport, key, p)
@@ -418,6 +462,9 @@ def fit(rows: Iterable[Row], seed: int = 7) -> dict[str, Any]:
                 "realised_minus_confidence": _bootstrap_gap(
                     [(str(r["game"]), int(r["y"]) - float(r["base"]))
                      for r in printable], rng)}
+            by_gap = _gap_cells(printable)
+            if by_gap:
+                entry["printable_by_gap"] = by_gap
         keys[sport][key] = entry
         for r in rs:
             if r.get("odds"):
@@ -436,6 +483,18 @@ def fit(rows: Iterable[Row], seed: int = 7) -> dict[str, Any]:
         sport: {"n": len(items), "games": len({g for g, _ in items}),
                 "realised_minus_confidence": _bootstrap_gap(items, rng)}
         for sport, items in sorted(pooled.items()) if items}
+    # epochs.PRICE_GAP_OFFSET: every key's printable lines pooled by d bucket
+    # (no concentration rule - measured so).
+    sport_by_gap: dict[str, dict[str, dict[str, Any]]] = {}
+    for sport in sorted({s for s, _ in by_key}):
+        cells = _gap_cells([r for (s, _), rs in by_key.items() if s == sport
+                            for r in rs if r.get("base") is not None
+                            and float(r["base"]) >= PRINTABLE_FROM])
+        if cells:
+            sport_by_gap[sport] = {
+                label: {"n": c["n"], "games": c["games"],
+                        "gap": round(c["gap_sum"] / c["n"], 4)}
+                for label, c in cells.items()}
     # v2: the pool without a key that dominates it, and the design effect of
     # each sport's printable lines.
     deff: dict[str, float] = {}
@@ -467,4 +526,17 @@ def fit(rows: Iterable[Row], seed: int = 7) -> dict[str, Any]:
                 "realised_minus_confidence": _bootstrap_gap(rest, rng)
                 if rest else [0.0, 0.0, 0.0]}
     return {"keys": dict(keys), "bands": bands, "sport_printable": sport_printable,
-            "design_effect": deff}
+            "sport_printable_by_gap": sport_by_gap, "design_effect": deff}
+
+
+def _gap_cells(rows: Iterable[Row]) -> dict[str, dict[str, Any]]:
+    """d bucket -> {n, games, gap_sum (sum of y - curve)} of printable rows
+    that carry a price."""
+    items: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for r in rows:
+        if r.get("odds") and float(r["odds"]) > 1.0:
+            items[price_gap_bucket(float(r["base"]), float(r["odds"]))].append(
+                (str(r["game"]), int(r["y"]) - float(r["base"])))
+    return {label: {"n": len(its), "games": len({g for g, _ in its}),
+                    "gap_sum": round(sum(d for _, d in its), 4)}
+            for label, its in sorted(items.items())}
