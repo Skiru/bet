@@ -1,0 +1,4 @@
+dev builders n=88 hit=0.670 mean prod conf=0.685 avg product=1.57 ROI_tax at x1.00 product: -7.4% [-22.0,+7.0]
+dev builders n=88 hit=0.670 mean prod conf=0.685 avg product=1.57 ROI_tax at x0.90 product: -16.6% [-29.8,-3.7]
+hold builders n=10 hit=0.400 mean prod conf=0.686 avg product=1.59 ROI_tax at x1.00 product: -39.8% [-85.2,+5.6]
+hold builders n=10 hit=0.400 mean prod conf=0.686 avg product=1.59 ROI_tax at x0.90 product: -45.8% [-86.6,-4.9]

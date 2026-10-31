@@ -64,25 +64,50 @@ have every leg read, and relay the script's first line first. Operator
 chosen legs, a refused leg is replaced by the next best and that one is read.
 One search over every leg (operator 2026-10-26; the family preference and
 `--any-family` / `--allow-rest` are gone since 2026-10-31 - still accepted as
-no-ops), `--builders` (the day's Bet Builders as one option of their match;
-its odds in the search are the product of its legs' single prices - the
-operator's rule; the table says Superbet prices a builder lower and the screen
-decides; its chance = `combined_probability` lowered by each leg's own price
-cap - a leg above its price by `price_gap.GAP` read at its price; its legs go
-to the analysts and a refusal of any leg drops it) and
-`--max-legs 10` (with legs of ~1.2-1.5 five legs rarely reach ~10). A builder
-row reads "<product> iloczyn"; the target uses the product (operator's rule
-2026-10-26), and the script's builder line says Superbet paid 0.85-0.99 of the
-product (measured 2026-10-28).
+no-ops).
+
+**The least-loss flow** (operator's go 2026-10-31; backtest walk-forward
+10-13..10-26, hold-out 10-27..10-30, morning print prices, 12% turnover tax -
+`docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): **no flow clears zero
+after tax**. Hold-out after tax: singles −16.6%, random 2-leg −19.0%, 3 legs
+−30.2%, 2-4 legs at ~3 −28.5%, the old objective at up to 5 legs −31.5%; a
+coupon leg returns ~0.946 of its price (hit 0.782 vs 1/odds 0.827, 49,189
+legs 10-20..10-30). So:
+
+- **2 legs by default** (`--max-legs` default 2). Raise it only when the
+  operator asks ("3 nogi"); the script then prints the measured cost of each
+  leg (0.88 × 0.946^n − 1). Never raise it to reach a target.
+- **Target out of reach of the limit** (e.g. ~4 with 2 legs of at most 2.00):
+  the first line says so - "Na ~4 trzeba 3 nóg - każda kolejna noga to ok.
+  −5% więcej; z 2 nogami najbliżej ~X" - and the slip is the closest under
+  the target (the highest product the limit's legs reach, the best chance at
+  it), marked "Cel ~X NIE osiągnięty"; exit 1. Never a silent extra leg.
+- **Bet Builders off by default.** `--builders` only on the operator's
+  request (the day's Bet Builders as one option of their match; odds in the
+  search = the product of its legs' single prices - the operator's rule
+  2026-10-26; chance = `combined_probability` lowered by each leg's own price
+  cap; a refusal of any leg drops it; the row reads "<product> iloczyn", the
+  builder line says Superbet paid 0.85-0.99 of the product, measured
+  2026-10-28). With it the script names the builders' measured loss: −16.6%
+  (dev, n 88) / −45.8% (hold-out, n 10) after tax at 0.90 × product.
+- **Low margin preferred in a near-tie**: a leg of a two-sided ladder with
+  overround < 0.08 gains +0.25% relative chance in the search only
+  (`LOW_MARGIN_TIE`; measured +2.2 pp [+0.1, +4.2] within market on dev, not
+  held out - so never a gate); column "marża" ("1-str." = one-sided).
+- **The honest money line** replaces any return computed from our
+  confidence: "oczekiwany zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki
+  (zmierzone: nogi kuponu 10-20..10-30, n 49 189; podatek 12%)" - line 2 and
+  every slip header; a single below 1/0.88 = 1.136 reads "wygrana zwraca
+  mniej niż gotówka".
 
 **What the script shows** (read every column into the answer): per leg
 measured chance beside 1/odds, "pewność < 1/kurs" (confidence below the
 price), the dossier's "zestawienie"
 (`style.matchup`: own k/n vs what the opponent concedes / both sides' games /
 league share); a leg starting within 45 min is marked ⚠ (a read round takes
-20-30 min). The slip header gives the measured chance beside 1/price and
-"zwrot wg naszych liczb" (chance x payout; with a builder "najwyżej", counted
-on the product - Superbet pays less).
+20-30 min), and "marża" (the leg's ladder overround, bold below 8%; "1-str."
+one-sided). The slip header gives the measured chance beside 1/price and the
+money line (0.88 × 0.946^n − 1, measured - never chance × payout).
 
 **Before running it:** `build_slip.py` is NOT read-only - with
 `--read-set-dir` it asks Sofascore through the
@@ -92,11 +117,12 @@ runs/sofa/<d>/slips/<HHMM>.md` (`mkdir -p runs/sofa/<d>/slips`) so a staked
 slip can be traced.
 
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
-singles, not started (15 min margin, = the analysts' started-skip), odds 1.10-2.00, one per match; a leg's
-measured chance = min(confidence, price for a `price_gap` leg). An exact multiple-choice knapsack
+singles, not started (15 min margin, = the analysts' started-skip), odds 1.10-2.00, one per match, at
+most `--max-legs` (default 2); a leg's measured chance = min(confidence, 1/odds
+for a leg more than `price_gap.GAP` above its price or flagged `price_gap`). An exact multiple-choice knapsack
 maximises the slip's measured chance under "price product >= target" - which
 picks the fewest legs (every odds band loses about alike per leg,
-10-13..10-19). A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
+10-13..10-19) - with the low-margin near-tie-break above. A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
 `reads.json`, the slip's `*_slip.json`, or carried) never enters, so a re-run after a merge takes the
 next best leg (a refusal also drops the refused leg's harder rungs).
 
@@ -110,7 +136,7 @@ second slip of the day never collides with the first); `<HHMM>` of `--md-out`
    .venv/bin/python scripts/sofa/ensure_bridge.py
    mkdir -p runs/sofa/<d>/slips
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> \
-       [--start-from HH:MM --start-to HH:MM] [--slips N] --builders --max-legs 10 \
+       [--start-from HH:MM --start-to HH:MM] [--slips N] [--max-legs N] [--builders] \
        --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md
    ```
    (`--reserve 1` also reads the next disjoint slip ahead; off by default -
@@ -143,11 +169,14 @@ second slip of the day never collides with the first); `<HHMM>` of `--md-out`
    unread; never present one as read.
 
 **Relay** (Polish): line 1 = the script's first line (the "say no first"
-answer: how many of the requested slips the day gives); line 2 = a warning when the window starts
+answer: how many of the requested slips the day gives, or "Na ~X trzeba N
+nóg ..."); line 2 = the script's money line ("Oczekiwany zwrot po podatku ≈
+..."), and with a raised limit / `--builders` its cost lines; then a warning when the window starts
 < 30 min from the request. Then each slip's table as printed - Superbet's
 words, start in local time (⚠ within 45 min), measured chance beside 1/odds,
-"pewność < 1/kurs", zestawienie, the header's
-chance vs 1/price and "zwrot wg naszych liczb", a builder's "<product>
+"pewność < 1/kurs", marża, zestawienie, the header's
+chance vs 1/price and its money line ("wygrana zwraca mniej niż gotówka" on a
+single below 1.136), "Cel ~X NIE osiągnięty" where printed, a builder's "<product>
 iloczyn" with the 0.85-0.99 line, the `--md-out` path, the read
 ("KEEP" = read for this slip within 3 h; "KEEP (10:42)" = a slip read of an
 earlier request at that time; "KEEP (kupon dnia)" = the day's morning read -

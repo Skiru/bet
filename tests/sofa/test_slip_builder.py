@@ -569,8 +569,11 @@ def test_kept_legs_reach_the_target_before_an_unread_leg_enters() -> None:
     keep = [_read(1, 7.5, "KEEP"), _read(3, 7.5, "KEEP")]
     kept = sb.build(legs, NOW, target=2.2, slip_reads=keep)
     assert {x.leg["sofascore_event_id"] for x in kept.slips[0].legs} == {1, 3}
-    short = sb.build(legs, NOW, target=3.0, slip_reads=keep)
+    short = sb.build(legs, NOW, target=3.0, slip_reads=keep, max_legs=3)
     assert {x.leg["sofascore_event_id"] for x in short.slips[0].legs} == {1, 2, 3}
+    # at the default 2 legs ~3 is out of reach: the closest 2-leg slip, flagged
+    two = sb.build(legs, NOW, target=3.0, slip_reads=keep)
+    assert len(two.slips[0].legs) == 2 and two.slips[0].needs_legs == 3
 
 
 def test_a_refused_rung_refuses_its_harder_rungs_not_the_easier() -> None:
@@ -724,7 +727,11 @@ def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
     assert "iloczynem kursów nóg (zasada operatora 26.10)" in text
     # the product, labelled, never a builder price of ours (CLAUDE.md)
     assert "2.10 iloczyn |" in text and "ekran ~" not in text
-    assert "zwrot wg naszych liczb najwyżej" in text
+    # no return from our own numbers (operator 2026-10-31); the builder counts
+    # its legs in the money line and the builders' measured loss is named
+    assert "zwrot wg naszych liczb" not in text
+    assert "0,946^2 − 1 = −21,2% stawki" in text
+    assert "−16,6% stawki (10-13..10-26, n 88) i −45,8%" in text
 
 
 def test_builder_with_a_refused_leg_never_enters() -> None:
@@ -781,3 +788,136 @@ def test_check_reads_the_operators_own_builder_leg_by_leg() -> None:
         [{"match": "A1 - B1", "superbet_market": "Liczba goli",
           "superbet_selection": "poniżej 4.5", "why": "odrzucona: ODDS_TOO_LOW"}])
     assert "poniżej 4.5 - nie na kuponie: odrzucona: ODDS_TOO_LOW" in why
+
+
+# --- the least-loss flow (operator's go 2026-10-31; backtest
+# docs/sofa/evidence/slip_flow_backtest_2026-10-31.md) ---
+
+
+def test_default_is_two_legs_and_builders_are_opt_in(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """(1) 2 legs by default in the module and the script; the day's Bet
+    Builders enter only with --builders, and then the answer names their
+    measured loss; a raised limit lists the measured cost of each leg."""
+    assert sb.MAX_LEGS == 2
+    legs = [_leg(i, 1.3, 0.76) for i in range(1, 7)]
+    res = sb.build(legs, NOW, target=2.0)  # 1.3^3 = 2.197 needs 3 legs
+    assert all(len(s.legs) <= 2 for s in res.slips)
+    raised = sb.build(legs, NOW, target=2.0, max_legs=3)
+    assert len(raised.slips[0].legs) == 3 and raised.slips[0].reached
+    text = sb.render(raised, day="2026-10-20", target=2.0, now=NOW)
+    assert ("Limit nóg 3 (domyślnie 2): każda kolejna noga mnoży zwrot przez "
+            "0,946") in text
+    assert "1 noga −16,8%, 2 nogi −21,2%, 3 nogi −25,5%" in text
+    day = "2026-10-20"
+    run = tmp_path / day
+    run.mkdir()
+    a = _leg(1, 1.5, 0.68, kickoff="2099-01-01T00:00:00Z")
+    b = _leg(1, 1.4, 0.75, line=8.5, kickoff="2099-01-01T00:00:00Z")
+    builder = dict(_builder(1, a, b, p=0.6), kickoff_utc="2099-01-01T00:00:00Z")
+    (run / "11_coupon.json").write_text(
+        json.dumps({"singles": [], "builders": [builder]}), encoding="utf-8")
+    base = ["--date", day, "--target", "2", "--max-odds", "5", "--runs-dir",
+            str(tmp_path)]
+    assert build_slip.main(base) == 1  # no builder without the flag
+    assert "Bet Buildery zmierzone" not in capsys.readouterr().out
+    assert build_slip.main(base + ["--builders"]) == 0
+    out = capsys.readouterr().out
+    assert "Bet Buildery zmierzone po podatku: −16,6% stawki" in out
+    assert "−45,8% (hold-out 10-27..10-30, n 10)" in out
+
+
+def test_target_out_of_reach_of_the_leg_limit_is_said_first(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """(2) ~4 with 2 legs at most 1.8 each: the first line says how many legs
+    the target needs and the cost of each, the slip is the closest 2-leg one
+    (never a silent third leg), marked not reached; exit code 1."""
+    legs = [_leg(i, 1.8, 0.55) for i in range(1, 4)] + [_leg(9, 1.6, 0.62)]
+    res = sb.build(legs, NOW, target=4.0)
+    (slip,) = res.slips
+    assert len(slip.legs) == 2 and not slip.reached and slip.needs_legs == 3
+    assert slip.price_product == pytest.approx(1.8 * 1.8)
+    text = sb.render(res, day="2026-10-20", target=4.0, now=NOW)
+    first = text.splitlines()[0]
+    assert first == ("**Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −5% więcej; "
+                     "z 2 nogami najbliżej ~3.24 (iloczyn kursów nóg, nie kurs "
+                     "kuponu).**")
+    assert "Cel ~4 NIE osiągnięty" in text and "Cel ~4 osiągnięty" not in text
+    # a pool no number of legs reaches is still "dziś żadnego", no fallback
+    alone = sb.build([_leg(1, 1.5, 0.7)], NOW, target=4.0)
+    assert alone.slips == []
+    # one slip reaches, the second would need more legs
+    two = sb.build([_leg(1, 2.0, 0.5), _leg(2, 2.0, 0.5), _leg(3, 1.9, 0.52),
+                    _leg(4, 1.6, 0.6), _leg(5, 1.5, 0.64)], NOW, target=4.0, slips=2)
+    assert [s.reached for s in two.slips] == [True, False]
+    head = sb.render(two, day="2026-10-20", target=4.0, now=NOW).splitlines()[0]
+    assert head.startswith("**Dzień daje 1 z 2 kuponów na ~4; na kolejny trzeba 3 nóg")
+    day = "2026-10-20"
+    (tmp_path / day).mkdir()
+    far = [_leg(i, 1.8, 0.55, kickoff="2099-01-01T00:00:00Z") for i in range(1, 4)]
+    (tmp_path / day / "11_coupon.json").write_text(
+        json.dumps({"singles": far}), encoding="utf-8")
+    base = ["--date", day, "--target", "4", "--runs-dir", str(tmp_path)]
+    assert build_slip.main(base) == 1
+    assert capsys.readouterr().out.startswith("**Na ~4 trzeba 3 nóg")
+    assert build_slip.main(base + ["--max-legs", "3"]) == 0
+    assert "Limit nóg 3 (domyślnie 2)" in capsys.readouterr().out
+
+
+def test_low_margin_leg_wins_a_tie_and_the_margin_is_shown() -> None:
+    """(3) at equal measured chance a leg of a two-sided ladder with overround
+    < 0.08 ranks first; the preference is a near-tie-break (+0.25% relative
+    chance), so a clearly better chance still wins; the table shows "marża"."""
+    low = _leg(1, 2.0, 0.5, overround=0.06)
+    high = _leg(2, 2.0, 0.5, overround=0.11)
+    one_sided = _leg(3, 2.0, 0.5)
+    got = sb.build([high, one_sided, low], NOW, target=1.9, max_legs=1)
+    assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [1]
+    assert sb.LOW_MARGIN == 0.08
+    assert sb.LOW_MARGIN_TIE == pytest.approx(math.log(1.0025))
+    better = _leg(4, 2.0, 0.51, overround=0.12)
+    got = sb.build([low, better], NOW, target=1.9, max_legs=1)
+    assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [4]
+    pair = sb.build([low, high, one_sided], NOW, target=3.9)
+    text = sb.render(pair, day="2026-10-20", target=3.9, now=NOW)
+    assert "| pewność < 1/kurs | marża | zestawienie |" in text
+    assert "| **6,0%** |" in text
+    assert ("| 11,0% |" in text) or ("| 1-str. |" in text)
+
+
+def test_objective_is_the_measured_chance_unchanged() -> None:
+    """(4) the slip maximises sum log(measured chance) under the target, one
+    leg per match; a leg above its price by more than GAP reads at its price,
+    so it never outranks a fair leg on its confidence alone."""
+    over = _leg(1, 1.5, 0.80)  # 13 pp above 1/1.5: read at 0.667
+    fair = _leg(2, 1.5, 0.68)
+    got = sb.build([over, fair], NOW, target=1.45, max_legs=1)
+    assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [2]
+    assert got.slips[0].legs[0].chance == pytest.approx(0.68)
+
+
+def test_money_line_is_measured_after_tax_never_our_confidence() -> None:
+    """(5) the honest money line: 0.88 x 0.946^n - 1 with its source, in the
+    first lines and on every slip; never "zwrot wg naszych liczb"; a single
+    below 1/0.88 is marked as paying back less than the stake."""
+    assert sb.REALISED_PER_LEG == 0.946 and sb.TAX == 0.12
+    assert sb.expected_return(1) == pytest.approx(0.88 * 0.946 - 1)
+    assert sb.expected_return(2) == pytest.approx(0.88 * 0.946**2 - 1)
+    line = ("oczekiwany zwrot po podatku ≈ 0,88 × 0,946^2 − 1 = −21,2% stawki "
+            "(zmierzone: nogi kuponu 10-20..10-30, n 49 189; podatek 12%)")
+    assert sb.money_line(2) == line
+    res = sb.build([_leg(1, 1.5, 0.69), _leg(2, 1.5, 0.69)], NOW, target=2.2)
+    text = sb.render(res, day="2026-10-20", target=2.2, now=NOW)
+    lines = text.splitlines()
+    assert lines[1].startswith("O" + line[1:])
+    assert f"- {line}" in text  # the slip header too
+    assert "zwrot wg naszych liczb" not in text
+    single = sb.build([_leg(1, 1.12, 0.88)], NOW, target=1.11)
+    text = sb.render(single, day="2026-10-20", target=1.11, now=NOW)
+    assert "0,946^1 − 1 = −16,8% stawki" in text
+    assert "wygrana zwraca mniej niż gotówka (kurs < 1,136 przy podatku 12%)" in text
+    ok = sb.build([_leg(1, 1.2, 0.82)], NOW, target=1.15)
+    assert "mniej niż gotówka" not in sb.render(ok, day="2026-10-20", target=1.15,
+                                                 now=NOW)

@@ -1,0 +1,8 @@
+== target [2.5,3.5] legs 2-4, up to 3 disjoint slips/day, days 2026-10-13..2026-10-26
+CUR  log(conf)                   slips= 42 hit=0.214 avg_price=2.52 legs=3.57 ROI_tax= -60.9% [ -80.0, -41.5] maxDD=26.8u voids=10
+EVc  log(min(conf,1/o+.03)*o)    slips= 42 hit=0.381 avg_price=3.52 legs=4.00 ROI_tax=  -5.1% [ -50.1, +42.6] maxDD=6.0u voids=14
+EVraw log(conf*o)                slips= 42 hit=0.214 avg_price=3.45 legs=3.69 ROI_tax= -51.4% [ -78.7, -23.4] maxDD=21.6u voids=11
+LOWM ovr<=.06 log(conf)          slips= 27 hit=0.259 avg_price=2.53 legs=3.85 ROI_tax= -42.1% [ -76.6,  -1.7] maxDD=13.8u voids=0
+SPEC no base-rate log(conf)      slips= 42 hit=0.190 avg_price=2.52 legs=3.57 ROI_tax= -66.2% [ -84.9, -47.1] maxDD=27.8u voids=10
+KEEP read only log(conf)         slips= 39 hit=0.436 avg_price=2.53 legs=3.41 ROI_tax= -18.4% [ -49.7, +11.8] maxDD=10.3u voids=11
+RAND (30 seeds)                  slips/seed=42 hit=0.351 avg_price=2.64 ROI_tax mean= -22.0% seed-range [-58.3,+12.5]

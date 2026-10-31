@@ -1,0 +1,2 @@
+all snapshots  n=55045 ROI=  -5.5% [  -6.1,  -4.9] hit=0.780 1/o=0.825 hit/(1/o)=0.945 mean(won*odds)=0.945
+morning        n=50749 ROI=  -5.5% [  -6.1,  -4.9] hit=0.782 1/o=0.827 hit/(1/o)=0.946 mean(won*odds)=0.945

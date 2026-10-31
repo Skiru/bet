@@ -1,0 +1,62 @@
+walk-forward learned caps: {'2026-10-13': 0.15, '2026-10-14': 0.1, '2026-10-15': 0.1, '2026-10-16': 0.08, '2026-10-17': 0.08, '2026-10-18': 0.08, '2026-10-19': 0.08, '2026-10-20': 0.08, '2026-10-21': 0.08, '2026-10-22': 0.08, '2026-10-23': 0.08, '2026-10-24': 0.08, '2026-10-25': 0.08, '2026-10-26': 0.08}
+== legs, dev days 2026-10-13..2026-10-26; ROI pre-tax per leg; single after tax; implied random-AKO after tax 0.88*(1+r)^n-1
+P0 all printed                 n=65334 ROI=  -5.4% [  -6.0,  -4.8] single_tax= -16.7% [-17.2,-16.3] 2leg=-21.2% [-22.2,-20.3] 3leg=-25.5%
+P1 two-sided ovr<0.08          n= 7116 ROI=  -3.1% [  -4.6,  -1.6] single_tax= -14.7% [-16.1,-13.4] 2leg=-17.4% [-19.9,-14.7] 3leg=-19.9%
+P2 two-sided ovr<wf_cap        n= 9185 ROI=  -3.2% [  -4.6,  -1.8] single_tax= -14.8% [-16.0,-13.6] 2leg=-17.5% [-19.9,-15.2] 3leg=-20.1%
+P3 KEEP at morning             n= 6027 ROI=  -3.9% [  -5.9,  -1.7] single_tax= -15.5% [-17.2,-13.5] 2leg=-18.8% [-22.1,-14.9] 3leg=-22.0%
+P4 ovr<0.08 & KEEP             n= 1287 ROI=  -4.8% [  -9.4,  -1.1] single_tax= -16.2% [-20.3,-13.0] 2leg=-20.3% [-27.8,-13.9] 3leg=-24.1%
+P5 min-ovr rung per ladder     n=39881 ROI=  -4.9% [  -5.5,  -4.3] single_tax= -16.4% [-16.9,-15.8] 2leg=-20.5% [-21.5,-19.4] 3leg=-24.4%
+P6 max-conf rung per ladder    n=54339 ROI=  -5.4% [  -5.9,  -4.9] single_tax= -16.8% [-17.2,-16.3] 2leg=-21.3% [-22.1,-20.4] 3leg=-25.6%
+P7 agree 0<=edge<0.03          n= 7167 ROI=  -4.5% [  -5.9,  -2.9] single_tax= -15.9% [-17.2,-14.5] 2leg=-19.7% [-22.1,-17.0] 3leg=-23.2%
+P8 odds>=1.30 (2-leg band)     n=11892 ROI=  -5.1% [  -6.4,  -3.8] single_tax= -16.5% [-17.6,-15.4] 2leg=-20.7% [-22.9,-18.6] 3leg=-24.7%
+P9 ovr<0.08 & odds>=1.30       n= 1356 ROI=  -3.3% [  -7.4,  +0.5] single_tax= -14.9% [-18.5,-11.6] 2leg=-17.7% [-24.6,-11.2] 3leg=-20.4%
+P10 KEEP late, at late price   n=10785 ROI=  -3.2% [  -4.7,  -1.7]
+== E2E slips: up to 10 disjoint slips/day, one leg per match, legs <=3.5, ungraded/void legs removed and price recomputed
+-- target [2.5,3.5] legs 2-4
+  P0 all printed               rand    slips=  140/seed hit=0.331 price=2.64 ROI_tax= -26.3% [-36.1,-15.7] seeds[-41.1,-17.1]
+  P0 all printed               logconf slips=  140      hit=0.371 price=2.51 ROI_tax= -28.5% [-40.2,-16.5] maxDD=39.9u
+  P0 all printed               minovr  slips=  140      hit=0.421 price=2.56 ROI_tax= -13.5% [-27.0,-0.5] maxDD=23.0u
+  P1 two-sided ovr<0.08        rand    slips=  129/seed hit=0.334 price=2.64 ROI_tax= -24.9% [-33.1,-16.3] seeds[-29.8,-18.0]
+  P1 two-sided ovr<0.08        logconf slips=  117      hit=0.393 price=2.52 ROI_tax= -20.3% [-31.9,-8.5] maxDD=24.4u
+  P1 two-sided ovr<0.08        minovr  slips=  133      hit=0.361 price=2.54 ROI_tax= -21.9% [-36.9,-6.9] maxDD=30.6u
+  P2 two-sided ovr<wf_cap      rand    slips=  136/seed hit=0.352 price=2.65 ROI_tax= -21.3% [-30.7,-11.0] seeds[-31.9,-12.8]
+  P2 two-sided ovr<wf_cap      logconf slips=  128      hit=0.391 price=2.52 ROI_tax= -22.2% [-33.0,-11.5] maxDD=28.4u
+  P2 two-sided ovr<wf_cap      minovr  slips=  137      hit=0.358 price=2.54 ROI_tax= -23.4% [-38.1,-8.4] maxDD=34.0u
+  P4 ovr<0.08 & KEEP           rand    slips=   42/seed hit=0.327 price=2.74 ROI_tax= -22.3% [-47.4,+3.8] seeds[-45.3,-3.5]
+  P4 ovr<0.08 & KEEP           logconf slips=   30      hit=0.400 price=2.54 ROI_tax= -14.3% [-61.8,+32.2] maxDD=8.8u
+  P4 ovr<0.08 & KEEP           minovr  slips=   43      hit=0.349 price=2.56 ROI_tax= -23.8% [-52.7,+0.2] maxDD=11.1u
+  P5 min-ovr rung per ladder   rand    slips=  140/seed hit=0.349 price=2.64 ROI_tax= -22.8% [-29.3,-15.8] seeds[-28.2,-15.9]
+  P5 min-ovr rung per ladder   logconf slips=  140      hit=0.429 price=2.52 ROI_tax= -18.1% [-32.7,-3.0] maxDD=25.3u
+  P5 min-ovr rung per ladder   minovr  slips=  140      hit=0.464 price=2.56 ROI_tax=  -8.5% [-27.4,+10.3] maxDD=17.7u
+-- target [1.6,2.4] legs 2-2
+  P0 all printed               rand    slips=  140/seed hit=0.541 price=1.70 ROI_tax= -20.5% [-26.1,-15.5] seeds[-33.7,-6.1]
+  P0 all printed               logconf slips=  140      hit=0.521 price=1.64 ROI_tax= -27.5% [-37.3,-16.9] maxDD=39.2u
+  P0 all printed               minovr  slips=  140      hit=0.586 price=1.68 ROI_tax= -14.3% [-24.9,-4.0] maxDD=20.6u
+  P1 two-sided ovr<0.08        rand    slips=  140/seed hit=0.604 price=1.70 ROI_tax= -11.4% [-17.9,-5.0] seeds[-14.7,-5.5]
+  P1 two-sided ovr<0.08        logconf slips=  133      hit=0.579 price=1.64 ROI_tax= -20.0% [-31.5,-8.6] maxDD=27.9u
+  P1 two-sided ovr<0.08        minovr  slips=  140      hit=0.586 price=1.68 ROI_tax= -14.7% [-25.2,-4.5] maxDD=21.1u
+  P2 two-sided ovr<wf_cap      rand    slips=  140/seed hit=0.554 price=1.71 ROI_tax= -18.0% [-24.5,-11.9] seeds[-27.4,-11.3]
+  P2 two-sided ovr<wf_cap      logconf slips=  139      hit=0.583 price=1.65 ROI_tax= -19.4% [-31.2,-7.8] maxDD=27.0u
+  P2 two-sided ovr<wf_cap      minovr  slips=  140      hit=0.586 price=1.68 ROI_tax= -14.5% [-25.1,-4.4] maxDD=20.9u
+  P4 ovr<0.08 & KEEP           rand    slips=   79/seed hit=0.570 price=1.75 ROI_tax= -15.6% [-28.4,-3.1] seeds[-23.3,-10.1]
+  P4 ovr<0.08 & KEEP           logconf slips=   56      hit=0.571 price=1.67 ROI_tax= -19.2% [-48.7,+7.8] maxDD=12.2u
+  P4 ovr<0.08 & KEEP           minovr  slips=   77      hit=0.571 price=1.72 ROI_tax= -15.3% [-26.2,-5.7] maxDD=12.9u
+  P5 min-ovr rung per ladder   rand    slips=  140/seed hit=0.553 price=1.70 ROI_tax= -18.8% [-22.7,-14.9] seeds[-23.5,-8.8]
+  P5 min-ovr rung per ladder   logconf slips=  140      hit=0.471 price=1.64 ROI_tax= -35.7% [-47.3,-24.8] maxDD=50.9u
+  P5 min-ovr rung per ladder   minovr  slips=  140      hit=0.564 price=1.68 ROI_tax= -17.4% [-25.5,-8.7] maxDD=25.9u
+-- target [2.5,3.5] legs 3-3
+  P0 all printed               rand    slips=  140/seed hit=0.387 price=2.58 ROI_tax= -16.5% [-23.3,-9.4] seeds[-24.9,-9.3]
+  P0 all printed               logconf slips=  138      hit=0.420 price=2.52 ROI_tax= -18.6% [-34.4,-4.0] maxDD=25.6u
+  P0 all printed               minovr  slips=  140      hit=0.386 price=2.56 ROI_tax= -19.0% [-32.7,-4.3] maxDD=27.6u
+  P1 two-sided ovr<0.08        rand    slips=  120/seed hit=0.397 price=2.58 ROI_tax= -13.3% [-24.9,-2.0] seeds[-18.6,-8.1]
+  P1 two-sided ovr<0.08        logconf slips=   74      hit=0.378 price=2.54 ROI_tax= -24.9% [-43.0,-2.4] maxDD=22.4u
+  P1 two-sided ovr<0.08        minovr  slips=  108      hit=0.398 price=2.55 ROI_tax= -13.5% [-29.8,+2.0] maxDD=18.7u
+  P2 two-sided ovr<wf_cap      rand    slips=  127/seed hit=0.409 price=2.58 ROI_tax= -10.3% [-23.9,+3.6] seeds[-17.7,-1.0]
+  P2 two-sided ovr<wf_cap      logconf slips=   95      hit=0.379 price=2.53 ROI_tax= -26.1% [-44.1,-5.9] maxDD=27.6u
+  P2 two-sided ovr<wf_cap      minovr  slips=  116      hit=0.397 price=2.55 ROI_tax= -15.1% [-32.0,+1.4] maxDD=21.3u
+  P4 ovr<0.08 & KEEP           rand    slips=   39/seed hit=0.395 price=2.63 ROI_tax= -13.3% [-42.7,+14.4] seeds[-30.0,-4.5]
+  P4 ovr<0.08 & KEEP           logconf slips=   18      hit=0.389 price=2.55 ROI_tax= -12.8% [-68.1,+41.0] maxDD=5.0u
+  P4 ovr<0.08 & KEEP           minovr  slips=   31      hit=0.258 price=2.59 ROI_tax= -45.5% [-79.1,-12.6] maxDD=15.3u
+  P5 min-ovr rung per ladder   rand    slips=  140/seed hit=0.394 price=2.58 ROI_tax= -15.5% [-22.3,-8.4] seeds[-25.4,-11.4]
+  P5 min-ovr rung per ladder   logconf slips=  140      hit=0.429 price=2.52 ROI_tax= -17.6% [-37.3,+0.9] maxDD=25.6u
+  P5 min-ovr rung per ladder   minovr  slips=  140      hit=0.407 price=2.55 ROI_tax= -14.9% [-28.7,-0.1] maxDD=25.0u

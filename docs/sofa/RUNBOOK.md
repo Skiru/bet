@@ -561,8 +561,8 @@ D+1 do D+1 05:00Z (`settle_cs2.py` / `settle_shadow.py --date <D+1>
 
 ### Kupon z czatu na kurs docelowy (poza pipeline'em)
 
-Skrót: **`/kupon 11-13`** (opcjonalnie `~5`, `x2`) — operator podaje tylko
-godziny, reszta poniżej dzieje się sama.
+Skrót: **`/kupon 11-13`** (opcjonalnie `~4`, `x2`, `3 nogi`, `buildery`) —
+operator podaje tylko godziny, reszta poniżej dzieje się sama.
 
 Gdy operator prosi o kupon AKO „na ~4” (także w oknie godzin, np. 10:00–12:00,
 albo kilka rozłącznych), skład robi skrypt, nie ręka — tylko z nóg
@@ -571,9 +571,35 @@ czyta analityk:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 4 \
-    --start-from 10:00 --start-to 12:00 --builders --max-legs 10 \
+    --start-from 10:00 --start-to 12:00 \
     --read-set-dir runs/sofa/<data>/read_set_slip
 ```
+
+- **Przepływ najmniejszej straty** (zgoda operatora 2026-10-31; backtest
+  walk-forward 10-13..10-26, hold-out 10-27..10-30, ceny porannego wydruku,
+  podatek 12% - `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`):
+  **żaden przepływ nie wychodzi nad zero po podatku**. Hold-out po podatku:
+  pojedyncze −16,6%, losowe 2 nogi −19,0%, 3 nogi −30,2%, 2-4 nogi na ~3
+  −28,5%, stary cel (maks. iloczyn pewności, do 5 nóg) −31,5%; noga kuponu
+  zwraca ok. 0,946 swojej ceny (trafienie 0,782 vs 1/kurs 0,827, 49 189 nóg
+  10-20..10-30). Stąd:
+  - **domyślnie 2 nogi** (`--max-legs` domyślnie 2; więcej tylko na prośbę
+    operatora, np. `3 nogi` - wtedy odpowiedź podaje koszt każdej nogi);
+  - **cel poza zasięgiem limitu** (np. ~4 z 2 nogami po maks. 2,00): pierwsza
+    linia „Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −5% więcej; z 2
+    nogami najbliżej ~X”, kupon najbliższy pod celem (najwyższy iloczyn
+    osiągalny limitem, przy nim najlepsza szansa), oznaczony „Cel ~X NIE
+    osiągnięty”, kod wyjścia 1 - nigdy cicha dodatkowa noga;
+  - **niska marża**: noga z dwustronnej drabinki z overround < 0,08 dostaje w
+    wyszukiwaniu +0,25% względnej szansy (rozstrzygnięcie remisu; zmierzone
+    +2,2 pp [+0,1; +4,2] w obrębie rynku na dev, na hold-oucie
+    niepotwierdzone - więc nigdy bramka); kolumna „marża” („1-str.” = rynek
+    jednostronny);
+  - **linia pieniędzy** zamiast „zwrotu wg naszych liczb” z pewności: „oczekiwany
+    zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki (zmierzone: nogi
+    kuponu 10-20..10-30, n 49 189; podatek 12%)” - druga linia i nagłówek
+    każdego kuponu; pojedyncza poniżej kursu 1,136 ma dopisek „wygrana zwraca
+    mniej niż gotówka”.
 
 - **Wszystkie rynki, jedna pula** (decyzje operatora 2026-10-20 / 10-26 /
   10-31): wyszukiwanie idzie po wszystkich nogach naraz; żadna rodzina rynku
@@ -582,12 +608,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   Pierwsza linia mówi najpierw „nie”: ile z zamówionych kuponów dzień daje
   („dzień cienki - masz N” / „dziś żadnego”). Stare flagi `--any-family` /
   `--allow-rest` / `--no-refresh-record` są przyjmowane i nic nie robią.
-- **Buildery**: `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
+- **Buildery** (domyślnie wyłączone, tylko na prośbę operatora; odpowiedź
+  podaje wtedy zmierzone −16,6% dev / −45,8% hold-out po podatku przy 0,90 ×
+  iloczyn): `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
   wyszukiwaniu = iloczyn kursów nóg (zasada operatora), tabela mówi, że Superbet
   liczy buildera niżej (8,8-19,6%) i decyduje ekran; szansa = `combined_probability`
   obniżona tylko o cenę nogi powyżej ceny (`price_gap`); analityk czyta każdą nogę buildera,
-  odrzucenie jednej usuwa builder. `--max-legs 10`: przy nogach ~1,2-1,5 pięć
-  nóg rzadko sięga ~10.
+  odrzucenie jednej usuwa builder.
 - **Algorytm**: dokładny problem plecakowy z wyborem (jedna noga z meczu) —
   maksymalna zmierzona szansa kuponu przy iloczynie kursów ≥ cel; to samo
   wybiera najmniej nóg, bo każda noga traci podobnie w każdym przedziale kursu

@@ -1,0 +1,11 @@
+walk-forward caps for hold-out: {'2026-10-27': 0.08, '2026-10-28': 0.08, '2026-10-29': 0.08, '2026-10-30': 0.08}
+== legs (singles), hold-out
+  low-margin pool    n= 1624 ROI=  -5.8% [  -9.0,  -2.7] | single after tax -17.1% [-19.9,-14.4] hit=0.775 1/o=0.821
+  all printed        n=14750 ROI=  -5.2% [  -6.5,  -4.0] | single after tax -16.6% [-17.7,-15.5] hit=0.782 1/o=0.825
+== slips, hold-out (up to 10 disjoint slips/day, flat 1u stake, payout 0.88 x price)
+  F1 low-margin 2-leg [1.6,2.4] random     legs/slip=2.00 price=1.71 hit=0.519 ROI_tax= -24.6% dayCI[-42.1,-9.0] slipCI[-29.4,-19.6] maxDD=11.6u seeds[-44.2,-6.3] slips/seed=40
+  F2 low-margin 3-leg [2.5,3.5] random     legs/slip=3.00 price=2.58 hit=0.360 ROI_tax= -26.4% dayCI[-57.3,-7.1] slipCI[-33.2,-19.2] maxDD=14.6u seeds[-52.0,-3.8] slips/seed=40
+  B1 all-printed 2-leg [1.6,2.4] random    legs/slip=2.00 price=1.71 hit=0.569 ROI_tax= -19.0% dayCI[-22.7,-15.3] slipCI[-23.8,-14.2] maxDD=9.3u seeds[-39.5,+3.7] slips/seed=40
+  B2 all-printed 3-leg [2.5,3.5] random    legs/slip=3.00 price=2.58 hit=0.345 ROI_tax= -30.2% dayCI[-37.0,-20.4] slipCI[-36.9,-23.4] maxDD=14.4u seeds[-49.4,-12.6] slips/seed=40
+  B3 all-printed 2-4 [2.5,3.5] random      legs/slip=4.00 price=2.65 hit=0.334 ROI_tax= -28.5% dayCI[-31.5,-25.6] slipCI[-35.2,-21.5] maxDD=14.0u seeds[-49.9,-5.4] slips/seed=40
+  B4 CURRENT max prod conf 2-4 [2.5,3.5]   legs/slip=3.50 price=2.52 hit=0.350 ROI_tax= -31.5% dayCI[-53.6,-9.6] slipCI[-60.5,-0.9] maxDD=15.4u slips=40

@@ -12,13 +12,23 @@ reads; the first line says how many of the requested slips the day gives
 ("say no first": "dzień cienki - masz N" / "dziś żadnego"). No slip price,
 no stake.
 
+The least-loss flow (operator 2026-10-31, docs/sofa/evidence/
+slip_flow_backtest_2026-10-31.md): 2 legs by default (--max-legs raises it;
+the answer then lists each extra leg's measured cost), Bet Builders only with
+--builders (the answer names their measured -16.6% / -45.8%), a target the
+leg limit cannot reach said in the first line with the closest slip under it
+(never a silent extra leg), a leg of a two-sided ladder with overround < 0.08
+preferred in a near-tie (column "marża"), and the second line the honest
+money line: expected return after tax = 0.88 x 0.946^n - 1 (what the
+coupon's legs realised against their price 10-20..10-30, n 49,189).
+
 --check "<mecz>|<rynek Superbetu>|<wybór>" (repeat per leg) [--screen-odds X]:
 the operator's own Bet Builder of one match against our numbers instead
 (each leg's measured chance beside 1/odds, match-up, the legs' joint history
 in both sides' games, the screen price); read-only.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
-        --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--builders] \\
+        --date 2026-10-20 --target 3 [--slips 2] [--max-legs 2] [--builders] \\
         [--min-odds 1.10] [--max-odds 2.00] [--start-from 10:00 --start-to 12:00] \\
         [--reserve 1] [--read-set-dir runs/sofa/<d>/read_set_slip] [--md-out f]
 
@@ -38,8 +48,9 @@ sport; stale files of an earlier call are removed.
 (the families' record was removed by the operator 2026-10-31; every search
 covers every leg and nothing is refreshed).
 
-Exit 0: every requested slip found; 1: fewer (the answer says so); 2: no
-11_coupon.json or bad arguments. --check: 0 (1 when a leg is not on the
+Exit 0: every requested slip found at the target; 1: fewer, or a slip only
+the closest under a target the leg limit cannot reach (the answer says so);
+2: no 11_coupon.json or bad arguments. --check: 0 (1 when a leg is not on the
 coupon).
 """
 
@@ -188,7 +199,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--target", type=float, default=None,
                     help="the slip's target price (required unless --check)")
     ap.add_argument("--slips", type=int, default=1)
-    ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS)
+    ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS,
+                    help=f"legs per slip (default {sb.MAX_LEGS}; each extra leg costs "
+                    "~5%% of the return, measured)")
     ap.add_argument("--min-odds", type=float, default=sb.MIN_LEG_ODDS)
     ap.add_argument("--max-odds", type=float, default=sb.MAX_LEG_ODDS)
     # no-ops kept so an older call (a session that loaded the old /kupon
@@ -199,7 +212,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--builders",
         action="store_true",
-        help="add the day's Bet Builders, priced as the product of their legs",
+        help="add the day's Bet Builders, priced as the product of their legs "
+        "(opt-in: measured -16.6%% dev / -45.8%% hold-out after tax)",
     )
     ap.add_argument("--start-from", default=None, help="HH:MM local (Europe/Warsaw)")
     ap.add_argument("--start-to", default=None, help="HH:MM local, exclusive")
@@ -314,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
                 if result.slips
                 else "do przeczytania: nic - brak kuponu"
             )
-    return 0 if len(result.slips) >= args.slips else 1
+    return 0 if sum(s.reached for s in result.slips) >= args.slips else 1
 
 
 if __name__ == "__main__":

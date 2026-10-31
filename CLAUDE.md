@@ -553,7 +553,7 @@ before a code change runs its old steps until it ends.
 | adversarial verification of a built day | `/sofa-verify` |
 | settle D-1 and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
-| a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) | `/kupon 11-13 [~4] [x2]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
+| a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) - the least-loss flow (operator 2026-10-31, no flow clears zero after the 12% tax, `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): 2 legs by default (more only when asked, each extra leg's measured cost stated), builders only when asked (measured -16.6% / -45.8%), a target the limit cannot reach said first with the closest slip, low-margin (< 0.08) legs win a near-tie, money line = 0.88 x 0.946^n - 1, never a return from our confidence | `/kupon 11-13 [~4] [x2] [3 nogi] [buildery]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
 | check the operator's own Bet Builder from a screenshot (each leg's measured chance vs 1/odds, zestawienie, the legs' joint k/n in both sides' games, the screen price) | `build_slip.py --date <d> --check "<mecz>\|<rynek>\|<wybór>" [--check ...] [--screen-odds X]` (read-only) |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,

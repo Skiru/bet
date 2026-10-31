@@ -22,6 +22,20 @@ families' record of the printed legs ("rodzina na plusie",
 `family_record.json`): no family, sport or tier shortfall, no family
 preference - one search over every leg, the analysts' reads deciding which
 legs stay.
+
+The least-loss flow (operator's go 2026-10-31; backtest walk-forward
+10-13..10-26, hold-out 10-27..10-30, morning print prices, Polish 12%
+turnover tax - `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): no
+flow cleared zero after tax. Hold-out, after tax: singles -16.6%, random
+2-leg slips -19.0%, 3 legs -30.2%, 2-4 legs at ~3 -28.5%, the old objective
+at up to 5 legs -31.5%; Bet Builders -16.6% (dev) / -45.8% (hold-out). So a
+slip is 2 legs by default (`MAX_LEGS`; the operator may raise it and the
+answer then states each extra leg's measured cost), builders are opt-in, a
+target the leg limit cannot reach is said first and the closest slip under
+it is built (never a silent extra leg), a low-margin leg is preferred in a
+near-tie (`LOW_MARGIN_TIE`) and every slip carries the honest money line
+`expected_return` - what a leg of the coupon realised against its price,
+after tax - never a return computed from our confidence.
 """
 
 from __future__ import annotations
@@ -62,7 +76,10 @@ REFUSING = frozenset({"WATCH", "NO_BET"})
 # STEP buckets.
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
-MAX_LEGS = 5
+# 2 legs by default (operator 2026-10-31): each leg pays the coupon's loss to
+# the price once more (`REALISED_PER_LEG`), and the hold-out ranked singles /
+# 2 legs above 3+ legs after tax (evidence doc above). --max-legs raises it.
+MAX_LEGS = 2
 CROWD_LEGS = 3  # a slip with this many legs of one market type is named
 START_MARGIN = datetime.timedelta(minutes=15)  # = the analysts' started-skip
 # a leg starting sooner is marked: an analyst round takes ~20-30 min
@@ -75,6 +92,72 @@ LOCAL = ZoneInfo("Europe/Warsaw")  # the operator's clock
 # rebuilt for a chat slip, so a leg past its limit is flagged, not refused -
 # the screen's price decides.
 SHEET_PRICE_AGE = datetime.timedelta(minutes=SofaConfig.price_max_age_min)
+
+# The honest money line (operator 2026-10-31). Measured, not fitted: a printed
+# leg of the coupon 2026-10-20..2026-10-30 (13_results.json, won / lost, n
+# 49,189) hit 0.782 against 1/odds 0.827 - it returned ~0.946 of its price
+# per unit staked (the morning print, deduplicated: 0.946; every graded row:
+# 0.945). Polish betting tax: 12% of the stake (payout = 0.88 x stake x the
+# product of the prices when every leg wins). Expected return after tax of an
+# n-leg slip ~= (1 - TAX) x REALISED_PER_LEG**n - 1, whatever our confidence
+# says - the slips realise at the price, not at our chance.
+REALISED_PER_LEG = 0.946
+REALISED_SOURCE = "nogi kuponu 10-20..10-30, n 49 189"
+TAX = 0.12
+# a single below this price pays back less than the stake even when it wins
+SINGLE_CASH_FLOOR = 1.0 / (1.0 - TAX)
+# A leg whose two-sided ladder / group overround is below LOW_MARGIN gains
+# LOW_MARGIN_TIE in the search only (a small explicit preference, the size of
+# READ_TIE: +0.25% relative chance; the printed chance is never touched).
+# Measured on dev 10-13..10-26: two-sided legs with overround < 0.08 -3.1%
+# before tax vs -5.4% for all, +2.2 pp [+0.1, +4.2] within market; NOT held
+# out (10-27..10-30: -5.8% vs -5.2%) - hence a near-tie-break, never a gate.
+# One-sided legs (no overround) gain nothing.
+LOW_MARGIN = 0.08
+LOW_MARGIN_TIE = math.log(1.0025)
+# Bet Builders after tax, priced at 0.90 x the product of their legs (an
+# assumption - Superbet does not price a builder as the product): dev
+# 10-13..10-26 n 88, hold-out 10-27..10-30 n 10.
+BUILDERS_MEASURED = ("Bet Buildery zmierzone po podatku: −16,6% stawki "
+                     "(10-13..10-26, n 88) i −45,8% (hold-out 10-27..10-30, n 10), "
+                     "przy założeniu kursu 0,90 × iloczyn nóg")
+
+
+def expected_return(n: int) -> float:
+    """Expected return per unit staked after tax of an n-leg slip, by what
+    the coupon's legs realised against their price (REALISED_PER_LEG)."""
+    return (1.0 - TAX) * REALISED_PER_LEG**n - 1.0
+
+
+def money_line(n: int) -> str:
+    """The honest money line of an n-leg slip, in Polish."""
+    per = f"{REALISED_PER_LEG:g}".replace(".", ",")
+    keep = f"{1.0 - TAX:.2f}".replace(".", ",")
+    pct = f"{expected_return(n) * 100:+.1f}%".replace(".", ",").replace("-", "−")
+    return (f"oczekiwany zwrot po podatku ≈ {keep} × {per}^{n} − 1 = {pct} stawki "
+            f"(zmierzone: {REALISED_SOURCE}; podatek {TAX * 100:.0f}%)")
+
+
+def legs_needed(legs: Sequence[Leg], target: float, limit: int = 20) -> int | None:
+    """The fewest legs (one per match, each at its match's longest price)
+    whose price product reaches `target`; None when `limit` legs cannot."""
+    best: dict[str, float] = {}
+    for x in legs:
+        best[x.match_key] = max(best.get(x.match_key, 1.0), x.odds)
+    product = 1.0
+    for k, odds in enumerate(sorted(best.values(), reverse=True)[:limit], 1):
+        product *= odds
+        if product >= target - 1e-9:
+            return k
+    return None
+
+
+def reach(legs: Sequence[Leg], max_legs: int) -> float:
+    """The highest price product `max_legs` legs of distinct matches reach."""
+    best: dict[str, float] = {}
+    for x in legs:
+        best[x.match_key] = max(best.get(x.match_key, 1.0), x.odds)
+    return math.prod(sorted(best.values(), reverse=True)[:max_legs])
 
 
 @dataclass(frozen=True)
@@ -98,6 +181,17 @@ class Leg:
         return str(self.leg.get("group_key") or self.leg.get("sofascore_event_id"))
 
     @property
+    def overround(self) -> float | None:
+        """The two-sided ladder / group overround the coupon carries on the
+        leg; None for a one-sided leg (and a builder)."""
+        raw = self.leg.get("overround")
+        return float(raw) if raw is not None and _finite(raw) else None
+
+    @property
+    def low_margin(self) -> bool:
+        return self.overround is not None and self.overround < LOW_MARGIN
+
+    @property
     def cost(self) -> float:
         """Chance given up per unit of log price: lower buys price cheaper."""
         return -math.log(self.chance) / math.log(self.odds)
@@ -106,6 +200,10 @@ class Leg:
 @dataclass
 class Slip:
     legs: list[Leg]
+    # set when the target needs more legs than the limit: this slip is the
+    # closest under the target with the limit's legs, and the target would
+    # need this many (operator 2026-10-31: never a silent extra leg)
+    needs_legs: int | None = None
 
     @property
     def chance(self) -> float:
@@ -121,11 +219,14 @@ class Slip:
         return any(x.leg.get("builder_legs") for x in self.legs)
 
     @property
-    def value(self) -> float:
-        """Measured chance x the product of the legs' prices: the return per
-        unit staked by our own numbers (below 1 = the slip loses by them); with
-        a builder an upper bound - Superbet pays a builder below the product."""
-        return self.chance * math.prod(x.odds for x in self.legs)
+    def rows(self) -> int:
+        """The coupon rows the slip stands on (a builder counts its legs) -
+        the n of the money line."""
+        return sum(len(leg_rows(x)) for x in self.legs)
+
+    @property
+    def reached(self) -> bool:
+        return self.needs_legs is None
 
 
 @dataclass
@@ -136,6 +237,8 @@ class Result:
     refused: dict[str, int] = field(default_factory=dict)
     reachable: float = 1.0  # the highest price product the pool's legs reach
     reserve: list[Slip] = field(default_factory=list)
+    max_legs: int = MAX_LEGS
+    builders: bool = False  # the day's Bet Builders were offered to the search
 
 
 def family_key(leg: Mapping[str, Any]) -> str:
@@ -509,9 +612,12 @@ def best_slip(
 def _search_score(x: Leg) -> float:
     """A leg's log chance in the search: a leg the slip's own fresh read
     keeps gains READ_TIE, so a slip of read legs is not swapped for legs still
-    to read over a hair of chance (each swap costs a round of reads). The
+    to read over a hair of chance (each swap costs a round of reads); a leg
+    of a two-sided ladder with overround < LOW_MARGIN gains LOW_MARGIN_TIE
+    (operator 2026-10-31, measured on dev only - a near-tie-break). The
     printed chance is never touched."""
-    return math.log(x.chance) + (READ_TIE if x.read == READ_KEEP else 0.0)
+    return (math.log(x.chance) + (READ_TIE if x.read == READ_KEEP else 0.0)
+            + (LOW_MARGIN_TIE if x.low_margin else 0.0))
 
 
 def _finite(value: Any) -> bool:
@@ -567,7 +673,9 @@ def build(
     read round covers them. Each slip is searched first over the legs with
     the slip's own fresh KEEP, then over every leg only when those cannot
     reach the target. `builders` adds the day's Bet Builders
-    (`builder_candidates`)."""
+    (`builder_candidates`). When the target needs more legs than `max_legs`,
+    each slip is the closest under it (`Slip.needs_legs` set) - never an extra
+    leg."""
     pool, refused = candidates(
         singles,
         now,
@@ -606,14 +714,22 @@ def build(
         kept = [x for x in legs if x.read == READ_KEEP]
         s = best_slip(kept, target, max_legs) or best_slip(legs, target, max_legs)
         if s is None:
-            break
+            # the leg limit binds (more legs of this pool would reach the
+            # target): the closest slip under the target with the limit's
+            # legs - the highest product they reach, the best chance at it -
+            # and the answer says how many legs the target needs
+            need = legs_needed(legs, target)
+            if need is None or need <= max_legs:
+                break
+            top = reach(legs, max_legs)
+            s = best_slip(kept, top, max_legs) or best_slip(legs, top, max_legs)
+            if s is None:
+                break
+            s.needs_legs = need
         out.append(s)
         used.update(x.match_key for x in s.legs)
-    best_per_match: dict[str, float] = {}
-    for x in pool:
-        best_per_match[x.match_key] = max(best_per_match.get(x.match_key, 1.0), x.odds)
-    reachable = math.prod(sorted(best_per_match.values(), reverse=True)[:max_legs])
-    return Result(out[:slips], slips, len(pool), refused, reachable, out[slips:])
+    return Result(out[:slips], slips, len(pool), refused, reach(pool, max_legs),
+                  out[slips:], max_legs, bool(builders))
 
 
 def concentration(slip: Slip) -> tuple[str, int] | None:
@@ -651,6 +767,16 @@ def legs_pl(n: int) -> str:
     return f"{n} {'noga' if n == 1 else 'nogi' if few else 'nóg'}"
 
 
+def _legs_gen(n: int) -> str:
+    """'trzeba 3 nóg' (genitive)."""
+    return f"{n} {'nogi' if n == 1 else 'nóg'}"
+
+
+def _legs_ins(n: int) -> str:
+    """'z 2 nogami' (instrumental)."""
+    return f"{n} {'nogą' if n == 1 else 'nogami'}"
+
+
 def _local(raw: Any) -> str:
     """An ISO UTC time as the operator's HH:MM (with the date when not
     today's), or "?"."""
@@ -673,6 +799,21 @@ def _pct(v: float) -> str:
     return f"{v * 100:.1f}%".replace(".", ",")
 
 
+def _signed(v: float) -> str:
+    return f"{v * 100:+.1f}%".replace(".", ",").replace("-", "−")
+
+
+def _margin(x: Leg) -> str:
+    """The leg's ladder overround, bold below LOW_MARGIN; "1-str." for a
+    one-sided leg, "—" for a builder."""
+    if x.leg.get("builder_legs"):
+        return "—"
+    if x.overround is None:
+        return "1-str."
+    text = _pct(x.overround)
+    return f"**{text}**" if x.low_margin else text
+
+
 def render(
     result: Result,
     *,
@@ -683,31 +824,65 @@ def render(
     matchups: Mapping[str, str] | None = None,
 ) -> str:
     """Polish markdown for the operator. The first line answers the request
-    ("say no first", in every mode); no slip price, no stake. `matchups`:
-    bet.sofa.dossier.matchups_for_legs, shown beside each single."""
+    ("say no first", in every mode - a target the leg limit cannot reach
+    included), the second the honest money line; no slip price, no stake.
+    `matchups`: bet.sofa.dossier.matchups_for_legs, shown beside each
+    single."""
     from bet.sofa.dossier import matchup_key
 
     lines: list[str] = []
-    n = len(result.slips)
-    reach = (
+    reached = [s for s in result.slips if s.reached]
+    short = [s for s in result.slips if not s.reached]
+    n = len(reached)
+    reach_text = (
         f" (iloczyn kursów najlepszych nóg sięga ~{result.reachable:.2f} - "
         "zasięg, nie kurs kuponu)"
         if result.reachable > 1.0
         else " (w oknie nie ma ani jednej nogi)"
     )
     # say no first (CLAUDE.md): how many of the requested slips the day's
-    # legs - each on its own statistics and reads - give
-    if n >= result.requested:
+    # legs - each on its own statistics and reads - give; a target the leg
+    # limit cannot reach is said before anything else (operator 2026-10-31)
+    if short:
+        first = short[0]
+        cost = round((1.0 - REALISED_PER_LEG) * 100)
+        limit = (f"na ~{target:g} trzeba {_legs_gen(first.needs_legs or 0)} - każda "
+                 f"kolejna noga to ok. −{cost}% więcej; z "
+                 f"{_legs_ins(result.max_legs)} najbliżej ~{first.price_product:.2f} "
+                 "(iloczyn kursów nóg, nie kurs kuponu)")
+        head = (f"Dzień daje {n} z {result.requested} kuponów na ~{target:g}; "
+                f"na kolejny {limit.removeprefix(f'na ~{target:g} ')}" if n
+                else limit[0].upper() + limit[1:])
+        lines.append(f"**{head}.**")
+    elif n >= result.requested:
         lines.append(
             f"**Dzień daje {n} z {result.requested} kuponów na ~{target:g}.**"
         )
     elif n == 0:
-        lines.append(f"**Dziś żadnego kuponu na ~{target:g}**{reach}.")
+        lines.append(f"**Dziś żadnego kuponu na ~{target:g}**{reach_text}.")
     else:
         lines.append(
             f"**Dzień cienki - masz {n} z {result.requested} kuponów na "
-            f"~{target:g}**{reach}."
+            f"~{target:g}**{reach_text}."
         )
+    counts = sorted({s.rows for s in result.slips})
+    if counts:
+        money = "; ".join(
+            (f"{legs_pl(k)}: " if len(counts) > 1 else "") + money_line(k)
+            for k in counts)
+        lines.append(money[0].upper() + money[1:]
+                     + " - nasza szansa nie jest przewagą nad ceną.")
+    if result.max_legs > MAX_LEGS or any(s.rows > MAX_LEGS for s in result.slips):
+        top = max([result.max_legs, *counts])
+        lines.append(
+            f"Limit nóg {result.max_legs} (domyślnie {MAX_LEGS}): każda kolejna noga "
+            f"mnoży zwrot przez {REALISED_PER_LEG:g}".replace(".", ",")
+            + " - po podatku "
+            + ", ".join(f"{legs_pl(k)} {_signed(expected_return(k))}"
+                        for k in range(1, min(top, 10) + 1))
+            + ".")
+    if result.builders:
+        lines.append(BUILDERS_MEASURED + ".")
     lines += [
         "",
         f"Poza pipeline'em: czat nie jest kuponem i nie ma bramek. Nogi z "
@@ -715,7 +890,9 @@ def render(
         f"liczone {now.astimezone(LOCAL):%H:%M}. "
         "Szansa nogi = jej pewność ze statystyk (z dowodem linii Superbetu), "
         "powyżej ceny o > 3 pp (każdy sport) liczona po cenie (1/kurs). "
-        "Jedna noga z meczu. "
+        "Jedna noga z meczu; przy remisie szansy wygrywa noga z marżą drabinki "
+        f"< {LOW_MARGIN * 100:.0f}% (kolumna „marża”, „1-str.” = rynek "
+        "jednostronny). "
         "Kurs kuponu: sprawdź na ekranie Superbetu. Stawka jest Twoja.",
         "",
     ]
@@ -723,18 +900,21 @@ def render(
         product = math.prod(x.odds for x in s.legs)
         head = (
             f"### Kupon {i}: {legs_pl(len(s.legs))}, szansa zmierzona {_pct(s.chance)}"
-            + (f" - zwrot wg naszych liczb najwyżej {_pct(s.value)} stawki (liczony "
-               "na iloczynie; za builder Superbet płaci mniej)" if s.has_builder
-               else f" przy 1/kurs {_pct(1 / product)} - zwrot wg naszych liczb "
-               f"{_pct(s.value)} stawki")
+            + (" (builder: iloczyn kursów nóg, Superbet płaci mniej)" if s.has_builder
+               else f" przy 1/kurs {_pct(1 / product)}")
+            + f" - {money_line(s.rows)}"
         )
+        if len(s.legs) == 1 and not s.has_builder and product < SINGLE_CASH_FLOOR:
+            head += (f" - wygrana zwraca mniej niż gotówka (kurs < "
+                     f"{SINGLE_CASH_FLOOR:.3f}".replace(".", ",")
+                     + f" przy podatku {TAX * 100:.0f}%)")
         lines += [
             head,
             "",
             "| start | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
-            "szansa | źródło | pewność | pewność < 1/kurs | zestawienie | "
+            "szansa | źródło | pewność | pewność < 1/kurs | marża | zestawienie | "
             "czytana | cena sprzed |",
-            "|---|---|---|---|---|---|---|---|---|---|---|---|",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for x in s.legs:
             g = x.leg
@@ -764,14 +944,19 @@ def render(
             lines.append(
                 f"| {start} | {g.get('match')} | {bet} | {odds} | "
                 f"{implied} | {_pct(x.chance)} | {x.chance_source} | "
-                f"{_pct(float(g['confidence']))} | {below} | "
+                f"{_pct(float(g['confidence']))} | {below} | {_margin(x)} | "
                 f"{matchup.removeprefix('zestawienie: ') or '—'} | "
                 f"{read} | {_age(x)} |"
             )
         lines += [
             "",
             f"Cel ~{target:g} osiągnięty (iloczyn kursów nóg ≥ cel); kurs kuponu "
-            "sprawdź na ekranie Superbetu.",
+            "sprawdź na ekranie Superbetu."
+            if s.reached
+            else f"Cel ~{target:g} NIE osiągnięty: ten kupon to najbliższy z "
+            f"{_legs_ins(len(s.legs))} (iloczyn ~{product:.2f}, nie kurs kuponu); na "
+            f"~{target:g} trzeba {_legs_gen(s.needs_legs or 0)} - noga więcej tylko na "
+            "prośbę operatora (--max-legs).",
         ]
         if any(x.leg.get("builder_legs") for x in s.legs):
             lines.append(
@@ -779,11 +964,6 @@ def render(
                 "ale Superbet płaci mniej - zmierzone 0,85-0,99 iloczynu (28.10), "
                 "markup 8,8-19,6%; iloczyn to nie kurs buildera. Kurs buildera "
                 "sprawdź na ekranie Superbetu."
-            )
-        if s.value < 1.0:
-            lines.append(
-                f"Wg naszych liczb ten kupon zwraca {_pct(s.value)} stawki - "
-                "poniżej ceny."
             )
         crowd = concentration(s)
         if crowd is not None:
