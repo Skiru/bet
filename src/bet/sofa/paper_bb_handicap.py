@@ -248,10 +248,17 @@ def units(outcome: str | None, odds: float, taxed: bool) -> float | None:
 
 def handicap_rows(record: Mapping[str, Any]) -> list[tuple[int, dict[str, Any]]]:
     """(index, row) of the record's graded full-game handicap rows the
-    backtest read: outcome WIN / LOSS, side T1 / T2, a line."""
+    backtest read: outcome WIN / LOSS, side T1 / T2, a line. A Superbet
+    price fetched at or after the game's start (`start_clock`) is never
+    read - an in-play price could not have been bet pre-match (none of the
+    29,878 such rows of 10-13..10-30 was; the guard keeps it so)."""
+    start = _at(start_clock(record))
     out: list[tuple[int, dict[str, Any]]] = []
     for i, g in enumerate(record.get("graded") or []):
         if g.get("outcome") not in ("WIN", "LOSS"):
+            continue
+        fetched = _at(g.get("fetched_at_utc")) if g.get("fetched_at_utc") else None
+        if start is not None and fetched is not None and fetched >= start:
             continue
         if (g.get("family"), g.get("period", g.get("map_nr"))) != (FAMILY, PERIOD):
             continue

@@ -199,6 +199,18 @@ def test_evaluate_reads_only_graded_full_game_handicap_rows() -> None:
     )
 
 
+def test_a_superbet_price_fetched_after_the_start_is_never_read() -> None:
+    payload = {"markets": [_spread("5/6", "5/6", line=-2.5)]}
+    rec = _record(
+        [
+            _row("T1", -2.5, 2.10, fetched_at_utc="2026-11-02T17:50:00Z"),
+            _row("T2", -2.5, 2.20, fetched_at_utc="2026-11-02T18:00:00Z"),
+        ]
+    )
+    _, cands = pb.evaluate_event(rec, payload, "2026-11-02", 0)
+    assert [(c["side"], c["odds"]) for c in cands] == [("T1", 2.10)]
+
+
 def _sel(ev: int, odds: float, outcome: str, line: float = -2.5) -> dict[str, Any]:
     return {
         "sofascore_event_id": ev,
