@@ -723,6 +723,21 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- **2026-10-31 second-price backtest -> one forward PAPER test** (operator's
+  go 2026-10-31): Superbet price x bet365 fair p (Sofascore
+  `/event/{id}/odds/1/all`, power removal) > 1 + t, every sport / family,
+  dev 10-13..10-26, hold-out 10-27..10-30. No pre-registered cell held; the
+  one dev cell with an untaxed CI above 0 - basketball full-game handicap,
+  bet365 OPENING price, t = 0 - n 68 +25.3% [+0.4, +49.4] pre-tax / +10.2%
+  [-11.6, +31.5] after tax; its hold-out run post hoc n 24 +36.9% [-5.2,
+  +71.9] / +20.5% [-16.5, +51.2] (a suspicion). Frozen as
+  `bet.sofa.paper_bb_handicap` (reproduces the backtest's 92 selections
+  exactly), paper only - never a curve, a gate or a coupon leg; the forward
+  data reads bet365 only as captured before tip-off (the backtest's
+  post-match spread line was a look-ahead, its numbers may be optimistic); forward
+  from 2026-11-01, judged once at n >= 300 (after-tax CI lower bound > 0,
+  else dropped): `T-PAPER-BB-HANDICAP-B365-OPEN`,
+  `docs/sofa/evidence/paper_bb_handicap_preregistration_2026-10-31.md`.
 - **family_record / family-on-plus selection removed by the operator
   2026-10-31** ("WYWAL TO Z TA RODZINA NA PLUSIE ... PIPELINE POWSTAŁ PO TO
   ABY GŁĘBOKO ANALIZOWAĆ I BAZOWAĆ NA STATYSTYKACH"): `bet.sofa.family_record`,

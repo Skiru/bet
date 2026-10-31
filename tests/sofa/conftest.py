@@ -77,6 +77,13 @@ def _no_detached_closing_loop(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(capture_closing, "spawn_loop", refuse)
 
+    from scripts.sofa import paper_bb_handicap
+
+    def refuse_paper(date: str) -> int:
+        raise RuntimeError(f"detached paper capture spawn in unit test ({date})")
+
+    monkeypatch.setattr(paper_bb_handicap, "spawn_capture_loop", refuse_paper)
+
 
 @pytest.fixture(autouse=True)
 def _no_icloud_copy(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -112,6 +112,24 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <D> 
 - A loop reads its plan at start: after a code change, run the new morning steps by hand
   for days old loops cover; say so. Never kill a loop.
 
+## 1c. Paper test - basketball handicap (operator 2026-10-31)
+
+After the settler returns (D-1 recorded), before step 1a's bridge part (one bridge user;
+~20 s):
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/paper_bb_handicap.py --date <D-1> --pending --report
+```
+
+Grades D-1's sport day and re-runs every earlier day file still PARTIAL; writes only
+`runs/sofa/paper/bb_handicap/`. Its bet365 comes from the pre-start capture loop
+(`paper_bb_handicap.py --capture --date <D> --loop`), which `shadow_daily.py` starts with the
+day; `day_status` `loop:paper_capture` WARN = start it by hand (games without a pre-start
+capture leave the test, counted "brak bet365 przed startem"). Exit 1 = games pending (late NBA games until D's settle) or
+a fetch gap - name it, never retry against a refusal. A pre-registered PAPER test: no stake,
+nothing on the coupon, never a reason for a leg; relay the `--report` lines as they are
+(evaluation only at n >= 300).
+
 ## 2. Build today
 
 BOARD mints the run id (`run_pipeline.py` without `--run-id`); read it back from its
@@ -356,6 +374,7 @@ ZDJĘTE:   removed_by_reads <n> — <mecz, rynek, linia, kierunek, autor, powód
 RAPORTY:  <ścieżki analiz i weryfikacji>
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar
 D-1:      7c <u> j. per sport · 7i <u> j. osobno · zwroty <n> · tożsamość <n> · MISMATCH <n> · CLV <x%> [lo; hi]
+PAPIER:   kosz handicap D-1 <n> typów (<won> trafionych), oczekujące <n> · do przodu n <n>/300 - to nie jest przewaga
 STATUS:   day_status <OK/WARN/BROKEN> · pętle · UNVERIFIED <n> · mostek NOT_CHECKED
 AUDYT:    audit_coupon <n> · audit_variants <n> (C3 0)
 WERYFIKACJA: <n>/<n> arytmetyka · <n>/<n> ceny na żywo · <n> pozycji odrzuconych (w reads.json i przebudowane: tak/nie) · verify_legs --all: <n> nóg, DEFECT <n>, NOTE <n>

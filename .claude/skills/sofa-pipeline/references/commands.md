@@ -168,6 +168,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p13_golden_set.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p14_tennis_rating.py --db-path <copy> --date <d>   # coverage audit P14 (read-only; DB copy)
 ```
 
+## Paper test (pre-registered, no stake, nothing on the coupon)
+
+```bash
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/paper_bb_handicap.py --date <D-1> --pending --report   # sofa-day 1c: basketball handicap, Superbet price x bet365 OPENING fair p (power) > 1 (bet.sofa.paper_bb_handicap, frozen 2026-10-31, T-PAPER-BB-HANDICAP-B365-OPEN); sport day window; from 10-31 bet365 = the newest pre-start capture only (no capture = excluded, `no_b365_prestart`), before it (backtest) asked once per SETTLED game after the game (look-ahead), cached runs/sofa/paper/bb_handicap/odds/<id>.json; writes <D>.json + ledger.json there only (forward from 2026-11-01 vs backtest, never pooled); --no-fetch cache only; --odds-cache DIR; --report alone = summary, no network; exit 0 / 1 pending or fetch gap / 2 failed. Judged once at n >= 300 (after-tax CI lower bound > 0), docs/sofa/evidence/paper_bb_handicap_preregistration_2026-10-31.md
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/paper_bb_handicap.py --capture --date <D> [--loop]   # the forward data: bet365 for D's pinned basketball games (sport_fixtures.json D, D+1) not started and starting within 3 h; --loop every 15 min until end(D), one per day (prestart/<D>/capture.pid, log capture.log); shadow_daily.py starts it (ensure_paper_capture); every capture kept in prestart/<D>/<id>.json, trimmed to Point spread / Full time / Game total, stamped at its answer; day_status loop:paper_capture WARNs when missing
+```
+
 ## Chat slip to a target price (outside the pipeline; NOT read-only)
 
 A slip build with `--read-set-dir` asks Sofascore through the bridge (h2h, pre-match lineups) and writes

@@ -1,0 +1,1 @@
+{"markets": [{"marketName": "Full time", "choiceGroup": null, "isLive": false, "choices": [{"name": "1", "initialFractionalValue": "17/5", "fractionalValue": "17/5", "winning": false}, {"name": "2", "initialFractionalValue": "2/11", "fractionalValue": "2/11", "winning": true}]}]}

@@ -260,6 +260,7 @@ def loop_checks(runs: Path, date: str, now: datetime,
     else:
         out.append(Check("loop:capture_closing", OK,
                          "not running; no printed official leg left to close"))
+    out.append(paper_capture_check(runs, date, now))
     for name, sub in (("shadow_daily", "shadow"), ("cs2_daily", "cs2")):
         state = runs / sub
         pid = already_running(state / f"daily_{date}.pid", date, command_of,
@@ -277,6 +278,30 @@ def loop_checks(runs: Path, date: str, now: datetime,
         else:
             out.append(Check(f"loop:{name}", WARN, f"not running, not done; {when}"))
     return out
+
+
+def paper_capture_check(runs: Path, date: str, now: datetime) -> Check:
+    """The basketball paper test's pre-start bet365 capture loop
+    (paper_bb_handicap.py --capture --loop): WARN when the day's window is
+    not over, SHADOW snapshotted basketball for it and no loop runs - the
+    forward test then loses its games (no bet365 before the start)."""
+    from bet.sofa import paper_bb_handicap as pb
+    from scripts.sofa.paper_bb_handicap import capture_holder
+
+    name = "loop:paper_capture"
+    if not pb.uses_prestart(date):
+        return Check(name, OK, f"before {pb.PRESTART_FROM}, no capture")
+    pid = capture_holder(str(runs), date)
+    if pid is not None:
+        return Check(name, OK, f"pid {pid}")
+    _, end = si.day_window(date)
+    snaps = runs / "shadow" / "basketball" / date / "snapshots.jsonl"
+    if now < end and snaps.exists():
+        return Check(name, WARN,
+                     "not running - games of the day get no bet365 before the "
+                     "start and leave the paper test (start paper_bb_handicap.py "
+                     f"--capture --date {date} --loop)")
+    return Check(name, OK, "not running; nothing left to capture")
 
 
 def bridge_check(run: Path) -> Check:

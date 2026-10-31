@@ -59,6 +59,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; pinned Sofascore ids of sport games |
 | `unmapped_prices/<ts>.jsonl.gz` | prices of markets OFFER does not read - a record, read by nothing |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** |
+| `runs/sofa/paper/bb_handicap/<d>.json`, `ledger.json` | a pre-registered PAPER test (operator 2026-10-31): basketball handicap where Superbet price x bet365 OPENING fair p > 1 (`bet.sofa.paper_bb_handicap`, `T-PAPER-BB-HANDICAP-B365-OPEN`); forward bet365 only from `prestart/<d>/<id>.json` captured before tip-off (`--capture --loop`, started by `shadow_daily.py`, `day_status` `loop:paper_capture`); forward from 11-01 apart from the backtest (post-match line, a look-ahead), judged once at n >= 300 - no stake, read by nothing the coupon reads, never a reason for a leg |
 
 ## How the coupon is built
 
@@ -555,6 +556,7 @@ before a code change runs its old steps until it ends.
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 | a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) - the least-loss flow (operator 2026-10-31, no flow clears zero after the 12% tax, `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): 2 legs by default (more only when asked, each extra leg's measured cost stated), builders only when asked (measured -16.6% / -45.8%), a target the limit cannot reach said first with the closest slip, low-margin (< 0.08) legs win a near-tie, money line = 0.88 x 0.946^n - 1, never a return from our confidence | `/kupon 11-13 [~4] [x2] [3 nogi] [buildery]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
 | check the operator's own Bet Builder from a screenshot (each leg's measured chance vs 1/odds, zestawienie, the legs' joint k/n in both sides' games, the screen price) | `build_slip.py --date <d> --check "<mecz>\|<rynek>\|<wybór>" [--check ...] [--screen-odds X]` (read-only) |
+| the basketball handicap paper test (sofa-day 1c; report only at n >= 300) | `paper_bb_handicap.py --date <D-1> --pending --report` |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
 `sofa-analyst-sport` (one instance per measured sport), `sofa-verifier`,

@@ -31,7 +31,10 @@ through the day, then settle and audit the next morning.
    daily_<date>.pid.
 5. At its start it starts the day's closing-price loop (capture_closing.py
    --loop) unless one runs (cs2_daily.ensure_closing) - normally cs2_daily's
-   chained start at 23:30Z the day before already did.
+   chained start at 23:30Z the day before already did. It also starts the
+   basketball paper test's pre-start bet365 capture loop
+   (paper_bb_handicap.py --capture --loop, ensure_paper_capture) unless one
+   runs - a paper test, nothing the coupon reads.
 
 Every step is its own process (cs2_daily.step), so one crashing never takes
 the rest down. Nothing here feeds the coupon. Exit: the worst step's code.
@@ -136,6 +139,17 @@ def late_settle_step(script: str, date: str) -> list[str] | None:
             "--kickoff-before", si.iso(si.day_window_end(date))]
 
 
+def ensure_paper_capture(date: str) -> str:
+    """Start the paper test's pre-start bet365 capture loop for the day if
+    none runs (paper_bb_handicap.ensure_capture_loop); one log line, never
+    raises."""
+    try:
+        from scripts.sofa.paper_bb_handicap import ensure_capture_loop
+    except Exception as exc:  # noqa: BLE001 - an import error must not stop the day
+        return f"paper capture {date}: NOT started - import: {exc}"
+    return ensure_capture_loop(date)
+
+
 def has_snapshots(date: str) -> bool:
     """Any sport of the day was snapshotted (settling it is not a no-op)."""
     return any(state_dir().glob(f"*/{date}/snapshots.jsonl"))
@@ -175,6 +189,7 @@ def spawn_next_day(date: str) -> int:
 def main(
     spawn: Callable[[str], int] = spawn_next_day,
     closing: Callable[[str], str] | None = None,
+    paper: Callable[[str], str] | None = None,
 ) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -215,6 +230,7 @@ def main(
         return 2
     pid_file.write_text(str(os.getpid()), encoding="utf-8")
     print((closing or ensure_closing)(args.date), flush=True)
+    print((paper or ensure_paper_capture)(args.date), flush=True)
 
     def chain() -> None:
         # When the snapshots end, as cs2_daily does: the morning settles and

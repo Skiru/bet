@@ -567,6 +567,31 @@
           "quote": "(m3.py) 2 778 nóg, trafione 0.548, średnie p 0.781, 1/kurs 0.608, ROI -10.1%."
         }
       ]
+    },
+    {
+      "id": "T-PAPER-BB-HANDICAP-B365-OPEN",
+      "registered_on": "2026-10-31",
+      "status": "RUNNING",
+      "hypothesis": "On basketball full-game point handicap, a Superbet side whose price times bet365's fair p from its OPENING price (power margin removal over both sides) exceeds 1 realises above Superbet's price after tax. Found post hoc: backtest dev 10-13..10-26 n=68 +25.3% pre-tax (+10.2% after tax), the only one of 81 non-empty test-A dev cells (besides four with n <= 3) with an untaxed CI above 0, below the backtest's own n >= 100 choice threshold; hold-out 10-27..10-30 run post hoc n=24 +36.9% (+20.5% after tax, CI includes 0).",
+      "rule": "bet.sofa.paper_bb_handicap (RULE_ID PAPER-BB-HANDICAP-B365-OPEN-T0, frozen 2026-10-31, T = 0): every SHADOW_SETTLE graded basketball row family handicap, period 0, side T1 / T2, outcome WIN / LOSS (Superbet price of the last snapshot before the start); bet365 = Sofascore /event/{id}/odds/1/all, the newest capture taken BEFORE the start (earlier of Superbet's kickoff and Sofascore's start) by paper_bb_handicap.py --capture --loop (every 15 min for games starting within 3 h; a game with no pre-start capture is excluded and counted no_b365_prestart; the backtest read a payload fetched after the game - a look-ahead the forward data does not have), non-live market 'Point spread', home choice '(+x) Name' equal to the Superbet line on the home side; fair p = power method over both initialFractionalValue prices, overround 1.00..1.25; selected when odds x p > 1. Unit stake at Superbet's price, graded by SHADOW_SETTLE's outcome; after tax a win pays odds x 0.88. Paper only: nothing staked, placed or printed. Runner: scripts/sofa/paper_bb_handicap.py.",
+      "population": "Basketball games of SHADOW's snapshots (every league Superbet quotes) settled with a pinned Sofascore id and bet365 odds on Sofascore; sport day windows (sport_identity.day_window) from 2026-11-01.",
+      "data_window": {
+        "from": "2026-11-01",
+        "to": null
+      },
+      "required_n": {
+        "selections": 300,
+        "basis": "pre-registered evaluation point (operator 2026-10-31); backtest pace ~5 selections a day, so ~2 months."
+      },
+      "evaluation": "scripts/sofa/paper_bb_handicap.py --report: forward section of runs/sofa/paper/bb_handicap/ledger.json (match bootstrap 2000, seed 7), never pooled with the backtest section.",
+      "stop_criterion": "Judged once at n >= 300 forward selections: PASSED when the lower 95% bound of ROI after tax (x0.88) is above 0 - then a discussion with the operator, nothing switches by itself; otherwise FAILED and the rule is dropped. No peeking decision before n = 300.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/paper_bb_handicap_preregistration_2026-10-31.md",
+          "line": 1,
+          "quote": "Test papierowy: handicap punktowy koszykówki, kurs Superbetu x p otwarcia bet365"
+        }
+      ]
     }
   ]
 }
