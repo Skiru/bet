@@ -586,7 +586,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   - **domyślnie 2 nogi** (`--max-legs` domyślnie 2; więcej tylko na prośbę
     operatora, np. `3 nogi` - wtedy odpowiedź podaje koszt każdej nogi);
   - **cel poza zasięgiem limitu** (np. ~4 z 2 nogami po maks. 2,00): pierwsza
-    linia „Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −5% więcej; z 2
+    linia „Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −4% więcej; z 2
     nogami najbliżej ~X”, kupon najbliższy pod celem (najwyższy iloczyn
     osiągalny limitem, przy nim najlepsza szansa), oznaczony „Cel ~X NIE
     osiągnięty”, kod wyjścia 1 - nigdy cicha dodatkowa noga;
@@ -596,13 +596,40 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
     niepotwierdzone - więc nigdy bramka); kolumna „marża” („1-str.” = rynek
     jednostronny);
   - **linia pieniędzy** zamiast „zwrotu wg naszych liczb” z pewności: „oczekiwany
-    zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki (zmierzone: nogi
-    kuponu 10-20..10-30, n 49 189; podatek 12%)” - druga linia i nagłówek
+    zwrot po podatku ≈ 0,88 × 0,96^n − 1 = −X% stawki (zmierzone: pula
+    /kupon - próbka meczu ≥ 8, kurs nie urósł > 2%; nogi kuponu
+    10-13..10-30, n 36 940; podatek 12%) - przewagi nad ceną nie ma (...)” - druga linia i nagłówek
     każdego kuponu z samych singli; pojedyncza poniżej kursu 1,136 ma dopisek
     „wygrana zwraca mniej niż gotówka”. Kupon z builderem nie dostaje wzoru na
     nogę dla buildera: zmierzone liczby builderów (−16,6% dev / −45,8% hold-out
     po podatku przy 0,90 × iloczyn) i „kurs buildera decyduje ekran Superbetu”;
     kupon builder + single podaje obie części osobno, bez łącznej liczby.
+
+- **Przebudowa /kupon 2026-10-31** (`docs/sofa/evidence/kupon_od_nowa_2026-10-31.md`;
+  ok. 1 800 komórek, dev 10-13..10-24, walidacja 10-25..10-28, hold-out
+  10-29..10-30 raz, po zamrożeniu reguł): **żadna definicja „mocnej
+  statystycznie nogi” nie odróżnia dobrej nogi od złej przy tej samej cenie**
+  (własna próbka, co traci rywal, mecze obu drużyn, udział ligi, h2h, sędzia,
+  model, pewność nad 1/kurs, ich zgodność) i żaden ranking nie bije
+  losowego. Wdrożone jako filtr jakości, nie przewaga:
+  - **pula = nogi z własną próbką meczu ≥ 8** (`slip_builder.MIN_SAMPLE`;
+    odrzucone „bez próbki meczu” / „mikropróbka” - mikropróbka 1-7 meczów
+    zmierzona −9,8 / −23,2 pp względem pasma ceny); noga CS2 z silnika
+    przechodzi; `--allow-no-sample` tylko na prośbę operatora (np. unders
+    kartek czerwonych / karnych ze stawki ligi: +3,8 / +7,1 / +6,0 pp nad
+    pasmem, ale −8..−12% jako pojedyncza po podatku);
+  - **świeży kurs tuż przed odpowiedzią**: wybrane nogi dopytane (piłka /
+    tenis: oferta Superbetu przez `OfferFetcher`, z jego bezpiecznikiem;
+    sporty: najnowsza migawka pętli sprzed startu); noga, której kurs urósł
+    > 2% (`PRICE_RISE_DROP`; zmierzone −3,8 / −5,7 / −3,1 pp) albo zeszła z
+    oferty, wypada i kupon składa się bez niej (do 4 rund); niższy świeży kurs
+    zastępuje kuponowy. Kolumna „kurs kuponu → teraz”, „nie dopytano” =
+    sprawdź ekran. Ruch może przyjść później (31.10: Bernau 1,52 do 26 min
+    przed startem, potem 1,65) - kupon podany długo przed startem puść
+    jeszcze raz przed postawieniem; `--no-fresh-price` wyłącza dopytanie;
+  - **kolumny dowodów** (model, próbka k/n - pogrubiona poniżej 1/kurs,
+    zestawienie, liga, h2h, sędzia; `bet.sofa.slip_evidence`, cięte na start
+    meczu) - tylko do wglądu, nigdy bramka ani ranking.
 
 - **Wszystkie rynki, jedna pula** (decyzje operatora 2026-10-20 / 10-26 /
   10-31): wyszukiwanie idzie po wszystkich nogach naraz; żadna rodzina rynku

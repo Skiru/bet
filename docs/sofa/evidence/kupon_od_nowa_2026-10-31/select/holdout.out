@@ -1,0 +1,44 @@
+ALL
+  dev  n= 57540 hit=0.783 inv=0.825 excess=-0.00 [-0.48,+0.46] roi_pre=-5.15 single_tax=-16.53
+  val  n= 19021 hit=0.784 inv=0.827 excess=+0.00 [-0.82,+0.79] roi_pre=-5.27 single_tax=-16.63
+  hold n=  7292 hit=0.770 inv=0.825 excess=+0.00 [-1.39,+1.52] roi_pre=-6.76 single_tax=-17.95
+L1_league_rate
+  dev  n=   870 hit=0.829 inv=0.834 excess=+3.80 [+0.92,+6.76] roi_pre=-0.60 single_tax=-12.53
+  val  n=   523 hit=0.845 inv=0.815 excess=+7.08 [+3.42,+10.57] roi_pre=+4.08 single_tax=-8.41
+  hold n=   157 hit=0.828 inv=0.825 excess=+5.99 [-1.38,+12.97] roi_pre=+0.64 single_tax=-11.44
+L2_lr_conf_below
+  dev  n=   718 hit=0.836 inv=0.842 excess=+3.74 [+0.67,+6.66] roi_pre=-0.66 single_tax=-12.58
+  val  n=   354 hit=0.862 inv=0.841 excess=+6.24 [+2.63,+10.00] roi_pre=+2.70 single_tax=-9.62
+  hold n=   119 hit=0.840 inv=0.842 excess=+5.26 [-2.46,+11.99] roi_pre=-0.12 single_tax=-12.10
+P1_dropped_at_coupon_price
+  dev  n=  3860 hit=0.725 inv=0.805 excess=-3.78 [-5.94,-1.80] roi_pre=-9.89 single_tax=-20.70
+  val  n=  1134 hit=0.704 inv=0.805 excess=-5.70 [-9.76,-1.88] roi_pre=-12.80 single_tax=-23.26
+  hold n=   261 hit=0.720 inv=0.808 excess=-3.05 [-11.31,+5.42] roi_pre=-10.83 single_tax=-21.53
+P1_kept_at_close_price
+  dev  n= 45310 hit=0.787 inv=0.831 excess=-0.03 [-0.56,+0.49] roi_pre=-5.32 single_tax=-16.68
+  val  n= 13737 hit=0.792 inv=0.833 excess=+0.16 [-0.83,+1.11] roi_pre=-4.88 single_tax=-16.29
+  hold n=  3456 hit=0.762 inv=0.831 excess=-0.17 [-2.27,+1.88] roi_pre=-8.48 single_tax=-19.46
+P1_all_with_close_at_close_price
+  dev  n= 49170 hit=0.782 inv=0.827 excess=-0.06 [-0.59,+0.47] roi_pre=-5.38 single_tax=-16.73
+  val  n= 14871 hit=0.785 inv=0.828 excess=-0.04 [-0.95,+0.91] roi_pre=-5.21 single_tax=-16.58
+  hold n=  3717 hit=0.759 inv=0.827 excess=-0.03 [-2.19,+1.94] roi_pre=-8.39 single_tax=-19.38
+S1_protocol_pick
+  dev  slips=86 hit=0.2791 roi_tax=-34.74 day[-76.06,24.67] slip[-56.87,-12.95]
+  val  slips=223 hit=0.4978 roi_tax=18.25 day[-12.78,42.7] slip[2.75,33.33]
+  hold slips=81 hit=0.3951 roi_tax=-7.22 day[-10.48,4.17] slip[-31.13,19.43]
+S2_L1_two_legs
+  dev  slips=68 hit=0.7059 roi_tax=-15.6 day[-29.8,-4.06] slip[-28.76,-2.45]
+  val  slips=34 hit=0.8529 roi_tax=-0.92 day[-7.79,3.41] slip[-15.49,12.71]
+  hold slips=13 hit=0.6154 roi_tax=-28.41 day[-32.54,-23.58] slip[-63.4,-0.12]
+C1_current_kupon
+  dev  slips=108 hit=0.4722 roi_tax=-28.97 day[-41.52,-16.44] slip[-42.88,-15.06]
+  val  slips=36 hit=0.5278 roi_tax=-22.57 day[-41.45,-9.52] slip[-48.12,-0.03]
+  hold slips=18 hit=0.5556 roi_tax=-21.32 day[-38.0,-4.64] slip[-54.69,10.57]
+C2_random_two
+  dev  slips=2160 hit=0.5023 roi_tax=-21.77 day[-23.93,-19.38] slip[-25.15,-18.42]
+  val  slips=720 hit=0.5278 roi_tax=-17.68 day[-19.98,-15.47] slip[-23.79,-11.96]
+  hold slips=360 hit=0.4639 roi_tax=-28.39 day[-29.04,-27.73] slip[-36.37,-20.72]
+C3_random_single
+  dev  slips=2160 hit=0.7028 roi_tax=-17.03 day[-19.22,-14.37] slip[-19.4,-14.53]
+  val  slips=720 hit=0.7292 roi_tax=-13.79 day[-16.04,-12.48] slip[-17.55,-9.93]
+  hold slips=360 hit=0.7028 roi_tax=-17.16 day[-17.25,-17.08] slip[-22.67,-11.86]

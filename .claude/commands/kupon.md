@@ -60,7 +60,7 @@ step.
   offer a lower target or a wider window - never fill with legs outside the
   window.
 - Target out of reach of the leg limit ("Na ~X trzeba N nóg - każda kolejna
-  noga to ok. −5% więcej; z 2 nogami najbliżej ~Y"): relay that line first,
+  noga to ok. −4% więcej; z 2 nogami najbliżej ~Y"): relay that line first,
   the closest slip as built (marked "Cel ~X NIE osiągnięty"), and offer a
   lower target or `N nogi` - never add a leg the operator did not ask for.
 
@@ -69,13 +69,21 @@ step.
 Exactly the skill's **Relay**: line 1 the script's first line - how many of
 the requested slips the day gives ("say no first": "dzień cienki - masz N" /
 "dziś żadnego" / "na ~X trzeba N nóg ...") - line 2 the script's money line
-("Oczekiwany zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki (zmierzone:
-...)"; a slip with a builder: the builders' measured numbers and "kurs buildera
-decyduje ekran Superbetu", singles and builder stated apart), then the tables with every column read (measured chance vs 1/kurs,
-"pewność < 1/kurs", marża, zestawienie, ⚠, the header's chance vs 1/price and
+("Oczekiwany zwrot po podatku ≈ 0,88 × 0,96^n − 1 = −X% stawki (zmierzone:
+...) - przewagi nad ceną nie ma (...)"; a slip with a builder: the builders' measured numbers and "kurs buildera
+decyduje ekran Superbetu", singles and builder stated apart), then the tables with every column read ("kurs kuponu → teraz" - the fresh
+Superbet price the script re-asked, "nie dopytano" said as "sprawdź kurs na
+ekranie" -, measured chance vs 1/kurs, "pewność < 1/kurs", model, próbka,
+liga, h2h, sędzia, marża, zestawienie, ⚠, the header's chance vs 1/price and
 its money line, "wygrana zwraca mniej niż gotówka" on a single below 1,136,
 with `--builders` a builder's "<product> iloczyn", the builders' measured
 line and "Superbet płacił 0,85-0,99 iloczynu (28.10)"), the reads, what fell
-out and what replaced it, unread legs named as unread, the `--md-out` path.
+out and what replaced it (also "bez próbki meczu" / "mikropróbka" /
+"kurs urósł > 2%" from the Odrzucone line), unread legs named as unread, the
+`--md-out` path, and - for a slip answered more than ~30 min before its
+first start - "przed postawieniem puść /kupon jeszcze raz: kurs może urosnąć
+później" (31.10: Bernau 1.52 → 1.65 in the last 26 min). The pool and the
+evidence columns are a quality filter, never "an edge"
+(`docs/sofa/evidence/kupon_od_nowa_2026-10-31.md`).
 No slip price, no stake, no "na minusie" labels, never a return computed
 from our confidence.

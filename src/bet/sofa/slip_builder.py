@@ -40,6 +40,22 @@ after tax - never a return computed from our confidence. A slip holding a
 Bet Builder carries no per-leg formula for the builder: its measured
 numbers (`BUILDERS_MEASURED`) and "the screen price decides"
 (`slip_money_line`).
+
+The redesign (2026-10-31, `docs/sofa/evidence/kupon_od_nowa_2026-10-31.md`):
+a backtest of ~1,600 cells (pool, evidence of many match statistics, price
+move, ranking, slip shape, controls; dev 10-13..10-24, validation
+10-25..10-28, one hold-out 10-29..10-30 after the rules were frozen) found NO
+definition of a statistically strong leg that tells a good leg from a bad one
+at the same price - own sample, opponent concession, both sides' games,
+league share, h2h, referee, model and confidence above 1/odds, all of them
+together: zero information (the evidence column is shown, never a gate), and
+no ranking beat a random one. What stays is a quality filter, said as such:
+a leg needs its match's own sample (`MIN_SAMPLE`; a sample of 1-7 matches
+measured -9.8 / -23.2 pp below the price band, the operator's 31.10 slips
+held a 0-sample penalty / power-play leg and a 4-game winner), and a leg
+whose Superbet price rose more than `PRICE_RISE_DROP` since the coupon (the
+market went against it) drops out - the fresh price is asked right before
+the slip is handed over (`FreshPrice`, `build(fresh_prices=...)`).
 """
 
 from __future__ import annotations
@@ -47,7 +63,7 @@ from __future__ import annotations
 import datetime
 import math
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -103,8 +119,13 @@ SHEET_PRICE_AGE = datetime.timedelta(minutes=SofaConfig.price_max_age_min)
 # product of the prices when every leg wins). Expected return after tax of an
 # n-leg slip ~= (1 - TAX) x REALISED_PER_LEG**n - 1, whatever our confidence
 # says - the slips realise at the price, not at our chance.
-REALISED_PER_LEG = 0.946
-REALISED_SOURCE = "nogi kuponu 10-20..10-30, n 49 189"
+# 2026-10-31 redesign: the pool /kupon now takes (MIN_SAMPLE, PRICE_RISE_DROP,
+# odds 1.10-2.00) realised 0.960 of its price over every coupon leg
+# 10-13..10-30 (n 36,940; every leg of those days 0.947) - a description of
+# the pool, never an edge: after tax a single still returns about -15.5%.
+REALISED_PER_LEG = 0.960
+REALISED_SOURCE = ("pula /kupon - próbka meczu ≥ 8, kurs nie urósł > 2%; "
+                   "nogi kuponu 10-13..10-30, n 36 940")
 TAX = 0.12
 # a single below this price pays back less than the stake even when it wins
 SINGLE_CASH_FLOOR = 1.0 / (1.0 - TAX)
@@ -117,6 +138,36 @@ SINGLE_CASH_FLOOR = 1.0 / (1.0 - TAX)
 # One-sided legs (no overround) gain nothing.
 LOW_MARGIN = 0.08
 LOW_MARGIN_TIE = math.log(1.0025)
+# The quality filter of the 2026-10-31 redesign (measured, never an edge -
+# docs/sofa/evidence/kupon_od_nowa_2026-10-31.md). A leg needs at least
+# MIN_SAMPLE of its match's own games in its sample: legs with a sample of
+# 1-7 realised -9.8 pp (dev, n 86) / -23.2 pp (validation, n 25) below the
+# price band - a suspicion by n, the operator's micro-samples by name (a
+# 4-game winner, 31.10). A leg with no own sample at all (sample_size 0: a
+# league rate, a rating with no match sample, a player line priced from
+# Superbet's own lines) is out too - the operator's rule that a /kupon leg
+# stands on the match's statistics (31.10: penalties under 0.5 from the
+# league rate, the same number for every match; Byfield's power-play points
+# from line evidence alone). Measured: no worse - sample >= 8 vs sample 0
+# +0.64 / -0.57 pp (dev), +1.32 / -1.04 (validation), -0.02 / +0.01 (hold-out,
+# post hoc); the league-rate under legs alone measured +3.8 / +7.1 / +6.0 pp
+# but -8.4% to -12.5% as a single after tax (`--allow-no-sample` admits them).
+# The CS2 engine reads both teams' map history and records no per-leg sample,
+# so its legs are not refused for it.
+MIN_SAMPLE = 8
+NO_SAMPLE_SOURCES = frozenset({"cs2_engine"})
+# A leg whose fresh Superbet price is more than this above the coupon's price
+# drops out (the market went against it). Measured: legs whose price rose
+# > 2% between the coupon and the last pre-start re-ask realised -3.8 pp
+# [-5.9, -1.8] (dev, n 3,860) / -5.7 pp [-9.8, -1.9] (validation, n 1,134) /
+# -3.1 pp [-11.3, +5.4] (hold-out, n 261) below the price band at the
+# coupon's price; the price move from the morning print to the coupon
+# carried nothing.
+PRICE_RISE_DROP = 0.02
+# Rounds of "build, re-ask the chosen legs' prices, rebuild without the
+# risen ones" before the answer goes out.
+FRESH_ROUNDS = 4
+FRESH_OK, FRESH_GONE, FRESH_NOT_ASKED = "OK", "GONE", "NOT_ASKED"
 # Bet Builders after tax, priced at 0.90 x the product of their legs (an
 # assumption - Superbet does not price a builder as the product): dev
 # 10-13..10-26 n 88, hold-out 10-27..10-30 n 10.
@@ -184,6 +235,75 @@ def reach(legs: Sequence[Leg], max_legs: int) -> float:
 
 
 @dataclass(frozen=True)
+class FreshPrice:
+    """A leg's Superbet price asked right before the slip is handed over:
+    FRESH_OK with the price, FRESH_GONE (the event was fetched and the leg is
+    no longer quoted), FRESH_NOT_ASKED (breaker open, an error, no snapshot -
+    the coupon's price stands and the answer says it was not refreshed)."""
+
+    status: str
+    odds: float | None = None
+    fetched_at_utc: str | None = None
+
+
+def fresh_key(leg: Mapping[str, Any]) -> tuple[Any, ...]:
+    """One leg's identity for its fresh price (football / tennis rungs and
+    the measured sports' lines alike)."""
+    line = leg.get("line")
+    return (
+        leg.get("sofascore_event_id"),
+        str(leg.get("family") or leg.get("market") or ""),
+        str(leg.get("subject") or ""),
+        None if line is None else float(line),
+        str(leg.get("side") or leg.get("direction") or ""),
+        int(leg.get("period") or 0),
+        int(leg.get("map_nr") or 0),
+    )
+
+
+def own_sample(leg: Mapping[str, Any]) -> tuple[int, int] | None:
+    """(hits, games) of the leg's own sample - a sport leg's sample_k /
+    sample_n, a football / tennis leg's sample_hit_rate x sample_size - or
+    None when the leg carries no sample."""
+    n = _sample_n(leg)
+    if n <= 0:
+        return None
+    k = _number(leg.get("sample_k"))
+    if k is not None:
+        return int(k), n
+    rate = _number(leg.get("sample_hit_rate"))
+    if rate is None:
+        return None
+    return round(rate * n), n
+
+
+def _number(raw: Any) -> float | None:
+    return float(raw) if _finite(raw) else None
+
+
+def _sample_n(leg: Mapping[str, Any]) -> int:
+    """The leg's own sample size (a sport's sample_n, else sample_size); 0
+    when it carries none."""
+    raw = leg.get("sample_n") if leg.get("sample_n") is not None else leg.get(
+        "sample_size")
+    n = _number(raw)
+    return int(n) if n is not None else 0
+
+
+def sample_refusal(leg: Mapping[str, Any]) -> str | None:
+    """Why a leg's own sample is too thin for a slip (MIN_SAMPLE), else None.
+    A CS2 engine leg records no per-leg sample and is never refused for it."""
+    if str(leg.get("forecast_source") or "") in NO_SAMPLE_SOURCES:
+        return None
+    n = _sample_n(leg)
+    if n <= 0:
+        return "bez próbki meczu (stawka ligi / sam model)"
+    if n < MIN_SAMPLE:
+        return f"mikropróbka (< {MIN_SAMPLE} meczów)"
+    return None
+
+
+@dataclass(frozen=True)
 class Leg:
     leg: Mapping[str, Any]
     odds: float
@@ -192,6 +312,8 @@ class Leg:
     read: str = READ_NONE
     price_age: datetime.timedelta | None = None
     age_is_floor: bool = False  # no fetch time on the leg: age since the build
+    coupon_odds: float | None = None  # the coupon's price when a fresh one replaced it
+    fresh: str | None = None  # FRESH_* of the last re-ask, None = not asked
 
     @property
     def stale(self) -> bool:
@@ -380,12 +502,19 @@ def candidates(
     built_at: str | None = None,
     slip_reads: Sequence[Any] = (),
     competitions: Sequence[str] = (),
+    fresh: Mapping[tuple[Any, ...], FreshPrice] | None = None,
+    allow_no_sample: bool = False,
 ) -> tuple[list[Leg], dict[str, int]]:
     """The legs a slip may take, and the count of every refusal. A football
     / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
     and refuses one older than its limit), so its price is at least as old as
     the coupon's build (`built_at`). `competitions`, when given, keeps only
-    legs whose competition contains one of them (case-insensitive)."""
+    legs whose competition contains one of them (case-insensitive). A leg
+    whose own sample is too thin is refused (`sample_refusal`; with
+    `allow_no_sample` a leg with NO sample passes, a 1-7 game one never).
+    `fresh` holds re-asked prices by `fresh_key`: a leg gone from the offer
+    or priced more than PRICE_RISE_DROP above the coupon is refused, else the
+    fresh price replaces the coupon's (its age from the re-ask)."""
     wanted = [c.casefold() for c in competitions]
     skip = set(exclude_matches)
     out: list[Leg] = []
@@ -433,6 +562,23 @@ def candidates(
         ):
             refused["poza wybranymi rozgrywkami"] += 1
             continue
+        thin = sample_refusal(s)
+        if thin is not None and not (allow_no_sample and thin.startswith("bez ")):
+            refused[thin] += 1
+            continue
+        got = (fresh or {}).get(fresh_key(s))
+        coupon_odds: float | None = None
+        fetched = s.get("price_fetched_at_utc") or built_at
+        if got is not None and got.status == FRESH_GONE:
+            refused["zeszła z oferty Superbetu (świeży kurs)"] += 1
+            continue
+        if got is not None and got.status == FRESH_OK and got.odds is not None:
+            if got.odds > float(odds) * (1.0 + PRICE_RISE_DROP) + 1e-9:
+                refused[f"kurs urósł > {PRICE_RISE_DROP * 100:.0f}% od kuponu "
+                        "(rynek przeciw)"] += 1
+                continue
+            coupon_odds, odds = float(odds), got.odds
+            fetched = got.fetched_at_utc or fetched
         if not min_odds <= float(odds) <= max_odds:
             refused["kurs poza przedziałem"] += 1
             continue
@@ -441,14 +587,15 @@ def candidates(
         if read is None:
             refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
             continue
-        fetched = s.get("price_fetched_at_utc") or built_at
         age = (
             now - datetime.datetime.fromisoformat(str(fetched).replace("Z", "+00:00"))
             if fetched
             else None
         )
-        floor = not s.get("price_fetched_at_utc") and age is not None
-        leg = Leg(s, float(odds), mc[0], mc[1], read, age, floor)
+        floor = (not s.get("price_fetched_at_utc") and coupon_odds is None
+                 and age is not None)
+        leg = Leg(s, float(odds), mc[0], mc[1], read, age, floor, coupon_odds,
+                  got.status if got is not None else None)
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -685,6 +832,9 @@ def build(
     slip_reads: Sequence[Any] = (),
     competitions: Sequence[str] = (),
     builders: Sequence[Mapping[str, Any]] = (),
+    fresh_prices: (Callable[[Sequence[Mapping[str, Any]]],
+                            Mapping[tuple[Any, ...], FreshPrice]] | None) = None,
+    allow_no_sample: bool = False,
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice), searched over every
     leg in one pass. `reserve` more disjoint slips on the same terms are the
@@ -694,7 +844,49 @@ def build(
     reach the target. `builders` adds the day's Bet Builders
     (`builder_candidates`). When the target needs more legs than `max_legs`,
     each slip is the closest under it (`Slip.needs_legs` set) - never an extra
-    leg."""
+    leg. `fresh_prices` re-asks Superbet for the chosen single legs (by
+    `fresh_key`); the slips are rebuilt without a leg gone or priced up more
+    than PRICE_RISE_DROP, at most FRESH_ROUNDS times - a leg the last round
+    picked unasked stays marked unasked."""
+    known: dict[tuple[Any, ...], FreshPrice] = {}
+    result = _build_once(singles, now, target, slips, max_legs, window, min_odds,
+                         max_odds, reads, vetoes, reserve, built_at, slip_reads,
+                         competitions, builders, known, allow_no_sample)
+    for _ in range(FRESH_ROUNDS if fresh_prices is not None else 0):
+        chosen = [x.leg for s in result.slips + result.reserve for x in s.legs
+                  if not x.leg.get("builder_legs")]
+        ask = [g for g in chosen if fresh_key(g) not in known]
+        if not ask or fresh_prices is None:
+            break
+        got = dict(fresh_prices(ask))
+        for g in ask:  # a leg the asker returned nothing for was not asked
+            known[fresh_key(g)] = got.get(fresh_key(g), FreshPrice(FRESH_NOT_ASKED))
+        result = _build_once(singles, now, target, slips, max_legs, window,
+                             min_odds, max_odds, reads, vetoes, reserve, built_at,
+                             slip_reads, competitions, builders, known,
+                             allow_no_sample)
+    return result
+
+
+def _build_once(
+    singles: Sequence[Mapping[str, Any]],
+    now: datetime.datetime,
+    target: float,
+    slips: int,
+    max_legs: int,
+    window: tuple[datetime.datetime, datetime.datetime] | None,
+    min_odds: float,
+    max_odds: float,
+    reads: Sequence[Any],
+    vetoes: Sequence[Any],
+    reserve: int,
+    built_at: str | None,
+    slip_reads: Sequence[Any],
+    competitions: Sequence[str],
+    builders: Sequence[Mapping[str, Any]],
+    fresh: Mapping[tuple[Any, ...], FreshPrice],
+    allow_no_sample: bool,
+) -> Result:
     pool, refused = candidates(
         singles,
         now,
@@ -706,6 +898,8 @@ def build(
         built_at=built_at,
         slip_reads=slip_reads,
         competitions=competitions,
+        fresh=fresh,
+        allow_no_sample=allow_no_sample,
     )
     if builders:
         extra, why = builder_candidates(
@@ -833,6 +1027,41 @@ def _margin(x: Leg) -> str:
     return f"**{text}**" if x.low_margin else text
 
 
+NO_EDGE = ("przewagi nad ceną nie ma (backtest 31.10: żadna definicja mocnej "
+           "statystycznie nogi nie odróżniła dobrej nogi od złej przy tej samej "
+           "cenie)")
+
+
+def _move(x: Leg) -> str:
+    """The coupon's price -> the fresh one; "nie dopytano" when the re-ask
+    did not run (bold when it was tried and failed)."""
+    if x.leg.get("builder_legs"):
+        return "—"
+    if x.fresh == FRESH_OK and x.coupon_odds is not None:
+        return f"{x.coupon_odds:.2f} → {x.odds:.2f}"
+    if x.fresh == FRESH_OK:
+        return f"{x.odds:.2f} (bez zmian)"
+    if x.fresh == FRESH_NOT_ASKED:
+        return "**nie dopytano**"
+    return "nie dopytano"
+
+
+def _model(g: Mapping[str, Any]) -> str:
+    raw = _number(g.get("forecast_p"))
+    return _pct(raw) if raw is not None else "—"
+
+
+def _sample(g: Mapping[str, Any], odds: float) -> str:
+    """The leg's own sample, "k/n (rate)", bold when its rate is below 1/odds
+    (shown, never a gate: such legs measured no worse, 2026-10-31)."""
+    got = own_sample(g)
+    if got is None:
+        return "—"
+    k, n = got
+    text = f"{k}/{n} ({_pct(k / n)})"
+    return f"**{text}**" if k / n < 1 / odds else text
+
+
 def render(
     result: Result,
     *,
@@ -841,12 +1070,14 @@ def render(
     now: datetime.datetime,
     built_at: str | None = None,
     matchups: Mapping[str, str] | None = None,
+    evidence: Mapping[str, Mapping[str, str]] | None = None,
 ) -> str:
     """Polish markdown for the operator. The first line answers the request
     ("say no first", in every mode - a target the leg limit cannot reach
     included), the second the honest money line; no slip price, no stake.
     `matchups`: bet.sofa.dossier.matchups_for_legs, shown beside each
-    single."""
+    single; `evidence`: bet.sofa.slip_evidence.evidence_for_legs (league,
+    h2h, referee) - every signal beside 1/odds, display only."""
     from bet.sofa.dossier import matchup_key
 
     lines: list[str] = []
@@ -889,8 +1120,7 @@ def render(
         money = "; ".join(
             (f"{legs_pl(k)}: " if len(counts) > 1 else "") + money_line(k)
             for k in counts)
-        lines.append(money[0].upper() + money[1:]
-                     + " - nasza szansa nie jest przewagą nad ceną.")
+        lines.append(money[0].upper() + money[1:] + " - " + NO_EDGE + ".")
     if result.max_legs > MAX_LEGS or any(
             s.single_rows > MAX_LEGS for s in result.slips):
         top = max([result.max_legs, *counts])
@@ -912,6 +1142,12 @@ def render(
         "Szansa nogi = jej pewność ze statystyk (z dowodem linii Superbetu), "
         "nigdy ponad cenę: pewność (każdy sport) powyżej ceny liczona po cenie "
         "(1/kurs). "
+        f"Pula: noga z własną próbką meczu ≥ {MIN_SAMPLE} (CS2: silnik map); "
+        "kurs dopytany w Superbecie tuż przed odpowiedzią - noga, której kurs "
+        f"urósł > {PRICE_RISE_DROP * 100:.0f}% od kuponu, wypada (rynek przeciw). "
+        "Kolumny dowodu (próbka, zestawienie, liga, h2h, sędzia, model) to "
+        "podgląd - w backteście nie odróżniały dobrej nogi od złej przy tej samej "
+        "cenie. "
         "Jedna noga z meczu; przy remisie szansy wygrywa noga z marżą drabinki "
         f"< {LOW_MARGIN * 100:.0f}% (kolumna „marża”, „1-str.” = rynek "
         "jednostronny). "
@@ -933,10 +1169,10 @@ def render(
         lines += [
             head,
             "",
-            "| start | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
-            "szansa | źródło | pewność | pewność < 1/kurs | marża | zestawienie | "
-            "czytana | cena sprzed |",
-            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+            "| start | mecz | zakład (słowami Superbetu) | kurs | kurs kuponu → teraz "
+            "| 1/kurs | szansa | pewność | pewność < 1/kurs | model | próbka | "
+            "zestawienie | liga | h2h | sędzia | marża | czytana | cena sprzed |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for x in s.legs:
             g = x.leg
@@ -963,11 +1199,15 @@ def render(
                 below = ("**tak**" if float(g["confidence"]) < 1 / x.odds
                          else "nie")
                 matchup = (matchups or {}).get(matchup_key(g), "")
+            ev = (evidence or {}).get(matchup_key(g)) or {}
             lines.append(
-                f"| {start} | {g.get('match')} | {bet} | {odds} | "
-                f"{implied} | {_pct(x.chance)} | {x.chance_source} | "
-                f"{_pct(float(g['confidence']))} | {below} | {_margin(x)} | "
+                f"| {start} | {g.get('match')} | {bet} | {odds} | {_move(x)} | "
+                f"{implied} | {_pct(x.chance)} | "
+                f"{_pct(float(g['confidence']))} | {below} | {_model(g)} | "
+                f"{_sample(g, x.odds)} | "
                 f"{matchup.removeprefix('zestawienie: ') or '—'} | "
+                f"{ev.get('league') or '—'} | {ev.get('h2h') or '—'} | "
+                f"{ev.get('referee') or '—'} | {_margin(x)} | "
                 f"{read} | {_age(x)} |"
             )
         lines += [

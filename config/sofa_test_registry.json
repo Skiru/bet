@@ -592,6 +592,56 @@
           "quote": "Test papierowy: handicap punktowy koszykówki, kurs Superbetu x p otwarcia bet365"
         }
       ]
+    },
+    {
+      "id": "T-KUPON-LEAGUE-RATE-UNDER",
+      "registered_on": "2026-10-31",
+      "status": "REGISTERED",
+      "hypothesis": "A coupon leg whose confidence comes from the league's rate (forecast_source league_rate: penalties / red cards unders, the same number for every match of a league) realises above the other legs of its 1/odds band (band-matched excess > 0). Found in the /kupon redesign backtest: the one BH group of 1,056 dev cells; dev +3.80 pp [+0.92, +6.76] n 870, validation +7.08 [+3.42, +10.57] n 523, hold-out +5.99 [-1.38, +12.97] n 157 (not significant). As a single after the 12% tax it still lost (-12.5% / -8.4% / -11.4%).",
+      "rule": "L1 of frozen_rules.json: every leg of the day's printed coupon (decision = the last printed/<ts>.json snapshot >= 30 min before kickoff, not removed by reads) with forecast_source == 'league_rate'; graded from 13_results.json / sofa_settled_row; excess = (hit - mean 1/odds) of the cell minus that of every graded leg of the window in the same 0.05 band of 1/odds, weighted by the cell's legs. Display / measurement only: /kupon keeps such legs out of its pool unless --allow-no-sample.",
+      "population": "Printed coupon legs of every sport from 2026-11-01 with forecast_source league_rate (football in practice).",
+      "data_window": {
+        "from": "2026-11-01",
+        "to": null
+      },
+      "required_n": {
+        "legs": 600,
+        "basis": "~40-60 such legs a day in 10-13..10-30; a +4 pp excess at match-clustered sd needs ~600 legs for a lower bound above 0."
+      },
+      "evaluation": "Re-run of the frozen harness docs/sofa/evidence/kupon_od_nowa_2026-10-31/ (load_legs.py -> bt_lib.py, frozen_rules.json sha256 a3b8ae035cc7bde9221a18170a8a82a53ba921093372640a6917d830d2b3f1a0) on the forward window only, never pooled with 10-13..10-30. Match bootstrap 1000.",
+      "stop_criterion": "Judged once at the first 600 forward legs in kickoff order: PASSED when the excess's lower 95% bound is above 0 - then a discussion with the operator (a pool change, never a stake); otherwise FAILED. Even PASSED says nothing about profit after tax.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/kupon_od_nowa_2026-10-31.md",
+          "line": 71,
+          "quote": "| L1 stawka ligi (`league_rate`) | +3,80 [+0,92; +6,76] n 870 | +7,08 [+3,42; +10,57] n 523 | +5,99 [−1,38; +12,97] n 157 |"
+        }
+      ]
+    },
+    {
+      "id": "T-KUPON-PRICE-RISE-DROP",
+      "registered_on": "2026-10-31",
+      "status": "REGISTERED",
+      "hypothesis": "A coupon leg whose Superbet price rose more than 2% between the coupon's price and the last price before the start realises below its 1/odds band at the coupon's price (the market moved against it). Backtest excess dev -3.78 pp [-5.94, -1.80] n 3,860, validation -5.70 [-9.76, -1.88] n 1,134, hold-out -3.05 [-11.31, +5.42] n 261 (not significant). Legs kept realise at their close price (excess ~0).",
+      "rule": "P1 of frozen_rules.json: printed coupon legs (decision snapshot as in T-KUPON-LEAGUE-RATE-UNDER) with a pre-start close price in closing.jsonl; dropped = close_odds > 1.02 x the decision odds; excess at the decision odds vs every graded leg of the window in the same 0.05 band of 1/odds. /kupon applies it live (slip_builder.PRICE_RISE_DROP) as a quality filter from 2026-10-31; this test measures the rule, not the chat slips.",
+      "population": "Printed coupon legs of every sport from 2026-11-01 with a closing.jsonl price fetched before the start.",
+      "data_window": {
+        "from": "2026-11-01",
+        "to": null
+      },
+      "required_n": {
+        "dropped_legs": 1000,
+        "basis": "~250-320 dropped legs a day in 10-13..10-28; 1,000 legs gives a CI half-width ~3 pp."
+      },
+      "evaluation": "Re-run of the frozen harness docs/sofa/evidence/kupon_od_nowa_2026-10-31/ (load_legs.py -> bt_lib.py, frozen_rules.json sha256 a3b8ae035cc7bde9221a18170a8a82a53ba921093372640a6917d830d2b3f1a0) on the forward window only, never pooled with 10-13..10-30. Match bootstrap 1000.",
+      "stop_criterion": "Judged once at the first 1,000 forward dropped legs in kickoff order: CONFIRMED (status PASSED) when the excess's upper 95% bound is below 0; otherwise FAILED and /kupon's 2% drop is reviewed with the operator.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/kupon_od_nowa_2026-10-31.md",
+          "line": 73,
+          "quote": "| P1 zdjęte (kurs urósł > 2%), po cenie kuponu | −3,78 [−5,94; −1,80] n 3 860 | −5,70 [−9,76; −1,88] n 1 134 | −3,05 [−11,31; +5,42] n 261 |"
+        }
+      ]
     }
   ]
 }

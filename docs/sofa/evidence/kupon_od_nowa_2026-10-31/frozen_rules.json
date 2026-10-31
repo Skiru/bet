@@ -1,0 +1,20 @@
+{
+ "frozen_at": "2026-10-31, before any hold-out row (10-29, 10-30) was read",
+ "protocol": "PROTOCOL.md",
+ "leg_cells_tested": "1290 leg cells (A 339, B 416, C 315, D 220 leg rows), 1056 with dev n >= 100; BH q=0.10 on dev p_excess: 24 discoveries",
+ "leg_rules": {
+  "L1_league_rate": "d.forecast_source == 'league_rate'   (all UNDER: red cards / penalties 0.5; dev +4.26 pp [1.33, 7.11] n 661 in batch C cell src_league_rate|all; val +7.58 [3.53, 11.27] n 385)",
+  "L2_lr_conf_below": "(d.forecast_source == 'league_rate') & (d.conf < d.inv)   (dev +4.63 [1.69, 7.65] n 545; val +6.38 [1.79, 10.68] n 252)"
+ },
+ "price_move_rule": {
+  "P1_drop_lengthened": "drop when d.move_close > 0.02 (fresh Superbet price before kickoff vs the coupon's price); judged as the dropped group's band-matched excess at the coupon price (dev -3.78 [-5.94, -1.80] n 3860; val -5.70 [-9.76, -1.88] n 1134) and the kept group at the close price (ref = legs with a close price)"
+ },
+ "slip_configs": {
+  "S1_protocol_pick": "pool L1, rank random (20 seeds), n_legs 3, target 3.0, slips_per_window 3, all windows (val +18.25% n 223 slips; dev -34.74% n 86 - picked mechanically by PROTOCOL.md step 3, highest val ROI with >= 30 slips)",
+  "S2_L1_two_legs": "pool L1 & P1-kept, rank current, n_legs 2, target 1.5, slips_per_window 3",
+  "C1_current_kupon": "pool ALL, rank current (log min(conf, inv) + low-margin tie), n_legs 2, target 2.0, slips_per_window 3",
+  "C2_random_two": "pool ALL, rank random (20 seeds), n_legs 2, target 2.0, slips_per_window 3",
+  "C3_random_single": "pool ALL, rank random (20 seeds), n_legs 1, target 1.5, slips_per_window 3"
+ },
+ "harness_sha256": "c7839c45df4e4c17f5d5a3603b92d1865c2c861ba932ebff3528bdeccaa05ad1"
+}

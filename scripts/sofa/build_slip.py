@@ -19,8 +19,21 @@ the answer then lists each extra leg's measured cost), Bet Builders only with
 leg limit cannot reach said in the first line with the closest slip under it
 (never a silent extra leg), a leg of a two-sided ladder with overround < 0.08
 preferred in a near-tie (column "marża"), and the second line the honest
-money line: expected return after tax = 0.88 x 0.946^n - 1 (what the
-coupon's legs realised against their price 10-20..10-30, n 49,189).
+money line: expected return after tax = 0.88 x 0.960^n - 1 (what the /kupon
+pool's legs realised against their price 10-13..10-30, n 36,940).
+
+The redesign (2026-10-31, docs/sofa/evidence/kupon_od_nowa_2026-10-31.md): no
+statistic told a good leg from a bad one at the same price, so the evidence
+is shown, never ranked; a leg needs its match's own sample (>= 8 games;
+--allow-no-sample admits a leg with none, e.g. the league-rate penalty /
+red-card unders), and the chosen legs' prices are asked again right before
+the answer - football / tennis from Superbet's offer (OfferFetcher, its
+breaker respected), the measured sports from their loop's newest pre-start
+snapshot - and a leg priced more than 2% above the coupon drops out, the
+slips rebuilt without it (--no-fresh-price: the coupon's prices, marked "nie
+dopytano"). Each leg's row carries its fresh price beside the coupon's, its
+own sample, the model, the match-up, the league share, h2h and the referee
+(bet.sofa.slip_evidence) next to 1/odds.
 
 --check "<mecz>|<rynek Superbetu>|<wybór>" (repeat per leg) [--screen-odds X]:
 the operator's own Bet Builder of one match against our numbers instead
@@ -70,12 +83,14 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from bet.sofa import (  # noqa: E402  # noqa: E402
+from bet.sofa import (  # noqa: E402
     dossier,
     h2h,
     prematch_lineups,
     priced_rows,
     priced_view,
+    slip_evidence,
+    sport_day,
     timeutil,  # noqa: E402
 )
 from bet.sofa import slip_builder as sb  # noqa: E402
@@ -160,6 +175,133 @@ def window(
     return lo, hi
 
 
+def _utc(raw: Any) -> datetime.datetime | None:
+    if not raw:
+        return None
+    return datetime.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+
+
+def _same_line(leg: dict[str, Any] | Any, row: dict[str, Any]) -> bool:
+    """A measured sport's coupon leg against one snapshot line."""
+    def num(v: Any) -> float | None:
+        return None if v is None else float(v)
+    if (leg.get("market_id") is not None and row.get("market_id") is not None
+            and int(leg["market_id"]) != int(row["market_id"])):
+        return False
+    return (str(row.get("family") or "") == str(leg.get("family") or "")
+            and str(row.get("subject") or "") == str(leg.get("subject") or "")
+            and num(row.get("line")) == num(leg.get("line"))
+            and str(row.get("side") or "") == str(leg.get("side") or "")
+            and int(row.get("period") or 0) == int(leg.get("period") or 0)
+            and int(row.get("map_nr") or 0) == int(leg.get("map_nr") or 0))
+
+
+def sport_fresh(runs_dir: str, leg: Any) -> sb.FreshPrice:
+    """A measured sport's leg at its loop's newest snapshot taken before the
+    start (SHADOW / CS2 snapshots.jsonl of the leg's source day): OK with its
+    price, GONE when that snapshot no longer quotes the line, NOT_ASKED when
+    no snapshot is newer than the coupon's price."""
+    sport = str(leg.get("sport"))
+    day = str(leg.get("source_date") or "")
+    kickoff = _utc(leg.get("kickoff_utc"))
+    if sport not in ("hockey", "basketball", "volleyball", "cs2") or not day:
+        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
+    path = sport_day.day_dir(runs_dir, sport, day) / "snapshots.jsonl"  # type: ignore[arg-type]
+    newest: dict[str, Any] | None = None
+    for snap in sport_day.load_snapshots(path):
+        if str(snap.get("superbet_event_id")) != str(leg.get("superbet_event_id")):
+            continue
+        at = _utc(snap.get("fetched_at_utc"))
+        if at is None or (kickoff is not None and at >= kickoff):
+            continue
+        if newest is None or at > (_utc(newest.get("fetched_at_utc")) or at):
+            newest = snap
+    priced = _utc(leg.get("price_fetched_at_utc"))
+    if newest is None or (priced is not None
+                          and (_utc(newest.get("fetched_at_utc")) or priced) <= priced):
+        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
+    for row in newest.get("lines") or []:
+        if _same_line(leg, row) and row.get("odds") is not None:
+            return sb.FreshPrice(sb.FRESH_OK, float(row["odds"]),
+                                 str(newest["fetched_at_utc"]))
+    return sb.FreshPrice(sb.FRESH_GONE, None, str(newest["fetched_at_utc"]))
+
+
+def offer_fresh(run: Path, legs: list[Any], fetcher: Any,
+                now: datetime.datetime) -> dict[tuple[Any, ...], sb.FreshPrice]:
+    """Football / tennis legs re-asked of Superbet's offer one event at a time
+    (capture_closing's rung match): OK with the side's price, GONE when the
+    fetched offer no longer quotes it or Superbet shows the match started,
+    NOT_ASKED on an error or an open breaker (the coupon's price stands)."""
+    from pydantic import RootModel
+
+    from bet.sofa.contracts import Fixture
+    from scripts.sofa.capture_closing import close_record
+
+    out: dict[tuple[Any, ...], sb.FreshPrice] = {}
+    path = run / "02_fixtures.json"
+    if not path.exists():
+        return out
+    fixtures = {f.sofascore_event_id: f for f in RootModel[list[Fixture]]
+                .model_validate_json(path.read_bytes()).root}
+    by_event: dict[int, list[Any]] = {}
+    for g in legs:
+        by_event.setdefault(int(g["sofascore_event_id"]), []).append(g)
+    for eid, these in by_event.items():
+        offer = None
+        if eid in fixtures:
+            seen = len(getattr(fetcher, "errors", []) or [])
+            try:
+                got = fetcher.fetch_offers([fixtures[eid]])
+            except Exception:  # noqa: BLE001 - network: the leg stays unasked
+                got = []
+            failed = (getattr(fetcher, "errors", []) or [])[seen:] or (
+                eid in (getattr(fetcher, "not_reached", []) or []))
+            offer = next((o for o in got if o.sofascore_event_id == eid), None)
+            if offer is None and failed:
+                continue
+        if offer is None:
+            continue
+        stamp = now.isoformat().replace("+00:00", "Z")
+        for g in these:
+            leg = {"sofascore_event_id": eid, "market": g["market"],
+                   "subject": g.get("subject") or "", "line": g.get("line"),
+                   "direction": g.get("direction"),
+                   "offered_odds": g.get("offered_odds"),
+                   "kickoff_utc": g.get("kickoff_utc")}
+            rec = None if offer.superbet_started_utc is not None else close_record(
+                "slip", leg, offer, now)
+            out[sb.fresh_key(g)] = (
+                sb.FreshPrice(sb.FRESH_OK, float(rec["odds_close"]), stamp)
+                if rec else sb.FreshPrice(sb.FRESH_GONE, None, stamp))
+    return out
+
+
+def fresh_asker(run: Path, runs_dir: str, date: str,
+                now: datetime.datetime) -> Any:
+    """The callable build() re-asks the chosen legs' prices with."""
+    fetcher: Any = None
+
+    def ask(legs: Any) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        nonlocal fetcher
+        out: dict[tuple[Any, ...], sb.FreshPrice] = {}
+        sheet = [g for g in legs if not g.get("family")]
+        for g in legs:
+            if g.get("family"):
+                out[sb.fresh_key(g)] = sport_fresh(runs_dir, g)
+        if sheet:
+            if fetcher is None:
+                from bet.sofa.offer import OfferFetcher, day_flags
+                from bet.sofa.superbet import SuperbetClient
+                fetcher = OfferFetcher(SuperbetClient(
+                    base_url="https://production-superbet-offer-pl.freetls.fastly.net"),
+                    **day_flags(date))
+            out.update(offer_fresh(run, sheet, fetcher, now))
+        return out
+
+    return ask
+
+
 def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
                    db_path: str | None = None,
                    fetch_h2h: bool = True,
@@ -233,6 +375,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="no Sofascore pre-match line-up request")
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--md-out", default=None)
+    ap.add_argument("--no-fresh-price", action="store_true",
+                    help="no re-ask of the chosen legs' prices (offline): the "
+                    "coupon's prices, marked 'nie dopytano'")
+    ap.add_argument("--allow-no-sample", action="store_true",
+                    help="admit a leg with no own match sample (league rate / "
+                    "model only); a 1-7 game sample stays out")
     ap.add_argument("--check", action="append", default=[],
                     help="'<mecz>|<rynek Superbetu>|<wybór>': a leg of the operator's "
                     "own builder (repeat); prints the check instead of a slip")
@@ -298,7 +446,12 @@ def main(argv: list[str] | None = None) -> int:
         built_at=coupon.get("created_at_utc"),
         competitions=args.competition,
         builders=(coupon.get("builders") or []) if args.builders else (),
+        fresh_prices=None if args.no_fresh_price else fresh_asker(
+            run, args.runs_dir, args.date, now),
+        allow_no_sample=args.allow_no_sample,
     )
+    shown = [g for s in result.slips + result.reserve for x in s.legs
+             for g in sb.leg_rows(x)]
     text = sb.render(
         result,
         day=args.date,
@@ -306,9 +459,9 @@ def main(argv: list[str] | None = None) -> int:
         now=now,
         built_at=coupon.get("created_at_utc"),
         matchups=dossier.matchups_for_legs(
-            run, [g for s in result.slips + result.reserve for x in s.legs
-                  for g in sb.leg_rows(x)],
-            db_path=args.db_path or dossier.DB_PATH),
+            run, shown, db_path=args.db_path or dossier.DB_PATH),
+        evidence=slip_evidence.evidence_for_legs(
+            run, shown, db_path=args.db_path or dossier.DB_PATH),
     )
     if args.md_out:
         Path(args.md_out).parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,7 @@
+cell,split,n,matches,hit,inv,lift_pp,excess_pp,roi_pre,single_after_tax,n_days,max_day_share,max_match_legs
+x_oclh_k3_m0.05__half_half,dev,112,100,0.8393,0.7841,5.52,9.52,7.13,-5.72,12,0.295,2
+x_ablh_all_m0.05_a2__fam_corners,dev,141,103,0.8156,0.7681,4.75,8.64,5.94,-6.77,12,0.262,6
+x_indep_all_m0.05_a3__fam_corners,dev,119,92,0.7983,0.7524,4.59,8.32,5.87,-6.83,12,0.294,7
+x_oclh_k3_m0.05__half_half,val,40,36,0.675,0.7773,-10.23,-5.92,-13.75,-24.1,4,0.425,2
+x_ablh_all_m0.05_a2__fam_corners,val,50,38,0.82,0.7862,3.38,7.53,4.3,-8.22,4,0.6,4
+x_indep_all_m0.05_a3__fam_corners,val,37,31,0.7838,0.7724,1.14,5.21,1.14,-11.0,4,0.541,3

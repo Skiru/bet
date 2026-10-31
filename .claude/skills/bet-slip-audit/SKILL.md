@@ -70,16 +70,47 @@ no-ops).
 10-13..10-26, hold-out 10-27..10-30, morning print prices, 12% turnover tax -
 `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): **no flow clears zero
 after tax**. Hold-out after tax: singles −16.6%, random 2-leg −19.0%, 3 legs
-−30.2%, 2-4 legs at ~3 −28.5%, the old objective at up to 5 legs −31.5%; a
-coupon leg returns ~0.946 of its price (hit 0.782 vs 1/odds 0.827, 49,189
-legs 10-20..10-30). So:
+−30.2%, 2-4 legs at ~3 −28.5%, the old objective at up to 5 legs −31.5%.
+
+**The redesign** (2026-10-31, `docs/sofa/evidence/kupon_od_nowa_2026-10-31.md`;
+~1,800 cells, dev 10-13..10-24, validation 10-25..10-28, one hold-out
+10-29..10-30 after the rules were frozen): **no definition of a
+statistically strong leg tells a good leg from a bad one at the same price**
+- own sample, what the opponent concedes, both sides' games, league share,
+h2h, referee, model, confidence above 1/odds, all of them together; no
+ranking beats a random one; every slip loses after tax. What /kupon does
+with it, as a quality filter (never "an edge"):
+
+- **Pool = legs on the match's own statistics**: own sample >= 8 games
+  (`slip_builder.MIN_SAMPLE`; refused "bez próbki meczu" / "mikropróbka" in
+  the Odrzucone line). A CS2 engine leg records no sample and passes.
+  `--allow-no-sample` (only on the operator's request) admits a leg with no
+  sample - e.g. the league-rate penalty / red-card unders, the least-bad
+  group measured (+3.8 / +7.1 / +6.0 pp above the price band) yet −8% to −12%
+  as a single after tax; a 1-7 game sample stays out.
+- **Fresh price right before the answer**: the chosen legs are re-asked
+  (football / tennis: Superbet's offer through `OfferFetcher`, its breaker
+  respected; the sports: their loop's newest pre-start snapshot) and a leg
+  more than 2% above the coupon's price (`PRICE_RISE_DROP`; the market went
+  against it - measured −3.8 / −5.7 / −3.1 pp) or gone from the offer drops
+  out, the slips rebuilt without it (up to 4 rounds). A lower fresh price
+  replaces the coupon's. Column "kurs kuponu → teraz"; "**nie dopytano**" =
+  the re-ask failed or found nothing newer (say so: check the screen). The
+  move that matters can come after the answer (31.10: Bernau 1.52 until 26
+  min before the start, 1.65 at it) - tell the operator to re-run right
+  before placing a slip answered long before its start.
+- **Evidence columns, display only**: model, own sample k/n (bold below
+  1/odds), zestawienie, league share, h2h, referee (`bet.sofa.slip_evidence`,
+  cut at the kickoff). Never rank or remove a leg by them yourself.
+- A leg returns ~0.960 of its price in this pool (10-13..10-30, n 36,940;
+  every coupon leg 0.947). So:
 
 - **2 legs by default** (`--max-legs` default 2). Raise it only when the
   operator asks ("3 nogi"); the script then prints the measured cost of each
-  leg (0.88 × 0.946^n − 1). Never raise it to reach a target.
+  leg (0.88 × 0.960^n − 1). Never raise it to reach a target.
 - **Target out of reach of the limit** (e.g. ~4 with 2 legs of at most 2.00):
   the first line says so - "Na ~4 trzeba 3 nóg - każda kolejna noga to ok.
-  −5% więcej; z 2 nogami najbliżej ~X" - and the slip is the closest under
+  −4% więcej; z 2 nogami najbliżej ~X" - and the slip is the closest under
   the target (the highest product the limit's legs reach, the best chance at
   it), marked "Cel ~X NIE osiągnięty"; exit 1. Never a silent extra leg.
 - **Bet Builders off by default.** `--builders` only on the operator's
@@ -95,8 +126,10 @@ legs 10-20..10-30). So:
   (`LOW_MARGIN_TIE`; measured +2.2 pp [+0.1, +4.2] within market on dev, not
   held out - so never a gate); column "marża" ("1-str." = one-sided).
 - **The honest money line** replaces any return computed from our
-  confidence: "oczekiwany zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki
-  (zmierzone: nogi kuponu 10-20..10-30, n 49 189; podatek 12%)" - line 2 and
+  confidence: "oczekiwany zwrot po podatku ≈ 0,88 × 0,96^n − 1 = −X% stawki
+  (zmierzone: pula /kupon - próbka meczu ≥ 8, kurs nie urósł > 2%; nogi
+  kuponu 10-13..10-30, n 36 940; podatek 12%) - przewagi nad ceną nie ma
+  (...)" - line 2 and
   every slip header of singles; a single below 1/0.88 = 1.136 reads "wygrana
   zwraca mniej niż gotówka". A slip holding a Bet Builder gets no per-leg
   formula for the builder: the builders' measured numbers (−16,6% dev /
@@ -105,13 +138,15 @@ legs 10-20..10-30). So:
   combined number.
 
 **What the script shows** (read every column into the answer): per leg
-measured chance beside 1/odds, "pewność < 1/kurs" (confidence below the
-price), the dossier's "zestawienie"
+the (fresh) price and "kurs kuponu → teraz", measured chance beside 1/odds,
+"pewność < 1/kurs" (confidence below the price), model, own sample, the
+dossier's "zestawienie"
 (`style.matchup`: own k/n vs what the opponent concedes / both sides' games /
 league share); a leg starting within 45 min is marked ⚠ (a read round takes
 20-30 min), and "marża" (the leg's ladder overround, bold below 8%; "1-str."
 one-sided). The slip header gives the measured chance beside 1/price and the
-money line (0.88 × 0.946^n − 1, measured - never chance × payout).
+money line (0.88 × 0.960^n − 1, measured - never chance × payout), and the
+league / h2h / referee cells.
 
 **Before running it:** `build_slip.py` is NOT read-only - with
 `--read-set-dir` it asks Sofascore through the
@@ -121,7 +156,8 @@ runs/sofa/<d>/slips/<HHMM>.md` (`mkdir -p runs/sofa/<d>/slips`) so a staked
 slip can be traced.
 
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
-singles, not started (15 min margin, = the analysts' started-skip), odds 1.10-2.00, one per match, at
+singles, not started (15 min margin, = the analysts' started-skip), own
+sample >= 8, not priced up > 2% on the re-ask, odds 1.10-2.00, one per match, at
 most `--max-legs` (default 2); a leg's measured chance = min(confidence, 1/odds)
 for every leg of every sport (never above its price). An exact multiple-choice knapsack
 maximises the slip's measured chance under "price product >= target" - which

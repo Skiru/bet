@@ -44,6 +44,8 @@ def _leg(
         "match": f"A{eid} - B{eid}",
         "superbet_market": "Liczba rzutów rożnych",
         "superbet_selection": f"powyżej {line}",
+        "sample_size": 10,
+        "sample_hit_rate": 0.8,
         **extra,
     }
 
@@ -760,7 +762,7 @@ def test_slip_mixing_a_builder_and_singles_states_both_parts() -> None:
     assert slip.has_builder and len(slip.legs) == 2
     assert (slip.rows, slip.single_rows) == (3, 1)
     line = sb.slip_money_line(slip)
-    assert line.startswith("część pojedyncza (1 noga): każda noga zwraca ok. 0,946")
+    assert line.startswith("część pojedyncza (1 noga): każda noga zwraca ok. 0,96 ")
     assert "builder: bez wzoru na nogę - Bet Buildery zmierzone po podatku" in line
     assert "kurs buildera decyduje ekran Superbetu" in line
     assert "łącznego zwrotu kuponu nie podajemy" in line
@@ -847,8 +849,8 @@ def test_default_is_two_legs_and_builders_are_opt_in(
     assert len(raised.slips[0].legs) == 3 and raised.slips[0].reached
     text = sb.render(raised, day="2026-10-20", target=2.0, now=NOW)
     assert ("Limit nóg 3 (domyślnie 2): każda kolejna noga mnoży zwrot przez "
-            "0,946") in text
-    assert "1 noga −16,8%, 2 nogi −21,2%, 3 nogi −25,5%" in text
+            "0,96") in text
+    assert "1 noga −15,5%, 2 nogi −18,9%, 3 nogi −22,1%" in text
     day = "2026-10-20"
     run = tmp_path / day
     run.mkdir()
@@ -880,7 +882,7 @@ def test_target_out_of_reach_of_the_leg_limit_is_said_first(
     assert slip.price_product == pytest.approx(1.8 * 1.8)
     text = sb.render(res, day="2026-10-20", target=4.0, now=NOW)
     first = text.splitlines()[0]
-    assert first == ("**Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −5% więcej; "
+    assert first == ("**Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −4% więcej; "
                      "z 2 nogami najbliżej ~3.24 (iloczyn kursów nóg, nie kurs "
                      "kuponu).**")
     assert "Cel ~4 NIE osiągnięty" in text and "Cel ~4 osiągnięty" not in text
@@ -921,7 +923,7 @@ def test_low_margin_leg_wins_a_tie_and_the_margin_is_shown() -> None:
     assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [4]
     pair = sb.build([low, high, one_sided], NOW, target=3.9)
     text = sb.render(pair, day="2026-10-20", target=3.9, now=NOW)
-    assert "| pewność < 1/kurs | marża | zestawienie |" in text
+    assert "| pewność < 1/kurs | model | próbka | zestawienie |" in text
     assert "| **6,0%** |" in text
     assert ("| 11,0% |" in text) or ("| 1-str. |" in text)
 
@@ -938,14 +940,16 @@ def test_objective_is_the_measured_chance_unchanged() -> None:
 
 
 def test_money_line_is_measured_after_tax_never_our_confidence() -> None:
-    """(5) the honest money line: 0.88 x 0.946^n - 1 with its source, in the
+    """(5) the honest money line: 0.88 x 0.960^n - 1 with its source (the
+    /kupon pool's measured realisation, redesign 2026-10-31), in the
     first lines and on every slip; never "zwrot wg naszych liczb"; a single
     below 1/0.88 is marked as paying back less than the stake."""
-    assert sb.REALISED_PER_LEG == 0.946 and sb.TAX == 0.12
-    assert sb.expected_return(1) == pytest.approx(0.88 * 0.946 - 1)
-    assert sb.expected_return(2) == pytest.approx(0.88 * 0.946**2 - 1)
-    line = ("oczekiwany zwrot po podatku ≈ 0,88 × 0,946^2 − 1 = −21,2% stawki "
-            "(zmierzone: nogi kuponu 10-20..10-30, n 49 189; podatek 12%)")
+    assert sb.REALISED_PER_LEG == 0.960 and sb.TAX == 0.12
+    assert sb.expected_return(1) == pytest.approx(0.88 * 0.960 - 1)
+    assert sb.expected_return(2) == pytest.approx(0.88 * 0.960**2 - 1)
+    line = ("oczekiwany zwrot po podatku ≈ 0,88 × 0,96^2 − 1 = −18,9% stawki "
+            "(zmierzone: pula /kupon - próbka meczu ≥ 8, kurs nie urósł > 2%; "
+            "nogi kuponu 10-13..10-30, n 36 940; podatek 12%)")
     assert sb.money_line(2) == line
     res = sb.build([_leg(1, 1.5, 0.69), _leg(2, 1.5, 0.69)], NOW, target=2.2)
     text = sb.render(res, day="2026-10-20", target=2.2, now=NOW)
@@ -955,7 +959,7 @@ def test_money_line_is_measured_after_tax_never_our_confidence() -> None:
     assert "zwrot wg naszych liczb" not in text
     single = sb.build([_leg(1, 1.12, 0.88)], NOW, target=1.11)
     text = sb.render(single, day="2026-10-20", target=1.11, now=NOW)
-    assert "0,946^1 − 1 = −16,8% stawki" in text
+    assert "0,96^1 − 1 = −15,5% stawki" in text
     assert "wygrana zwraca mniej niż gotówka (kurs < 1,136 przy podatku 12%)" in text
     ok = sb.build([_leg(1, 1.2, 0.82)], NOW, target=1.15)
     assert "mniej niż gotówka" not in sb.render(ok, day="2026-10-20", target=1.15,
@@ -974,3 +978,138 @@ def test_legs_needed_and_reach_share_the_per_match_best_odds() -> None:
     assert sb.legs_needed(pool, 3.0) == 2
     assert sb.legs_needed(pool, 3.6) == 3
     assert sb.legs_needed(pool, 3.7) is None
+
+
+# --- the redesign 2026-10-31 (docs/sofa/evidence/kupon_od_nowa_2026-10-31.md)
+
+
+def test_a_leg_needs_its_matchs_own_sample() -> None:
+    """31.10 operator: penalties under 0.5 from the league rate (sample 0),
+    Byfield's power-play points (sample 0) and a 4-game winner stood in the
+    slips; a /kupon leg needs MIN_SAMPLE of its match's own games. A CS2
+    engine leg records no sample and is not refused for it; --allow-no-sample
+    admits a leg with none, never a micro-sample."""
+    legs = [
+        _leg(1, 1.40, 0.70, market="penalties_total", direction="UNDER",
+             sample_size=0, forecast_source="league_rate"),
+        _leg(2, 1.40, 0.70, sample_size=4, sample_hit_rate=1.0),
+        dict(_leg(3, 1.40, 0.70, sample_size=0), sport="cs2",
+             forecast_source="cs2_engine", family="map_winner"),
+        dict(_leg(4, 1.40, 0.70), sport="basketball", family="winner",
+             sample_size=None, sample_n=18, sample_k=10),
+        _leg(5, 1.40, 0.70, sample_size=8, sample_hit_rate=0.5),
+    ]
+    pool, refused = sb.candidates(legs, NOW)
+    assert sorted(x.leg["sofascore_event_id"] for x in pool) == [3, 4, 5]
+    assert refused == {"bez próbki meczu (stawka ligi / sam model)": 1,
+                       f"mikropróbka (< {sb.MIN_SAMPLE} meczów)": 1}
+    pool, refused = sb.candidates(legs, NOW, allow_no_sample=True)
+    assert sorted(x.leg["sofascore_event_id"] for x in pool) == [1, 3, 4, 5]
+    assert sb.own_sample(legs[3]) == (10, 18)
+    assert sb.own_sample(legs[4]) == (4, 8)
+    assert sb.own_sample(legs[0]) is None
+
+
+def test_a_leg_whose_price_rose_drops_and_the_next_takes_its_place() -> None:
+    """31.10: Bernau rose from 1.52 to 1.65 before the start (the market
+    against it) and nobody looked. The chosen legs are re-asked; a price more
+    than PRICE_RISE_DROP above the coupon's drops the leg and the slips are
+    rebuilt; a lower fresh price replaces the coupon's (the measured chance
+    with it); each round asks only legs not asked yet."""
+    legs = [_leg(1, 1.52, 0.70), _leg(2, 1.40, 0.70), _leg(3, 1.45, 0.60)]
+    asked: list[list[int]] = []
+    fresh = {1: sb.FreshPrice(sb.FRESH_OK, 1.65, "2026-10-20T07:59:00Z"),
+             2: sb.FreshPrice(sb.FRESH_OK, 1.38, "2026-10-20T07:59:00Z"),
+             3: sb.FreshPrice(sb.FRESH_OK, 1.46, "2026-10-20T07:59:00Z")}
+
+    def ask(chosen: Any) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        asked.append(sorted(g["sofascore_event_id"] for g in chosen))
+        return {sb.fresh_key(g): fresh[g["sofascore_event_id"]] for g in chosen}
+
+    res = sb.build(legs, NOW, target=1.9, fresh_prices=ask)
+    picked = {x.leg["sofascore_event_id"]: x for x in res.slips[0].legs}
+    assert sorted(picked) == [2, 3]
+    assert asked == [[1, 2], [3]]
+    assert picked[2].odds == 1.38 and picked[2].coupon_odds == 1.40
+    assert picked[2].chance == pytest.approx(min(0.70, 1 / 1.38))
+    assert picked[3].odds == 1.46  # +0.7%: under the drop, the fresh price stands
+    assert res.refused == {"kurs urósł > 2% od kuponu (rynek przeciw)": 1}
+    text = sb.render(res, day="2026-10-20", target=1.9, now=NOW)
+    assert "| 1.38 | 1.40 → 1.38 |" in text
+    assert sb.NO_EDGE in text
+
+
+def test_a_leg_gone_from_the_offer_drops_and_an_unasked_one_is_marked() -> None:
+    legs = [_leg(1, 1.45, 0.70), _leg(2, 1.42, 0.70), _leg(3, 1.40, 0.68)]
+
+    def ask(chosen: Any) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        out = {}
+        for g in chosen:
+            if g["sofascore_event_id"] == 1:
+                out[sb.fresh_key(g)] = sb.FreshPrice(sb.FRESH_GONE)
+        return out  # 2 and 3: nothing back = not asked (breaker, error)
+
+    res = sb.build(legs, NOW, target=1.9, fresh_prices=ask)
+    assert sorted(x.leg["sofascore_event_id"] for x in res.slips[0].legs) == [2, 3]
+    assert all(x.fresh == sb.FRESH_NOT_ASKED for x in res.slips[0].legs)
+    assert res.refused == {"zeszła z oferty Superbetu (świeży kurs)": 1}
+    text = sb.render(res, day="2026-10-20", target=1.9, now=NOW)
+    assert "**nie dopytano**" in text
+    offline = sb.build(legs, NOW, target=1.9)
+    assert "| nie dopytano |" in sb.render(offline, day="2026-10-20", target=1.9,
+                                           now=NOW)
+
+
+def test_the_evidence_columns_stand_beside_the_price() -> None:
+    """Every signal next to 1/odds: model, own sample, match-up, league, h2h,
+    referee - display only (no ranking, no gate)."""
+    from bet.sofa.dossier import matchup_key
+
+    leg = _leg(1, 1.30, 0.75, forecast_p=0.81, sample_size=10, sample_hit_rate=0.9)
+    res = sb.build([leg], NOW, target=1.25)
+    ev = {matchup_key(leg): {"league": "150/228 (Liga)", "h2h": "2/3",
+                             "referee": "11/20"}}
+    text = sb.render(res, day="2026-10-20", target=1.25, now=NOW,
+                     matchups={matchup_key(leg):
+                               "zestawienie: A1 9/10 · B1 traci 7/10"},
+                     evidence=ev)
+    row = next(r for r in text.splitlines() if r.startswith("| 20.10"))
+    assert ("| 76,9% | 75,0% | 75,0% | **tak** | 81,0% | 9/10 (90,0%) | "
+            "A1 9/10 · B1 traci 7/10 | 150/228 (Liga) | 2/3 | 11/20 |") in row
+
+
+def test_sport_fresh_reads_the_newest_snapshot_before_the_start(tmp_path: Path) -> None:
+    day = tmp_path / "shadow" / "basketball" / "2026-10-31"
+    day.mkdir(parents=True)
+    line = {"superbet_event_id": "77", "market_id": 759, "family": "winner",
+            "period": 0, "subject": "", "line": None, "side": "T2"}
+    snaps = [
+        {"fetched_at_utc": "2026-10-31T09:00:00Z", "superbet_event_id": "77",
+         "kickoff_utc": "2026-10-31T18:30:00Z", "lines": [{**line, "odds": 1.52}]},
+        {"fetched_at_utc": "2026-10-31T17:50:00Z", "superbet_event_id": "77",
+         "kickoff_utc": "2026-10-31T18:30:00Z", "lines": [{**line, "odds": 1.65}]},
+        {"fetched_at_utc": "2026-10-31T18:40:00Z", "superbet_event_id": "77",
+         "kickoff_utc": "2026-10-31T18:30:00Z", "lines": [{**line, "odds": 3.10}]},
+    ]
+    (day / "snapshots.jsonl").write_text("".join(json.dumps(s) + "\n" for s in snaps))
+    leg = {"sport": "basketball", "source_date": "2026-10-31",
+           "superbet_event_id": "77",
+           "market_id": 759, "family": "winner", "period": 0, "subject": "",
+           "line": None, "side": "T2", "kickoff_utc": "2026-10-31T18:30:00Z",
+           "price_fetched_at_utc": "2026-10-31T09:00:00Z"}
+    got = build_slip.sport_fresh(str(tmp_path), leg)
+    assert got == sb.FreshPrice(sb.FRESH_OK, 1.65, "2026-10-31T17:50:00Z")
+    gone = build_slip.sport_fresh(str(tmp_path), {**leg, "side": "T1"})
+    assert gone.status == sb.FRESH_GONE
+    stale = build_slip.sport_fresh(
+        str(tmp_path), {**leg, "price_fetched_at_utc": "2026-10-31T18:00:00Z"})
+    assert stale.status == sb.FRESH_NOT_ASKED
+
+
+def test_a_sample_below_the_price_is_bold_never_a_gate() -> None:
+    """31.10: a volleyball set at 1.58 stood on 3 of 8 (37.5%) - shown bold
+    beside 1/odds; measured, such legs were no worse, so it stays."""
+    leg = {"sample_size": 8, "sample_hit_rate": 0.375}
+    assert sb._sample(leg, 1.58) == "**3/8 (37,5%)**"
+    assert sb._sample(leg, 3.0) == "3/8 (37,5%)"
+    assert sb.sample_refusal(leg) is None
