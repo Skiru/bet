@@ -5,10 +5,9 @@ The PDF (`scripts/sofa/build_coupon_pdf.py`) is the coupon and keeps its order
 `11_coupon.json`, in one self-contained file (data inlined, plain JavaScript,
 no server, no network) with filters - a time window, minimum confidence, sport,
 competition, market, odds, minimum x - and sortable columns. Every leg's
-figure is a field of the artifact; the one number it adds is the family's
-record on the printed legs of the days before (bet.sofa.family_record,
-`family_record.json`, a filter and a tag on the families on the plus). It
-prices no builder and sizes no stake.
+figure is a field of the artifact (the operator 2026-10-31 removed the
+families' record and its "rodzina na plusie" filter: a leg stands on its own
+statistics). It prices no builder and sizes no stake.
 
 `build_view` is the pure part (tested: the HTML must hold exactly the legs of
 the artifact); `render_html` only wraps it.
@@ -31,7 +30,6 @@ from bet.sofa import confidence as cf
 from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
 from bet.sofa import dossier, priced_view
-from bet.sofa import family_record as fr
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
@@ -196,11 +194,20 @@ def _result(leg: Mapping[str, Any], entry: Mapping[str, Any]) -> dict[str, Any] 
             "score": entry.get("score") or ""}
 
 
+def leg_x(leg: Mapping[str, Any]) -> float | None:
+    """x = confidence x odds as the PDF shows it (build_coupon_pdf.leg_x):
+    the leg's own `x` when the artifact carries one (sport legs, rounded to 4
+    decimals), else confidence x offered_odds, unrounded."""
+    if leg.get("x") is not None:
+        return float(leg["x"])
+    odds = leg.get("offered_odds")
+    return None if odds is None else float(leg["confidence"]) * float(odds)
+
+
 def build_view(
     doc: Mapping[str, Any],
     day: str,
     fixture_status: Mapping[str, Any] | None = None,
-    families: Mapping[str, Any] | None = None,
     results: Mapping[str, Any] | None = None,
     analyses: Mapping[str, Any] | None = None,
     matchups: Mapping[str, str] | None = None,
@@ -210,13 +217,10 @@ def build_view(
     shows the side's own hits beside what the opponent conceded (display).
     `analyses` is the day's analyses.json (bet.sofa.analyses): the page
     carries the full match sections of its matches, folded under each leg.
-    `families` is the day's bet.sofa.family_record (None: the page has no
-    family filter). `results` is the day's 13_results.json
+    `results` is the day's 13_results.json
     (bet.sofa.coupon_results; None before the day is settled): each row then
     carries its result and the page ends with the PDF's percent summary."""
     status = (fixture_status or {}).get("events") or {}
-    record = (families or {}).get("families") or {}
-    min_legs = int((families or {}).get("min_legs") or fr.MIN_LEGS)
     singles = cf.printed_singles(dict(doc))
     read_ids = {id(s) for s in cf.legs_requiring_read(dict(doc))}
     rows: list[dict[str, Any]] = []
@@ -225,12 +229,10 @@ def build_view(
         odds = leg.get("offered_odds")
         conf = float(leg["confidence"])
         # as the PDF computes it (build_coupon_pdf.leg_x): unrounded
-        x = fr.selection_x(leg)
+        x = leg_x(leg)
         margin = leg.get("overround")
         clock = _clock(leg, status)
         peer = leg.get("peer") or {}
-        fam = record.get(fr.family_key(leg))
-        fam_plus = fr.on_plus(fam, min_legs)
         res = _result(leg, cr.of_leg(results, leg))
         notes = read_notes(leg)
         rows.append({
@@ -278,10 +280,6 @@ def build_view(
             "read_done": bool(notes),
             "clock_note": clock["note"],
             "clock_checked": clock["checked"],
-            # bet.sofa.family_record: the family's printed legs of the days
-            # before were on the plus (a selection aid, never a gate)
-            "fam_plus": fam_plus,
-            "fam_note": fr.label(fam) if fam and fam_plus else "",
             "matchup": (matchups or {}).get(dossier.matchup_key(leg), ""),
             "res": res,
             "res_rank": None if res is None else _RES_RANK[res["status"]],
@@ -338,12 +336,6 @@ def build_view(
             "built_local": f"{built:%H:%M}" if built else "",
             "fixture_check_local": f"{local_checked:%H:%M}" if local_checked else "",
             "positions": doc.get("positions"),
-            "families": None if families is None else {
-                "span": fr.span(families),
-                "min_legs": min_legs,
-                "on_plus": sum(fr.on_plus(v, min_legs) for v in record.values()),
-                "measured": fr.MEASURED,
-            },
             "results": None if results is None else {
                 "computed_utc": str(results.get("computed_at_utc") or "")[:16],
                 # the same strings as the PDF's closing table
@@ -373,12 +365,11 @@ def render_html(date: str, view: Mapping[str, Any],
 def write_html(run: Path, doc: Mapping[str, Any], day: str,
                results: Mapping[str, Any] | None = None) -> Path:
     """KUPON_<day>.html beside the PDF, from the same artifact and the day's
-    fixture_status.json and family_record.json (read if present). Rendered
+    fixture_status.json (read if present). Rendered
     aside and moved into place, like the PDF."""
     status_path = run / "fixture_status.json"
     status = (json.loads(status_path.read_text(encoding="utf-8"))
               if status_path.exists() else None)
-    families = fr.load(run, day)
     store = an.load(run)
     # named in Superbet's words on a copy: the caller's artifact is not edited
     named: dict[str, Any] = copy.deepcopy(dict(doc))
@@ -396,8 +387,8 @@ def write_html(run: Path, doc: Mapping[str, Any], day: str,
         matchups = dossier.matchups_for_legs(run, cf.printed_singles(named))
     except (sqlite3.Error, OSError, ValueError, KeyError, TypeError):
         matchups = {}
-    tmp.write_text(render_html(day, build_view(named, day, status, families,
-                                               results, store, matchups), priced),
+    tmp.write_text(render_html(day, build_view(named, day, status, results,
+                                               store, matchups), priced),
                    encoding="utf-8")
     os.replace(tmp, out)
     return out

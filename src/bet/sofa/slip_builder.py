@@ -12,25 +12,16 @@ under "product of leg prices >= target" - that objective itself picks the
 fewest, longest legs - with one leg per match (two legs of one match are a
 Bet Builder, priced by Superbet's screen only).
 
-A leg's measured chance is never its confidence alone:
-    min(confidence, 1/odds for a `price_gap` leg, 1/odds + family shortfall)
-where the shortfall is what the leg's family (sport, market, direction)
-realised minus its price on the printed legs of the days before
-(`family_record.json`, >= `family_record.MIN_LEGS` legs), else the sport's
-pooled shortfall over the same record, never above 0; a leg of a family on
-the plus reads its tier's walk-forward shortfall (`TIER_SHORTFALL`; a surplus is the
-family's selected past, not its future); with neither the leg has no
-measurement and is not used. A slip's measured chance is therefore never
-above its price.
-
-"Supported" (CLAUDE.md, chat slips): a slip whose every leg belongs to a
-family on the plus (`family_record.on_plus`). Legs are tiered: the view's
-selection (`family_record.selected`: x >= 1 and family on the plus), then the
-family on the plus, then the rest; the rest enters only when the operator
-asks for it and the answer says "dzień cienki" first. The selection's
-advantage is not yet shown (T-FAMILY-SELECTION, walk-forward 10-12..10-19:
--0.9% against -5.2% for the rest, +4.3 pp [+0.4, +8.1], 72% of its legs on
-one day; the registered window starts 10-19).
+A leg's measured chance stands on its own statistics only:
+    min(confidence, 1/odds for a leg above its price)
+- the confidence already carries the leg's line evidence (offset and
+price-band cap), and a leg of any sport more than `price_gap.GAP` above its
+price (or flagged `price_gap`) is read at its price, never above it
+(CLAUDE.md; `measured_chance`). The operator 2026-10-31 removed the
+families' record of the printed legs ("rodzina na plusie",
+`family_record.json`): no family, sport or tier shortfall, no family
+preference - one search over every leg, the analysts' reads deciding which
+legs stay.
 """
 
 from __future__ import annotations
@@ -43,8 +34,9 @@ from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from bet.sofa import family_record as fr
 from bet.sofa.config import SofaConfig
+from bet.sofa.price_gap import GAP as PRICE_GAP
+from bet.sofa.price_gap import annotate as price_gap_of
 from bet.sofa.sport_day import MAX_PRICE_AGE as SPORT_PRICE_AGE
 from bet.sofa.veto import read_refusal, veto_matches
 
@@ -64,15 +56,6 @@ SLIP_READ_FRESH = datetime.timedelta(hours=3)
 READ_TIE = math.log(1.0025)
 REFUSING = frozenset({"WATCH", "NO_BET"})
 
-TIER_SELECTION = 1  # x >= 1 and family on the plus (the HTML view's button)
-TIER_FAMILY_PLUS = 2  # family on the plus
-TIER_REST = 3
-TIER_NAMES = {
-    TIER_SELECTION: "x ≥ 1 i rodzina na plusie",
-    TIER_FAMILY_PLUS: "rodzina na plusie",
-    TIER_REST: "reszta kuponu",
-}
-
 # Defaults (tolerances, not fitted constants): the measured bands end at
 # 2.00 (above it the coupon holds few legs), a leg starting within
 # START_MARGIN cannot be placed in time, and the search files log prices in
@@ -80,7 +63,7 @@ TIER_NAMES = {
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
 MAX_LEGS = 5
-CROWD_LEGS = 3  # a slip with this many legs of one family is named
+CROWD_LEGS = 3  # a slip with this many legs of one market type is named
 START_MARGIN = datetime.timedelta(minutes=15)  # = the analysts' started-skip
 # a leg starting sooner is marked: an analyst round takes ~20-30 min
 READ_MARGIN = datetime.timedelta(minutes=45)
@@ -93,14 +76,6 @@ LOCAL = ZoneInfo("Europe/Warsaw")  # the operator's clock
 # the screen's price decides.
 SHEET_PRICE_AGE = datetime.timedelta(minutes=SofaConfig.price_max_age_min)
 
-# Hit minus 1/odds the tiers realised walk-forward (families chosen on the
-# days before each day; measure_selection_walk_forward.py --from 2026-10-12
-# --to 2026-10-19, docs/sofa/evidence/selection_walk_forward_2026-10-20.md):
-# x >= 1 and family on the plus 0.755 vs 0.763 on 1,430 legs, family on the
-# plus 0.799 vs 0.815 on 4,996 legs. Measured, not fitted; re-measure as the
-# registered test (T-FAMILY-SELECTION) accrues days.
-TIER_SHORTFALL = {TIER_SELECTION: -0.008, TIER_FAMILY_PLUS: -0.016}
-
 
 @dataclass(frozen=True)
 class Leg:
@@ -108,7 +83,6 @@ class Leg:
     odds: float
     chance: float
     chance_source: str
-    tier: int
     read: str = READ_NONE
     price_age: datetime.timedelta | None = None
     age_is_floor: bool = False  # no fetch time on the leg: age since the build
@@ -143,10 +117,6 @@ class Slip:
         return math.prod(x.odds for x in self.legs)
 
     @property
-    def supported(self) -> bool:
-        return all(x.tier < TIER_REST for x in self.legs)
-
-    @property
     def has_builder(self) -> bool:
         return any(x.leg.get("builder_legs") for x in self.legs)
 
@@ -162,62 +132,35 @@ class Slip:
 class Result:
     slips: list[Slip]
     requested: int
-    supported: int
-    candidates: dict[int, int]
+    candidates: int  # legs (and builders) the search could take
     refused: dict[str, int] = field(default_factory=dict)
-    reachable: float = 1.0  # the highest price product the supported legs reach
+    reachable: float = 1.0  # the highest price product the pool's legs reach
     reserve: list[Slip] = field(default_factory=list)
-    any_family: bool = False
 
 
-def shortfalls(
-    record: Mapping[str, Any] | None,
-) -> tuple[dict[str, float], dict[str, float]]:
-    """(family -> hit minus implied) for families with >= MIN_LEGS legs, and
-    (sport -> pooled hit minus implied over all its families)."""
-    fam: dict[str, float] = {}
-    acc: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0, 0.0])
-    for key, e in ((record or {}).get("families") or {}).items():
-        n = int(e["legs"])
-        if n >= fr.MIN_LEGS:
-            fam[key] = float(e["hit"]) - float(e["implied"])
-        a = acc[key.split("|", 1)[0]]
-        a[0] += n
-        a[1] += float(e["hit"]) * n
-        a[2] += float(e["implied"]) * n
-    sport = {s: (a[1] - a[2]) / a[0] for s, a in acc.items() if a[0] >= fr.MIN_LEGS}
-    return fam, sport
+def family_key(leg: Mapping[str, Any]) -> str:
+    """A leg's market type (sport, market, direction) - only to name a slip
+    crowded on one of them (`concentration`), never a selection."""
+    return "|".join((str(leg.get("sport") or "football"), str(leg.get("market") or ""),
+                     str(leg.get("direction") or "")))
 
 
-def measured_chance(
-    leg: Mapping[str, Any],
-    odds: float,
-    fam: Mapping[str, float],
-    sport: Mapping[str, float],
-    tier_: int = TIER_REST,
-) -> tuple[float, str] | None:
-    key = fr.family_key(leg)
-    if tier_ in TIER_SHORTFALL:
-        # a family above its price is the selection's own past: chosen for it,
-        # the selection then realised below its price, so the selection's
-        # measured shortfall is carried forward, never the family's surplus
-        short, source = TIER_SHORTFALL[tier_], "selekcja (walk-forward)"
-    elif key in fam:
-        # a family off the plus never reads better than the families on it
-        # did walk-forward (2026-10-29: corners_total OVER, units -15.9, read
-        # -0.8 pp while a family on the plus read -1.6 pp)
-        short = min(fam[key], TIER_SHORTFALL[TIER_FAMILY_PLUS], 0.0)
-        source = "rodzina"
-    elif key.split("|", 1)[0] in sport:
-        short = min(sport[key.split("|", 1)[0]], TIER_SHORTFALL[TIER_FAMILY_PLUS],
-                    0.0)
-        source = "sport"
-    else:
-        return None
-    base = 1.0 / odds + short
-    bounds = [(base, source), (float(leg["confidence"]), "pewność")]
+def measured_chance(leg: Mapping[str, Any], odds: float) -> tuple[float, str]:
+    """min(confidence, 1/odds for a leg above its price): the leg's own
+    statistics (the confidence carries its line evidence), but a leg of any
+    sport whose confidence exceeds 1/odds by more than `price_gap.GAP` - or
+    that carries `price_gap` - is read at its price, never above it. Such
+    legs realise about at their price wherever measured (football / tennis
+    -10.0 pp, CS2 -18.6 pp, `bet.sofa.price_gap`; volleyball ~16 pp over at
+    confidence >= 0.70, model-state.md); hockey / basketball / volleyball
+    carry no flag, so the gap itself decides (2026-10-31: volleyball set
+    handicaps read at 82% against 57% at the price topped a ~3 slip)."""
+    confidence = float(leg["confidence"])
+    bounds = [(confidence, "pewność")]
     if leg.get("price_gap"):
         bounds.append((1.0 / odds, "cena (price_gap)"))
+    elif confidence - 1.0 / odds > PRICE_GAP:
+        bounds.append((1.0 / odds, "cena (pewność ponad cenę)"))
     chance, source = min(bounds, key=lambda b: b[0])
     return max(min(chance, 0.999), 1e-6), source
 
@@ -296,17 +239,8 @@ def read_status(
     return READ_NONE
 
 
-def tier(leg: Mapping[str, Any], plus: frozenset[str]) -> int:
-    if fr.selected(leg, plus):
-        return TIER_SELECTION
-    if fr.family_key(leg) in plus:
-        return TIER_FAMILY_PLUS
-    return TIER_REST
-
-
 def candidates(
     singles: Iterable[Mapping[str, Any]],
-    record: Mapping[str, Any] | None,
     now: datetime.datetime,
     *,
     min_odds: float = MIN_LEG_ODDS,
@@ -325,10 +259,6 @@ def candidates(
     the coupon's build (`built_at`). `competitions`, when given, keeps only
     legs whose competition contains one of them (case-insensitive)."""
     wanted = [c.casefold() for c in competitions]
-    fam, sport = shortfalls(record)
-    plus = frozenset(
-        k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e)
-    )
     skip = set(exclude_matches)
     out: list[Leg] = []
     refused: dict[str, int] = defaultdict(int)
@@ -378,11 +308,7 @@ def candidates(
         if not min_odds <= float(odds) <= max_odds:
             refused["kurs poza przedziałem"] += 1
             continue
-        t = tier(s, plus)
-        mc = measured_chance(s, float(odds), fam, sport, t)
-        if mc is None:
-            refused["brak pomiaru rodziny / sportu"] += 1
-            continue
+        mc = measured_chance(s, float(odds))
         read = read_status(s, reads, vetoes, slip_reads, now)
         if read is None:
             refused["odrzucona przez analityka (WATCH / NO_BET / weto)"] += 1
@@ -394,7 +320,7 @@ def candidates(
             else None
         )
         floor = not s.get("price_fetched_at_utc") and age is not None
-        leg = Leg(s, float(odds), mc[0], mc[1], t, read, age, floor)
+        leg = Leg(s, float(odds), mc[0], mc[1], read, age, floor)
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -406,7 +332,6 @@ BUILDER_MARKET = "bet_builder"
 
 def builder_candidates(
     builders: Iterable[Mapping[str, Any]],
-    record: Mapping[str, Any] | None,
     now: datetime.datetime,
     *,
     min_odds: float = MIN_LEG_ODDS,
@@ -424,14 +349,11 @@ def builder_candidates(
     operator's rule for reaching the target; Superbet prices a builder below
     that product (measured markup 8.8-19.6%), so the answer says so and the
     screen decides. Its measured chance is `combined_probability` lowered by
-    each leg's own measured shortfall (measured chance / confidence), never
-    raised. A builder enters only when no read refuses any of its legs; it
-    is KEEP only when the slip's own fresh read keeps every leg."""
+    each leg's own price cap (measured chance / confidence: a leg above its
+    price by `price_gap.GAP` read at its price), never raised. A builder
+    enters only when no read refuses any of its legs; it is KEEP only when
+    the slip's own fresh read keeps every leg."""
     wanted = [c.casefold() for c in competitions]
-    fam, sport = shortfalls(record)
-    plus = frozenset(
-        k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e)
-    )
     out: list[Leg] = []
     refused: dict[str, int] = defaultdict(int)
     for b in builders:
@@ -470,61 +392,59 @@ def builder_candidates(
                    for g in full):
             refused["builder: brak ceny lub pewności"] += 1
             continue
+        for g in full:
+            # the artifact's builder legs carry no price_gap: the pipeline's
+            # own rule (bet.sofa.price_gap) marks a leg above its price, read
+            # at its price like a single
+            if not g.get("price_gap") and (pg := price_gap_of(g)):
+                g["price_gap"] = pg
         odds = math.prod(float(g["offered_odds"]) for g in full)
         if not min_odds <= odds <= max_odds:
             refused["builder: kurs poza przedziałem"] += 1
             continue
-        ratio = 1.0
-        tiers: list[int] = []
-        for g in full:
-            t = tier(g, plus)
-            mc = measured_chance(g, float(g["offered_odds"]), fam, sport, t)
-            if mc is None:
-                break
-            ratio *= min(mc[0] / float(g["confidence"]), 1.0)
-            tiers.append(t)
-        else:
-            reads_ = [read_status(g, reads, vetoes, slip_reads, now) for g in full]
-            if any(r is None for r in reads_):
-                refused["builder: noga odrzucona przez analityka"] += 1
-                continue
-            read = (
-                READ_KEEP
-                if all(r == READ_KEEP for r in reads_)
-                else READ_NONE
-                if READ_NONE in reads_
-                else READ_KEEP_DAY
-            )
-            p = float(b.get("combined_probability") or 0.0) * ratio
-            if p <= 0.0:
-                refused["builder: brak łącznej szansy"] += 1
-                continue
-            built = str(built_at).replace("Z", "+00:00") if built_at else None
-            age = now - datetime.datetime.fromisoformat(built) if built else None
-            leg = {
-                "sport": "football",
-                "market": BUILDER_MARKET,
-                "direction": "",
-                "sofascore_event_id": event,
-                "group_key": f"sofa:{event}",
-                "match": b.get("match"),
-                "competition": b.get("competition"),
-                "kickoff_utc": kickoff,
-                "confidence": float(b.get("combined_probability") or 0.0),
-                "superbet_market": "Bet Builder",
-                "superbet_selection": " + ".join(
-                    f"{g.get('superbet_market')}: {g.get('superbet_selection')} "
-                    f"({float(g['offered_odds']):.2f})"
-                    for g in full
-                ),
-                "builder_legs": full,
-            }
-            out.append(
-                Leg(leg, odds, max(min(p, 0.999), 1e-6), "builder: łączna × luka nóg",
-                    max(tiers), read, age, age is not None)
-            )
+        ratio = math.prod(
+            min(measured_chance(g, float(g["offered_odds"]))[0]
+                / float(g["confidence"]), 1.0)
+            for g in full)
+        reads_ = [read_status(g, reads, vetoes, slip_reads, now) for g in full]
+        if any(r is None for r in reads_):
+            refused["builder: noga odrzucona przez analityka"] += 1
             continue
-        refused["builder: brak pomiaru rodziny / sportu"] += 1
+        read = (
+            READ_KEEP
+            if all(r == READ_KEEP for r in reads_)
+            else READ_NONE
+            if READ_NONE in reads_
+            else READ_KEEP_DAY
+        )
+        p = float(b.get("combined_probability") or 0.0) * ratio
+        if p <= 0.0:
+            refused["builder: brak łącznej szansy"] += 1
+            continue
+        built = str(built_at).replace("Z", "+00:00") if built_at else None
+        age = now - datetime.datetime.fromisoformat(built) if built else None
+        leg = {
+            "sport": "football",
+            "market": BUILDER_MARKET,
+            "direction": "",
+            "sofascore_event_id": event,
+            "group_key": f"sofa:{event}",
+            "match": b.get("match"),
+            "competition": b.get("competition"),
+            "kickoff_utc": kickoff,
+            "confidence": float(b.get("combined_probability") or 0.0),
+            "superbet_market": "Bet Builder",
+            "superbet_selection": " + ".join(
+                f"{g.get('superbet_market')}: {g.get('superbet_selection')} "
+                f"({float(g['offered_odds']):.2f})"
+                for g in full
+            ),
+            "builder_legs": full,
+        }
+        out.append(
+            Leg(leg, odds, max(min(p, 0.999), 1e-6), "builder: łączna × cena nóg",
+                read, age, age is not None)
+        )
     return out, dict(refused)
 
 
@@ -625,13 +545,11 @@ def _pareto_states(states: dict[int, _State]) -> dict[int, _State]:
 
 def build(
     singles: Sequence[Mapping[str, Any]],
-    record: Mapping[str, Any] | None,
     now: datetime.datetime,
     target: float,
     slips: int = 1,
     *,
     max_legs: int = MAX_LEGS,
-    allow_rest: bool = False,
     window: tuple[datetime.datetime, datetime.datetime] | None = None,
     min_odds: float = MIN_LEG_ODDS,
     max_odds: float = MAX_LEG_ODDS,
@@ -641,22 +559,17 @@ def build(
     built_at: str | None = None,
     slip_reads: Sequence[Any] = (),
     competitions: Sequence[str] = (),
-    any_family: bool = False,
     builders: Sequence[Mapping[str, Any]] = (),
 ) -> Result:
-    """Up to `slips` disjoint slips (no match twice). Supported slips use only
-    legs of families on the plus; with `allow_rest` the shortfall is filled
-    from the rest of the coupon, each such slip marked unsupported. `reserve`
-    more disjoint slips on the same terms are the analysts' buffer: their legs
-    replace a slip leg a read refuses, so one read round covers them. Each
-    slip is searched first over the legs with the slip's own fresh KEEP, then
-    over every leg only when those cannot reach the target. `any_family`
-    searches every leg in one pass, families on the plus not preferred
-    (operator 2026-10-26); `builders` adds the day's Bet Builders
+    """Up to `slips` disjoint slips (no match twice), searched over every
+    leg in one pass. `reserve` more disjoint slips on the same terms are the
+    analysts' buffer: their legs replace a slip leg a read refuses, so one
+    read round covers them. Each slip is searched first over the legs with
+    the slip's own fresh KEEP, then over every leg only when those cannot
+    reach the target. `builders` adds the day's Bet Builders
     (`builder_candidates`)."""
     pool, refused = candidates(
         singles,
-        record,
         now,
         min_odds=min_odds,
         max_odds=max_odds,
@@ -670,7 +583,6 @@ def build(
     if builders:
         extra, why = builder_candidates(
             builders,
-            record,
             now,
             min_odds=min_odds,
             max_odds=max_odds,
@@ -684,76 +596,40 @@ def build(
         pool += extra
         for k, v in why.items():
             refused[k] = refused.get(k, 0) + v
-    counts: dict[int, int] = defaultdict(int)
-    for x in pool:
-        counts[x.tier] += 1
     used: set[str] = set()
     out: list[Slip] = []
-    passes = (
-        [(TIER_SELECTION, TIER_FAMILY_PLUS, TIER_REST)]
-        if any_family
-        else [
-            (TIER_SELECTION, TIER_FAMILY_PLUS),
-            (TIER_SELECTION, TIER_FAMILY_PLUS, TIER_REST),
-        ]
-    )
-    for allowed in passes:
-        if allowed[-1] == TIER_REST and not (allow_rest or any_family):
+    while len(out) < slips + reserve:
+        legs = [x for x in pool if x.match_key not in used]
+        # legs the slip's own fresh read keeps come first; a leg still to
+        # read enters only when they cannot reach the target (operator
+        # 2026-10-21: each round swapped read legs for unread ones)
+        kept = [x for x in legs if x.read == READ_KEEP]
+        s = best_slip(kept, target, max_legs) or best_slip(legs, target, max_legs)
+        if s is None:
             break
-        while len(out) < slips + reserve:
-            legs = [x for x in pool if x.tier in allowed and x.match_key not in used]
-            # legs the slip's own fresh read keeps come first; a leg still to
-            # read enters only when they cannot reach the target (operator
-            # 2026-10-21: each round swapped read legs for unread ones)
-            kept = [x for x in legs if x.read == READ_KEEP]
-            s = best_slip(kept, target, max_legs) or best_slip(legs, target, max_legs)
-            if s is None:
-                break
-            out.append(s)
-            used.update(x.match_key for x in s.legs)
+        out.append(s)
+        used.update(x.match_key for x in s.legs)
     best_per_match: dict[str, float] = {}
     for x in pool:
-        if any_family or x.tier < TIER_REST:
-            best_per_match[x.match_key] = max(
-                best_per_match.get(x.match_key, 1.0), x.odds
-            )
+        best_per_match[x.match_key] = max(best_per_match.get(x.match_key, 1.0), x.odds)
     reachable = math.prod(sorted(best_per_match.values(), reverse=True)[:max_legs])
-    supported = sum(s.supported for s in out[:slips])
-    return Result(
-        out[:slips],
-        slips,
-        supported,
-        dict(counts),
-        refused,
-        reachable,
-        out[slips:],
-        any_family,
-    )
+    return Result(out[:slips], slips, len(pool), refused, reachable, out[slips:])
 
 
 def concentration(slip: Slip) -> tuple[str, int] | None:
-    """The family holding at least CROWD_LEGS legs of the slip, or all of a
-    slip of two or more legs, with its count; else None. One family's legs
-    win or lose together more than the measured chance says (one selection,
-    one model), so the answer names it - a warning, never a gate."""
+    """The market type (`family_key`) holding at least CROWD_LEGS legs of the
+    slip, or all of a slip of two or more legs, with its count; else None.
+    Legs of one market type win or lose together more than the measured
+    chance says (one model), so the answer names it - a warning, never a
+    gate."""
     count: dict[str, int] = defaultdict(int)
     rows = [g for x in slip.legs for g in leg_rows(x)]
     for g in rows:
-        count[fr.family_key(g)] += 1
+        count[family_key(g)] += 1
     fam, n = max(count.items(), key=lambda kv: kv[1], default=("", 0))
     if n >= CROWD_LEGS or (n == len(rows) >= 2):
         return fam, n
     return None
-
-
-def family_text(leg: Mapping[str, Any], record: Mapping[str, Any] | None) -> str:
-    """A leg's family on the printed legs of the record's days: hit vs
-    implied over N legs - the measured chance's evidence, beside the leg."""
-    e = ((record or {}).get("families") or {}).get(fr.family_key(leg))
-    if not e:
-        return "brak"
-    return (f"{_pct(float(e['hit']))} vs {_pct(float(e['implied']))} "
-            f"(n={int(e['legs'])})")
 
 
 def unread_legs(slips: Iterable[Slip]) -> list[Leg]:
@@ -802,7 +678,6 @@ def render(
     *,
     day: str,
     target: float,
-    record: Mapping[str, Any] | None,
     now: datetime.datetime,
     built_at: str | None = None,
     matchups: Mapping[str, str] | None = None,
@@ -813,67 +688,38 @@ def render(
     from bet.sofa.dossier import matchup_key
 
     lines: list[str] = []
-    n_ok = result.supported
-    if result.any_family:
-        n = len(result.slips)
-        reach = (
-            f" (iloczyn kursów najlepszych nóg sięga ~{result.reachable:.2f} - "
-            "zasięg, nie kurs kuponu)"
-            if n < result.requested
-            else ""
-        )
-        # say no first in this mode too (CLAUDE.md): how many slips stand on
-        # families on the plus alone, before the every-market answer
-        first = (
-            f"**Dziś żaden kupon na ~{target:g} nie stoi na samych rodzinach na "
-            "plusie**" if n_ok == 0
-            else f"**Dzień cienki - w pełni poparte (rodziny na plusie): {n_ok} z "
-            f"{result.requested}**" if n_ok < result.requested
-            else f"**W pełni poparte (rodziny na plusie): {n_ok} z "
-            f"{result.requested}**"
-        )
+    n = len(result.slips)
+    reach = (
+        f" (iloczyn kursów najlepszych nóg sięga ~{result.reachable:.2f} - "
+        "zasięg, nie kurs kuponu)"
+        if result.reachable > 1.0
+        else " (w oknie nie ma ani jednej nogi)"
+    )
+    # say no first (CLAUDE.md): how many of the requested slips the day's
+    # legs - each on its own statistics and reads - give
+    if n >= result.requested:
         lines.append(
-            f"{first}. Kupon na ~{target:g} z każdego rynku kuponu dnia: {n} z "
-            f"{result.requested}{reach}."
+            f"**Dzień daje {n} z {result.requested} kuponów na ~{target:g}.**"
         )
-    elif n_ok >= result.requested:
-        lines.append(
-            f"**Dzień daje {n_ok} z {result.requested} kuponów na ~{target:g} "
-            "z nóg rodzin na plusie.**"
-        )
-    elif n_ok == 0:
-        reach = (
-            f" (iloczyn kursów najlepszych nóg sięga ~{result.reachable:.2f} - "
-            "zasięg, nie kurs kuponu)"
-            if result.reachable > 1.0
-            else " (w oknie nie ma ani jednej takiej nogi)"
-        )
-        lines.append(
-            f"**Dziś żadnego kuponu na ~{target:g} z nóg rodzin na plusie**{reach}."
-        )
+    elif n == 0:
+        lines.append(f"**Dziś żadnego kuponu na ~{target:g}**{reach}.")
     else:
         lines.append(
-            f"**Dzień cienki - masz {n_ok} z {result.requested} kuponów na "
-            f"~{target:g} z nóg rodzin na plusie.**"
+            f"**Dzień cienki - masz {n} z {result.requested} kuponów na "
+            f"~{target:g}**{reach}."
         )
-    days = fr.span(record) if record else "brak"
     lines += [
         "",
         f"Poza pipeline'em: czat nie jest kuponem i nie ma bramek. Nogi z "
         f"`runs/sofa/{day}/11_coupon.json` (zbudowany {_local(built_at)}), "
         f"liczone {now.astimezone(LOCAL):%H:%M}. "
-        f"Szansa nogi = min(pewność, cena przy price_gap, 1/kurs + luka rodziny "
-        f"na wydrukowanych nogach {days}); nigdy sama pewność. Jedna noga z meczu. "
+        "Szansa nogi = jej pewność ze statystyk (z dowodem linii Superbetu), "
+        "powyżej ceny o > 3 pp (każdy sport) liczona po cenie (1/kurs). "
+        "Jedna noga z meczu. "
         "Kurs kuponu: sprawdź na ekranie Superbetu. Stawka jest Twoja.",
-        "Selekcja rodzin: przewaga niepotwierdzona (T-FAMILY-SELECTION).",
         "",
     ]
     for i, s in enumerate(result.slips, 1):
-        tag = (
-            ""
-            if s.supported or result.any_family
-            else " - **poza poparciem (reszta kuponu)**"
-        )
         product = math.prod(x.odds for x in s.legs)
         head = (
             f"### Kupon {i}: {legs_pl(len(s.legs))}, szansa zmierzona {_pct(s.chance)}"
@@ -883,12 +729,12 @@ def render(
                f"{_pct(s.value)} stawki")
         )
         lines += [
-            head + tag,
+            head,
             "",
             "| start | mecz | zakład (słowami Superbetu) | kurs | 1/kurs | "
-            "szansa | źródło | pewność | pewność < 1/kurs | rodzina (trafione vs "
-            "cena, n) | zestawienie | grupa | czytana | cena sprzed |",
-            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+            "szansa | źródło | pewność | pewność < 1/kurs | zestawienie | "
+            "czytana | cena sprzed |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for x in s.legs:
             g = x.leg
@@ -907,7 +753,6 @@ def render(
                     for b in g["builder_legs"]
                     if float(b["confidence"]) < 1 / float(b["offered_odds"]))
                 below = f"tak: {below}" if below else "nie"
-                family = "; ".join(family_text(b, record) for b in g["builder_legs"])
                 matchup = "; ".join(
                     t for b in g["builder_legs"]
                     if (t := (matchups or {}).get(matchup_key(b))))
@@ -915,14 +760,13 @@ def render(
                 odds, implied = f"{x.odds:.2f}", _pct(1 / x.odds)
                 below = ("**tak**" if float(g["confidence"]) < 1 / x.odds
                          else "nie")
-                family = family_text(g, record)
                 matchup = (matchups or {}).get(matchup_key(g), "")
             lines.append(
                 f"| {start} | {g.get('match')} | {bet} | {odds} | "
                 f"{implied} | {_pct(x.chance)} | {x.chance_source} | "
-                f"{_pct(float(g['confidence']))} | {below} | {family} | "
+                f"{_pct(float(g['confidence']))} | {below} | "
                 f"{matchup.removeprefix('zestawienie: ') or '—'} | "
-                f"{TIER_NAMES[x.tier]} | {read} | {_age(x)} |"
+                f"{read} | {_age(x)} |"
             )
         lines += [
             "",
@@ -939,14 +783,14 @@ def render(
         if s.value < 1.0:
             lines.append(
                 f"Wg naszych liczb ten kupon zwraca {_pct(s.value)} stawki - "
-                "poniżej ceny (każda noga liczona nie wyżej niż jej cena)."
+                "poniżej ceny."
             )
         crowd = concentration(s)
         if crowd is not None:
             fam, n = crowd
             lines.append(
-                f"Uwaga: {n} z {len(s.legs)} nóg z jednej rodziny ({fam}) - wynik "
-                "zależy od jednej rodziny, jej przewaga niepotwierdzona."
+                f"Uwaga: {n} z {len(s.legs)} nóg jednego rynku ({fam}) - nogi "
+                "jednego rynku wchodzą i padają razem częściej, niż mówi szansa."
             )
         lines.append("")
     stale = [x for s in result.slips for x in s.legs if x.stale]
@@ -975,12 +819,7 @@ def render(
             for x in s.legs
         )
         lines.append(f"Zapas do czytania (nie do grania): {names}")
-    lines.append(
-        "Nogi w puli: "
-        + ", ".join(
-            f"{TIER_NAMES[t]} {result.candidates.get(t, 0)}" for t in sorted(TIER_NAMES)
-        )
-    )
+    lines.append(f"Nogi w puli: {result.candidates}")
     if result.refused:
         lines.append(
             "Odrzucone: "
@@ -1013,24 +852,20 @@ def find_leg(
 def render_check(
     specs: Sequence[str],
     singles: Sequence[Mapping[str, Any]],
-    record: Mapping[str, Any] | None,
     screen_odds: float | None,
     matchups: Mapping[str, str],
     joint: Mapping[str, Any] | None,
     others: Sequence[Mapping[str, Any]] = (),
 ) -> str:
     """The operator's own Bet Builder of one match, leg by leg, against our
-    numbers: each leg's measured chance beside 1/odds, its family and
-    match-up, the legs' joint history in the two sides' games, and the
-    screen price. No price of ours, no stake (CLAUDE.md hard rules)."""
+    numbers: each leg's measured chance beside 1/odds, its match-up, the
+    legs' joint history in the two sides' games, and the screen price. No
+    price of ours, no stake (CLAUDE.md hard rules)."""
     from bet.sofa.dossier import matchup_key
 
-    fam, sport = shortfalls(record)
-    plus = frozenset(
-        k for k, e in ((record or {}).get("families") or {}).items() if fr.on_plus(e))
     lines = ["| zakład (słowami Superbetu) | kurs | 1/kurs | pewność | szansa "
-             "zmierzona | szansa zmierzona < 1/kurs | rodzina (trafione vs cena, n) | "
-             "zestawienie |", "|---|---|---|---|---|---|---|---|"]
+             "zmierzona | szansa zmierzona < 1/kurs | zestawienie |",
+             "|---|---|---|---|---|---|---|"]
     below: list[str] = []
     missing: list[str] = []
     for spec in specs:
@@ -1048,20 +883,18 @@ def render_check(
                            + (f" (w tym meczu: {hint})" if hint else ""))
             continue
         odds = float(g["offered_odds"])
-        mc = measured_chance(g, odds, fam, sport, tier(g, plus))
-        chance = mc[0] if mc else None
+        chance = measured_chance(g, odds)[0]
         name = f"{g.get('superbet_market')}: {g.get('superbet_selection')}"
         # one rule for the column and the headline (E2E 2026-10-29: a leg
         # whose confidence clears 1/odds but measured chance does not read
         # "nie" in a column beside "poniżej ceny" in the headline)
-        is_below = (chance if chance is not None else float(g["confidence"])) < 1 / odds
+        is_below = chance < 1 / odds
         if is_below:
             below.append(name)
         lines.append(
             f"| {name} | {odds:.2f} | {_pct(1 / odds)} | "
             f"{_pct(float(g['confidence']))} | "
-            f"{_pct(chance) if chance is not None else 'brak pomiaru'} | "
-            f"{'**tak**' if is_below else 'nie'} | {family_text(g, record)} | "
+            f"{_pct(chance)} | {'**tak**' if is_below else 'nie'} | "
             f"{(matchups.get(matchup_key(g)) or '—').removeprefix('zestawienie: ')} |")
     out = [f"**Builder: {len(specs) - len(missing)} z {len(specs)} nóg na kuponie "
            f"dnia, {len(below)} z szansą zmierzoną poniżej ceny.**", ""] + lines + [""]

@@ -303,7 +303,12 @@
     {
       "id": "T-FAMILY-SELECTION",
       "registered_on": "2026-10-18",
-      "status": "PROPOSED",
+      "status": "WITHDRAWN",
+      "withdrawn": {
+        "on": "2026-10-31",
+        "by": "operator",
+        "reason": "The families' record (bet.sofa.family_record, family_record.json, the HTML's \"rodzina na plusie\" filter and the slip tiers) was removed by the operator 2026-10-31: legs stand on their own statistics and the analysts' reads. The view no longer offers the selection and measure_selection_walk_forward.py was deleted with it; the test has nothing left to judge."
+      },
       "hypothesis": "The HTML view's selection \"x ≥ 1 i rodzina na plusie\" (bet.sofa.family_record: a printed leg with confidence x odds >= 1 whose family - sport, market, direction - was on the plus over the days before, >= 50 legs) loses less than the whole official coupon, and may realise at or above its price.",
       "rule": "For every day D: the families' record of family_record.window(D) as the view builds it, then the official coupon's printed singles of D graded WIN / LOSS at the printed price (record_results.graded_confidence). Report ROI of the selection, of the whole coupon and of the coupon minus the selection.",
       "population": "Official coupon legs (11_coupon.json, locked legs included, legs removed by a read excluded) of days from 2026-10-19, every sport pooled as the view pools them and reported per sport.",
@@ -316,7 +321,7 @@
         "matches_min": 2500,
         "basis": "10-12..10-17 walk-forward (family windows of 3-8 days, today's settlement): 1,254 legs in 602 matches gave -0.6% [-4.8, +3.9], the rest -4.5%, selection minus rest +4.0 pp [-0.3, +8.1], better on 6 of 6 days but 81% of the legs on 10-17; a half-width of about 2 pp needs about four times the matches, spread over at least 20 days."
       },
-      "evaluation": "scripts/sofa/measure_selection_walk_forward.py --from 2026-10-19 --to <last settled day>: ROI of the selection and of the rest, selection minus rest paired on the same draws, 95% intervals from resampling (day, match) clusters, the per-day table and the days the selection beat the rest; no single day may hold more than half of the selection's legs at the decision.",
+      "evaluation": "(script deleted 2026-10-31 with the record) scripts/sofa/measure_selection_walk_forward.py --from 2026-10-19 --to <last settled day>: ROI of the selection and of the rest, selection minus rest paired on the same draws, 95% intervals from resampling (day, match) clusters, the per-day table and the days the selection beat the rest; no single day may hold more than half of the selection's legs at the decision.",
       "stop_criterion": "PROFIT (PASSED) when the selection's lower 95% ROI bound is above 0 at the required n; LESS LOSS when the selection's ROI minus the rest's is above 0 with its interval while its own interval holds 0; FAILED when that difference has its upper bound below +1 pp at the required n (the filter is then removed from the view).",
       "evidence": [
         {

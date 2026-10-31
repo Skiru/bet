@@ -211,7 +211,6 @@ tr.ap td{background:var(--t-good)}
 Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (builder: kursy nóg z Superbetu, kurs buildera sprawdź na ekranie).</p>
 <p class="note">Pasek pod pewnością: wypełnienie to pewność (skala 50–100%), kreska to cena, czyli 1/kurs. Zielone wypełnienie: pewność × kurs ≥ 1.</p>
 <p class="note" id="meta"></p>
-<p class="note" id="famnote"></p>
 </div></details>
 </header>
 <nav class="tabs" id="tabs"><button id="tabK" class="on">Kupon</button><button id="tabA">Wszystkie wyceny</button></nav>
@@ -240,9 +239,7 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
-<label class="chk" id="famwrap"><input type="checkbox" id="famplus">tylko rodziny na plusie</label>
-<div class="acts"><button class="btn" id="best">x ≥ 1 i rodzina na plusie</button>
-<button class="btn" id="reset">Wyczyść filtry</button></div>
+<div class="acts"><button class="btn" id="reset">Wyczyść filtry</button></div>
 </div>
 </div>
 <div id="count" aria-live="polite"></div>
@@ -301,9 +298,6 @@ const plural=(n,a,b,c)=>n+" "+(n===1?a:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))
 })();
 $("meta").textContent="Zbudowany "+V.meta.built_local+" • godziny startu sprawdzone przez FIXTURE_CHECK o "+(V.meta.fixture_check_local||"—")+
  " • "+R.length+" nóg, "+B.length+" builderów. Start z rana mógł się przesunąć: oznaczone przy meczu. Kliknij nagłówek kolumny albo wybierz sortowanie obok wyszukiwarki.";
-const F=V.meta.families;
-if(F){$("famnote").textContent="Rodzina = sport, rynek i kierunek. „Na plusie”: jej drukowane nogi z dni "+(F.span||"(brak dni)")+" dały zysk przy co najmniej "+F.min_legs+" nogach ("+F.on_plus+" rodzin). x = pewność × kurs. "+F.measured+" Przycisk „x ≥ 1 i rodzina na plusie” ustawia oba filtry, reszty nie rusza.";}
-else{$("famwrap").style.display="none";$("best").style.display="none";$("famnote").textContent="Brak rekordu rodzin (family_record.json) - filtr rodzin wyłączony.";}
 if(RES){const a=RES.summary[RES.summary.length-1];$("meta").textContent+=" • WYNIKI ("+RES.computed_utc+"Z): weszło "+a.won+", nie weszło "+a.lost+", nie wiadomo / zwrot "+a.other+" z "+a.legs+"; trafność "+a.hit+" przy śr. pewności "+a.conf+" - podsumowanie na końcu strony."}
 // a decimal field read with a comma or a dot (a Polish keyboard types a comma)
 const num=id=>parseFloat($(id).value.replace(",","."));
@@ -315,7 +309,6 @@ function pass(r){
   if(t1!=null&&r.ko_min>t1)return false;
   const c=num("cmin");if(!isNaN(c)&&r.confidence<c)return false;
   const xm=num("xmin");if(!isNaN(xm)&&(r.x==null||r.x<xm))return false;
-  if($("famplus").checked&&!r.fam_plus)return false;
   const o0=num("o0"),o1=num("o1");
   if(!isNaN(o0)&&(r.odds==null||r.odds<o0))return false;
   if(!isNaN(o1)&&(r.odds==null||r.odds>o1))return false;
@@ -338,7 +331,6 @@ const f3=v=>v==null?"—":v.toFixed(3),f2=v=>v==null?"—":v.toFixed(2);
 function tags(r){let t="";
   if(r.peer)t+='<span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
   if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
-  if(r.fam_note)t+='<span class="tag acc">'+esc(r.fam_note)+'</span>';
   if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+='<span class="tag bad">'+r.verdict+'</span>';
@@ -496,7 +488,7 @@ $("chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;
   else if(b.dataset.t==="xone")$("xmin").value=num("xmin")>=1?"":"1.00";
   else{const c=$(b.dataset.t);c.checked=!c.checked}
   render()};
-const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","famplus"];
+const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly"];
 function syncUi(){
   document.querySelectorAll("#chips .chip").forEach(b=>{let on;
     if(b.dataset.sport!=null)on=$("sport").value===b.dataset.sport;
@@ -514,13 +506,12 @@ const KEY="kupon:"+DAY;
 function save(){try{const s={sortKey,sortDir,group:$("group").checked};FIELDS.forEach(k=>s[k]=$(k).value);CHECKS.forEach(k=>s[k]=$(k).checked);
   localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
 function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(!s)return;
-  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="famplus"||!!F)&&(k!=="upcoming"||!RES)});
+  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="upcoming"||!RES)});
   if(typeof s.group==="boolean")$("group").checked=s.group;
   if(s.sortKey&&COLS.some(c=>c[0]===s.sortKey)){sortKey=s.sortKey;sortDir=s.sortDir<0?-1:1}}catch(e){}}
 document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventListener("input",render));
 $("reset").onclick=()=>{FIELDS.forEach(k=>$(k).value="");CHECKS.forEach(k=>$(k).checked=false);$("group").checked=true;
   sortKey="confidence";sortDir=-1;render()};
-$("best").onclick=()=>{$("xmin").value="1.00";$("famplus").checked=true;render()};
 function openBar(o){$("tool").classList.toggle("open",o);$("ftoggle").setAttribute("aria-expanded",String(o));$("ftoggle").classList.toggle("on",o);setBar();cur()}
 $("ftoggle").onclick=()=>openBar(!$("tool").classList.contains("open"));
 document.addEventListener("keydown",e=>{if(e.key==="/"&&!$("paneK").hidden&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="SELECT"){e.preventDefault();$("q").focus()}

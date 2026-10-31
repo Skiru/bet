@@ -3350,8 +3350,8 @@ Budżet czasu pełnego dnia: **2,5–3 h**, z czego większość to SAMPLES.
 Te same nogi z `11_coupon.json` co w PDF (`confidence.printed_singles` i
 builderów), w jednym pliku bez serwera (`bet.sofa.coupon_html`, szablon
 `src/bet/sofa/templates/coupon_view.html`). **Nie jest kuponem** - kuponem
-jest PDF; HTML nie wycenia buildera i nie liczy stawki, a jedyna liczba,
-której nie ma w artefakcie, to rekord rodziny (niżej). Filtry: okno godzin
+jest PDF; HTML nie wycenia buildera i nie liczy stawki, a każda liczba
+jest polem artefaktu (rekord rodzin usunięty 2026-10-31, niżej). Filtry: okno godzin
 (Europe/Warsaw, minuty od lokalnej północy dnia), minimalna pewność,
 minimalne x (pewność × kurs), kurs od-do, sport, turniej, rynek, kierunek, tekst,
 „ukryj zablokowane", „tylko przeczytane przez analityków (z notatką)";
@@ -3464,23 +3464,14 @@ WARN gdy brak / różnica. Kopia - nic jej nie czyta. Test:
 `tests/sofa/test_icloud_sync.py`. Test: `tests/sofa/test_coupon_html.py` (liczba nóg = artefakt,
 filtry w prawdziwej przeglądarce, jeśli jest Chrome).
 
-**Rodzina na plusie i selekcja „x ≥ 1 i rodzina na plusie” (od 2026-10-18).** Rodzina to
-(sport, rynek, kierunek). `bet.sofa.family_record` liczy jej wynik na
-wydrukowanych nogach `official` kuponów z 14 dni przed dniem kuponu (nie
-wcześniej niż 2026-10-09), ocenionych jak w ledgerze (`record_results.
-graded_confidence`, WIN / LOSS przy cenie wydruku). Rodzina jest „na plusie”
-przy >= 50 nogach i zysku w jednostkach. Plik `runs/sofa/<d>/family_record.json`
-pisze `scripts/sofa/build_family_record.py` (sam, albo `build_coupon_pdf.py` /
-`build_coupon_html.py` przed HTML); liczy go od nowa, gdy go brak, gdy jest z
-innego dnia albo gdy ledger zapisano później. Błąd rekordu nie psuje strony:
-filtr rodzin znika. Widok ma filtr „tylko rodziny na plusie”, znacznik przy
-nodze takiej rodziny (innym nic się nie dopisuje) i przycisk „x ≥ 1 i
-rodzina na plusie” (ustawia oba filtry, reszty nie rusza). Pomiar walk-forward
-10-12..10-17 (okna 3-8 dni): selekcja -0,6% [-4,8; +3,9] na 1 254 nogach,
-reszta kuponu -4,5%; lepsza od reszty w 6 z 6 dni, ale łącznie +4,0 pp
-[-0,3; +8,1], 81% nóg z 10-17 - przewaga niepotwierdzona, zysk nieudowodniony (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`,
-`scripts/sofa/measure_selection_walk_forward.py`, sprawdzian
-`T-FAMILY-SELECTION`). Kupon (PDF) bez zmian. Test: `tests/sofa/test_family_record.py`.
+**Bez rekordu rodzin (od 2026-10-31, decyzja operatora).** Filtr „tylko
+rodziny na plusie”, znacznik rodziny przy nodze i przycisk „x ≥ 1 i rodzina
+na plusie” (`bet.sofa.family_record`, `family_record.json`, od 2026-10-18)
+usunięte: „pipeline powstał po to, aby głęboko analizować i bazować na
+statystykach”. Noga stoi na własnej pewności i odczytach analityków; filtr
+„min. x” zostaje. Był to tylko widok (nigdy bramka), więc kupon (PDF) bez
+zmian. Sprawdzian `T-FAMILY-SELECTION` wycofany; dawny pomiar zostaje jako
+historia (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`).
 
 **Zakładka „Wszystkie wyceny” (od 2026-10-21).** Operator: „liczycie rynki,
 a ich nie pokazujecie”. Druga zakładka strony pokazuje **każdy wiersz, który

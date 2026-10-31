@@ -31,7 +31,7 @@ Procedura jest zapisana raz. Komenda, która uruchamia agenta, mówi tylko,
 | `/sofa-rebuild [data]` | przebudowa z artefaktów jednym poleceniem `rebuild_day.py` | Superbet (stara cena), most dla FIXTURE_CHECK / SPORT_IDENTITY |
 | `/sofa-verify [data]` | `sofa-verifier`, scalenie jego odczytów, przebudowa | Superbet (ceny na żywo) + web |
 | `/sofa-settle [data]` | `sofa-settler` dla dnia zakończonego | Sofascore (most) |
-| `/kupon 11-13 [~4] [x2]` | kupon z czatu (AKO) na okno startów: `build_slip.py --any-family --builders --max-legs 10`, analitycy czytają każdą nogę (`merge_reads.py --slip`), odrzuconą zastępuje następna; skill `bet-slip-audit`. Kuponu dnia nie dotyka | Sofascore (most: h2h, składy) |
+| `/kupon 11-13 [~4] [x2]` | kupon z czatu (AKO) na okno startów: `build_slip.py --builders --max-legs 10` (jedna pula wszystkich nóg, każda na własnych statystykach - bez rodzin na plusie od 2026-10-31), analitycy czytają każdą nogę (`merge_reads.py --slip`), odrzuconą zastępuje następna; skill `bet-slip-audit`. Kuponu dnia nie dotyka | Sofascore (most: h2h, składy) |
 
 Argument: `dzisiaj` / `wczoraj` / `YYYY-MM-DD`; pusty = dzisiaj. Piłka i
 tenis: doba UTC; hokej / kosz / siatka / CS2 od 2026-10-23: [koniec(D-1),
@@ -70,7 +70,7 @@ D+1 05:00Z) (`sport_identity.day_window`).
 | `sofa-analysis-core` | kontrakt analityka: plik `read_set`, kolejność artefaktów, punkt decyzyjny, bloki JSON, raport do pliku | trzech analityków |
 | `football-analysis` / `tennis-analysis` | metoda sportowa | analityk danego sportu |
 | `sport-analysis` | metoda sportów mierzonych: co wyceniło nogę (model wyniku, silnik CS2, model zawodnika, dowód linii), tożsamość i zakres, decydujące fakty przedmeczowe sportu (bramkarz, raport kontuzji i back-to-back, szóstka, piątka i pula map), sekcja meczu (od 2026-10-26) | `sofa-analyst-sport` |
-| `bet-slip-audit` | wycena slipa z ekranu operatora; własny Bet Builder operatora (zrzut) -> najpierw `build_slip.py --check --no-refresh-record` (szansa nogi vs 1/kurs, wspólne k/n nóg - częstość, nie prawdopodobieństwo; bez iloczynu szans); pętla `/kupon` | na żądanie |
+| `bet-slip-audit` | wycena slipa z ekranu operatora; własny Bet Builder operatora (zrzut) -> najpierw `build_slip.py --check` (tylko odczyt; szansa nogi vs 1/kurs, wspólne k/n nóg - częstość, nie prawdopodobieństwo; bez iloczynu szans); pętla `/kupon` | na żądanie |
 
 Gdy dwa źródła mówią co innego: **kod > artefakt > skill > plik agenta**.
 

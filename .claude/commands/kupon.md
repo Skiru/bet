@@ -27,13 +27,13 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 ## Run
 
 First `.venv/bin/python scripts/sofa/ensure_bridge.py` (build_slip.py asks Sofascore for
-h2h / lineups and writes dossiers and `family_record.json` - not read-only) and
+h2h / lineups and writes dossiers - not read-only) and
 `mkdir -p runs/sofa/<date>/slips`. Then the skill's loop, with `--start-from <HH:MM>
---start-to <HH:MM> --target <X> [--slips N] --any-family --builders --max-legs 10
+--start-to <HH:MM> --target <X> [--slips N] --builders --max-legs 10
 --read-set-dir runs/sofa/<date>/read_set_slip --md-out runs/sofa/<date>/slips/<HHMM>.md`
 (`<HHMM>` = now, local, each round - always, so a staked slip can be traced)
-(operator 2026-10-26: every market in one pass, families on the plus not
-preferred; the day's Bet Builders as an option of their match, priced as the
+(every market in one pass, each leg on its own statistics and reads - the
+families on the plus removed by the operator 2026-10-31; the day's Bet Builders as an option of their match, priced as the
 product of their legs - the table says Superbet prices a builder lower), the
 analysts' reports at `runs/sofa/<date>/<date>_analiza_<sport>_kupon_<hhmm>_<round>.md`
 (`<hhmm>` = the request's local time, fixed for all its rounds) and `merge_reads.py --slip --author analyst ...
@@ -45,7 +45,7 @@ step.
   marked ⚠ starts within 45 min (a read round takes 20-30 min): name it.
 - The operator sends their own Bet Builder (screenshot) instead of hours: the
   skill's `--check` mode (one `--check` per leg in Superbet's words,
-  `--screen-odds` from the screen, `--no-refresh-record`) and its `--check`
+  `--screen-odds` from the screen; read-only) and its `--check`
   relay, never confidences multiplied by hand.
 - No slip at all: relay the script's first line (with the reachable price) and
   offer a lower target or a wider window - never fill with legs outside the
@@ -53,14 +53,11 @@ step.
 
 ## Answer (Polish)
 
-Exactly the skill's **Relay**: line 1 the script's first line - how many slips
-stand on families on the plus ("say no first", `--any-family` too) - then the
-tables with every column read (measured chance vs 1/kurs, "pewność < 1/kurs",
-family hit vs price with n, zestawienie, ⚠, the header's chance vs 1/price and
+Exactly the skill's **Relay**: line 1 the script's first line - how many of
+the requested slips the day gives ("say no first": "dzień cienki - masz N" /
+"dziś żadnego") - then the tables with every column read (measured chance vs
+1/kurs, "pewność < 1/kurs", zestawienie, ⚠, the header's chance vs 1/price and
 "zwrot wg naszych liczb", a builder's "<product> iloczyn" with "Superbet
 płacił 0,85-0,99 iloczynu (28.10)"), the reads, what fell out and what
-replaced it, unread legs named as unread, the `--md-out` path. Carry the
-skill's measured facts where a leg's family is among them (goal UNDER families
-below price 10-14..10-27, e.g. `goals_total` UNDER -4.6 pp on 1,765 legs) - as
-measurements with days and N, never as a result argument. No slip price, no
-stake, no "na minusie" labels.
+replaced it, unread legs named as unread, the `--md-out` path. No slip
+price, no stake, no "na minusie" labels.

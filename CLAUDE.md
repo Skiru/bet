@@ -48,7 +48,6 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `KUPON_<d>.pdf`, `printed/<ts>.json`, `12_printed.json` | the product and its append-only print record (a rebuild locks from the first print) |
 | `KUPON_<d>.html` | the same legs as a filterable page - a **view**, not a coupon (`bet.sofa.coupon_html`); every read leg carries its analysts' notes (verdict, author, merge time, context tag, reason) and, folded under it, the match's full analysis sections (`analyses.json`; the PDF: the whole reason at the leg, `read_label`, and an "A<n>" pointer to the appendix "Aneks: analizy meczów" with the newest analyst / verifier section of every printed read match), a match with no read leg is marked "nieczytany" - display only; dark, cards under 760 px for the operator's iPhone, a table on the Mac and on paper, a results render without the "nierozpoczęte" filter (never restored there), chips / sort list / filters kept per day in localStorage, 200 legs drawn at a time (filters and summaries count all); written by `build_coupon_pdf.py` after every PDF (HTML failure: PDF kept, exit 1); alone `build_coupon_html.py --date <d>` |
 | iCloud `Kupony/<DD.MM.YYYY>/` | the operator's copy of KUPON pdf + html (`bet.sofa.icloud_sync`, operator 2026-10-25): every render of the day's own coupon (print, rebuild, `--with-results`; `build_coupon_html.py` too) replaces it atomically; a scratch runs dir never reaches it (`SOFA_ICLOUD_KUPONY_DIR` names a root, empty = off; tests set it empty); no iCloud Drive = SKIPPED; a failed copy = PDF stage PARTIAL (exit 1); `day_status.py` `icloud` WARNs when the copy differs from the local render. A copy, read by nothing |
-| `family_record.json` | each (sport, market, direction) family's record on the printed legs of the 14 days before; "on the plus" = >= 50 legs and units > 0 (`bet.sofa.family_record`); the HTML's selection aid, **never a gate** - advantage not yet shown (`T-FAMILY-SELECTION`) |
 | `13_results.json` | settled result of every printed position, the ledger's own grades (`bet.sofa.coupon_results`); written by `mark_coupon_results.py` (called by `record_results.py`) |
 | `reads.json`, `vetoes.json`, `read_requests.json` | analysts' per-leg verdicts (each stamped `read_at_utc` by `merge_reads.py`), vetoes, the operator's extra positions |
 | `analyses.json` | the analysts' and the verifier's match sections by Sofascore id, newest first (`bet.sofa.analyses`): cut from each report at its `sofa:<id>` heading (else both team names) by every coupon `merge_reads.py`; `build_analyses.py --date <d>` rebuilds it from the reports on disk. Read by the HTML / PDF and by `read_set.py` (a re-read leg's `prior_analysis` -> the analyst's delta pass) - display / process only, never a gate |
@@ -555,7 +554,7 @@ before a code change runs its old steps until it ends.
 | settle D-1 and decide about constants | `/sofa-settle` |
 | price a slip the operator screenshotted | the `bet-slip-audit` skill |
 | a chat slip (AKO) to a target price from the day's coupon (every market, a time window; each leg read, a refused leg replaced and read) | `/kupon 11-13 [~4] [x2]` (`build_slip.py` + analysts through the `bet-slip-audit` skill's loop) |
-| check the operator's own Bet Builder from a screenshot (each leg's measured chance vs 1/odds, family, zestawienie, the legs' joint k/n in both sides' games, the screen price) | `build_slip.py --date <d> --check "<mecz>\|<rynek>\|<wybór>" [--check ...] [--screen-odds X] --no-refresh-record` (read-only with that flag) |
+| check the operator's own Bet Builder from a screenshot (each leg's measured chance vs 1/odds, zestawienie, the legs' joint k/n in both sides' games, the screen price) | `build_slip.py --date <d> --check "<mecz>\|<rynek>\|<wybór>" [--check ...] [--screen-odds X]` (read-only) |
 
 Agents: `sofa-runner`, `sofa-analyst-football`, `sofa-analyst-tennis`,
 `sofa-analyst-sport` (one instance per measured sport), `sofa-verifier`,
@@ -614,15 +613,17 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   first.** When the operator asks for N slips, a target price or disjoint
   slips and the day supports fewer, say so in the first line ("dzień cienki -
   masz jeden kupon" / "dziś żadnego") instead of filling the request with
-  weaker legs. "Supports" is measured: first scan the whole window for legs of
-  the market families whose printed legs realised at or above their price on
-  the latest settled days (name the days and N; match bootstrap; one family in
-  twenty clearing zero is what chance gives - say so), and inside a match
-  prefer such a leg. Every table the operator may stake from carries that
-  measured chance (a `price_gap` leg at its price, never its confidence) with
-  1/odds beside it - in **every** re-summary - and no "na minusie" label
-  (operator 2026-10-15: a leg below its price is by design). The product of
-  confidences is never the headline.
+  weaker legs. "Supports" = legs standing on their own statistics and the
+  analysts' reads: each leg's measured chance is its confidence (which carries
+  its line evidence), a leg of any sport more than `price_gap.GAP` above its
+  price (or flagged `price_gap`) at its price, never above it; a leg a
+  read refuses is out. No market family is preferred or counted - the
+  families' record "on the plus" was removed by the operator 2026-10-31 ("the
+  pipeline exists to analyse deeply and stand on statistics"). Every table the
+  operator may stake from carries that measured chance with 1/odds beside it -
+  in **every** re-summary - and no "na minusie" label (operator 2026-10-15: a
+  leg below its price is by design). The product of confidences is never the
+  headline.
 - **A leg proposed in chat is named in Superbet's words** - its
   `superbet_market: superbet_selection` from `11_coupon.json`
   (`bet.sofa.superbet_names.names` for a leg of another artifact), never a

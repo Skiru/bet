@@ -40,7 +40,6 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon.py --date <d>       
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_pdf.py --date <d>    # KUPON_<d>.pdf + .html
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_coupon_html.py --date <d>   # the HTML view alone (+ iCloud copy); a finished day keeps its results (13_results.json)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_analyses.py --date <d> [--dry-run]   # rebuild analyses.json (the match sections) from the day's reports; then build_coupon_html.py to show them
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_family_record.py --date <d>  # family_record.json for the HTML filter
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_coupon.py --date <d>        # the old VALUE selector (06_coupon.json): structure, arithmetic, anti-selection
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <d>      # 11_coupon.json: C1-C3, U1-U3
 ```
@@ -153,7 +152,6 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tournament_day.py --from 
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_sport_incidents.py --sport {hockey|basketball} [--json-out f] [--md-out f]   # "1. gol" / race to X walk-forward
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_aces_opponent.py --cut 2026-01-01 [--played-cache f.pkl] [--md-out f]   # TENNIS_ACES_OPPONENT replay; ~25 min
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_line_curves.py --db data/refit_2026-10-17/sofa_replay.db [--md-out f] [--json-out f]   # per-line vs pooled curve (~3 min)
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_selection_walk_forward.py --from <d> --to <d> [--md-out f]   # T-FAMILY-SELECTION
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_read_value.py --from <d> --to <d> [--md-out f]   # do analyst / verifier reads improve the coupon: KEEP vs removed legs, match bootstrap
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_red_flags.py --from <d> --to <d> [--md-out f]   # red flags on printed legs; offline, ~20 s (T-RED-FLAG-SCRIPT)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_tennis_serve_market_line.py --from <d> --to <d> --staged data/refit_tennis_serve_2026-10-17 [--md-out f]   # T-TENNIS-SERVE-MARKET-LINE
@@ -172,15 +170,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_audit1023_p14_tennis_rati
 
 ## Chat slip to a target price (outside the pipeline; NOT read-only)
 
-A slip build refreshes `family_record.json` (`--no-refresh-record` skips) and, with
-`--read-set-dir`, asks Sofascore through the bridge (h2h, pre-match lineups) and writes
+A slip build with `--read-set-dir` asks Sofascore through the bridge (h2h, pre-match lineups) and writes
 dossiers (`--no-h2h` / `--no-lineups` / `--no-dossier` skip) - run `ensure_bridge.py`
 first. Always pass `--md-out` so a staked slip can be traced.
 
 ```bash
 mkdir -p runs/sofa/<d>/slips
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target 4 [--start-from 10:00 --start-to 12:00] [--slips N] [--competition "Champions League"] [--allow-rest | --any-family] [--builders] [--max-legs 10] [--reserve 1] --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md   # bet.sofa.slip_builder: exact knapsack, refused reads drop out; loop: bet-slip-audit skill; exit 0 all supported (--any-family: all found) / 1 fewer / 2 no coupon, no family record or bad arguments
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --check "<mecz>|<superbet_market>|<superbet_selection>" [--check ...] [--screen-odds 2.25] --no-refresh-record --md-out runs/sofa/<d>/slips/<HHMM>_check.md   # the operator's OWN Bet Builder from a screenshot (one match; more = error): each leg looked up in 11_coupon.json singles, then removed_by_reads, then 08_confidence*.json (a refused / removed leg prints its refusal or read reason); per leg measured chance vs 1/odds, the legs' joint k/n in both sides' games (a frequency, never a probability), the screen price's 1/kurs; no product of chances; no --target; read-only with --no-refresh-record (always pass it); exit 0 all legs found, 1 some leg not found, 2 failure
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target 4 [--start-from 10:00 --start-to 12:00] [--slips N] [--competition "Champions League"] [--builders] [--max-legs 10] [--reserve 1] --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md   # bet.sofa.slip_builder: exact knapsack, one search over every leg, measured chance = min(confidence, 1/odds for a price_gap leg), refused reads drop out; loop: bet-slip-audit skill; exit 0 all requested slips found / 1 fewer / 2 no coupon or bad arguments (--any-family / --allow-rest / --no-refresh-record: accepted no-ops since 2026-10-31)
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --check "<mecz>|<superbet_market>|<superbet_selection>" [--check ...] [--screen-odds 2.25] --md-out runs/sofa/<d>/slips/<HHMM>_check.md   # the operator's OWN Bet Builder from a screenshot (one match; more = error): each leg looked up in 11_coupon.json singles, then removed_by_reads, then 08_confidence*.json (a refused / removed leg prints its refusal or read reason); per leg measured chance vs 1/odds, the legs' joint k/n in both sides' games (a frequency, never a probability), the screen price's 1/kurs; no product of chances; no --target; read-only (writes only --md-out); exit 0 all legs found, 1 some leg not found, 2 failure
 ```
 
 ## Gates before a commit

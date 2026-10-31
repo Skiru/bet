@@ -39,7 +39,6 @@ typo is a validation error). The day is **UTC**; datetimes are UTC ISO with
 | `07_settled.json`, `07_settle_skips.json`, `07_settled_printed.json` | SETTLE (D-1) | grades, skips / refunds, printed legs without a sheet row |
 | `13_results.json`, `13_results_rendered.json` | `mark_coupon_results.py` | result of every printed position; hashes of the last results render |
 | `KUPON_<d>.przed_wynikami.pdf` / `.html` | `mark_coupon_results.py` | the files as printed, before the results render |
-| `family_record.json` | `build_family_record.py` | 14-day record per (sport, market, direction) family - the HTML's selection aid, never a gate |
 | `09_screen_prices.json` | operator | builder prices read off Superbet's screen - shown as his note, never a sofa price |
 | `10_boosts.json` / `.md` | `run_boosts.py` | Superbet price boosts - not the coupon |
 | `closing.jsonl` | `capture_closing.py` | closing price of every printed leg |

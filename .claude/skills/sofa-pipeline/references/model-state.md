@@ -723,6 +723,20 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- **family_record / family-on-plus selection removed by the operator
+  2026-10-31** ("WYWAL TO Z TA RODZINA NA PLUSIE ... PIPELINE POWSTAŁ PO TO
+  ABY GŁĘBOKO ANALIZOWAĆ I BAZOWAĆ NA STATYSTYKACH"): `bet.sofa.family_record`,
+  `family_record.json`, the KUPON html's "rodzina na plusie" filter / tag / "x
+  ≥ 1 i rodzina na plusie" button and the chat slip's tiers and family / sport
+  shortfalls are gone (display / selection aid only, never a coupon gate:
+  nothing that prints changed, no epoch). A slip leg's measured chance is now
+  min(confidence, 1/odds for a `price_gap` leg; a builder leg marked by
+  `price_gap.annotate`), one search over every leg. `T-FAMILY-SELECTION`
+  WITHDRAWN; `measure_selection_walk_forward.py`, `measure_slip_chance.py`,
+  `measure_slip_objective.py` deleted (their evidence docs in
+  `docs/sofa/evidence/` stay as history). Do not re-propose a selection by a
+  family's past record.
+
 - **A promoted / relegated side's league "now" in the rating** (2026-10-29,
   `scripts/sofa/measure_rating_domain.py`, DB copy, awarded out, walk-forward
   one step ahead, Poisson log-loss per side, match bootstrap; select
@@ -926,15 +940,11 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   is open - a measurement on the price, then a decision.
 
 - **NBA player lines (2026-10-26)**: why no leg prints (p sits at the median by the book's construction, new markets have ~25 games of lines, p overconfident in the top buckets) is in `docs/sofa/evidence/nba_player_model_2026-10-26.md`; open: re-measure at ~200 NBA 2026-27 games; NBA-specific calibration term; a box that sums to the score +-1 point (Milwaukee - Chicago 10-23, 494 lines ungraded; today refused by design); `NOT_IN_HISTORY` outside the NBA.
-- **Open checks on new data**: `T-PEER-CHOICE-edge`, `T-FAMILY-SELECTION`,
+- **Open checks on new data**: `T-PEER-CHOICE-edge`,
   `T-LINE-CURVES`, `T-PLAYER-SAMPLE-GATES`, `T-SCORE-MARKETS-superbet`,
   `T-CS2-SERIES-ROUNDS-superbet`, `T-TENNIS-SERVE-MARKET-LINE`,
   `T-TENNIS-SET-GAMES-OVER`, `T-TENNIS-ACES-SETS-EXPOSURE`, `T-RED-FLAG-SCRIPT`,
   `T-A2-league-rate-refusals`, `T-A4-bucket-deff`, `T-IDENTITY-unexplained`.
-- Family selection (view only): walk-forward 10-12..10-17 (windows 3-8 days)
-  x >= 1 and a family on the plus -0.6% [-4.8, +3.9] on 1,254 legs vs -4.5%
-  rest, better on 6 of 6 days but pooled +4.0 pp [-0.3, +8.1] with 81% of its
-  legs on 10-17 (`docs/sofa/evidence/selection_walk_forward_2026-10-18.md`).
 - Volleyball overstates ~16 pp at confidence >= 0.70 with either curve (-15.4 pp
   [-24.4, -6.8] new); basketball printable gap -16 pp - curve / line-evidence
   questions.

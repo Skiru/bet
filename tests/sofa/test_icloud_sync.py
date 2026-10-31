@@ -114,8 +114,6 @@ def test_html_render_alone_refreshes_the_copy(
         return out
 
     monkeypatch.setattr(build_coupon_html, "write_html", page)
-    monkeypatch.setattr(build_coupon_html, "ensure_family_record",
-                        lambda *a: "")
     monkeypatch.setattr(sys, "argv", ["x", "--date", D, "--runs-dir", str(runs)])
     assert build_coupon_html.main() == 0
     out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])

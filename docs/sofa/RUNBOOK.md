@@ -571,19 +571,21 @@ czyta analityk:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --target 4 \
-    --start-from 10:00 --start-to 12:00 --any-family --builders --max-legs 10 \
+    --start-from 10:00 --start-to 12:00 --builders --max-legs 10 \
     --read-set-dir runs/sofa/<data>/read_set_slip
 ```
 
-- **Wszystkie rynki** (`--allow-rest`, decyzja operatora 2026-10-20). Pierwsza
-  linia i tak mówi najpierw „nie”: ile kuponów dzień daje z rodzin na plusie;
-  kupon z reszty rynków jest oznaczony „poza poparciem”.
-- **Jedna pula + buildery** (decyzja operatora 2026-10-26): `--any-family` szuka
-  po wszystkich nogach naraz, rodziny na plusie bez pierwszeństwa (pierwsza linia
-  to mówi); `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
+- **Wszystkie rynki, jedna pula** (decyzje operatora 2026-10-20 / 10-26 /
+  10-31): wyszukiwanie idzie po wszystkich nogach naraz; żadna rodzina rynku
+  nie ma pierwszeństwa (rekord „rodzin na plusie” usunięty 2026-10-31:
+  „pipeline powstał po to, aby głęboko analizować i bazować na statystykach”).
+  Pierwsza linia mówi najpierw „nie”: ile z zamówionych kuponów dzień daje
+  („dzień cienki - masz N” / „dziś żadnego”). Stare flagi `--any-family` /
+  `--allow-rest` / `--no-refresh-record` są przyjmowane i nic nie robią.
+- **Buildery**: `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
   wyszukiwaniu = iloczyn kursów nóg (zasada operatora), tabela mówi, że Superbet
   liczy buildera niżej (8,8-19,6%) i decyduje ekran; szansa = `combined_probability`
-  obniżona o zmierzoną lukę każdej nogi; analityk czyta każdą nogę buildera,
+  obniżona tylko o cenę nogi powyżej ceny (`price_gap`); analityk czyta każdą nogę buildera,
   odrzucenie jednej usuwa builder. `--max-legs 10`: przy nogach ~1,2-1,5 pięć
   nóg rzadko sięga ~10.
 - **Algorytm**: dokładny problem plecakowy z wyborem (jedna noga z meczu) —
@@ -593,9 +595,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   [−1,0; +2,8]). Stan trzyma dokładny logarytm kursu (koszyki 0,0001 do
   odcięcia Pareto) — kupon 2,00 × 2,00 na cel 4 jest znajdowany, a
   znaleziony zawsze sięga celu. Sprawdzone pełnym przeglądem na losowych danych.
-- **Szansa nogi** = min(pewność, cena przy `price_gap`, 1/kurs + luka
-  rodziny z `family_record.json`); rodzina na plusie czyta lukę swojej
-  selekcji z walk-forward (−0,8 / −1,6 pp), nigdy nadwyżkę.
+- **Szansa nogi** = min(pewność, cena przy `price_gap`) - własne statystyki
+  nogi (pewność niesie już dowód linii: offset i limit pasma cen); noga
+  `price_gap` nigdy powyżej swojej ceny.
 - **Czytanie**: skrypt zapisuje nieczytane nogi kuponu (z `--reserve 1`
   także kuponu zapasowego; domyślnie wyłączone — plecak liczy wszystko od
   nowa, więc zamiennik rzadko pochodzi z zapasu) do
@@ -621,17 +623,16 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   remisie (różnica szansy < 0,25% na nogę)
   wyszukiwanie woli nogi z świeżym KEEP tego kuponu, żeby pętla
   nie wymieniała ich na nieczytane.
-- **Jedna rodzina**: kupon z ≥ 3 nogami jednej rodziny (albo cały z jednej)
-  dostaje linię „Uwaga: N z M nóg z jednej rodziny” — ostrzeżenie, nie
-  bramka. Werdykty idą przez
+- **Jeden rynek**: kupon z ≥ 3 nogami jednego rynku (sport, rynek, kierunek;
+  albo cały z jednego) dostaje linię „Uwaga: N z M nóg jednego rynku” —
+  ostrzeżenie, nie bramka. Werdykty idą przez
   `merge_reads.py --slip` do `reads_slip.json` / `vetoes_slip.json` — kupon
   z czatu je czyta, kupon dnia **nie** (prośba o typy nie rusza kuponu).
 - **Wiek ceny**: kolumna „cena sprzed” i linia „Cena starsza niż limit
   pipeline'u” (45 min piłka / tenis, 3 h sporty; u piłki to co najmniej wiek
   kuponu, „≥”) — skrypt nie odświeża cen, rozstrzyga kurs na ekranie.
 - Okno powinno zaczynać się ≥ 30 min później — nogi startujące w trakcie
-  czytania wypadają. Przewaga selekcji rodzin jest **niepotwierdzona**
-  (T-FAMILY-SELECTION; `docs/sofa/evidence/selection_walk_forward_2026-10-20.md`).
+  czytania wypadają.
 
 ---
 

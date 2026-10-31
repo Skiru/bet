@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """A chat slip (AKO) to a target price from the day's coupon
 (bet.sofa.slip_builder) - outside the pipeline. It prints no price of ours
-and sizes no stake, but it is not read-only: it refreshes family_record.json
-and, with --read-set-dir, asks Sofascore (bridge) for h2h and pre-match
-lineups and writes dossiers (--no-h2h / --no-lineups / --no-dossier skip).
+and sizes no stake. Without --read-set-dir it writes nothing but --md-out;
+with it, it asks Sofascore (bridge) for h2h and pre-match lineups and writes
+dossiers (--no-h2h / --no-lineups / --no-dossier skip).
 
 Fewest legs that reach the target with the highest measured chance, one leg
-per match (families on the plus first, or every market with --any-family);
-the first line always says how many of the requested slips stand on
-families on the plus alone ("say no first"). No slip price, no stake.
+per match, one search over every leg of the coupon - each leg on its own
+statistics (min(confidence, 1/odds for a price_gap leg)) and the analysts'
+reads; the first line says how many of the requested slips the day gives
+("say no first": "dzień cienki - masz N" / "dziś żadnego"). No slip price,
+no stake.
 
 --check "<mecz>|<rynek Superbetu>|<wybór>" (repeat per leg) [--screen-odds X]:
 the operator's own Bet Builder of one match against our numbers instead
-(each leg's measured chance beside 1/odds, family, match-up, the legs' joint
-history in both sides' games, the screen price); read-only.
+(each leg's measured chance beside 1/odds, match-up, the legs' joint history
+in both sides' games, the screen price); read-only.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
-        --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--allow-rest] \\
+        --date 2026-10-20 --target 5 [--slips 2] [--max-legs 5] [--builders] \\
         [--min-odds 1.10] [--max-odds 2.00] [--start-from 10:00 --start-to 12:00] \\
         [--reserve 1] [--read-set-dir runs/sofa/<d>/read_set_slip] [--md-out f]
 
@@ -26,17 +28,19 @@ history in both sides' games, the screen price); read-only.
 Analysts' reads: a leg a veto or a WATCH / NO_BET read refuses (vetoes.json,
 reads.json, the slip's own vetoes_slip.json / reads_slip.json written by
 `merge_reads.py --slip`, or the reads the coupon carries) never enters a
-slip, so after the merge a re-run takes the next best leg. The day's
-family_record.json is refreshed first when the ledger is newer
-(build_family_record.ensure). --read-set-dir writes the
-unread legs of the slips and of the --reserve slips (the next disjoint ones,
-the buffer a refusal falls back on) as read_set_slip_<sport>.json in
-read_set.py's compact form, for one analyst per sport; stale files of an
-earlier call are removed.
+slip, so after the merge a re-run takes the next best leg. --read-set-dir
+writes the unread legs of the slips and of the --reserve slips (the next
+disjoint ones, the buffer a refusal falls back on) as
+read_set_slip_<sport>.json in read_set.py's compact form, for one analyst per
+sport; stale files of an earlier call are removed.
 
-Exit 0: every requested slip is supported (--any-family: found); 1: fewer
-(the answer says so); 2: no 11_coupon.json, no family_record.json or bad
-arguments. --check: 0.
+--any-family, --allow-rest and --no-refresh-record are accepted and ignored
+(the families' record was removed by the operator 2026-10-31; every search
+covers every leg and nothing is refreshed).
+
+Exit 0: every requested slip found; 1: fewer (the answer says so); 2: no
+11_coupon.json or bad arguments. --check: 0 (1 when a leg is not on the
+coupon).
 """
 
 from __future__ import annotations
@@ -63,13 +67,11 @@ from bet.sofa import (  # noqa: E402  # noqa: E402
     priced_view,
     timeutil,  # noqa: E402
 )
-from bet.sofa import family_record as fr  # noqa: E402
 from bet.sofa import slip_builder as sb  # noqa: E402
 from bet.sofa.confidence import COUPON_ARTIFACT, coupon_artifact  # noqa: E402
 from bet.sofa.superbet_names import board_sides, names  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
-from scripts.sofa.build_family_record import ensure_quietly  # noqa: E402
 from scripts.sofa.merge_reads import SLIP_READS, SLIP_VETOES  # noqa: E402
 from scripts.sofa.read_set import FIELDS  # noqa: E402
 
@@ -189,16 +191,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS)
     ap.add_argument("--min-odds", type=float, default=sb.MIN_LEG_ODDS)
     ap.add_argument("--max-odds", type=float, default=sb.MAX_LEG_ODDS)
-    ap.add_argument(
-        "--allow-rest",
-        action="store_true",
-        help="fill missing slips from legs outside families on the plus",
-    )
-    ap.add_argument(
-        "--any-family",
-        action="store_true",
-        help="search every leg in one pass, families on the plus not preferred",
-    )
+    # no-ops kept so an older call (a session that loaded the old /kupon
+    # contract) still runs: every search covers every leg (operator
+    # 2026-10-31 removed the families on the plus)
+    for flag in ("--allow-rest", "--any-family", "--no-refresh-record"):
+        ap.add_argument(flag, action="store_true", help=argparse.SUPPRESS)
     ap.add_argument(
         "--builders",
         action="store_true",
@@ -220,11 +217,6 @@ def main(argv: list[str] | None = None) -> int:
                     help="dossiers from the cache only, no Sofascore h2h request")
     ap.add_argument("--no-lineups", action="store_true",
                     help="no Sofascore pre-match line-up request")
-    ap.add_argument(
-        "--no-refresh-record",
-        action="store_true",
-        help="read family_record.json as it is (no ledger / database access)",
-    )
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--md-out", default=None)
     ap.add_argument("--check", action="append", default=[],
@@ -256,18 +248,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAILED: no {COUPON_ARTIFACT} in {run}", file=sys.stderr)
         return 2
     coupon = json.loads(path.read_text(encoding="utf-8"))
-    problem = "" if args.no_refresh_record else ensure_quietly(args.runs_dir, args.date)
-    if problem:
-        print(f"WARN: {fr.FILE} not refreshed - {problem}", file=sys.stderr)
-    record = fr.load(run, args.date)
-    if record is None:
-        print(
-            f"FAILED: no usable {fr.FILE} for {args.date} - no leg has a measured "
-            "chance; build it: scripts/sofa/build_family_record.py --date "
-            f"{args.date}",
-            file=sys.stderr,
-        )
-        return 2
     singles = coupon.get("singles") or []
     if args.check:
         try:
@@ -281,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         db = args.db_path or dossier.DB_PATH
         matchups = dossier.matchups_for_legs(run, picked, db_path=db)
         joint = dossier.joint_history(run, picked, db_path=db) if picked else None
-        text = sb.render_check(args.check, singles, record, args.screen_odds,
+        text = sb.render_check(args.check, singles, args.screen_odds,
                                matchups, joint, not_printed(run, coupon))
         if args.md_out:
             Path(args.md_out).parent.mkdir(parents=True, exist_ok=True)
@@ -290,12 +270,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if len(picked) == len(args.check) else 1
     result = sb.build(
         coupon.get("singles") or [],
-        record,
         now,
         args.target,
         args.slips,
         max_legs=args.max_legs,
-        allow_rest=args.allow_rest,
         min_odds=args.min_odds,
         max_odds=args.max_odds,
         window=span,
@@ -305,14 +283,12 @@ def main(argv: list[str] | None = None) -> int:
         reserve=args.reserve,
         built_at=coupon.get("created_at_utc"),
         competitions=args.competition,
-        any_family=args.any_family,
         builders=(coupon.get("builders") or []) if args.builders else (),
     )
     text = sb.render(
         result,
         day=args.date,
         target=args.target,
-        record=record,
         now=now,
         built_at=coupon.get("created_at_utc"),
         matchups=dossier.matchups_for_legs(
@@ -338,8 +314,7 @@ def main(argv: list[str] | None = None) -> int:
                 if result.slips
                 else "do przeczytania: nic - brak kuponu"
             )
-    found = len(result.slips) if args.any_family else result.supported
-    return 0 if found >= args.slips else 1
+    return 0 if len(result.slips) >= args.slips else 1
 
 
 if __name__ == "__main__":

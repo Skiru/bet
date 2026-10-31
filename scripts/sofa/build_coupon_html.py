@@ -17,7 +17,6 @@ from bet.sofa import coupon_results as cr
 from bet.sofa.confidence import coupon_artifact
 from bet.sofa.coupon_html import write_html
 from bet.sofa.icloud_sync import sync_day
-from scripts.sofa.build_family_record import ensure_quietly as ensure_family_record
 
 
 def main() -> int:
@@ -33,9 +32,6 @@ def main() -> int:
               file=sys.stderr)
         return 2
     doc = json.loads(artifact.read_text(encoding="utf-8"))
-    fam_error = ensure_family_record(args.runs_dir, args.date)
-    if fam_error:
-        print(f"family_record.json NOT refreshed: {fam_error}", file=sys.stderr)
     # a day already marked keeps its results (a plain render would drop the
     # colours, and the iCloud copy with them); like --with-results it is a
     # view, so the page's mtime - read as "printed" - is kept
