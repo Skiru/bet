@@ -7,7 +7,7 @@ dossiers (--no-h2h / --no-lineups / --no-dossier skip).
 
 Fewest legs that reach the target with the highest measured chance, one leg
 per match, one search over every leg of the coupon - each leg on its own
-statistics (min(confidence, 1/odds for a price_gap leg)) and the analysts'
+statistics, never above its price (min(confidence, 1/odds)) and the analysts'
 reads; the first line says how many of the requested slips the day gives
 ("say no first": "dzień cienki - masz N" / "dziś żadnego"). No slip price,
 no stake.

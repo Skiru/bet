@@ -780,3 +780,21 @@ done(out)}catch(e){done({err:String(e)})}})();
     assert "<i>ok</i>" in out["first"]
     assert out["second"].endswith("to samo uzasadnienie co przy nodze wyżej")
     assert "<i>ok</i>" in out["second_full"]
+
+
+def test_pdf_and_page_share_one_leg_x() -> None:
+    """Review 2026-10-31: build_coupon_pdf kept its own copy of leg_x. The
+    PDF imports bet.sofa.coupon_html.leg_x, so both paths give the same x."""
+    from scripts.sofa import build_coupon_pdf as pdf
+
+    assert pdf.leg_x is ch.leg_x
+    sport = {"x": 0.9123, "confidence": 0.8, "offered_odds": 1.2}
+    single = {"confidence": 0.75, "offered_odds": 1.31}
+    for leg in (sport, single):
+        x = ch.leg_x(leg)
+        assert x is not None
+        assert pdf._x_cell(leg) == f"{x:.2f}"
+    assert ch.leg_x(sport) == 0.9123
+    assert ch.leg_x(single) == pytest.approx(0.75 * 1.31)
+    assert ch.leg_x({"confidence": 0.7}) is None
+    assert pdf._x_cell({"confidence": 0.7}) == "—"

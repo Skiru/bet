@@ -65,6 +65,29 @@ zakładów zajmie dużo dłużej - albo test okaże się niewykonalny.
 3. Jeśli pokrycie bliskie zera - decyzja operatora: porzucić test albo
    zmienić źródło linii (nowy identyfikator w rejestrze).
 
+## Końcowy review 2026-10-31 (popołudnie) - poprawione
+
+Review kodu dnia (db6fedc6..HEAD) - 9 uwag, wszystkie poprawione z testami:
+- test na sucho: bierze najnowszą migawkę sprzed startu z linią "Point spread"
+  (pusta migawka tuż przed meczem nie wyrzuca meczu); kurs Superbetu pobrany po
+  starcie nigdy nie jest czytany; werdykt zamrożony na pierwszych 300 zakładach
+  (kolejne osobno, "nie zmieniają werdyktu"; przed 300 tylko postęp, bez ROI);
+- `/kupon`: szansa nogi = min(pewność, 1/kurs) dla każdego sportu (bez progu
+  3 pp) - nogi powyżej ceny liczone po cenie, wybór praktycznie po cenie i
+  marży; kupon z builderem pokazuje zmierzony wynik builderów (−16,6% / −45,8%),
+  nie wzór singli;
+- `day_status` (`loop:paper_capture`) ze wstrzykiwanym sprawdzaniem procesu;
+  jedno `leg_x` dla PDF i HTML; wspólny helper w `slip_builder`.
+
+Weryfikacja: 6273 testy, ruff, mypy, rejestr - zielone; powtórka E2E 10-13..10-30
+nadal 92 zakłady (68: 41 wygranych, +25,3%; 24: 16, +36,9%).
+
+Stan operacyjny 16:15Z: pętla zbierania bet365 działa (pid 66330, 120 meczów
+w ostatnim przebiegu). Awaria sieci ok. 13:40-15:30Z (DNS) zatrzymała SHADOW i
+bridge; od 16:00Z SHADOW znów OK. Pokrycie: linię handicapu bet365 przed
+startem ma ok. 10% meczów (niższe ligi mają tylko "Full time") - test będzie
+wolny, 300 zakładów raczej miesiące niż tygodnie.
+
 ## Otwarte, nie ruszane
 
 - Pętla shadow z 10-30 padła o 17:41Z; późne mecze NBA z nocy 10-30/31 są w

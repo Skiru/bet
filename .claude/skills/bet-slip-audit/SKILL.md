@@ -33,13 +33,13 @@ A slip assembled in chat is not a coupon and has no gates.
    żadnego"). Never fill the request with weaker legs without saying so.
 2. **"Supports" = the leg's own statistics and the analysts' reads.** A leg's
    measured chance is its confidence (it carries its line evidence - offset
-   and price-band cap), a `price_gap` leg at its price, never above it; a leg a
-   read refuses is out. No market family is preferred, counted or quoted - the
+   and price-band cap), never above its price: min(confidence, 1/odds) for a
+   leg of any sport (a `price_gap` leg included); a leg a read refuses is out. No market family is preferred, counted or quoted - the
    families' record "on the plus" (`family_record.json`) was removed by the
    operator 2026-10-31 ("the pipeline exists to analyse deeply and stand on
    statistics").
 3. **Every table the operator may stake from** carries that measured chance (a
-   `price_gap` leg at its price, never its confidence) with 1/odds beside it -
+   leg above its price at its price, never its confidence) with 1/odds beside it -
    in **every** re-summary, not only the first - and no "na minusie" label
    (operator 2026-10-15). The product of confidences is never the headline.
 4. **Name each leg in Superbet's words**: `superbet_market: superbet_selection`
@@ -97,8 +97,12 @@ legs 10-20..10-30). So:
 - **The honest money line** replaces any return computed from our
   confidence: "oczekiwany zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki
   (zmierzone: nogi kuponu 10-20..10-30, n 49 189; podatek 12%)" - line 2 and
-  every slip header; a single below 1/0.88 = 1.136 reads "wygrana zwraca
-  mniej niż gotówka".
+  every slip header of singles; a single below 1/0.88 = 1.136 reads "wygrana
+  zwraca mniej niż gotówka". A slip holding a Bet Builder gets no per-leg
+  formula for the builder: the builders' measured numbers (−16,6% dev /
+  −45,8% hold-out after tax at 0.90 × product) and "kurs buildera decyduje
+  ekran Superbetu"; a builder + singles slip states both parts apart, never a
+  combined number.
 
 **What the script shows** (read every column into the answer): per leg
 measured chance beside 1/odds, "pewność < 1/kurs" (confidence below the
@@ -118,8 +122,8 @@ slip can be traced.
 
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
 singles, not started (15 min margin, = the analysts' started-skip), odds 1.10-2.00, one per match, at
-most `--max-legs` (default 2); a leg's measured chance = min(confidence, 1/odds
-for a leg more than `price_gap.GAP` above its price or flagged `price_gap`). An exact multiple-choice knapsack
+most `--max-legs` (default 2); a leg's measured chance = min(confidence, 1/odds)
+for every leg of every sport (never above its price). An exact multiple-choice knapsack
 maximises the slip's measured chance under "price product >= target" - which
 picks the fewest legs (every odds band loses about alike per leg,
 10-13..10-19) - with the low-margin near-tie-break above. A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,

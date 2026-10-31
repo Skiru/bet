@@ -70,7 +70,8 @@ Exactly the skill's **Relay**: line 1 the script's first line - how many of
 the requested slips the day gives ("say no first": "dzień cienki - masz N" /
 "dziś żadnego" / "na ~X trzeba N nóg ...") - line 2 the script's money line
 ("Oczekiwany zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki (zmierzone:
-...)"), then the tables with every column read (measured chance vs 1/kurs,
+...)"; a slip with a builder: the builders' measured numbers and "kurs buildera
+decyduje ekran Superbetu", singles and builder stated apart), then the tables with every column read (measured chance vs 1/kurs,
 "pewność < 1/kurs", marża, zestawienie, ⚠, the header's chance vs 1/price and
 its money line, "wygrana zwraca mniej niż gotówka" on a single below 1,136,
 with `--builders` a builder's "<product> iloczyn", the builders' measured

@@ -598,8 +598,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   - **linia pieniędzy** zamiast „zwrotu wg naszych liczb” z pewności: „oczekiwany
     zwrot po podatku ≈ 0,88 × 0,946^n − 1 = −X% stawki (zmierzone: nogi
     kuponu 10-20..10-30, n 49 189; podatek 12%)” - druga linia i nagłówek
-    każdego kuponu; pojedyncza poniżej kursu 1,136 ma dopisek „wygrana zwraca
-    mniej niż gotówka”.
+    każdego kuponu z samych singli; pojedyncza poniżej kursu 1,136 ma dopisek
+    „wygrana zwraca mniej niż gotówka”. Kupon z builderem nie dostaje wzoru na
+    nogę dla buildera: zmierzone liczby builderów (−16,6% dev / −45,8% hold-out
+    po podatku przy 0,90 × iloczyn) i „kurs buildera decyduje ekran Superbetu”;
+    kupon builder + single podaje obie części osobno, bez łącznej liczby.
 
 - **Wszystkie rynki, jedna pula** (decyzje operatora 2026-10-20 / 10-26 /
   10-31): wyszukiwanie idzie po wszystkich nogach naraz; żadna rodzina rynku
@@ -613,7 +616,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   iloczyn): `--builders` dodaje buildery dnia jako opcję ich meczu - kurs w
   wyszukiwaniu = iloczyn kursów nóg (zasada operatora), tabela mówi, że Superbet
   liczy buildera niżej (8,8-19,6%) i decyduje ekran; szansa = `combined_probability`
-  obniżona tylko o cenę nogi powyżej ceny (`price_gap`); analityk czyta każdą nogę buildera,
+  obniżona tylko o cenę nogi powyżej ceny (min(pewność, 1/kurs) każdej nogi); analityk czyta każdą nogę buildera,
   odrzucenie jednej usuwa builder.
 - **Algorytm**: dokładny problem plecakowy z wyborem (jedna noga z meczu) —
   maksymalna zmierzona szansa kuponu przy iloczynie kursów ≥ cel; to samo
@@ -622,9 +625,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   [−1,0; +2,8]). Stan trzyma dokładny logarytm kursu (koszyki 0,0001 do
   odcięcia Pareto) — kupon 2,00 × 2,00 na cel 4 jest znajdowany, a
   znaleziony zawsze sięga celu. Sprawdzone pełnym przeglądem na losowych danych.
-- **Szansa nogi** = min(pewność, cena przy `price_gap`) - własne statystyki
-  nogi (pewność niesie już dowód linii: offset i limit pasma cen); noga
-  `price_gap` nigdy powyżej swojej ceny.
+- **Szansa nogi** = min(pewność, 1/kurs) - własne statystyki nogi (pewność
+  niesie już dowód linii: offset i limit pasma cen), nigdy powyżej ceny: noga
+  każdego sportu z pewnością powyżej ceny liczona po cenie (z `price_gap` czy
+  bez; bez progu `price_gap.GAP`, poprawka 2026-10-31).
 - **Czytanie**: skrypt zapisuje nieczytane nogi kuponu (z `--reserve 1`
   także kuponu zapasowego; domyślnie wyłączone — plecak liczy wszystko od
   nowa, więc zamiennik rzadko pochodzi z zapasu) do

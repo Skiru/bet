@@ -69,7 +69,7 @@ from bet.sofa.confidence import (  # noqa: E402
 )
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
-from bet.sofa.coupon_html import write_html  # noqa: E402
+from bet.sofa.coupon_html import leg_x, write_html  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.icloud_sync import sync_day  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
@@ -508,10 +508,11 @@ def line_cell(leg: dict[str, Any]) -> str:
     return f"{cs.display_line(leg)} {DIRECTION_SHORT.get(direction, direction)}"
 
 
-def leg_x(leg: dict[str, Any]) -> float:
-    if leg.get("x") is not None:
-        return float(leg["x"])
-    return float(leg["confidence"]) * float(leg["offered_odds"])
+def _x_cell(leg: dict[str, Any]) -> str:
+    """The PDF's x column: bet.sofa.coupon_html.leg_x (the one x of the PDF
+    and the HTML), "—" for a leg without a price."""
+    x = leg_x(leg)
+    return "—" if x is None else f"{x:.2f}"
 
 
 def main() -> int:
@@ -1345,7 +1346,7 @@ def render_stats_only(
                 Paragraph(f"<b>{leg['confidence']:.3f}</b>", small),
                 Paragraph("—" if model is None else f"{float(model):.3f}", small),
                 Paragraph(f"<b>{leg.get('offered_odds')}</b>", small),
-                Paragraph(f"{leg_x(leg):.2f}", small),
+                Paragraph(_x_cell(leg), small),
                 Paragraph(("1-str." if leg.get("one_sided_market") else "—")
                           if margin is None else f"{float(margin):.1%}", small),
                 Paragraph(single_sample(leg), small),

@@ -455,11 +455,18 @@ def capture_pass(
     return counts
 
 
-def capture_holder(runs_dir: str, date: str) -> int | None:
-    from scripts.sofa.cs2_daily import already_running
+def capture_holder(
+    runs_dir: str, date: str, command_of: Callable[[int], str] | None = None
+) -> int | None:
+    """The pid of the day's live capture loop; `command_of` (a pid's command
+    line) is the process-lookup seam, the real one when None."""
+    from scripts.sofa.cs2_daily import _command_of, already_running
 
     return already_running(
-        prestart_dir(runs_dir, date) / CAPTURE_PID, date, script="paper_bb_handicap.py"
+        prestart_dir(runs_dir, date) / CAPTURE_PID,
+        date,
+        command_of or _command_of,
+        script="paper_bb_handicap.py",
     )
 
 

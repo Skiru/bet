@@ -59,7 +59,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; pinned Sofascore ids of sport games |
 | `unmapped_prices/<ts>.jsonl.gz` | prices of markets OFFER does not read - a record, read by nothing |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** |
-| `runs/sofa/paper/bb_handicap/<d>.json`, `ledger.json` | a pre-registered PAPER test (operator 2026-10-31): basketball handicap where Superbet price x bet365 OPENING fair p > 1 (`bet.sofa.paper_bb_handicap`, `T-PAPER-BB-HANDICAP-B365-OPEN`); forward bet365 only from `prestart/<d>/<id>.json` captured before tip-off (`--capture --loop`, started by `shadow_daily.py`, `day_status` `loop:paper_capture`); forward from 11-01 apart from the backtest (post-match line, a look-ahead), judged once at n >= 300 - no stake, read by nothing the coupon reads, never a reason for a leg |
+| `runs/sofa/paper/bb_handicap/<d>.json`, `ledger.json` | a pre-registered PAPER test (operator 2026-10-31): basketball handicap where Superbet price x bet365 OPENING fair p > 1 (`bet.sofa.paper_bb_handicap`, `T-PAPER-BB-HANDICAP-B365-OPEN`); forward bet365 only from `prestart/<d>/<id>.json` captured before tip-off (`--capture --loop`, started by `shadow_daily.py`, `day_status` `loop:paper_capture`); forward from 11-01 apart from the backtest (post-match line, a look-ahead), judged once on the first 300 selections in kickoff order (later ones apart) - no stake, read by nothing the coupon reads, never a reason for a leg |
 
 ## How the coupon is built
 
@@ -617,9 +617,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_test_registry.py
   masz jeden kupon" / "dziś żadnego") instead of filling the request with
   weaker legs. "Supports" = legs standing on their own statistics and the
   analysts' reads: each leg's measured chance is its confidence (which carries
-  its line evidence), a leg of any sport more than `price_gap.GAP` above its
-  price (or flagged `price_gap`) at its price, never above it; a leg a
-  read refuses is out. No market family is preferred or counted - the
+  its line evidence), never above its price: min(confidence, 1/odds), a leg of
+  any sport (`price_gap` or not); a leg a read refuses is out. No market family is preferred or counted - the
   families' record "on the plus" was removed by the operator 2026-10-31 ("the
   pipeline exists to analyse deeply and stand on statistics"). Every table the
   operator may stake from carries that measured chance with 1/odds beside it -

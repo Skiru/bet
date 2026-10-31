@@ -260,7 +260,7 @@ def loop_checks(runs: Path, date: str, now: datetime,
     else:
         out.append(Check("loop:capture_closing", OK,
                          "not running; no printed official leg left to close"))
-    out.append(paper_capture_check(runs, date, now))
+    out.append(paper_capture_check(runs, date, now, command_of))
     for name, sub in (("shadow_daily", "shadow"), ("cs2_daily", "cs2")):
         state = runs / sub
         pid = already_running(state / f"daily_{date}.pid", date, command_of,
@@ -280,7 +280,8 @@ def loop_checks(runs: Path, date: str, now: datetime,
     return out
 
 
-def paper_capture_check(runs: Path, date: str, now: datetime) -> Check:
+def paper_capture_check(runs: Path, date: str, now: datetime,
+                        command_of: Callable[[int], str] = _command_of) -> Check:
     """The basketball paper test's pre-start bet365 capture loop
     (paper_bb_handicap.py --capture --loop): WARN when the day's window is
     not over, SHADOW snapshotted basketball for it and no loop runs - the
@@ -291,7 +292,7 @@ def paper_capture_check(runs: Path, date: str, now: datetime) -> Check:
     name = "loop:paper_capture"
     if not pb.uses_prestart(date):
         return Check(name, OK, f"before {pb.PRESTART_FROM}, no capture")
-    pid = capture_holder(str(runs), date)
+    pid = capture_holder(str(runs), date, command_of)
     if pid is not None:
         return Check(name, OK, f"pid {pid}")
     _, end = si.day_window(date)

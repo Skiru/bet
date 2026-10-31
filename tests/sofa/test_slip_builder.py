@@ -1,6 +1,6 @@
 """bet.sofa.slip_builder and scripts/sofa/build_slip.py: a chat slip to a
 target price from the day's coupon - fewest legs, one per match, each leg on
-its own statistics (min(confidence, 1/odds for a price_gap leg)), one search
+its own statistics, never above its price (min(confidence, 1/odds)), one search
 over every leg, "say no first" (the operator 2026-10-31 removed the families
 on the plus)."""
 
@@ -48,35 +48,46 @@ def _leg(
     }
 
 
-def test_measured_chance_is_the_legs_own_confidence() -> None:
-    """Operator 2026-10-31: no family, sport or tier shortfall - the leg's
-    confidence (it carries the line evidence) is its measured chance, even
-    within `price_gap.GAP` of its price."""
+def test_measured_chance_is_the_legs_own_confidence_at_or_below_its_price() -> None:
+    """Operator 2026-10-31: no family, sport or tier shortfall - a leg's
+    confidence (it carries the line evidence) at or below 1/odds is its
+    measured chance."""
     chance, source = sb.measured_chance(
-        _leg(1, 1.25, 0.82, market="goals_total", direction="UNDER"), 1.25)
-    assert chance == pytest.approx(0.82) and source == "pewność"
+        _leg(1, 1.25, 0.78, market="goals_total", direction="UNDER"), 1.25)
+    assert chance == pytest.approx(0.78) and source == "pewność"
     tennis = dict(_leg(2, 1.25, 0.6), sport="tennis")
     assert sb.measured_chance(tennis, 1.25) == (pytest.approx(0.6), "pewność")
+    at_price = _leg(3, 1.25, 0.80)
+    assert sb.measured_chance(at_price, 1.25) == (pytest.approx(0.80), "pewność")
 
 
-def test_price_gap_leg_is_read_at_its_price_and_confidence_bounds_from_above() -> None:
-    leg = _leg(1, 1.25, 0.95, price_gap={"flag": "CONFIDENCE_ABOVE_PRICE"})
-    chance, source = sb.measured_chance(leg, 1.25)
-    assert chance == pytest.approx(0.80) and source == "cena (price_gap)"
-    low = _leg(2, 1.25, 0.70, price_gap={"flag": "CONFIDENCE_ABOVE_PRICE"})
-    assert sb.measured_chance(low, 1.25) == (pytest.approx(0.70), "pewność")
-
-
-def test_any_sport_leg_above_its_price_is_read_at_its_price() -> None:
-    """2026-10-31 smoke: unflagged volleyball set handicaps at 82% against
-    57% at the price topped a ~3 slip; a measured sport carries no
-    `price_gap`, so the gap itself caps it."""
+def test_any_leg_above_its_price_is_read_at_its_price() -> None:
+    """min(confidence, 1/odds) for every sport, flagged `price_gap` or not:
+    a leg 1 pp above its price is read at its price as one 20 pp above
+    (2026-10-31 smoke: unflagged volleyball set handicaps at 82% against 57%
+    at the price topped a ~3 slip)."""
     vb = dict(_leg(1, 1.75, 0.82, market="set_handicap"), sport="volleyball")
-    chance, source = sb.measured_chance(vb, 1.75)
-    assert chance == pytest.approx(1 / 1.75)
-    assert source == "cena (pewność ponad cenę)"
-    near = dict(_leg(2, 1.75, 0.59, market="set_handicap"), sport="hockey")
-    assert sb.measured_chance(near, 1.75) == (pytest.approx(0.59), "pewność")
+    assert sb.measured_chance(vb, 1.75) == (
+        pytest.approx(1 / 1.75), "cena (pewność ponad cenę)")
+    flagged = _leg(2, 1.25, 0.95, price_gap={"flag": "CONFIDENCE_ABOVE_PRICE"})
+    assert sb.measured_chance(flagged, 1.25) == (
+        pytest.approx(0.80), "cena (pewność ponad cenę)")
+    slight = dict(_leg(3, 1.25, 0.81), sport="hockey")
+    assert sb.measured_chance(slight, 1.25) == (
+        pytest.approx(0.80), "cena (pewność ponad cenę)")
+
+
+def test_measured_chance_is_monotone_and_never_above_the_price() -> None:
+    """Review 2026-10-31: the old rule stepped at price_gap.GAP (0.029 above
+    the price kept the confidence, 0.031 dropped to 1/odds)."""
+    odds = 1.60
+    price = 1 / odds
+    confs = [price + d / 1000 for d in range(-100, 101)]
+    chances = [sb.measured_chance(_leg(1, odds, c), odds)[0] for c in confs]
+    assert all(b >= a - 1e-12 for a, b in zip(chances, chances[1:], strict=False))
+    assert all(ch <= price + 1e-12 for ch in chances)
+    assert sb.measured_chance(_leg(1, odds, price + 0.029), odds)[0] == pytest.approx(
+        sb.measured_chance(_leg(1, odds, price + 0.031), odds)[0])
 
 
 def test_no_family_record_is_left() -> None:
@@ -133,15 +144,15 @@ def test_say_no_first_counts_the_slips_found_never_families() -> None:
 
 
 def test_render_names_superbet_words_and_never_a_slip_price() -> None:
-    res = sb.build([_leg(1, 1.5, 0.69), _leg(2, 1.5, 0.69)], NOW, target=2.2)
+    res = sb.build([_leg(1, 1.5, 0.66), _leg(2, 1.5, 0.66)], NOW, target=2.2)
     text = sb.render(res, day="2026-10-20", target=2.2, now=NOW)
     assert text.startswith("**Dzień daje 1 z 1")
     assert "Liczba rzutów rożnych: powyżej 7.5" in text
     assert "sprawdź na ekranie Superbetu" in text
     assert "Cel ~2.2 osiągnięty" in text and "2.25" not in text
     assert "2 nogi" in text
-    # each leg at its own confidence (0.69 within GAP of 1/1.5)
-    assert math.isclose(res.slips[0].chance, 0.69**2)
+    # each leg at its own confidence (0.66, below 1/1.5)
+    assert math.isclose(res.slips[0].chance, 0.66**2)
     assert "rodzin" not in text and "| grupa |" not in text
 
 
@@ -706,11 +717,10 @@ def _builder(eid: int, *legs: dict[str, Any], p: float = 0.5) -> dict[str, Any]:
 def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
     """A builder's odds are its legs' product (the operator's rule), its
     chance the combined probability lowered by each leg's own price cap (a
-    price_gap leg at its price), and it shares the match with that match's
-    singles."""
-    # the artifact's builder legs carry no price_gap: b (0.75 at 1.40, 3.6 pp
-    # above its price) is marked by bet.sofa.price_gap's own rule, a (0.68 at
-    # 1.50, 1.3 pp) is not
+    leg above its price at its price), and it shares the match with that
+    match's singles."""
+    # both legs are above their price - b (0.75 at 1.40) by 3.6 pp, a (0.68
+    # at 1.50) by 1.3 pp - and each is read at its price (no GAP step)
     a = _leg(1, 1.5, 0.68)
     b = _leg(1, 1.4, 0.75, line=8.5)
     pool, _ = sb.builder_candidates([_builder(1, a, b, p=0.6)], NOW,
@@ -718,7 +728,7 @@ def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
     (x,) = pool
     assert x.odds == pytest.approx(1.5 * 1.4)
     assert x.match_key == "sofa:1"
-    assert x.chance == pytest.approx(0.6 * (1 / 1.4) / 0.75)
+    assert x.chance == pytest.approx(0.6 * ((1 / 1.4) / 0.75) * ((1 / 1.5) / 0.68))
     assert len(sb.leg_rows(x)) == 2
     res = sb.build([], NOW, 2.0, max_odds=5.0,
                    builders=[_builder(1, a, b, p=0.6)])
@@ -727,11 +737,39 @@ def test_builder_is_one_option_of_its_match_priced_as_the_product() -> None:
     assert "iloczynem kursów nóg (zasada operatora 26.10)" in text
     # the product, labelled, never a builder price of ours (CLAUDE.md)
     assert "2.10 iloczyn |" in text and "ekran ~" not in text
-    # no return from our own numbers (operator 2026-10-31); the builder counts
-    # its legs in the money line and the builders' measured loss is named
+    # no return from our own numbers (operator 2026-10-31); a builder gets no
+    # per-leg formula (review 2026-10-31): its measured numbers and the screen
     assert "zwrot wg naszych liczb" not in text
-    assert "0,946^2 − 1 = −21,2% stawki" in text
+    assert "0,946^" not in text
     assert "−16,6% stawki (10-13..10-26, n 88) i −45,8%" in text
+    head = next(x for x in text.splitlines() if x.startswith("### Kupon 1"))
+    assert "builder: bez wzoru na nogę" in head
+    assert "kurs buildera decyduje ekran Superbetu" in head
+
+
+def test_slip_mixing_a_builder_and_singles_states_both_parts() -> None:
+    """Review 2026-10-31: the singles' 0.88 x 0.946^n - 1 was printed for a
+    slip holding a Bet Builder. A mixed slip states the singles part and the
+    builder's measured numbers apart - never a combined number."""
+    a = _leg(1, 1.5, 0.60)
+    b = _leg(1, 1.4, 0.65, line=8.5)
+    single = _leg(2, 1.5, 0.62)
+    res = sb.build([single], NOW, 2.8, max_odds=5.0, max_legs=2,
+                   builders=[_builder(1, a, b, p=0.4)])
+    (slip,) = res.slips
+    assert slip.has_builder and len(slip.legs) == 2
+    assert (slip.rows, slip.single_rows) == (3, 1)
+    line = sb.slip_money_line(slip)
+    assert line.startswith("część pojedyncza (1 noga): każda noga zwraca ok. 0,946")
+    assert "builder: bez wzoru na nogę - Bet Buildery zmierzone po podatku" in line
+    assert "kurs buildera decyduje ekran Superbetu" in line
+    assert "łącznego zwrotu kuponu nie podajemy" in line
+    assert "0,946^" not in line and "=" not in line
+    text = sb.render(res, day="2026-10-20", target=2.8, now=NOW)
+    assert "0,946^" not in text  # no singles-only slip, no per-leg formula line
+    # a singles-only slip keeps the measured formula
+    only = sb.build([single, _leg(3, 1.5, 0.62)], NOW, 2.2)
+    assert sb.slip_money_line(only.slips[0]) == sb.money_line(2)
 
 
 def test_builder_with_a_refused_leg_never_enters() -> None:
@@ -780,7 +818,8 @@ def test_check_reads_the_operators_own_builder_leg_by_leg() -> None:
     rows = {x.split(" | ")[0]: x for x in text.splitlines()
             if x.startswith("| Liczba ")}
     assert "| **tak** |" in rows["| Liczba rzutów rożnych: powyżej 7.5"]
-    assert "| 78,0% | 78,0% | nie |" in rows["| Liczba kartek: poniżej 6.5"]
+    # 0.78 above 1/1.31 = 0.763: read at its price, so not below it
+    assert "| 78,0% | 76,3% | nie |" in rows["| Liczba kartek: poniżej 6.5"]
     assert "1/kurs 61,7%" in text
     # a leg refused or removed says why it is not on the coupon
     why = sb.render_check(
@@ -877,7 +916,7 @@ def test_low_margin_leg_wins_a_tie_and_the_margin_is_shown() -> None:
     assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [1]
     assert sb.LOW_MARGIN == 0.08
     assert sb.LOW_MARGIN_TIE == pytest.approx(math.log(1.0025))
-    better = _leg(4, 2.0, 0.51, overround=0.12)
+    better = _leg(4, 1.95, 0.51, overround=0.12)  # 0.51 <= 1/1.95
     got = sb.build([low, better], NOW, target=1.9, max_legs=1)
     assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [4]
     pair = sb.build([low, high, one_sided], NOW, target=3.9)
@@ -889,10 +928,10 @@ def test_low_margin_leg_wins_a_tie_and_the_margin_is_shown() -> None:
 
 def test_objective_is_the_measured_chance_unchanged() -> None:
     """(4) the slip maximises sum log(measured chance) under the target, one
-    leg per match; a leg above its price by more than GAP reads at its price,
-    so it never outranks a fair leg on its confidence alone."""
+    leg per match; a leg above its price reads at its price, so it never
+    outranks a fair leg on its confidence alone."""
     over = _leg(1, 1.5, 0.80)  # 13 pp above 1/1.5: read at 0.667
-    fair = _leg(2, 1.5, 0.68)
+    fair = _leg(2, 1.45, 0.68)  # below 1/1.45 = 0.690: read at 0.68
     got = sb.build([over, fair], NOW, target=1.45, max_legs=1)
     assert [x.leg["sofascore_event_id"] for x in got.slips[0].legs] == [2]
     assert got.slips[0].legs[0].chance == pytest.approx(0.68)
@@ -921,3 +960,17 @@ def test_money_line_is_measured_after_tax_never_our_confidence() -> None:
     ok = sb.build([_leg(1, 1.2, 0.82)], NOW, target=1.15)
     assert "mniej niż gotówka" not in sb.render(ok, day="2026-10-20", target=1.15,
                                                  now=NOW)
+
+
+def test_legs_needed_and_reach_share_the_per_match_best_odds() -> None:
+    """Review 2026-10-31: one helper builds the per-match best-odds map for
+    both legs_needed and reach."""
+    pool, _ = sb.candidates(
+        [_leg(1, 1.3, 0.7), _leg(1, 1.9, 0.5, line=9.5), _leg(2, 1.6, 0.6),
+         _leg(3, 1.2, 0.8)], NOW)
+    assert sb.best_odds_by_match(pool) == [1.9, 1.6, 1.2]
+    assert sb.reach(pool, 2) == pytest.approx(1.9 * 1.6)
+    assert sb.legs_needed(pool, 1.9) == 1
+    assert sb.legs_needed(pool, 3.0) == 2
+    assert sb.legs_needed(pool, 3.6) == 3
+    assert sb.legs_needed(pool, 3.7) is None

@@ -195,9 +195,11 @@ def _result(leg: Mapping[str, Any], entry: Mapping[str, Any]) -> dict[str, Any] 
 
 
 def leg_x(leg: Mapping[str, Any]) -> float | None:
-    """x = confidence x odds as the PDF shows it (build_coupon_pdf.leg_x):
-    the leg's own `x` when the artifact carries one (sport legs, rounded to 4
-    decimals), else confidence x offered_odds, unrounded."""
+    """x = confidence x odds - the one implementation of the PDF's x column
+    (scripts/sofa/build_coupon_pdf.py imports it) and the page's: the leg's
+    own `x` when the artifact carries one (sport legs, rounded to 4
+    decimals), else confidence x offered_odds, unrounded; None without a
+    price."""
     if leg.get("x") is not None:
         return float(leg["x"])
     odds = leg.get("offered_odds")
@@ -228,7 +230,7 @@ def build_view(
         ko = to_local(leg.get("kickoff_utc"))
         odds = leg.get("offered_odds")
         conf = float(leg["confidence"])
-        # as the PDF computes it (build_coupon_pdf.leg_x): unrounded
+        # the PDF's own x (it imports leg_x): unrounded
         x = leg_x(leg)
         margin = leg.get("overround")
         clock = _clock(leg, status)

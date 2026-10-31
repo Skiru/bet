@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -269,6 +269,88 @@ def test_ledger_keeps_forward_and_backtest_apart() -> None:
     )
 
 
+def _fwd_sel(i: int, outcome: str, odds: float = 2.0) -> dict[str, Any]:
+    day = (date(2026, 11, 1) + timedelta(days=i // 10)).isoformat()
+    return {
+        **_sel(1000 + i, odds, outcome),
+        "kickoff_utc": f"{day}T{10 + i % 10:02d}:00:00Z",
+        "order": [day, i, 0],
+    }
+
+
+def _fwd_days(
+    sels: list[dict[str, Any]], pending: dict[str, int] | None = None
+) -> list[dict[str, Any]]:
+    by_day: dict[str, list[dict[str, Any]]] = {}
+    for s_ in sels:
+        by_day.setdefault(s_["order"][0], []).append(s_)
+    for d in pending or {}:
+        by_day.setdefault(d, [])
+    return [
+        {"date": d, "candidates": c, "pending": [{}] * (pending or {}).get(d, 0)}
+        for d, c in by_day.items()
+    ]
+
+
+def test_forward_before_target_is_progress_only() -> None:
+    sels = [_fwd_sel(i, "WIN") for i in range(pb.TARGET_N - 1)]
+    led = pb.build_ledger(_fwd_days(sels))
+    fwd = led["forward"]
+    assert not fwd["evaluable"] and fwd["evaluation"]["verdict"] is None
+    assert fwd["summary"] == {"n": pb.TARGET_N - 1, "events": pb.TARGET_N - 1}
+    text = pb.report_pl(led)
+    assert f"Postęp: {pb.TARGET_N - 1} / {pb.TARGET_N}" in text
+    assert "ROI przed" not in text and "ROI po" not in text.split("Backtest")[0]
+    assert "Kryterium" not in text
+
+
+def test_forward_verdict_is_frozen_at_the_first_target_selections() -> None:
+    # the first 300 by kickoff: all lose -> FAIL; 200 later wins never rescue it
+    first = [_fwd_sel(i, "LOSS") for i in range(pb.TARGET_N)]
+    later = [_fwd_sel(pb.TARGET_N + i, "WIN", 3.0) for i in range(200)]
+    led = pb.build_ledger(_fwd_days(first + later))
+    ev = led["forward"]["evaluation"]
+    assert led["forward"]["evaluable"] and ev["verdict"] == "FAIL"
+    assert ev["summary"]["n"] == pb.TARGET_N and ev["summary"]["won"] == 0
+    assert ev["after_evaluation"]["n"] == 200 and ev["after_evaluation"]["won"] == 200
+    assert ev["cut"]["kickoff_utc"] == first[-1]["kickoff_utc"]
+    text = pb.report_pl(led)
+    assert "NIESPEŁNIONE" in text
+    assert "Po ocenie (nie zmieniają werdyktu):" in text
+    # the same 300 in another order of day files: the same verdict and cut
+    led2 = pb.build_ledger(list(reversed(_fwd_days(first + later))))
+    assert led2["forward"]["evaluation"]["cut"] == ev["cut"]
+    assert led2["forward"]["evaluation"]["summary"] == ev["summary"]
+
+
+def test_forward_selection_order_is_chronological_by_kickoff() -> None:
+    # a later-kickoff loser listed first in its day file stays after the cut
+    sels = [_fwd_sel(i, "WIN", 3.0) for i in range(pb.TARGET_N)]
+    late = {
+        **_fwd_sel(0, "LOSS"),
+        "sofascore_event_id": 9,
+        "kickoff_utc": "2026-12-31T23:00:00Z",
+        "order": ["2026-11-01", -1, 0],
+    }
+    led = pb.build_ledger(_fwd_days([late, *sels]))
+    ev = led["forward"]["evaluation"]
+    assert ev["summary"]["won"] == pb.TARGET_N and ev["verdict"] == "PASS"
+    assert ev["after_evaluation"]["n"] == 1 and ev["after_evaluation"]["won"] == 0
+
+
+def test_forward_verdict_waits_for_pending_games_up_to_the_cut() -> None:
+    sels = [_fwd_sel(i, "WIN", 3.0) for i in range(pb.TARGET_N)]
+    cut_day = sels[-1]["order"][0]
+    led = pb.build_ledger(_fwd_days(sels, pending={"2026-11-03": 1}))
+    ev = led["forward"]["evaluation"]
+    assert not ev["evaluable"] and ev["verdict"] is None
+    assert ev["pending_before_cut"] == 1 and ev["cut"]["day"] == cut_day
+    assert "werdykt po ich rozliczeniu" in pb.report_pl(led)
+    # a pending game after the cut day does not hold the verdict back
+    led = pb.build_ledger(_fwd_days(sels, pending={"2026-12-30": 1}))
+    assert led["forward"]["evaluation"]["verdict"] == "PASS"
+
+
 def test_forward_window_starts_after_the_registration_day() -> None:
     # check_test_registry: data_window.from > registered_on
     assert pb.START_DATE > pb.FROZEN_AT
@@ -472,13 +554,13 @@ def _capture(runs: Path, ev: int, *caps: tuple[str, Any]) -> None:
 
 def test_prestart_payload_is_the_newest_capture_before_the_start() -> None:
     caps = [
-        {"fetched_at_utc": "2026-11-02T16:30:00.5Z", "payload": 1},
-        {"fetched_at_utc": "2026-11-02T18:45:00.1Z", "payload": 2},
-        {"fetched_at_utc": "2026-11-02T19:00:00.1Z", "payload": 3},
-        {"fetched_at_utc": "2026-11-02T21:00:00Z", "payload": 4},
+        {"fetched_at_utc": "2026-11-02T16:30:00.5Z", "payload": _payload(1.5)},
+        {"fetched_at_utc": "2026-11-02T18:45:00.1Z", "payload": _payload(2.5)},
+        {"fetched_at_utc": "2026-11-02T19:00:00.1Z", "payload": _payload(3.5)},
+        {"fetched_at_utc": "2026-11-02T21:00:00Z", "payload": _payload(4.5)},
     ]
     got = pb.prestart_payload(caps, "2026-11-02T19:00:00Z")
-    assert got is not None and got["payload"] == 2
+    assert got is not None and got["payload"] == _payload(2.5)
     assert pb.prestart_payload(caps[2:], "2026-11-02T19:00:00Z") is None
     assert (
         pb.start_clock(
@@ -489,6 +571,59 @@ def test_prestart_payload_is_the_newest_capture_before_the_start() -> None:
         )
         == "2026-11-02T18:30:00Z"
     )
+
+
+def test_prestart_payload_skips_empty_captures_and_prefers_the_spread() -> None:
+    start = "2026-11-02T19:00:00Z"
+    no_spread = {
+        "markets": [
+            {"marketName": "Full time", "choiceGroup": None, "isLive": False,
+             "choices": [{"name": "1"}, {"name": "2"}]}
+        ]
+    }
+    caps = [
+        {"fetched_at_utc": "2026-11-02T16:00:00Z", "payload": _payload(1.5)},
+        {"fetched_at_utc": "2026-11-02T17:00:00Z", "payload": _payload(2.5)},
+        {"fetched_at_utc": "2026-11-02T18:00:00Z", "payload": no_spread},
+        {"fetched_at_utc": "2026-11-02T18:30:00Z", "payload": {"markets": []}},
+        {"fetched_at_utc": "2026-11-02T18:45:00Z", "payload": None},  # a 404
+        {"fetched_at_utc": "2026-11-02T19:10:00Z", "payload": _payload(9.5)},
+    ]
+    got = pb.prestart_payload(caps, start)
+    # the newest pre-start capture holding "Point spread", not the newer empties
+    assert got is not None and got["fetched_at_utc"] == "2026-11-02T17:00:00Z"
+    # no spread anywhere before the start: the newest non-empty capture
+    got = pb.prestart_payload(caps[2:], start)
+    assert got is not None and got["payload"] == no_spread
+    # only empty captures before the start (and a valid one after it): none
+    assert pb.prestart_payload(caps[3:], start) is None
+    # a spread only in a live market does not count as the spread
+    live = {"markets": [{**_payload(1.5)["markets"][0], "isLive": True}]}
+    caps2 = [
+        {"fetched_at_utc": "2026-11-02T16:00:00Z", "payload": no_spread},
+        {"fetched_at_utc": "2026-11-02T17:00:00Z", "payload": live},
+    ]
+    got = pb.prestart_payload(caps2, start)
+    assert got is not None and got["payload"] == no_spread
+
+
+def test_e2e_forward_empty_capture_before_tipoff_keeps_the_earlier_line(
+    runs: Path,
+) -> None:
+    _forward_day(runs)
+    _capture(
+        runs,
+        16561659,
+        (f"{FWD}T16:15:00.000001Z", _payload(1.5)),
+        (f"{FWD}T18:30:00.000001Z", {"markets": []}),  # bet365 pulled markets
+        (f"{FWD}T18:45:00.000001Z", None),  # a 404
+    )
+    script.main(["--date", FWD, "--runs-dir", str(runs)], client_factory=FakeClient)
+    doc = _day(runs, FWD)
+    assert doc["counts"].get("no_b365_prestart", 0) == 0
+    sel = [c for c in doc["candidates"] if c["selected"]]
+    assert [(c["side"], c["t1_line"]) for c in sel] == [("T1", 1.5)]
+    assert sel[0]["b365_fetched_at_utc"] == f"{FWD}T16:15:00.000001Z"
 
 
 def test_e2e_forward_uses_the_prestart_line_not_the_post_match_one(runs: Path) -> None:
@@ -677,6 +812,36 @@ def test_day_status_warns_when_the_capture_loop_is_missing(runs: Path) -> None:
     assert (
         day_status.paper_capture_check(runs, "2026-10-20", now).status == day_status.OK
     )
+
+
+def test_day_status_capture_check_uses_the_injected_process_lookup(runs: Path) -> None:
+    """Review 2026-10-31: paper_capture_check ignored the `command_of` seam
+    and looked the pid up for real. A live pid (our parent) is the loop only
+    when the stub's command line says so - through loop_checks too."""
+    import os
+
+    from scripts.sofa import day_status
+
+    now = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
+    snaps = runs / "shadow" / "basketball" / FWD
+    snaps.mkdir(parents=True)
+    (snaps / "snapshots.jsonl").write_text("")
+    pre = script.prestart_dir(str(runs), FWD)
+    pre.mkdir(parents=True, exist_ok=True)
+    (pre / script.CAPTURE_PID).write_text(str(os.getppid()))
+    asked: list[int] = []
+
+    def loop_cmd(pid: int) -> str:
+        asked.append(pid)
+        return f"python scripts/sofa/paper_bb_handicap.py --capture --date {FWD} --loop"
+
+    got = day_status.paper_capture_check(runs, FWD, now, command_of=loop_cmd)
+    assert got.status == day_status.OK and got.detail == f"pid {os.getppid()}"
+    assert asked == [os.getppid()]
+    other = day_status.paper_capture_check(runs, FWD, now, command_of=lambda pid: "vim")
+    assert other.status == day_status.WARN
+    checks = {c.name: c for c in day_status.loop_checks(runs, FWD, now, loop_cmd)}
+    assert checks["loop:paper_capture"].status == day_status.OK
 
 
 def test_shadow_daily_starts_the_paper_capture_loop(

@@ -19,8 +19,10 @@ widoczne PRZED startem, nie po meczu.
    `line` to handicap drużyny 1 po obu stronach. Mecz ze stanem innym niż SETTLED nie wchodzi.
 2. **bet365**: Sofascore `/event/{id}/odds/1/all` (dostawca 1 = bet365). Rynki `isLive`
    odrzucone; jeden rynek „Point spread” bez `choiceGroup`, dwa wybory.
-   - **Okno do przodu (od 10-31)**: tylko **najnowszy zapis pobrany przed startem**
-     (wcześniejszy z: start Superbetu z rekordu SHADOW, start Sofascore). Zapisuje go pętla
+   - **Okno do przodu (od 10-31)**: tylko zapisy **pobrane przed startem**
+     (wcześniejszy z: start Superbetu z rekordu SHADOW, start Sofascore); spośród nich
+     **najnowszy zawierający rynek „Point spread”**, a gdy żaden go nie ma - najnowszy
+     niepusty; gdy wszystkie są puste - brak zapisu (`prestart_payload`). Zapisuje go pętla
      `paper_bb_handicap.py --capture --date <D> --loop` (co 15 min, każdy przypięty mecz
      koszykówki dnia D jeszcze nierozpoczęty i startujący w ciągu 3 h; startuje ją
      `shadow_daily.py`, `day_status` ostrzega `loop:paper_capture`, gdy jej brak). Każdy zapis
@@ -29,6 +31,11 @@ widoczne PRZED startem, nie po meczu.
      Game total). Zapis pobrany w chwili startu lub później nigdy nie jest czytany. Mecz bez
      zapisu przed startem jest **wyłączony** i liczony jako „brak bet365 przed startem”
      (`no_b365_prestart`); po meczu nic nie jest pobierane.
+   - **Poprawka tekstu reguły 2026-10-31** (przed startem okna do przodu 2026-11-01, więc
+     reguła jest wciąż zamrażana tego dnia): pierwotnie czytany był po prostu najnowszy zapis
+     przed startem - także pusty (payload `null` po 404 albo `{"markets": []}`, gdy bet365
+     zdjął rynki tuż przed meczem), co wyrzucało mecz z ważną wcześniejszą linią. Teraz pusty
+     zapis nigdy nie przesłania wcześniejszego ważnego. Nadal wyłącznie informacja sprzed startu.
    - **Backtest (do 10-30)**: payload pobrany **po meczu**, jak w backteście, raz na mecz,
      `runs/sofa/paper/bb_handicap/odds/<id>.json` - oznaczony `post_match_lookahead`.
 3. **Dopasowanie linii**: pierwszy wybór bet365 to gospodarz, „(+16.0) Nazwa”. Linia pasuje,
@@ -80,10 +87,15 @@ z tymi samymi kursami, p i wynikami; ROI i przedziały identyczne co do cyfry. N
 - Dane okna do przodu: wyłącznie bet365 sprzed startu (linia i kurs otwarcia widoczne przed
   pierwszym gwizdkiem); mecze bez takiego zapisu wyłączone i policzone.
 - Backtest i okno do przodu są osobnymi sekcjami `ledger.json` - **nigdy nie sumowane**.
-- **Punkt oceny: n >= 300** rozliczonych typów okna do przodu (tempo backtestu ~5 dziennie,
-  czyli ~2 miesiące). Przed n = 300 żadnej decyzji - `--report` mówi: „ocena dopiero przy
-  n >= 300; do tego czasu to nie jest przewaga”.
-- **Sukces**: dolna granica 95% CI ROI **po podatku** (bootstrap meczów) > 0. Wtedy rozmowa
+- **Punkt oceny: pierwsze 300** rozliczonych typów okna do przodu w kolejności startu meczu
+  (potem `order`: plik, rekord, wiersz; tempo backtestu ~5 dziennie, czyli ~2 miesiące).
+  Kryterium liczone jest **raz, dokładnie na tych 300** i nigdy na większej liczbie
+  (bez „optional stopping”); typy po 300. są pokazywane osobno jako „po ocenie (nie zmieniają
+  werdyktu)”. Werdykt czeka, aż nie będzie oczekujących meczów z dni do dnia 300. typu (ich
+  typ mógłby wpaść do pierwszych 300). Przed tym tylko postęp (n / 300) - bez ROI, bez
+  przedziału, bez werdyktu; `--report` mówi: „ocena dopiero przy n >= 300; do tego czasu to
+  nie jest przewaga” (poprawka 2026-10-31, przed startem okna).
+- **Sukces**: dolna granica 95% CI ROI **po podatku** (bootstrap meczów) na pierwszych 300 > 0. Wtedy rozmowa
   z operatorem - nic nie włącza się samo; reguła nigdy nie staje się krzywą ani bramką kuponu.
 - **W przeciwnym razie**: test NIEZALICZONY, reguła odpada (do `model-state.md` (d)), bez
   szukania „lepszego t” czy innej rodziny na tych samych danych.
@@ -108,4 +120,5 @@ pobrania) i `ledger.json`. Kod wyjścia 0 OK / 1 oczekujące albo luka
 pobrania / 2 błąd. Testy: `tests/sofa/test_paper_bb_handicap.py` (jednostkowe i E2E na
 prawdziwych rekordach 10-27 / 10-28 z nagranymi payloadami; okno do przodu: zapis przed
 startem z inną linią niż po meczu -> wybór na linii sprzed startu, zapis po starcie
-ignorowany, mecz bez zapisu wyłączony i policzony).
+ignorowany, mecz bez zapisu wyłączony i policzony, pusty zapis tuż przed startem nie
+przesłania wcześniejszej linii; ocena zamrożona na pierwszych 300 typach).

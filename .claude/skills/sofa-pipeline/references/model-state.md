@@ -735,8 +735,10 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   exactly), paper only - never a curve, a gate or a coupon leg; the forward
   data reads bet365 only as captured before tip-off (the backtest's
   post-match spread line was a look-ahead, its numbers may be optimistic); forward
-  from 2026-11-01, judged once at n >= 300 (after-tax CI lower bound > 0,
-  else dropped): `T-PAPER-BB-HANDICAP-B365-OPEN`,
+  from 2026-11-01, judged once on exactly the first 300 selections in kickoff
+  order, later ones apart (after-tax CI lower bound > 0, else dropped; the
+  newest pre-start capture holding the spread, never an empty one - both
+  fixed 2026-10-31 before the window): `T-PAPER-BB-HANDICAP-B365-OPEN`,
   `docs/sofa/evidence/paper_bb_handicap_preregistration_2026-10-31.md`.
 - **family_record / family-on-plus selection removed by the operator
   2026-10-31** ("WYWAL TO Z TA RODZINA NA PLUSIE ... PIPELINE POWSTAŁ PO TO

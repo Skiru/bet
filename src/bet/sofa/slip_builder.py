@@ -12,12 +12,13 @@ under "product of leg prices >= target" - that objective itself picks the
 fewest, longest legs - with one leg per match (two legs of one match are a
 Bet Builder, priced by Superbet's screen only).
 
-A leg's measured chance stands on its own statistics only:
-    min(confidence, 1/odds for a leg above its price)
+A leg's measured chance stands on its own statistics only and is never
+above its price:
+    min(confidence, 1/odds)
 - the confidence already carries the leg's line evidence (offset and
-price-band cap), and a leg of any sport more than `price_gap.GAP` above its
-price (or flagged `price_gap`) is read at its price, never above it
-(CLAUDE.md; `measured_chance`). The operator 2026-10-31 removed the
+price-band cap), and a leg of any sport whose confidence exceeds 1/odds is
+read at its price (CLAUDE.md; `measured_chance`; a `price_gap` leg is one
+such leg). The operator 2026-10-31 removed the
 families' record of the printed legs ("rodzina na plusie",
 `family_record.json`): no family, sport or tier shortfall, no family
 preference - one search over every leg, the analysts' reads deciding which
@@ -35,7 +36,10 @@ target the leg limit cannot reach is said first and the closest slip under
 it is built (never a silent extra leg), a low-margin leg is preferred in a
 near-tie (`LOW_MARGIN_TIE`) and every slip carries the honest money line
 `expected_return` - what a leg of the coupon realised against its price,
-after tax - never a return computed from our confidence.
+after tax - never a return computed from our confidence. A slip holding a
+Bet Builder carries no per-leg formula for the builder: its measured
+numbers (`BUILDERS_MEASURED`) and "the screen price decides"
+(`slip_money_line`).
 """
 
 from __future__ import annotations
@@ -49,8 +53,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from bet.sofa.config import SofaConfig
-from bet.sofa.price_gap import GAP as PRICE_GAP
-from bet.sofa.price_gap import annotate as price_gap_of
 from bet.sofa.sport_day import MAX_PRICE_AGE as SPORT_PRICE_AGE
 from bet.sofa.veto import read_refusal, veto_matches
 
@@ -138,14 +140,38 @@ def money_line(n: int) -> str:
             f"(zmierzone: {REALISED_SOURCE}; podatek {TAX * 100:.0f}%)")
 
 
-def legs_needed(legs: Sequence[Leg], target: float, limit: int = 20) -> int | None:
-    """The fewest legs (one per match, each at its match's longest price)
-    whose price product reaches `target`; None when `limit` legs cannot."""
+def slip_money_line(slip: Slip) -> str:
+    """The honest money line of one slip, in Polish. Singles only: the
+    measured per-leg formula (`money_line`). A Bet Builder has no per-leg
+    formula: its measured numbers (`BUILDERS_MEASURED`) and the screen price
+    decides; a slip mixing a builder and singles states both parts apart,
+    never a combined number."""
+    singles = slip.single_rows
+    builder = (f"builder: bez wzoru na nogę - {BUILDERS_MEASURED}; kurs buildera "
+               "decyduje ekran Superbetu")
+    if not slip.has_builder:
+        return money_line(singles)
+    if not singles:
+        return builder
+    per = f"{REALISED_PER_LEG:g}".replace(".", ",")
+    return (f"część pojedyncza ({legs_pl(singles)}): każda noga zwraca ok. {per} "
+            f"swojej ceny (zmierzone: {REALISED_SOURCE}); {builder}; łącznego "
+            f"zwrotu kuponu nie podajemy (podatek {TAX * 100:.0f}% raz od stawki)")
+
+
+def best_odds_by_match(legs: Sequence[Leg]) -> list[float]:
+    """Each match's longest leg price, longest first (one leg per match)."""
     best: dict[str, float] = {}
     for x in legs:
         best[x.match_key] = max(best.get(x.match_key, 1.0), x.odds)
+    return sorted(best.values(), reverse=True)
+
+
+def legs_needed(legs: Sequence[Leg], target: float, limit: int = 20) -> int | None:
+    """The fewest legs (one per match, each at its match's longest price)
+    whose price product reaches `target`; None when `limit` legs cannot."""
     product = 1.0
-    for k, odds in enumerate(sorted(best.values(), reverse=True)[:limit], 1):
+    for k, odds in enumerate(best_odds_by_match(legs)[:limit], 1):
         product *= odds
         if product >= target - 1e-9:
             return k
@@ -154,10 +180,7 @@ def legs_needed(legs: Sequence[Leg], target: float, limit: int = 20) -> int | No
 
 def reach(legs: Sequence[Leg], max_legs: int) -> float:
     """The highest price product `max_legs` legs of distinct matches reach."""
-    best: dict[str, float] = {}
-    for x in legs:
-        best[x.match_key] = max(best.get(x.match_key, 1.0), x.odds)
-    return math.prod(sorted(best.values(), reverse=True)[:max_legs])
+    return math.prod(best_odds_by_match(legs)[:max_legs])
 
 
 @dataclass(frozen=True)
@@ -220,9 +243,13 @@ class Slip:
 
     @property
     def rows(self) -> int:
-        """The coupon rows the slip stands on (a builder counts its legs) -
-        the n of the money line."""
+        """The coupon rows the slip stands on (a builder counts its legs)."""
         return sum(len(leg_rows(x)) for x in self.legs)
+
+    @property
+    def single_rows(self) -> int:
+        """The slip's single legs (no builder) - the n of the money line."""
+        return sum(1 for x in self.legs if not x.leg.get("builder_legs"))
 
     @property
     def reached(self) -> bool:
@@ -249,22 +276,20 @@ def family_key(leg: Mapping[str, Any]) -> str:
 
 
 def measured_chance(leg: Mapping[str, Any], odds: float) -> tuple[float, str]:
-    """min(confidence, 1/odds for a leg above its price): the leg's own
-    statistics (the confidence carries its line evidence), but a leg of any
-    sport whose confidence exceeds 1/odds by more than `price_gap.GAP` - or
-    that carries `price_gap` - is read at its price, never above it. Such
-    legs realise about at their price wherever measured (football / tennis
-    -10.0 pp, CS2 -18.6 pp, `bet.sofa.price_gap`; volleyball ~16 pp over at
-    confidence >= 0.70, model-state.md); hockey / basketball / volleyball
-    carry no flag, so the gap itself decides (2026-10-31: volleyball set
-    handicaps read at 82% against 57% at the price topped a ~3 slip)."""
+    """min(confidence, 1/odds), for every leg of every sport: the leg's own
+    statistics (the confidence carries its line evidence), never above its
+    price - monotone in the confidence, no step at `price_gap.GAP`. Legs
+    above their price realise about at it wherever measured (football /
+    tennis -10.0 pp, CS2 -18.6 pp, `bet.sofa.price_gap`; volleyball ~16 pp
+    over at confidence >= 0.70, model-state.md; 2026-10-31: volleyball set
+    handicaps read at 82% against 57% at the price topped a ~3 slip). Source
+    "pewność" when confidence <= 1/odds, else "cena (pewność ponad cenę)"."""
     confidence = float(leg["confidence"])
-    bounds = [(confidence, "pewność")]
-    if leg.get("price_gap"):
-        bounds.append((1.0 / odds, "cena (price_gap)"))
-    elif confidence - 1.0 / odds > PRICE_GAP:
-        bounds.append((1.0 / odds, "cena (pewność ponad cenę)"))
-    chance, source = min(bounds, key=lambda b: b[0])
+    price = 1.0 / odds
+    if confidence <= price:
+        chance, source = confidence, "pewność"
+    else:
+        chance, source = price, "cena (pewność ponad cenę)"
     return max(min(chance, 0.999), 1e-6), source
 
 
@@ -453,7 +478,7 @@ def builder_candidates(
     that product (measured markup 8.8-19.6%), so the answer says so and the
     screen decides. Its measured chance is `combined_probability` lowered by
     each leg's own price cap (measured chance / confidence: a leg above its
-    price by `price_gap.GAP` read at its price), never raised. A builder
+    price read at its price), never raised. A builder
     enters only when no read refuses any of its legs; it is KEEP only when
     the slip's own fresh read keeps every leg."""
     wanted = [c.casefold() for c in competitions]
@@ -495,12 +520,6 @@ def builder_candidates(
                    for g in full):
             refused["builder: brak ceny lub pewności"] += 1
             continue
-        for g in full:
-            # the artifact's builder legs carry no price_gap: the pipeline's
-            # own rule (bet.sofa.price_gap) marks a leg above its price, read
-            # at its price like a single
-            if not g.get("price_gap") and (pg := price_gap_of(g)):
-                g["price_gap"] = pg
         odds = math.prod(float(g["offered_odds"]) for g in full)
         if not min_odds <= odds <= max_odds:
             refused["builder: kurs poza przedziałem"] += 1
@@ -865,14 +884,15 @@ def render(
             f"**Dzień cienki - masz {n} z {result.requested} kuponów na "
             f"~{target:g}**{reach_text}."
         )
-    counts = sorted({s.rows for s in result.slips})
+    counts = sorted({s.single_rows for s in result.slips if not s.has_builder})
     if counts:
         money = "; ".join(
             (f"{legs_pl(k)}: " if len(counts) > 1 else "") + money_line(k)
             for k in counts)
         lines.append(money[0].upper() + money[1:]
                      + " - nasza szansa nie jest przewagą nad ceną.")
-    if result.max_legs > MAX_LEGS or any(s.rows > MAX_LEGS for s in result.slips):
+    if result.max_legs > MAX_LEGS or any(
+            s.single_rows > MAX_LEGS for s in result.slips):
         top = max([result.max_legs, *counts])
         lines.append(
             f"Limit nóg {result.max_legs} (domyślnie {MAX_LEGS}): każda kolejna noga "
@@ -881,15 +901,17 @@ def render(
             + ", ".join(f"{legs_pl(k)} {_signed(expected_return(k))}"
                         for k in range(1, min(top, 10) + 1))
             + ".")
-    if result.builders:
-        lines.append(BUILDERS_MEASURED + ".")
+    if result.builders or any(s.has_builder for s in result.slips):
+        lines.append(BUILDERS_MEASURED + "; bez wzoru na nogę dla buildera - kurs "
+                     "buildera decyduje ekran Superbetu.")
     lines += [
         "",
         f"Poza pipeline'em: czat nie jest kuponem i nie ma bramek. Nogi z "
         f"`runs/sofa/{day}/11_coupon.json` (zbudowany {_local(built_at)}), "
         f"liczone {now.astimezone(LOCAL):%H:%M}. "
         "Szansa nogi = jej pewność ze statystyk (z dowodem linii Superbetu), "
-        "powyżej ceny o > 3 pp (każdy sport) liczona po cenie (1/kurs). "
+        "nigdy ponad cenę: pewność (każdy sport) powyżej ceny liczona po cenie "
+        "(1/kurs). "
         "Jedna noga z meczu; przy remisie szansy wygrywa noga z marżą drabinki "
         f"< {LOW_MARGIN * 100:.0f}% (kolumna „marża”, „1-str.” = rynek "
         "jednostronny). "
@@ -902,7 +924,7 @@ def render(
             f"### Kupon {i}: {legs_pl(len(s.legs))}, szansa zmierzona {_pct(s.chance)}"
             + (" (builder: iloczyn kursów nóg, Superbet płaci mniej)" if s.has_builder
                else f" przy 1/kurs {_pct(1 / product)}")
-            + f" - {money_line(s.rows)}"
+            + f" - {slip_money_line(s)}"
         )
         if len(s.legs) == 1 and not s.has_builder and product < SINGLE_CASH_FLOOR:
             head += (f" - wygrana zwraca mniej niż gotówka (kurs < "

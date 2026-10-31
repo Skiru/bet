@@ -33,17 +33,21 @@ Which bet365 payload (the one thing forward and backtest differ in):
 - backtest days (before PRESTART_FROM): the payload asked AFTER the game, as
   the backtest did - its "Point spread" line is the one bet365 showed after
   the match, a look-ahead (`b365_source` "post_match_lookahead");
-- from PRESTART_FROM: only the newest capture taken BEFORE the start (the
-  earlier of Superbet's kickoff and Sofascore's start) by the capture loop
-  (`scripts/sofa/paper_bb_handicap.py --capture --loop`), so the line and
-  its opening price are what was visible before tip-off (`b365_source`
-  "prestart"). A game with no such capture is excluded and counted
+- from PRESTART_FROM: only captures taken BEFORE the start (the earlier of
+  Superbet's kickoff and Sofascore's start) by the capture loop
+  (`scripts/sofa/paper_bb_handicap.py --capture --loop`) - the newest one
+  holding "Point spread", else the newest non-empty one
+  (`prestart_payload`) - so the line and its opening price are what was
+  visible before tip-off (`b365_source` "prestart"). A game with no such
+  capture is excluded and counted
   (`no_b365_prestart`, "brak bet365 przed startem"); nothing is asked after
   the game for it.
 
-The test is judged at TARGET_N graded selections of the forward window only
-(days from START_DATE); the backtest days are a separate section, never
-pooled with it.
+The test is judged once, on the FIRST TARGET_N graded selections of the
+forward window (days from START_DATE) in chronological order
+(`forward_evaluation`); selections after them are shown apart and never
+change the verdict (no optional stopping). Before that: progress only. The
+backtest days are a separate section, never pooled with it.
 """
 
 from __future__ import annotations
@@ -207,16 +211,31 @@ def _at(raw: object) -> datetime | None:
 def prestart_payload(
     captures: Iterable[Mapping[str, Any]], clock_utc: str
 ) -> Mapping[str, Any] | None:
-    """The newest capture fetched strictly before `clock_utc`, or None: a
-    capture taken at or after the start is never read."""
+    """The capture the rule reads, among those fetched strictly before
+    `clock_utc` (a capture taken at or after the start is never read): the
+    newest one holding bet365's "Point spread" (B365_MARKET); else the
+    newest non-empty one; else None. An empty capture (payload None after a
+    404, or no pre-match market after bet365 pulled them near tip-off) never
+    hides an earlier valid pre-start line (rule text fixed 2026-10-31,
+    before the forward window)."""
     clock = _at(clock_utc) if clock_utc else None
     if clock is None:
         return None
-    best: tuple[datetime, Mapping[str, Any]] | None = None
+    best_spread: tuple[datetime, Mapping[str, Any]] | None = None
+    best_any: tuple[datetime, Mapping[str, Any]] | None = None
     for c in captures:
         at = _at(c.get("fetched_at_utc"))
-        if at is not None and at < clock and (best is None or at > best[0]):
-            best = (at, c)
+        if at is None or at >= clock:
+            continue
+        markets = b365_markets(c.get("payload"))
+        if not markets:
+            continue
+        if best_any is None or at > best_any[0]:
+            best_any = (at, c)
+        has_spread = (B365_MARKET, None) in markets
+        if has_spread and (best_spread is None or at > best_spread[0]):
+            best_spread = (at, c)
+    best = best_spread or best_any
     return None if best is None else best[1]
 
 
@@ -393,12 +412,73 @@ def window_of(day: str) -> str | None:
     return None
 
 
+def chronological_key(
+    day: str, s: Mapping[str, Any]
+) -> tuple[datetime, tuple[Any, ...]]:
+    """A selection's place in time: its kickoff (else its day's 00:00Z), then
+    its `order` (file date, record, row)."""
+    at = _at(s.get("kickoff_utc")) if s.get("kickoff_utc") else None
+    if at is None:
+        at = datetime.fromisoformat(f"{day}T00:00:00+00:00")
+    return at, tuple(s.get("order") or ())
+
+
+def forward_evaluation(
+    dated: Sequence[tuple[str, Mapping[str, Any]]],
+    pending_by_day: Mapping[str, int],
+) -> dict[str, Any]:
+    """The forward window, frozen at its FIRST TARGET_N selections in
+    chronological order (no optional stopping): the criterion (after-tax 95%
+    CI lower bound > 0) is computed once, on exactly those, and never on
+    more; selections after them are summarised apart and never change the
+    verdict. Before TARGET_N, or while a game of a day up to the cut is
+    still pending (its selection could fall inside the first TARGET_N):
+    progress only - no ROI, no interval, no verdict."""
+    ordered = sorted(dated, key=lambda ds: chronological_key(ds[0], ds[1]))
+    head = ordered[:TARGET_N]
+    tail = ordered[TARGET_N:]
+    events = len({int(s["sofascore_event_id"]) for _, s in head})
+    cut_day = head[-1][0] if len(head) >= TARGET_N else None
+    pending_before_cut = (
+        sum(n for d, n in pending_by_day.items() if d <= cut_day)
+        if cut_day is not None
+        else 0
+    )
+    evaluable = cut_day is not None and pending_before_cut == 0
+    out: dict[str, Any] = {
+        "frozen_n": TARGET_N,
+        "evaluable": evaluable,
+        "progress": {"n": len(head), "events": events},
+        "pending_before_cut": pending_before_cut,
+        "cut": None,
+        "summary": None,
+        "verdict": None,
+        "after_evaluation": None,
+    }
+    if cut_day is not None:
+        last = head[-1][1]
+        out["cut"] = {
+            "day": cut_day,
+            "kickoff_utc": last.get("kickoff_utc"),
+            "order": list(last.get("order") or []),
+        }
+    if evaluable:
+        summary = summarize([s for _, s in head])
+        out["summary"] = summary
+        out["verdict"] = "PASS" if summary["roi_after_tax_ci95"][0] > 0 else "FAIL"
+        out["after_evaluation"] = summarize([s for _, s in tail])
+    return out
+
+
 def build_ledger(days: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """The ledger from every day file, forward and backtest apart (never
     pooled). A selection (event, line, side) is counted once, on its first
-    day."""
+    day. The forward window is judged once, at its first TARGET_N selections
+    (`forward_evaluation`)."""
     seen: set[tuple[int, float, str]] = set()
     picked: dict[str, list[dict[str, Any]]] = {}
+    forward_dated: list[tuple[str, dict[str, Any]]] = []
+    forward_pending: dict[str, int] = {}
     pending = {"forward": 0, "backtest": 0}
     no_prestart = {"forward": 0, "backtest": 0}
     dropped_duplicates = 0
@@ -417,22 +497,27 @@ def build_ledger(days: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             kept.append(s)
         group = sec if sec == "forward" else (window_of(day) or "other")
         picked.setdefault(group, []).extend(kept)
-        pending[sec] += len(doc.get("pending") or [])
+        n_pending = len(doc.get("pending") or [])
+        pending[sec] += n_pending
+        if sec == "forward":
+            forward_dated.extend((day, s) for s in kept)
+            forward_pending[day] = forward_pending.get(day, 0) + n_pending
         no_pre = int((doc.get("counts") or {}).get("no_b365_prestart", 0))
         no_prestart[sec] += no_pre
-        day_rows[sec].append(
-            {
-                "date": day,
-                "status": doc.get("status"),
-                "selections": len(kept),
-                "won": sum(s["outcome"] == "WIN" for s in kept),
-                "pending_events": len(doc.get("pending") or []),
-                "fetch_gaps": len(doc.get("fetch_gaps") or []),
-                "no_b365_prestart": no_pre,
-                "b365_source": B365_PRESTART if uses_prestart(day) else B365_POST_MATCH,
-            }
-        )
-    fwd = summarize(picked.get("forward", []))
+        row: dict[str, Any] = {
+            "date": day,
+            "status": doc.get("status"),
+            "selections": len(kept),
+            "pending_events": n_pending,
+            "fetch_gaps": len(doc.get("fetch_gaps") or []),
+            "no_b365_prestart": no_pre,
+            "b365_source": B365_PRESTART if uses_prestart(day) else B365_POST_MATCH,
+        }
+        if sec == "backtest":
+            # forward days carry no per-day result before the evaluation
+            row["won"] = sum(s["outcome"] == "WIN" for s in kept)
+        day_rows[sec].append(row)
+    ev = forward_evaluation(forward_dated, forward_pending)
     return {
         "rule_id": RULE_ID,
         "frozen_at": FROZEN_AT,
@@ -441,11 +526,12 @@ def build_ledger(days: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "start_date": START_DATE,
         "tax": TAX,
         "forward": {
-            "summary": fwd,
+            "summary": ev["summary"] if ev["evaluable"] else ev["progress"],
+            "evaluation": ev,
             "pending_events": pending["forward"],
             "no_b365_prestart": no_prestart["forward"],
             "b365_source": B365_PRESTART,
-            "evaluable": fwd["n"] >= TARGET_N,
+            "evaluable": ev["evaluable"],
             "days": day_rows["forward"],
         },
         "backtest": {
@@ -473,53 +559,71 @@ def _pct(x: float) -> str:
     return f"{x * 100:+.1f}%"
 
 
+def _summary_lines(s: Mapping[str, Any], indent: str = "  ") -> list[str]:
+    return [
+        f"{indent}n = {s['n']} (mecze {s['events']}), trafione {s['won']} "
+        f"({s['hit_rate']:.3f}), średnie 1/kurs {s['mean_implied']:.3f}, "
+        f"średnie p bet365 {s['mean_fair_p']:.3f}",
+        f"{indent}ROI przed podatkiem {_pct(s['roi'])} "
+        f"[{_pct(s['roi_ci95'][0])}, {_pct(s['roi_ci95'][1])}], "
+        f"jednostki {s['units']:+.2f}",
+        f"{indent}ROI po podatku (x0.88) {_pct(s['roi_after_tax'])} "
+        f"[{_pct(s['roi_after_tax_ci95'][0])}, "
+        f"{_pct(s['roi_after_tax_ci95'][1])}], "
+        f"jednostki {s['units_after_tax']:+.2f}",
+    ]
+
+
 def report_pl(ledger: Mapping[str, Any]) -> str:
-    """The forward summary in Polish."""
+    """The forward summary in Polish: progress only before the first
+    TARGET_N selections are graded; then the one verdict on exactly those,
+    and the later selections apart."""
     fwd = ledger["forward"]
-    s = fwd["summary"]
+    ev = fwd["evaluation"]
+    target = ledger["target_n"]
     lines = [
         f"Test papierowy {ledger['rule_id']} (zamrożony {ledger['frozen_at']}, "
         f"t = {ledger['t']}, okno od {ledger['start_date']})",
         "Koszykówka, handicap punktowy: kurs Superbetu x uczciwe p z kursu "
         "OTWARCIA bet365 (metoda potęgowa) > 1; bet365 z ostatniego zapisu PRZED "
-        "startem. Bez stawek, nic nie trafia na kupon.",
+        "startem ze spreadem. Bez stawek, nic nie trafia na kupon.",
+        f"Okno do przodu: oczekujące mecze: {fwd['pending_events']}; brak bet365 "
+        f"przed startem: {fwd['no_b365_prestart']} meczów (wyłączone).",
     ]
-    if not s.get("n"):
+    prog = ev["progress"]
+    if not ev["evaluable"]:
         lines.append(
-            f"Okno do przodu: 0 rozliczonych typów; oczekujące mecze: "
-            f"{fwd['pending_events']}; brak bet365 przed startem: "
-            f"{fwd['no_b365_prestart']}."
+            f"Postęp: {prog['n']} / {target} typów (mecze {prog['events']}). "
+            f"Ocena dopiero przy n >= {target}; do tego czasu to nie jest "
+            "przewaga - bez ROI i bez werdyktu."
         )
+        if prog["n"] >= target:
+            lines.append(
+                f"  {target} typów zebranych, ale {ev['pending_before_cut']} "
+                f"oczekujących meczów z dni do punktu odcięcia "
+                f"({ev['cut']['day']}) - werdykt po ich rozliczeniu."
+            )
     else:
-        lines += [
-            f"Okno do przodu: n = {s['n']} (mecze {s['events']}), trafione {s['won']} "
-            f"({s['hit_rate']:.3f}), średnie 1/kurs {s['mean_implied']:.3f}, "
-            f"średnie p bet365 {s['mean_fair_p']:.3f}",
-            f"  ROI przed podatkiem {_pct(s['roi'])} "
-            f"[{_pct(s['roi_ci95'][0])}, {_pct(s['roi_ci95'][1])}], "
-            f"jednostki {s['units']:+.2f}",
-            f"  ROI po podatku (x0.88) {_pct(s['roi_after_tax'])} "
-            f"[{_pct(s['roi_after_tax_ci95'][0])}, "
-            f"{_pct(s['roi_after_tax_ci95'][1])}], "
-            f"jednostki {s['units_after_tax']:+.2f}",
-            f"  oczekujące mecze: {fwd['pending_events']}; brak bet365 przed "
-            f"startem: {fwd['no_b365_prestart']} meczów (wyłączone)",
-        ]
-    lines.append(
-        f"Postęp: {s.get('n', 0)} / {ledger['target_n']}. "
-        f"Ocena dopiero przy n >= {ledger['target_n']}; "
-        "do tego czasu to nie jest przewaga."
-    )
-    if s.get("n", 0) >= ledger["target_n"]:
-        ok = s["roi_after_tax_ci95"][0] > 0
+        s = ev["summary"]
+        lines.append(
+            f"Ocena (zamrożona na pierwszych {target} typach w kolejności "
+            f"startu, do {ev['cut']['kickoff_utc']}; liczona raz):"
+        )
+        lines += _summary_lines(s)
         lines.append(
             "Kryterium (dolna granica 95% CI ROI po podatku > 0): "
             + (
                 "SPEŁNIONE - decyzja operatora."
-                if ok
+                if ev["verdict"] == "PASS"
                 else "NIESPEŁNIONE - reguła odpada."
             )
         )
+        after = ev["after_evaluation"]
+        if after and after.get("n"):
+            lines.append("Po ocenie (nie zmieniają werdyktu):")
+            lines += _summary_lines(after)
+        else:
+            lines.append("Po ocenie (nie zmieniają werdyktu): 0 typów.")
     lines.append(
         "Backtest (osobno, nigdy nie sumowany z oknem do przodu; do 10-30 linia "
         "bet365 odczytana po meczu - zajrzenie w przyszłość, liczby mogą być "
