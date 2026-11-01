@@ -502,6 +502,10 @@ ContextSignal = Literal[
     # corners by own possession): a WATCH only, reason "RYNEK: ..."
     # (reports from 2026-10-29)
     "MARKET",
+    # a tennis player's retirement / walkover within 14 days, no completed
+    # match since (dossier `retirement`): a WATCH only, reason "KRECZ: ..."
+    # (reports from 2026-11-02)
+    "RETIREMENT",
 ]
 
 

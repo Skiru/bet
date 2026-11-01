@@ -281,6 +281,31 @@ def test_a_market_watch_merges_only_on_its_dossier_row(tmp_path: Path) -> None:
     assert not (run / "reads.json").exists()
 
 
+def test_a_krecz_watch_merges_only_when_the_tennis_dossier_shows_it(
+    tmp_path: Path,
+) -> None:
+    """11-01 Pereira: from reports of 11-02 a tennis "KRECZ:" WATCH merges
+    when the match's tennis dossier shows that player's retirement within 14
+    days; another player, NO_BET or no dossier refuses the report."""
+    from tests.sofa.test_report_check import TENNIS_BODY, krecz_watch, tennis_dossier
+    from tests.sofa.test_report_check import report as md
+    run = tmp_path / "2026-11-02"
+    (run / "dossier").mkdir(parents=True)
+    (run / "dossier" / "tennis_7.json").write_text(json.dumps(tennis_dossier()))
+    good = tmp_path / "2026-11-02_analiza_tennis_1.md"
+    good.write_text(md([krecz_watch()], TENNIS_BODY))
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--dry-run"]
+    assert merge_reads.main([*args, "--report", str(good)]) == 0
+    for row in (krecz_watch(reason="KRECZ: Storck Franca 2026-10-25"),
+                krecz_watch(verdict="NO_BET")):
+        bad = tmp_path / "2026-11-02_analiza_tennis_2.md"
+        bad.write_text(md([row], TENNIS_BODY))
+        assert merge_reads.main([*args, "--report", str(bad)]) == 2
+    (run / "dossier" / "tennis_7.json").unlink()
+    assert merge_reads.main([*args, "--report", str(good)]) == 2
+    assert not (run / "reads.json").exists()
+
+
 def test_event_ids_read_every_unlocked_printed_leg_of_those_matches(
     tmp_path: Path,
 ) -> None:

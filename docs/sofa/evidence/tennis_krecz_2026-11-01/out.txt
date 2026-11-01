@@ -1,0 +1,46 @@
+P1 legs deduped 7869, graded 7271, ungraded (refund/void/pending) dev 447 hold 151
+fixtures with entity ids 6886; legs with favoured side 4189; totals 2676
+
+=== A RECENT_RETIREMENT (favoured player lost by ret/wo/default in 14 d) ===
+dev <=10-24 FLAG                   n    55 m   31 conf 0.784 1/odds 0.789 hit 0.727 | hit-conf -5.6 [-21.2,+8.7] | hit-1/o -6.2 [-19.6,+6.5] | ROI -10.5% [-29.8,+7.5]
+dev <=10-24 control                n  2823 m 1202 conf 0.777 1/odds 0.773 hit 0.737 | hit-conf -4.1 [-6.0,-2.2] | hit-1/o -3.6 [-5.5,-1.7] | ROI -4.8% [-7.5,-2.1]
+dev <=10-24 FLAG strict(no win since) n    13 m    7 conf 0.797 1/odds 0.828 hit 0.923 | hit-conf +12.6 [-9.2,+22.7] | hit-1/o +9.5 [-12.1,+20.1] | ROI +11.5% [-16.2,+26.2]
+hold 10-25..31 FLAG                n    21 m   15 conf 0.766 1/odds 0.799 hit 0.905 | hit-conf +13.9 [-2.3,+24.1] | hit-1/o +10.6 [-5.2,+21.1] | ROI +14.1% [-6.2,+27.9]
+hold 10-25..31 control             n  1290 m  475 conf 0.787 1/odds 0.816 hit 0.772 | hit-conf -1.5 [-4.8,+1.5] | hit-1/o -4.4 [-7.6,-1.5] | ROI -5.5% [-9.6,-1.8]
+hold 10-25..31 FLAG strict(no win since) n     5 m    5 conf 0.772 1/odds 0.810 hit 1.000 | hit-conf +22.8 [+19.1,+25.2] | hit-1/o +19.0 [+15.6,+22.6] | ROI +23.8% [+18.8,+29.4]
+--- A on totals / all legs: either player
+dev <=10-24 totals FLAG            n    96 m   33 conf 0.796 1/odds 0.824 hit 0.844 | hit-conf +4.7 [-3.5,+12.7] | hit-1/o +2.0 [-5.9,+9.6] | ROI +1.8% [-8.5,+11.7]
+dev <=10-24 totals control         n  1916 m  668 conf 0.796 1/odds 0.831 hit 0.793 | hit-conf -0.3 [-2.3,+1.7] | hit-1/o -3.8 [-5.7,-1.9] | ROI -4.6% [-7.1,-2.3]
+hold 10-25..31 totals FLAG         n    28 m    8 conf 0.795 1/odds 0.847 hit 0.857 | hit-conf +6.2 [-0.1,+14.6] | hit-1/o +1.0 [-5.4,+9.5] | ROI +0.9% [-6.9,+10.8]
+hold 10-25..31 totals control      n   636 m  183 conf 0.804 1/odds 0.843 hit 0.780 | hit-conf -2.4 [-5.8,+0.8] | hit-1/o -6.3 [-9.8,-3.1] | ROI -7.3% [-11.4,-3.4]
+abnormal codes counted in flags: {92: 385, 91: 45, 98: 21}
+A flagged legs per day (legs/matches): {'2026-10-05': '2/2', '2026-10-06': '10/4', '2026-10-07': '1/1', '2026-10-08': '3/3', '2026-10-11': '2/1', '2026-10-13': '5/2', '2026-10-14': '3/1', '2026-10-15': '5/3', '2026-10-16': '4/2', '2026-10-17': '5/2', '2026-10-19': '2/1', '2026-10-20': '1/1', '2026-10-21': '2/2', '2026-10-22': '7/4', '2026-10-23': '2/1', '2026-10-24': '1/1', '2026-10-25': '5/3', '2026-10-26': '2/2', '2026-10-27': '3/3', '2026-10-28': '1/1', '2026-10-29': '4/3', '2026-10-30': '2/1', '2026-10-31': '4/2'}
+A favoured-side markets: Counter({'games_won_for': 26, 'games_won_set1_for': 15, 'set_score_not': 13, 'games_won_set2_for': 10, 'set2_won_for': 6, 'set1_won_for': 3, 'match_won_for': 3})
+
+=== B MODEL_ABOVE_OWN_SAMPLE (model_p - sample_hit_rate, sample >= 5) ===
+dev <=10-24 gap>0.15 FLAG          n   298 m  200 conf 0.785 1/odds 0.816 hit 0.768 | hit-conf -1.6 [-7.6,+4.1] | hit-1/o -4.7 [-10.6,+0.9] | ROI -5.9% [-13.4,+1.2]
+dev <=10-24 gap>0.15 control       n  4271 m 1207 conf 0.785 1/odds 0.793 hit 0.756 | hit-conf -2.9 [-4.5,-1.3] | hit-1/o -3.7 [-5.3,-2.3] | ROI -4.9% [-7.1,-2.8]
+hold 10-25..31 gap>0.15 FLAG       n   155 m   98 conf 0.797 1/odds 0.822 hit 0.768 | hit-conf -2.9 [-11.4,+5.0] | hit-1/o -5.4 [-13.8,+2.4] | ROI -6.6% [-17.2,+3.3]
+hold 10-25..31 gap>0.15 control    n  1257 m  280 conf 0.799 1/odds 0.837 hit 0.783 | hit-conf -1.6 [-4.4,+1.1] | hit-1/o -5.5 [-8.2,-2.8] | ROI -6.5% [-9.9,-3.2]
+
+dev <=10-24 gap>0.10 FLAG          n   578 m  359 conf 0.784 1/odds 0.812 hit 0.756 | hit-conf -2.8 [-6.9,+1.3] | hit-1/o -5.6 [-9.8,-1.6] | ROI -7.2% [-12.7,-1.9]
+dev <=10-24 gap>0.10 control       n  3991 m 1178 conf 0.785 1/odds 0.792 hit 0.757 | hit-conf -2.8 [-4.4,-1.3] | hit-1/o -3.5 [-5.0,-2.1] | ROI -4.7% [-6.7,-2.6]
+hold 10-25..31 gap>0.10 FLAG       n   288 m  153 conf 0.797 1/odds 0.826 hit 0.764 | hit-conf -3.3 [-9.5,+2.5] | hit-1/o -6.2 [-12.5,-0.4] | ROI -7.5% [-15.2,-0.4]
+hold 10-25..31 gap>0.10 control    n  1124 m  274 conf 0.799 1/odds 0.838 hit 0.786 | hit-conf -1.4 [-4.1,+1.3] | hit-1/o -5.3 [-7.9,-2.6] | ROI -6.3% [-9.6,-3.0]
+
+dev <=10-24 gap>0.20 FLAG          n   147 m  104 conf 0.778 1/odds 0.807 hit 0.789 | hit-conf +1.1 [-6.7,+8.4] | hit-1/o -1.8 [-9.3,+5.5] | ROI -2.3% [-12.1,+7.2]
+dev <=10-24 gap>0.20 control       n  4422 m 1217 conf 0.785 1/odds 0.794 hit 0.756 | hit-conf -2.9 [-4.4,-1.4] | hit-1/o -3.9 [-5.3,-2.4] | ROI -5.1% [-7.1,-3.0]
+hold 10-25..31 gap>0.20 FLAG       n    66 m   44 conf 0.798 1/odds 0.821 hit 0.682 | hit-conf -11.6 [-26.5,+2.5] | hit-1/o -13.9 [-28.8,+0.3] | ROI -17.5% [-35.5,-0.0]
+hold 10-25..31 gap>0.20 control    n  1346 m  286 conf 0.799 1/odds 0.836 hit 0.786 | hit-conf -1.3 [-3.8,+1.2] | hit-1/o -5.0 [-7.5,-2.5] | ROI -6.0% [-9.1,-3.0]
+
+B flagged by market (0.15): Counter({'games_won_for': 165, 'games_won_set1_for': 109, 'games_won_set2_for': 81, 'games_set1_total': 48, 'games_set2_total': 38, 'sets_total': 12})
+
+=== P2 (secondary): all live settled tennis SHEET rows with a price, A only ===
+dev <=10-24 FLAG (conf=p_central)  n  1987 m   95 conf 0.502 1/odds 0.544 hit 0.492 | hit-conf -0.9 [-5.9,+4.4] | hit-1/o -5.2 [-10.1,-0.1] | ROI -17.4% [-27.6,-6.9]
+dev <=10-24 control                n 91760 m 2351 conf 0.492 1/odds 0.537 hit 0.492 | hit-conf +0.0 [-0.1,+0.1] | hit-1/o -4.5 [-4.6,-4.4] | ROI -11.0% [-11.9,-10.2]
+dev <=10-24 p>=.70 FLAG            n   489 m   84 conf 0.818 1/odds 0.825 hit 0.810 | hit-conf -0.8 [-7.3,+5.6] | hit-1/o -1.5 [-7.6,+4.7] | ROI -2.5% [-10.8,+5.9]
+dev <=10-24 p>=.70 control         n 21662 m 2307 conf 0.814 1/odds 0.820 hit 0.776 | hit-conf -3.8 [-4.5,-3.0] | hit-1/o -4.5 [-5.2,-3.7] | ROI -5.7% [-6.7,-4.6]
+hold 10-25..31 FLAG (conf=p_central) n   742 m   31 conf 0.512 1/odds 0.540 hit 0.538 | hit-conf +2.6 [-6.4,+11.1] | hit-1/o -0.3 [-9.2,+8.5] | ROI -2.4% [-24.4,+19.1]
+hold 10-25..31 control             n 38011 m  946 conf 0.486 1/odds 0.532 hit 0.485 | hit-conf -0.1 [-0.3,+0.1] | hit-1/o -4.6 [-4.8,-4.4] | ROI -12.1% [-13.3,-10.9]
+hold 10-25..31 p>=.70 FLAG         n   199 m   30 conf 0.818 1/odds 0.838 hit 0.844 | hit-conf +2.6 [-6.4,+10.2] | hit-1/o +0.6 [-8.7,+8.2] | ROI +0.8% [-10.4,+10.3]
+hold 10-25..31 p>=.70 control      n  8633 m  912 conf 0.817 1/odds 0.837 hit 0.794 | hit-conf -2.3 [-3.9,-0.8] | hit-1/o -4.3 [-5.7,-2.9] | ROI -5.3% [-7.2,-3.5]

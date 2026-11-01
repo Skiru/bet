@@ -130,7 +130,11 @@ Template and step table: `references/event-protocol.md`.
    length from the web; back-to-back days, a qualifier's extra rounds, a
    recent retirement. Known before the price, all of it - and points to
    defend - is a note, never a veto or a removal by itself; a WATCH only
-   through a dated consequence since the price (an MTO, a withdrawal doubt).
+   through a dated consequence since the price (an MTO, a withdrawal doubt)
+   - except a **recent retirement** (reports from 2026-11-02, operator
+   2026-11-01): the dossier's `sides.<side>.retirement` (a singles match lost
+   Retired / Walkover <= 14 days before, none completed since) carries a
+   `KRECZ:` WATCH on the legs that need that player's play (Removals).
 8. **H2H with decay** - a supporting prior, never the primary signal; `h2h`
    never reaches a `*_for` row, and a `*_total` pools h2h with no age rule.
 9. **Scenario matrix.** Favourite pulls away / underdog holds / both first
@@ -174,7 +178,8 @@ Template and step table: `references/event-protocol.md`.
 | the same fact on two domains | NO_BET |
 | withdrawal / walkover / postponement confirmed on two domains | NO_BET with both `[WEB:]` tags (the next FIXTURE_CHECK removes it too) |
 | `DEFEKT: <artifact> <field> ...` - a value **wrong for tonight**: identity, format (`default_period_count`), surface (`ground_type`), a sample of another surface / format / class | NO_BET or a `SAMPLE_UNINFORMATIVE` veto |
-| everything else - rest, a long previous match, travel, points to defend, form, h2h, ranking, the rating, `forecast_p` vs próbka, a market driver's numbers, a family's past record, retirement risk, a line move | a note in **Za / Przeciw**, never a removal |
+| `KRECZ: <gracz> <data> ...` - the dossier's `sides.<side>.retirement` for that player (lost Retired / Walkover <= 14 days before the start, no completed singles match since), on a leg needing **his** play or a long match (his games / sets / win / handicap, games and sets OVER, his aces) - reports from 2026-11-02; `report_check` checks it against the dossier (`sofa-analysis-core`, removal 4) | WATCH, `context: "RETIREMENT"` (never NO_BET or a veto) |
+| everything else - rest, a long previous match, travel, points to defend, form, h2h, ranking, the rating, `forecast_p` vs próbka, a market driver's numbers, a family's past record, an older retirement (> 14 days, or a completed match since), a line move | a note in **Za / Przeciw**, never a removal |
 
 A correct value the model does not use is a note, never a `DEFEKT:`. There
 is no `RYNEK:` removal in tennis.

@@ -197,7 +197,16 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
      też stać na sterowniku rynku rodziny nogi
      (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
      `RYNEK: <sterownik>: <liczby z k/n z dossier>`, `context: "MARKET"`
-     (operator 2026-10-29); h2h sam, forma, seria, tabela, luka model-próbka,
+     (operator 2026-10-29); od raportów z 2026-11-02 w tenisie sam WATCH
+     (nigdy NO_BET ani weto) może stać na kreczu gracza: `KRECZ: <gracz>
+     <data> …`, `context: "RETIREMENT"` - mecz singlowy przegrany Retired /
+     Walkover w ostatnich 14 dniach, bez ukończonego meczu od tego czasu
+     (dossier `sides.<strona>.retirement`, pierwsza linia `web_checklist`;
+     operator 2026-11-01 po Pereirze 3-6 3-6 - skreczował 25.10, a SAMPLES
+     pomija mecz zakończony nieprawidłowo); kod sprawdza go z dossier
+     (`report_check.retirement_findings`: KRECZ TYLKO WATCH, KRECZ BEZ TAGU,
+     KRECZ BEZ DOSSIER, KRECZ NIEPOTWIERDZONY - nazwisko i data z powodu
+     muszą się zgadzać z dossier); h2h sam, forma, seria, tabela, luka model-próbka,
      `price_gap` ani most między ligami nie zdejmują nogi (10-26: 19 z 24
      WATCH było tego rodzaju; pomiar 10-13..10-25 nie pokazał, by takie
      zdjęcia cokolwiek dawały);

@@ -163,7 +163,7 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
 | verdict | effect |
 |---|---|
 | `KEEP` | stays; records the read (a leg in the set without a read fails C3) |
-| `WATCH` | removed into `removed_by_reads` - a fact newer than the price on one domain, or an opinion, acting through the leg's variable by a named mechanism; a `DEFEKT:`; or (football, reports of 2026-10-29 on) a `RYNEK:` at its threshold (below) |
+| `WATCH` | removed into `removed_by_reads` - a fact newer than the price on one domain, or an opinion, acting through the leg's variable by a named mechanism; a `DEFEKT:`; (football, reports of 2026-10-29 on) a `RYNEK:` at its threshold (below); or (tennis, reports of 2026-11-02 on) a `KRECZ:` (below) |
 | `NO_BET` | removed - a defect, or a fact confirmed by two domains |
 
 - **Vetoes** (football / tennis only): a sample that does not describe the
@@ -226,6 +226,26 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
      (no `RYNEK:` until a sport threshold is defined). Example: `RYNEK: Aris
      oddaje rywalom ≥4 rożne w 3/10 (style.matchup), pewność 0.79. Mechanizm:
      Aris dopuszcza 9 dośrodkowań rywala na mecz (style.away.means)`.
+
+  4. (**tennis only**, reports of 2026-11-02 on, **WATCH only, never
+     NO_BET or a veto**; operator 2026-11-01 after Pereira 3-6 3-6 - he had
+     retired at 1-6 on 10-25 and SAMPLES drops an abnormally finished match,
+     so no number saw it) a player's recent retirement written `KRECZ:
+     <gracz> <data> <co>`, read `context: "RETIREMENT"`: the dossier's
+     `sides.<side>.retirement` (also first on its `web_checklist`) - a
+     singles match he lost Retired / Walkover within 14 days before the
+     start, no completed singles match since. Use it on the legs that need
+     **his** play or a long match (his games / sets / win / handicap, games
+     and sets OVER, his aces); a leg that gains if he is hampered (the
+     opponent's side, UNDER) keeps its own read. Find what happened (MTO,
+     the injury, words, a withdrawal since) and add it as `[WEB: ...]` when
+     dated - that fact may then carry the WATCH on its own. **The code checks
+     it** (`report_check.retirement_findings`, merge_reads refuses the whole
+     report otherwise): the dossier must show the retirement for the player
+     the reason names (surname) with its date (`2026-10-25` or `25.10`).
+     Example: `KRECZ: Jose Pereira skreczował 2026-10-25 przy 1-6
+     (Guayaquil, dossier sides.away.retirement), od tego czasu bez meczu;
+     noga wymaga jego ≥5 gemów w 1. secie`.
 
   **Never a removal**: h2h alone, form, a streak, the table, rest, the model
   vs the own sample or `forecast_p` (`MODEL_ABOVE_OWN_SAMPLE` decides), a

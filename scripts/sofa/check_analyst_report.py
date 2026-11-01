@@ -24,9 +24,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from bet.sofa.report_check import (  # noqa: E402
+    checked_reads,
     findings,
     load_dossiers,
-    market_reads,
     reads_block,
     report_day,
     report_kind,
@@ -58,7 +58,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         run = (Path(args.runs_dir) / args.date) if args.date else report_run(path)
         dossiers = None if run is None else load_dossiers(
-            run, {r.get("sofascore_event_id") for r in market_reads(reads_block(text))},
+            run, {r.get("sofascore_event_id")
+                  for r in checked_reads(reads_block(text))},
             set_legs)
         found = findings(text, report_day(path.name), **report_kind(path.name),
                          dossiers=dossiers)

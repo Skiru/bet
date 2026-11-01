@@ -16,7 +16,7 @@ Both files live in `runs/sofa/<d>/` and are written only by
 | `direction` | `"OVER"` \| `"UNDER"` \| null | yes | null = both. No other side and no period - a measured-sport leg takes a read, not a veto |
 | `reason_class` | enum | yes | `SAMPLE_UNINFORMATIVE \| CONTEXT \| PRICE \| OTHER` |
 | `reason` | str | yes | Polish; the operator reads it |
-| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS \| MORALE`; on any other class it fails validation (`MARKET` exists for reads only) |
+| `context` | enum \| null | no (default null) | only with `reason_class: "CONTEXT"`, and then always set: `MOTIVATION \| ROTATION \| ABSENCES \| DERBY \| SCHEDULE \| CONDITIONS \| MORALE`; on any other class it fails validation (`MARKET` and `RETIREMENT` exist for reads only) |
 
 All seven required keys must be present, the null ones included. An invented
 key (`action`, `player`, `event_id`) fails the whole file; `merge_reads.py`
@@ -108,7 +108,7 @@ match started is excluded from the grade.
 | `verdict` | `KEEP \| WATCH \| NO_BET` | |
 | `author` | `analyst \| verifier` | you are `"analyst"` |
 | `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries one of the marks of core "What a removal's reason must name" (`report_check`) |
-| `context` | a `context` tag above, or `MARKET` (a football `RYNEK:` WATCH - required there), optional | exactly one of `MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`, `CONDITIONS`, `MORALE`, `MARKET`, or null / left out when none fits - anything else (`"OTHER"`, `"NONE"`) fails validation and merge_reads refuses the report (E2E 10-29) |
+| `context` | a `context` tag above, `MARKET` (a football `RYNEK:` WATCH - required there) or `RETIREMENT` (a tennis `KRECZ:` WATCH, reports from 2026-11-02 - required there), optional | exactly one of `MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`, `CONDITIONS`, `MORALE`, `MARKET`, `RETIREMENT`, or null / left out when none fits - anything else (`"OTHER"`, `"NONE"`) fails validation and merge_reads refuses the report (E2E 10-29) |
 
 A WATCH / NO_BET copies `market` / `subject` / `line` / `direction` /
 `period` from the read-set leg, never retyped from the PDF.

@@ -68,8 +68,9 @@ from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
 from bet.sofa.report_check import (  # noqa: E402
     MARKET_BLOCKING,
+    RETIREMENT_BLOCKING,
+    checked_reads,
     load_dossiers,
-    market_reads,
     reads_block,
     report_day,
     report_kind,
@@ -152,7 +153,7 @@ SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
 # 2026-10-29): such a report is refused whole, never merged in part; a
 # `RYNEK:` WATCH is checked against its leg's dossier row (E2E 2026-10-29)
 BLOCKING_FINDINGS = ("USUNIĘCIE BEZ FAKTU", "RYNEK TYLKO WATCH", "RYNEK BEZ TAGU",
-                     "WETO BEZ FAKTU", *MARKET_BLOCKING)
+                     "WETO BEZ FAKTU", *MARKET_BLOCKING, *RETIREMENT_BLOCKING)
 
 
 def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
@@ -165,7 +166,8 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
         text = path.read_text(encoding="utf-8")
         day = report_day(path.name) or run.name  # the merge's day otherwise
         dossiers = load_dossiers(
-            run, {r.get("sofascore_event_id") for r in market_reads(reads_block(text))},
+            run, {r.get("sofascore_event_id")
+                  for r in checked_reads(reads_block(text))},
             set_legs)
         blocking = [f for f in report_findings(text, day, **report_kind(path.name),
                                                dossiers=dossiers)

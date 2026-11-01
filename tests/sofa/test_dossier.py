@@ -734,3 +734,34 @@ def test_the_switch_reads_the_fixtures_day_as_samples_does(
         run, [{"sofascore_event_id": 500, "sport": "football"}], db_path=db,
         now=NOW)[500]).read_text())
     assert not any(g.get("awarded") for g in doc["sides"]["home"]["last_games"])
+
+
+def test_tennis_dossier_shows_a_recent_retirement_on_the_side_and_checklist(
+    tmp_path: Path,
+) -> None:
+    """11-01: Pereira retired at 1-6 on 10-25 and SAMPLES dropped the match;
+    the dossier names it on his side (`retirement`) and first on the web
+    checklist - the basis a "KRECZ:" WATCH is checked against."""
+    retired = ev(301, KICK - 7 * DAY, 2, 1, 0, 1, sport="tennis",
+                 periods=((1, 6), (0, 1)))
+    retired["status"]["description"] = "Retired"
+    retired["winnerCode"] = 2  # Alfa (away) wins: Beta (home) retired
+    events = [retired,
+              ev(302, KICK - 12 * DAY, 2, 3, 2, 0, sport="tennis"),
+              ev(303, KICK - 3 * DAY, 1, 3, 2, 0, sport="tennis")]
+    detail = ev(700, KICK, 1, 2, 0, 0, status="notstarted", sport="tennis")
+    db = tmp_path / "sofa.db"
+    make_db(db, events, detail)
+    run = tmp_path / "runs" / "2026-10-20"
+    run.mkdir(parents=True)
+    leg = {"sofascore_event_id": 700, "sport": "tennis", "match": "Alfa - Beta"}
+    (run / "11_coupon.json").write_text(json.dumps({"singles": [leg]}))
+    doc = json.loads(Path(
+        dossier.write_for_legs(run, [dict(leg)], db_path=db, now=NOW)[700]
+    ).read_text())
+    beta = doc["sides"]["away"]
+    assert beta["retirement"]["date"] == "2026-10-13"
+    assert beta["retirement"]["status"] == "Retired"
+    assert beta["retirement"]["days_before"] == 7.0
+    assert doc["sides"]["home"].get("retirement") is None
+    assert doc["web_checklist"][1].startswith("KRECZ: Beta - Retired 2026-10-13")

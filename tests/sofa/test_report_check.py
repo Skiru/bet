@@ -469,3 +469,118 @@ def test_hook_checks_a_market_watch_of_a_report_in_its_run(tmp_path: Path) -> No
     path.write_text(report([market_watch()], GOOD_BODY))
     assert run_hook({"tool_name": "Bash",
                      "tool_input": {"command": command}}).returncode == 0
+
+
+def tennis_dossier(status: str = "Retired", result: str = "P",
+                   date: str = "2026-10-25 19:00",
+                   since: bool = False) -> dict[str, object]:
+    """Pereira - Storck Franca, 2026-11-01: Pereira retired at 1-6 on 10-25."""
+    games = [{"date": date, "competition": "Guayaquil, Ecuador",
+              "opponent": "Alex Hernandez", "score": [0, 1], "result": result,
+              "periods": [[1, 6], [0, 1]], "status": status},
+             {"date": "2026-10-20 15:10", "competition": "Cali, Colombia",
+              "opponent": "Matheus Pucinelli de Almeida", "score": [0, 2],
+              "result": "P"}]
+    if since:
+        games.insert(0, {"date": "2026-10-28 12:00", "competition": "Cali",
+                         "opponent": "X", "score": [2, 0], "result": "W"})
+    # a doubles match since is no singles match completed
+    games.insert(0, {"date": "2026-10-27 12:00", "competition": "Cali Doubles",
+                     "opponent": "A / B", "score": [2, 0], "result": "W"})
+    return {"schema": 3,
+            "header": {"kickoff_utc": "2026-11-01 19:00", "sport": "tennis"},
+            "sides": {"home": {"name": "Leonardo Storck Franca", "last_games": []},
+                      "away": {"name": "Jose Pereira", "last_games": games}}}
+
+
+def krecz_watch(**over: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "sofascore_event_id": 7, "market": "games_won_set1_for",
+        "subject": "jose pereira", "line": 4.5, "direction": "OVER",
+        "verdict": "WATCH", "author": "analyst", "context": "RETIREMENT",
+        "reason": "KRECZ: Jose Pereira skreczował 2026-10-25 przy 1-6 "
+                  "(Guayaquil, dossier last_games), od tego czasu bez meczu"}
+    row.update(over)
+    return row
+
+
+TENNIS_BODY = GOOD_BODY.replace("Dewa - Persijap · sofa:1",
+                                "Storck Franca - Pereira · sofa:7")
+
+
+def test_a_recent_retirement_carries_a_tennis_watch_checked_by_the_dossier() -> None:
+    """11-01: Pereira 3-6 3-6 after retiring at 1-6 on 10-25 - the analyst
+    found it and could only write a note (operator: it should have been
+    flagged / removed). From reports of 11-02 a "KRECZ:" WATCH stands when
+    the dossier's last_games show that player's retirement / walkover within
+    14 days with no completed singles match since."""
+    from bet.sofa.dossier import recent_retirement
+    from bet.sofa.report_check import retirement_findings
+
+    doc = tennis_dossier()
+    away = doc["sides"]["away"]["last_games"]  # type: ignore[index]
+    found = recent_retirement(away, "2026-11-01 19:00")
+    assert found is not None and found["date"] == "2026-10-25"
+    assert found["days_before"] == 7.0
+    assert recent_retirement([], "2026-11-01 19:00") is None
+    # a completed singles match since, the opponent's retirement, 15 days back
+    since = tennis_dossier(since=True)["sides"]["away"]["last_games"]  # type: ignore[index]
+    assert recent_retirement(since, "2026-11-01 19:00") is None
+    won = tennis_dossier(result="W")["sides"]["away"]["last_games"]  # type: ignore[index]
+    assert recent_retirement(won, "2026-11-01 19:00") is None
+    old = tennis_dossier(date="2026-10-17 18:00")["sides"]["away"]["last_games"]  # type: ignore[index]
+    assert recent_retirement(old, "2026-11-01 19:00") is None
+    walkover = tennis_dossier(status="Walkover")["sides"]["away"]["last_games"]  # type: ignore[index]
+    assert recent_retirement(walkover, "2026-11-01 19:00") is not None
+
+    dossiers = {7: doc}
+    assert retirement_findings([krecz_watch()], dossiers) == []
+    assert retirement_findings(
+        [krecz_watch(reason="KRECZ: Jose Pereira skreczował 25.10")], dossiers) == []
+
+    def first(row: dict[str, object], docs: object = dossiers) -> str:
+        out = retirement_findings([row], docs)  # type: ignore[arg-type]
+        return out[0].split(":")[0] if out else ""
+
+    assert first(krecz_watch(verdict="NO_BET")) == "KRECZ TYLKO WATCH"
+    assert first(krecz_watch(context="SCHEDULE")) == "KRECZ BEZ TAGU"
+    assert first(krecz_watch(), {7: None}) == "KRECZ BEZ DOSSIER"
+    assert first(krecz_watch(reason="KRECZ: Storck Franca 2026-10-25")) == \
+        "KRECZ NIEPOTWIERDZONY"
+    assert first(krecz_watch(reason="KRECZ: Jose Pereira niedawno")) == \
+        "KRECZ NIEPOTWIERDZONY"
+    assert first(krecz_watch(), {7: tennis_dossier(since=True)}) == \
+        "KRECZ NIEPOTWIERDZONY"
+
+    # through findings: tennis reports from 11-02 only; a football report or
+    # an earlier day still refuses it as a removal without a fact
+    text = report([krecz_watch()], TENNIS_BODY)
+    ok = findings(text, "2026-11-02", sport="tennis", dossiers=dossiers)
+    assert not any(f.startswith(("USUNIĘCIE", "KRECZ")) for f in ok)
+    assert any(f.startswith("USUNIĘCIE BEZ FAKTU") for f in findings(
+        text, "2026-11-01", sport="tennis", dossiers=dossiers))
+    assert any(f.startswith("USUNIĘCIE BEZ FAKTU") for f in findings(
+        text, "2026-11-02", sport="football", dossiers=dossiers))
+    bad = report([krecz_watch(reason="KRECZ: Storck Franca 2026-10-25")], TENNIS_BODY)
+    assert any(f.startswith("KRECZ NIEPOTWIERDZONY") for f in findings(
+        bad, "2026-11-02", sport="tennis", dossiers=dossiers))
+    # a veto never rests on KRECZ
+    veto = {"sofascore_event_id": 7, "market": None,
+            "reason": "KRECZ: Jose Pereira 2026-10-25"}
+    vtext = text + f"\n```json vetoes\n{json.dumps([veto])}\n```\n"
+    assert any(f.startswith("WETO BEZ FAKTU") for f in findings(
+        vtext, "2026-11-02", sport="tennis", dossiers=dossiers))
+
+
+def test_cli_finds_a_tennis_dossier_for_a_krecz_watch(tmp_path: Path) -> None:
+    run = tmp_path / "2026-11-02"
+    (run / "dossier").mkdir(parents=True)
+    (run / "dossier" / "tennis_7.json").write_text(json.dumps(tennis_dossier()))
+    good = tmp_path / "2026-11-02_analiza_tennis.md"
+    good.write_text(report([krecz_watch()], TENNIS_BODY))
+    bad = tmp_path / "2026-11-02_analiza_tennis_2.md"
+    bad.write_text(report([krecz_watch(reason="KRECZ: Storck Franca 2026-10-25")],
+                          TENNIS_BODY))
+    base = ["--runs-dir", str(tmp_path), "--date", run.name]
+    assert check_analyst_report.main([*base, "--report", str(good)]) == 0
+    assert check_analyst_report.main([*base, "--report", str(bad)]) == 1

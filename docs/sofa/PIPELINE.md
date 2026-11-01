@@ -2482,7 +2482,14 @@ niego 08).
   `style.matchup` nogi w dossier (schemat >= 3; `report_check.market_findings`,
   merge_reads odmawia całego raportu: RYNEK ZAKAZANY / BEZ LINII / BEZ DOSSIER /
   BEZ WIERSZA / PONIŻEJ PROGU / INNE LICZBY; noga łączna „każda z drużyn”
-  liczona jak suma na min(własne, rywala), jak w SETTLE). Każdy analityk sprawdza czynniki rynku
+  liczona jak suma na min(własne, rywala), jak w SETTLE); od raportów z
+  2026-11-02 (operator 2026-11-01) w tenisie - tylko dla WATCH - także krecz
+  gracza (`KRECZ: <gracz> <data>`, `context: "RETIREMENT"`, rozliczany w
+  księdze osobno): mecz singlowy przegrany Retired / Walkover <= 14 dni przed
+  startem, bez ukończonego meczu od tego czasu (`dossier.recent_retirement`,
+  pole `sides.<strona>.retirement`) - sprawdza to kod
+  (`report_check.retirement_findings`, merge_reads odmawia całego raportu:
+  KRECZ TYLKO WATCH / BEZ TAGU / BEZ DOSSIER / NIEPOTWIERDZONY). Każdy analityk sprawdza czynniki rynku
   każdej rodziny (`.claude/skills/sofa-analysis-core/references/market-drivers.md`,
   z literatury); h2h, forma, tabela, luka model-próbka i `price_gap` nadal
   nie zdejmują nogi. Weto - te same źródła (`WETO BEZ FAKTU`); raport

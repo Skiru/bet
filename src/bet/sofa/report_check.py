@@ -28,7 +28,12 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa import analyses
-from bet.sofa.dossier import STYLE_POSSESSION_MIN, dossier_path, leg_metric
+from bet.sofa.dossier import (
+    STYLE_POSSESSION_MIN,
+    dossier_path,
+    leg_metric,
+    recent_retirement,
+)
 from bet.sofa.epochs import READ_SCOPE_DATE
 from bet.sofa.price_gap import GAP
 
@@ -81,6 +86,19 @@ MARKET_DOSSIER_SCHEMA = 3
 MARKET_POSSESSION_MARKET = "corners_for"  # (b): full-match corners OVER only
 MARKET_BLOCKING = ("RYNEK ZAKAZANY", "RYNEK BEZ LINII", "RYNEK BEZ DOSSIER",
                    "RYNEK BEZ WIERSZA", "RYNEK PONIŻEJ PROGU", "RYNEK INNE LICZBY")
+# A tennis player's recent retirement / walkover (operator 2026-11-01, after
+# Pereira 3-6 3-6: retired at 1-6 on 10-25, which the 10-27 rule let the
+# analyst write only as a note): "KRECZ: <player> <date> ..." carries a WATCH
+# - never NO_BET or a veto - read `context: "RETIREMENT"` (graded apart by
+# tag), when the match's dossier shows that player's singles match lost
+# Retired / Walkover within dossier.RETIREMENT_DAYS before the start and no
+# completed singles match since (`dossier.recent_retirement`, recomputed from
+# `last_games`, never trusted from the reason). Tennis and verifier reports
+# of days from RETIREMENT_WATCH_DATE.
+RETIREMENT_WATCH_DATE = "2026-11-02"
+RETIREMENT_MARK = re.compile(r"KRECZ:")
+RETIREMENT_BLOCKING = ("KRECZ TYLKO WATCH", "KRECZ BEZ TAGU", "KRECZ BEZ DOSSIER",
+                       "KRECZ NIEPOTWIERDZONY")
 CONTRA_ROW = re.compile(r"^\s*\|.*ZESTAWIENIE PRZECIW.*\|\s*$", re.M)
 # A KEEP reason shorter than this cannot carry an expectation, a dossier fact
 # and a context finding (the contract's example runs ~120 characters).
@@ -167,10 +185,14 @@ def findings(
     (`market_findings`); merge_reads always passes it."""
     sourced = day is None or day >= SOURCED_REMOVALS_DATE
     readable = day is None or day >= READABLE_SECTION_DATE
+    retire_ok = ((day is None or day >= RETIREMENT_WATCH_DATE)
+                 and sport in (None, "tennis"))
     reads = reads_block(text)
     out: list[str] = []
     if dossiers is not None and readable and sport in (None, "football"):
         out += market_findings(reads, dossiers)
+    if dossiers is not None and retire_ok:
+        out += retirement_findings(reads, dossiers)
     if readable:
         for v in vetoes_block(text):
             reason = str(v.get("reason") or "")
@@ -193,7 +215,7 @@ def findings(
         )
     if verifier:
         return (out + _unheaded(text, reads)
-                + _verdicts(reads, sourced, readable, sport)
+                + _verdicts(reads, sourced, readable, sport, retire_ok)
                 + _summaries(text, reads, readable, summary_only=True))
     keep_events = {
         r.get("sofascore_event_id") for r in reads if r.get("verdict") == "KEEP"
@@ -226,7 +248,7 @@ def findings(
         )
     out += _summaries(text, reads, readable,
                       summary_only=sport not in (None, "football"))
-    return out + _verdicts(reads, sourced, readable, sport)
+    return out + _verdicts(reads, sourced, readable, sport, retire_ok)
 
 
 def _unheaded(text: str, reads: list[dict[str, Any]]) -> list[str]:
@@ -296,11 +318,12 @@ def _summaries(
 
 def _verdicts(
     reads: list[dict[str, Any]], sourced: bool, readable: bool,
-    sport: str | None = None,
+    sport: str | None = None, retire_ok: bool = False,
 ) -> list[str]:
     """Each read's reason: a KEEP argued per family, a removal sourced. A
     `RYNEK:` removal is football's (its thresholds read style.matchup; a
-    tennis / measured-sport driver's numbers are a note)."""
+    tennis / measured-sport driver's numbers are a note); a `KRECZ:` removal
+    tennis' (`retire_ok`; checked by `retirement_findings`)."""
     out: list[str] = []
     market_ok = readable and sport in (None, "football")
     for r in reads:
@@ -330,6 +353,8 @@ def _verdicts(
                 out.append(
                     f"RYNEK BEZ TAGU: {label}: WATCH z „RYNEK:” wymaga "
                     "`context: \"MARKET\"` (rozliczany osobno w księdze)")
+        elif retire_ok and not fact_sourced(reason) and retirement_sourced(reason):
+            pass  # retirement_findings checks it against the dossier
         elif sourced and not fact_sourced(reason):
             out.append(
                 f"USUNIĘCIE BEZ FAKTU: {label}: {r.get('verdict')} - powód musi "
@@ -338,6 +363,9 @@ def _verdicts(
                 + (" albo - dla WATCH - czynnik rynku z liczbami k/n z dossier "
                    "(„RYNEK: <czynnik>: …”, `context: \"MARKET\"`)" if market_ok
                    else "")
+                + (" albo - dla WATCH - krecz / walkower gracza w ostatnich 14 "
+                   "dniach („KRECZ: <gracz> <data> …”, "
+                   "`context: \"RETIREMENT\"`)" if retire_ok else "")
                 + (" (DEFEKT to wartość artefaktu błędna na dziś - tożsamość, "
                    "zakres, nawierzchnia, format, inna kadra; poprawny odpoczynek, "
                    "forma czy h2h to notatka)" if DEFECT_MARK.search(reason) else "")
@@ -360,13 +388,84 @@ def market_reads(reads: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
             and not fact_sourced(str(r.get("reason") or ""))]
 
 
+def retirement_sourced(reason: str) -> bool:
+    """A removal reason resting on a tennis player's recent retirement."""
+    return bool(RETIREMENT_MARK.search(reason))
+
+
+def retirement_reads(reads: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The reads whose removal rests on `KRECZ:` (no dated web fact or real
+    defect beside it)."""
+    return [r for r in reads if r.get("verdict") in ("WATCH", "NO_BET")
+            and retirement_sourced(str(r.get("reason") or ""))
+            and not fact_sourced(str(r.get("reason") or ""))]
+
+
+def checked_reads(reads: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The reads the code checks against their match's dossier (`RYNEK:`,
+    `KRECZ:`) - whose dossiers `load_dossiers` must load."""
+    reads = list(reads)
+    return market_reads(reads) + retirement_reads(reads)
+
+
+def retirement_findings(
+    reads: Iterable[Mapping[str, Any]],
+    dossiers: Mapping[int, Mapping[str, Any] | None],
+) -> list[str]:
+    """Every `KRECZ:` removal checked against the match's tennis dossier: a
+    WATCH tagged RETIREMENT, a side whose `last_games` show a retirement /
+    walkover the start still follows closely, that player named in the
+    reason with the date."""
+    out: list[str] = []
+    for r in retirement_reads(reads):
+        reason = str(r.get("reason") or "")
+        label = (f"{r.get('sofascore_event_id')} {r.get('market')} "
+                 f"{r.get('subject') or ''} {r.get('line')} {r.get('direction')}"
+                 ).replace("  ", " ")
+        if r.get("verdict") != "WATCH":
+            out.append(f"KRECZ TYLKO WATCH: {label}: {r.get('verdict')} oparty na "
+                       "kreczu - taki powód daje najwyżej WATCH")
+            continue
+        if r.get("context") != "RETIREMENT":
+            out.append(f"KRECZ BEZ TAGU: {label}: WATCH z „KRECZ:” wymaga "
+                       "`context: \"RETIREMENT\"` (rozliczany osobno w księdze)")
+            continue
+        eid = r.get("sofascore_event_id")
+        doc = dossiers.get(eid) if isinstance(eid, int) else None
+        sides = (doc or {}).get("sides") or {}
+        kickoff = ((doc or {}).get("header") or {}).get("kickoff_utc")
+        if not doc or not sides or not kickoff:
+            out.append(f"KRECZ BEZ DOSSIER: {label}: brak dossier tenisowego meczu "
+                       "z `sides` - przebuduj go (`read_set.py` / `build_slip.py`); "
+                       "bez `last_games` „KRECZ:” niczego nie zdejmuje")
+            continue
+        named = []
+        for side in sides.values():
+            found = recent_retirement(side.get("last_games") or [], str(kickoff))
+            name = str(side.get("name") or "")
+            surname = name.split()[-1].lower() if name.split() else ""
+            if found and surname and surname in reason.lower():
+                day = found["date"]
+                short = f"{day[8:10]}.{day[5:7]}"
+                named.append(day in reason or short in reason)
+        if not any(named):
+            out.append(
+                f"KRECZ NIEPOTWIERDZONY: {label}: dossier nie pokazuje kreczu / "
+                "walkowera nazwanego gracza w ostatnich 14 dniach bez ukończonego "
+                "meczu od tego czasu, albo powód nie podaje jego nazwiska i daty "
+                "(`sides.<strona>.retirement` / `last_games`) - wtedy to notatka "
+                "i KEEP")
+    return out
+
+
 def load_dossiers(
     run: Path, event_ids: Iterable[Any],
     read_set_legs: Iterable[Mapping[str, Any]] = (),
 ) -> dict[int, dict[str, Any] | None]:
-    """{event id: football dossier or None}: the path a read-set leg names
-    (`dossier`, a scratch dossier dir included) first, else
-    `<run>/dossier/football_<id>.json`. Unreadable = None, never a guess."""
+    """{event id: football / tennis dossier or None}: the path a read-set leg
+    names (`dossier`, a scratch dossier dir included) first, else
+    `<run>/dossier/football_<id>.json`, then `tennis_<id>.json`. Unreadable =
+    None, never a guess."""
     named: dict[int, Path] = {}
     for leg in read_set_legs:
         eid, path = leg.get("sofascore_event_id"), leg.get("dossier")
@@ -376,11 +475,15 @@ def load_dossiers(
     for raw in event_ids:
         if not isinstance(raw, int):
             continue
-        path = named.get(raw) or dossier_path(run, "football", raw)
-        try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            doc = None
+        paths = [named[raw]] if raw in named else [
+            dossier_path(run, sport, raw) for sport in ("football", "tennis")]
+        doc = None
+        for path in paths:
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            break
         out[raw] = doc if isinstance(doc, dict) else None
     return out
 

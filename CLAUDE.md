@@ -317,7 +317,14 @@ and a miss recorded before a rule's switch never blocks that rule.
   "Styl gry i zestawienie" table. The hook checks the verifier's
   `_weryfikacja` reports too (same removal rules). The concession signal
   measured 10-29 was not robust (model-state.md (d)) - the MARKET removals
-  are its out-of-sample measurement. `sofa-analyst-sport` runs on Sonnet
+  are its out-of-sample measurement. From reports of 2026-11-02 (operator
+  2026-11-01, after Pereira 3-6 3-6: retired 10-25, SAMPLES drops an
+  abnormally finished match) a tennis WATCH - never a NO_BET - may rest on
+  `KRECZ: <gracz> <data>` (`context: "RETIREMENT"`): the dossier's
+  `sides.<side>.retirement` (`dossier.recent_retirement`: a singles match
+  lost Retired / Walkover <= 14 days before, none completed since, also
+  first on the web checklist), **checked by the code**
+  (`report_check.retirement_findings`). `sofa-analyst-sport` runs on Sonnet
   (operator 10-26: cost).
 
 ### Measured sports (hockey, basketball, volleyball, CS2)

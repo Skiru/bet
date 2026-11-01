@@ -667,6 +667,31 @@
           "quote": "no definition of a statistically strong leg tells a good leg from a bad one at the same price (bet-slip-audit SKILL restating it)"
         }
       ]
+    },
+    {
+      "id": "T-KRECZ-WATCH",
+      "registered_on": "2026-11-01",
+      "status": "REGISTERED",
+      "hypothesis": "Tennis legs the analysts remove with a \"KRECZ:\" WATCH (the player the leg needs lost a singles match Retired / Walkover within 14 days before the start, no completed singles match since; context RETIREMENT) realise below their confidence and below their price. Null from the history measurement docs/sofa/evidence/tennis_krecz_2026-11-01.md: flagged legs realised like the rest (hold-out +10.6 pp vs price [-5.2, +21.1], n 21).",
+      "rule": "report_check.retirement_findings / dossier.recent_retirement; reads of reports from 2026-11-02; graded in the ledger's removed:reads by_context RETIREMENT (record_results.py).",
+      "population": "Every tennis leg removed by a WATCH with context RETIREMENT (coupon reads and slip reads alike), graded WIN / LOSS; refunds apart.",
+      "data_window": {
+        "from": "2026-11-02",
+        "to": null
+      },
+      "required_n": {
+        "legs": 100,
+        "basis": "history: 0-5 flagged legs a day, most never read; 100 removed legs in ~2-3 months; match bootstrap."
+      },
+      "evaluation": "hit rate minus mean confidence and minus mean 1/odds of the removed legs, match bootstrap 1000; the same for price-band-matched kept tennis legs of the same days.",
+      "stop_criterion": "Judged once at 100 graded removed legs: PASSED only when removed minus 1/odds has its upper 95% bound below 0 (the removals take losers); otherwise FAILED and the KRECZ WATCH rule is proposed for withdrawal to the operator.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_krecz_2026-11-01.md",
+          "line": 1,
+          "quote": "Automatycznej bramki nie ma podstaw włączać - ani A, ani B"
+        }
+      ]
     }
   ]
 }

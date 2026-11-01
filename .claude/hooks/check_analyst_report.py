@@ -37,7 +37,7 @@ def main() -> int:
         from bet.sofa.report_check import (
             findings,
             load_dossiers,
-            market_reads,
+            checked_reads,
             reads_block,
             report_day,
             report_kind,
@@ -59,7 +59,8 @@ def main() -> int:
         # a RYNEK WATCH against its dossier row when the report sits in its run
         run = report_run(path)
         dossiers = None if run is None else load_dossiers(
-            run, {r.get("sofascore_event_id") for r in market_reads(reads_block(text))})
+            run, {r.get("sofascore_event_id")
+                  for r in checked_reads(reads_block(text))})
         found = findings(text, report_day(path.name), **report_kind(path.name),
                          dossiers=dossiers)
         if found:

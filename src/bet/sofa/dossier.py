@@ -92,6 +92,15 @@ DB_PATH = os.environ.get("SOFA_DB_PATH", "data/sofa.db")
 # Indoor sports: a weather line says nothing of the court.
 INDOOR = frozenset({"basketball", "volleyball", "hockey", "cs2"})
 TEAM_SPORTS = frozenset({"football", "hockey", "basketball", "volleyball"})
+# A tennis side's recent retirement / walkover (operator 2026-11-01, after
+# Pereira lost 3-6 3-6 having retired at 1-6 on 10-25 - SAMPLES drops an
+# abnormally finished match, so the numbers never saw it): a singles match
+# lost Retired / Walkover within RETIREMENT_DAYS before the start with no
+# completed singles match since. Shown on the side (`retirement`) and the web
+# checklist; report_check lets a "KRECZ:" WATCH rest on it. Display / process
+# only, never a gate.
+RETIREMENT_DAYS = 14
+RETIREMENT_STATUSES = ("retired", "walkover")
 
 
 def connect(db_path: str | Path = DB_PATH) -> sqlite3.Connection:
@@ -201,6 +210,41 @@ def team_games(
     ])
     games.sort(key=lambda e: (e["startTimestamp"], e["id"]), reverse=True)
     return games[:limit]
+
+
+def recent_retirement(
+    rows: Sequence[Mapping[str, Any]], kickoff_utc: str
+) -> dict[str, Any] | None:
+    """The side's retirement / walkover the start still follows closely: its
+    newest singles row (`last_games`, newest first; doubles skipped) that is
+    not an opponent's abandonment, lost Retired / Walkover within
+    RETIREMENT_DAYS before `kickoff_utc` ("YYYY-MM-DD HH:MM", UTC); None
+    when a completed singles match came after it, or none is that recent."""
+    try:
+        kickoff = datetime.strptime(kickoff_utc, "%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
+        return None
+    for row in rows:
+        if "doubles" in str(row.get("competition") or "").lower():
+            continue
+        status = str(row.get("status") or "").lower()
+        if not status:
+            return None  # a completed match since
+        if row.get("result") != "P" or not any(
+                s in status for s in RETIREMENT_STATUSES):
+            continue  # the opponent's abandonment: no match of his completed
+        try:
+            played = datetime.strptime(str(row.get("date")), "%Y-%m-%d %H:%M")
+        except ValueError:
+            return None
+        days = (kickoff - played).total_seconds() / 86400
+        if not 0 <= days <= RETIREMENT_DAYS:
+            return None
+        return {"date": str(row.get("date"))[:10], "status": row.get("status"),
+                "opponent": row.get("opponent"),
+                "competition": row.get("competition"),
+                "periods": row.get("periods"), "days_before": round(days, 1)}
+    return None
 
 
 def awarded_out_at(kickoff_ts: int) -> bool:
@@ -1782,6 +1826,9 @@ def build(
         info["summary"] = side_summary(
             [r for r, _ in played], [g for _, g in played], kickoff_ts)
         info["last_games"] = rows
+        if sport == "tennis":
+            info["retirement"] = recent_retirement(
+                rows, str(header.get("kickoff_utc") or ""))
         if not rows:
             info["missing"] = "brak meczów w cache listingów"
         sides[label] = {k: v for k, v in info.items() if v is not None}
@@ -1862,6 +1909,15 @@ def build(
             for x in doc["web_checklist"]]
         if lineup_line not in doc["web_checklist"]:
             doc["web_checklist"].append(lineup_line)
+    for side in ("home", "away"):
+        found = (sides.get(side) or {}).get("retirement")
+        if found:
+            doc["web_checklist"].insert(1, (
+                f"KRECZ: {side_names[side] or '?'} - {found['status']} "
+                f"{found['date']} ({found['competition']}, z {found['opponent']}, "
+                f"{found['days_before']} dni przed meczem; bez ukończonego meczu "
+                "od tego czasu) - uraz? MTO, wycofania, słowa gracza; nogi na "
+                "jego grę / długi mecz: WATCH „KRECZ:” (sofa-analysis-core)"))
     if h2h_asked.get("status") != h2h_fetch.OK:
         asked = h2h_asked.get("status") or "NOT_ASKED"
         doc["web_checklist"].append(
