@@ -64,3 +64,6 @@ data/
 runs/sofa/
 # prepare_refit.py backup: config copies for restore, never committed
 /config/backup_*/
+
+# regenerable data cache of the 2026-11-01 price-move study (load.py)
+docs/sofa/evidence/ruch_kursu_2026-11-01/legs.pkl

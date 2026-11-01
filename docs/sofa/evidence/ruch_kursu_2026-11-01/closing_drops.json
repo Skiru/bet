@@ -1,0 +1,154 @@
+{
+ "2026-10-13": {
+  "records": 4413,
+  "missing": 66,
+  "started": 25,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 4347
+ },
+ "2026-10-14": {
+  "records": 5360,
+  "missing": 108,
+  "started": 0,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 5252
+ },
+ "2026-10-15": {
+  "records": 5931,
+  "missing": 43,
+  "started": 0,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 5888
+ },
+ "2026-10-16": {
+  "records": 12251,
+  "missing": 192,
+  "started": 9,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 12059
+ },
+ "2026-10-17": {
+  "records": 60379,
+  "missing": 561,
+  "started": 0,
+  "error": 2,
+  "outside_3_30": 0,
+  "kept": 59818
+ },
+ "2026-10-18": {
+  "records": 45173,
+  "missing": 406,
+  "started": 50,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 44767
+ },
+ "2026-10-19": {
+  "records": 10238,
+  "missing": 152,
+  "started": 20,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 10086
+ },
+ "2026-10-20": {
+  "records": 13230,
+  "missing": 321,
+  "started": 81,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 12909
+ },
+ "2026-10-21": {
+  "records": 12433,
+  "missing": 215,
+  "started": 0,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 12218
+ },
+ "2026-10-22": {
+  "records": 12071,
+  "missing": 474,
+  "started": 42,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 11597
+ },
+ "2026-10-23": {
+  "records": 21209,
+  "missing": 813,
+  "started": 35,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 20396
+ },
+ "2026-10-24": {
+  "records": 66437,
+  "missing": 2497,
+  "started": 0,
+  "error": 1918,
+  "outside_3_30": 0,
+  "kept": 63940
+ },
+ "2026-10-25": {
+  "records": 37585,
+  "missing": 2997,
+  "started": 10,
+  "error": 2739,
+  "outside_3_30": 0,
+  "kept": 34588
+ },
+ "2026-10-26": {
+  "records": 8358,
+  "missing": 85,
+  "started": 5,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 8273
+ },
+ "2026-10-27": {
+  "records": 17419,
+  "missing": 298,
+  "started": 21,
+  "error": 28,
+  "outside_3_30": 0,
+  "kept": 17121
+ },
+ "2026-10-28": {
+  "records": 21162,
+  "missing": 867,
+  "started": 157,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 20295
+ },
+ "2026-10-29": {
+  "records": 11028,
+  "missing": 170,
+  "started": 2,
+  "error": 0,
+  "outside_3_30": 0,
+  "kept": 10858
+ },
+ "2026-10-30": {
+  "records": 11148,
+  "missing": 1931,
+  "started": 9,
+  "error": 1781,
+  "outside_3_30": 0,
+  "kept": 9217
+ },
+ "2026-10-31": {
+  "records": 61859,
+  "missing": 23966,
+  "started": 0,
+  "error": 23754,
+  "outside_3_30": 0,
+  "kept": 37893
+ }
+}

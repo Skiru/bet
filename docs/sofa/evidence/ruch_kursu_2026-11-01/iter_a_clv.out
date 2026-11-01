@@ -1,0 +1,64 @@
+all tracked legs 103874 | first_snap>0 (added in a later print, not in morning()) 5950
+morning legs (first print, >=15 min lead) 95501 | football/tennis 87964
+football/tennis morning: with close-file record 78868 | close under ORIGINAL rule (newest, any minutes) 73730 | close under 3-30 min rule 73730 | dropped by the rule 0
+settled won/lost among 3-30 close 72618
+closing drops per day: {"2026-10-13": {"records": 4413, "missing": 66, "started": 25, "error": 0, "outside_3_30": 0, "kept": 4347}, "2026-10-14": {"records": 5360, "missing": 108, "started": 0, "error": 0, "outside_3_30": 0, "kept": 5252}, "2026-10-15": {"records": 5931, "missing": 43, "started": 0, "error": 0, "outside_3_30": 0, "kept": 5888}, "2026-10-16": {"records": 12251, "missing": 192, "started": 9, "error": 0, "outside_3_30": 0, "kept": 12059}, "2026-10-17": {"records": 60379, "missing": 561, "started": 0, "error": 2, "outside_3_30": 0, "kept": 59818}, "2026-10-18": {"records": 45173, "missing": 406, "started": 50, "error": 0, "outside_3_30": 0, "kept": 44767}, "2026-10-19": {"records": 10238, "missing": 152, "started": 20, "error": 0, "outside_3_30": 0, "kept": 10086}, "2026-10-20": {"records": 13230, "missing": 321, "started": 81, "error": 0, "outside_3_30": 0, "kept": 12909}, "2026-10-21": {"records": 12433, "missing": 215, "started": 0, "error": 0, "outside_3_30": 0, "kept": 12218}, "2026-10-22": {"records": 12071, "missing": 474, "started": 42, "error": 0, "outside_3_30": 0, "kept": 11597}, "2026-10-23": {"records": 21209, "missing": 813, "started": 35, "error": 0, "outside_3_30": 0, "kept": 20396}, "2026-10-24": {"records": 66437, "missing": 2497, "started": 0, "error": 1918, "outside_3_30": 0, "kept": 63940}, "2026-10-25": {"records": 37585, "missing": 2997, "started": 10, "error": 2739, "outside_3_30": 0, "kept": 34588}, "2026-10-26": {"records": 8358, "missing": 85, "started": 5, "error": 0, "outside_3_30": 0, "kept": 8273}, "2026-10-27": {"records": 17419, "missing": 298, "started": 21, "error": 28, "outside_3_30": 0, "kept": 17121}, "2026-10-28": {"records": 21162, "missing": 867, "started": 157, "error": 0, "outside_3_30": 0, "kept": 20295}, "2026-10-29": {"records": 11028, "missing": 170, "started": 2, "error": 0, "outside_3_30": 0, "kept": 10858}, "2026-10-30": {"records": 11148, "missing": 1931, "started": 9, "error": 1781, "outside_3_30": 0, "kept": 9217}, "2026-10-31": {"records": 61859, "missing": 23966, "started": 0, "error": 23754, "outside_3_30": 0, "kept": 37893}}
+
+=== football: legs 67489 matches 6466 days 2026-10-13..2026-10-31
+share moved 0.575 shortened 0.298 drifted 0.277 | odds_taken == print odds 0.721
+CLV at the print price, devigged close (two_way_close): legs 46190 mean -3.75% [-3.79,-3.71] above close 0.297 | devig share of legs 0.684
+devigged move available (market_p & partner_close): 46183 | moved >1% devigged 0.296 | corr(raw move, devigged move) 0.958
+group                               n    hit 1/odds  ROI before tax                    ROI after 12% tax
+shortened (mv>0)                20132  0.791  0.820  n=20132 ROI=  -3.5% [  -4.6,  -2.4]  n=20132 ROI= -15.1% [ -16.0, -14.1]
+unchanged                       28687  0.788  0.833  n=28687 ROI=  -5.4% [  -6.2,  -4.7]  n=28687 ROI= -16.8% [ -17.5, -16.1]
+drifted (mv<0)                  18670  0.762  0.827  n=18670 ROI=  -7.9% [  -9.0,  -6.8]  n=18670 ROI= -18.9% [ -19.9, -18.0]
+raw mv q (-0.307, -0.0175]       7835  0.734  0.822  n= 7835 ROI= -10.8% [ -12.6,  -9.0]  n= 7835 ROI= -21.5% [ -23.1, -19.9]
+raw mv q (-0.0175, -0.00826]     7774  0.798  0.848  n= 7774 ROI=  -5.9% [  -7.3,  -4.5]  n= 7774 ROI= -17.2% [ -18.4, -16.0]
+raw mv q (-0.00826, 0.0087]      7948  0.756  0.799  n= 7948 ROI=  -5.4% [  -6.7,  -4.0]  n= 7948 ROI= -16.8% [ -17.9, -15.5]
+raw mv q (0.0087, 0.0185]        7561  0.812  0.850  n= 7561 ROI=  -4.4% [  -5.9,  -3.2]  n= 7561 ROI= -15.9% [ -17.1, -14.8]
+raw mv q (0.0185, 0.335]         7684  0.788  0.800  n= 7684 ROI=  -1.4% [  -3.1,  +0.4]  n= 7684 ROI= -13.2% [ -14.7, -11.6]
+devig mv q (-0.361, -0.0103]     9238  0.754  0.822  n= 9238 ROI=  -8.3% [  -9.9,  -6.7]  n= 9238 ROI= -19.3% [ -20.8, -17.9]
+devig mv q (-0.0103, -3.83e-05]   9329  0.787  0.829  n= 9329 ROI=  -5.1% [  -6.2,  -3.9]  n= 9329 ROI= -16.5% [ -17.5, -15.5]
+devig mv q (-3.83e-05, 3.96e-05]   9223  0.793  0.830  n= 9223 ROI=  -4.5% [  -5.5,  -3.4]  n= 9223 ROI= -15.9% [ -16.9, -15.0]
+devig mv q (3.96e-05, 0.0111]    9163  0.789  0.830  n= 9163 ROI=  -4.8% [  -6.1,  -3.6]  n= 9163 ROI= -16.3% [ -17.4, -15.2]
+devig mv q (0.0111, 0.419]       9230  0.790  0.810  n= 9230 ROI=  -2.4% [  -3.9,  -0.8]  n= 9230 ROI= -14.1% [ -15.4, -12.7]
+
+=== tennis: legs 5129 matches 1310 days 2026-10-13..2026-10-31
+share moved 0.4 shortened 0.215 drifted 0.185 | odds_taken == print odds 0.796
+CLV at the print price, devigged close (two_way_close): legs 5117 mean -3.60% [-3.67,-3.52] above close 0.215 | devig share of legs 0.998
+devigged move available (market_p & partner_close): 5117 | moved >1% devigged 0.267 | corr(raw move, devigged move) 0.91
+group                               n    hit 1/odds  ROI before tax                    ROI after 12% tax
+shortened (mv>0)                 1101  0.777  0.812  n= 1101 ROI=  -4.3% [  -8.4,  -0.2]  n= 1101 ROI= -15.8% [ -19.4, -12.2]
+unchanged                        3077  0.794  0.833  n= 3077 ROI=  -4.8% [  -7.1,  -2.5]  n= 3077 ROI= -16.2% [ -18.2, -14.2]
+drifted (mv<0)                    951  0.773  0.822  n=  951 ROI=  -5.9% [ -10.1,  -1.7]  n=  951 ROI= -17.2% [ -20.9, -13.5]
+raw mv q (-0.109, -0.0146]        412  0.735  0.816  n=  412 ROI=  -9.7% [ -16.0,  -3.4]  n=  412 ROI= -20.6% [ -26.1, -15.0]
+raw mv q (-0.0146, -0.00787]      417  0.818  0.848  n=  417 ROI=  -3.6% [  -8.4,  +1.0]  n=  417 ROI= -15.1% [ -19.4, -11.1]
+raw mv q (-0.00787, 0.00855]      420  0.724  0.779  n=  420 ROI=  -7.0% [ -13.1,  -1.2]  n=  420 ROI= -18.2% [ -23.5, -13.1]
+raw mv q (0.00855, 0.0175]        395  0.823  0.849  n=  395 ROI=  -3.1% [  -8.0,  +1.7]  n=  395 ROI= -14.7% [ -19.1, -10.5]
+raw mv q (0.0175, 0.115]          408  0.777  0.792  n=  408 ROI=  -1.8% [  -9.8,  +5.3]  n=  408 ROI= -13.6% [ -20.6,  -7.3]
+devig mv q (-0.126, -0.00489]    1024  0.763  0.820  n= 1024 ROI=  -7.0% [ -10.8,  -2.8]  n= 1024 ROI= -18.1% [ -21.5, -14.4]
+devig mv q (-0.00489, -2.75e-05]   1035  0.774  0.829  n= 1035 ROI=  -6.8% [ -10.1,  -3.3]  n= 1035 ROI= -17.9% [ -20.9, -14.9]
+devig mv q (-2.75e-05, 3.45e-05]   1029  0.799  0.840  n= 1029 ROI=  -5.0% [  -8.1,  -1.8]  n= 1029 ROI= -16.4% [ -19.1, -13.6]
+devig mv q (3.45e-05, 0.00806]   1005  0.804  0.829  n= 1005 ROI=  -3.2% [  -6.8,  +0.1]  n= 1005 ROI= -14.8% [ -18.0, -11.9]
+devig mv q (0.00806, 0.193]      1024  0.795  0.816  n= 1024 ROI=  -2.4% [  -6.6,  +1.8]  n= 1024 ROI= -14.1% [ -17.9, -10.4]
+
+=== football+tennis (pooled only for the headline; two sports): legs 72618 matches 7776 days 2026-10-13..2026-10-31
+share moved 0.563 shortened 0.292 drifted 0.27 | odds_taken == print odds 0.726
+CLV at the print price, devigged close (two_way_close): legs 51307 mean -3.74% [-3.77,-3.70] above close 0.289 | devig share of legs 0.707
+devigged move available (market_p & partner_close): 51300 | moved >1% devigged 0.294 | corr(raw move, devigged move) 0.956
+group                               n    hit 1/odds  ROI before tax                    ROI after 12% tax
+shortened (mv>0)                21233  0.790  0.820  n=21233 ROI=  -3.6% [  -4.6,  -2.5]  n=21233 ROI= -15.1% [ -16.0, -14.2]
+unchanged                       31764  0.789  0.833  n=31764 ROI=  -5.3% [  -6.0,  -4.6]  n=31764 ROI= -16.7% [ -17.3, -16.1]
+drifted (mv<0)                  19621  0.763  0.827  n=19621 ROI=  -7.8% [  -9.0,  -6.7]  n=19621 ROI= -18.8% [ -19.9, -17.9]
+raw mv q (-0.307, -0.0174]       8306  0.736  0.823  n= 8306 ROI= -10.7% [ -12.4,  -8.9]  n= 8306 ROI= -21.4% [ -22.9, -19.8]
+raw mv q (-0.0174, -0.0082]      8346  0.798  0.847  n= 8346 ROI=  -5.8% [  -7.0,  -4.5]  n= 8346 ROI= -17.1% [ -18.2, -16.0]
+raw mv q (-0.0082, 0.0087]       8191  0.753  0.797  n= 8191 ROI=  -5.6% [  -6.9,  -4.3]  n= 8191 ROI= -16.9% [ -18.1, -15.8]
+raw mv q (0.0087, 0.0185]        7977  0.813  0.850  n= 7977 ROI=  -4.3% [  -5.6,  -3.0]  n= 7977 ROI= -15.8% [ -16.9, -14.6]
+raw mv q (0.0185, 0.335]         8034  0.787  0.799  n= 8034 ROI=  -1.4% [  -3.0,  +0.3]  n= 8034 ROI= -13.2% [ -14.6, -11.7]
+devig mv q (-0.361, -0.00995]   10260  0.755  0.822  n=10260 ROI=  -8.3% [  -9.8,  -6.8]  n=10260 ROI= -19.3% [ -20.6, -17.9]
+devig mv q (-0.00995, -3.82e-05]  10381  0.786  0.828  n=10381 ROI=  -5.1% [  -6.2,  -4.0]  n=10381 ROI= -16.5% [ -17.5, -15.5]
+devig mv q (-3.82e-05, 3.87e-05]  10143  0.793  0.831  n=10143 ROI=  -4.6% [  -5.7,  -3.6]  n=10143 ROI= -16.1% [ -17.0, -15.1]
+devig mv q (3.87e-05, 0.0106]   10261  0.789  0.829  n=10261 ROI=  -4.9% [  -6.0,  -3.8]  n=10261 ROI= -16.3% [ -17.3, -15.3]
+devig mv q (0.0106, 0.419]      10255  0.792  0.811  n=10255 ROI=  -2.2% [  -3.7,  -0.7]  n=10255 ROI= -13.9% [ -15.2, -12.6]
+
+best raw-move quintile after tax (ROI, lo, hi, n): {'football': (-0.1319, -0.1475, -0.1162, 7684), 'tennis': (-0.1355, -0.2058, -0.0733, 408), 'football+tennis': (-0.132, -0.146, -0.117, 8034)}

@@ -1,0 +1,10 @@
+# CLV 2026-10-13..2026-10-31 - Superbet's own close, power devig
+| variant | legs | matches | mean CLV | 95% (by match) | above close |
+|---|---|---|---|---|---|
+| official | 55197 | 7639 | -3.73% | [-3.77%, -3.70%] | 24% |
+| official:basketball | 214 | 144 | -5.39% | [-6.56%, -4.33%] | 43% |
+| official:builder_leg | 170 | 86 | -3.31% | [-3.64%, -2.98%] | 23% |
+| official:cs2 | 310 | 74 | -3.73% | [-4.61%, -3.07%] | 31% |
+| official:hockey | 4869 | 977 | -5.72% | [-6.05%, -5.39%] | 22% |
+| official:volleyball | 568 | 292 | -3.88% | [-4.14%, -3.62%] | 32% |
+exit 0

@@ -1,0 +1,4 @@
+10-31 events 1026 all records bad 260 mixed 157 clean 609
+records in all-bad events 19015 | bad records in mixed events 4951
+leg keys 12029 never a good record 3829
+errors [('14335448: DNSError: Failed to perform, curl: (6) Could not r', 345), ('14335449: DNSError: Failed to perform, curl: (6) Could not r', 320), ('14335394: DNSError: Failed to perform, curl: (6) Could not r', 285), ('14335462: DNSError: Failed to perform, curl: (6) Could not r', 270), ('14351077: DNSError: Failed to perform, curl: (6) Could not r', 270)]
