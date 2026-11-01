@@ -21,6 +21,7 @@ nothing here changes a confidence or a gate.
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 from collections.abc import Iterable, Mapping
@@ -35,6 +36,7 @@ from bet.sofa.dossier import (
     recent_retirement,
 )
 from bet.sofa.epochs import READ_SCOPE_DATE
+from bet.sofa.names import normalize_name
 from bet.sofa.price_gap import GAP
 
 CONTEXT_MARK = re.compile(r"kontekst\s*\(web\)", re.IGNORECASE)
@@ -97,6 +99,18 @@ MARKET_BLOCKING = ("RYNEK ZAKAZANY", "RYNEK BEZ LINII", "RYNEK BEZ DOSSIER",
 # of days from RETIREMENT_WATCH_DATE.
 RETIREMENT_WATCH_DATE = "2026-11-02"
 RETIREMENT_MARK = re.compile(r"KRECZ:")
+# the date the reason gives: ISO "2026-10-25" or "25.10" / "5.10.2026"; one
+# day either side of the dossier's (UTC) date is the same match (an evening
+# match in Asia is the next local day)
+ISO_DATE = re.compile(r"(\d{4})-(\d{1,2})-(\d{1,2})")
+# d.mm with a two-digit month ("25.10", "5.10.2026"): a line "21.5" or a set
+# score "6.3" is no date; prices / lines named as such are cut first
+DOT_DATE = re.compile(r"(?<![\d.,])(\d{1,2})\.(\d{2})(?:\.(\d{4}))?(?![\d,])")
+NOT_A_DATE = re.compile(r"(?:kurs\w*|@|lini\w*|line|cena|przy|wynik\w*)\s*"
+                        r"[\d.,:-]+", re.I)
+RETIREMENT_DATE_SLACK = 1
+RETIREMENT_NAME_MIN = 3  # a name token shorter than this is no name
+WORD = re.compile(r"[a-z0-9]+")
 RETIREMENT_BLOCKING = ("KRECZ TYLKO WATCH", "KRECZ BEZ TAGU", "KRECZ BEZ DOSSIER",
                        "KRECZ NIEPOTWIERDZONY")
 CONTRA_ROW = re.compile(r"^\s*\|.*ZESTAWIENIE PRZECIW.*\|\s*$", re.M)
@@ -354,7 +368,13 @@ def _verdicts(
                     f"RYNEK BEZ TAGU: {label}: WATCH z „RYNEK:” wymaga "
                     "`context: \"MARKET\"` (rozliczany osobno w księdze)")
         elif retire_ok and not fact_sourced(reason) and retirement_sourced(reason):
-            pass  # retirement_findings checks it against the dossier
+            # the dossier check is retirement_findings' (with dossiers)
+            if r.get("verdict") != "WATCH":
+                out.append(f"KRECZ TYLKO WATCH: {label}: {r.get('verdict')} oparty "
+                           "na kreczu - taki powód daje najwyżej WATCH")
+            elif r.get("context") != "RETIREMENT":
+                out.append(f"KRECZ BEZ TAGU: {label}: WATCH z „KRECZ:” wymaga "
+                           "`context: \"RETIREMENT\"` (rozliczany osobno w księdze)")
         elif sourced and not fact_sourced(reason):
             out.append(
                 f"USUNIĘCIE BEZ FAKTU: {label}: {r.get('verdict')} - powód musi "
@@ -408,28 +428,67 @@ def checked_reads(reads: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]
     return market_reads(reads) + retirement_reads(reads)
 
 
+def _krecz_clause(reason: str) -> str:
+    """The text after `KRECZ:` up to the next ";" or line end - where the
+    player and the date are named; prices, lines and scores cut out."""
+    mark = RETIREMENT_MARK.search(reason)
+    clause = reason[mark.end():] if mark else reason
+    clause = re.split(r"[;\n]", clause, maxsplit=1)[0]
+    return NOT_A_DATE.sub(" ", clause)
+
+
+def _reason_dates(reason: str, year: int) -> list[datetime.date]:
+    """Every date the KRECZ clause writes (ISO, or d.mm[.yyyy]; a d.mm
+    without a year tried in the retirement's year and either side of it)."""
+    clause = _krecz_clause(reason)
+    out: list[datetime.date] = []
+    for y, m, d in ISO_DATE.findall(clause):
+        try:
+            out.append(datetime.date(int(y), int(m), int(d)))
+        except ValueError:
+            continue
+    for d, m, y in DOT_DATE.findall(clause):
+        for yy in ([int(y)] if y else [year - 1, year, year + 1]):
+            try:
+                out.append(datetime.date(yy, int(m), int(d)))
+            except ValueError:
+                continue
+    return out
+
+
+def _names_player(reason: str, name: str, other: str = "") -> bool:
+    """The KRECZ clause names the player: a token (>= RETIREMENT_NAME_MIN
+    letters) of his Sofascore name that the opponent's name does not share,
+    accents folded and case ignored ("Lehecka" names "Jiri Lehečka",
+    "Cervantes" names "Ian Luca Cervantes Tomás"; "Jose" names neither of
+    two Joses); with no such token, his whole name."""
+    words = set(WORD.findall(normalize_name(_krecz_clause(reason))))
+    own = [t for t in WORD.findall(normalize_name(name))
+           if len(t) >= RETIREMENT_NAME_MIN]
+    shared = set(WORD.findall(normalize_name(other)))
+    distinct = [t for t in own if t not in shared]
+    if distinct:
+        return any(t in words for t in distinct)
+    return bool(own) and all(t in words for t in own)
+
+
 def retirement_findings(
     reads: Iterable[Mapping[str, Any]],
     dossiers: Mapping[int, Mapping[str, Any] | None],
 ) -> list[str]:
-    """Every `KRECZ:` removal checked against the match's tennis dossier: a
-    WATCH tagged RETIREMENT, a side whose `last_games` show a retirement /
-    walkover the start still follows closely, that player named in the
-    reason with the date."""
+    """Every `KRECZ:` WATCH tagged RETIREMENT checked against the match's
+    tennis dossier: a side whose `last_games` show a retirement / walkover
+    the start still follows closely, that player named in the reason (any
+    name token, accents folded) with its date (+-RETIREMENT_DATE_SLACK day).
+    The verdict and the tag are `_verdicts`' (they need no dossier)."""
     out: list[str] = []
     for r in retirement_reads(reads):
+        if r.get("verdict") != "WATCH" or r.get("context") != "RETIREMENT":
+            continue
         reason = str(r.get("reason") or "")
         label = (f"{r.get('sofascore_event_id')} {r.get('market')} "
                  f"{r.get('subject') or ''} {r.get('line')} {r.get('direction')}"
                  ).replace("  ", " ")
-        if r.get("verdict") != "WATCH":
-            out.append(f"KRECZ TYLKO WATCH: {label}: {r.get('verdict')} oparty na "
-                       "kreczu - taki powód daje najwyżej WATCH")
-            continue
-        if r.get("context") != "RETIREMENT":
-            out.append(f"KRECZ BEZ TAGU: {label}: WATCH z „KRECZ:” wymaga "
-                       "`context: \"RETIREMENT\"` (rozliczany osobno w księdze)")
-            continue
         eid = r.get("sofascore_event_id")
         doc = dossiers.get(eid) if isinstance(eid, int) else None
         sides = (doc or {}).get("sides") or {}
@@ -439,16 +498,18 @@ def retirement_findings(
                        "z `sides` - przebuduj go (`read_set.py` / `build_slip.py`); "
                        "bez `last_games` „KRECZ:” niczego nie zdejmuje")
             continue
-        named = []
-        for side in sides.values():
+        confirmed = False
+        named = {k: str((v or {}).get("name") or "") for k, v in sides.items()}
+        for key, side in sides.items():
             found = recent_retirement(side.get("last_games") or [], str(kickoff))
-            name = str(side.get("name") or "")
-            surname = name.split()[-1].lower() if name.split() else ""
-            if found and surname and surname in reason.lower():
-                day = found["date"]
-                short = f"{day[8:10]}.{day[5:7]}"
-                named.append(day in reason or short in reason)
-        if not any(named):
+            other = " ".join(v for k, v in named.items() if k != key)
+            if not found or not _names_player(reason, named[key], other):
+                continue
+            day = datetime.date.fromisoformat(found["date"])
+            confirmed = confirmed or any(
+                abs((d - day).days) <= RETIREMENT_DATE_SLACK
+                for d in _reason_dates(reason, day.year))
+        if not confirmed:
             out.append(
                 f"KRECZ NIEPOTWIERDZONY: {label}: dossier nie pokazuje kreczu / "
                 "walkowera nazwanego gracza w ostatnich 14 dniach bez ukończonego "

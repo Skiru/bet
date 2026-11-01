@@ -1,0 +1,18 @@
+C odds dist [(1.14, 172), (1.15, 93), (1.16, 42), (1.18, 31), (1.17, 30), (1.2, 9), (1.19, 7), (1.21, 4)]
+C chance==1/odds (capped at price): 193 of 396
+C conf mean 0.8651561712846347
+C 2-leg: [('2026-10-15', 22, [(1.11, 0.878), (1.1, 0.901)])]
+C markets [('goals_1h_total|UNDER', 46), ('corners_total|OVER', 34), ('goals_total|UNDER', 31), ('games_set2_total|UNDER', 29), ('goals_for|UNDER', 25), ('goals_total|OVER', 23), ('games_set1_total|UNDER', 13), ('games_set1_total|OVER', 13), ('corners_total|UNDER', 13), ('goals_2h_total|UNDER', 11)]
+dev C_safe_114 - A_def_t2 ROI diff +4.2 pp [-10.4,+18.0]
+dev C_safe_114 - B_def_t125 ROI diff +1.6 pp [-1.7,+4.7]
+dev C_safe_114 - D_safe_t13 ROI diff +3.6 pp [-3.0,+10.1]
+hold C_safe_114 - A_def_t2 ROI diff +7.4 pp [-5.5,+20.0]
+hold C_safe_114 - B_def_t125 ROI diff +0.9 pp [-9.3,+9.9]
+hold C_safe_114 - D_safe_t13 ROI diff +2.1 pp [-6.9,+11.7]
+all C_safe_114 - A_def_t2 ROI diff +5.4 pp [-5.7,+15.8]
+all C_safe_114 - B_def_t125 ROI diff +1.4 pp [-3.0,+5.3]
+all C_safe_114 - D_safe_t13 ROI diff +3.0 pp [-2.5,+8.7]
+pewność 201 hit 0.856 chance 0.846 conf 0.846
+cena (pewność ponad cenę) 190 hit 0.858 chance 0.868 conf 0.885
+C per-day losses: {'2026-10-13': 3, '2026-10-14': 4, '2026-10-15': 1, '2026-10-16': 3, '2026-10-17': 1, '2026-10-18': 4, '2026-10-19': 4, '2026-10-20': 3, '2026-10-21': 2, '2026-10-22': 3, '2026-10-23': 1, '2026-10-24': 4, '2026-10-25': 1, '2026-10-26': 3, '2026-10-27': 3, '2026-10-28': 4, '2026-10-29': 6, '2026-10-30': 2, '2026-10-31': 4}
+requests with a single>=1.14: 133 top-1 tied across matches: 23 median tie size 2

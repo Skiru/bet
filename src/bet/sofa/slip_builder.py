@@ -941,15 +941,7 @@ def _build_once(
         # read enters only when they cannot reach the target (operator
         # 2026-10-21: each round swapped read legs for unread ones)
         kept = [x for x in legs if x.read == READ_KEEP]
-        s = best_slip(kept, target, max_legs)
-        if safe:
-            # the safest slip: kept legs only while within a point of the
-            # whole pool's surest slip, else that slip (and its reads)
-            best = best_slip(legs, target, max_legs)
-            if s is None or (best is not None
-                             and s.chance < best.chance - SAFE_KEEP_TOLERANCE):
-                s = best
-        s = s or best_slip(legs, target, max_legs)
+        s = _pick(kept, legs, target, max_legs, safe)
         if s is None:
             # the leg limit binds (more legs of this pool would reach the
             # target): the closest slip under the target with the limit's
@@ -959,7 +951,7 @@ def _build_once(
             if need is None or need <= max_legs:
                 break
             top = reach(legs, max_legs)
-            s = best_slip(kept, top, max_legs) or best_slip(legs, top, max_legs)
+            s = _pick(kept, legs, top, max_legs, safe)
             if s is None:
                 break
             s.needs_legs = need
@@ -967,6 +959,20 @@ def _build_once(
         used.update(x.match_key for x in s.legs)
     return Result(out[:slips], slips, len(pool), refused, reach(pool, max_legs),
                   out[slips:], max_legs, bool(builders), safe)
+
+
+def _pick(kept: Sequence[Leg], legs: Sequence[Leg], target: float,
+          max_legs: int, safe: bool) -> Slip | None:
+    """The slip of the slip's own KEEPs, else of every leg. `safe`: the kept
+    slip stands only within SAFE_KEEP_TOLERANCE of the whole pool's surest
+    slip, else that slip (and its reads)."""
+    s = best_slip(kept, target, max_legs)
+    if safe:
+        best = best_slip(legs, target, max_legs)
+        if s is None or (best is not None
+                         and s.chance < best.chance - SAFE_KEEP_TOLERANCE):
+            s = best
+    return s or best_slip(legs, target, max_legs)
 
 
 def concentration(slip: Slip) -> tuple[str, int] | None:

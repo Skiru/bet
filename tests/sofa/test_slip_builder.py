@@ -1207,3 +1207,16 @@ def test_safest_cli_raises_a_low_target_to_the_cash_floor(
     assert build_slip.main([*base, "--safest", "--target", "1.3"]) == 0
     out = capsys.readouterr().out
     assert "≥ 1,30" in out and "A3 - B3" in out
+
+
+def test_the_safest_slip_rule_holds_on_the_closest_under_target_path() -> None:
+    """Review 11-01: when no slip reaches the target the closest-under slip
+    went through the default keep-first pick; in the safe mode it compares
+    with the pool's surest too."""
+    legs = [_leg(1, 1.20, 0.70), _leg(2, 1.20, 0.82)]
+    keep = [_read(1, 7.5, "KEEP")]
+    safe = sb.build(legs, NOW, 1.3, slip_reads=keep, max_legs=1, safe=True)
+    assert safe.slips[0].needs_legs is not None
+    assert [x.leg["sofascore_event_id"] for x in safe.slips[0].legs] == [2]
+    default = sb.build(legs, NOW, 1.3, slip_reads=keep, max_legs=1)
+    assert [x.leg["sofascore_event_id"] for x in default.slips[0].legs] == [1]

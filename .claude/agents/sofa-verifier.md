@@ -304,13 +304,18 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
   never a `DEFEKT`. `WATCH` = a dated `[WEB: domena, publ. <data>, fetched
   <czas>]` fact newer than the price, a `DEFEKT: ...`, or - football only,
   reports dated from 2026-10-29 - `RYNEK: <driver>: <numbers with k/n from
-  the dossier>` (`context: "MARKET"`; WATCH only, never a veto). Never a
+  the dossier>` (`context: "MARKET"`; WATCH only, never a veto), or - tennis
+  only, reports dated from 2026-11-02 - `KRECZ: <player> <date>` (`context:
+  "RETIREMENT"`; WATCH only, never a veto): the dossier's
+  `sides.<side>.retirement` shows that player's singles match lost Retired /
+  Walkover <= 14 days before the start, none completed since (checked by
+  `report_check.retirement_findings`). Never a
   removal: h2h alone, form / a streak, the table, a model-vs-sample gap
   (football `MODEL_ABOVE_OWN_SAMPLE` already removes those), `price_gap`, a
   cross-league bridge. Both verdicts move the leg to `removed_by_reads`,
   graded apart; `merge_reads.py` refuses the whole report (exit 2) on a
   removal without a fact.
-- `context`: `MARKET` for a RYNEK reason, a CONTEXT signal (`MOTIVATION |
+- `context`: `MARKET` for a RYNEK reason, `RETIREMENT` for a KRECZ reason, a CONTEXT signal (`MOTIVATION |
   ROTATION | ABSENCES | DERBY | SCHEDULE | CONDITIONS | MORALE`) for a web
   fact, else `null`. Never a read on a locked leg.
 

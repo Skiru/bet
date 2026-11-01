@@ -542,9 +542,21 @@ def test_a_recent_retirement_carries_a_tennis_watch_checked_by_the_dossier() -> 
         out = retirement_findings([row], docs)  # type: ignore[arg-type]
         return out[0].split(":")[0] if out else ""
 
-    assert first(krecz_watch(verdict="NO_BET")) == "KRECZ TYLKO WATCH"
-    assert first(krecz_watch(context="SCHEDULE")) == "KRECZ BEZ TAGU"
+    # the verdict and the tag are _verdicts' (no dossier needed)
+    assert first(krecz_watch(verdict="NO_BET")) == ""
     assert first(krecz_watch(), {7: None}) == "KRECZ BEZ DOSSIER"
+    # review 11-01: any name token, accents folded, punctuation, d.m / ISO
+    # dates one day either side
+    for reason in ("KRECZ: Pereira, 25.10", "KRECZ: JOSÉ PEREIRA 2026-10-26",
+                   "KRECZ: Jose, krecz 24.10.2026", "KRECZ: Pereira (25.10)"):
+        assert first(krecz_watch(reason=reason)) == "", reason
+    for reason in ("KRECZ: Pereira 22.10", "KRECZ: Jo 25.10",
+                   # second review: a price, a line or a score is no date
+                   "KRECZ: Pereira, kurs 1.25", "KRECZ: Pereira, linia 25.5",
+                   # the date outside the KRECZ clause does not count
+                   "KRECZ: Pereira skreczował; 25.10 grał debla"):
+        assert first(krecz_watch(reason=reason)) == "KRECZ NIEPOTWIERDZONY", reason
+
     assert first(krecz_watch(reason="KRECZ: Storck Franca 2026-10-25")) == \
         "KRECZ NIEPOTWIERDZONY"
     assert first(krecz_watch(reason="KRECZ: Jose Pereira niedawno")) == \
@@ -561,6 +573,12 @@ def test_a_recent_retirement_carries_a_tennis_watch_checked_by_the_dossier() -> 
         text, "2026-11-01", sport="tennis", dossiers=dossiers))
     assert any(f.startswith("USUNIĘCIE BEZ FAKTU") for f in findings(
         text, "2026-11-02", sport="football", dossiers=dossiers))
+    for row, mark in ((krecz_watch(verdict="NO_BET"), "KRECZ TYLKO WATCH"),
+                      (krecz_watch(context="SCHEDULE"), "KRECZ BEZ TAGU")):
+        for docs in (dossiers, None):  # a report outside its run still checked
+            assert any(f.startswith(mark) for f in findings(
+                report([row], TENNIS_BODY), "2026-11-02", sport="tennis",
+                dossiers=docs))
     bad = report([krecz_watch(reason="KRECZ: Storck Franca 2026-10-25")], TENNIS_BODY)
     assert any(f.startswith("KRECZ NIEPOTWIERDZONY") for f in findings(
         bad, "2026-11-02", sport="tennis", dossiers=dossiers))
@@ -570,6 +588,25 @@ def test_a_recent_retirement_carries_a_tennis_watch_checked_by_the_dossier() -> 
     vtext = text + f"\n```json vetoes\n{json.dumps([veto])}\n```\n"
     assert any(f.startswith("WETO BEZ FAKTU") for f in findings(
         vtext, "2026-11-02", sport="tennis", dossiers=dossiers))
+
+
+def test_a_krecz_name_shared_by_both_players_confirms_neither() -> None:
+    """Second review 11-01: "Jose" in both names confirmed the wrong player
+    (Jose Perez never retired, Jose Garcia did); a year boundary d.m."""
+    from bet.sofa.report_check import _reason_dates, retirement_findings
+
+    doc = tennis_dossier()
+    sides = doc["sides"]  # type: ignore[index]
+    sides["home"]["name"] = "Jose Garcia"  # type: ignore[index]
+    sides["away"]["name"] = "Jose Pereira"  # type: ignore[index]
+    sides["home"]["last_games"] = []  # type: ignore[index]
+    docs = {7: doc}
+    wrong = krecz_watch(reason="KRECZ: Jose Garcia skreczował 25.10")
+    assert retirement_findings([wrong], docs)[0].startswith("KRECZ NIEPOTWIERDZONY")
+    assert retirement_findings([krecz_watch(reason="KRECZ: Jose 25.10")], docs)
+    assert retirement_findings([krecz_watch(reason="KRECZ: Pereira 25.10")], docs) == []
+    import datetime as dt
+    assert dt.date(2026, 12, 31) in _reason_dates("KRECZ: X 31.12", 2027)
 
 
 def test_cli_finds_a_tennis_dossier_for_a_krecz_watch(tmp_path: Path) -> None:

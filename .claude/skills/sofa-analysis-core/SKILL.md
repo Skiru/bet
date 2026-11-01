@@ -242,7 +242,10 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
      dated - that fact may then carry the WATCH on its own. **The code checks
      it** (`report_check.retirement_findings`, merge_reads refuses the whole
      report otherwise): the dossier must show the retirement for the player
-     the reason names (surname) with its date (`2026-10-25` or `25.10`).
+     the KRECZ clause names (the text after `KRECZ:` up to the first `;`: a
+     name token he does not share with the opponent - surname - and the
+     date, `2026-10-25` or `25.10`, one day either side; prices, lines and
+     scores in that clause are not read as dates).
      Example: `KRECZ: Jose Pereira skreczował 2026-10-25 przy 1-6
      (Guayaquil, dossier sides.away.retirement), od tego czasu bez meczu;
      noga wymaga jego ≥5 gemów w 1. secie`.
