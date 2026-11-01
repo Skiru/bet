@@ -1,6 +1,6 @@
 ---
 description: "A chat slip (AKO) from today's coupon for a kickoff window - every market, the exact knapsack of build_slip.py, every leg read by the analysts, a refused leg replaced by the next best and read too. The operator types only the hours."
-argument-hint: "11-13 | 11:00-13:30 [~2] [x2] [3 nogi] [buildery]"
+argument-hint: "11-13 | 11:00-13:30 [~2] [x2] [3 nogi] [buildery] [pewny]"
 ---
 
 The operator wants a slip for the matches starting in a window of today. Run
@@ -18,6 +18,16 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 - **Target**: `~X`, `na X` or a bare decimal (e.g. `4`, `~5.5`) -> `--target X`;
   default **2** (two legs of ~1.4; a target above what 2 legs of up to 2.00
   reach makes the script say so first and build the closest).
+- **Safest** (operator 2026-11-01: "chcę żeby weszło, nawet jak mniej
+  zarobimy"): `pewny` / `najpewniejszy` / `żeby weszło` -> `--safest` (with a
+  target `~X` only when the operator typed one, else none): the highest
+  measured chance whose leg price product reaches the target (default and
+  floor 1.14 - below it a win pays back less than the stake after tax);
+  read legs stand only within a point of the pool's surest slip. The answer
+  relays the script's "Tryb pewny" line and each header's "wygrana przy
+  iloczynie X zwraca ok. +Y% stawki" (at 1.14 about the stake - say so; a
+  higher `~X` pays more at a lower chance). A surer slip is a lower price,
+  the measured loss per leg is the same - never "pewniak".
 - **Slips**: `x2` / `2 kupony` -> `--slips 2`; default 1.
 - **Legs**: default **2** (the script's default - least loss, operator
   2026-10-31: `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`). Only
@@ -38,7 +48,7 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 First `.venv/bin/python scripts/sofa/ensure_bridge.py` (build_slip.py asks Sofascore for
 h2h / lineups and writes dossiers - not read-only) and
 `mkdir -p runs/sofa/<date>/slips`. Then the skill's loop, with `--start-from <HH:MM>
---start-to <HH:MM> --target <X> [--slips N] [--max-legs N] [--builders]
+--start-to <HH:MM> --target <X> | --safest [--target X] [--slips N] [--max-legs N] [--builders]
 --read-set-dir runs/sofa/<date>/read_set_slip --md-out runs/sofa/<date>/slips/<HHMM>.md
 --json-out runs/sofa/<date>/slips/<HHMM>.json`
 (`<HHMM>` = now, local, each round - always, so a staked slip can be traced

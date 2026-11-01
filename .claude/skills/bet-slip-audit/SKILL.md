@@ -137,6 +137,18 @@ with it, as a quality filter (never "an edge"):
   ekran Superbetu"; a builder + singles slip states both parts apart, never a
   combined number.
 
+**The safest slip** (`--safest`, `/kupon ... pewny [~X]`, operator
+2026-11-01: "chcę żeby weszło, nawet jak mniej zarobimy"): the highest
+measured chance whose leg price product reaches the target - default and
+floor `slip_builder.SAFE_TARGET` 1.14 (below it a win pays back less than
+the stake after tax; at 1.14 about the stake) - over the whole pool: a slip
+of this slip's KEEPs stands only within `SAFE_KEEP_TOLERANCE` (1 pp) of the
+pool's surest slip (the default search keeps read legs at any chance, which
+on 11-01 hid the pool's 85-90% legs). Relay its "Tryb pewny" line and each
+header's "wygrana przy iloczynie X zwraca ok. +Y% stawki" (0.88 × product −
+1 - payout arithmetic, never a return from our confidence). A surer slip is
+a lower price; the measured loss per leg is the same.
+
 **What the script shows** (read every column into the answer): per leg
 the (fresh) price and "kurs kuponu → teraz", measured chance beside 1/odds,
 "pewność < 1/kurs" (confidence below the price), model, own sample, the

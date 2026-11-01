@@ -48,6 +48,13 @@ in both sides' games, the screen price); read-only.
 --start-from / --start-to: kickoff window in the operator's local time
 (Europe/Warsaw), [from, to).
 
+--safest (`/kupon ... pewny [~X]`, operator 2026-11-01): the slip with the
+highest measured chance whose leg price product reaches --target (default
+and floor slip_builder.SAFE_TARGET 1.14, below which a win pays back less
+than the stake after tax; at 1.14 a win pays back about the stake); read legs
+stand only within a point of chance of the whole pool's surest slip, and
+each slip header says what a win pays back (0.88 x product - 1).
+
 Analysts' reads: a leg a veto or a WATCH / NO_BET read refuses (vetoes.json,
 reads.json, the slip's own vetoes_slip.json / reads_slip.json written by
 `merge_reads.py --slip`, or the reads the coupon carries) never enters a
@@ -359,6 +366,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--target", type=float, default=None,
                     help="the slip's target price (required unless --check)")
+    ap.add_argument("--safest", action="store_true",
+                    help="the safest slip: the highest measured chance at a leg "
+                    "price product >= SAFE_TARGET (pays back more than the stake "
+                    "after tax), kept legs only within SAFE_KEEP_TOLERANCE of the "
+                    "pool's best; --target optional (default and floor "
+                    "SAFE_TARGET): the surest slip at that leg price product")
     ap.add_argument("--slips", type=int, default=1)
     ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS,
                     help=f"legs per slip (default {sb.MAX_LEGS}; each extra leg costs "
@@ -413,8 +426,14 @@ def main(argv: list[str] | None = None) -> int:
     if frozen:
         print(frozen, file=sys.stderr)
         return 2
+    if args.safest:
+        if args.check:
+            ap.error("--safest takes no --check")
+        # a target below the cash floor is raised to it (a win must pay back
+        # more than the stake after tax)
+        args.target = max(args.target or sb.SAFE_TARGET, sb.SAFE_TARGET)
     if args.target is None and not args.check:
-        ap.error("--target is required (unless --check)")
+        ap.error("--target is required (unless --check / --safest)")
     if ((args.target is not None and args.target <= 1.0) or args.slips < 1
             or args.max_legs < 1 or args.reserve < 0):
         ap.error("--target > 1, --slips >= 1, --max-legs >= 1, --reserve >= 0")
@@ -471,6 +490,7 @@ def main(argv: list[str] | None = None) -> int:
         fresh_prices=None if args.no_fresh_price else fresh_asker(
             run, args.runs_dir, args.date, now),
         allow_no_sample=args.allow_no_sample,
+        safe=args.safest,
     )
     shown = [g for s in result.slips + result.reserve for x in s.legs
              for g in sb.leg_rows(x)]

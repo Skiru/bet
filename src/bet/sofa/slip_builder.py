@@ -129,6 +129,17 @@ REALISED_SOURCE = ("pula /kupon - próbka meczu ≥ 8, kurs nie urósł > 2%; "
 TAX = 0.12
 # a single below this price pays back less than the stake even when it wins
 SINGLE_CASH_FLOOR = 1.0 / (1.0 - TAX)
+# The safest slip (`/kupon ... pewny`, operator 2026-11-01: "chcę żeby
+# weszło, nawet jak mniej zarobimy"): the highest measured chance whose leg
+# price product still pays back more than the stake after tax - the target
+# is the cash floor rounded up (1.14). A slip of the slip's own fresh KEEPs
+# stands while its chance is within SAFE_KEEP_TOLERANCE of the best slip of
+# the whole pool (the default search keeps read legs at any chance; a target
+# of a price, not of a chance, made the pool's surest legs - 85-90% at
+# 1.09-1.13 - unreachable on 11-01). A surer slip is a lower price: the
+# measured loss per leg is the same (REALISED_PER_LEG).
+SAFE_TARGET = math.ceil(SINGLE_CASH_FLOOR * 100) / 100
+SAFE_KEEP_TOLERANCE = 0.01
 # A leg whose two-sided ladder / group overround is below LOW_MARGIN gains
 # LOW_MARGIN_TIE in the search only (a small explicit preference, the size of
 # READ_TIE: +0.25% relative chance; the printed chance is never touched).
@@ -388,6 +399,7 @@ class Result:
     reserve: list[Slip] = field(default_factory=list)
     max_legs: int = MAX_LEGS
     builders: bool = False  # the day's Bet Builders were offered to the search
+    safe: bool = False  # the safest slip (SAFE_TARGET, whole-pool search)
 
 
 def family_key(leg: Mapping[str, Any]) -> str:
@@ -835,6 +847,7 @@ def build(
     fresh_prices: (Callable[[Sequence[Mapping[str, Any]]],
                             Mapping[tuple[Any, ...], FreshPrice]] | None) = None,
     allow_no_sample: bool = False,
+    safe: bool = False,
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice), searched over every
     leg in one pass. `reserve` more disjoint slips on the same terms are the
@@ -847,11 +860,13 @@ def build(
     leg. `fresh_prices` re-asks Superbet for the chosen single legs (by
     `fresh_key`); the slips are rebuilt without a leg gone or priced up more
     than PRICE_RISE_DROP, at most FRESH_ROUNDS times - a leg the last round
-    picked unasked stays marked unasked."""
+    picked unasked stays marked unasked. `safe`: the safest slip - the
+    caller passes SAFE_TARGET; a slip of kept legs stands only within
+    SAFE_KEEP_TOLERANCE of the whole pool's best."""
     known: dict[tuple[Any, ...], FreshPrice] = {}
     result = _build_once(singles, now, target, slips, max_legs, window, min_odds,
                          max_odds, reads, vetoes, reserve, built_at, slip_reads,
-                         competitions, builders, known, allow_no_sample)
+                         competitions, builders, known, allow_no_sample, safe)
     for _ in range(FRESH_ROUNDS if fresh_prices is not None else 0):
         chosen = [x.leg for s in result.slips + result.reserve for x in s.legs
                   if not x.leg.get("builder_legs")]
@@ -864,7 +879,7 @@ def build(
         result = _build_once(singles, now, target, slips, max_legs, window,
                              min_odds, max_odds, reads, vetoes, reserve, built_at,
                              slip_reads, competitions, builders, known,
-                             allow_no_sample)
+                             allow_no_sample, safe)
     return result
 
 
@@ -886,6 +901,7 @@ def _build_once(
     builders: Sequence[Mapping[str, Any]],
     fresh: Mapping[tuple[Any, ...], FreshPrice],
     allow_no_sample: bool,
+    safe: bool = False,
 ) -> Result:
     pool, refused = candidates(
         singles,
@@ -925,7 +941,15 @@ def _build_once(
         # read enters only when they cannot reach the target (operator
         # 2026-10-21: each round swapped read legs for unread ones)
         kept = [x for x in legs if x.read == READ_KEEP]
-        s = best_slip(kept, target, max_legs) or best_slip(legs, target, max_legs)
+        s = best_slip(kept, target, max_legs)
+        if safe:
+            # the safest slip: kept legs only while within a point of the
+            # whole pool's surest slip, else that slip (and its reads)
+            best = best_slip(legs, target, max_legs)
+            if s is None or (best is not None
+                             and s.chance < best.chance - SAFE_KEEP_TOLERANCE):
+                s = best
+        s = s or best_slip(legs, target, max_legs)
         if s is None:
             # the leg limit binds (more legs of this pool would reach the
             # target): the closest slip under the target with the limit's
@@ -942,7 +966,7 @@ def _build_once(
         out.append(s)
         used.update(x.match_key for x in s.legs)
     return Result(out[:slips], slips, len(pool), refused, reach(pool, max_legs),
-                  out[slips:], max_legs, bool(builders))
+                  out[slips:], max_legs, bool(builders), safe)
 
 
 def concentration(slip: Slip) -> tuple[str, int] | None:
@@ -1010,6 +1034,10 @@ def _age(x: Leg) -> str:
 
 def _pct(v: float) -> str:
     return f"{v * 100:.1f}%".replace(".", ",")
+
+
+def _comma(v: float) -> str:
+    return f"{v:.2f}".replace(".", ",")
 
 
 def _signed(v: float) -> str:
@@ -1121,6 +1149,12 @@ def render(
             (f"{legs_pl(k)}: " if len(counts) > 1 else "") + money_line(k)
             for k in counts)
         lines.append(money[0].upper() + money[1:] + " - " + NO_EDGE + ".")
+    if result.safe:
+        lines.append(
+            f"Tryb pewny: najwyższa zmierzona szansa przy iloczynie kursów nóg "
+            f"≥ {_comma(target)} (najniżej {_comma(SAFE_TARGET)} - poniżej wygrana "
+            f"po podatku {TAX * 100:.0f}% zwraca mniej niż stawka); pewniejszy "
+            "kupon to niższy kurs, a strata na dłuższą metę ta sama.")
     if result.max_legs > MAX_LEGS or any(
             s.single_rows > MAX_LEGS for s in result.slips):
         top = max([result.max_legs, *counts])
@@ -1162,6 +1196,11 @@ def render(
                else f" przy 1/kurs {_pct(1 / product)}")
             + f" - {slip_money_line(s)}"
         )
+        if result.safe and not s.has_builder:
+            win = f"{((1.0 - TAX) * product - 1.0) * 100:+.0f}%".replace("-", "−")
+            head += (f" - wygrana przy iloczynie {_comma(product)} zwraca ok. "
+                     f"{win} stawki ({_comma(1.0 - TAX)} × iloczyn − 1; kurs "
+                     "kuponu na ekranie Superbetu)")
         if len(s.legs) == 1 and not s.has_builder and product < SINGLE_CASH_FLOOR:
             head += (f" - wygrana zwraca mniej niż gotówka (kurs < "
                      f"{SINGLE_CASH_FLOOR:.3f}".replace(".", ",")

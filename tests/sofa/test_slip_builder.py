@@ -1156,3 +1156,54 @@ def test_slip_read_set_hands_the_matchs_earlier_section(tmp_path: Path) -> None:
     assert prior[1]["full_pass_report"] == "r.md"
     assert rows[0]["slip_price"]["fresh"] == sb.FRESH_NOT_ASKED
     assert rows[0]["slip_price"]["odds"] == rows[0]["slip_price"]["coupon_odds"] == 1.5
+
+
+def test_the_safest_slip_takes_the_surest_legs_above_the_cash_floor() -> None:
+    """Operator 2026-11-01 ("chcę żeby weszło, nawet jak mniej zarobimy"):
+    at a price target the search took 1.40 legs at ~71%; the safest mode
+    takes the highest measured chance whose price product still pays back
+    more than the stake after tax (SAFE_TARGET 1.14)."""
+    assert sb.SAFE_TARGET == 1.14 and sb.SAFE_TARGET > sb.SINGLE_CASH_FLOOR
+    legs = [_leg(1, 1.40, 0.71), _leg(2, 1.16, 0.86), _leg(3, 1.11, 0.90),
+            _leg(4, 1.10, 0.89)]
+    safe = sb.build(legs, NOW, sb.SAFE_TARGET, safe=True)
+    # a 1.11 single pays back less than the stake; 1.16 alone (0.86) is surer
+    # than 1.11 x 1.10 (0.90 x 0.89 = 0.80) and than the 1.40 leg
+    assert [x.leg["sofascore_event_id"] for x in safe.slips[0].legs] == [2]
+    assert safe.safe
+    # a kept slip stands only within SAFE_KEEP_TOLERANCE of the pool's best
+    keep = [_read(1, 7.5, "KEEP")]
+    kept = sb.build(legs, NOW, sb.SAFE_TARGET, slip_reads=keep, safe=True)
+    assert [x.leg["sofascore_event_id"] for x in kept.slips[0].legs] == [2]
+    close = [_read(1, 7.5, "KEEP")]
+    near = [_leg(1, 1.15, 0.855), *legs[1:]]  # 0.5 pp below the best
+    held = sb.build(near, NOW, sb.SAFE_TARGET, slip_reads=close, safe=True)
+    assert [x.leg["sofascore_event_id"] for x in held.slips[0].legs] == [1]
+    # the default search keeps read legs at any chance
+    default = sb.build(legs, NOW, sb.SAFE_TARGET, slip_reads=keep)
+    assert [x.leg["sofascore_event_id"] for x in default.slips[0].legs] == [1]
+    text = sb.render(safe, day="2026-10-20", target=sb.SAFE_TARGET, now=NOW)
+    assert "Tryb pewny" in text and "≥ 1,14" in text
+    assert "wygrana przy iloczynie 1,16 zwraca ok. +2% stawki" in text
+    assert "Tryb pewny" not in sb.render(default, day="2026-10-20",
+                                         target=sb.SAFE_TARGET, now=NOW)
+
+
+def test_safest_cli_raises_a_low_target_to_the_cash_floor(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    day = "2026-10-20"
+    run = tmp_path / day
+    run.mkdir()
+    far = "2099-01-01T00:00:00Z"
+    (run / "11_coupon.json").write_text(json.dumps({"singles": [
+        _leg(1, 1.11, 0.90, kickoff=far), _leg(2, 1.16, 0.86, kickoff=far),
+        _leg(3, 1.35, 0.72, kickoff=far)]}), encoding="utf-8")
+    base = ["--date", day, "--runs-dir", str(tmp_path), "--no-fresh-price"]
+    assert build_slip.main([*base, "--safest"]) == 0
+    out = capsys.readouterr().out
+    assert "na ~1.14" in out and "Tryb pewny" in out and "A2 - B2" in out
+    assert build_slip.main([*base, "--safest", "--target", "1.05"]) == 0
+    assert "na ~1.14" in capsys.readouterr().out
+    assert build_slip.main([*base, "--safest", "--target", "1.3"]) == 0
+    out = capsys.readouterr().out
+    assert "≥ 1,30" in out and "A3 - B3" in out

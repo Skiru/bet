@@ -561,8 +561,18 @@ D+1 do D+1 05:00Z (`settle_cs2.py` / `settle_shadow.py --date <D+1>
 
 ### Kupon z czatu na kurs docelowy (poza pipeline'em)
 
-Skrót: **`/kupon 11-13`** (opcjonalnie `~4`, `x2`, `3 nogi`, `buildery`) —
-operator podaje tylko godziny, reszta poniżej dzieje się sama.
+Skrót: **`/kupon 11-13`** (opcjonalnie `~4`, `x2`, `3 nogi`, `buildery`,
+`pewny`) — operator podaje tylko godziny, reszta poniżej dzieje się sama.
+
+**`pewny`** (`build_slip.py --safest`, operator 2026-11-01: „chcę żeby
+weszło, nawet jak mniej zarobimy”): kupon z najwyższą zmierzoną szansą przy
+iloczynie kursów nóg ≥ cel - domyślnie i najniżej 1,14 (poniżej wygrana po
+podatku 12% zwraca mniej niż stawka; przy 1,14 mniej więcej samą stawkę),
+`pewny ~1.3` daje więcej przy niższej szansie. Szuka po całej puli: nogi już
+przeczytane zostają tylko, gdy ich szansa jest najwyżej 1 pp niższa od
+najpewniejszego kuponu puli. Nagłówek kuponu mówi, ile zwraca wygrana
+(0,88 × iloczyn − 1). Pewniejszy kupon to niższy kurs - strata na dłuższą
+metę ta sama.
 
 Gdy operator prosi o kupon AKO „na ~4” (także w oknie godzin, np. 10:00–12:00,
 albo kilka rozłącznych), skład robi skrypt, nie ręka — tylko z nóg
