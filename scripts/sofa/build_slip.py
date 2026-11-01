@@ -84,6 +84,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
         sys.path.insert(0, _p)
 
 from bet.sofa import (  # noqa: E402
+    analyses,
     dossier,
     h2h,
     prematch_lineups,
@@ -99,7 +100,7 @@ from bet.sofa.superbet_names import board_sides, names  # noqa: E402
 from bet.sofa.timeutil import now as utc_now  # noqa: E402
 from bet.sofa.veto import load_reads, load_vetoes  # noqa: E402
 from scripts.sofa.merge_reads import SLIP_READS, SLIP_VETOES  # noqa: E402
-from scripts.sofa.read_set import FIELDS  # noqa: E402
+from scripts.sofa.read_set import FIELDS, PRIOR_FIELDS  # noqa: E402
 
 LOCAL = ZoneInfo("Europe/Warsaw")
 
@@ -315,11 +316,29 @@ def write_read_set(out_dir: Path, result: sb.Result, run: Path | None = None,
     for stale in out_dir.glob("read_set_slip_*.json"):
         stale.unlink()
     by_sport: dict[str, list[dict[str, object]]] = {}
+    store = analyses.load(run) if run is not None else {}
     for why, slips in (("slip", result.slips), ("slip_reserve", result.reserve)):
-        for leg in (g for x in sb.unread_legs(slips) for g in sb.leg_rows(x)):
+        for x, leg in ((x, g) for x in sb.unread_legs(slips) for g in sb.leg_rows(x)):
             compact = {k: leg[k] for k in FIELDS if leg.get(k) is not None}
             sport = str(leg.get("sport") or "football")
             compact.update(sport=sport, in_set=why)
+            if not x.leg.get("builder_legs"):
+                # the price the slip re-asked: the analyst never tells the
+                # operator to check a price this slip already refreshed
+                was = x.coupon_odds if x.coupon_odds is not None else x.odds
+                compact["slip_price"] = {
+                    "coupon_odds": was, "odds": x.odds,
+                    "fresh": x.fresh or sb.FRESH_NOT_ASKED,
+                    "age_min": None if x.price_age is None
+                    else round(x.price_age.total_seconds() / 60)}
+            # the match's section of today (read_set.py's field): a delta pass
+            prior = analyses.latest(store, leg.get("sofascore_event_id"), "analyst")
+            if prior is not None:
+                full = analyses.full_pass(store, leg.get("sofascore_event_id")) or {}
+                compact["prior_analysis"] = {
+                    **{k: prior.get(k) for k in PRIOR_FIELDS},
+                    "full_pass_report": full.get("report"),
+                    "full_pass_at_utc": full.get("recorded_at_utc")}
             by_sport.setdefault(sport, []).append(compact)
     if run is not None and by_sport:
         every = [x for legs in by_sport.values() for x in legs]
@@ -375,6 +394,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="no Sofascore pre-match line-up request")
     ap.add_argument("--runs-dir", default=os.environ.get("SOFA_RUNS_DIR", "runs/sofa"))
     ap.add_argument("--md-out", default=None)
+    ap.add_argument("--json-out", default=None,
+                    help="the slips as data (SlipRecord.v1): legs keyed as "
+                         "13_results.json, coupon and fresh price, chance, read")
     ap.add_argument("--no-fresh-price", action="store_true",
                     help="no re-ask of the chosen legs' prices (offline): the "
                     "coupon's prices, marked 'nie dopytano'")
@@ -467,6 +489,13 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.md_out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.md_out).write_text(text, encoding="utf-8")
     print(text)
+    if args.json_out:
+        params = {k: v for k, v in vars(args).items()
+                  if k not in ("check", "screen_odds")}
+        Path(args.json_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json_out).write_text(
+            json.dumps(sb.record(result, now=now, params=params), indent=1,
+                       ensure_ascii=False, default=str) + "\n", encoding="utf-8")
     if args.read_set_dir:
         out_dir = Path(args.read_set_dir)
         written = write_read_set(out_dir, result, None if args.no_dossier else run,

@@ -1,0 +1,19 @@
+{
+ "_doc": "Eksperyment /kupon 2026-11-01 (pilot): każdy config = jedno wywołanie /kupon z tymi argumentami (build_slip.py). Okna w czasie lokalnym (Europe/Warsaw, CET).",
+ "configs": [
+  {"id": "C01", "desc": "domyślny: okno 16-18, ~2, x3", "args": ["--start-from", "16:00", "--start-to", "18:00", "--target", "2", "--slips", "3"]},
+  {"id": "C02", "desc": "domyślny: okno 18-20, ~2, x3", "args": ["--start-from", "18:00", "--start-to", "20:00", "--target", "2", "--slips", "3"]},
+  {"id": "C03", "desc": "domyślny: okno 20-24, ~2, x3", "args": ["--start-from", "20:00", "--start-to", "24:00", "--target", "2", "--slips", "3"]},
+  {"id": "C04", "desc": "single: 16-24, ~1.5, 1 noga, x3", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "1.5", "--max-legs", "1", "--slips", "3"]},
+  {"id": "C05", "desc": "16-24, ~3, 2 nogi, x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "3", "--slips", "2"]},
+  {"id": "C06", "desc": "16-24, ~3, 3 nogi, x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "3", "--max-legs", "3", "--slips", "2"]},
+  {"id": "C07", "desc": "16-24, ~5, 2 nogi (cel nieosiągalny)", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "5"]},
+  {"id": "C08", "desc": "16-24, ~5, 4 nogi", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "5", "--max-legs", "4"]},
+  {"id": "C09", "desc": "16-24, ~2, buildery, x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "2", "--builders", "--slips", "2"]},
+  {"id": "C10", "desc": "16-24, ~2, bez próbki dopuszczone, x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "2", "--allow-no-sample", "--slips", "2"]},
+  {"id": "C11", "desc": "16-24, ~10, 6 nóg", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "10", "--max-legs", "6"]},
+  {"id": "C12", "desc": "18-21, ~2.5, 3 nogi, x2", "args": ["--start-from", "18:00", "--start-to", "21:00", "--target", "2.5", "--max-legs", "3", "--slips", "2"]},
+  {"id": "C13", "desc": "16-24, ~2.5, nogi od 1.50, x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "2.5", "--min-odds", "1.5", "--slips", "2"]},
+  {"id": "C14", "desc": "16-24, ~2, tylko nogi do 1.30 (3 nogi), x2", "args": ["--start-from", "16:00", "--start-to", "24:00", "--target", "2", "--max-odds", "1.3", "--max-legs", "3", "--slips", "2"]}
+ ]
+}

@@ -39,8 +39,10 @@ First `.venv/bin/python scripts/sofa/ensure_bridge.py` (build_slip.py asks Sofas
 h2h / lineups and writes dossiers - not read-only) and
 `mkdir -p runs/sofa/<date>/slips`. Then the skill's loop, with `--start-from <HH:MM>
 --start-to <HH:MM> --target <X> [--slips N] [--max-legs N] [--builders]
---read-set-dir runs/sofa/<date>/read_set_slip --md-out runs/sofa/<date>/slips/<HHMM>.md`
-(`<HHMM>` = now, local, each round - always, so a staked slip can be traced)
+--read-set-dir runs/sofa/<date>/read_set_slip --md-out runs/sofa/<date>/slips/<HHMM>.md
+--json-out runs/sofa/<date>/slips/<HHMM>.json`
+(`<HHMM>` = now, local, each round - always, so a staked slip can be traced
+and graded the next day: `slip_experiment.py settle --out-dir runs/sofa/<date>/slips`)
 (every market in one pass, each leg on its own statistics and reads - the
 families on the plus removed by the operator 2026-10-31; 2 legs and no
 builders unless the operator asked, see Arguments), the

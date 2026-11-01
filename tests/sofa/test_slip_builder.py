@@ -1113,3 +1113,46 @@ def test_a_sample_below_the_price_is_bold_never_a_gate() -> None:
     assert sb._sample(leg, 1.58) == "**3/8 (37,5%)**"
     assert sb._sample(leg, 3.0) == "3/8 (37,5%)"
     assert sb.sample_refusal(leg) is None
+
+
+def test_json_out_records_slips_keyed_as_coupon_results(tmp_path: Path) -> None:
+    from bet.sofa.coupon_results import key_of
+
+    day = "2026-10-20"
+    run = tmp_path / day
+    run.mkdir()
+    legs = [_leg(1, 1.5, 0.7, kickoff="2099-01-01T00:00:00Z"),
+            _leg(2, 1.5, 0.7, kickoff="2099-01-01T00:00:00Z")]
+    (run / "11_coupon.json").write_text(json.dumps({"singles": legs}), encoding="utf-8")
+    out = tmp_path / "slip.json"
+    assert build_slip.main(["--date", day, "--target", "2", "--runs-dir", str(tmp_path),
+                            "--no-fresh-price", "--json-out", str(out)]) == 0
+    rec = json.loads(out.read_text(encoding="utf-8"))
+    assert rec["schema"] == sb.SLIP_RECORD_SCHEMA
+    assert rec["params"]["target"] == 2.0 and rec["requested"] == 1
+    (slip,) = rec["slips"]
+    assert slip["reached"] and len(slip["legs"]) == 2
+    assert {g["result_key"] for g in slip["legs"]} == {key_of(g) for g in legs}
+    assert all(g["odds"] == 1.5 and g["coupon_odds"] == 1.5 for g in slip["legs"])
+    assert slip["legs"][0]["superbet_selection"] == "powyżej 7.5"
+
+
+def test_slip_read_set_hands_the_matchs_earlier_section(tmp_path: Path) -> None:
+    from bet.sofa import analyses
+
+    run = tmp_path / "run"
+    run.mkdir()
+    section = {"author": "analyst", "report": "r.md", "recorded_at_utc": "T",
+               "web_tags": ["[WEB: x, publ. 1.11]"], "context_pass": True}
+    (run / analyses.STORE).write_text(json.dumps(
+        {"version": analyses.VERSION, "events": {"1": [section]}}), encoding="utf-8")
+    res = sb.build([_leg(1, 1.5, 0.7), _leg(2, 1.5, 0.7)], NOW, target=2.2)
+    build_slip.write_read_set(tmp_path / "rs", res, run, fetch_h2h=False,
+                              fetch_lineups=False)
+    rows = json.loads((tmp_path / "rs" / "read_set_slip_football.json").read_text())
+    prior = {r["sofascore_event_id"]: r.get("prior_analysis") for r in rows}
+    assert prior[2] is None
+    assert prior[1] is not None and prior[1]["report"] == "r.md"
+    assert prior[1]["full_pass_report"] == "r.md"
+    assert rows[0]["slip_price"]["fresh"] == sb.FRESH_NOT_ASKED
+    assert rows[0]["slip_price"]["odds"] == rows[0]["slip_price"]["coupon_odds"] == 1.5

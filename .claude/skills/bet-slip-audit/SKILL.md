@@ -151,7 +151,9 @@ league / h2h / referee cells.
 **Before running it:** `build_slip.py` is NOT read-only - with
 `--read-set-dir` it asks Sofascore through the
 bridge (h2h, lineups) and writes dossiers. Run `.venv/bin/python
-scripts/sofa/ensure_bridge.py` first, and always pass `--md-out
+scripts/sofa/ensure_bridge.py` first, and always pass `--json-out
+runs/sofa/<d>/slips/<HHMM>.json` (the slips as data, graded the next day by
+`slip_experiment.py settle --out-dir runs/sofa/<d>/slips`) and `--md-out
 runs/sofa/<d>/slips/<HHMM>.md` (`mkdir -p runs/sofa/<d>/slips`) so a staked
 slip can be traced.
 
@@ -177,7 +179,8 @@ second slip of the day never collides with the first); `<HHMM>` of `--md-out`
    mkdir -p runs/sofa/<d>/slips
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <d> --target <X> \
        [--start-from HH:MM --start-to HH:MM] [--slips N] [--max-legs N] [--builders] \
-       --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md
+       --read-set-dir runs/sofa/<d>/read_set_slip --md-out runs/sofa/<d>/slips/<HHMM>.md \
+       --json-out runs/sofa/<d>/slips/<HHMM>.json
    ```
    (`--reserve 1` also reads the next disjoint slip ahead; off by default -
    the knapsack re-optimises globally, so a replacement rarely comes from it.)

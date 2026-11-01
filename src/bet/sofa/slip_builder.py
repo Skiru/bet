@@ -1270,6 +1270,60 @@ def render(
     return "\n".join(lines) + "\n"
 
 
+SLIP_RECORD_SCHEMA = "SlipRecord.v1"
+RECORD_LEG_FIELDS = (
+    "sofascore_event_id", "match", "competition", "sport", "kickoff_utc", "market",
+    "subject", "line", "direction", "period", "map_nr", "market_id", "group_key",
+    "superbet_market", "superbet_selection", "confidence", "offered_odds",
+    "overround", "sample_size", "sample_hit_rate",
+)
+
+
+def record(result: Result, *, now: datetime.datetime,
+           params: Mapping[str, Any]) -> dict[str, Any]:
+    """The slips as data (--json-out), so a slip can be graded the next day
+    against 13_results.json by `result_key` (`coupon_results.key_of`) and its
+    price compared with the close. Display / audit only - nothing reads it
+    back into a slip."""
+    from bet.sofa.coupon_results import key_of
+
+    def leg(x: Leg) -> dict[str, Any]:
+        row = {k: x.leg.get(k) for k in RECORD_LEG_FIELDS if k in x.leg}
+        own = own_sample(x.leg)
+        row.update({
+            "result_key": key_of(x.leg),
+            "odds": x.odds,
+            "coupon_odds": x.coupon_odds if x.coupon_odds is not None else x.odds,
+            "fresh": x.fresh,
+            "chance": x.chance,
+            "chance_source": x.chance_source,
+            "read": x.read,
+            "own_sample": None if own is None else list(own),
+            "builder_legs": [
+                {"result_key": key_of(b, x.leg.get("sofascore_event_id")),
+                 **{k: b.get(k) for k in RECORD_LEG_FIELDS if k in b}}
+                for b in x.leg.get("builder_legs") or []],
+        })
+        return row
+
+    def slip(s: Slip) -> dict[str, Any]:
+        return {"legs": [leg(x) for x in s.legs], "chance": s.chance,
+                "price_product": s.price_product, "needs_legs": s.needs_legs,
+                "reached": s.reached}
+
+    return {
+        "schema": SLIP_RECORD_SCHEMA,
+        "computed_at_utc": now.isoformat(),
+        "params": dict(params),
+        "requested": result.requested,
+        "candidates": result.candidates,
+        "refused": dict(result.refused),
+        "reachable": result.reachable,
+        "slips": [slip(s) for s in result.slips],
+        "reserve": [slip(s) for s in result.reserve],
+    }
+
+
 def find_leg(
     singles: Sequence[Mapping[str, Any]], spec: str,
 ) -> tuple[Mapping[str, Any] | None, list[Mapping[str, Any]]]:

@@ -642,6 +642,31 @@
           "quote": "| P1 zdjęte (kurs urósł > 2%), po cenie kuponu | −3,78 [−5,94; −1,80] n 3 860 | −5,70 [−9,76; −1,88] n 1 134 | −3,05 [−11,31; +5,42] n 261 |"
         }
       ]
+    },
+    {
+      "id": "T-KUPON-PROMPT-VS-CONTROL",
+      "registered_on": "2026-11-01",
+      "status": "PROPOSED",
+      "hypothesis": "The /kupon prompt's legs (knapsack over min(confidence, 1/odds), analysts' reads, fresh-price drop) realise no better at their price than price-matched random legs of the same pool (null from docs/sofa/evidence/kupon_od_nowa_2026-10-31.md: no ranking beats random). Secondary: the legs the analysts' reads remove between round 1 and the final round realise below the legs that replace them; the prompt's legs close no lower (CLV) than the control's.",
+      "rule": "scripts/sofa/slip_experiment.py run / control / settle with the plan docs/sofa/evidence/kupon_eksperyment_2026-11-01/plan.json (14 argument sets), round 1 before the reads, the final round after them; control = per config a random slip of the same pool with each leg within 5% of the prompt leg's price. Graded from 13_results.json; close from closing.jsonl.",
+      "population": "Every leg of the final-round prompt slips and of their controls, every sport, days from 2026-11-02 on which the harness ran (2026-11-01 is the pilot, never pooled).",
+      "data_window": {
+        "from": "2026-11-02",
+        "to": null
+      },
+      "required_n": {
+        "legs_per_arm": 600,
+        "basis": "~40-50 distinct legs a day per arm; legs of one match / one day are clustered - match bootstrap; 600 legs gives a CI half-width ~4 pp on hit minus 1/odds."
+      },
+      "evaluation": "Per arm: hit rate minus mean 1/odds (legs), mean CLV, slips' return after tax at the product of leg prices (a measurement, never a slip price); prompt minus control paired by config and day; match bootstrap 1000.",
+      "stop_criterion": "Judged once at 600 graded legs per arm: PASSED (the prompt's selection helps) only when prompt minus control excess has its lower 95% bound above 0; otherwise FAILED and the selection stays a quality filter. PROPOSED until the operator decides to run the harness daily.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/kupon_od_nowa_2026-10-31.md",
+          "line": 1,
+          "quote": "no definition of a statistically strong leg tells a good leg from a bad one at the same price (bet-slip-audit SKILL restating it)"
+        }
+      ]
     }
   ]
 }

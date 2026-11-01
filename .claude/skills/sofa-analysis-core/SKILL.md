@@ -32,6 +32,7 @@ The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
 | `position`, `locked` | coupon position (a builder leg has none); `locked` = printed before its start, stays whatever you say |
 | `in_set` | `required` (C3 needs your read) or `buffer` (the next matches; read them the same way); a chat slip's file (`read_set_slip_<sport>.json`, the `/kupon` loop) holds `slip` (on the slip) or `slip_reserve` (its replacements) - read them the same way |
 | `model_p`, `forecast_p`, `calibrated_on`, `sample_size`, `sample_hit_rate`, `sample_oldest_days`, `sample_newest_days`, `context_flags`, `superbet_event_id`, `source_date` | the leg's numbers - use them before any lookup (a field is absent when null) |
+| `slip_price` | a chat slip's leg only: `coupon_odds`, the price `/kupon` re-asked just now (`odds`), `fresh` (`OK` = re-asked, `GONE`, `NOT_ASKED` = the coupon's price stands) and its `age_min` - with `OK` never write "the slip does not check the price"; with `NOT_ASKED` say "sprawdź kurs na ekranie" |
 | `dossier` | the match's fact sheet path (below, first artifact) |
 | `prior_analysis` | the match was analysed earlier today (`report`, `recorded_at_utc`, `web_tags`, `context_pass`, `full_pass_report`, `full_pass_at_utc`): read that section first and do a **delta pass** (`references/context-pass.md`, "Budget and the delta pass") |
 
