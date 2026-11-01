@@ -1,0 +1,47 @@
+MODE median; graded legs 7271; side legs with favoured 4189; with gap 3931; totals 2676 with both tiers 2566
+listing matches mapped/unmapped: 137107/39331 (22.3% unmapped)
+fixture (match) tier of side legs: Counter({3: 1626, 2: 1193, 1: 840, 4: 383, None: 147})
+gap distribution side legs: [(-3.0, 4), (-2.5, 4), (-2.0, 98), (-1.5, 40), (-1.0, 385), (-0.5, 293), (0.0, 2225), (0.5, 253), (1.0, 452), (1.5, 65), (2.0, 110), (2.5, 1), (3.0, 1), (None, 258)]
+
+=== PRIMARY: favoured vs opponent tier ===
+dev S1 STEP_DOWN_FAV gap>=1    n   375 m  189 conf 0.780 1/o 0.785 hit 0.771 | h-c -0.9 [-6.6,+4.4] | h-1/o -1.4 [-7.0,+3.7] | ROI -2.1 [-9.6,+5.1]
+dev S2 STEP_UP_FAV gap<=-1     n   395 m  212 conf 0.774 1/o 0.736 hit 0.641 | h-c -13.4 [-19.4,-7.3] | h-1/o -9.6 [-15.2,-4.1] | ROI -16.1 [-24.5,-7.5]
+dev S0 same tier gap==0        n  1502 m  604 conf 0.779 1/o 0.785 hit 0.756 | h-c -2.3 [-4.9,+0.3] | h-1/o -2.9 [-5.4,-0.2] | ROI -3.1 [-6.6,+0.5]
+dev half 0<|gap|<1             n   426 m  186 conf 0.774 1/o 0.765 hit 0.730 | h-c -4.4 [-9.3,+0.3] | h-1/o -3.5 [-8.1,+1.1] | ROI -4.5 [-11.4,+2.3]
+dev S1 vs S0                   flag-control: h-c +1.4 [-4.8,+7.6] | h-1/o +1.4 [-4.7,+7.5]
+dev S2 vs S0                   flag-control: h-c -11.1 [-17.6,-4.8] | h-1/o -6.7 [-12.7,-0.9]
+
+hold S1 STEP_DOWN_FAV gap>=1   n   254 m   97 conf 0.791 1/o 0.816 hit 0.748 | h-c -4.2 [-12.9,+3.3] | h-1/o -6.8 [-15.1,+0.7] | ROI -8.4 [-18.8,+1.1]
+hold S2 STEP_UP_FAV gap<=-1    n   136 m   83 conf 0.798 1/o 0.829 hit 0.772 | h-c -2.6 [-11.3,+5.7] | h-1/o -5.7 [-14.5,+2.5] | ROI -6.7 [-17.5,+3.6]
+hold S0 same tier gap==0       n   723 m  261 conf 0.786 1/o 0.817 hit 0.777 | h-c -0.9 [-5.1,+3.2] | h-1/o -3.9 [-8.1,+0.2] | ROI -4.8 [-10.1,+0.5]
+hold half 0<|gap|<1            n   120 m   39 conf 0.784 1/o 0.817 hit 0.842 | h-c +5.7 [-2.1,+13.2] | h-1/o +2.5 [-5.5,+10.0] | ROI +2.8 [-7.3,+12.1]
+hold S1 vs S0                  flag-control: h-c -3.3 [-13.2,+5.5] | h-1/o -2.8 [-12.4,+5.9]
+hold S2 vs S0                  flag-control: h-c -1.7 [-12.1,+7.8] | h-1/o -1.8 [-12.5,+7.8]
+
+=== SECONDARY: match tier vs favoured player's tier ===
+dev DOWN match<=fav-1          n   302 m  152 conf 0.776 1/o 0.780 hit 0.728 | h-c -4.7 [-11.9,+2.7] | h-1/o -5.2 [-12.2,+2.0] | ROI -6.9 [-16.3,+2.7]
+dev UP match>=fav+1            n   263 m  133 conf 0.778 1/o 0.730 hit 0.631 | h-c -14.7 [-21.7,-7.6] | h-1/o -9.9 [-16.1,-3.6] | ROI -16.4 [-26.1,-6.2]
+dev LEVEL                      n  2124 m  902 conf 0.778 1/o 0.780 hit 0.752 | h-c -2.6 [-4.8,-0.5] | h-1/o -2.8 [-4.9,-0.5] | ROI -3.4 [-6.5,-0.3]
+dev DOWN vs LEVEL              flag-control: h-c -2.1 [-9.5,+4.8] | h-1/o -2.4 [-9.8,+4.4]
+dev UP m vs LEVEL              flag-control: h-c -12.1 [-18.9,-4.2] | h-1/o -7.1 [-13.4,-0.3]
+
+hold DOWN match<=fav-1         n   175 m   69 conf 0.791 1/o 0.823 hit 0.777 | h-c -1.4 [-12.3,+7.0] | h-1/o -4.5 [-15.3,+3.7] | ROI -5.7 [-18.9,+4.5]
+hold UP match>=fav+1           n   119 m   68 conf 0.794 1/o 0.824 hit 0.756 | h-c -3.8 [-13.3,+4.8] | h-1/o -6.8 [-16.4,+2.0] | ROI -8.6 [-21.0,+2.5]
+hold LEVEL                     n   937 m  339 conf 0.787 1/o 0.816 hit 0.780 | h-c -0.7 [-4.4,+2.9] | h-1/o -3.6 [-7.3,-0.0] | ROI -4.4 [-9.1,+0.1]
+hold DOWN vs LEVEL             flag-control: h-c -0.6 [-11.6,+9.1] | h-1/o -0.9 [-11.4,+8.5]
+hold UP m vs LEVEL             flag-control: h-c -3.1 [-13.4,+7.0] | h-1/o -3.2 [-13.3,+6.9]
+
+=== TOTALS: |tier gap| >= 1 vs 0 ===
+dev totals |gap|>=1            n   433 m  166 conf 0.801 1/o 0.831 hit 0.781 | h-c -2.1 [-6.2,+1.9] | h-1/o -5.1 [-9.1,-1.1] | ROI -6.5 [-11.6,-1.5]
+dev totals gap==0              n  1204 m  400 conf 0.793 1/o 0.829 hit 0.792 | h-c -0.2 [-2.5,+2.5] | h-1/o -3.8 [-6.2,-1.2] | ROI -4.7 [-7.6,-1.5]
+dev totals                     flag-control: h-c -1.9 [-6.9,+2.9] | h-1/o -1.3 [-6.2,+3.4]
+hold totals |gap|>=1           n   178 m   53 conf 0.805 1/o 0.842 hit 0.764 | h-c -4.1 [-11.1,+1.8] | h-1/o -7.8 [-14.9,-2.0] | ROI -9.1 [-17.5,-2.1]
+hold totals gap==0             n   420 m  115 conf 0.804 1/o 0.844 hit 0.781 | h-c -2.3 [-6.5,+1.7] | h-1/o -6.3 [-10.6,-2.4] | ROI -7.4 [-12.5,-2.7]
+hold totals                    flag-control: h-c -1.8 [-9.7,+5.5] | h-1/o -1.5 [-9.1,+5.8]
+
+=== firing per day (side legs / matches) ===
+S1 STEP_DOWN_FAV gap>=1: 629 legs / 286 match-days over 27 days = 23.3 legs, 10.6 matches a day
+S2 STEP_UP_FAV gap<=-1: 531 legs / 295 match-days over 27 days = 19.7 legs, 10.9 matches a day
+S1 markets: [('games_won_for', 174), ('set_score_not', 90), ('set1_won_for', 84), ('games_won_set1_for', 80), ('games_won_set2_for', 65), ('match_won_for', 63), ('set2_won_for', 63), ('set_score', 10)]
+
+=== Pereira check ===

@@ -692,6 +692,31 @@
           "quote": "Automatycznej bramki nie ma podstaw włączać - ani A, ani B"
         }
       ]
+    },
+    {
+      "id": "T-TENNIS-STEP-UP-FAVOURED",
+      "registered_on": "2026-11-01",
+      "status": "PROPOSED",
+      "hypothesis": "A tennis side leg whose favoured player usually plays a lower tier than his opponent (median tier of his last 10 finished singles matches below the opponent's: 4 ATP/WTA, 3 Challenger/WTA 125, 2 ITF M25+/W35+, 1 ITF M15/W15) realises below the same-tier legs at the same confidence. Dev 10-05..10-24: flag minus control -11.1 pp vs confidence [-17.6, -4.8]; hold-out 10-25..10-31: -1.7 [-12.1, +7.8] - did not replicate (docs/sofa/evidence/tennis_krecz_2026-11-01.md).",
+      "rule": "docs/sofa/evidence/tennis_krecz_2026-11-01/measure_tier.py (median rule, >= 5 mapped matches; favoured-player mapping of measure.py).",
+      "population": "Tennis legs of 08_confidence.json (confidence >= 0.70, Superbet price), one favoured player, both tiers known, graded WIN / LOSS by sofa_settled_row.",
+      "data_window": {
+        "from": "2026-11-02",
+        "to": null
+      },
+      "required_n": {
+        "flag_legs": 300,
+        "basis": "~20 flagged legs a day; match bootstrap; 300 legs ~ CI half-width 6 pp."
+      },
+      "evaluation": "flag (S2) minus same-tier control, hit minus confidence and hit minus 1/odds, match bootstrap 2000.",
+      "stop_criterion": "Judged once at 300 flagged legs: PASSED only when flag minus control vs confidence has its upper 95% bound below 0 - then a switch is proposed to the operator (a confidence correction or a gate, measured first); otherwise FAILED and nothing changes.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/tennis_krecz_2026-11-01.md",
+          "line": 1,
+          "quote": "S2 - mocny efekt na dev, który się nie powtórzył na kontroli"
+        }
+      ]
     }
   ]
 }

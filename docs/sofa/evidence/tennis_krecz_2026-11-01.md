@@ -50,3 +50,37 @@ złapał. 0,10 i 0,20 tylko jako czułość (niezarejestrowane): 0,20 na kontrol
   cenie lub wyżej, reguła do wycofania.
 - Niezmierzone: różnica flaga − reszta z własnym przedziałem; zwroty (gracz,
   który znów skreczuje, = zwrot, 6 takich nóg poza ROI).
+
+## Poziom turniejów: Challenger kontra ITF M15 (`measure_tier.py`, `out_median.txt`, `out_modal.txt`)
+
+**Co już robi rating** (`src/bet/sofa/tennis_rating.py`): człony `dhigh` /
+`dtour` (różnica udziału meczów powyżej ITF / w tourze w całej karierze,
+FEATURES :94-96), kalibracja osobno dla ITF / CH / TOUR (`tier_group`
+:183-190) i Elo `lp_t` z punktem startu nowicjusza zależnym od poziomu. Nie
+widzi: M15 od M25 (ITF to jeden kubeł) i formy ostatnich meczów (udziały z
+całej kariery).
+
+**Definicja (ustalona przed wynikami):** poziom turnieju 4 = ATP / WTA,
+3 = Challenger / WTA 125, 2 = ITF M25+ / W35+, 1 = ITF M15 / W15 (bez
+poziomu: UTR, juniorzy, puchary drużynowe, pokazowe - 22,3% meczów). Poziom
+gracza = mediana z 10 ostatnich ukończonych meczów singlowych przed startem
+(>= 5 z poziomem); moda jako czułość. Pereira 3,0, Storck Franca 1,0 - S1.
+
+| grupa (nogi, w pp) | dev: trafienie − pewność | dev: − 1/kurs | kontrola: − pewność | kontrola: − 1/kurs |
+|---|---|---|---|---|
+| S1 faworyzowany gra zwykle wyżej (przypadek Pereiry), 375 / 254 nóg | −0,9 [−6,6; +4,4] | −1,4 | −4,2 [−12,9; +3,3] | −6,8 [−15,1; +0,7] |
+| S2 faworyzowany gra zwykle niżej, 395 / 136 | −13,4 [−19,4; −7,3] | −9,6 | −2,6 [−11,3; +5,7] | −5,7 [−14,5; +2,5] |
+| S0 ten sam poziom, 1 502 / 723 | −2,3 | −2,9 | −0,9 | −3,9 |
+| S1 − S0 | +1,4 [−4,8; +7,6] | +1,4 | −3,3 [−13,2; +5,5] | −2,8 [−12,4; +5,9] |
+| S2 − S0 | −11,1 [−17,6; −4,8] | −6,7 [−12,7; −0,9] | −1,7 [−12,1; +7,8] | −1,8 [−12,5; +7,8] |
+
+Moda: S1 dev 0,0, kontrola −3,0 [−11,3; +4,3]; S2 − S0 na kontroli −2,6
+[−11,3; +5,6]. Sumy gemów przy różnicy poziomów: szum. Zapala się ~23 (S1) i
+~20 (S2) nóg dziennie ze ~155.
+
+**Wnioski:** S1 (wzór Pereiry) - szum: dev bez efektu, kontrola bez zera
+poza przedziałem. S2 - mocny efekt na dev, który się nie powtórzył na
+kontroli; część to znane zawyżanie pewności ponad cenę (pewność 0,774 przy
+1/kurs 0,736 na dev). Żadnej bramki ani flagi; S2 do ponownego pomiaru
+(`T-TENNIS-STEP-UP-FAVOURED`, PROPOSED). Niezmierzone: kobiety i mężczyźni
+osobno, cały arkusz poniżej 0,70, poziomy wewnątrz touru.
