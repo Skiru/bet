@@ -175,3 +175,58 @@ różnica jednego dnia nie jest istotna; to punkt serii, nie werdykt):
 Rekomendacja na serię: ten sam plan codziennie (albo tylko 4-5
 konfiguracji domyślnych, żeby obniżyć koszt odczytu), `settle` każdego
 ranka; osąd `T-KUPON-PROMPT-VS-CONTROL` przy 600 nogach na ramię (~2 tyg.).
+
+## Rozliczenie (02.11) - wnioski
+
+Tabele: `kupon_eksperyment_2026-11-01/rozliczenie.md` (`slip_experiment.py
+settle`, po SETTLE 05:47 i `record_results.py` 06:24). Pilot - nie sumowany
+z serią, nic poniżej nie jest werdyktem.
+
+**Kupony (runda końcowa):** prompt 16 W / 12 L / 1 ?, śr. zwrot +35,7%
+(Σ 1/iloczyn 12,5 wygranych oczekiwanych); kontrola 8 W / 19 L, −50,2%
+(oczekiwane 13,5). Runda 1 (przed odczytem): 20 W / 8 L, +83,1%.
+Ta różnica jest **złudzeniem koncentracji**: 29 kuponów prompta stoi na 29
+różnych nogach, a dwie przegrane nogi siedzą w 4 kuponach każda
+(Regatas Lima (K) „Zwycięzca: 1” @1.58, Nashville „Liczba strzałów
+Nashville: poniżej 19.5” @1.42).
+
+**Q1 - nogi unikalne (jedyna miara):**
+
+| ramię | nogi oc. | W | Σ 1/kurs | nadwyżka | z | single ×0,88 |
+|---|---|---|---|---|---|---|
+| prompt końcowy | 27 | 22 | 19,29 | +2,71 | +1,16 | +0,4% |
+| prompt runda 1 | 31 | 26 | 22,21 | +3,79 | | +3,1% |
+| kontrola | 54 | 37 | 40,14 | −3,14 | −0,98 | −18,5% |
+
+Różnica nadwyżki na nogę prompt − kontrola +0,158, 95% bootstrap po meczach
+[−0,028; +0,332] (24 / 46 meczów) - **przedział obejmuje zero**. Oba ramiona
+w granicach szumu wokół ceny, zgodnie z backtestem 31.10.
+
+**Q2 - CLV (najsilniejszy sygnał przy tym n):** prompt +0,36% (17 nóg),
+kontrola +0,26% (41) - rynek nie poszedł za wyborem prompta. Brak przewagi.
+
+**Q3 - odczyt:** zdjął / przestawił 5 nóg - wszystkie 5 wygrały (w tym
+jedyny WATCH: Palermo „Palermo - liczba kartek: poniżej 2.5” @1.43);
+weszła 1 - wygrała. Wszystkie 5 przegranych nóg prompta miały KEEP. Spadek
++83% → +36% to odczyt **razem** z przestawieniem KEEP-first (O10); 5 nóg nie
+mówi nic o wartości odczytu (audyt 26.10: odczyty bez przewagi).
+
+**Q4 - O6 (własna próbka < 1/kurs):** prompt 6/9 (oczek. 6,2), kontrola
+15/22 (16,4) - brak sygnału, jak w backteście.
+
+**Q5 - nogi „?”:** 2, obie to luki statystyk Sofascore, nie defekt klucza:
+ALS Omonia – Nea Salamina „Liczba rzutów rożnych: poniżej 11.5”
+(`NO_STATISTICS`, cały cypryjski dzień), RS Berkane – Raja „Liczba rzutów
+rożnych: powyżej 6.5” (`STAT_KEY_ABSENT`, Botola bez rożnych). Kupon C14/1
+otwarty do `resettle_sweep.py`. Podejrzenie (niezmierzone): /kupon może
+wybrać rynek, którego Sofascore w tej lidze nie publikuje - warto zmierzyć
+pokrycie rożnych per rozgrywki przed regułą.
+
+**Defekty pomiaru:** (a) kontrola wyklucza nogi prompta tylko w obrębie
+konfiguracji - 5 nóg unikalnych jest w obu ramionach; (b) tabela kuponów
+`settle` liczy powtórzone nogi wielokrotnie - do serii `settle` powinien
+drukować nogi unikalne i bootstrap po meczach jako wynik główny.
+
+**Decyzja:** nic w wyborze nóg się nie zmienia. `T-KUPON-PROMPT-VS-CONTROL`
+zostaje PROPOSED - seria tylko na decyzję operatora (koszt ~0,5-0,7 mln
+tokenów / dzień przy 14 konfiguracjach).
