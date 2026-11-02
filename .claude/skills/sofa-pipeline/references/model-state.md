@@ -54,6 +54,7 @@ goals; not corrected for relegation-zone weakness; shown, never gated.
 | `PER_MARKET_K_FROM_UTC` | 10-09 00:00 | `K_CENTRE.by_market.football` in `config/sofa_engine_constants.json`: cards_points_for 25, fouls_total 2, shots_for 8, shots_total 5; goals stay 15; `k_rule`; `--per-market-k`. Paired with COUNT_DISPERSION: SHEET exits 2 with only one on (`epochs.require_k_with_dispersion`) |
 | `READ_EVENTS_FROM_UTC` | 10-09 00:00 | reads by match: every unlocked leg of the first 30 matches (`read_unit: "event"`; operator "30 wydarzeń, nie 30 rynków") |
 | `READ_SCOPE_FROM_UTC` | 10-27 00:00 | the read set narrows to the 20 best-value matches (`READ_SCOPE_EVENTS`, artifact `read_events`; 30 before); same moment, `report_check` binds a read removal to a dated fact or `DEFEKT:` (operator's go 10-26, analyst audit: removed minus KEEP ROI -0.9 pp [-5.9, +4.2], 1,104 vs 9,198 legs, 10-13..10-25; ledger group "od 10-27") |
+| `READS_ON_REQUEST_FROM_UTC` | 11-02 00:00 | reads on request (`epochs.reads_on_request`): `/sofa-day` sends no analysts over the read set before the print; reads only through `/sofa-analyze` (okno, dodatkowo) or `/kupon`, and a read made still removes its leg; read set, `read_set.py` and the read channel unchanged; audit C3 (`audit_variants.audit_reads`, `on_request`) counts unread read-set legs as one `notes (not defects)` line, a missing `reads.json` a note, a printed WATCH / NO_BET still a defect; the verifier stays (operator decision 11-02; reads showed no measured edge - analyst audit 10-26 removed minus KEEP ROI -0.9 pp [-5.9, +4.2], 7i 11-01 analyst 6/6 legs - and the rounds are the day's biggest cost; fewer legs removed, so what prints changes) |
 
 A day < 10-09 is the old estimator and is never rebuilt under the new one; a
 rebuild of a day >= 10-09 re-runs SHEET on a sheet without the markers
@@ -1062,7 +1063,8 @@ Groups are never pooled.
 | "od 10-27" | 10-27 | the analyst audit's read scope (20 matches) and sourced removals |
 | "od 10-30" | none | holds no day (AWARDED_EXCLUDED 00:00Z falls in "10-30 mieszany") |
 | "10-30 mieszany" | 10-30 | AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating; PRICE_GAP_OFFSET 08:45Z into the built day (line evidence offset by d, football / tennis / hockey) |
-| "od 10-31" | 10-31 .. | current; PRICE_GAP_OFFSET from the day's start |
+| "od 10-31" | 10-31, 11-01 | PRICE_GAP_OFFSET from the day's start |
+| "od 11-02" | 11-02 .. | current; READS_ON_REQUEST 00:00Z - /sofa-day prints without the analysts (reads only via /sofa-analyze, /kupon) |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

@@ -1,5 +1,5 @@
 ---
-description: "Run one sofa betting day end to end - settle and record D-1 (sofa-settler), refresh the line evidence, build the one coupon of every sport (11_coupon.json -> KUPON_<date>.pdf), have the analysts read it, rebuild, verify (sofa-verifier), report. The only day procedure; sofa-runner follows this file."
+description: "Run one sofa betting day end to end - settle and record D-1 (sofa-settler), refresh the line evidence, build the one coupon of every sport (11_coupon.json -> KUPON_<date>.pdf), print, verify (sofa-verifier), report; analyst reads are on request (/sofa-analyze, /kupon). The only day procedure; sofa-runner follows this file."
 argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD"
 ---
 
@@ -198,54 +198,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only
 - **No PDF here** - a provisional PDF would lock every leg whose match starts, read or not;
   the first PDF comes from step 7.
 
-## 5. Analysts
+## 5-6. Analysts - on request (from 2026-11-02)
 
-`/sofa-analyze`'s pass (it owns the details). Buffer 25 (the rebuild reshuffles the 20
-best-value matches - 20 since 2026-10-27, `READ_SCOPE_FROM_UTC`; legs read now save a C3
-round), parts of <= 6 matches (`--split` applies to every sport; tennis / sport parts are
-small anyway):
-
-```bash
-.venv/bin/python scripts/sofa/ensure_bridge.py
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --buffer 25 --split 6
-```
-
-It prints one line per sport / part: `<sport>: <n> legs, <n> matches (<n> required, <n>
-buffer) -> <file>` - the required / buffer counts are legs. A sport without a file gets no
-analyst. Run id: the one BOARD minted.
-
-Launch one instance per file, **all in one message, in the foreground** - nothing wakes
-you if they run in the background; if one still comes back as a background task, **wait for its
-completion notification** and check its report file exists before `merge_reads.py` - never
-merge or rebuild while an analyst of the round runs (2026-10-29). `football` -> `sofa-analyst-football`, `tennis` ->
-`sofa-analyst-tennis`, `hockey` / `basketball` / `volleyball` / `cs2` -> `sofa-analyst-sport`.
-Give the path `runs/sofa/<D>/<D>_analiza_<sport>[_<i>].md` (next free `_r<n>` if it exists;
-never overwrite). Prompt, nothing else - no opinion of yours about any fixture:
-
-```
-date <D>; run_id <id>; sport <sport>; read set: runs/sofa/<D>/read_set/read_set_<sport>[_<i>].json;
-write your report to: runs/sofa/<D>/<D>_analiza_<sport>[_<i>][_r<n>].md
-```
-
-Each analyst writes its own report and returns <= 12 lines (the path it **actually wrote** -
-it may re-suffix `_r<n>`; one part = one report -, legs read, KEEP / WATCH / NO_BET,
-vetoes). Do not re-type its text or arrays.
-
-## 6. Merge
-
-Merge every path the analysts **returned** (not the one you gave); one call may take
-several `--report`; never two merge calls at once:
-
-```bash
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --author analyst --report <returned path> [--report <returned path> ...]
-```
-
-Exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing - report it); 2 refused,
-nothing written (also a removal without a fact - USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH,
-RYNEK BEZ TAGU, WETO BEZ FAKTU): relaunch that instance with the refusal line and a new `_r<n>` path -
-never fix its JSON yourself; after 2 relaunches report the failure and go on. A report with
-no reads block broke the contract - say so, never invent reads. List every WATCH / NO_BET
-it prints.
+The day prints **without** the analysts' read (operator 2026-11-02,
+`epochs.READS_ON_REQUEST_FROM_UTC`; reads showed no measured edge and are the day's biggest
+cost). Analyst reads are the operator's: `/sofa-analyze` (the read set, `okno 14-17`,
+`dodatkowo`) or `/kupon`. Do not launch analysts here unless the operator asked for them in
+this run's request - then follow `/sofa-analyze` after step 4, before step 7. A read made
+earlier today (by those commands) stays in `reads.json` and still removes its leg.
 
 ## 7. Rebuild and print
 
@@ -255,7 +215,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
 
-`/sofa-rebuild` owns the plan. After every `rebuild_day.py` (step 7, C3 rounds, step 8) the
+`/sofa-rebuild` owns the plan. After every `rebuild_day.py` (step 7, step 8) the
 `icloud` line is read; the last state goes into the report. Never run stage scripts by hand for a rebuild (a CONFIDENCE
 on a >45 min offer empties 08 to the locked legs). SHEET re-runs
 itself only on the epoch / link rule / a switch's missing marker; after a SHEET code change
@@ -265,34 +225,10 @@ first and say why. Read the CONFIDENCE `refused` counts; a sport read counts as
 `reads_sport` and takes effect in COUPON_ASSEMBLY (confirm in `11_coupon.json`
 `removed_by_reads`); every `UNMATCHED_READ` did nothing - report it.
 
-**C3 loop.** The rebuild ends with `audit_variants`; C3 lists read-set legs with no
-analyst read (positions moved) or a printed leg carrying WATCH / NO_BET. Then:
-
-```bash
-.venv/bin/python scripts/sofa/ensure_bridge.py
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <D> --unread --split 6
-```
-
-(add `--buffer 5` while early kickoffs keep pulling new matches in), then repeat step 5's
-launch and steps 6 and 7 on those files only (paths `_r<n>`) - never step 5's full
-`read_set.py` line; measured-sport files of at most 6 matches together go to
-one `sofa-analyst-sport` instance with this prompt:
-
-```
-date <D>; run_id <id>; sport <s1>,<s2>; read set: runs/sofa/<D>/read_set/read_set_<s1>.json, runs/sofa/<D>/read_set/read_set_<s2>.json;
-write your report to: runs/sofa/<D>/<D>_analiza_sports_r<n>.md
-```
-
-and a leg of a match read
-earlier today carries `prior_analysis` (the analyst's delta pass). `read set: empty` while C3 is still red = a printed leg
-carries WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. A `started:` line names the matches a re-read pass left out (kickoff within the 15-min
-margin; their analyst would skip them and a read cannot change their legs): C3 keeps listing
-them - report them, never read them.
-At most 3 rounds, then report the C3 lines left. A WATCH / NO_BET on a builder leg makes
-that fixture's builder take its next candidate: in the re-read prompt add "also read every
-leg of this fixture's builder candidates in 08_confidence.json `builders`". A refusing read
-on a locked leg is a note, not a defect. The PDF prints even with C3 findings: legs that
-started meanwhile are locked unread - name them.
+**C3.** The rebuild ends with `audit_variants`. With reads on request a read-set leg printed
+unread is one counted line under `notes (not defects):` (`C3 <tag>: reads on request - <n>
+read-set legs printed unread`); a printed leg carrying WATCH / NO_BET is still a C3 defect
+(run `rebuild_day.py` again, not a read). A refusing read on a locked leg is a note.
 
 ## 8. Verify - not optional
 
@@ -311,8 +247,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -
 merge_reads: exit 0 merged, 1 merged with an `UNMATCHED_VETO`, 2 refused (nothing written; a
 removal without a fact too) = relaunch the verifier with the refusal line / findings and the next `_r<n>` path (at most 2 relaunches,
 then report it). No verifier reads = no rebuild; say so. The rebuild ends with the audits -
-do not re-run them. After the rebuild C1 and C3 must be clean (a
-C3 finding goes back through the C3 loop). Any other `audit_variants` / `audit_coupon`
+do not re-run them. After the rebuild C1 and C3 must be clean (C3's "reads on request"
+count is a note). Any other `audit_variants` / `audit_coupon`
 finding is a defect to fix before reporting; lines under `notes (not defects):` are
 listed, not fixed.
 
@@ -368,15 +304,15 @@ SPORTY:   hokej / kosz / siatka / CS2 <status, refused> (każdy inny niż OK z p
 RUN:      <run_id> · werdykt każdego etapu · <n> na tablicy → <n> dopasowanych → <n> READY
 SHEET:    <n> wierszy (<n> piłka / <n> tenis), epoka stats_only
 DOWODY:   refresh_line_evidence exit <n> · fitted_from.before <D> (albo: pominięty)
-ODCZYTY:  przeczytane <n>/<n> wymaganych (+ bufor <n>) · rundy C3 <n> · nieprzeczytane: <które i dlaczego>
-READS:    analityk KEEP/WATCH/NO_BET <n/n/n> · weryfikator WATCH/NO_BET <n/n> · UNMATCHED_READ <n> · weta <n> (bez dopasowania <n>)
+ODCZYTY:  na żądanie - analitycy nie czytali (C3 notatka: <n> nóg zestawu odczytu nieprzeczytanych) · odczyty z /sofa-analyze / /kupon <n>
+READS:    weryfikator WATCH/NO_BET <n/n> · UNMATCHED_READ <n> · weta <n> (bez dopasowania <n>)
 ZDJĘTE:   removed_by_reads <n> — <mecz, rynek, linia, kierunek, autor, powód>
 RAPORTY:  <ścieżki analiz i weryfikacji>
 POMIAR:   D-1 CS2 <n> serii / hokej <n> / kosz <n> / siatka <n> rozliczonych — pomiar
 D-1:      7c <u> j. per sport · 7i <u> j. osobno · zwroty <n> · tożsamość <n> · MISMATCH <n> · CLV <x%> [lo; hi]
 PAPIER:   kosz handicap D-1 <n> typów (<won> trafionych), oczekujące <n> · do przodu n <n>/300 - to nie jest przewaga
 STATUS:   day_status <OK/WARN/BROKEN> · pętle · UNVERIFIED <n> · mostek NOT_CHECKED
-AUDYT:    audit_coupon <n> · audit_variants <n> (C3 0)
+AUDYT:    audit_coupon <n> · audit_variants <n> (C3 defekty 0)
 WERYFIKACJA: <n>/<n> arytmetyka · <n>/<n> ceny na żywo · <n> pozycji odrzuconych (w reads.json i przebudowane: tak/nie) · verify_legs --all: <n> nóg, DEFECT <n>, NOTE <n>
 UWAGA:    <największa słabość dnia>
 ```

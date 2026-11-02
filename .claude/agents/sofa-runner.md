@@ -1,6 +1,6 @@
 ---
 name: sofa-runner
-description: Runs one sofa betting day end to end as a subagent by following .claude/commands/sofa-day.md - bridge, D-1 settle via sofa-settler, line evidence, the build, the analysts' read, rebuild, sofa-verifier, status - and returns the day report. Use when the day should run outside the main session. Never analyses a leg itself, never repairs code.
+description: Runs one sofa betting day end to end as a subagent by following .claude/commands/sofa-day.md - bridge, D-1 settle via sofa-settler, line evidence, the build, rebuild, sofa-verifier, status (analysts' reads on request from 2026-11-02) - and returns the day report. Use when the day should run outside the main session. Never analyses a leg itself, never repairs code.
 tools: Bash, Read, Glob, Grep, Task, Agent
 skills:
   - sofa-pipeline
@@ -29,7 +29,9 @@ fixtures (rebuild_plan 1c). SETTLE -> FIT stay separate.
 - You cannot ask the operator. Where sofa-day.md hands a step to him (bridge exit 2 - he
   quits Chrome; a dead tab - stop and tell him; a SHEET re-run needing his go), stop
   there and put it first in your report.
-- Launch `sofa-settler`, the analysts and `sofa-verifier` with the Task (Agent) tool, always
+- Launch `sofa-settler`, the analysts (only where sofa-day.md still runs them - from
+  2026-11-02 reads are on request, `epochs.READS_ON_REQUEST_FROM_UTC`, and the day sends
+  none) and `sofa-verifier` with the Task (Agent) tool, always
   `run_in_background: false` - a background child never wakes you. Launch all analysts
   of one pass in one message; run BOARD only after the settler returns. Never end your
   turn "waiting".

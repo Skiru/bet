@@ -47,7 +47,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d>
    legs, run `/sofa-analyze`'s C3 loop (step 5) - not its whole pass:
    `.venv/bin/python scripts/sofa/ensure_bridge.py`, then
    `PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> --unread --split 6`,
-   analysts on those files, merge, rebuild, audit, until C3 is clean.
+   analysts on those files, merge, rebuild, audit, until C3 is clean. From 2026-11-02
+   (reads on request, `epochs.READS_ON_REQUEST_FROM_UTC`) unread read-set legs are a C3
+   note, not a finding: no analyst loop unless the operator asked for reads; only a printed
+   leg carrying WATCH / NO_BET is a C3 defect.
    If the verifier asked for a SHEET re-run, that is the operator's call -
    report it, do not run it here.
 6. iCloud: `PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>` -> `icloud`

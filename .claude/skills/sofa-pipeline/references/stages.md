@@ -328,7 +328,7 @@ touches a curve. Commands: `references/commands.md`.
 | script | question |
 |---|---|
 | `audit_coupon.py --date D` | Chain 1 arithmetic from each row's own fields, structure, anti-selection distributions. Exit 1 = findings |
-| `audit_variants.py --date D` | C1 freshness, C2 every printed single obeys its dials (and printed-started legs are locked), C3 every leg of `legs_requiring_read` has an analyst read and no printed leg is WATCH / NO_BET, U1 order = `coupon_order`, U2 fresh football / tennis singles stats_only, U3 sport legs re-derived from the raw snapshot. 0 / 1 findings / 2 bad file |
+| `audit_variants.py --date D` | C1 freshness, C2 every printed single obeys its dials (and printed-started legs are locked), C3 every leg of `legs_requiring_read` has an analyst read (from 2026-11-02, reads on request: unread legs only a `notes (not defects)` line) and no printed leg is WATCH / NO_BET, U1 order = `coupon_order`, U2 fresh football / tennis singles stats_only, U3 sport legs re-derived from the raw snapshot. 0 / 1 findings / 2 bad file |
 | `audit_settlement.py --date D` | what came in and why not. **7c = the coupon's real result** per sport x epoch (refunds apart); 7i = `removed_by_reads`; 7e vetoes; 7 / 7b are input material, not bets |
 | `audit_day_deep.py --date D` | per market: systematic miss or dispersion; would today's gates have made yesterday's bet |
 | `audit_sample_bias.py --date D` | does the sample count what the book settles |

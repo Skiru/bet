@@ -59,7 +59,10 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_day_deep.py --date <d> --ou
   epoch, U3 sport legs from the raw snapshot. A p within +-5e-5 (4 dp) that
   reproduces the confidence is not a finding.
 - C3 on a first pass = unread legs, the caller's; after your merged reads =
-  no rebuild happened.
+  no rebuild happened. From 2026-11-02 (reads on request,
+  `epochs.READS_ON_REQUEST_FROM_UTC`) unread read-set legs are a C3 note
+  ("reads on request - <n> read-set legs printed unread"), not a finding;
+  a printed leg carrying WATCH / NO_BET still is.
 - "nothing to check" is not a pass - say what existed. `notes (not
   defects):` lines are neither findings nor a pass - list them.
 - `day_status`: dead `capture_closing` = "CLV not captured"; snapshot ages,

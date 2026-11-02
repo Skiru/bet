@@ -18,10 +18,11 @@ Kolejność `/sofa-day` (od 2026-10-05, jeden kupon ze statystyk):
 6. świeże migawki `run_pipeline.py --only SHADOW` i `--only CS2`, potem
    SPORT_IDENTITY (most) i SPORT_CONFIDENCE (2b);
 7. COUPON_ASSEMBLY (`build_coupon.py` → `11_coupon.json`, 2c);
-8. analitycy na `legs_requiring_read` (20 meczów o najlepszej wartości +
-   nogi builderów + `read_requests.json`; `read_set.py` -> raporty ->
-   `merge_reads.py`): `sofa-analyst-football`, `sofa-analyst-tennis`,
-   `sofa-analyst-sport` per sport mierzony (część 3);
+8. od 2026-11-02 (`epochs.READS_ON_REQUEST_FROM_UTC`, decyzja operatora)
+   **bez analityków**: odczyty tylko na życzenie - `/sofa-analyze` (także
+   „okno 14-17”, „dodatkowo”) albo `/kupon` (część 3); wcześniej tu
+   analitycy na `legs_requiring_read` (`sofa-analyst-football`,
+   `sofa-analyst-tennis`, `sofa-analyst-sport` per sport mierzony);
 9. scalenie wet i odczytów, przebudowa jednym poleceniem
    `rebuild_day.py` (stare ceny odświeżone najpierw, potem FIXTURE_CHECK →
    CONFIDENCE → SPORT_CONFIDENCE → `build_coupon.py` → PDF, pisze
@@ -329,8 +330,13 @@ starszy niż arkusz, weta, odczyty lub kalibracja.
 ## 3. Analitycy, weta i odczyty
 
 Analitycy biegną **po COUPON_ASSEMBLY**, na `11_coupon.json`. Procedurę
-prowadzi `/sofa-analyze` (`.claude/commands/sofa-analyze.md`); dzień robi to
-w krokach 5-7 `/sofa-day`. Zbiór do przeczytania
+prowadzi `/sofa-analyze` (`.claude/commands/sofa-analyze.md`). Od 2026-11-02
+(`epochs.READS_ON_REQUEST_FROM_UTC`, decyzja operatora: odczyty nie dały
+zmierzonej przewagi - audyt analityków 10-26, zdjęte minus KEEP ROI -0,9 pp
+[-5,9; +4,2] - a rundy to największy koszt dnia) **odczyty są na życzenie**:
+`/sofa-day` nie wysyła analityków, czyta tylko `/sofa-analyze` (także „okno”,
+„dodatkowo”) albo `/kupon`; odczyt, który powstał (analityk lub weryfikator),
+dalej zdejmuje nogę. Wcześniej dzień robił to w krokach 5-7 `/sofa-day`. Zbiór do przeczytania
 (`confidence.legs_requiring_read`): niezablokowane nogi **20 meczów o
 najlepszej wartości** (od 2026-10-27; wcześniej 30) (najlepsza niezablokowana noga meczu: pewność x kurs,
 pewność piłki / tenisa i oflagowanej nogi CS2 ucięta do 1/kurs + `price_gap.GAP`;
@@ -374,7 +380,9 @@ następnych meczów w tej samej kolejności.
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <data> --unread --split 12
    ```
 
-   i kroki 2-3 tylko na tych plikach, aż C3 będzie czyste (najwyżej 3
+   i kroki 2-3 tylko na tych plikach, aż C3 będzie czyste (od 2026-11-02:
+   aż `read_set.py --unread` z tymi samymi argumentami zakresu zwróci pusty
+   zbiór, a C3 nie ma linii „wydrukowana mimo” WATCH / NO_BET; najwyżej 3
    rundy). Pliki sportów mierzonych z łącznie ≤ 6 meczami czyta w takiej
    rundzie **jedna** instancja `sofa-analyst-sport` (raport
    `<data>_analiza_sports_r<n>.md`); noga meczu przeczytanego wcześniej
@@ -407,8 +415,11 @@ pomija, + 15 min na czytanie) - jako prośby o cały mecz (każdy rynek), z pole
 czytane równolegle), analitycy, scalenie i przebudowa
 aż C3 czyste. Prośba nie jest werdyktem; to, co drukuje, się nie zmienia.
 
-Ten krok wolno pominąć tylko na wyraźną prośbę operatora — i trzeba wtedy
-powiedzieć, że się go pominęło (C3 to pokaże).
+Przed 2026-11-02 ten krok wolno było pominąć tylko na wyraźną prośbę
+operatora (C3 to pokaże). Od 2026-11-02 dzień go nie robi: nieprzeczytane
+nogi zbioru C3 to jedna linia `notes (not defects)` („C3 <tag>: reads on
+request - <n> read-set legs printed unread”), brak `reads.json` też notatka;
+defektem C3 pozostaje wydrukowana noga z WATCH / NO_BET.
 
 ---
 
@@ -449,7 +460,8 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   05; stare wiersze nietknięte). Krok miękki. Ręcznie: najpierw
   `ensure_bridge.py`, potem `run_late_resolve.py --date <d> [--dry-run]`;
   zapis przebiegów w `runs/sofa/<d>/late_resolve.json`. Nowe nogi z
-  pierwszych 20 meczów wg wartości wymagają odczytu (`read_set.py --unread`).
+  pierwszych 20 meczów wg wartości wymagają odczytu (`read_set.py --unread`;
+  od 2026-11-02 tylko gdy operator prosi o odczyty).
 
 - **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza
   cena meczu, który jeszcze można zagrać, jest starsza niż limit CONFIDENCE
@@ -549,8 +561,8 @@ z D+1 do 05:00Z (`window: "late"`, z pliku migawek D+1, `source_date` D+1).
 Plan przebudowy sam odświeża ceny SHADOW / CS2 i identyfikacje (most).
 **Nogi poranne zostają zablokowane** — wydrukowane przed startem nie
 zmieniają się; noga zdjęta przed startem zostaje zdjęta. Nowe nogi z
-pierwszych 20 meczów wartości wymagają odczytu analityka (`/sofa-analyze`),
-potem jeszcze jedna przebudowa. Jeśli `day_status.py` pokaże
+pierwszych 20 meczów wartości wymagają odczytu analityka (`/sofa-analyze`;
+od 2026-11-02 tylko na życzenie operatora), potem jeszcze jedna przebudowa. Jeśli `day_status.py` pokaże
 `loop:capture_closing` WARN (pętla kursów zamknięcia skończyła się po
 ostatnim porannym meczu), uruchom ją: `capture_closing.py --date <D> --loop`.
 **Rozliczenie:** poranne kroki pętli (05:00Z / 05:15Z D+1) rozliczają plik
@@ -714,8 +726,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_variants.py --date <data>
 `audit_coupon` sprawdza arytmetykę `05_sheet.json` / `06_coupon.json`
 (selektor cenowy). `audit_variants` sprawdza kupon: C1 (świeżość artefaktu i
 PDF), C2 (każdy wydrukowany singiel spełnia swoje pokrętła), C3 (odczyty
-analityka na zbiorze `legs_requiring_read`, żadna wydrukowana noga z WATCH /
-NO_BET), U1 (kolejność `coupon_order`), U2 (epoka `stats_only` na świeżych
+analityka na zbiorze `legs_requiring_read` - od 2026-11-02 nieprzeczytane nogi
+tylko notatką; żadna wydrukowana noga z WATCH / NO_BET), U1 (kolejność `coupon_order`), U2 (epoka `stats_only` na świeżych
 singlach piłki i tenisa), U3 (każda świeża noga sportu odtworzona z surowej
 migawki Superbetu). Kod 0 brak znalezisk, 1 znaleziska, 2 zły plik.
 
@@ -734,7 +746,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <data>
 ```
 
 Potem ponownie `audit_variants`; C3 z nieprzeczytanymi nogami -> pętla C3
-z kroku 3.
+z kroku 3 (od 2026-11-02 to notatka - pętla tylko, gdy operator prosi o odczyty).
 
 ---
 
@@ -751,7 +763,7 @@ CS2 45% / siatkówka 25% przy >= 10 meczach; duplikaty 1x1 CS2 nie liczą się).
 |---|---|
 | kupon wyszedł pusty | **Nie przebudowuj w kółko.** Powiedz, **która bramka** go opróżniła. Sprawdź `06_dropped.json` — na 2026-09-21 wszystkie 118 wierszy VALUE padło na `DISAGREES_WITH_PRICE` (84) i `KICKOFF_TOO_SOON` (34). |
 | zmienił się kod po zbudowaniu arkusza | `/sofa-rebuild` — przebudowa z artefaktów, bez SAMPLES (most tylko dla FIXTURE_CHECK). Napisz, **co** się zmieniło: przeliczony arkusz nie jest porównywalny z poprzednim. |
-| kupon jest, brakuje odczytu analityków albo operator chce więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” albo „okno 14-17” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
+| kupon jest, operator chce odczytu analityków (od 2026-11-02 tylko na życzenie) albo więcej | `/sofa-analyze` (także „dodatkowo: <pozycje>” albo „okno 14-17” → `read_requests.json`) — analitycy, scalenie wet i odczytów, przebudowa. |
 | sport `NOT_CALIBRATED` / `NOT_IDENTIFIED` | Nogi tego sportu się nie drukują; kupon reszty jest ważny. Kalibrację fituje się tylko między dniami (`fit_sport_confidence.py --before <d>`); brak tożsamości — SPORT_IDENTITY jeszcze raz, gdy most żyje. |
 | po refitcie krzywych (piłka, tenis albo sporty) | Między dniami: `fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json` (ok. 15 min na sport, nic nie instaluje), potem `fit_line_evidence.py --before <d> --sport-rows-dir <dir>` — korekta liczona jest względem krzywych zainstalowanych **teraz**, więc stara korekta nie pasuje do nowych krzywych. |
 | dużo `NO_LINE_EVIDENCE` | Rynek bez krzywej czeka na >= 50 własnych rozliczonych linii w kubełku `p`; przybywa ich z każdym rozliczonym dniem (`refresh_line_evidence.py` co rano, krok 1a). To nie cięcie z nazwy, tylko brak pomiaru. |

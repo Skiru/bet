@@ -134,8 +134,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 
 ## 5. C3 loop
 
-The rebuild ends with `audit_variants`; C3 fails a read-set leg without an analyst read or a
-printed leg carrying WATCH / NO_BET. Positions moved, so:
+The rebuild ends with `audit_variants`; C3 fails a printed leg carrying WATCH / NO_BET and,
+on a day before `epochs.READS_ON_REQUEST_FROM_UTC` (2026-11-02 00:00Z), a read-set leg without
+an analyst read. From 2026-11-02 reads are on request: an unread read-set leg is only a
+`notes (not defects)` line ("C3 <tag>: reads on request - <n> read-set legs printed unread"),
+so the loop's stop is the read set itself. Positions moved, so:
 
 ```bash
 .venv/bin/python scripts/sofa/ensure_bridge.py
@@ -143,7 +146,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --unrea
 ```
 
 (`--buffer 5` while early kickoffs pull new matches in) and steps 3-4 on those files only
-(paths `_r<n>`) until C3 is clean. `read set: empty` with C3 still red = a printed leg carries
+(paths `_r<n>`) until C3 is clean - from 2026-11-02 until `read_set.py --date <date> --unread`
+(the same scope args, e.g. the window's) returns an empty read set and C3 has no "printed
+despite" line. `read set: empty` with C3 still red = a printed leg carries
 WATCH / NO_BET or `reads.json` is missing: run `rebuild_day.py`, not another read. A `started:` line names the matches a re-read pass left out (kickoff within the 15-min
 margin; their analyst would skip them and a read cannot change their legs): C3 keeps listing
 them - report them, never read them. At most 3
@@ -163,7 +168,7 @@ NOT_CHECKED named).
 ANALIZA:  piłka <n> · tenis <n> · hokej / kosz / siatka / CS2 <n> nóg · dodatkowo (operator) <n> · bufor <n>
 RAPORTY:  <ścieżki>
 WETA:     <n> zastosowanych, <n> bez dopasowania
-READS:    KEEP <n> / WATCH <n> / NO_BET <n> · UNMATCHED_READ <n> · reads_sport <n> · rundy C3 <n> (C3 musi być 0)
+READS:    KEEP <n> / WATCH <n> / NO_BET <n> · UNMATCHED_READ <n> · reads_sport <n> · rundy C3 <n> (C3 musi być 0; od 11-02: --unread pusty)
 KUPON:    runs/sofa/<date>/KUPON_<date>.pdf — pozycje <n> → <n>, buildery <n> → <n>, zablokowane <n>
 ZDJĘTE:   <removed_by_reads: noga, odczyt, autor>
 iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK / WARN / SKIPPED> (day_status icloud)

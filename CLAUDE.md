@@ -280,6 +280,11 @@ and a miss recorded before a rule's switch never blocks that rule.
   carries `superbet_market` / `superbet_selection` as the screen writes them
   ("3. tercja - Seattle Kraken - liczba goli" / "poniżej 1.5"); a market it does
   not know keeps its old label, nothing guessed. The PDF / HTML name legs this way.
+- **Reads on request** (`READS_ON_REQUEST_FROM_UTC`, from 2026-11-02 00:00Z,
+  operator 11-02): `/sofa-day` prints without the analysts; reads come only from
+  `/sofa-analyze` or `/kupon`. The read set and the rules below are unchanged and a
+  read that is made still removes its leg; audit C3 counts read-set legs printed
+  unread as a note, a printed WATCH / NO_BET stays a defect (`audit_variants.audit_reads`).
 - **Reads:** analysts read every unlocked leg of the first 20 matches by value
   (30 on a coupon built before `READ_SCOPE_FROM_UTC` 2026-10-27 00:00Z, operator 10-26; the artifact's `read_events`)
   (best unlocked leg's confidence x odds, a football / tennis or flagged CS2
@@ -555,7 +560,7 @@ before a code change runs its old steps until it ends.
 
 | you want | use |
 |---|---|
-| a full betting day - D-1 settled and recorded, the coupon + PDF, reads, verification | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
+| a full betting day - D-1 settled and recorded, the coupon + PDF, verification (no analysts - on request) | `/sofa-day [dzisiaj\|wczoraj\|YYYY-MM-DD]` |
 | the analysts' read of an existing coupon ("dodatkowo: <pozycje>" adds to `read_requests.json`; "okno 14-17" rebuilds on fresh prices, then asks for the window's 20 best-value matches, every market - `window_reads.py`) | `/sofa-analyze` |
 | coupon + PDF from artifacts on disk (`rebuild_day.py`) | `/sofa-rebuild` |
 | adversarial verification of a built day | `/sofa-verify` |

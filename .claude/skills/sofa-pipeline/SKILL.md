@@ -233,7 +233,15 @@ count leg.
 leg of the **20 best-value matches** (30 on a coupon built before 2026-10-27; the artifact's `read_events`) (value = best leg's confidence x odds, a
 `price_gap` leg's confidence capped at 1/odds + 0.03), every printed builder
 leg, every requested leg. A rebuild moves positions, so re-read until C3 is
-clean. Never compute it by hand:
+clean. **Reads on request from 2026-11-02** (`epochs.READS_ON_REQUEST_FROM_UTC`,
+operator): `/sofa-day` sends no analysts over the read set; reads come only
+through `/sofa-analyze` (incl. "okno", "dodatkowo") or `/kupon`, and a read
+that is made still removes its leg. On such a day C3 lists unread read-set
+legs only as a `notes (not defects)` line ("reads on request - <n> read-set
+legs printed unread"; a missing `reads.json` is a note too); a printed leg
+carrying WATCH / NO_BET is still a C3 defect, and a read pass ends when
+`read_set.py --unread` (same scope args) returns an empty set. Never compute
+it by hand:
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <d> [--buffer N] [--unread] [--split K]

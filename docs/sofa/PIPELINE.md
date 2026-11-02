@@ -426,7 +426,8 @@ nie zaczął (albo zdarzenie w toku). Krok jest miękki: jego porażka robi z
 przebudowy PARTIAL, nie zatrzymuje jej. Nowe nogi przechodzą wszystkie
 bramki jak każde inne; nogi wydrukowane wcześniej zostają zablokowane.
 Nowe nogi z pierwszych 20 meczów wg wartości (do 10-26: 30) trzeba przeczytać
-(`read_set.py --unread`, audyt C3).
+(`read_set.py --unread`, audyt C3) - od 2026-11-02 tylko, gdy operator prosi o
+odczyty (odczyty na życzenie, niżej przy zbiorze do przeczytania).
 
 ---
 
@@ -2498,7 +2499,19 @@ niego 08).
   (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie; od 2026-10-14 00:00Z, `READ_BY_VALUE_FROM_UTC`, 30 meczów o najwyższej wartości: pewność x kurs najlepszej niezablokowanej nogi meczu, pewność nogi piłkarskiej / tenisowej liczona najwyżej 1/kurs + 0,03, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13)
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z
   `read_requests.json`). Prośba, która nic nie objęła, drukuje
-  `UNMATCHED_READ_REQUEST`.
+  `UNMATCHED_READ_REQUEST`. **Odczyty na życzenie od 2026-11-02 00:00Z**
+  (`epochs.READS_ON_REQUEST_FROM_UTC` / `epochs.reads_on_request`, decyzja
+  operatora 2026-11-02; odczyty bez zmierzonej przewagi - audyt analityków
+  10-26: zdjęte minus KEEP ROI -0,9 pp [-5,9; +4,2] - a rundy to największy
+  koszt dnia): zbiór, `read_set.py` i kanał odczytów bez zmian, ale `/sofa-day`
+  nie wysyła analityków przed wydrukiem; czytają tylko `/sofa-analyze` (także
+  „okno”, „dodatkowo”) i `/kupon`, a odczyt, który powstał (analityk lub
+  weryfikator), dalej zdejmuje nogę (WATCH / NO_BET → `removed_by_reads`).
+  Audyt C3 (`audit_variants.audit_reads`, `on_request`) w taki dzień: noga
+  zbioru wydrukowana bez odczytu to nie defekt, tylko jedna linia `notes (not
+  defects)` („C3 <tag>: reads on request - <n> read-set legs printed
+  unread”), brak `reads.json` też notatka; wydrukowana noga z WATCH / NO_BET
+  dalej jest defektem C3. Weryfikator zostaje w `/sofa-day`.
 - **Struktura kuponu (od 2026-10-05, plan production grade F4.1-F4.4;
   adnotacja, niczego nie wybiera):**
   - `relations` — dla każdego meczu z ≥ 2 nogami każda para nóg z etykietą

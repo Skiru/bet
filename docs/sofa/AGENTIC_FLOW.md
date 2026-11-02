@@ -26,7 +26,7 @@ Procedura jest zapisana raz. Komenda, która uruchamia agenta, mówi tylko,
 
 | komenda | co robi | sieć |
 |---|---|---|
-| `/sofa-day [data]` | most → `sofa-settler` (D-1) → dowody linii → BOARD…COUPON → CONFIDENCE → SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY → analitycy → `merge_reads.py` → `rebuild_day.py` (PDF) → pętla C3 → `sofa-verifier` → przebudowa → `day_status.py` → raport | Sofascore (most) + Superbet |
+| `/sofa-day [data]` | most → `sofa-settler` (D-1) → dowody linii → BOARD…COUPON → CONFIDENCE → SHADOW / CS2 → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY → `rebuild_day.py` (PDF) → `sofa-verifier` (od 2026-11-02 bez analityków - odczyty na życzenie: `/sofa-analyze`, `/kupon`; wcześniej: analitycy → `merge_reads.py` → `rebuild_day.py` → pętla C3) → przebudowa → `day_status.py` → raport | Sofascore (most) + Superbet |
 | `/sofa-analyze [data] [okno 14-17] [dodatkowo: …]` | prośby operatora do `read_requests.json` (okno: najpierw przebudowa ze świeżymi cenami, potem 20 najlepszych meczów okna, `window_reads.py`), `read_set.py`, analitycy, `merge_reads.py`, przebudowa, pętla C3 | Superbet (gdy cena stara) |
 | `/sofa-rebuild [data]` | przebudowa z artefaktów jednym poleceniem `rebuild_day.py` | Superbet (stara cena), most dla FIXTURE_CHECK / SPORT_IDENTITY |
 | `/sofa-verify [data]` | `sofa-verifier`, scalenie jego odczytów, przebudowa | Superbet (ceny na żywo) + web |
@@ -97,7 +97,9 @@ operator: /sofa-day 2026-10-20
    ├─ 3. CONFIDENCE    run_confidence.py (tymczasowy)
    ├─ 4. sporty        SHADOW, CS2 → ensure_bridge.py → SPORT_IDENTITY → SPORT_CONFIDENCE → COUPON_ASSEMBLY (11)
    │                   bez PDF: wydruk tymczasowy zablokowałby nieprzeczytane nogi
-   ├─ 5. analitycy     read_set.py --buffer 25 --split 6 → jedna instancja na plik,
+   │                   od 2026-11-02 (READS_ON_REQUEST) kroki 5-6 i pętla C3 odpadają:
+   │                   odczyty tylko na życzenie (/sofa-analyze, /kupon); 7 = rebuild_day.py
+   ├─ 5. analitycy     (do 11-01) read_set.py --buffer 25 --split 6 → jedna instancja na plik,
    │                   wszystkie w JEDNEJ wiadomości, na pierwszym planie
    ├─ 6. scalenie      merge_reads.py --report <ścieżka ZWRÓCONA przez analityka> [--report …] --author analyst
    ├─ 7. przebudowa    rebuild_day.py (pierwszy PDF) → audit_variants C3;
@@ -139,7 +141,11 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>
 Zbiór C3 to `confidence.legs_requiring_read`: niezablokowane nogi 20 meczów
 o najlepszej wartości (do 10-26: 30; artefakt niesie `read_events`) (`read_unit: "event"`, `read_order: "value"`), każda
 noga wydrukowanego buildera i każda prośba z `read_requests.json`. Reszta
-kuponu drukuje się bez odczytu (decyzja operatora). `read_set.py` zapisuje go
+kuponu drukuje się bez odczytu (decyzja operatora). Od 2026-11-02
+(`epochs.READS_ON_REQUEST_FROM_UTC`, decyzja operatora: odczyty bez zmierzonej
+przewagi, rundy to największy koszt dnia) `/sofa-day` nie wysyła analityków na
+ten zbiór; czytają tylko na życzenie (`/sofa-analyze`, także „okno” i
+„dodatkowo”, albo `/kupon`), a odczyt, który powstał, dalej zdejmuje nogę. `read_set.py` zapisuje go
 jako `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json` (zwarte nogi:
 pozycja, `group_key`, mecz, rynek, linia, kierunek, okres, nazwa Superbetu,
 pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
@@ -270,7 +276,12 @@ zbioru ma odczyt `author: "analyst"` i żadna wydrukowana nie niesie WATCH /
 NO_BET. Przebudowa przesuwa pozycje, więc po każdej: `read_set.py --date <d>
 --unread --split 6` (`--buffer 5`, gdy wczesne mecze wciągają nowe) →
 analitycy tylko na tych plikach → scalenie → przebudowa, aż C3 czyste,
-najwyżej 3 rundy. Pusty zbiór przy czerwonym C3 znaczy, że wydrukowana noga
+najwyżej 3 rundy. Od 2026-11-02 nieprzeczytana noga zbioru nie jest defektem
+C3, tylko jedną linią `notes (not defects)` („C3 <tag>: reads on request - <n>
+read-set legs printed unread”; brak `reads.json` też notatka); defektem zostaje
+wydrukowana noga z WATCH / NO_BET, a pętla `/sofa-analyze` kończy się, gdy
+`read_set.py --unread` (te same argumenty zakresu) zwraca pusty zbiór.
+Pusty zbiór przy czerwonym C3 znaczy, że wydrukowana noga
 niesie WATCH / NO_BET albo brak `reads.json` — wtedy `rebuild_day.py`, nie
 kolejny odczyt.
 WATCH na nodze buildera każe builderowi wziąć następnego kandydata — w tej
@@ -403,13 +414,13 @@ KUPON:    runs/sofa/<data>/KUPON_<data>.pdf — <n> pozycji (piłka / tenis / ho
 SPORTY:   hokej / kosz / siatka / CS2 <status, refused>
 RUN:      <run_id> · werdykt każdego etapu · <n> na tablicy → <n> dopasowanych → <n> READY
 SHEET:    <n> wierszy (piłka / tenis), epoka stats_only
-ODCZYTY:  przeczytane <n>/<n> wymaganych (+ bufor) · rundy C3 · nieprzeczytane
+ODCZYTY:  przeczytane <n>/<n> wymaganych (+ bufor) · rundy C3 · nieprzeczytane (od 11-02: na życzenie, notatka C3)
 READS:    analityk / weryfikator · UNMATCHED_READ · weta
 ZDJĘTE:   removed_by_reads — noga, autor, powód
 POMIAR:   D-1 rozliczone CS2 / hokej / kosz / siatka — pomiar
 D-1:      7c per sport · 7i osobno · zwroty · tożsamość · MISMATCH · CLV
 STATUS:   day_status · pętle · UNVERIFIED · mostek NOT_CHECKED
-AUDYT:    audit_coupon · audit_variants (C3 0)
+AUDYT:    audit_coupon · audit_variants (C3 0; od 11-02 nieprzeczytane to notatka)
 WERYFIKACJA: arytmetyka · ceny na żywo · odrzucone (w reads.json i przebudowane: tak/nie) · verify_legs --all: nogi, DEFECT, NOTE
 iCloud:   Kupony/<DD.MM.YYYY>/ — pdf + html <OK/WARN/NOT_CHECKED>
 UWAGA:    największa słabość dnia

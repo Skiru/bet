@@ -64,7 +64,11 @@ from bet.sofa.confidence import (  # noqa: E402
     printed_singles,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY, one_sided_singles  # noqa: E402
+from bet.sofa.epochs import (  # noqa: E402
+    STATS_ONLY,
+    one_sided_singles,
+    reads_on_request,
+)
 from bet.sofa.locked_print import (  # noqa: E402
     PRINTED_HISTORY_DIR,
     PRINTED_MANIFEST,
@@ -194,7 +198,7 @@ def audit_confidence(runs_dir: str, date: str) -> list[str]:
     if name == COUPON_ARTIFACT:
         out += audit_print_record(run, doc, tag, started_by)
     if date >= READS_CUTOVER:
-        out += audit_reads(run, doc, tag)
+        out += audit_reads(run, doc, tag, on_request=reads_on_request(date))
     return out
 
 
@@ -337,10 +341,12 @@ def audit_coupon_order(doc: dict[str, Any], tag: str) -> list[str]:
     return out
 
 
-def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
+def audit_reads(run: Path, doc: dict[str, Any], tag: str,
+                on_request: bool = False) -> list[str]:
     """C3: the printed official legs `legs_requiring_read` names (the best 30
     singles and every builder leg) were read, and no leg it prints is WATCH
-    or NO_BET."""
+    or NO_BET. With reads on request (epochs.READS_ON_REQUEST_FROM_UTC) an
+    unread leg is only counted in the notes; a refusing read still fails."""
     path = run / "reads.json"
     printed = [
         *printed_singles(doc),
@@ -355,10 +361,15 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
         return []
     required = {_read_key(x) for x in legs_requiring_read(doc)}
     if not path.exists():
+        if on_request:
+            notes.append(f"C3 {tag}: reads on request - no reads.json, "
+                         f"{len(required)} read-set legs printed unread")
+            return []
         return [f"C3 {tag}: reads.json missing - none of {len(required)} legs "
                 "that need a read has one"]
     reads = load_reads(path)
     out: list[str] = []
+    unread = 0
     for leg in printed:
         covering = matching_reads(
             reads,
@@ -378,7 +389,10 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
             and not any(r.author == "analyst" for r in covering)
             and not any(r.get("author") == "analyst" for r in carried)
         ):
-            out.append(f"C3 {label}: printed without an analyst's read")
+            if on_request:
+                unread += 1
+            else:
+                out.append(f"C3 {label}: printed without an analyst's read")
         refused = read_refusal(covering)
         if refused is not None and leg.get("locked"):
             # Printed before its match started; a read refusing it now did
@@ -389,6 +403,9 @@ def audit_reads(run: Path, doc: dict[str, Any], tag: str) -> list[str]:
             )
         elif refused is not None:
             out.append(f"C3 {label}: printed despite {refused}")
+    if unread:
+        notes.append(f"C3 {tag}: reads on request - {unread} read-set legs "
+                     "printed unread")
     return out
 
 

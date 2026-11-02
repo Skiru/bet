@@ -764,6 +764,28 @@ def read_scope_events(date: str, build_at: datetime | None = None) -> int | None
     return None
 
 
+# Reads on request (operator 2026-11-02, from that day: "by default nie czytać
+# przez analityków - mamy /kupon albo /sofa-analyze"): /sofa-day no longer
+# sends the analysts over the read set before the print. The read set and
+# the read channel stay - a read made by /sofa-analyze, /kupon or the
+# verifier still removes its leg - but a read-set leg printed without an
+# analyst's read is no longer an audit C3 defect, only a count in the notes.
+# Reads showed no measured edge (READ_SCOPE above; 7i 2026-11-01 analyst
+# 6/6 legs). Changes which legs print (no analyst removals), so a switch;
+# the operator moved it into 11-02 before any read of that day was made.
+READS_ON_REQUEST_DATE = "2026-11-02"
+READS_ON_REQUEST_FROM_UTC: datetime | None = datetime(2026, 11, 2, 0, 0, tzinfo=UTC)
+
+
+def reads_on_request(date: str, at: datetime | None = None) -> bool:
+    """True when the day's analyst reads are opt-in (audit C3 does not
+    require them)."""
+    if READS_ON_REQUEST_FROM_UTC is None:
+        return False
+    at = at if at is not None else timeutil.now()
+    return date >= READS_ON_REQUEST_DATE and at >= READS_ON_REQUEST_FROM_UTC
+
+
 # A footballer Superbet writes under his full registered name ("Andrade,
 # Matheus Araujo") and Sofascore under the name he plays by ("Matheus
 # Araujo") scored under match_player's 85 and had no sample: 346 of the 680
