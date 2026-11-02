@@ -44,6 +44,7 @@ from bet.sofa.confidence import (
     quantity_family,
 )
 from bet.sofa.config import config_path
+from bet.sofa.epochs import SETTLEABILITY_DAILY_DATE
 from bet.sofa.locked_print import LegKey, leg_key
 from bet.sofa.market_mapper import derived_base
 from bet.sofa.players import is_player_metric
@@ -603,7 +604,57 @@ def fit_refusals(
     return out
 
 
+def carried_cells(
+    previous: Iterable[Mapping[str, Any]],
+    states: Iterable[LegState],
+    refused: Iterable[Mapping[str, Any]],
+    *,
+    min_legs: int = MIN_LEGS,
+) -> list[dict[str, Any]]:
+    """The previous fit's cells the new window cannot judge (fewer than
+    min_legs judged legs) and does not list itself: carried as they were.
+    A refused cell prints nothing, so a window with no printed legs of it says
+    nothing about its feed - dropping it would print the league again until
+    its legs went unsettled again (2026-11-02)."""
+    judged: dict[tuple[int | None, str], int] = defaultdict(int)
+    for s in states:
+        if s.leg.competition_id is None:
+            continue
+        t = Tally()
+        t.add(s)
+        judged[cell_key(s.leg.competition_id, s.leg.market)] += t.judged
+    listed = {(int(e["competition_id"]), str(e["family"])) for e in refused}
+    out: list[dict[str, Any]] = []
+    for e in previous:
+        key = (int(e["competition_id"]), str(e["family"]))
+        if key in listed or judged.get(key, 0) >= min_legs:
+            continue
+        out.append({**e, "carried": True, "judged_in_window": judged.get(key, 0)})
+    return out
+
+
 # --- the gate ---------------------------------------------------------------
+
+
+def dated_path(day: str) -> Path:
+    """The fit a morning writes for day `day` (fit_settleability --before day)."""
+    return config_path(f"sofa_settleability.{day}.json")
+
+
+def path_for(day: str, directory: Path | None = None) -> Path:
+    """The list a build of `day` reads: the latest dated fit on or before it
+    (from epochs.SETTLEABILITY_DAILY_DATE), else the 10-05 file."""
+    root = directory if directory is not None else DEFAULT_SETTLEABILITY.parent
+    base = root / SETTLEABILITY_FILE if directory is not None else DEFAULT_SETTLEABILITY
+    if day >= SETTLEABILITY_DAILY_DATE:
+        dated = sorted(
+            p
+            for p in root.glob("sofa_settleability.????-??-??.json")
+            if SETTLEABILITY_DAILY_DATE <= p.name.split(".")[1] <= day
+        )
+        if dated:
+            return dated[-1]
+    return base
 
 
 @dataclass(frozen=True)

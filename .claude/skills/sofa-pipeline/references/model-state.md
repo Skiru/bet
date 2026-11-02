@@ -23,6 +23,7 @@ switch went into an already built day the day is mixed (section f).
 | `SPORTS_ON_COUPON_FROM_UTC` | 10-05 08:30 | hockey / basketball / volleyball / CS2 print on the one coupon (the separate sport coupons retired 2026-10-05) | same |
 | `COUPON_STRUCTURE_FROM_UTC` | 10-06 00:00 | coupon-form dials (ladder `one_rung`, per-match cap - both OFF unless `config/sofa_coupon_form.json` sets them) and the builder screen-price gate (itself off: `BUILDER_SCREEN_PRICE_FROM_UTC` None) | same, F4 |
 | `SETTLEABILITY_FROM_UTC` | 10-06 00:00 | `NOT_SETTLEABLE` for (competition, family) cells of `config/sofa_settleability.json` | F0.6 |
+| `SETTLEABILITY_DAILY_DATE` | 11-03 00:00 | the list refitted every morning (`refresh_line_evidence.py` step 3, `fit_settleability.py --before D --dated` -> `config/sofa_settleability.<D>.json`, refused into a built day); a day reads the latest dated fit <= it (`settleability.path_for`). The 10-05 fit (09-19..10-01) had never been refreshed: Cyprus 1st Division (171) corners 8 of 30 legs unsettled 10-05..11-01, unlisted. A refit carries the previous list's cells the window cannot judge (< 8 judged legs: a refused cell prints nothing, so dropping it would print it again until it failed again; `settleability.carried_cells`). Dry run --before 11-02: 8 new cells (Liga Portugal 2, Liga II, Beker van Belgie, Oddset Pokalen, Championship [206] corners; Super League 2 [186] reds; Tercera Federación G11 [11360], Liga de Ascenso [28555] goals) + 6 carried | `docs/sofa/evidence/kupon_eksperyment_2026-11-01.md` "Poprawki 02.11" |
 | `AMPERSAND_SUBJECTS_FROM_UTC` | 10-06 00:00 | a club with "&" in its name is a subject of its own markets when it equals a listing participant (`market_mapper.subject_is_combination`); 37 occurrences 09-18..10-05 | F1.1 |
 | `POOL_NEIGHBOUR_CAP_FROM_UTC` | 10-06 00:00 | K13b: a pooled read capped by the market's nearest own bucket below (goals_1h_total O0.5 printed 0.815 vs own 0.709 / 0.731; 57 rows / 48 matches -12.6 pp [-24.1, -1.2], capped +3.1 [-8.4, +14.4]; a market with no own bucket read off the pool -14.1 pp [-21.0, -7.2], 290 rows, not touched) | `scripts/sofa/measure_pool_holes.py` |
 | `NATIONAL_SAMPLE_AGE_FROM_UTC` | 10-06 00:00 | national-team fixtures judged by sample count, not the 180-day `SAMPLE_CROSSES_SEASON` age | - |
@@ -1064,7 +1065,8 @@ Groups are never pooled.
 | "od 10-30" | none | holds no day (AWARDED_EXCLUDED 00:00Z falls in "10-30 mieszany") |
 | "10-30 mieszany" | 10-30 | AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating; PRICE_GAP_OFFSET 08:45Z into the built day (line evidence offset by d, football / tennis / hockey) |
 | "od 10-31" | 10-31, 11-01 | PRICE_GAP_OFFSET from the day's start |
-| "od 11-02" | 11-02 .. | current; READS_ON_REQUEST 00:00Z - /sofa-day prints without the analysts (reads only via /sofa-analyze, /kupon) |
+| "od 11-02" | 11-02 | READS_ON_REQUEST 00:00Z - /sofa-day prints without the analysts (reads only via /sofa-analyze, /kupon) |
+| "od 11-03" | 11-03 .. | current; SETTLEABILITY_DAILY 00:00Z - the NOT_SETTLEABLE list refitted every morning |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

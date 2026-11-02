@@ -61,10 +61,12 @@ the slip is handed over (`FreshPrice`, `build(fresh_prices=...)`).
 from __future__ import annotations
 
 import datetime
+import json
 import math
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -1316,6 +1318,85 @@ def render(
 
 
 SLIP_RECORD_SCHEMA = "SlipRecord.v1"
+
+
+@dataclass(frozen=True)
+class Exposure:
+    """The day's earlier slips (their SlipRecords in runs/sofa/<d>/slips):
+    each leg's and each match's stamps (the record's file name, HHMM)."""
+
+    legs: dict[str, list[str]]
+    matches: dict[str, list[str]]
+
+
+def exposure_match(leg: Mapping[str, Any]) -> str | None:
+    """One match's key across singles ("sofa:<id>" group keys) and builders
+    (no group key): its Sofascore id, else its group key."""
+    eid = leg.get("sofascore_event_id")
+    if eid is not None:
+        return str(eid)
+    key = leg.get("group_key")
+    return None if key is None else str(key)
+
+
+def earlier_exposure(slips_dir: Path, skip: Path | None = None) -> Exposure:
+    """Legs and matches of the day's earlier slip records (slips, not the
+    reserve; a re-run of the same --json-out is not "earlier"). /kupon
+    experiment 11-01: separate calls of one day picked the same best legs -
+    one losing leg sat in 4 slips - so a staked slip's exposure is shown."""
+    legs: dict[str, list[str]] = defaultdict(list)
+    matches: dict[str, list[str]] = defaultdict(list)
+    if not slips_dir.is_dir():
+        return Exposure({}, {})
+    for path in sorted(slips_dir.glob("*.json")):
+        if skip is not None and path.resolve() == skip.resolve():
+            continue
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(rec, dict) or rec.get("schema") != SLIP_RECORD_SCHEMA:
+            continue
+        for slip in rec.get("slips") or []:
+            for g in slip.get("legs") or []:
+                if g.get("result_key") is not None:
+                    legs[str(g["result_key"])].append(path.stem)
+                match = exposure_match(g)
+                if match is not None and path.stem not in matches[match]:
+                    matches[match].append(path.stem)
+    return Exposure(dict(legs), dict(matches))
+
+
+def render_exposure(result: Result, exposure: Exposure) -> str:
+    """The legs of this answer already in an earlier slip of the day (the
+    same leg) or on its match (another leg) - a warning, never a gate: a
+    losing leg loses every slip that holds it."""
+    from bet.sofa.coupon_results import key_of
+
+    lines: list[str] = []
+    for i, s in enumerate(result.slips, 1):
+        for x in s.legs:
+            same = exposure.legs.get(key_of(x.leg))
+            other = exposure.matches.get(exposure_match(x.leg) or "")
+            if not same and not other:
+                continue
+            name = (f"{x.leg.get('match')} - {x.leg.get('superbet_market')}: "
+                    f"{x.leg.get('superbet_selection')}")
+            where = (f"ta sama noga w kuponach {', '.join(same)}" if same
+                     else f"ten mecz w kuponach {', '.join(other or [])}")
+            lines.append(f"- kupon {i}: {name} - {where}")
+    if not lines:
+        return ""
+    return "\n".join([
+        "",
+        "## Ekspozycja: nogi z wcześniejszych kuponów dnia",
+        "",
+        "Przegrana takiej nogi kładzie każdy kupon, który ją ma. Kupon bez "
+        "nich: `--new-matches`.",
+        "",
+        *lines,
+        "",
+    ])
 RECORD_LEG_FIELDS = (
     "sofascore_event_id", "match", "competition", "sport", "kickoff_utc", "market",
     "subject", "line", "direction", "period", "map_nr", "market_id", "group_key",

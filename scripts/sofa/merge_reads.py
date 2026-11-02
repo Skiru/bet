@@ -35,11 +35,13 @@ current, so nothing is written unless every entry validates):
   --author every read must carry that author.
 
 Every merged read is stamped `read_at_utc` (the merge time; a read merged
-again keeps its first stamp). A coupon merge (not --slip, not --dry-run) also
-records each report's match sections in analyses.json (`bet.sofa.analyses`:
-the full section behind the legs, shown folded on the HTML view and in the
-PDF's appendix); a report the parser finds no section in is named
-(NO_SECTIONS) - display only, never a refusal.
+again keeps its first stamp). A coupon merge (not --dry-run) also records
+each report's match sections in analyses.json (`bet.sofa.analyses`: the full
+section behind the legs, shown folded on the HTML view and in the PDF's
+appendix) - a --slip merge in analyses_slip.json instead (never the coupon's
+view; build_slip.py's next read set takes its `prior_analysis` from both);
+a report the parser finds no section in is named (NO_SECTIONS) - display
+only, never a refusal.
 
 Prints the counts and every WATCH / NO_BET. Exit 0 merged, 1 merged with an
 UNMATCHED_VETO, 2 refused (nothing written).
@@ -263,28 +265,29 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
                          json.dumps(merged_v, indent=2, ensure_ascii=False) + "\n")
         write_atomic(reads_path,
                      json.dumps(merged_r, indent=2, ensure_ascii=False) + "\n")
-        if not slip:
-            _record_sections(run, reports, author, stamp)
+        _record_sections(run, reports, author, stamp,
+                         analyses.SLIP_STORE if slip else analyses.STORE)
     off_set = _check_read_sets(read_sets or [], fresh_r, fresh_v)
     return 1 if fresh_unmatched or off_set else 0
 
 
 def _record_sections(run: Path, reports: list[Path], author: str | None,
-                     stamp: str) -> None:
-    """Each report's match sections into analyses.json (display only: a
-    failure is printed, the merge stands)."""
+                     stamp: str, name: str = analyses.STORE) -> None:
+    """Each report's match sections into analyses.json - a slip's into
+    analyses_slip.json (display / process only: a failure is printed, the
+    merge stands)."""
     try:
-        store = analyses.load(run)
+        store = analyses.load(run, name)
         names = analyses.coupon_match_names(run)
         for path in reports:
             who = author or analyses.author_of(path)
             n = analyses.add_report(store, path, who, stamp, names)
-            print(f"  {path.name}: {n} match sections -> {analyses.STORE}"
+            print(f"  {path.name}: {n} match sections -> {name}"
                   if n else f"  NO_SECTIONS: {path.name} - no match heading "
                   "found (the event protocol's sofa:<id> token)")
-        analyses.save(run, store)
+        analyses.save(run, store, name)
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
-        print(f"  WARNING: {analyses.STORE} not written - "
+        print(f"  WARNING: {name} not written - "
               f"{type(exc).__name__}: {exc}")
 
 

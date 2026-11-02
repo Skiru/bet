@@ -53,6 +53,9 @@ h2h / lineups and writes dossiers - not read-only) and
 --json-out runs/sofa/<date>/slips/<HHMM>.json`
 (`<HHMM>` = now, local, each round - always, so a staked slip can be traced
 and graded the next day: `slip_experiment.py settle --out-dir runs/sofa/<date>/slips`)
+(add `--new-matches` when the operator asks for other matches than the day's earlier
+slips; the "Ekspozycja" section - legs already in an earlier slip of the day - is
+relayed as it stands)
 (every market in one pass, each leg on its own statistics and reads - the
 families on the plus removed by the operator 2026-10-31; 2 legs and no
 builders unless the operator asked, see Arguments), the

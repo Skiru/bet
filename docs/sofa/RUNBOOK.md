@@ -204,9 +204,12 @@ odczytu). CONFIDENCE (krok 3) czeka na linię `EXIT` tego logu. Exit 0 zapisano;
 **1** - fit jednego sportu nie wyszedł (sport czyta poprzednie wiersze) albo
 crash (`Traceback`); **2** - `fit_line_evidence.py` nie wyszedł (dzień czyta
 wczorajszy dowód - powiedz to w raporcie). `fitted_from.before` pliku
-`config/sofa_superbet_line_evidence.json` musi być równe `<D>`. `day_status.py`
-pokazuje `sport_history` - WARN poniżej 80% przypiętych meczów D-1. To **nie**
-jest refit krzywych.
+`config/sofa_superbet_line_evidence.json` musi być równe `<D>`. Od 2026-11-03
+krok 3 tego samego skryptu przelicza listę `NOT_SETTLEABLE`
+(`settleability: exit 0` w logu → `config/sofa_settleability.<D>.json`; inny
+kod = dzień czyta wcześniejszą listę - powiedz to; `day_status.py`
+`settleability`). `day_status.py` pokazuje `sport_history` - WARN poniżej 80%
+przypiętych meczów D-1. To **nie** jest refit krzywych.
 
 **Rano 2026-10-24 (jednorazowo, audyt pokrycia P12):** po rozliczeniu CS2
 (krok 1), **przed** `refresh_line_evidence.py --before 2026-10-24`:

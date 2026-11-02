@@ -248,6 +248,58 @@ def test_fit_script_refuses_a_future_before(
     assert "after today" in capsys.readouterr().err
 
 
+def test_a_refused_cell_without_new_legs_is_carried() -> None:
+    previous = [
+        {"competition_id": 173, "family": "corners", "judged": 65,
+         "data_unsettled": 56},  # refused, so unprinted: no legs now - carried
+        {"competition_id": 7, "family": "corners", "judged": 9,
+         "data_unsettled": 9},  # judged again on 8 clean legs - dropped
+        {"competition_id": 1, "family": "corners", "judged": 8,
+         "data_unsettled": 3},  # listed again by the window itself
+    ]
+    states = _states(7, 0, 8) + _states(1, 3, 5) + _states(173, 0, 2)
+    refused = st.fit_refusals(states)
+    carried = st.carried_cells(previous, states, refused)
+    assert [(e["competition_id"], e["carried"], e["judged_in_window"])
+            for e in carried] == [(173, True, 2)]
+    from scripts.sofa.fit_settleability import build_doc
+
+    doc = build_doc(states, before="2026-11-03", start="2026-10-06", days=[],
+                    horizon_days=3, min_legs=8, max_unsettled_lower=0.10,
+                    stamp={}, previous=previous, carried_from="x.json")
+    assert [e["competition_id"] for e in doc["refused"]] == [1, 173]
+    assert doc["fitted_from"]["carried_cells"] == 1
+
+
+def test_a_day_reads_its_latest_dated_fit(tmp_path: Path) -> None:
+    for name in ("sofa_settleability.json", "sofa_settleability.2026-11-01.json",
+                 "sofa_settleability.2026-11-03.json",
+                 "sofa_settleability.2026-11-05.json"):
+        (tmp_path / name).write_text("{}")
+    assert st.path_for("2026-11-02", tmp_path).name == "sofa_settleability.json"
+    # a dated file before the daily epoch is never read
+    assert epochs.SETTLEABILITY_DAILY_DATE == "2026-11-03"
+    assert st.path_for("2026-11-03", tmp_path).name.endswith("2026-11-03.json")
+    assert st.path_for("2026-11-04", tmp_path).name.endswith("2026-11-03.json")
+    assert st.path_for("2026-11-09", tmp_path).name.endswith("2026-11-05.json")
+    assert st.dated_path("2026-11-03").name == "sofa_settleability.2026-11-03.json"
+
+
+def test_a_dated_fit_refuses_a_built_day(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from scripts.sofa import fit_settleability
+
+    (tmp_path / "2026-11-03").mkdir()
+    (tmp_path / "2026-11-03" / "11_coupon.json").write_text("{}")
+    monkeypatch.setenv("SOFA_NOW", "2026-11-03T12:00:00Z")
+    monkeypatch.setenv("SOFA_RUNS_DIR", str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["fit", "--before", "2026-11-03", "--dated"])
+    assert fit_settleability.main() == 2
+    assert "is built" in capsys.readouterr().err
+
+
 # --- the gate ---------------------------------------------------------------
 
 
@@ -460,3 +512,22 @@ def test_sweep_plan_forces_an_included_day(tmp_path: Path) -> None:
     migrate(str(path))
     assert plan(tmp_path, str(path), ["2026-09-26"], ["2026-09-28"]) == {
         "2026-09-28": 0}
+
+
+def test_the_morning_refresh_writes_the_days_list_and_day_status_checks_it(
+    tmp_path: Path,
+) -> None:
+    from scripts.sofa import day_status
+    from scripts.sofa.refresh_line_evidence import settleability_command
+
+    cmd = settleability_command("2026-11-03")
+    assert cmd[1:] == ["scripts/sofa/fit_settleability.py", "--before",
+                       "2026-11-03", "--dated"]
+    (tmp_path / "sofa_settleability.json").write_text("{}")
+    assert day_status.settleability_check("2026-11-02", tmp_path).status == (
+        day_status.NOT_CHECKED)
+    assert day_status.settleability_check("2026-11-03", tmp_path).status == (
+        day_status.WARN)
+    (tmp_path / "sofa_settleability.2026-11-03.json").write_text("{}")
+    assert day_status.settleability_check("2026-11-03", tmp_path).status == (
+        day_status.OK)

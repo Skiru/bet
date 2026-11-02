@@ -90,7 +90,9 @@ with it, as a quality filter (never "an edge"):
   as a single after tax; a 1-7 game sample stays out.
 - **Fresh price right before the answer**: the chosen legs are re-asked
   (football / tennis: Superbet's offer through `OfferFetcher`, its breaker
-  respected; the sports: their loop's newest pre-start snapshot) and a leg
+  respected; the sports: Superbet's event endpoint asked there and then with
+  the loop's own parser, the loop's newest pre-start snapshot when that ask
+  fails) and a leg
   more than 2% above the coupon's price (`PRICE_RISE_DROP`; the market went
   against it - measured −3.8 / −5.7 / −3.1 pp) or gone from the offer drops
   out, the slips rebuilt without it (up to 4 rounds). A lower fresh price
@@ -99,6 +101,13 @@ with it, as a quality filter (never "an edge"):
   move that matters can come after the answer (31.10: Bernau 1.52 until 26
   min before the start, 1.65 at it) - tell the operator to re-run right
   before placing a slip answered long before its start.
+- **Exposure across the day's slips** (/kupon experiment 11-01: 14 calls of
+  one day picked the same best legs - one losing leg sat in 4 slips): a leg
+  already in an earlier slip record of the day (`runs/sofa/<d>/slips/*.json`)
+  or another leg of its match is listed under "Ekspozycja" - relay it (a
+  loss of that leg loses every slip holding it); never a gate. When the
+  operator wants a slip on other matches ("inne mecze", "nowe mecze"), pass
+  `--new-matches`.
 - **Evidence columns, display only**: model, own sample k/n (bold below
   1/odds), zestawienie, league share, h2h, referee (`bet.sofa.slip_evidence`,
   cut at the kickoff). Never rank or remove a leg by them yourself.

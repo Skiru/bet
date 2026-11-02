@@ -230,3 +230,21 @@ drukować nogi unikalne i bootstrap po meczach jako wynik główny.
 **Decyzja:** nic w wyborze nóg się nie zmienia. `T-KUPON-PROMPT-VS-CONTROL`
 zostaje PROPOSED - seria tylko na decyzję operatora (koszt ~0,5-0,7 mln
 tokenów / dzień przy 14 konfiguracjach).
+
+## Poprawki (02.11) - wszystko, co eksperyment pokazał
+
+| # | słabość | poprawka | test |
+|---|---|---|---|
+| P1 | kontrola dzieliła nogi z promptem między konfiguracjami (5 nóg w obu ramionach) | `slip_experiment.py control`: wykluczone nogi **wszystkich** konfiguracji rundy (`prompt_legs`) | `test_prompt_legs_cover_every_config_of_the_round` |
+| P2 | rozliczenie liczyło nogę w każdym kuponie - +36% vs −50% to koncentracja | `settle`: wynik główny = nogi unikalne (nadwyżka, z, single, CLV) + różnica z bootstrapem po meczach; linia koncentracji; tabela kuponów niżej | `test_distinct_legs_count_a_shared_leg_once`, `test_match_bootstrap_...` |
+| P3 | exit 1 bez powodu | komunikat na stderr + sekcja „Nogi bez oceny” z nazwami nóg | ręcznie na 11-01 |
+| P4 | lista `NOT_SETTLEABLE` stała na ficie z 10-05 (Cypr 171 rożne 8/30 nierozliczonych, poza listą) | od **11-03** fit co rano (`refresh_line_evidence.py` krok 3, `fit_settleability.py --dated` → `sofa_settleability.<D>.json`), dzień czyta swój plik (`settleability.path_for`), odmowa zapisu w zbudowany dzień, przenoszenie komórek bez nowych nóg (inaczej odrzucona liga wracałaby co 28 dni), `day_status` `settleability`, grupa ledgera „od 11-03”. Fit na sucho --before 11-02: +8 komórek, 6 przeniesionych | `test_a_refused_cell_without_new_legs_is_carried`, `test_a_day_reads_its_latest_dated_fit`, `test_a_dated_fit_refuses_a_built_day`, `test_the_morning_refresh_...` |
+| P5 | kursy sportów „nie dopytano” (17/21 siatkówka) - tylko migawka co 30 min | `build_slip.sport_live`: zdarzenie pytane w Superbecie od razu, parserem pętli (SHADOW / CS2, przełączniki dnia); migawka jako zapas; rozpoczęte / zdjęte = GONE. Sprawdzone na żywo 02.11: siatkówka, hokej, koszykówka, CS2 - OK, sama migawka dawała NOT_ASKED | `test_sport_fresh_asks_superbet_live_before_the_snapshot` |
+| P6 | ta sama noga w wielu kuponach dnia (Regatas Lima w 4) | `build_slip.py`: sekcja „Ekspozycja” - noga / mecz z wcześniejszych kuponów dnia (`runs/sofa/<d>/slips/*.json`), nigdy bramka; `--new-matches` pomija te mecze. Sprawdzone na r3 eksperymentu | `test_earlier_slips_of_the_day_are_shown_as_exposure` |
+| P7 | odczyt z kuponu czatu nie trafiał do `analyses.json` - kolejny /kupon robił pełny przebieg (O5) | `merge_reads.py --slip` zapisuje sekcje do `analyses_slip.json` (nie widok KUPON); `build_slip.py` czyta oba magazyny do `prior_analysis` | `test_merged_stores_put_the_newest_section_first`, test merge `--slip` |
+
+Bez zmiany kodu (to nie są błędy do poprawienia, tylko wynik pomiaru): brak
+przewagi wyboru przy tej samej cenie (O2, backtest 31.10), odczyty bez
+przewagi (5 zdjętych nóg wygrało; audyt 26.10), sprzeczność pewność / własna
+próbka (O6: brak sygnału na tym n), płytka pula powyżej ~1.7 (O3: bramka
+pewność ≥ 0,70). Każda z nich wymagałaby zmiany modelu - tylko z pomiarem.

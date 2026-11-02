@@ -34,6 +34,11 @@ from typing import Any
 from bet.sofa.atomic import write_atomic
 
 STORE = "analyses.json"
+# A chat slip's (/kupon) reports: their own store (merge_reads.py --slip),
+# never the coupon's view; build_slip.py reads both for `prior_analysis`, so
+# a match read in an earlier slip of the day gets a delta pass (/kupon
+# experiment 11-01, O5: a full pass again, 522 s and 189k tokens).
+SLIP_STORE = "analyses_slip.json"
 VERSION = 1
 # The token a match heading carries (event protocol): "sofa:15275920".
 EVENT_TOKEN = re.compile(r"sofa:(\d+)")
@@ -192,10 +197,11 @@ def split_sections(text: str, matches: Mapping[int, str] | None = None
     return out
 
 
-def load(run: Path) -> dict[str, Any]:
-    """The day's store; an empty one when absent or unreadable (display
-    only - a broken store never stops a render)."""
-    path = run / STORE
+def load(run: Path, name: str = STORE) -> dict[str, Any]:
+    """The day's store (`name`: STORE, or SLIP_STORE); an empty one when
+    absent or unreadable (display only - a broken store never stops a
+    render)."""
+    path = run / name
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -232,8 +238,8 @@ def add_report(store: dict[str, Any], report: Path, author: str, at_utc: str,
     return len(found)
 
 
-def save(run: Path, store: Mapping[str, Any]) -> Path:
-    path = run / STORE
+def save(run: Path, store: Mapping[str, Any], name: str = STORE) -> Path:
+    path = run / name
     write_atomic(path, json.dumps({**store, "version": VERSION}, ensure_ascii=False,
                                   indent=1) + "\n")
     return path
@@ -290,6 +296,19 @@ def rebuild(run: Path, day: str, matches: Mapping[int, str] | None = None
 def _mtime_utc(path: Path) -> str:
     return datetime.datetime.fromtimestamp(
         path.stat().st_mtime, datetime.UTC).isoformat(timespec="seconds")
+
+
+def merged(*stores: Mapping[str, Any]) -> dict[str, Any]:
+    """Several stores as one: each match's sections newest first by
+    `recorded_at_utc` (a slip's read beside the coupon's)."""
+    events: dict[str, list[dict[str, Any]]] = {}
+    for store in stores:
+        for key, entries in (store.get("events") or {}).items():
+            events.setdefault(str(key), []).extend(dict(e) for e in entries)
+    for entries in events.values():
+        entries.sort(key=lambda e: str(e.get("recorded_at_utc") or ""),
+                     reverse=True)
+    return {"version": VERSION, "events": events}
 
 
 def latest(store: Mapping[str, Any], event_id: Any,

@@ -82,7 +82,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_score_market_curves.py --out-
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/install_new_market_curves.py --dir data/refit_new_markets_<d> --confirm   # install staged new-market curves (sport target: installed file + .next.json + every dated .next.<d>.json)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport {hockey|basketball|volleyball|cs2|all} --before <d> [--dry-run] [--rows-out <dir>] [--bb-freshness auto|on|off]   # sport curves
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_sport_confidence.py --sport all --before <d> --dry-run --rows-out <dir> --out <dir>/cal.json   # ~15 min a sport: the Superbet rows line evidence reads
-PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dry-run]   # config/sofa_settleability.json
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_settleability.py --before <d> [--dated] [--dry-run] [--no-carry]   # config/sofa_settleability[.<d>].json; --dated is refresh_line_evidence step 3 (refuses a built day)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_player_model.py --out <f> --db <copy> --player-team-from-side [--any-team] [--sport hockey|basketball] [--effective-from <d>]   # player constants; --any-team = P3 reader; --effective-from writes effective_from into --out (a staged sofa_player_model.next.<d>.json, player_model.params_path_for)
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py --before <d> --sport-rows-dir <dir> [--dry-run]   # after every curve refit; without the dir no price-band cap for the sports
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_count_dispersion.py --before <d> --cases <dir> [--write]   # without --write a dry run

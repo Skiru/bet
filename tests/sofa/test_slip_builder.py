@@ -1106,6 +1106,65 @@ def test_sport_fresh_reads_the_newest_snapshot_before_the_start(tmp_path: Path) 
     assert stale.status == sb.FRESH_NOT_ASKED
 
 
+def test_sport_fresh_asks_superbet_live_before_the_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """11-01: 17 of 21 volleyball places were "nie dopytano" - the snapshot
+    was no newer than the coupon. A live ask of the event comes first."""
+    import datetime as dt
+
+    from bet.sofa import shadow, superbet
+
+    day = tmp_path / "shadow" / "basketball" / "2026-10-31"
+    day.mkdir(parents=True)
+    line = {"superbet_event_id": "77", "market_id": 759, "family": "winner",
+            "period": 0, "subject": "", "line": None, "side": "T2"}
+    (day / "snapshots.jsonl").write_text(json.dumps(
+        {"fetched_at_utc": "2026-10-31T09:00:00Z", "superbet_event_id": "77",
+         "team1": "A", "team2": "B", "kickoff_utc": "2026-10-31T18:30:00Z",
+         "lines": [{**line, "odds": 1.52}]}) + "\n")
+    leg = {**line, "sport": "basketball", "source_date": "2026-10-31",
+           "kickoff_utc": "2026-10-31T18:30:00Z",
+           "price_fetched_at_utc": "2026-10-31T09:00:00Z"}
+    at = dt.datetime(2026, 10, 31, 17, 0, tzinfo=dt.UTC)
+    quoted = [shadow.ShadowLine("77", 759, "winner", 0, "", None, "T2", 1.71)]
+    seen: list[tuple[str, str]] = []
+
+    def parse(items: Any, sport: Any, eid: str, t1: str, t2: str,
+              *flags: Any) -> list[shadow.ShadowLine]:
+        seen.append((t1, t2))
+        return list(quoted)
+
+    class Client:
+        def __init__(self, payload: Any = None, fail: bool = False) -> None:
+            self.payload, self.fail = payload, fail
+
+        def event_odds(self, eid: str) -> Any:
+            if self.fail:
+                raise RuntimeError("503")
+            return self.payload
+
+    monkeypatch.setattr(shadow, "parse_event", parse)
+    monkeypatch.setattr(superbet, "odds_items", lambda p: [])
+    monkeypatch.setattr(superbet, "event_started", lambda p: bool(p.get("live")))
+    got = build_slip.sport_fresh(str(tmp_path), leg, Client({}), at)
+    assert got == sb.FreshPrice(sb.FRESH_OK, 1.71, "2026-10-31T17:00:00Z")
+    assert seen == [("A", "B")]  # the teams from the loop's snapshot
+    assert build_slip.sport_fresh(str(tmp_path), {**leg, "side": "T1"},
+                                  Client({}), at).status == sb.FRESH_GONE
+    assert build_slip.sport_fresh(str(tmp_path), leg, Client({"live": 1}),
+                                  at).status == sb.FRESH_GONE
+    assert build_slip.sport_fresh(str(tmp_path), leg, Client(None),
+                                  at).status == sb.FRESH_GONE  # off the offer
+    # an error falls back to the snapshot (no newer one: not asked)
+    assert build_slip.sport_fresh(str(tmp_path), leg, Client(fail=True),
+                                  at).status == sb.FRESH_NOT_ASKED
+    # started: never asked live
+    late = dt.datetime(2026, 10, 31, 18, 31, tzinfo=dt.UTC)
+    assert build_slip.sport_live(Client({}), leg, ("A", "B"),
+                                 late).status == sb.FRESH_NOT_ASKED
+
+
 def test_a_sample_below_the_price_is_bold_never_a_gate() -> None:
     """31.10: a volleyball set at 1.58 stood on 3 of 8 (37.5%) - shown bold
     beside 1/odds; measured, such legs were no worse, so it stays."""
@@ -1220,3 +1279,47 @@ def test_the_safest_slip_rule_holds_on_the_closest_under_target_path() -> None:
     assert [x.leg["sofascore_event_id"] for x in safe.slips[0].legs] == [2]
     default = sb.build(legs, NOW, 1.3, slip_reads=keep, max_legs=1)
     assert [x.leg["sofascore_event_id"] for x in default.slips[0].legs] == [1]
+
+
+def test_earlier_slips_of_the_day_are_shown_as_exposure(tmp_path: Path) -> None:
+    """11-01: 14 /kupon calls of one day picked the same best legs - one
+    losing leg sat in 4 slips. The answer names a leg already in an earlier
+    slip (or its match), never refuses it; --new-matches leaves them out."""
+    import datetime as dt
+
+    from bet.sofa.coupon_results import key_of
+
+    def single(eid: int, line: float = 7.5) -> dict[str, Any]:
+        return {"sofascore_event_id": eid, "group_key": f"sofa:{eid}",
+                "market": "corners_total", "subject": "", "line": line,
+                "direction": "OVER", "match": f"A{eid} - B{eid}",
+                "superbet_market": "Liczba rzutów rożnych",
+                "superbet_selection": f"powyżej {line}"}
+
+    now = dt.datetime(2026, 11, 1, 12, tzinfo=dt.UTC)
+    a, b, c = single(1), single(2), single(3)
+    earlier = sb.record(sb.Result([sb.Slip([sb.Leg(a, 1.5, 0.66, "c"),
+                                            sb.Leg(b, 1.4, 0.7, "c")])], 1, 3),
+                        now=now, params={})
+    slips = tmp_path / "slips"
+    slips.mkdir()
+    (slips / "1341.json").write_text(json.dumps(earlier))
+    (slips / "1341.md").write_text("not a record")
+    mine = slips / "1403.json"
+    mine.write_text(json.dumps(earlier))  # this call's own earlier round
+    exp = sb.earlier_exposure(slips, mine)
+    assert exp.legs == {key_of(a): ["1341"], key_of(b): ["1341"]}
+    assert exp.matches == {"1": ["1341"], "2": ["1341"]}
+    now_slip = sb.Result([sb.Slip([sb.Leg(a, 1.5, 0.66, "c"),
+                                   sb.Leg(single(2, 9.5), 1.6, 0.6, "c"),
+                                   sb.Leg(c, 1.3, 0.7, "c")])], 1, 3)
+    text = sb.render_exposure(now_slip, exp)
+    assert ("A1 - B1 - Liczba rzutów rożnych: powyżej 7.5 - ta sama noga w "
+            "kuponach 1341") in text
+    assert ("A2 - B2 - Liczba rzutów rożnych: powyżej 9.5 - ten mecz w "
+            "kuponach 1341") in text
+    assert "A3" not in text
+    # a builder (no group key) is the same match as its singles
+    assert sb.exposure_match({"sofascore_event_id": 2}) == "2"
+    assert sb.render_exposure(now_slip, sb.Exposure({}, {})) == ""
+    assert sb.earlier_exposure(tmp_path / "none") == sb.Exposure({}, {})

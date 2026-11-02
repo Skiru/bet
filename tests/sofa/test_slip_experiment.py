@@ -139,3 +139,39 @@ def test_settle_grades_slips_and_reads_the_close(tmp_path: Path) -> None:
         3,
     )
     assert "rozliczenie" in (out / "rozliczenie.md").read_text(encoding="utf-8")
+
+
+def test_prompt_legs_cover_every_config_of_the_round() -> None:
+    a, b, c = _leg(1, 1.5), _leg(2, 1.4), _leg(3, 1.3)
+    now = sb.datetime.datetime(2026, 10, 20, tzinfo=sb.datetime.UTC)
+    r1 = sb.record(sb.Result([sb.Slip([sb.Leg(a, 1.5, 0.66, "c")])], 1, 3),
+                   now=now, params={})
+    r2 = sb.record(sb.Result([sb.Slip([sb.Leg(b, 1.4, 0.7, "c")])], 1, 3),
+                   now=now, params={})
+    # a control of C1 must not draw C2's leg either (11-01: 5 legs in both arms)
+    assert se.prompt_legs([r1, r2]) == {key_of(a), key_of(b)}
+    assert key_of(c) not in se.prompt_legs([r1, r2])
+
+
+def _graded(eid: int, odds: float, status: str, key: str) -> dict[str, Any]:
+    return {**_leg(eid, odds), "odds": odds, "status": status, "result_key": key}
+
+
+def test_distinct_legs_count_a_shared_leg_once() -> None:
+    lost = _graded(1, 1.5, "lost", "k1")
+    rows = [{"legs": [lost, _graded(2, 1.4, "won", "k2")]}, {"legs": [lost]},
+            {"legs": [lost]}]
+    st = se._distinct_stats(se.distinct_legs(rows))
+    assert (st["legs"], st["graded"], st["won"]) == (2, 2, 1)
+    assert abs(st["excess"] - (1 - 1 / 1.5 - 1 / 1.4)) < 1e-9
+    assert se._reuse(rows)["max_slips"] == 3
+
+
+def test_match_bootstrap_resamples_matches_and_brackets_the_difference() -> None:
+    a = [_graded(i, 2.0, "won", f"a{i}") for i in range(1, 11)]
+    b = [_graded(i, 2.0, "won" if i % 2 else "lost", f"b{i}") for i in range(11, 31)]
+    d = se.match_bootstrap(a, b, draws=2000)
+    assert abs(d["diff"] - (0.5 - 0.0)) < 1e-9  # a: +0.5 per leg, b: 0
+    assert d["lo"] <= d["diff"] <= d["hi"]
+    assert d["matches"] == [10, 20]
+    assert se.match_bootstrap(a, [], draws=10)["diff"] is None

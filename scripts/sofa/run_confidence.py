@@ -145,6 +145,7 @@ from bet.sofa.samples import is_friendly_fixture  # noqa: E402
 from bet.sofa.schedule import FixtureSchedule  # noqa: E402
 from bet.sofa.settleability import REFUSAL_CODE as NOT_SETTLEABLE  # noqa: E402
 from bet.sofa.settleability import Settleability  # noqa: E402
+from bet.sofa.settleability import path_for as settleability_path_for  # noqa: E402
 from bet.sofa.tennis_winner import RATING_ONLY_MARKETS  # noqa: E402
 from bet.sofa.veto import (  # noqa: E402
     load_reads,
@@ -450,7 +451,9 @@ def main() -> int:
     # family) cells whose printed legs went ungraded at D+3 for want of the
     # statistic (config/sofa_settleability.json, fit_settleability.py).
     settle_gate = (
-        Settleability.load() if settleability_gate(args.date, now) else None
+        Settleability.load(settleability_path_for(args.date))
+        if settleability_gate(args.date, now)
+        else None
     )
     if settle_gate is not None and not settle_gate.fitted:
         print(

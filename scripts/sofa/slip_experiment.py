@@ -18,16 +18,21 @@ merge gives the slips the analysts' reads produced (a refused leg replaced).
 
 `control` draws, for each config's slips of that round, a random slip from
 the same pool (same window, odds, sample and read filters, the coupon's
-price - no re-ask) less the prompt's own legs, each leg priced within 5%
+price - no re-ask) less every leg of the round's prompt slips (any config:
+a leg in both arms measures nothing), each leg priced within 5%
 of the prompt's leg (10%, then 20% when none is found), one leg per match: the arm
 "the pool without the prompt's choice" (seeded by the config id).
 
 `settle` grades every leg of every round's slips, controls and reserves from
 `13_results.json` (`result_key`), reads the leg's last pre-start Superbet
 price from `closing.jsonl` (football / tennis), and writes a JSON + Polish
-markdown report: slips won / lost / refund / unknown beside their measured
-chance and 1/price product, legs' hit rate beside mean 1/odds, the price
-move to the close, the analysts' refused legs beside their replacements.
+markdown report. The headline is the arms' DISTINCT legs (a leg in four
+slips counts once): hits beside the sum of 1/odds, the excess, single
+returns after tax, CLV, and the prompt - control difference with a 95%
+match bootstrap (legs of one match resampled together); the slip tables
+follow (they count a shared leg in every slip that holds it, so a slip-level
+gap is mostly leg concentration), then the analysts' refused legs beside
+their replacements and every ungraded leg by name.
 A slip's return is reported at the product of its legs' prices after the
 12% tax - a measurement of the arm, never a price of a slip.
 Exit: 0 OK, 1 a config failed / legs ungraded, 2 bad arguments.
@@ -45,6 +50,7 @@ import random
 import subprocess
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +66,7 @@ from scripts.sofa.merge_reads import SLIP_READS, SLIP_VETOES  # noqa: E402
 CHUNK = 10
 CONTROL_TOL = (0.05, 0.10, 0.20)
 CONTROL_TRIES = 20000
+BOOTSTRAP_DRAWS = 10000
 SKIP_ARGS = ("--md-out", "--json-out", "--read-set-dir", "--date", "--runs-dir")
 
 
@@ -198,13 +205,18 @@ def control(args: argparse.Namespace) -> int:
     base = round_dir(Path(args.out_dir), args.round)
     run_dir = Path(args.runs_dir) / args.date
     coupon = json.loads((run_dir / "11_coupon.json").read_text(encoding="utf-8"))
+    records: dict[str, dict[str, Any]] = {}
     for c in configs:
         cid = str(c["id"])
         rec_path = base / f"{cid}.json"
         if not rec_path.exists():
             print(f"{cid}: brak zapisu rundy {args.round}")
             continue
-        rec = json.loads(rec_path.read_text(encoding="utf-8"))
+        records[cid] = json.loads(rec_path.read_text(encoding="utf-8"))
+    # every prompt leg of the round stays out of every control: a leg drawn
+    # into both arms (from another config) cancels out of the difference
+    mine = prompt_legs(records.values())
+    for cid, rec in records.items():
         p = rec["params"]
         now = datetime.datetime.fromisoformat(rec["computed_at_utc"])
         pool, _ = sb.candidates(
@@ -223,8 +235,6 @@ def control(args: argparse.Namespace) -> int:
         )
         rng = random.Random(int(hashlib.sha256(cid.encode()).hexdigest()[:12], 16))
         drawn: list[sb.Slip] = []
-        # the prompt's own legs stay out: the control is the rest of the pool
-        mine = {g["result_key"] for s in rec["slips"] for g in s["legs"]}
         pool = [x for x in pool if key_of(x.leg) not in mine]
         for s in rec["slips"]:
             got = draw(pool, [float(g["odds"]) for g in s["legs"]], rng)
@@ -241,6 +251,19 @@ def control(args: argparse.Namespace) -> int:
             f"z puli {len(pool)}"
         )
     return 0
+
+
+def prompt_legs(records: Iterable[dict[str, Any]]) -> set[str]:
+    """The result keys of every slip and reserve leg of a round's prompt
+    records (all configs)."""
+    return {
+        str(g["result_key"])
+        for rec in records
+        for kind in ("slips", "reserve")
+        for s in rec.get(kind) or []
+        for g in s["legs"]
+        if "result_key" in g
+    }
 
 
 def draw(pool: list[sb.Leg], odds: list[float], rng: random.Random) -> sb.Slip | None:
@@ -388,7 +411,18 @@ def settle(args: argparse.Namespace) -> int:
     md.write_text(report["md"], encoding="utf-8")
     print(report["md"])
     unknown = sum(g["status"] == "unknown" for g in graded)
-    return 1 if unknown or not results else 0
+    if not results:
+        print("EXIT 1: brak 13_results.json - dzień nierozliczony", file=sys.stderr)
+        return 1
+    if unknown:
+        legs = report["summary"]["nieocenione"]
+        print(
+            f"EXIT 1: {unknown} kuponów nieocenionych przez {len(legs)} nóg "
+            "bez wyniku (lista w raporcie: 'Nogi bez oceny')",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
 
 
 def _final_round(graded: list[dict[str, Any]]) -> dict[str, str]:
@@ -449,7 +483,35 @@ def summarise(
             if g["arm"] == "control" and g["round"] == final.get(g["config"])
         ],
     }
-    summary = {k: _arm_stats(v) for k, v in arms.items()}
+    summary: dict[str, Any] = {k: _arm_stats(v) for k, v in arms.items()}
+    slip_arms = list(summary)
+    distinct = {k: distinct_legs(v) for k, v in arms.items()}
+    summary["nogi_unikalne"] = {k: _distinct_stats(v) for k, v in distinct.items()}
+    diff = match_bootstrap(
+        list(distinct["prompt (runda końcowa)"].values()),
+        list(distinct["kontrola losowa (runda końcowa)"].values()),
+    )
+    summary["roznica_prompt_kontrola"] = diff
+    reuse = _reuse(arms["prompt (runda końcowa)"])
+    summary["koncentracja"] = reuse
+    unknown = sorted(
+        {
+            str(g.get("result_key") or leg_ident(g)): g
+            for r in graded
+            for g in r["legs"]
+            if g["status"] == "unknown"
+        }.values(),
+        key=lambda g: (str(g.get("kickoff_utc")), str(g.get("match"))),
+    )
+    summary["nieocenione"] = [
+        {
+            "match": g.get("match"),
+            "superbet_market": g.get("superbet_market"),
+            "superbet_selection": g.get("superbet_selection"),
+            "result_key": g.get("result_key"),
+        }
+        for g in unknown
+    ]
     per_config: dict[str, dict[str, Any]] = {}
     for cid, rnd in sorted(final.items()):
         per_config[cid] = {
@@ -501,6 +563,32 @@ def summarise(
             "",
         ]
     lines += [
+        "## Nogi unikalne (wynik główny)",
+        "",
+        "Każda noga liczona raz, ile by kuponów jej nie miało. Nadwyżka = "
+        "trafienia − Σ 1/kurs; z = nadwyżka / √Σ p(1−p) (nogi traktowane jak "
+        "niezależne - mecze nie są, stąd bootstrap niżej); single = Σ zwrotów "
+        "nogi po 12% podatku na nogę.",
+        "",
+        "| ramię | nogi | oc. | W | Σ 1/kurs | nadwyżka | z | single ×0,88 "
+        "| CLV śr. (n) | mecze |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for name, st in summary["nogi_unikalne"].items():
+        lines.append(_distinct_row(name, st))
+    lines += ["", _diff_line(diff), ""]
+    if reuse["max_slips"] > 1:
+        lines += [
+            f"Koncentracja (prompt, runda końcowa): {reuse['legs']} różnych nóg "
+            f"w {reuse['slots']} miejscach; najczęstsza noga w "
+            f"{reuse['max_slips']} kuponach ({reuse['top']}). Tabela kuponów "
+            "niżej liczy taką nogę w każdym kuponie - różnica na kuponach to "
+            "głównie ta koncentracja, nie wybór.",
+            "",
+        ]
+    lines += [
+        "## Kupony",
+        "",
         "Zwrot = iloczyn kursów nóg × 0,88 − 1 na wygranej (pomiar ramienia, nie "
         "kurs kuponu Superbetu); noga zwrócona liczy się 1,0.",
         "",
@@ -508,10 +596,8 @@ def summarise(
         "| śr. zwrot | nogi W/oc. | Σ 1/kurs nóg | CLV śr. (n) |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
-    for name, st in summary.items():
-        if name == "wymienione_przez_odczyt":
-            continue
-        lines.append(_row(name, st))
+    for name in slip_arms:
+        lines.append(_row(name, summary[name]))
     lines += [
         "",
         "## Per konfiguracja (runda końcowa)",
@@ -536,7 +622,144 @@ def summarise(
         f"(runda 1 = {len(first)} konfiguracji).",
         "",
     ]
+    if unknown:
+        lines += ["## Nogi bez oceny", ""]
+        lines += [
+            f"- {g.get('match')} - {g.get('superbet_market')}: "
+            f"{g.get('superbet_selection')} (`{g.get('result_key')}`)"
+            for g in unknown
+        ]
+        lines += [
+            "",
+            "Powód w `07_settle_skips.json` dnia; luka statystyk zamyka się w "
+            "`resettle_sweep.py` - potem `settle` jeszcze raz.",
+            "",
+        ]
     return {"summary": {**summary, "per_config": per_config}, "md": "\n".join(lines)}
+
+
+def distinct_legs(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """An arm's legs, each once (by result key; a builder slot by its legs)."""
+    return {
+        str(g.get("result_key") or leg_ident(g)): g for r in rows for g in r["legs"]
+    }
+
+
+def _distinct_stats(legs: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    done = [g for g in legs.values() if g["status"] in ("won", "lost")]
+    p = [1 / float(g["odds"]) for g in done]
+    won = sum(g["status"] == "won" for g in done)
+    sd = math.sqrt(sum(x * (1 - x) for x in p))
+    single = sum(
+        (1 - sb.TAX) * float(g["odds"]) - 1 if g["status"] == "won" else -1.0
+        for g in done
+    )
+    clv = [float(g["clv"]) for g in legs.values() if g.get("clv") is not None]
+    return {
+        "legs": len(legs),
+        "graded": len(done),
+        "won": won,
+        "inv_odds_sum": sum(p),
+        "excess": won - sum(p),
+        "z": (won - sum(p)) / sd if sd else None,
+        "single_return": single / len(done) if done else None,
+        "clv_n": len(clv),
+        "clv_mean": sum(clv) / len(clv) if clv else None,
+        "matches": len({g.get("sofascore_event_id") for g in done}),
+    }
+
+
+def match_bootstrap(
+    a: list[dict[str, Any]],
+    b: list[dict[str, Any]],
+    draws: int = BOOTSTRAP_DRAWS,
+    seed: int = 1,
+) -> dict[str, Any]:
+    """Excess hits per leg (won - 1/odds), arm a minus arm b, with a 95%
+    bootstrap interval that resamples whole matches (one match's legs are
+    not independent)."""
+
+    def by_match(legs: list[dict[str, Any]]) -> list[list[float]]:
+        out: dict[Any, list[float]] = defaultdict(list)
+        for g in legs:
+            if g["status"] in ("won", "lost"):
+                out[g.get("sofascore_event_id")].append(
+                    (g["status"] == "won") - 1 / float(g["odds"])
+                )
+        return list(out.values())
+
+    def mean(ms: list[list[float]]) -> float:
+        n = sum(len(m) for m in ms)
+        return sum(x for m in ms for x in m) / n if n else 0.0
+
+    ma, mb = by_match(a), by_match(b)
+    if not ma or not mb:
+        return {"diff": None, "lo": None, "hi": None, "matches": [len(ma), len(mb)]}
+    rng = random.Random(seed)
+    sims = sorted(
+        mean([rng.choice(ma) for _ in ma]) - mean([rng.choice(mb) for _ in mb])
+        for _ in range(draws)
+    )
+    return {
+        "diff": mean(ma) - mean(mb),
+        "lo": sims[int(0.025 * draws)],
+        "hi": sims[int(0.975 * draws) - 1],
+        "matches": [len(ma), len(mb)],
+    }
+
+
+def _reuse(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    uses: dict[str, int] = defaultdict(int)
+    names: dict[str, str] = {}
+    for r in rows:
+        for g in r["legs"]:
+            k = str(g.get("result_key") or leg_ident(g))
+            uses[k] += 1
+            names[k] = (
+                f"{g.get('match')} - {g.get('superbet_market')}: "
+                f"{g.get('superbet_selection')}"
+            )
+    if not uses:
+        return {"legs": 0, "slots": 0, "max_slips": 0, "top": None}
+    top = max(uses, key=lambda k: uses[k])
+    return {
+        "legs": len(uses),
+        "slots": sum(uses.values()),
+        "max_slips": uses[top],
+        "top": names[top],
+    }
+
+
+def _distinct_row(name: str, st: dict[str, Any]) -> str:
+    z = "—" if st["z"] is None else f"{st['z']:+.2f}"
+    single = (
+        "—" if st["single_return"] is None else f"{100 * st['single_return']:+.1f}%"
+    )
+    clv = (
+        "—"
+        if st["clv_mean"] is None
+        else f"{100 * st['clv_mean']:+.2f}% ({st['clv_n']})"
+    )
+    return (
+        f"| {name} | {st['legs']} | {st['graded']} | {st['won']} "
+        f"| {st['inv_odds_sum']:.2f} | {st['excess']:+.2f} | {z} | {single} "
+        f"| {clv} | {st['matches']} |"
+    )
+
+
+def _diff_line(d: dict[str, Any]) -> str:
+    if d["diff"] is None:
+        return "Różnica prompt − kontrola: brak nóg ocenionych w jednym z ramion."
+    verdict = (
+        "przedział obejmuje zero - szum"
+        if d["lo"] <= 0 <= d["hi"]
+        else "przedział nie obejmuje zera (jeden dzień - nadal nie werdykt)"
+    )
+    return (
+        f"**Różnica nadwyżki na nogę prompt − kontrola: {d['diff']:+.3f}, 95% "
+        f"bootstrap po meczach [{d['lo']:+.3f}; {d['hi']:+.3f}] "
+        f"({d['matches'][0]} / {d['matches'][1]} meczów) - {verdict}.**"
+    )
 
 
 def _leg_stats(legs: list[dict[str, Any]]) -> dict[str, Any]:

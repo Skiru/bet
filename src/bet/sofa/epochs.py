@@ -150,6 +150,15 @@ SETTLEABILITY_DATE = "2026-10-06"
 SETTLEABILITY_FROM_UTC = datetime(2026, 10, 6, 0, 0, 0, tzinfo=UTC)
 
 
+# /kupon experiment 2026-11-01: the list was fitted once (10-05, days
+# 09-19..10-01) and never again - Cyprus 1st Division corners (171) went
+# 8 of 30 legs unsettled since without being listed. From this day a day D
+# reads the dated fit config/sofa_settleability.<D'>.json with the latest D'
+# <= D (written each morning by refresh_line_evidence.py with --before D,
+# before D's build), else the 10-05 file; earlier days keep the 10-05 file.
+SETTLEABILITY_DAILY_DATE = "2026-11-03"
+
+
 def settleability_gate(date: str, build_at: datetime | None = None) -> bool:
     """Does a build of `date` at `build_at` (default: now) refuse NOT_SETTLEABLE?"""
     at = build_at if build_at is not None else timeutil.now()

@@ -24,6 +24,13 @@ leg's confidence is read through (bet.sofa.line_evidence). Three steps:
    deliberate step (prepare_refit / fit_sport_confidence without --dry-run).
 2. fit_line_evidence.py --before <d> --sport-rows-dir <dir>, read against the
    curves the day <d> reads (sport_confidence.calibration_path_for).
+3. fit_settleability.py --before <d> --dated (from
+   epochs.SETTLEABILITY_DAILY_DATE): the (competition, family) cells whose
+   printed legs go ungraded for want of the statistic, refitted on the last
+   28 closed days into config/sofa_settleability.<d>.json, the file day <d>
+   reads (the list had been fitted once, 10-05; /kupon experiment 11-01).
+   It refuses a built day; a failure exits 1 and the day reads the latest
+   earlier list. --dry-run skips it.
 
 The rows are kept in data/line_evidence/rows_before_<d> (the evidence file
 names that directory, so the fit can be reproduced).
@@ -46,6 +53,12 @@ import sys
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
+for _p in (str(_REPO), str(_REPO / "src")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from bet.sofa.epochs import SETTLEABILITY_DAILY_DATE  # noqa: E402
+
 SPORTS = ("hockey", "basketball", "volleyball", "cs2")
 ROWS_ROOT = _REPO / "data" / "line_evidence"
 
@@ -110,6 +123,11 @@ def fit_commands(before: str, out: Path) -> list[list[str]]:
              "--out", str(out / f"cal_{s}.json")] for s in SPORTS]
 
 
+def settleability_command(before: str) -> list[str]:
+    return [sys.executable, "scripts/sofa/fit_settleability.py", "--before",
+            before, "--dated"]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--before", required=True,
@@ -167,6 +185,11 @@ def main() -> int:
     done = subprocess.run(cmd, cwd=_REPO)
     if done.returncode != 0:
         return 2
+    if not args.dry_run and args.before >= SETTLEABILITY_DAILY_DATE:
+        fit = subprocess.run(settleability_command(args.before), cwd=_REPO)
+        print(f"settleability: exit {fit.returncode}", flush=True)
+        if fit.returncode != 0:
+            failed.append("settleability")
     return 1 if failed else 0
 
 

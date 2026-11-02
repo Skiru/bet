@@ -1,5 +1,21 @@
 # Eksperyment /kupon 2026-11-01 - rozliczenie
 
+## Nogi unikalne (wynik główny)
+
+Każda noga liczona raz, ile by kuponów jej nie miało. Nadwyżka = trafienia − Σ 1/kurs; z = nadwyżka / √Σ p(1−p) (nogi traktowane jak niezależne - mecze nie są, stąd bootstrap niżej); single = Σ zwrotów nogi po 12% podatku na nogę.
+
+| ramię | nogi | oc. | W | Σ 1/kurs | nadwyżka | z | single ×0,88 | CLV śr. (n) | mecze |
+|---|---|---|---|---|---|---|---|---|---|
+| prompt (runda końcowa) | 29 | 27 | 22 | 19.29 | +2.71 | +1.16 | +0.4% | +0.36% (17) | 24 |
+| prompt (runda 1, przed odczytem) | 33 | 31 | 26 | 22.21 | +3.79 | +1.52 | +3.1% | +0.41% (20) | 26 |
+| kontrola losowa (runda końcowa) | 54 | 54 | 37 | 40.14 | -3.14 | -0.98 | -18.5% | +0.26% (41) | 46 |
+
+**Różnica nadwyżki na nogę prompt − kontrola: +0.158, 95% bootstrap po meczach [-0.028; +0.332] (24 / 46 meczów) - przedział obejmuje zero - szum.**
+
+Koncentracja (prompt, runda końcowa): 29 różnych nóg w 67 miejscach; najczęstsza noga w 6 kuponach (Hausmannstatten - UVC Graz 2 - Handicap setowy: UVC Graz 2 (1.5)). Tabela kuponów niżej liczy taką nogę w każdym kuponie - różnica na kuponach to głównie ta koncentracja, nie wybór.
+
+## Kupony
+
 Zwrot = iloczyn kursów nóg × 0,88 − 1 na wygranej (pomiar ramienia, nie kurs kuponu Superbetu); noga zwrócona liczy się 1,0.
 
 | ramię | kupony | W | L | zwrot | ? | Σ szansa (W+L) | Σ 1/iloczyn (W+L) | śr. zwrot | nogi W/oc. | Σ 1/kurs nóg | CLV śr. (n) |
@@ -47,3 +63,10 @@ Zwrot = iloczyn kursów nóg × 0,88 − 1 na wygranej (pomiar ramienia, nie kur
 - weszły: {'n': 1, 'won': 1, 'graded': 1, 'inv_odds_sum': 0.72}
 
 Konfiguracje: C01=r3, C02=r3, C03=r3, C04=r3, C05=r3, C06=r3, C07=r3, C08=r3, C09=r3, C10=r3, C11=r3, C12=r3, C13=r3, C14=r3 (runda 1 = 14 konfiguracji).
+
+## Nogi bez oceny
+
+- ALS Omonia - Nea Salamina Famagusta - Liczba rzutów rożnych: poniżej 11.5 (`[16633409, "corners_total", "", 11.5, "UNDER"]`)
+- RS Berkane - Raja Club Athletic - Liczba rzutów rożnych: powyżej 6.5 (`[17371447, "corners_total", "", 6.5, "OVER"]`)
+
+Powód w `07_settle_skips.json` dnia; luka statystyk zamyka się w `resettle_sweep.py` - potem `settle` jeszcze raz.

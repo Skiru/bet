@@ -31,6 +31,10 @@ named, never shown as passed:
     identity      sport_fixtures.json: any BRIDGE_ABORTED refusal, or a
                   sport's identified share under its measured floor
                   (IDENTITY_MIN_SHARE, from IDENTITY_MIN_EVENTS events)
+    settleability the NOT_SETTLEABLE list the day reads: its own dated fit
+                  (config/sofa_settleability.<D>.json, refresh_line_evidence
+                  step 3) or WARN naming the older one; NOT_CHECKED before
+                  epochs.SETTLEABILITY_DAILY_DATE
     backfill      a backfill driver log (runs/sofa/backfill/*.log) whose last
                   start / STOP line is a STOP of the last 12 h
                   (backfill_driver.py gave up on the bridge; WARN)
@@ -63,6 +67,7 @@ from bet.sofa.clv import CLOSE_MIN_MINUTES, is_close  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
 from bet.sofa.icloud_sync import differences as icloud_differences  # noqa: E402
+from bet.sofa.settleability import path_for as settleability_path_for  # noqa: E402
 from scripts.sofa.audit_clv import closing_rows  # noqa: E402
 from scripts.sofa.build_coupon_pdf import (  # noqa: E402
     confidence_older_than_sheet,
@@ -490,6 +495,18 @@ def icloud_check(runs: Path, date: str) -> Check:
     return Check("icloud", OK, f"{dest}: pdf + html equal to the local render")
 
 
+def settleability_check(date: str, config: Path | None = None) -> Check:
+    if date < epochs.SETTLEABILITY_DAILY_DATE:
+        return Check("settleability", NOT_CHECKED,
+                     f"daily fit from {epochs.SETTLEABILITY_DAILY_DATE}")
+    read = settleability_path_for(date, config)
+    if read.name == f"sofa_settleability.{date}.json":
+        return Check("settleability", OK, f"{read.name}")
+    return Check("settleability", WARN,
+                 f"no fit for {date}; the day reads {read.name} - "
+                 f"fit_settleability.py --before {date} --dated before the build")
+
+
 def fixtures_check(run: Path) -> Check:
     status = fs.load(run)
     if not status:
@@ -603,6 +620,7 @@ def checks(runs: Path, date: str, now: datetime,
         clv_check(runs, date, now),
         coupon_check(run, now),
         icloud_check(runs, date),
+        settleability_check(date),
         fixtures_check(run),
         identity_check(run),
         history_check(runs, date, db_path),

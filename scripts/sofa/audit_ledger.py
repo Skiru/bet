@@ -150,7 +150,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
-                "od 11-02")
+                "od 11-02", "od 11-03")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -251,10 +251,16 @@ PRICE_GAP_OFFSET_EPOCH_FROM_DATE = "2026-10-31"
 # and removed, so what prints changes: a new epoch (no read of 11-02 had
 # been made when the operator moved it into the day, so not mixed).
 READS_ON_REQUEST_EPOCH_FROM_DATE = "2026-11-02"
+# The NOT_SETTLEABLE list refitted every morning (epochs.SETTLEABILITY_DAILY_
+# DATE, 2026-11-03; it had stood on the 10-05 fit): 8 more (competition,
+# family) cells refused on its first fit - what prints changes: a new epoch.
+SETTLEABILITY_DAILY_EPOCH_FROM_DATE = "2026-11-03"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= SETTLEABILITY_DAILY_EPOCH_FROM_DATE:
+            return "od 11-03"
         if str(row.get("date", "")) >= READS_ON_REQUEST_EPOCH_FROM_DATE:
             return "od 11-02"
         if str(row.get("date", "")) >= PRICE_GAP_OFFSET_EPOCH_FROM_DATE:

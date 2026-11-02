@@ -172,10 +172,24 @@ def test_merge_stamps_reads_once_and_records_sections(tmp_path: Path) -> None:
     assert len(again) == 1 and again[0]["read_at_utc"] == stamp
     store = json.loads((run / analyses.STORE).read_text())
     assert store["events"]["101"][0]["report"] == path.name
-    # a chat slip's merge never touches the coupon's store
+    # a chat slip's merge never touches the coupon's store - its sections go
+    # to the slip's own store, which build_slip reads beside the coupon's
     (run / analyses.STORE).unlink()
     assert merge_reads.main([*args, "--slip"]) == 0
     assert not (run / analyses.STORE).exists()
+    slip = json.loads((run / analyses.SLIP_STORE).read_text())
+    assert slip["events"]["101"][0]["report"] == path.name
+
+
+def test_merged_stores_put_the_newest_section_first() -> None:
+    """/kupon experiment 11-01 (O5): a match read in an earlier slip got a
+    full pass again - the slip's store now joins the coupon's."""
+    morning = {"author": "analyst", "report": "a.md", "recorded_at_utc": T8}
+    slip = {"author": "analyst", "report": "k.md", "recorded_at_utc": T12}
+    both = analyses.merged({"events": {"5": [morning]}},
+                           {"events": {"5": [slip], "6": [slip]}})
+    assert [e["report"] for e in both["events"]["5"]] == ["k.md", "a.md"]
+    assert analyses.latest(both, 6, "analyst")["report"] == "k.md"
 
 
 def test_a_report_without_sections_is_named_not_refused(
