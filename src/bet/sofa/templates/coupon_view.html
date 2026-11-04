@@ -331,6 +331,7 @@ const f3=v=>v==null?"—":v.toFixed(3),f2=v=>v==null?"—":v.toFixed(2);
 function tags(r){let t="";
   if(r.peer)t+='<span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
   if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
+  if(r.rating_market_gap)t+='<span class="tag warn">'+esc(r.rating_market_gap)+'</span>';
   if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+='<span class="tag bad">'+r.verdict+'</span>';

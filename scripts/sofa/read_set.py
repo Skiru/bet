@@ -103,7 +103,8 @@ FIELDS = (
     "position", "group_key", "sport", "match", "competition", "kickoff_utc",
     "sofascore_event_id", "market", "subject", "line", "direction", "period",
     "superbet_market", "superbet_selection", "confidence", "offered_odds",
-    "locked", "price_gap", "superbet_event_id", "source_date", "model_p",
+    "locked", "price_gap", "rating_market_gap", "superbet_event_id",
+    "source_date", "model_p",
     "forecast_p", "calibrated_on", "sample_size", "sample_hit_rate",
     "sample_oldest_days", "sample_newest_days", "context_flags",
     # a builder leg carries `odds`; a measured-sport leg `family` / `side` /

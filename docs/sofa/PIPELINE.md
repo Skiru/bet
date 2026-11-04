@@ -2597,6 +2597,42 @@ niego 08).
     noga CS2 ma też pewność uciętą do 1/kurs + `GAP` w kolejności czytania
     analityków (`confidence.read_value`) - dlatego przełącznik od następnego
     dnia. W dokumencie `price_gap.later_sports`. Test: `T-CS2-PRICE-GAP-flag`.
+  - `rating_market_gap` na nodze piłkarskiej i podsumowanie
+    `rating_market_gap` w dokumencie (od `epochs.RATING_MARKET_GAP_FROM_UTC` =
+    2026-11-04 00:00Z, decyzja operatora 2026-11-04 „wdróż od dzisiaj";
+    `bet.sofa.rating_market_gap`, liczone w CONFIDENCE, przenoszone przez
+    COUPON). Dwa obrazy meczu: **nasz** - czyste centra ratingu z not SHEET
+    (`05_sheet.json`: nota `FOOTBALL_RATING` wiersza `goals_total`, inaczej
+    noty obu `goals_for`, inaczej „pure rating centres" noty wyniku) i
+    **rynku** - dwa niezależne rozkłady NB goli (r = `FOOTBALL_RESULT_NB_R`)
+    dopasowane najmniejszymi kwadratami (siatka 0,05..5,0 co 0,025) do
+    prawdopodobieństw bez marży z `04_offer.json`: 1X2 „1" i „2", podwójna
+    szansa „12", drabiny `goals_for` obu drużyn i `goals_total`. Mecz bez 1X2
+    1 + 2 albo bez obu sum drużyn, albo bez ratingu - brak wpisu, nigdy
+    zgadywanie. D = różnica goli faworyta rynku według rynku minus według nas
+    (dla tej samej strony). Noga **zależna** od siły faworyta (faworyt -
+    liczba goli poniżej, słabszy - liczba goli powyżej, wynik słabszego: 1X2
+    słabszy lub remis, podwójna szansa słabszy+X, DNB słabszy, handicap
+    słabszy +L, „słabszy/remis lub poniżej": `result_or_under` słabszy lub X,
+    `dc_and_under` 1X gdy gospodarz jest słabszy; tylko cały mecz) przy D >=
+    1,0 dostaje flagę `RATING_BELOW_MARKET_MARGIN` z `d`, λ rynku i ratingu,
+    stroną faworyta i zmierzonymi liczbami. Na PDF, HTML i w `.md`: „rynek
+    widzi faworyta (FC Seoul) o 2,1 gola mocniej niż nasz rating (rynek
+    +2,53, rating +0,45) - takie nogi trafiały ok. ceny, poniżej pewności
+    (wydrukowane 25.10-3.11: -3,4 pp wobec nóg bez rozjazdu [-9,3; +2,6])".
+    Pomiar (`docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md`):
+    wydrukowane nogi zależne, D >= 1,0 minus D -0,5..0,5 - względem ceny dev
+    (do 10-24) -6,1 pp [-11,7; -0,3], hold-out (od 10-25) +1,8 pp [-4,3;
+    +7,5]; względem pewności dev -12,9 pp, hold-out -3,4 pp [-9,3; +2,6],
+    wszystkie dni -8,6 pp [-13,0; -4,7] na 963 nogach / 360 meczach. Wynik
+    idzie za ceną, liczba za ratingiem - ten sam mechanizm co `price_gap`.
+    Nogi po stronie rynku (faworyt powyżej, faworyt wygra) nie są flagowane
+    (realizowały się powyżej pewności). **Adnotacja: żadna noga nie jest
+    dodana, zdjęta ani przestawiona, żadna pewność się nie rusza, nie wchodzi
+    do `confidence.read_value`, sama nie jest podstawą WATCH / NO_BET; bez
+    grupy epok księgi.** Podejrzenie (nie pomiar): puchary kontynentalne
+    -16,8 pp względem ceny na 14 meczach hold-out - ponowny pomiar przy ~100.
+    Test: `T-RATING-MARKET-GAP-flag`.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

@@ -717,6 +717,32 @@
           "quote": "S2 - mocny efekt na dev, który się nie powtórzył na kontroli"
         }
       ]
+    },
+    {
+      "id": "T-RATING-MARKET-GAP-flag",
+      "registered_on": "2026-11-04",
+      "status": "REGISTERED",
+      "hypothesis": "A printed football leg carrying rating_market_gap (bet.sofa.rating_market_gap, RATING_BELOW_MARKET_MARGIN: a leg dependent on the favourite's strength where Superbet's expected goal margin for its favourite exceeds our pure rating's by D >= 1.0) realises below its printed confidence and about at its price, worse against its confidence than the printed dependent legs at D -0.5..0.5.",
+      "rule": "Over the coupon's football singles (11_coupon.json) graded WIN / LOSS in sofa_settled_row, the legs with rating_market_gap against the printed dependent legs (same group set, rating_market_gap.DEPENDENT) of matches with D in [-0.5, 0.5) recomputed by rating_market_gap.views_by_event from the day's 04_offer.json / 05_sheet.json. Report realised minus mean confidence and minus mean 1/odds per group and their difference.",
+      "population": "Legs of the official coupon from 2026-11-05, locked legs included, a leg removed by a read excluded; football only.",
+      "data_window": {
+        "from": "2026-11-05",
+        "to": null
+      },
+      "required_n": {
+        "legs": 500,
+        "matches_min": 200,
+        "basis": "printed dependent D >= 1 ran ~32 legs a day (963 legs / 360 matches 10-05..11-03); hold-out -3.4 pp [-9.3, +2.6] vs confidence on ~200 matches; ~500 flagged legs in ~200 matches to halve that width."
+      },
+      "evaluation": "Difference flagged minus D -0.5..0.5 dependent legs, realised minus confidence and realised minus 1/odds, match bootstrap 1000 (independent per group).",
+      "stop_criterion": "Judged once at the required n: PASSED when the flagged minus band difference vs confidence has its upper 95% bound below 0 (the sentence is right); FAILED when its lower bound is above -2 pp (the annotation over-warns and is proposed for withdrawal to the operator). Either way nothing prints differently; a confidence correction would need its own measurement and go.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md",
+          "line": 1,
+          "quote": "hold-out ≥ 10-25 | **+1,8 [−4,3; +7,5]** | +2,3 [−5,3; +10,2] | −3,4 [−9,3; +2,6]"
+        }
+      ]
     }
   ]
 }

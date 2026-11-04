@@ -83,6 +83,7 @@ names, not bare `sofascore_event_id`s.
 | `forecast_p` (**model**), `forecast_source` | the rating's uncalibrated number; on several families it **is** `model_p` (sport skill) | shown, never a reason |
 | `offered_odds`, x = confidence x odds | the price and the betting condition (x >= 0.90), already applied | never evidence for or against a leg |
 | `price_gap` | confidence above 1/odds + 0.03: such legs realised about at their price | annotation, quote at the price |
+| `rating_market_gap` | football: Superbet's goal margin for its favourite exceeds our rating's by >= 1.0 (`d`, `market_margin`, `rating_margin`) on a leg that depends on the favourite's strength; such legs realised about at their price, below their confidence | context only - never a WATCH / NO_BET ground on its own; a removal still needs a dated fact or a defect |
 | `context_flags`, `stakes`, `peer` | schedule flags, table-stakes direction, the surer leg of a match at a similar price | questions you answer, never gates |
 
 Recompute a number only **from the row's own fields** (say so). Never present `p_bar`, `surplus`,

@@ -132,6 +132,10 @@ stage stops the stages after it (`SKIPPED`).
 - **Annotations, never gates:** `price_gap` (`CONFIDENCE_ABOVE_PRICE`:
   confidence > 1/odds + 0.03 - such legs realised about at their price;
   football, tennis and, from 2026-10-21, CS2),
+  `rating_market_gap` (`RATING_BELOW_MARKET_MARGIN`, football from
+  2026-11-04: a leg dependent on the favourite's strength where Superbet's
+  goal margin for its favourite exceeds our rating's by >= 1.0 - such legs
+  realised about at their price, below their confidence; context only),
   `peer` (★ the surer of two same-price legs of a match), stakes flags,
   `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`).
 - **Confidence review 2026-10-27, live from 2026-10-28 00:00Z** (model-state.md;

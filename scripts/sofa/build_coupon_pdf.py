@@ -45,6 +45,7 @@ from reportlab.platypus import (  # noqa: E402
 from bet.sofa import (  # noqa: E402
     analyses,  # noqa: E402
     price_gap,
+    rating_market_gap,
     timeutil,
 )
 from bet.sofa import coupon_results as cr  # noqa: E402
@@ -383,6 +384,15 @@ def price_gap_label(leg: dict[str, Any]) -> str:
     """bet.sofa.price_gap: a confidence above the price, and what such legs
     realised. Shown, never a gate."""
     text = price_gap.label(leg)
+    if not text:
+        return ""
+    return f"<br/><font size=6.5 color='#b25b00'>{escape(text)}</font>"
+
+
+def rating_market_gap_label(leg: dict[str, Any]) -> str:
+    """bet.sofa.rating_market_gap: Superbet sees the favourite much stronger
+    than our rating, and what such legs realised. Shown, never a gate."""
+    text = rating_market_gap.label(leg)
     if not text:
         return ""
     return f"<br/><font size=6.5 color='#b25b00'>{escape(text)}</font>"
@@ -941,7 +951,8 @@ def main() -> int:
             elif started_at_render(leg, now):
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
-            same += read_label(leg) + context_label(leg) + price_gap_label(leg)
+            same += (read_label(leg) + context_label(leg) + price_gap_label(leg)
+                     + rating_market_gap_label(leg))
             srows.append([
                 Paragraph(str(i), small),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -1326,7 +1337,7 @@ def render_stats_only(
                                "renderem PDF</b></font>")
             match_cell += (read_label(leg) + context_label(leg)
                            + stakes_label(leg) + price_gap_label(leg)
-                           + peer_label(leg))
+                           + rating_market_gap_label(leg) + peer_label(leg))
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
             if lno is not None and lno not in pos_headed:

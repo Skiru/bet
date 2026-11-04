@@ -3518,3 +3518,27 @@ def price_gap_offset_sports(date: str,
     if not _audit_1023_on(PRICE_GAP_OFFSET_FROM_UTC, date, build_at):
         return frozenset()
     return PRICE_GAP_OFFSET_SPORTS
+
+
+# A football leg whose correctness depends on how strong the favourite is
+# (bet.sofa.rating_market_gap.DEPENDENT: favourite's team goals UNDER,
+# underdog's team goals OVER, the underdog's result, underdog / draw or under)
+# in a match where Superbet's expected goal margin for its favourite exceeds
+# our rating's by >= rating_market_gap.THRESHOLD (1.0 goal) carries a
+# `rating_market_gap` entry and a sentence on the PDF / HTML: such legs
+# realised about at their price, below their confidence (printed, hold-out
+# from 10-25, minus the D -0.5..0.5 band: -3.4 pp [-9.3, +2.6] vs confidence,
+# +1.8 pp [-4.3, +7.5] vs price; docs/sofa/evidence/
+# rating_vs_market_disagreement_2026-11-04.md). Annotation only: no leg is
+# added, removed or re-ranked, no confidence moves, confidence.read_value
+# does not read it, no read / veto rests on it - so no ledger epoch group.
+# Operator 2026-11-04 ("wdróż od dzisiaj"): moved into that day; a build of
+# 11-04 before the code carries no entry, one after it does, the print is the
+# same.
+RATING_MARKET_GAP_FROM_UTC: datetime | None = datetime(2026, 11, 4, 0, 0, tzinfo=UTC)
+
+
+def rating_market_gap(date: str, build_at: datetime | None = None) -> bool:
+    """Does the build annotate rating-vs-market disagreement
+    (RATING_MARKET_GAP_FROM_UTC on the day being built and the build clock)?"""
+    return _audit_1023_on(RATING_MARKET_GAP_FROM_UTC, date, build_at)

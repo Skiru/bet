@@ -172,7 +172,9 @@ it with a scratch `--runs-dir` or it overwrites the day's real 08.
   of the chain: a leg that passed every gate goes to `removed_by_reads`
   (`refusal`, `reason` = authors or `auto`);
 - singles sort by `confidence.coupon_sort_key`; builders as in `arithmetic.md`;
-- annotations: `price_gap`, `peer`, stakes, `context_flags`, `sample_hit_rate`.
+- annotations: `price_gap`, `rating_market_gap` (football, from 2026-11-04;
+  views from 04_offer + 05_sheet, one per match), `peer`, stakes,
+  `context_flags`, `sample_hit_rate`.
 
 Refusals (the `refused` counter): `NO_PRICE`, `ODDS_TOO_LOW` (< 1.0867),
 `NO_FIXTURE`, `VETOED`, `FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF`,

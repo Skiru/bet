@@ -50,6 +50,7 @@ from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
 from bet.sofa import price_gap as pg  # noqa: E402
+from bet.sofa import rating_market_gap as rmg  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa import stakes as stakes_mod  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
@@ -307,6 +308,14 @@ def assemble(
                 if b.get("builder_no") and b.get("screen_odds") is not None),
         },
     })
+    # bet.sofa.rating_market_gap: annotated by CONFIDENCE (it reads the sheet
+    # and the offer), carried on the legs as they are; counted here on the
+    # coupon's own singles (the day window may drop some)
+    if isinstance(doc.get("rating_market_gap"), dict):
+        doc["rating_market_gap"] = {
+            **doc["rating_market_gap"],
+            "legs": sum(1 for s in out_singles if s.get("rating_market_gap")),
+        }
     return doc
 
 
@@ -418,8 +427,9 @@ def prepare_sports(
 
 
 def _note(leg: dict[str, Any]) -> str:
-    """The peer proposal, the stakes and the price gap of a leg, as plain text."""
-    parts = [pc.label(leg), pg.label(leg)]
+    """The peer proposal, the stakes, the price gap and the rating-vs-market
+    gap of a leg, as plain text."""
+    parts = [pc.label(leg), pg.label(leg), rmg.label(leg)]
     st = leg.get("stakes")
     if st:
         parts.append(", ".join(st["flags"])

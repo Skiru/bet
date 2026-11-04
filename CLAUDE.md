@@ -272,6 +272,24 @@ and a miss recorded before a rule's switch never blocks that rule.
   settled Superbet lines 09-28..10-19: -18.6 pp [-27.1, -10.1] on 238 lines,
   `measure_cs2_price_gap.py`, `T-CS2-PRICE-GAP-flag`); hockey / basketball /
   volleyball carry none.
+- **Rating below the market's margin** (annotation only,
+  `RATING_MARKET_GAP_FROM_UTC` 2026-11-04 00:00Z, operator "wdróż od
+  dzisiaj"; `bet.sofa.rating_market_gap`, written by CONFIDENCE): a football
+  leg that depends on the favourite's strength (favourite's team goals UNDER,
+  underdog's team goals OVER, the underdog's result / DC / DNB / +handicap,
+  underdog or draw "lub poniżej"; full match only) in a match where Superbet's
+  expected goal margin for its favourite (NB fit to 1X2 / DC 12 / team and
+  match totals of 04_offer) exceeds our pure rating's (SHEET's notes) by D >=
+  `THRESHOLD` 1.0 carries `rating_market_gap` (`RATING_BELOW_MARKET_MARGIN`)
+  and a sentence on the PDF / HTML / md. Such legs realised about at their
+  price, below their confidence (printed, D >= 1 minus D -0.5..0.5, hold-out
+  from 10-25: -3.4 pp [-9.3, +2.6] vs confidence, +1.8 [-4.3, +7.5] vs price;
+  `docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md`). Nothing
+  moves: not a gate, not in `read_value`, never a read ground on its own; no
+  ledger group. Missing either view = no entry; an error, or no view at all
+  on a day of >= 20 football matches (SHEET's note wording moved), is a
+  `WARN rating_market_gap` on CONFIDENCE's stderr and never stops the build
+  (`rating_market_gap.safe_views`). `T-RATING-MARKET-GAP-flag`.
 - **Bet Builders:** one per fixture, by best `combined_probability`; an internal
   haircut x >= 0.90 decides stakeable and is never printed. **sofa does not
   price a builder**: the PDF shows its legs with Superbet's single prices, the

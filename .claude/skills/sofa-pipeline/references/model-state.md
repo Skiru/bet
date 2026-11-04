@@ -490,6 +490,30 @@ gain. Basketball too thin (68-259 printed legs), volleyball lost ROI in one
 split (-2.95 pp [-5.86, -0.12]), CS2 not measurable. Report
 `docs/sofa/history/OFFSET_WG_ODLEGLOSCI_OD_CENY_2026-10-30.md`.
 
+### Rating vs market disagreement annotation (2026-11-04 00:00Z into the built day; operator 2026-11-04 "wdróż od dzisiaj"; display only, no ledger epoch group)
+
+| constant | from | what | evidence |
+|---|---|---|---|
+| `RATING_MARKET_GAP_FROM_UTC` | 11-04 00:00 | `rating_market_gap` annotation (`RATING_BELOW_MARKET_MARGIN`, `bet.sofa.rating_market_gap`, written by CONFIDENCE, carried to `11_coupon.json`, sentence on PDF / HTML / md, read_set leg field): a football leg dependent on the favourite's strength (favourite's `goals_for` UNDER, underdog's `goals_for` OVER, underdog's result - 1X2 underdog or X, DC underdog+X, DNB underdog, `result_handicap` underdog +L - and `result_or_under` underdog / X, `dc_and_under` 1X when home is the underdog; full match only) where D = market's goal margin for its favourite - our rating's for that side >= 1.0 | `docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md` |
+
+Ours = the pure rating centres from SHEET's notes (goals_total
+`FOOTBALL_RATING` note, else both goals_for notes, else a result note's "pure
+rating centres"); market = two independent NB goal counts (r =
+`FOOTBALL_RESULT_NB_R`, `sofa_football_result.json`) least-squares on a
+0.05..5.0 / 0.025 grid to the devigged 1X2 1 / 2, DC 12, both team-total and
+the match-total ladders of 04_offer; a match needs 1X2 1 + 2 or both team
+totals, else no entry. Measured (days 09-24..11-03, printed from 10-05, match
+bootstrap), printed dependent legs, D >= 1.0 minus D -0.5..0.5: vs price dev
+(<= 10-24) -6.1 pp [-11.7, -0.3], hold-out (>= 10-25) +1.8 [-4.3, +7.5]; vs
+confidence dev -12.9 [-18.8, -6.9], hold-out -3.4 [-9.3, +2.6], all days -8.6
+[-13.0, -4.7] on 963 legs / 360 matches; ROI -3.6 pp [-9.3, +1.8]. Realised
+about at the price, below the confidence - the same mechanism as `price_gap`
+(D carries about the same; any excess within noise). Market-side legs
+(favourite OVER / wins) realised +16.1 pp above their confidence at D >= 1
+(whole ladder) and are not flagged. Annotation only: nothing added, removed,
+re-ranked; no confidence moves; not in `confidence.read_value`; never a read /
+veto ground on its own. Pre-registered: `T-RATING-MARKET-GAP-flag`.
+
 ### Measured sports - other live facts
 
 - Basketball A7 hybrid (2026-10-15 11:29:38Z, operator "WŁĄCZ JUŻ DZISIAJ",
@@ -950,6 +974,13 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (e) Open questions, not modelled yet, before the next refit
 
+- **Continental cups at a big rating-vs-market gap (2026-11-04)**: whole
+  ladder, hold-out, D >= 1: 14 matches, -16.8 pp [-29.6, -3.8] against the
+  price (printed 10 matches, -16.6 pp [-44.3, +7.9]) - a **suspicion**, not a
+  measurement (`docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md`);
+  domestic cups the other way (printed +7.6 pp [-0.6, +16.3]). Re-measure at
+  ~100 hold-out continental matches before anything; the annotation
+  (`rating_market_gap`) is the only thing live.
 - **Results awarded at the table in the football rating (2026-10-29)**:
   `AWARDED_EXCLUDED` drops them from the rating history too, but the rating
   read without them is no better one step ahead (+0.00011 [+0.00003,

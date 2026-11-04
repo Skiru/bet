@@ -33,6 +33,7 @@ from bet.sofa import dossier, priced_view
 from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
+from bet.sofa.rating_market_gap import label as rating_market_gap_label
 from bet.sofa.superbet_names import annotate as name_on_superbet
 from bet.sofa.superbet_names import board_sides
 from bet.sofa.superbet_names import label as superbet_label
@@ -274,6 +275,9 @@ def build_view(
             "peer": peer_label(leg),
             # bet.sofa.price_gap: confidence above the price, the PDF's sentence
             "price_gap": price_gap_label(leg),
+            # bet.sofa.rating_market_gap: the market's favourite much stronger
+            # than our rating, the PDF's sentence
+            "rating_market_gap": rating_market_gap_label(leg),
             "verdict": _verdict(leg),
             # in the read set (confidence.legs_requiring_read) ...
             "read": id(leg) in read_ids,

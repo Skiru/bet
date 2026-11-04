@@ -43,6 +43,7 @@ from bet.sofa import (  # noqa: E402
     timeutil,
 )
 from bet.sofa import fixture_status as fs  # noqa: E402
+from bet.sofa import rating_market_gap as rmg  # noqa: E402
 from bet.sofa.artifact_guard import incomplete_reason  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -1375,6 +1376,26 @@ def main() -> int:
     for r in reads_unmatched:
         print(f"UNMATCHED_READ: {r.model_dump_json()}", file=sys.stderr)
 
+    # epochs.RATING_MARKET_GAP_FROM_UTC: a football leg that depends on how
+    # strong the favourite is, in a match where Superbet's goal margin for its
+    # favourite exceeds our rating's by >= 1 goal, says what such legs
+    # realised (bet.sofa.rating_market_gap). Annotation only - nothing is
+    # added, removed or re-ranked; a locked leg is re-annotated on every
+    # build, as build_coupon re-annotates price_gap. One view per match.
+    rmg_active = epochs.rating_market_gap(args.date, now)
+    rmg_legs = [x for x in [*singles, *legs]
+                if x.get("sport", "football") == "football"]
+    rmg_views: dict[int, rmg.EventView] = {}
+    if rmg_active:
+        rmg_views, rmg_warn = rmg.safe_views(
+            sheet, offers, {int(x["sofascore_event_id"]) for x in rmg_legs},
+            {int(e): (f.get("home_name"), f.get("away_name"))
+             for e, f in fixtures.items()},
+        )
+        if rmg_warn:
+            print(rmg_warn, file=sys.stderr)
+    rmg.annotate_legs(rmg_legs, rmg_views, rmg_active)
+
     out: dict[str, Any] = {
         "created_at_utc": now.isoformat().replace("+00:00", "Z"),
         "profile": profile.name,
@@ -1389,6 +1410,20 @@ def main() -> int:
         **({"gap_shrink_k": cal.gap_shrink_k} if cal.gap_shrink_k > 0 else {}),
         # Written only when K13b acts, so an older build reads as it did.
         **({"pool_neighbour_cap": True} if cal.cap_pool_by_neighbour else {}),
+        # Written only from the switch, so an older build reads as it did.
+        **(
+            {
+                "rating_market_gap": {
+                    "active": True,
+                    "active_from_utc": "2026-11-04T00:00:00Z",
+                    "threshold": rmg.THRESHOLD,
+                    "matches_with_both_views": len(rmg_views),
+                    "legs": sum(1 for s_ in singles
+                                if s_.get("rating_market_gap")),
+                },
+            }
+            if rmg_active else {}
+        ),
         "vetoes_applied": len(vetoes) - len(unmatched),
         "vetoes_unmatched": len(unmatched),
         # Written only when something was carried over, so an artifact
