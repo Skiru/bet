@@ -290,6 +290,7 @@ def _grade_leg_valued(
             if ev.get("t1_reg") is not None and ev.get("t2_reg") is not None
             else None
         ),
+        halves=ev.get("score_source") == "halves",
     )
     sline = shadow.ShadowLine(
         leg["superbet_event_id"],

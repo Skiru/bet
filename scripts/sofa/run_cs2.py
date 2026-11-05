@@ -21,6 +21,10 @@ too, into D+1's file: it is D's coupon's, and D+1's own loop starts only at
 23:30Z on D - after the operator's evening rebuild.
 
 Writes runs/sofa/cs2/<date>/snapshots.jsonl (and <date+1>/ for those).
+Every odd of a market the snapshot does not read (cs2.reads_market) goes,
+from the payload already fetched, to runs/sofa/<day>/unmapped_prices/
+cs2_<ts>.jsonl.gz (bet.sofa.unmapped_prices; a record, read by nothing; a
+failed write never fails the snapshot).
 Exit: 0 OK, 1 PARTIAL (an event
 fetch failed), 2 FAILED (the board itself could not be read).
 """
@@ -39,7 +43,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from bet.sofa import epochs  # noqa: E402
+from bet.sofa import epochs, unmapped_prices  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import (  # noqa: E402
@@ -48,6 +52,7 @@ from bet.sofa.cs2 import (  # noqa: E402
     append_records,
     cs2_day_dir,
     parse_event,
+    reads_market,
 )
 from bet.sofa.errors import CircuitOpenError  # noqa: E402
 from bet.sofa.stage import set_stage  # noqa: E402
@@ -102,6 +107,8 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str,
     if late_end is not None:
         metrics["next_day_events_with_lines"] = 0
     records: dict[str, list[dict[str, Any]]] = {date: [], next_day: []}
+    # bet.sofa.unmapped_prices: the odds of markets the snapshot does not read
+    unmapped: dict[str, list[dict[str, Any]]] = {date: [], next_day: []}
     fetched_ok = 0
     not_reached = 0
     for index, r in enumerate(rows):
@@ -137,7 +144,12 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str,
             metrics["fetch_failed"] += 1
             continue
         fetched_ok += 1
-        lines = parse_event(odds_items(payload), event_id, team1, team2)
+        items = odds_items(payload)
+        lines = parse_event(items, event_id, team1, team2)
+        unmapped[day].extend(
+            unmapped_prices.record(None, event_id, item, at, "cs2")
+            for item in items if not reads_market(item, team1, team2)
+        )
         if not lines:
             continue
         if day == date:
@@ -166,12 +178,23 @@ def snapshot(date: str, client: SuperbetClient, runs_dir: str,
         if recs:
             # D+1's own loop may append to its file too: append_records locks
             append_records(cs2_day_dir(runs_dir, day) / SNAPSHOTS_FILE, recs)
+    unmapped_files: list[str] = []
+    for day, recs in unmapped.items():
+        # A record, never an input: a failed write never fails the snapshot.
+        try:
+            path = unmapped_prices.write(Path(runs_dir) / day, recs, at, "cs2")
+        except OSError as exc:
+            print(f"CS2_UNMAPPED_PRICES_NOT_WRITTEN: {exc}", file=sys.stderr)
+            continue
+        if path is not None:
+            unmapped_files.append(str(path))
     return {
         "verdict": snapshot_verdict(metrics["fetch_failed"], fetched_ok, not_reached),
         "breaker_open": bool(not_reached),
         "board_rows_not_reached": not_reached,
         "metrics": metrics,
         "output_path": str(out),
+        "unmapped_prices_files": unmapped_files,
     }
 
 

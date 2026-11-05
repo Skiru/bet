@@ -320,6 +320,30 @@ def parse_line(
     return None
 
 
+_READ_MARKET_NAMES = frozenset({
+    *WINNER_MARKETS, "Liczba map", MAP_ODD_EVEN, EXACT_MAPS, "Handicap map",
+    "Liczba rund (z dogrywką)", "Handicap rund (z dogrywką)",
+})
+
+
+def reads_market(item: dict[str, Any], team1: str, team2: str) -> bool:
+    """Whether the CS2 snapshot reads this odd's MARKET at all (the names and
+    patterns of parse_line), whatever becomes of the odd itself. An odd of a
+    market it does not read goes to bet.sofa.unmapped_prices - a record, read
+    by nothing."""
+    market = str(item.get("marketName") or "").strip()
+    if market in _READ_MARKET_NAMES:
+        return True
+    if any(rx.match(market) for rx in (_PLAYER_MARKET, _MAP_ROUND_HCP, _MAP_ROUNDS)):
+        return True
+    for rx, group in ((_TEAM_KILLS, 2), (_MAP_TEAM_ROUNDS, 2),
+                      (_TEAM_ROUNDS, 1), (_TEAM_MAPS, 1)):
+        m = rx.match(market)
+        if m and team_of(m.group(group), team1, team2):
+            return True
+    return False
+
+
 _PARITY_WORD = re.compile(r"(nie)?parzyst")
 
 

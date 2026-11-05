@@ -479,6 +479,22 @@ pola karnego z `/shotmap`), musi mieć historię cen Superbetu, inaczej jego
 dowody z linii (przesunięcie, pasma ceny) startują od zera w dniu włączenia.
 Błąd zapisu nie zatrzymuje OFFER (`OFFER_UNMAPPED_PRICES_NOT_WRITTEN`).
 
+**To samo dla sportów mierzonych** (od 2026-11-05, luka 5 z
+`docs/sofa/evidence/pokrycie_sportow_2026-11-05.md`): SHADOW (hokej, kosz,
+siatkówka) i migawka CS2 zapisują każdy kurs rynku, którego nie czytają
+(`shadow.reads_market` / `cs2.reads_market` - te same przełączniki co parser),
+do `runs/sofa/<dzień meczu>/unmapped_prices/<sport>_<ts>.jsonl.gz`: jeden plik
+na migawkę i sport, z ładunku już pobranego (zero dodatkowych zapytań). Pola
+jak w piłce plus `sport` i `marketId`; `sofascore_event_id` jest `null`
+(identyfikator przypina dopiero SPORT_IDENTITY - łączyć po
+`superbet_event_id`). `unmapped_prices.read(run_dir)` czyta wyłącznie pliki
+OFFER, `read(run_dir, sport)` pliki danego sportu. Też tylko zapis: czytają go
+wyłącznie skrypty `measure_*` (strażnik
+`tests/sofa/test_unmapped_prices_sports.py`); błąd zapisu nie zatrzymuje
+migawki (`SHADOW_UNMAPPED_PRICES_NOT_WRITTEN` / `CS2_UNMAPPED_PRICES_NOT_WRITTEN`).
+Pętle `shadow_daily.py` / `cs2_daily.py` uruchamiają każdy krok świeżym kodem,
+więc zapis zaczyna się od ich najbliższej migawki.
+
 **Rodziny MAPPABLE za przełącznikiem `MAPPABLE_FAMILIES_FROM_UTC`**
 (`bet.sofa.epochs`, plan nocy 2026-10-12 C1; **włączony od 2026-10-14
 00:00Z** decyzją operatora z 2026-10-13 – E2E na próbkach 10-13 czyste on/off,
@@ -1843,6 +1859,26 @@ trzy pliki, które nazywają się kuponem; stawia się **wyłącznie
 **`08_confidence.json`**, **`08_confidence.md`**. Próg
 `BELOW_CONFIDENCE_FLOOR` to **0,70** (`confidence.COUPON_PROFILE`).
 
+**Tenis - liczba gemów i liczba setów w meczu od pewności 0,60** (od
+`epochs.TENNIS_TOTALS_FLOOR_FROM_UTC` = 2026-11-06 00:00Z, decyzja operatora
+2026-11-05: „mamy być co najmniej tak dobrzy jak cena Superbetu, marża
+przyjęta"). Wiersz tenisa `games_total` / `sets_total` przechodzi próg przy
+`TENNIS_TOTALS_FLOOR` 0,60 zamiast 0,70 (`epochs.leg_floor`; surowszy profil
+zostaje przy swoim); reszta bramek bez zmian (x >= 0,90, marża <= 15%, dowody
+z linii, krzywe, `CATCH_ALL_BUCKET`, `BEST_OF_FIVE_NOT_MODELLED`, bramki
+kształtu próbki). Noga wydrukowana poniżej 0,70 niesie `floor_rule: 0.6`
+(`TENNIS_TOTALS_FLOOR_MARKER`), nigdy nie wchodzi do buildera (zmierzono
+pojedyncze), audyt C2 (`audit_variants`) czyta jej własny próg tylko, gdy
+przełącznik go dopuszcza; nagłówek PDF mówi „(tenis: liczba gemów / setów w
+meczu od 0.6)". Pomiar `scripts/sofa/measure_tennis_totals_floor.py`,
+`docs/sofa/evidence/tennis_totals_floor_2026-11-05.md`: odłożona połowa
+10-21..11-04, 2 393 nogi / 1 566 meczów, trafione minus pewność +0,8 pp
+[-1,3; +2,8], minus cena bez marży +2,6 pp [+0,5; +4,6], ROI -4,6% [-7,7;
+-1,6] - skalibrowane i na poziomie ceny, tracą mniej więcej marżę. E2E na
+dniu 2026-11-05 (zegar 09:50Z, kopia dnia): +37 nóg (sety UNDER 17, gemy
+UNDER 11, gemy OVER 9), wszystkie z `floor_rule`, 0 w builderach, pozostałe
+nogi bez zmian, audyt bez uwag C2. Grupa ledgera „od 11-06".
+
 **Epoka `stats_only` (od 2026-10-05 07:15Z, `bet.sofa.epochs`).** Pewność
 jest wyłącznie ze statystyk: SHEET trzyma cenę poza `p_central`, a cena jest
 tylko warunkiem zakładu — x = pewność × kurs ≥ 0,90, marża drabiny ≤ 15%,
@@ -3074,7 +3110,11 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <d> 
   wynikiem. Wcześniej taki mecz był `DATA_MISMATCH` na zawsze (koszykówka:
   10–22 mecze dziennie od 10-07, m.in. NBL, Serie B, ligi kobiet Austrii i
   Grecji). Historia i dopasowania krzywych (`sport_confidence`) czytają takich
-  meczów nadal nie. Rynek bez „(z dogrywką)”
+  meczów nadal nie. Mecz koszykówki NCAA mężczyzn
+  (`score_model.BB_HALVES_COMPETITIONS`) z dwoma okresami to **dwie połowy**, nie
+  kwarty (od 2026-11-05, `GameResult.halves`, `score_source: "halves"`): 1. / 2.
+  połowa = jeden okres, kwarty nierozliczalne; wcześniej 136 meczów NCAA z
+  10-22..11-04 było `DATA_MISMATCH` (tylko w SHADOW_SETTLE). Rynek bez „(z dogrywką)”
   liczy czas regulaminowy (rodziny hokejowe z dogrywką 613 / 617 / 621 / 653
   nie są mapowane, a NHL jest wystawiana **tylko** z nimi, więc żadna suma NHL
   nie jest mierzona — przegląd 2026-10-01); kwarta 4. i 2. połowa w koszykówce liczą się z okresów

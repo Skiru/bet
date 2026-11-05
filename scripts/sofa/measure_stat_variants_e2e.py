@@ -116,9 +116,10 @@ class _Recorded:
 
 def _latest_records(run: Path) -> dict[int, tuple[datetime, list[dict[str, Any]]]]:
     """Per fixture, the records of the latest OFFER run that saw it."""
-    folder = run / unmapped_prices.DIRNAME
     out: dict[int, tuple[datetime, list[dict[str, Any]]]] = {}
-    for path in sorted(folder.glob("*.jsonl.gz")):
+    # OFFER's files only (the measured sports' `<sport>_` files carry no
+    # Sofascore id)
+    for path in unmapped_prices.files(run):
         per: dict[int, list[dict[str, Any]]] = defaultdict(list)
         stamp: dict[int, datetime] = {}
         with gzip.open(path, "rt", encoding="utf-8") as fh:

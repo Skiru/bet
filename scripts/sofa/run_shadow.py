@@ -28,6 +28,10 @@ and hockey player lines, the player model's pre-game forecast beside it in
 player_model.jsonl (bet.sofa.player_model; read-only database, no request; a
 measurement read by SHADOW_SETTLE and measure_player_props.py only). The
 forecast runs after the snapshot is written and can never fail or change it.
+Every odd of a market SHADOW does not read (shadow.reads_market) goes, from
+the payload already fetched, to runs/sofa/<day>/unmapped_prices/
+<sport>_<ts>.jsonl.gz (bet.sofa.unmapped_prices; a record, read by nothing;
+a failed write never fails the snapshot).
 Exit: 0 OK,
 1 PARTIAL (an event fetch failed), 2 FAILED (the board could not be read).
 """
@@ -47,7 +51,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from bet.sofa import epochs  # noqa: E402
+from bet.sofa import epochs, unmapped_prices  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.cs2 import append_records  # noqa: E402
@@ -58,6 +62,7 @@ from bet.sofa.shadow import (  # noqa: E402
     SPORTS,
     SportKey,
     parse_event,
+    reads_market,
     shadow_day_dir,
 )
 from bet.sofa.stage import set_stage  # noqa: E402
@@ -152,6 +157,8 @@ def snapshot(
     }
     seen = {k: recorded_events(p) for k, p in paths.items()}
     records: dict[tuple[SportKey, str], list[dict[str, Any]]] = {k: [] for k in paths}
+    # bet.sofa.unmapped_prices: the odds of markets SHADOW does not read
+    unmapped: dict[tuple[SportKey, str], list[dict[str, Any]]] = {k: [] for k in paths}
     fetched_ok = 0
     not_reached = 0
     for index, r in enumerate(rows):
@@ -209,8 +216,15 @@ def snapshot(
         # clock (basketball only; the other sports hold none)
         player_v2 = (sport.key == "basketball"
                      and epochs.basketball_player_v2(day, _utc_of(fetched_at)))
-        lines = parse_event(odds_items(payload), sport.key, event_id, team1, team2,
+        items = odds_items(payload)
+        lines = parse_event(items, sport.key, event_id, team1, team2,
                             derived, dc_pair, player_v2)
+        unmapped[(sport.key, day)].extend(
+            unmapped_prices.record(None, event_id, item, _utc_of(fetched_at),
+                                   sport.key)
+            for item in items
+            if not reads_market(item, sport.key, team1, team2, derived, player_v2)
+        )
         if not lines and event_id not in seen[(sport.key, day)]:
             continue
         # An event already on file that now quotes nothing gets an empty
@@ -251,6 +265,7 @@ def snapshot(
         # Two loops can append to one day's file (D-1's covers the next day's
         # early games while D's runs): append_records locks, keeps lines whole.
         append_records(paths[key], recs)
+    unmapped_files = write_unmapped(runs_dir, unmapped, at)
     failed = sum(m["fetch_failed"] for m in metrics.values())
     result: dict[str, Any] = {
         "verdict": snapshot_verdict(failed, fetched_ok, not_reached),
@@ -258,6 +273,7 @@ def snapshot(
         "board_rows_not_reached": not_reached,
         "metrics": metrics,
         "output_path": str(Path(runs_dir) / "shadow"),
+        "unmapped_prices_files": unmapped_files,
     }
     if db_path is not None:
         # After every snapshot is on disk, and outside the verdict: the
@@ -269,6 +285,25 @@ def snapshot(
         except Exception as exc:
             result["player_model"] = {"error": f"{type(exc).__name__}: {exc}"}
     return result
+
+
+def write_unmapped(
+    runs_dir: str,
+    by_key: dict[tuple[SportKey, str], list[dict[str, Any]]],
+    at: datetime,
+) -> list[str]:
+    """One unmapped_prices file per (sport, day) of this snapshot. A record,
+    never an input: a failed write is said on stderr and never fails it."""
+    written: list[str] = []
+    for (key, day), recs in by_key.items():
+        try:
+            path = unmapped_prices.write(Path(runs_dir) / day, recs, at, key)
+        except OSError as exc:
+            print(f"SHADOW_UNMAPPED_PRICES_NOT_WRITTEN: {exc}", file=sys.stderr)
+            continue
+        if path is not None:
+            written.append(str(path))
+    return written
 
 
 def pinned_teams(runs_dir: str, sport: str, day: str) -> dict[str, tuple[int, int]]:

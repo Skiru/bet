@@ -892,6 +892,32 @@ def parse_event(
     return out
 
 
+def reads_market(
+    item: dict[str, Any],
+    sport: SportKey,
+    team1: str,
+    team2: str,
+    derived: bool = False,
+    player_v2: bool = False,
+) -> bool:
+    """Whether SHADOW reads this odd's MARKET at all (parse_line with the same
+    switches), whatever becomes of the odd itself. An odd of a market it does
+    not read goes to bet.sofa.unmapped_prices - a record, read by nothing."""
+    try:
+        market_id = int(item.get("marketId") or 0)
+    except (TypeError, ValueError):
+        return False
+    if market_id in MARKETS[sport]:
+        return True
+    if market_id in PLAYER_MARKETS[sport]:
+        return player_v2 or market_id not in PLAYER_V2_MARKETS[sport]
+    if not derived:
+        return False
+    if sport == "hockey":
+        return market_id in DERIVED_MARKETS["hockey"]
+    return _derived_market(item, sport, team1, team2) is not None
+
+
 def _dc_pairs(
     sport: SportKey,
     key: tuple[int, int, str, float | None],
@@ -1023,6 +1049,10 @@ class GameResult:
     # the regulation score (t1, t2) where it can be told, else None. With
     # periods it is their sum and this stays None.
     reg_score: tuple[int, int] | None = None
+    # A basketball game played in two halves (NCAA, _played_in_halves):
+    # t1_periods / t2_periods are the two halves, so the h1 / h2 markets read
+    # one period each and no quarter can be told.
+    halves: bool = False
 
     @property
     def final_only(self) -> bool:
@@ -1104,6 +1134,21 @@ def _final_only_result(
     return GameResult((), (), t1f, t2f, winner, overtime, reg_score=reg)
 
 
+def _played_in_halves(detail: dict[str, Any], sport: ShadowSport) -> bool:
+    """A basketball game of a competition played in two halves
+    (score_model.BB_HALVES_COMPETITIONS: NCAA men). Read by the competition
+    alone: Sofascore labels the two periods "1st quarter" / "2nd quarter"
+    (16759340, NCAA D-I 2026-11-01: period1 31, period2 43, normaltime 74)."""
+    if sport.key != "basketball":
+        return False
+    from bet.sofa.score_model import BB_HALVES_COMPETITIONS  # import cycle
+
+    tournament = detail.get("tournament")
+    unique = (tournament.get("uniqueTournament")
+              if isinstance(tournament, dict) else None)
+    return isinstance(unique, dict) and unique.get("id") in BB_HALVES_COMPETITIONS
+
+
 def build_result(
     detail: dict[str, Any], sport: ShadowSport, home_is_t1: bool,
     allow_final_only: bool = False,
@@ -1116,7 +1161,9 @@ def build_result(
 
     `allow_final_only` (SHADOW_SETTLE only): a hockey / basketball game with
     no period at all is graded from its final score (_final_only_result) on
-    the full-game markets alone. The history readers (sport_confidence, the
+    the full-game markets alone; a basketball game played in two halves
+    (_played_in_halves) with exactly two periods is read as halves
+    (GameResult.halves). The history readers (sport_confidence, the
     score-model measurements) keep the default: a period-less game is not a
     row of a fit.
     """
@@ -1163,6 +1210,7 @@ def build_result(
         return None
     home_won: bool | None = None if code == 3 else code == 1
 
+    halves = False
     if sport.regulation_periods is None:  # volleyball
         h_sets = sum(1 for h, a in zip(h_periods, a_periods, strict=True) if h > a)
         a_sets = sum(1 for h, a in zip(h_periods, a_periods, strict=True) if a > h)
@@ -1180,7 +1228,14 @@ def build_result(
             return None
         overtime = False
     else:
-        if len(h_periods) != sport.regulation_periods:
+        # NCAA men play 2 x 20 min (2026-11-05: 142 of 147 basketball
+        # DATA_MISMATCH of 10-18..11-04 were NCAA D-I games with two periods
+        # adding up to normaltime, refused for not being four quarters).
+        # SHADOW_SETTLE only (allow_final_only): the history readers keep
+        # their own halves rule (score_model.parse_event, P11).
+        halves = (allow_final_only and len(h_periods) == 2
+                  and _played_in_halves(detail, sport))
+        if len(h_periods) != (2 if halves else sport.regulation_periods):
             return None
         h_reg, a_reg = sum(h_periods), sum(a_periods)
         for side, reg in ((home, h_reg), (away, a_reg)):
@@ -1238,7 +1293,8 @@ def build_result(
     winner: Literal["T1", "T2"] | None = (
         None if home_won is None else ("T1" if home_won == home_is_t1 else "T2")
     )
-    return GameResult(tuple(t1p), tuple(t2p), t1f, t2f, winner, overtime)
+    return GameResult(tuple(t1p), tuple(t2p), t1f, t2f, winner, overtime,
+                      halves=halves)
 
 
 def _pair(
@@ -1255,6 +1311,14 @@ def _pair(
         if spec.scope == "reg":
             return result.reg_score
         return None
+    if result.halves:
+        # Two halves published: a half is one period, a quarter unknown.
+        if spec.scope == "h1":
+            return t1[0], t2[0]
+        if spec.scope == "h2":
+            return t1[1], t2[1]
+        if spec.scope == "period":
+            return None
     if spec.scope == "full":
         if sport.regulation_periods is None:  # volleyball: points over all sets
             return sum(t1), sum(t2)

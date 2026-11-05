@@ -13,6 +13,15 @@ per odd, append-only (a rebuild's refresh adds a file, nothing is rewritten).
 Pre-match only - `superbet.odds_items` has already dropped in-play odds.
 Nothing in the pipeline reads these files to price or print anything; they
 are the raw material of a future measurement.
+
+The measured sports record theirs too (pokrycie_sportow_2026-11-05, gap 5):
+SHADOW (hockey / basketball / volleyball) and the CS2 snapshot write every
+odd of a market they do not read, from the payload already fetched (no extra
+request), one file per snapshot and sport under the event's day,
+`<sport>_<ts>.jsonl.gz`. Their records carry `sport` and Superbet's
+`marketId`; `sofascore_event_id` is null (the id is pinned later by
+SPORT_IDENTITY - join on `superbet_event_id`). `read(run_dir)` reads OFFER's
+files only; `read(run_dir, sport)` one sport's.
 """
 
 from __future__ import annotations
@@ -27,30 +36,41 @@ from typing import Any
 DIRNAME = "unmapped_prices"
 FIELDS = ("marketName", "name", "specialBetValue", "price", "status",
           "offerStateId", "outcomeId")
+# The measured sports' records also keep Superbet's market id (SHADOW reads
+# its markets by id).
+SPORT_FIELDS = (*FIELDS, "marketId")
 
 
 def record(
-    sofascore_event_id: int,
+    sofascore_event_id: int | None,
     superbet_event_id: str,
     item: Mapping[str, Any],
     fetched_at: datetime,
+    sport: str | None = None,
 ) -> dict[str, Any]:
-    """One unmapped Superbet odd as it is written: who, what, at what price."""
+    """One unmapped Superbet odd as it is written: who, what, at what price.
+    With `sport` (SHADOW / CS2) the record names it and keeps `marketId`;
+    without it (OFFER) the record is what it always was."""
     out: dict[str, Any] = {
-        "sofascore_event_id": int(sofascore_event_id),
+        "sofascore_event_id": (None if sofascore_event_id is None
+                               else int(sofascore_event_id)),
         "superbet_event_id": str(superbet_event_id),
         "fetched_at_utc": fetched_at.isoformat().replace("+00:00", "Z"),
     }
-    for key in FIELDS:
+    if sport is not None:
+        out["sport"] = sport
+    for key in (FIELDS if sport is None else SPORT_FIELDS):
         if item.get(key) is not None:
             out[key] = item[key]
     return out
 
 
 def write(
-    run_dir: Path, records: Iterable[Mapping[str, Any]], stamp: datetime
+    run_dir: Path, records: Iterable[Mapping[str, Any]], stamp: datetime,
+    sport: str | None = None,
 ) -> Path | None:
     """Append one run's records as a new file; None when there is nothing.
+    With `sport` the file is `<sport>_<ts>.jsonl.gz`.
 
     A file of the same stamp is never overwritten: a second writer in the
     same microsecond gets a suffix instead.
@@ -61,6 +81,8 @@ def write(
     folder = run_dir / DIRNAME
     folder.mkdir(parents=True, exist_ok=True)
     base = stamp.strftime("%Y%m%dT%H%M%S.%fZ")
+    if sport is not None:
+        base = f"{sport}_{base}"
     path = folder / f"{base}.jsonl.gz"
     n = 1
     while path.exists():
@@ -74,12 +96,21 @@ def write(
     return path
 
 
-def read(run_dir: Path) -> Iterator[dict[str, Any]]:
-    """Every recorded odd of the day, oldest file first."""
+def files(run_dir: Path, sport: str | None = None) -> list[Path]:
+    """The day's files, oldest first: OFFER's (named by their stamp alone)
+    without `sport`, else that sport's `<sport>_` files."""
     folder = run_dir / DIRNAME
     if not folder.is_dir():
-        return
-    for path in sorted(folder.glob("*.jsonl.gz")):
+        return []
+    if sport is not None:
+        return sorted(folder.glob(f"{sport}_*.jsonl.gz"))
+    return sorted(p for p in folder.glob("*.jsonl.gz") if p.name[:1].isdigit())
+
+
+def read(run_dir: Path, sport: str | None = None) -> Iterator[dict[str, Any]]:
+    """Every recorded odd of the day, oldest file first: OFFER's without
+    `sport`, else that sport's."""
+    for path in files(run_dir, sport):
         with gzip.open(path, "rt", encoding="utf-8") as fh:
             for line in fh:
                 if line.strip():

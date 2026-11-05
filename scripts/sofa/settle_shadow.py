@@ -727,6 +727,9 @@ def settle_one(
              "t2_reg": result.reg_score[1] if result.reg_score else None}
             if result.final_only else {}
         ),
+        # Two halves, not four quarters (NCAA, shadow.GameResult.halves):
+        # read back by sport_day.grade_legs, so a half is one period.
+        **({"score_source": "halves"} if result.halves else {}),
         "t1_full": result.t1_full,
         "t2_full": result.t2_full,
         "overtime": result.overtime,

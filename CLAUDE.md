@@ -58,7 +58,7 @@ agents and hand-offs; `docs/sofa/CONFIG.md` config files and the refit loop.
 | `lineups_prematch.json` | Sofascore's pre-match lineup (`/event/{id}/lineups`, `bet.sofa.prematch_lineups`) of every read football / hockey / basketball match not yet started, asked by `read_set.py` / `build_slip.py` before the dossiers (`--no-lineups` skips): `asked_at_utc`, status OK / NOT_PUBLISHED (404) / FAILED / NOT_ASKED (breaker), `confirmed`, formation, starters, substitutes, `missingPlayers` (missing / doubtful, reason copied); a confirmed answer is final, an unconfirmed one re-asked after 30 min, a failure keeps the earlier answer. **Never written to the cache** (`sofa_event_stats.lineups_json` is the post-match lineup player samples and SETTLE read); display only, SAMPLES / SHEET / CONFIDENCE never read it |
 | `late_resolve.json` | the late RESOLVE passes (`epochs.LATE_RESOLVE_FROM_UTC`, `bet.sofa.late_resolve`): board entries the morning could not bridge re-asked while open; only new fixtures added, every old row kept |
 | `fixture_status.json`, `sport_fixtures.json` | FIXTURE_CHECK's fresh starts / statuses; pinned Sofascore ids of sport games |
-| `unmapped_prices/<ts>.jsonl.gz` | prices of markets OFFER does not read - a record, read by nothing |
+| `unmapped_prices/<ts>.jsonl.gz`, `unmapped_prices/<sport>_<ts>.jsonl.gz` | prices of markets OFFER does not read; from 2026-11-05 also SHADOW's (hockey / basketball / volleyball) and the CS2 snapshot's (`shadow.reads_market` / `cs2.reads_market`), one file per snapshot and sport under the event's day, from the payload already fetched, plus `sport` / `marketId`, `sofascore_event_id` null (join on `superbet_event_id`); `unmapped_prices.read(dir)` = OFFER's files only, `read(dir, sport)` a sport's - a record, read by nothing but `measure_*` (`test_unmapped_prices_sports.py`) |
 | `06_coupon.json` | the priced VALUE selector - **not the coupon** |
 | `runs/sofa/paper/bb_handicap/<d>.json`, `ledger.json` | a pre-registered PAPER test (operator 2026-10-31): basketball handicap where Superbet price x bet365 OPENING fair p > 1 (`bet.sofa.paper_bb_handicap`, `T-PAPER-BB-HANDICAP-B365-OPEN`); forward bet365 only from `prestart/<d>/<id>.json` captured before tip-off (`--capture --loop`, started by `shadow_daily.py`, `day_status` `loop:paper_capture`); forward from 11-01 apart from the backtest (post-match line, a look-ahead), judged once on the first 300 selections in kickoff order (later ones apart) - no stake, read by nothing the coupon reads, never a reason for a leg |
 
@@ -200,7 +200,12 @@ and a miss recorded before a rule's switch never blocks that rule.
 - **A leg prints** when confidence >= 0.70, confidence x odds >= 0.90, ladder
   (group) margin <= 15% (`COUPON_PROFILE`), not ODDS_TOO_LOW, not started,
   fresh price (STALE_PRICE otherwise; a moved price re-prices the leg). Every
-  passing single prints - no page limit.
+  passing single prints - no page limit. **Tennis `games_total` /
+  `sets_total` from 2026-11-06 00:00Z** pass at confidence 0.60
+  (`TENNIS_TOTALS_FLOOR`, `epochs.leg_floor`; operator 11-05: "as good as the
+  price, margin accepted" - hold-out calibrated and at the de-vigged price,
+  ROI -4.6%): such a leg carries `floor_rule`, never joins a builder, C2
+  audits its own floor; every other gate unchanged (model-state.md).
 - **Refusals worth knowing** (each named on the row):
   - `CROSS_LEAGUE_UNLINKED`: a football pair is LINKED only when both sides'
     leagues are the competition they share (the hockey / basketball /
@@ -462,7 +467,10 @@ measurement of Superbet's price and feed nothing else.
   Memphis 10-24 was a whole-game DATA_MISMATCH); a player name is also tried with
   generational suffixes dropped and adjacent initials joined ("PJ Washington" /
   "P.J. Washington Jr.", `shadow._bare_name`). A box that does not sum to the score
-  stays refused (Milwaukee - Chicago 10-23, 494 lines; `player_retry`). NBA player
+  stays refused (Milwaukee - Chicago 10-23, 494 lines; `player_retry`). An NCAA
+  men's game (`score_model.BB_HALVES_COMPETITIONS`) with two periods is read as two
+  halves (`GameResult.halves`, `score_source: "halves"`; h1 / h2 one period each,
+  quarters ungradeable; 2026-11-05: 136 NCAA DATA_MISMATCH of 10-22..11-04). NBA player
   model measurements and why no leg prints:
   `docs/sofa/evidence/nba_player_model_2026-10-26.md`.
 - Basketball second half / Q4 grade on regulation periods (overtime does not
