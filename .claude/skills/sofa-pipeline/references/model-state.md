@@ -664,6 +664,23 @@ until then; `scripts/sofa/measure_tennis_df_under_forward.py`): 10-27..11-04,
 +12.5] (total -4.9%, per player +0.0%); the lead did not repeat - double
 faults stay off.
 
+Bottom-up point model (plan B, operator's go 2026-11-05; measurement only,
+nothing reads it, no switch): `bet.sofa.tennis_point_model` - online
+serve / return Gaussian rating per player (score-only pseudo-points where no
+statistics), ace / double-fault rates per serve point (server, returner,
+tournament), point-by-point simulation, NB counts; constants from the history
+before 2026-01-01 only; `scripts/sofa/measure_tennis_point_model.py`.
+Hold-out 10-20..11-04 (pre-registered non-inferiority vs the de-vigged price,
+margin +0.002 Brier): serve families (aces / double faults / aces+df, match and
+sets 1-2; 6,732 lines / 219 matches) Brier vs price -0.0013 [-0.0063, +0.0036]
+(not shown non-inferior - too few matches), vs current SHEET -0.0335
+[-0.0457, -0.0224], at p >= 0.70 claimed 0.74-0.78 realised 0.62-0.75 (each
+interval holds the claim; current 0.78-0.80 -> 0.50-0.63); `sets_total` and
+per-set games as good as the price; `games_total` / `games_won_for` worse than
+the price, tie with current. History walk-forward 2026-01..09: better than the
+replayed current estimator on games / aces / double-fault totals.
+`docs/sofa/evidence/tennis_point_model_2026-11-05.md`.
+
 Exposure / tournament / returner centres (2026-10-19, pre-registered,
 `scripts/sofa/measure_tennis_serve_exposure.py`, main tour only, tier prior as
 SHEET, curves on market-like lines): true match length is the largest missing
