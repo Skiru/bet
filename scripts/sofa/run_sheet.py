@@ -7,7 +7,7 @@ import re
 import statistics
 import sys
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
@@ -20,6 +20,7 @@ from bet.sofa import epochs, sheet_config
 from bet.sofa import player_share as psh
 from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
+from bet.sofa import tennis_point_sheet as tps
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
 from bet.sofa.centre_chain import (
@@ -206,6 +207,7 @@ from bet.sofa.shot_detail import forecast as shot_detail_forecast
 from bet.sofa.shot_detail import load_fit as load_shot_detail_fit
 from bet.sofa.shot_detail import shrunk_mean as shot_detail_shrunk_mean
 from bet.sofa.stage import set_stage
+from bet.sofa.tennis_point_model import load_point_history
 from bet.sofa.tennis_prior import tier_prior
 from bet.sofa.tennis_rating import (
     DEFAULT_CONFIG as DEFAULT_TENNIS_RATING,
@@ -987,6 +989,35 @@ def load_tennis_rating(
         history, coefficients, int(cut.timestamp()), names=meta["features"],
         scoped=True, tier_start=meta.get("tier_start"),
     )
+
+
+def load_point_pricer(
+    db_path: str, fixtures_by_id: Mapping[int, Fixture],
+    offers: Sequence[FixtureOffer], only_ids: set[int] | None,
+) -> tps.PointPricer | None:
+    """epochs.TENNIS_POINT_MODEL: the day's tennis fixtures with an in-scope
+    rung forecast as of their starts (None when there is none - the history
+    is not read)."""
+    wanted: list[Fixture] = []
+    for offer in offers:
+        if offer.status == "NO_PRICE":
+            continue
+        if only_ids is not None and offer.sofascore_event_id not in only_ids:
+            continue
+        fx = fixtures_by_id.get(offer.sofascore_event_id)
+        if fx is None or fx.sport != "tennis":
+            continue
+        if any(tps.in_scope(fx.sport, r.market) for r in offer.rungs):
+            wanted.append(fx)
+    if not wanted:
+        return None
+    history = load_point_history(db_path)
+    female_of = tps.female_by_player(history)
+    matches = [m for fx in wanted if (m := tps.fixture_match(
+        fx.sofascore_event_id, fx.kickoff_utc, fx.home_entity_id,
+        fx.away_entity_id, fx.category_name, fx.ground_type,
+        fx.competition_id, fx.default_period_count, female_of)) is not None]
+    return tps.PointPricer(tps.forecast_fixtures(history, matches))
 
 
 def sample_centre(
@@ -2216,6 +2247,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_REFEREE_MARKER,
     epochs.FOOTBALL_PLAYER_SHARE_MARKER,
     epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
+    epochs.TENNIS_POINT_MODEL_MARKER,
 ))
 
 
@@ -2384,6 +2416,7 @@ def process_fixture(
     referee_effect: RefereeEffectTable | None = None,
     referee_reads: Mapping[str, RefereeRead] | None = None,
     joint_side_chain_on: bool = False,
+    point_pricer: tps.PointPricer | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2864,6 +2897,29 @@ def process_fixture(
                     extra_notes.append(
                         aces_opp.describe(a_mult, a_before, centre, a_detail))
 
+        # epochs.TENNIS_POINT_MODEL: the row's p_central and centre from the
+        # bottom-up point model (bet.sofa.tennis_point_sheet); a row it cannot
+        # price is refused, never priced by the old estimator (the keys'
+        # curves describe this model only).
+        point_side: int | None = None
+        point_on_row = (point_pricer is not None
+                        and tps.in_scope(fixture.sport, rung.market))
+        if point_on_row and point_pricer is not None:
+            p_side_key = (determine_side(rung.subject, fixture)
+                          if rung.subject else None)
+            point_side = (0 if p_side_key == "side_a"
+                          else 1 if p_side_key == "side_b" else None)
+            point_centre = (
+                None if rung.subject and point_side is None
+                else point_pricer.centre(fixture.sofascore_event_id,
+                                         rung.market, point_side))
+            if point_centre is None:
+                skipped.append((rung, GapReason.NOT_RATED,
+                                "epochs.TENNIS_POINT_MODEL: the point model "
+                                "gives no forecast for this fixture / player"))
+                continue
+            centre = point_centre[0]
+
         # epochs.FOOTBALL_PLAYER_SHARE: the side's team centre, for its
         # players' rows (priced after every team row while the switch is on)
         if (share_on and rung.subject and rung.market in psh.TEAM_METRIC_KEYS):
@@ -3017,6 +3073,19 @@ def process_fixture(
                     W_GAMES_TOTAL_RATING * p_rating_gt
                     + (1.0 - W_GAMES_TOTAL_RATING) * p_raw
                 )
+            # epochs.TENNIS_POINT_MODEL: the point model's p replaces the
+            # estimator above (it ran only so the row's gates read as before)
+            point_p: float | None = None
+            if point_on_row and point_pricer is not None:
+                point_p = point_pricer.p(
+                    fixture.sofascore_event_id, rung.market, point_side,
+                    rung.line, direction)
+                if point_p is None:
+                    skipped.append((rung, GapReason.NOT_RATED,
+                                    "epochs.TENNIS_POINT_MODEL: no point-model "
+                                    f"p for {direction} {rung.line:g}"))
+                    continue
+                p_raw = point_p
 
             # F35: a rung whose estimate falls outside the clamp band is not a
             # rung the model has an opinion about, and the clamped value is not
@@ -3148,7 +3217,12 @@ def process_fixture(
                     "IN_PLAY_PRICE_DROPPED: this rung was fetched at or after "
                     "kickoff; its odds are not a pre-match price"
                 )
-            if p_rating is not None and rating is not None:
+            if point_p is not None and point_pricer is not None:
+                notes.append(tps.describe(
+                    point_p, point_pricer.centre(
+                        fixture.sofascore_event_id, rung.market, point_side),
+                    point_pricer.forecasts.get(fixture.sofascore_event_id)))
+            elif p_rating is not None and rating is not None:
                 # the price the rating was blended with (none in the
                 # stats-only epoch: there p_central is the rating alone)
                 notes.append(rating_note(
@@ -3724,6 +3798,14 @@ def _main() -> int:
         men_friendly_prior = load_men_friendly_baseline(
             config.db_path, int(day_start.timestamp()))
 
+    # epochs.TENNIS_POINT_MODEL: the per-set games and serve-count rows of
+    # tennis from the bottom-up point model, each fixture forecast as of its
+    # start from the cached history (bet.sofa.tennis_point_sheet)
+    point_model_on = stats_only and epochs.tennis_point_model(args.date)
+    point_pricer = (
+        load_point_pricer(config.db_path, fixtures_by_id, offers, only_ids)
+        if point_model_on else None)
+
     try:
         for offer in offers:
             if offer.status == "NO_PRICE":
@@ -3819,6 +3901,7 @@ def _main() -> int:
                              or score_markets_config is not None))
                     else None),
                 score_markets=score_markets_config,
+                point_pricer=point_pricer,
             )
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
@@ -3887,6 +3970,7 @@ def _main() -> int:
              player_share_table is not None),
             (epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
              closeness_stretch_table is not None),
+            (epochs.TENNIS_POINT_MODEL_MARKER, point_model_on),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
@@ -3989,6 +4073,10 @@ def _main() -> int:
             "closeness_rule": (
                 epochs.FOOTBALL_CLOSENESS_STRETCH
                 if closeness_stretch_table is not None else "old"),
+            "tennis_point_model_rule": (
+                epochs.TENNIS_POINT_MODEL if point_model_on else "old"),
+            "tennis_point_model_fixtures": (
+                len(point_pricer.forecasts) if point_pricer is not None else 0),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

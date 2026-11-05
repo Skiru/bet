@@ -262,6 +262,10 @@ TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE = "2026-11-06"
 # moved by the operator into the built day 2026-11-05 at 17:05Z: legs
 # printed before stay locked, so 11-05 is mixed - its own group.
 TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
+# The tennis point model (epochs.TENNIS_POINT_MODEL_FROM_UTC, 2026-11-06
+# 00:00Z, operator 11-05: per-set games and serve-count rows priced by the
+# bottom-up point model, their own history curves) starts the same day: both
+# switches share the group "od 11-06".
 
 
 def epoch_group(row: dict[str, Any]) -> str:

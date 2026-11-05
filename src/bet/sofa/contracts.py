@@ -420,6 +420,10 @@ class SheetRow(BaseModel):
     # row of a sheet whose aces centres read the returner's factor
     # (bet.sofa.tennis_aces_opponent); absent when off.
     tennis_aces_rule: str | None = None
+    # bet.sofa.epochs.TENNIS_POINT_MODEL: the rule's name on every tennis row
+    # of a sheet whose per-set games / serve-count rows are priced by the
+    # bottom-up point model (bet.sofa.tennis_point_sheet); absent when off.
+    tennis_point_model_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_CUP_STRENGTH: the rule's name on a football
     # row priced by a rating book carrying the league strength learnt in
     # international club cups (bet.sofa.cup_strength); absent when off.

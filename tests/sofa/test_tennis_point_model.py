@@ -1,8 +1,7 @@
 """bet.sofa.tennis_point_model: the bottom-up tennis model (plan B), offline.
 
-Measured in docs/sofa/evidence/tennis_point_model_2026-11-05.md; nothing in
-the pipeline reads it and no switch exists:
-nothing prints from it."""
+Measured in docs/sofa/evidence/tennis_point_model_2026-11-05.md; SHEET reads
+it only under epochs.TENNIS_POINT_MODEL (tests/sofa/test_tennis_point_wiring.py)."""
 
 from __future__ import annotations
 
@@ -33,17 +32,21 @@ from bet.sofa.tennis_point_model import (
 )
 
 
-def test_no_pipeline_stage_reads_the_model() -> None:
-    """A measurement only: no module of src/bet/sofa and no stage script
-    imports it, so it cannot change what prints."""
+def test_only_sheet_reads_the_model_and_only_through_the_switch() -> None:
+    """epochs.TENNIS_POINT_MODEL: SHEET reads the model through
+    bet.sofa.tennis_point_sheet (and the curve fit / backfill script); no
+    other stage imports it."""
     root = Path(__file__).resolve().parents[2]
-    readers = [
-        p for p in [*(root / "src" / "bet" / "sofa").glob("*.py"),
-                    *(root / "scripts" / "sofa").glob("*.py")]
+    readers = sorted(
+        p.name for p in [*(root / "src" / "bet" / "sofa").glob("*.py"),
+                         *(root / "scripts" / "sofa").glob("*.py")]
         if p.name not in ("tennis_point_model.py", "measure_tennis_point_model.py")
-        and "tennis_point_model" in p.read_text(encoding="utf-8")
-    ]
-    assert readers == []
+        and "tennis_point_model import" in p.read_text(encoding="utf-8")
+    )
+    assert readers == ["fit_tennis_point_curves.py", "run_sheet.py",
+                       "tennis_point_sheet.py"]
+    sheet = (root / "scripts" / "sofa" / "run_sheet.py").read_text(encoding="utf-8")
+    assert "epochs.tennis_point_model(args.date)" in sheet
 
 
 def test_hold_probability_known_values() -> None:

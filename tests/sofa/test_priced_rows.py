@@ -66,7 +66,10 @@ def test_no_gate_stage_or_grader_reads_the_record() -> None:
                "src/bet/sofa/coupon_html.py", "scripts/sofa/run_confidence.py",
                "scripts/sofa/run_sport_confidence.py",
                # --check names why the operator's leg is not on the coupon
-               "scripts/sofa/build_slip.py"}
+               "scripts/sofa/build_slip.py",
+               # read-only evidence (11-05 lineup signal): our confidence
+               # of graded legs, never a gate
+               "scripts/sofa/measure_lineup_price_signal.py"}
     hits = set()
     for base in ("src/bet/sofa", "scripts/sofa"):
         for path in (ROOT / base).rglob("*.py"):

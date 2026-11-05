@@ -3,9 +3,11 @@ counts read off the same simulated match (plan B of
 docs/sofa/evidence/tennis_serve_markets_plan_2026-10-26.md; measured in
 docs/sofa/evidence/tennis_point_model_2026-11-05.md).
 
-Nothing in the pipeline reads this module: SHEET does not call it and no
-switch in ``bet.sofa.epochs`` exists for it (a test holds that no stage
-imports it) - it is a measurement until the operator decides otherwise.
+SHEET reads this module only under ``epochs.TENNIS_POINT_MODEL_FROM_UTC``
+(operator 2026-11-05), through bet.sofa.tennis_point_sheet, for the per-set
+games and serve-count rows (``epochs.TENNIS_POINT_MODEL_MARKETS``); a test
+holds that no other stage imports it. The model itself is unchanged from the
+frozen measurement.
 
 What it is, in order:
 

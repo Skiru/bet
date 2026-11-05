@@ -160,6 +160,20 @@ and a miss recorded before a rule's switch never blocks that rule.
   score (never retired / walkover); SHEET reads it by the day and the build
   clock; a match is a women's when either side says "F"; rows carry no marker;
   the installed tennis curves were fitted without it.
+- **Tennis point model from 2026-11-06** (`TENNIS_POINT_MODEL_FROM_UTC`,
+  operator 11-05; `bet.sofa.tennis_point_sheet`): the 20 keys of
+  `epochs.TENNIS_POINT_MODEL_MARKETS` (`games_set1/2_total`; aces / double
+  faults / serve points, match and set 1 / 2, `_for` / `_total`) take
+  p_central / centre from the bottom-up point model (as of the start, 4,000
+  seeded simulations; best of five / no ids = NOT_RATED, never the old
+  estimator; row marker `tennis_point_model_rule`, rebuild_plan re-runs SHEET).
+  CONFIDENCE reads those keys only from `config/sofa_tennis_point_curves.json`
+  (`bet.sofa.tennis_point_curves`, fitted by `fit_tennis_point_curves.py` on
+  the model's walk-forward over Sofascore history before 10-20; overlaid after
+  the live-only strip, never pooled); line evidence refits these keys from the
+  model's p (`data/line_evidence/tennis_point_model_p.json.gz` backfill), the
+  sport pools unchanged. `games_total` / `games_won_for` keep today's
+  estimator. Hold-out replay of the wired chain 10-20..11-04: see model-state.md.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a
   past match whose payload contradicts itself loses only the metrics that read
   the contradiction (`metrics.identity_gap_for_metric`: shots identity -> shot

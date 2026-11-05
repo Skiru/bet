@@ -137,6 +137,7 @@ class DayState:
     sheet_player_share: bool = True
     sheet_closeness_stretch: bool = True
     sheet_tennis_aces: bool = True
+    sheet_tennis_point_model: bool = True
     # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
     # sheet written before the stamp; "mixed": rows disagree) and the files'
     # as they stand
@@ -316,6 +317,7 @@ AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
     epochs.FOOTBALL_REFEREE_MARKER,
     epochs.FOOTBALL_PLAYER_SHARE_MARKER,
     epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
+    epochs.TENNIS_POINT_MODEL_MARKER,
 )
 
 
@@ -378,6 +380,9 @@ def audit_sheet_stale(state: DayState) -> list[str]:
         (epochs.football_referee(d, now), state.sheet_referee,
          "football cards / fouls centres carry the referee term "
          "(epochs.football_referee)"),
+        (epochs.tennis_point_model(d, now), state.sheet_tennis_point_model,
+         "tennis per-set games and serve-count rows read the bottom-up point "
+         "model (epochs.tennis_point_model)"),
     )
     return [why for on, has, why in checks if on and not has]
 
@@ -576,6 +581,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_closeness_stretch=markers[
             epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER],
         sheet_tennis_aces=markers[epochs.TENNIS_ACES_OPPONENT_MARKER],
+        sheet_tennis_point_model=markers[epochs.TENNIS_POINT_MODEL_MARKER],
         sheet_config_sha=sheet_config_sha,
         config_sha=sheet_config.fingerprint(date=date, at=now),
         offer_has_tennis=offer_has_tennis,

@@ -40,6 +40,7 @@ from bet.sofa import (  # noqa: E402
     epochs,
     live_only_curves,  # noqa: E402
     priced_rows,  # noqa: E402
+    tennis_point_curves,  # noqa: E402
     timeutil,
 )
 from bet.sofa import fixture_status as fs  # noqa: E402
@@ -421,6 +422,9 @@ def main() -> int:
     # epochs.LIVE_ONLY_CURVE_REFUSED: no installed curve fitted from our
     # settled days alone (config/sofa_live_only_curves.json) is read
     cal = live_only_curves.for_day(cal, args.date, now)
+    # epochs.TENNIS_POINT_MODEL: the point model's keys read their own
+    # history curves (config/sofa_tennis_point_curves.json)
+    cal = tennis_point_curves.for_day(cal, args.date, now)
     if so:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.

@@ -3590,3 +3590,47 @@ def leg_floor(leg: Mapping[str, Any], date: str, default: float,
             and tennis_totals_floor(date, build_at)):
         return min(default, TENNIS_TOTALS_FLOOR)
     return default
+
+
+# Tennis bottom-up point model (operator 2026-11-05: "włącz i zweryfikuj e2e
+# głęboko"; "at least as good as Superbet's price, the margin accepted").
+# For a tennis row of TENNIS_POINT_MODEL_MARKETS - per-set games totals
+# (games_set1_total / games_set2_total) and the serve counts (aces, double
+# faults, aces + double faults = serve_points; match and sets 1-2; total and
+# per player) - SHEET's p_central and centre come from
+# bet.sofa.tennis_point_model (serve / return rating per player as of the
+# match, the match simulated point by point, NB serve counts) through
+# bet.sofa.tennis_point_sheet; every other tennis row is unchanged (games_total
+# and games_won_for measured NOT better and stay on today's estimator).
+# CONFIDENCE reads these keys from their own history curves
+# (config/sofa_tennis_point_curves.json, fitted by
+# scripts/sofa/fit_tennis_point_curves.py on the model's walk-forward over the
+# Sofascore history before 2026-10-20; bet.sofa.tennis_point_curves), read only
+# under this switch and never stripped as live-only; line evidence still
+# lowers. Measured 2026-11-05 (docs/sofa/evidence/tennis_point_model_2026-11-05.md,
+# Superbet hold-out 10-20..11-04 computed once, match bootstrap): Brier model
+# - current SHEET per-set games -0.0021 [-0.0030, -0.0012], aces -0.0397
+# [-0.0650, -0.0157], double faults -0.0211 [-0.0345, -0.0087], serve_points
+# -0.0446 [-0.0696, -0.0220], serve per set -0.0323 [-0.0430, -0.0217]; vs
+# the de-vigged price per-set games -0.0003 [-0.0011, +0.0004] (as good), the
+# serve families undecided (219 matches); legs p >= 0.70 & x >= 0.90 on the
+# serve markets 659 claimed 0.766 realised 0.715 [0.649, 0.775] (current SHEET
+# 1,880: 0.782 -> 0.533). Rows carry TENNIS_POINT_MODEL_MARKER (every tennis
+# row of a sheet built under it), so rebuild_plan re-runs SHEET on a sheet
+# built before it. By the day and the build clock. Ledger group "od 11-06".
+TENNIS_POINT_MODEL = "tennis_point_model_v1"
+TENNIS_POINT_MODEL_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 0, 0, tzinfo=UTC)
+TENNIS_POINT_MODEL_MARKER = ("tennis_point_model_rule", TENNIS_POINT_MODEL,
+                             "tennis")
+TENNIS_POINT_MODEL_MARKETS: frozenset[str] = frozenset(
+    {"games_set1_total", "games_set2_total"}
+    | {f"{stat}{scope}_{kind}"
+       for stat in ("aces", "double_faults", "serve_points")
+       for scope in ("", "_set1", "_set2")
+       for kind in ("for", "total")})
+
+
+def tennis_point_model(date: str, build_at: datetime | None = None) -> bool:
+    """TENNIS_POINT_MODEL_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(TENNIS_POINT_MODEL_FROM_UTC, date, build_at)

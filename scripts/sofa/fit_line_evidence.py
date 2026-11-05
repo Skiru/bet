@@ -41,7 +41,7 @@ import argparse
 import dataclasses
 import json
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -51,8 +51,12 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import (  # noqa: E402
+    epochs,
+    live_only_curves,
+    tennis_point_curves,
+)
 from bet.sofa import line_evidence as le  # noqa: E402
-from bet.sofa import live_only_curves  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -94,10 +98,15 @@ def _board_sides(run_dir: Path) -> dict[str, tuple[str, str]]:
 
 def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                derived_curves: bool = False,
-               per_line: bool = False) -> Iterator[le.Row]:
+               per_line: bool = False,
+               point_p: Mapping[str, float] | None = None,
+               point_switch_day: str | None = None) -> Iterator[le.Row]:
     """`per_line`: read a men's football line through its own line curve
     (epochs.LINE_CURVES), as CONFIDENCE will on the --before day - the
-    offsets are applied to that day's base."""
+    offsets are applied to that day's base. `point_p` (epochs.
+    TENNIS_POINT_MODEL on the --before day, else None): ONLY the tennis lines
+    of the point model's keys, each at the point model's p
+    (tennis_point_curves.evidence_p) or skipped."""
     for day in days:
         run_dir = runs_dir / day
         fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
@@ -117,6 +126,12 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                 sport, fx.get("category_name") if sport == "tennis"
                 else fx.get("competition_name"), board, fx.get("competition_id"))
             p = float(r["p_central"])
+            if point_p is not None:
+                scoped, pp = tennis_point_curves.evidence_p(
+                    r, day, point_p, point_switch_day)
+                if not scoped or pp is None:
+                    continue  # the point model's lines only, at its own p
+                p = pp
             hit = None if is_derived(r["market"]) and not derived_curves \
                 else cal.realised(
                 curve_market(r), p, sport, r["direction"], klass,
@@ -261,6 +276,19 @@ def main() -> int:
     fitted = le.fit(sheet_rows(runs_dir, days, cal,
                                reads_derived_curves(args.before, args.derived_curves),
                                per_line))
+    # epochs.TENNIS_POINT_MODEL: the point model's keys' own entries from
+    # their lines at the point model's p against their own curves; every
+    # pooled number (the sport's offsets, bands, design effect) and every
+    # other key stays the fit above
+    point_p: dict[str, float] | None = None
+    if epochs.tennis_point_model(args.before):
+        point_p = tennis_point_curves.load_backfill()
+        point_day = (epochs.TENNIS_POINT_MODEL_FROM_UTC.strftime("%Y-%m-%d")
+                     if epochs.TENNIS_POINT_MODEL_FROM_UTC else None)
+        point_fit = le.fit(sheet_rows(
+            runs_dir, days, tennis_point_curves.for_day(cal, args.before),
+            False, False, point_p, point_day))
+        tennis_point_curves.merge_evidence(fitted, point_fit)
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     sport_by_gap = dict(fitted["sport_printable_by_gap"])
@@ -290,6 +318,10 @@ def main() -> int:
             "sheet_days": days,
             # epochs.LINE_CURVES: football bases read at their own line
             "per_line_base": per_line,
+            # epochs.TENNIS_POINT_MODEL: backfilled point-model p of the
+            # in-scope tennis lines (tennis_point_curves.BACKFILL)
+            "tennis_point_model_backfill": (
+                None if point_p is None else len(point_p)),
             "sport_source": sport_source,
             "sport_calibration_fitted_from": None if sport_cal is None
             else sport_cal.fitted_from,

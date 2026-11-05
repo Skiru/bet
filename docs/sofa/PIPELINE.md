@@ -1397,6 +1397,22 @@ notce "p_central is the rating alone, no price (<przełącznik>)"). Dla TOUR i
 CH tabela podobnych meczów pomija mecze rozstrzygnięte super-tie-breakiem
 (liczonym jako 1 gem trzeciego seta; 5,1% meczów, prawie wyłącznie ITF).
 
+**Model punktowy tenisa (od 2026-11-06 00:00Z, `epochs.TENNIS_POINT_MODEL_FROM_UTC`,
+operator 2026-11-05).** Wiersze tenisa 20 rynków
+`epochs.TENNIS_POINT_MODEL_MARKETS` - gemy w secie (`games_set1_total`,
+`games_set2_total`) oraz asy / podwójne błędy / punkty serwisowe (mecz, set 1,
+set 2; zawodnik `_for` i suma `_total`) - biorą `p_central` i środek z modelu
+punktowego „od dołu" (`bet.sofa.tennis_point_model` przez
+`bet.sofa.tennis_point_sheet`): prognoza na moment startu z historii
+singli w cache (bez zaglądania w przyszłość, mecz nigdy nie uczy własnej
+prognozy), 4 000 symulacji z ziarnem = id meczu, notka `TENNIS_POINT_MODEL`,
+znacznik wiersza `tennis_point_model_rule` (rebuild_plan sam powtarza SHEET,
+gdy wiersz go nie ma). Mecz do trzech wygranych setów albo bez id zawodnika =
+`NOT_RATED` - nigdy powrót do starego estymatora. `games_total` i
+`games_won_for` zostają przy dotychczasowym (model nie był lepszy). Pomiar:
+`docs/sofa/evidence/tennis_point_model_2026-11-05.md`; krzywe i wynik
+odtworzenia - rozdział 10.
+
 ### 7.1c Pakiety modelowe (zainstalowane 2026-10-08 23:42Z, WŁĄCZONE od 2026-10-09 00:00Z; poza `CARDS_CORRELATION`)
 
 Cztery pakiety zmierzone poza próbą na historii (raporty w
@@ -1879,6 +1895,29 @@ meczu od 0.6)". Pomiar `scripts/sofa/measure_tennis_totals_floor.py`,
 dniu 2026-11-05 (zegar 09:50Z, kopia dnia): +37 nóg (sety UNDER 17, gemy
 UNDER 11, gemy OVER 9), wszystkie z `floor_rule`, 0 w builderach, pozostałe
 nogi bez zmian, audyt bez uwag C2. Grupa ledgera „od 11-06".
+
+**Tenis - krzywe modelu punktowego** (od `epochs.TENNIS_POINT_MODEL_FROM_UTC`
+= 2026-11-06 00:00Z, ta sama grupa ledgera „od 11-06" co próg 0,60). Klucze
+modelu punktowego (7.1b) czytają krzywe wyłącznie z
+`config/sofa_tennis_point_curves.json` (`bet.sofa.tennis_point_curves`,
+nakładane po `live_only_curves`, klucze w `no_pool_keys` - bez puli),
+dopasowanych przez `scripts/sofa/fit_tennis_point_curves.py` na krokowym
+przejściu modelu po historii Sofascore 2026-01-01..10-20 (33 216 meczów ze
+statystykami serwisu + 20 000 tylko z gemami, 5,77 mln wierszy na
+połówkowych liniach), w formacie `fit_confidence` (realised_lo95 Wilsona).
+Bez przełącznika plik nie jest czytany. Dowody z linii tych kluczy
+`refresh_line_evidence.py` liczy od p modelu (backfill
+`data/line_evidence/tennis_point_model_p.json.gz`), pule sportu bez zmian;
+dalej tylko obniżają. Odtworzenie całego łańcucha (p -> krzywe -> dowody z
+linii -> bramki) na odłożonej połowie 10-20..11-04: 7 009 nóg / 1 778
+meczów, pewność 0,802, trafione 0,807 [0,798; 0,818], trafione minus pewność
++0,6 pp [-0,4; +1,6], ROI -5,0% [-6,2; -3,8] - skalibrowane, tracą marżę;
+gemy w secie 6 840 nóg (+0,7 pp), rynki serwisowe 169 nóg / 36 meczów (-3,9 pp
+[-11,1; +3,1]). Gemów w secie drukuje się ok. 3,3 razy więcej niż w
+prawdziwych kuponach tego okna (2 075). E2E na kopii dnia 2026-11-05
+(zegar 09:50Z, włączony vs wyłączony): single +8 / -10, 96 pewności kluczy
+modelu zmienione (żadna zablokowana), +1 builder tenisa; pozostałe nogi
+identyczne poza numeracją pozycji i adnotacją peer; audyt bez różnic.
 
 **Epoka `stats_only` (od 2026-10-05 07:15Z, `bet.sofa.epochs`).** Pewność
 jest wyłącznie ze statystyk: SHEET trzyma cenę poza `p_central`, a cena jest
