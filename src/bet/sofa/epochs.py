@@ -3564,9 +3564,12 @@ def rating_market_gap(date: str, build_at: datetime | None = None) -> bool:
 # TENNIS_TOTALS_FLOOR_MARKER (its own floor, read by audit_variants C2) and
 # never joins a builder (the measurement was of singles). Every other gate
 # (x >= 0.90, margin <= 15%, line evidence, curves, BEST_OF_FIVE) applies.
-# By the day and the build clock; no sheet marker (CONFIDENCE only).
+# By the day and the build clock; no sheet marker (CONFIDENCE only). Moved
+# by the operator into the built day 2026-11-05 at 17:05Z ("przelicz dzisiaj,
+# dzień mieszany to nie problem"): legs printed before stay locked, 11-05 is
+# mixed (ledger group "11-05 mieszany").
 TENNIS_TOTALS_FLOOR_FROM_UTC: datetime | None = datetime(
-    2026, 11, 6, 0, 0, tzinfo=UTC)
+    2026, 11, 5, 17, 5, tzinfo=UTC)
 TENNIS_TOTALS_FLOOR = 0.60
 TENNIS_TOTALS_FLOOR_MARKETS: frozenset[str] = frozenset({"games_total", "sets_total"})
 TENNIS_TOTALS_FLOOR_MARKER = "floor_rule"

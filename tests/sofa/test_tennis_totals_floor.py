@@ -15,14 +15,15 @@ from bet.sofa import epochs
 from scripts.sofa import audit_variants
 from tests.sofa.coupon_fixtures import AT, DATE, official_single, write_official
 
-ON = datetime(2026, 11, 6, 0, 0, tzinfo=UTC)
+ON = datetime(2026, 11, 5, 17, 5, tzinfo=UTC)
 
 
 def test_the_switch_is_from_the_next_day_and_by_the_build_clock() -> None:
     assert epochs.TENNIS_TOTALS_FLOOR_FROM_UTC == ON
     assert epochs.TENNIS_TOTALS_FLOOR == 0.60
-    assert not epochs.tennis_totals_floor("2026-11-05", ON + timedelta(hours=5))
-    assert not epochs.tennis_totals_floor("2026-11-06", ON - timedelta(minutes=1))
+    assert not epochs.tennis_totals_floor("2026-11-04", ON + timedelta(hours=5))
+    assert not epochs.tennis_totals_floor("2026-11-05", ON - timedelta(minutes=1))
+    assert epochs.tennis_totals_floor("2026-11-05", ON)
     assert epochs.tennis_totals_floor("2026-11-06", ON)
 
 
@@ -39,7 +40,9 @@ def test_only_tennis_games_and_sets_total_read_the_lower_floor(
 ) -> None:
     assert epochs.leg_floor(leg, "2026-11-06", 0.70, ON) == floor
     # before the switch every leg reads the profile's floor
-    assert epochs.leg_floor(leg, "2026-11-05", 0.70, ON) == 0.70
+    assert epochs.leg_floor(leg, "2026-11-04", 0.70, ON) == 0.70
+    assert epochs.leg_floor(leg, "2026-11-05", 0.70,
+                            ON - timedelta(minutes=1)) == 0.70
 
 
 def test_a_stricter_profile_keeps_its_own_floor() -> None:

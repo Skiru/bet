@@ -1860,8 +1860,9 @@ trzy pliki, które nazywają się kuponem; stawia się **wyłącznie
 `BELOW_CONFIDENCE_FLOOR` to **0,70** (`confidence.COUPON_PROFILE`).
 
 **Tenis - liczba gemów i liczba setów w meczu od pewności 0,60** (od
-`epochs.TENNIS_TOTALS_FLOOR_FROM_UTC` = 2026-11-06 00:00Z, decyzja operatora
-2026-11-05: „mamy być co najmniej tak dobrzy jak cena Superbetu, marża
+`epochs.TENNIS_TOTALS_FLOOR_FROM_UTC` = 2026-11-05 17:05Z - operator przeniósł
+go w zbudowany dzień, 11-05 jest mieszany, grupa ledgera „11-05 mieszany";
+decyzja operatora 2026-11-05: „mamy być co najmniej tak dobrzy jak cena Superbetu, marża
 przyjęta"). Wiersz tenisa `games_total` / `sets_total` przechodzi próg przy
 `TENNIS_TOTALS_FLOOR` 0,60 zamiast 0,70 (`epochs.leg_floor`; surowszy profil
 zostaje przy swoim); reszta bramek bez zmian (x >= 0,90, marża <= 15%, dowody

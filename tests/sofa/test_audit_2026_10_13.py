@@ -293,15 +293,18 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
     assert audit_ledger.epoch_group(
         {"date": "2026-11-03", "epoch": "stats_only"}) == "od 11-03"
     assert audit_ledger.epoch_group(
-        {"date": "2026-11-05", "epoch": "stats_only"}) == "od 11-03"
+        {"date": "2026-11-04", "epoch": "stats_only"}) == "od 11-03"
+    # the switch moved into 11-05 at 17:05Z: a mixed day of its own
+    assert audit_ledger.epoch_group(
+        {"date": "2026-11-05", "epoch": "stats_only"}) == "11-05 mieszany"
     # tennis games / sets total from confidence 0.60 from 2026-11-06
     assert audit_ledger.epoch_group(
         {"date": "2026-11-06", "epoch": "stats_only"}) == "od 11-06"
-    assert audit_ledger.EPOCH_GROUPS[-18:] == (
+    assert audit_ledger.EPOCH_GROUPS[-19:] == (
         "10-16 mieszany", "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
         "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
         "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
-        "od 11-02", "od 11-03", "od 11-06")
+        "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06")
 
 
 def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:

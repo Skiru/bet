@@ -494,7 +494,7 @@ split (-2.95 pp [-5.86, -0.12]), CS2 not measurable. Report
 
 | constant | from | what | evidence |
 |---|---|---|---|
-| `TENNIS_TOTALS_FLOOR_FROM_UTC` | 11-06 00:00 (operator 11-05: "as good as the price, margin accepted") | tennis `games_total` / `sets_total` pass the floor at `TENNIS_TOTALS_FLOOR` 0.60 (`epochs.leg_floor`); leg carries `floor_rule` (C2 reads it only where the switch admits it), never joins a builder; every other gate unchanged incl. CATCH_ALL_BUCKET and shape gates. Hold-out 10-21..11-04 R1: 2,393 legs / 1,566 matches, realised - confidence +0.8 pp [-1.3, +2.8], - de-vigged price +2.6 [+0.5, +4.6], ROI -4.6% [-7.7, -1.6]; games OVER 0.65-0.70 over-promised -6.5 pp (150). E2E on 11-05 copy at 09:50Z: +37 legs, 0 other legs changed, 0 C2 | `docs/sofa/evidence/tennis_totals_floor_2026-11-05.md`, `tests/sofa/test_tennis_totals_floor.py` |
+| `TENNIS_TOTALS_FLOOR_FROM_UTC` | 11-05 17:05 (operator 11-05: "as good as the price, margin accepted"; moved into the built day by the operator - 11-05 mixed) | tennis `games_total` / `sets_total` pass the floor at `TENNIS_TOTALS_FLOOR` 0.60 (`epochs.leg_floor`); leg carries `floor_rule` (C2 reads it only where the switch admits it), never joins a builder; every other gate unchanged incl. CATCH_ALL_BUCKET and shape gates. Hold-out 10-21..11-04 R1: 2,393 legs / 1,566 matches, realised - confidence +0.8 pp [-1.3, +2.8], - de-vigged price +2.6 [+0.5, +4.6], ROI -4.6% [-7.7, -1.6]; games OVER 0.65-0.70 over-promised -6.5 pp (150). E2E on 11-05 copy at 09:50Z: +37 legs, 0 other legs changed, 0 C2 | `docs/sofa/evidence/tennis_totals_floor_2026-11-05.md`, `tests/sofa/test_tennis_totals_floor.py` |
 | `RATING_MARKET_GAP_FROM_UTC` | 11-04 00:00 | `rating_market_gap` annotation (`RATING_BELOW_MARKET_MARGIN`, `bet.sofa.rating_market_gap`, written by CONFIDENCE, carried to `11_coupon.json`, sentence on PDF / HTML / md, read_set leg field): a football leg dependent on the favourite's strength (favourite's `goals_for` UNDER, underdog's `goals_for` OVER, underdog's result - 1X2 underdog or X, DC underdog+X, DNB underdog, `result_handicap` underdog +L - and `result_or_under` underdog / X, `dc_and_under` 1X when home is the underdog; full match only) where D = market's goal margin for its favourite - our rating's for that side >= 1.0 | `docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md` |
 
 Ours = the pure rating centres from SHEET's notes (goals_total
@@ -1120,7 +1120,8 @@ Groups are never pooled.
 | "10-30 mieszany" | 10-30 | AWARDED_EXCLUDED 00:00Z - results awarded at the table out of football samples and the rating; PRICE_GAP_OFFSET 08:45Z into the built day (line evidence offset by d, football / tennis / hockey) |
 | "od 10-31" | 10-31, 11-01 | PRICE_GAP_OFFSET from the day's start |
 | "od 11-02" | 11-02 | READS_ON_REQUEST 00:00Z - /sofa-day prints without the analysts (reads only via /sofa-analyze, /kupon) |
-| "od 11-03" | 11-03 .. 11-05 | SETTLEABILITY_DAILY 00:00Z - the NOT_SETTLEABLE list refitted every morning |
+| "od 11-03" | 11-03 .. 11-04 | SETTLEABILITY_DAILY 00:00Z - the NOT_SETTLEABLE list refitted every morning |
+| "11-05 mieszany" | 11-05 | TENNIS_TOTALS_FLOOR moved by the operator into the built day at 17:05Z; legs printed before stay locked |
 | "od 11-06" | 11-06 .. | current; TENNIS_TOTALS_FLOOR 00:00Z - tennis games_total / sets_total print from confidence 0.60 (operator 11-05) |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 

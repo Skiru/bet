@@ -201,7 +201,8 @@ and a miss recorded before a rule's switch never blocks that rule.
   (group) margin <= 15% (`COUPON_PROFILE`), not ODDS_TOO_LOW, not started,
   fresh price (STALE_PRICE otherwise; a moved price re-prices the leg). Every
   passing single prints - no page limit. **Tennis `games_total` /
-  `sets_total` from 2026-11-06 00:00Z** pass at confidence 0.60
+  `sets_total` from 2026-11-05 17:05Z** (moved into the built day by the
+  operator; 11-05 mixed) pass at confidence 0.60
   (`TENNIS_TOTALS_FLOOR`, `epochs.leg_floor`; operator 11-05: "as good as the
   price, margin accepted" - hold-out calibrated and at the de-vigged price,
   ROI -4.6%): such a leg carries `floor_rule`, never joins a builder, C2
