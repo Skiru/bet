@@ -18,6 +18,13 @@ exit 1, gdy okno danych testu zaczyna się w dniu rejestracji albo przed nim).
    `data_window.from` przesuwają się na dzień zatwierdzenia (walidator
    sprawdza je ponownie).
 5. Pule nigdy się nie sumują (ledger: każda pula osobno).
+6. **Status `NOT_PASSED`** = test oceniony przy wymaganym n, ani PASSED, ani
+   FAILED według własnego kryterium (np. dolna granica ROI <= 0, górna >= +2%):
+   nic nie wchodzi. Test oceniony (`PASSED` / `FAILED` / `NOT_PASSED` /
+   `STOPPED_FUTILE`) ma w rejestrze pole `result` z `decided_on`, a każdy
+   skrypt `scripts/sofa/*.py` z pola `evaluation` musi istnieć (poza
+   `WITHDRAWN`) - walidator to sprawdza (od 2026-11-05: test podwójnych błędów
+   miał w rejestrze skrypt, którego nikt nie napisał).
 
 ## Testy
 
@@ -50,6 +57,7 @@ exit 1, gdy okno danych testu zaczyna się w dniu rejestracji albo przed nim).
 | T-KRECZ-WATCH | nogi tenisa zdjęte WATCH „KRECZ:” (gracz, którego noga potrzebuje, przegrał mecz singlowy Retired / Walkover w 14 dniach przed startem, bez ukończonego meczu od tego czasu; `context: "RETIREMENT"`, `report_check.retirement_findings`) realizują poniżej pewności i poniżej ceny; hipoteza zerowa z historii: flagowane nogi realizowały jak reszta (kontrola +10,6 pp względem ceny [−5,2; +21,1], n 21 - `docs/sofa/evidence/tennis_krecz_2026-11-01.md`) | każda noga tenisa zdjęta WATCH z tagiem RETIREMENT (kupon dnia i kupony z czatu), WIN / LOSS, zwroty osobno; księga `removed:reads` `by_context` | 2026-11-02.. | 100 nóg | ocena raz przy 100 nogach: ZALICZONY, gdy górna granica 95% (zdjęte minus 1/kurs) < 0 - zdjęcia zabierają przegrane; inaczej NIEZALICZONY i operator dostaje wniosek o wycofanie reguły | REGISTERED (operator 2026-11-01: reguła od raportów 02.11) |
 | T-TENNIS-STEP-UP-FAVOURED | noga tenisa, której faworyzowany gracz gra zwykle niżej niż rywal (mediana poziomu 10 ostatnich meczów singlowych: 4 ATP/WTA, 3 Challenger/WTA 125, 2 ITF M25+/W35+, 1 ITF M15/W15), realizuje poniżej nóg z tego samego poziomu przy tej samej pewności; dev −11,1 pp [−17,6; −4,8], kontrola −1,7 [−12,1; +7,8] - nie powtórzyło się (`docs/sofa/evidence/tennis_krecz_2026-11-01.md`) | nogi tenisa z `08_confidence.json` z jednym faworyzowanym graczem i znanymi poziomami, WIN / LOSS | 2026-11-02.. | 300 flagowanych nóg | ocena raz przy 300: ZALICZONY, gdy górna granica 95% (flaga − kontrola względem pewności) < 0 - wtedy propozycja przełącznika (zmierzonego) dla operatora; inaczej NIEZALICZONY, nic się nie zmienia | PROPOSED |
 | T-RATING-MARKET-GAP-flag | wydrukowana noga piłkarska z `rating_market_gap` (`RATING_BELOW_MARKET_MARGIN`: noga zależna od siły faworyta, rynek widzi różnicę goli faworyta o D >= 1,0 większą niż nasz czysty rating) realizuje poniżej swojej pewności i ok. ceny, gorzej względem pewności niż wydrukowane nogi zależne przy D -0,5..0,5; hold-out 10-25..11-03: −3,4 pp [−9,3; +2,6] względem pewności, +1,8 pp [−4,3; +7,5] względem ceny (`docs/sofa/evidence/rating_vs_market_disagreement_2026-11-04.md`) | piłkarskie single `11_coupon.json` (zablokowane też, zdjęte odczytem bez), WIN / LOSS | 2026-11-05.. | 500 nóg / 200 meczów | ocena raz przy wymaganym n: ZALICZONY, gdy górna granica 95% (flaga − pasmo środkowe względem pewności) < 0; NIEZALICZONY, gdy dolna > −2 pp (adnotacja przesadza, wniosek o wycofanie); druk się nie zmienia w żadnym wypadku | REGISTERED (operator 2026-11-04: adnotacja od 11-04) |
+| T-TENNIS-DF-UNDER-FORWARD | linie podwójnych błędów Superbetu leżą nad tym, co Sofascore liczy (linia 5,79 vs 4,97; 305 meczów 09-18..10-25), więc UNDER trafia ponad cenę; znalezione po fakcie wśród 36 komórek | każda rozliczona linia `double_faults_total` / `double_faults_for` UNDER z ceną Superbetu (`sofa_settled_row`, run_date >= 2026-10-27), każda linia meczu | 2026-10-27..2027-01-26 | >= 400 nóg / >= 120 meczów | PASSED: dolna granica 95% ROI > 0; FAILED: górna < +2%; przy wymaganym n inaczej NOT_PASSED. Ocena: `scripts/sofa/measure_tennis_df_under_forward.py` | **NOT_PASSED** 2026-11-05: 500 nóg / 129 meczów (10-27..11-04), trafione 0,542 przy 1/kurs 0,557, ROI −1,6% [−15,9; +12,5]; podwójne błędy zostają wyłączone |
 
 Pełne reguły (dokładne formuły, źródła cen, sposób rozliczenia) są w
 `config/sofa_test_registry.json`, pole `rule`.

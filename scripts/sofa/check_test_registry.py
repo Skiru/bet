@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -24,6 +25,8 @@ from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY = _REPO / "config" / "sofa_test_registry.json"
+JUDGED = ("PASSED", "FAILED", "NOT_PASSED", "STOPPED_FUTILE")
+SCRIPT = re.compile(r"scripts/sofa/[A-Za-z0-9_]+\.py")
 REQUIRED = ("id", "registered_on", "status", "hypothesis", "rule", "population",
             "data_window", "required_n", "stop_criterion", "evidence")
 
@@ -52,6 +55,15 @@ def findings(doc: dict[str, Any]) -> list[str]:
         seen.add(tid)
         if statuses and t.get("status") not in statuses:
             out.append(f"{tid}: status {t.get('status')!r} not in {sorted(statuses)}")
+        if t.get("status") in JUDGED:
+            result = t.get("result")
+            if not isinstance(result, dict) or _day(result.get("decided_on")) is None:
+                out.append(f"{tid}: status {t.get('status')} without result.decided_on")
+        if t.get("status") != "WITHDRAWN":
+            for script in SCRIPT.findall(str(t.get("evaluation") or "")):
+                if not (_REPO / script).is_file():
+                    out.append(
+                        f"{tid}: evaluation names {script}, which does not exist")
         registered = _day(t.get("registered_on"))
         window = t.get("data_window") or {}
         start = _day(window.get("from"))

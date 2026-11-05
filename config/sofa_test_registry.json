@@ -1,7 +1,7 @@
 {
-  "_doc": "Pre-registered tests (plan docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md F5.1-F5.4). Human-readable copy: docs/sofa/REJESTR_TESTOW.md. A test is judged only on data strictly AFTER its registration date (data_window.from > registered_on); scripts/sofa/check_test_registry.py refuses a file that breaks this. A rule never changes after registration: a changed rule is a new test with a new id and a new date. Status PROPOSED = written, not yet approved by the operator; on approval registered_on and data_window.from move to the approval day if it is later.",
+  "_doc": "Pre-registered tests (plan docs/sofa/PLAN_2026-10-05_PRODUCTION_GRADE.md F5.1-F5.4). Human-readable copy: docs/sofa/REJESTR_TESTOW.md. A test is judged only on data strictly AFTER its registration date (data_window.from > registered_on); scripts/sofa/check_test_registry.py refuses a file that breaks this. A rule never changes after registration: a changed rule is a new test with a new id and a new date. Status PROPOSED = written, not yet approved by the operator; on approval registered_on and data_window.from move to the approval day if it is later. Status NOT_PASSED = judged at its required n and neither PASSED nor FAILED by its own stop_criterion: nothing ships. A judged test (PASSED / FAILED / NOT_PASSED / STOPPED_FUTILE) carries `result` with `decided_on`, and every scripts/sofa/*.py its `evaluation` names must exist unless it is WITHDRAWN (check_test_registry.py).",
   "schema_version": 1,
-  "statuses": ["PROPOSED", "REGISTERED", "RUNNING", "PASSED", "FAILED", "STOPPED_FUTILE", "WITHDRAWN"],
+  "statuses": ["PROPOSED", "REGISTERED", "RUNNING", "PASSED", "FAILED", "NOT_PASSED", "STOPPED_FUTILE", "WITHDRAWN"],
   "tests": [
     {
       "id": "T-F51-01-football-goals-total-blend",
@@ -115,7 +115,8 @@
       "evidence": [
         {"source": "docs/sofa/evidence/price_gap_2026-10-12.md", "line": 1, "quote": "piłka 458 nóg / 269 meczów, -6,8 pp [-12,0; -2,1]"},
         {"source": "docs/sofa/evidence/red_flags_2026-10-19.md", "line": 1, "quote": "PASSED 2026-10-19 (measure_price_gap.py --from 2026-10-13 --to 2026-10-18): piłka 2 111 nóg / 932 mecze, -10,0 pp [-12,8; -7,4], ROI -5,1% wobec -5,5% reszty; tenis 68 nóg -0,8 pp [-11,7; +9,7] - za mało, raportowany"}
-      ]
+      ],
+      "result": {"decided_on": "2026-10-19", "settled_days": "2026-10-13..2026-10-18", "football": {"legs": 2111, "matches": 932, "realised_minus_confidence_pp": -10.0, "ci95_pp": [-12.8, -7.4], "roi": -0.051, "roi_rest": -0.055}, "tennis": {"legs": 68, "realised_minus_confidence_pp": -0.8, "ci95_pp": [-11.7, 9.7], "note": "reported, not decided"}, "report": "docs/sofa/evidence/red_flags_2026-10-19.md"}
     },
     {
       "id": "T-RED-FLAG-SCRIPT",
@@ -545,7 +546,7 @@
     {
       "id": "T-TENNIS-DF-UNDER-FORWARD",
       "registered_on": "2026-10-26",
-      "status": "PROPOSED",
+      "status": "NOT_PASSED",
       "hypothesis": "Superbet's double-faults lines sit above the realised Sofascore counts (total line 5.79 vs 4.97, OVER 32.5%, 305 matches 09-18..10-25), so UNDER on double_faults_total / double_faults_for realises above its price. Found post hoc among 36 cells; the gap narrowed over time (-1.27 -> -0.60), so it may be fading.",
       "rule": "Every settled double_faults_total / double_faults_for UNDER line (sofa_settled_row, run_date >= 2026-10-27, WIN/LOSS with a Superbet price), ROI at the quoted price, match bootstrap, every line of the match kept (no cherry-picked line). No confidence curve involved: this tests the price, not the model.",
       "population": "Tennis fixtures Superbet quotes double-faults lines on (ATP / WTA main tour), days from 2026-10-27.",
@@ -558,7 +559,7 @@
         "matches": 120,
         "basis": "09-18..10-25: 3,215 UNDER legs / 311 matches at +6.8% [+0.9, +13.5]; second half +1.6% [-6.6, +9.5]."
       },
-      "evaluation": "Read-only measurement on sofa_settled_row from 2026-10-27 (base: df1.py of the 2026-10-26 session, to be written into scripts/sofa/ as measure_tennis_df_under.py).",
+      "evaluation": "scripts/sofa/measure_tennis_df_under_forward.py [--from 2026-10-27] [--to <last settled day>]: SETTLE's own grades from sofa_settled_row (read-only), sheet coverage, ROI at the quoted price, match bootstrap 2000 (settled_by_market.bootstrap_roi), status by frozen_verdict(). Written 2026-11-05; nothing collected the test before (the planned measure_tennis_df_under.py was never written).",
       "stop_criterion": "PASSED (a price-rule discussion, never a curve; needs the operator's go) when the lower 95% bound of ROI is above 0 at the required n; FAILED when the upper bound is below +0.02; STOPPED_FUTILE if the data window ends before the required n.",
       "evidence": [
         {
@@ -566,7 +567,24 @@
           "line": 92,
           "quote": "(m3.py) 2 778 nóg, trafione 0.548, średnie p 0.781, 1/kurs 0.608, ROI -10.1%."
         }
-      ]
+      ],
+      "result": {
+        "decided_on": "2026-11-05",
+        "settled_days": "2026-10-27..2026-11-04",
+        "legs": 500,
+        "matches": 129,
+        "hit_rate": 0.542,
+        "mean_implied_p": 0.557,
+        "roi": -0.016,
+        "roi_ci95": [-0.159, 0.125],
+        "by_market": {
+          "double_faults_total": {"legs": 166, "matches": 120, "roi": -0.049, "roi_ci95": [-0.237, 0.142]},
+          "double_faults_for": {"legs": 334, "matches": 129, "roi": 0.000, "roi_ci95": [-0.129, 0.131]}
+        },
+        "refunds_excluded": {"RETIRED": 21, "CANCELED": 12},
+        "verdict": "NOT_PASSED: the lower bound is <= 0 at the required n (upper >= +0.02, so not FAILED). No price rule; tennis double-fault markets stay off.",
+        "report": "docs/sofa/evidence/tennis_serve_markets_2026-10-26.md, addendum 2026-11-05"
+      }
     },
     {
       "id": "T-PAPER-BB-HANDICAP-B365-OPEN",

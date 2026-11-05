@@ -246,3 +246,30 @@ Szybki pomiar na tych samych 305 meczach z linią `double_faults_total`
 Wniosek: brak dowodu na błąd po naszej stronie liczenia; rozjazd wygląda na
 cechę linii Superbetu, słabnącą. Hipoteza "rynek zaniża UNDER" wymaga testu
 w przód (od 10-26), nie wydruku.
+
+## Dodatek (2026-11-05): test w przód `T-TENNIS-DF-UNDER-FORWARD` - odczyt
+
+Do dziś **nic go nie zbierało**: żaden skrypt, pętla, ledger ani plik w `runs/`
+(skrypt `measure_tennis_df_under.py` z rejestru nie powstał). Dane same się
+gromadziły w `sofa_settled_row` (SETTLE rozlicza każdą linię arkusza, także
+nogi niedrukowane), więc zliczenie wstecz jest możliwe. Licznik:
+`scripts/sofa/measure_tennis_df_under_forward.py` (tylko odczyt, oceny SETTLE,
+bootstrap po meczach 2 000 losowań, `settled_by_market.bootstrap_roi`).
+
+Reguła zamrożona 10-26: `double_faults_total` + `double_faults_for`, UNDER,
+każda linia, WIN / LOSS z ceną Superbetu, run_date >= 2026-10-27. Dni
+rozliczone 2026-10-27 .. 2026-11-04 (9 dni):
+
+- linie UNDER w arkuszach z ceną: 533; ocenione 500; nieocenione 33 - wszystkie
+  to zwroty (RETIRED 21, CANCELED 12), żadna nie czeka na statystykę;
+- **razem: 500 nóg / 129 meczów, trafione 0.542, średnie 1/kurs 0.557, ROI
+  -1.6% [-15.9, +12.5]**; `double_faults_total` 166 / 120, ROI -4.9% [-23.7,
+  +14.2]; `double_faults_for` 334 / 129, ROI +0.0% [-12.9, +13.1];
+- próg (>= 400 nóg, >= 120 meczów) osiągnięty na dniu 2026-11-04 (tempo 55.6
+  nogi / 14.3 meczu dziennie).
+
+**Werdykt wg reguły zamrożonej: NIE PRZESZEDŁ** (dolna granica ROI <= 0). Nie
+jest też FAILED w sensie rejestru (górna granica >= +2%), ale reguła "przechodzi
+tylko przy dolnej granicy > 0" przy wymaganym n rozstrzyga: brak dyskusji o
+regule ceny, rodziny podwójnych błędów zostają wyłączone. Przewaga +6.8% z
+09-18..10-25 nie powtórzyła się w przód (trafione 0.542 vs cena 0.557).

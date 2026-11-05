@@ -657,6 +657,11 @@ faults (+7 / +18 pp). Double faults: line 5.79 vs realised 4.97 (OVER 32.5%),
 gap narrowing; UNDER +6.8% [+0.9, +13.5] found post hoc among 36 cells - a
 lead, forward test `T-TENNIS-DF-UNDER-FORWARD` (from 10-27). Still off; a
 bottom-up model (points -> games -> sets) awaits the operator's go.
+`T-TENNIS-DF-UNDER-FORWARD` **NOT_PASSED 2026-11-05** (nothing collected it
+until then; `scripts/sofa/measure_tennis_df_under_forward.py`): 10-27..11-04,
+500 legs / 129 matches, hit 0.542 at mean 1/odds 0.557, ROI -1.6% [-15.9,
++12.5] (total -4.9%, per player +0.0%); the lead did not repeat - double
+faults stay off.
 
 Exposure / tournament / returner centres (2026-10-19, pre-registered,
 `scripts/sofa/measure_tennis_serve_exposure.py`, main tour only, tier prior as

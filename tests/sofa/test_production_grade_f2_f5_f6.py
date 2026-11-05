@@ -381,6 +381,19 @@ def test_a_window_that_starts_before_or_on_registration_is_refused(
     assert res.returncode == 1, res.stdout + res.stderr
 
 
+
+def test_a_judged_test_needs_its_result_and_an_existing_script() -> None:
+    doc = json.loads((REPO / "config/sofa_test_registry.json").read_text("utf-8"))
+    t = next(x for x in doc["tests"] if x["id"] == "T-TENNIS-DF-UNDER-FORWARD")
+    assert t["status"] == "NOT_PASSED" and "NOT_PASSED" in doc["statuses"]
+    del t["result"]
+    t["evaluation"] = "scripts/sofa/measure_never_written.py --from 2026-10-27"
+    found = check_test_registry.findings(doc)
+    assert any("without result.decided_on" in f for f in found)
+    assert any("measure_never_written.py, which does not exist" in f for f in found)
+    t["status"] = "WITHDRAWN"
+    assert check_test_registry.findings(doc) == []
+
 # --- F5.2 / F6.2: day status -------------------------------------------------
 
 D = "2026-10-06"
