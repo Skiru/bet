@@ -1394,6 +1394,39 @@ def market_positioned_lines(date: str | None = None,
     return at >= MARKET_POSITIONED_LINES_FROM_UTC
 
 
+# Basketball halves and quarters fitted on market-positioned lines (study
+# 2026-11-05, data/refit_2026-11-05_replay/drifts/): the history curves of
+# the period families (h1 / h2 / quarter total, handicap, team total) were
+# fitted on lines at the model's own quantiles, while Superbet posts a
+# period's line where the market expects it (a quarter total ~0.25 x the
+# game total, a half ~0.5; a period spread ~ the game spread / 4 or / 2), so
+# a high p at a Superbet period line mostly meant disagreeing with the
+# market's centre: settled Superbet lines from 10-18 realised -19.1 pp
+# [-23.3, -14.8] below confidence at >= 0.70 (n 2,513). From this moment a
+# basketball fit (fit_sport_confidence for a day it is on) scores those
+# families on lines placed at the historical game's Sofascore total / spread
+# divided by the period count, +-0, 1, 2 points
+# (sport_confidence.period_position_lines); p stays the score model's. A fit
+# switch: it changes what prints only through the staged curve file of the
+# day it is installed for (config/sofa_sport_confidence_calibration.next.<D>
+# .json), never a built day. None = the synthetic lines, byte for byte.
+BB_PERIOD_MARKET_LINES_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 0, 0, tzinfo=UTC)
+
+
+def bb_period_market_lines(date: str | None = None,
+                           build_at: datetime | None = None) -> bool:
+    """Are basketball's period curves fitted on market-positioned lines
+    (BB_PERIOD_MARKET_LINES_FROM_UTC)? `date` None: the wall clock alone."""
+    if BB_PERIOD_MARKET_LINES_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if (date is not None
+            and date < BB_PERIOD_MARKET_LINES_FROM_UTC.strftime("%Y-%m-%d")):
+        return False
+    return at >= BB_PERIOD_MARKET_LINES_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are

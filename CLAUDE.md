@@ -433,6 +433,15 @@ measurement of Superbet's price and feed nothing else.
   round handicap / total, team kills, player kills / deaths / assists /
   headshots) and series families from a Beta-mixed series distribution
   (`cs2_engine.SERIES_KAPPA`); round parity unpriced.
+- **Basketball period curves** (`BB_PERIOD_MARKET_LINES`, from 2026-11-06
+  00:00Z, operator's install go 11-05; ledger group "od 11-06"): the h1 / h2 /
+  quarter total, handicap and team-total curves are fitted on lines placed
+  where the market stood - the game's Sofascore total / spread / period count,
+  +-2 points (`sport_confidence.period_position_lines`), as the full-game ones
+  (A7) - not at the model's own quantiles; 15 keys in
+  `config/sofa_sport_confidence_calibration.next.2026-11-06.json`. Settled
+  Superbet lines 10-18..11-04: >= 0.70 -14.1 -> -0.0 pp, log loss -0.021; most
+  period legs stop printing (model-state.md).
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl`; no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from SHADOW_SETTLE's

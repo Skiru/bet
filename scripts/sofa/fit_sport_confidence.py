@@ -136,10 +136,9 @@ UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, str, Callable[..., bool], str], ...]
     ("cs2", "CS2_LINEUP_ELO_UNRATED (P7)", epochs.cs2_lineup_elo_unrated,
      "the walk-forward rows read no lineup rating for unrated team ids "
      "(cs2_engine.fit_unrated)"),
-    ("volleyball", "VB_GOLDEN_SET (P13)", epochs.vb_golden_set,
-     "parse_history(golden_set=False): the AET / AGS matches stay out of "
-     "the history"),
 )
+# VB_GOLDEN_SET (P13) is replayed from 2026-11-05: parse_history(golden_set=)
+# by the fit's day (fitted_from.vb_golden_set).
 
 
 # Review 2026-10-27 F3: the CS2 replay's Elo starts every team at ELO_START on
@@ -232,6 +231,8 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
     dates = settled_dates(runs_dir, sport, before)
     rows: dict[str, list[scf.Row]] = {}
     market: dict[int, MarketLines] | None = None
+    golden = False
+    period_lines = False
     if sport == "cs2":
         maps, series = scf.load_cs2(db_path, before_ts)
         # epochs.CS2_TEAM_ROUNDS_RACE: the estimator of the day the fit is for
@@ -273,21 +274,34 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
                    args.hk_shots is not None
                    or epochs.HK_SHOTS_FROM_UTC is not None)
                else None)
-        history = scf.parse_history(events, shadow_sport, box)
+        # epochs.VB_GOLDEN_SET (audit 2026-10-23 P13), replayed from
+        # 2026-11-05: an AET / AGS volleyball match read on its own sets, as
+        # SPORT_CONFIDENCE's history reads it on the fit's day
+        golden = sport == "volleyball" and epochs.vb_golden_set(before, first)
+        history = scf.parse_history(events, shadow_sport, box,
+                                    golden_set=golden)
         history = [g for g in history if g.rating.ts < before_ts]
         history_n = len(history)
         market = market_lines_for(sport, before, args.market_lines)
+        # epochs.BB_PERIOD_MARKET_LINES (study 2026-11-05): the period
+        # families on market-positioned lines too, by the --before day's rule
+        # or --bb-period-market-lines on / off
+        period_lines = market is not None and switch_mode(
+            args.bb_period_market_lines or "auto", sport, "basketball", before,
+            epochs.bb_period_market_lines)
         rows["history_fit"] = scf.walk_forward_rows(
             history, shadow_sport, fit_start, hold_ts, args.sims, args.max_games,
             "history_fit", fresh, overtime, strict, pace, level, hk_shots, hk_en,
             vb_length, vb_sets, market, season_restart=restart,
-            late_in_mean=hk_late if sport == "hockey" else None)
+            late_in_mean=hk_late if sport == "hockey" else None,
+            period_market_lines=period_lines)
         rows["history_holdout"] = scf.walk_forward_rows(
             history, shadow_sport, hold_ts, before_ts, args.sims,
             args.max_holdout_games, "history_holdout", fresh, overtime, strict,
             pace, level, hk_shots, hk_en, vb_length, vb_sets, market,
             season_restart=restart,
-            late_in_mean=hk_late if sport == "hockey" else None)
+            late_in_mean=hk_late if sport == "hockey" else None,
+            period_market_lines=period_lines)
         # an explicit flag: the fit's estimator on every settled day too, so the
         # curve is checked on the p it was fitted for (else the day's rule)
         settled = scf.settled_shadow_rows(
@@ -355,13 +369,18 @@ def fit_sport(sport: str, before: str, args: argparse.Namespace,
             **({"bb_pace_level": True} if level else {}),
             **({"hk_shots": hk_shots} if hk_shots else {}),
             **({"hk_empty_net": True} if hk_en else {}),
+            **({"vb_golden_set": True} if golden else {}),
             **({"vb_set_length": True} if vb_length else {}),
             **({"vb_set_history": True} if vb_sets else {}),
             **({"market_positioned_lines": {
                 "cache": args.market_lines or epochs.MARKET_LINES_CACHE.format(
                     sport=sport),
                 "families": sorted({MARKETS[sport][m].family  # type: ignore[index]
-                                    for m in scf.MARKET_LINE_MARKETS[sport]}),
+                                    for m in scf.MARKET_LINE_MARKETS[sport]
+                                    | (scf.PERIOD_MARKET_LINE_MARKETS.get(
+                                        sport, frozenset())
+                                       if period_lines else frozenset())}),
+                **({"period_families": True} if period_lines else {}),
                 "games_with_lines": len(market),
                 "rows": {k: sum(1 for r in v
                                 if r.get("line_source") == "market")
@@ -484,6 +503,12 @@ def main() -> int:
     ap.add_argument("--cs2-team-rounds-race", action="store_true",
                     help="replay CS2 team rounds from the round race (audit B10; "
                     "default: the rule of the --before day)")
+    ap.add_argument("--bb-period-market-lines", choices=("auto", "on", "off"),
+                    default="auto",
+                    help="basketball: the h1 / h2 / quarter totals, handicaps "
+                    "and team totals on market-positioned lines too (study "
+                    "2026-11-05; needs the market lines); auto = the --before "
+                    "day's rule (epochs.BB_PERIOD_MARKET_LINES)")
     ap.add_argument("--market-lines", default=None, metavar="CACHE",
                     help="basketball: fit the total / handicap / team total "
                     "history on lines placed where the market stood (audit "

@@ -912,13 +912,76 @@ def market_position_lines(sport: ShadowSport, market_id: int,
     return []
 
 
+# epochs.BB_PERIOD_MARKET_LINES (study 2026-11-05): basketball's period
+# families - h1 / h2 / quarter total, handicap and team totals - scored on
+# lines placed where the market stood: the historical game's Sofascore total
+# T and home spread H (bet.sofa.market_lines; the median one when several)
+# divided by the period count (a half 2, a quarter 4; every quarter of the
+# game alike), the team totals at the split (T - H) / 2 and (T + H) / 2,
+# each +-PERIOD_LINE_OFFSETS around the half-point line. Only the POSITION
+# comes from the market; p stays the score model's. Superbet's own period
+# lines sit at 0.251 x T (quarter) / 0.499 x T (half) and ~H / 4, H / 2 on
+# its settled lines 10-18..11-04 (drifts/ladder_basketball.json).
+PERIOD_MARKET_LINE_MARKETS: dict[str, frozenset[int]] = {
+    "basketball": frozenset({748, 773, 200804, 200797,          # first half
+                             233404, 233405, 233806, 233807,    # second half
+                             788, 774, 200802, 200795}),        # quarters
+}
+PERIOD_LINE_OFFSETS: tuple[float, ...] = (0.0, -1.0, 1.0, -2.0, 2.0)
+
+
+def _period_ladder(centre: float) -> list[float]:
+    """The half-point lines around `centre` (one when it is a half-point,
+    the two around it otherwise), each +- PERIOD_LINE_OFFSETS."""
+    if abs(centre - math.floor(centre) - 0.5) < 1e-9:
+        base: tuple[float, ...] = (centre,)
+    else:
+        r = round(centre)
+        base = (r - 0.5, r + 0.5)
+    return sorted({b + o for b in base for o in PERIOD_LINE_OFFSETS})
+
+
+def period_position_lines(sport: ShadowSport, market_id: int,
+                          ml: MarketLines) -> list[ShadowLine]:
+    """Both sides of every market-positioned line of one game for one
+    period market (PERIOD_MARKET_LINE_MARKETS); [] when the game has no
+    total or no spread."""
+    spec = _spec(sport, market_id)
+    if not ml.totals or not ml.home_handicaps:
+        return []
+    total = sorted(ml.totals)[len(ml.totals) // 2]
+    spread = sorted(ml.home_handicaps)[len(ml.home_handicaps) // 2]
+    if spec.scope == "period":
+        div, periods = 4.0, PERIODS.get(sport.key, ())
+    elif spec.scope in ("h1", "h2"):
+        div, periods = 2.0, (0,)
+    else:
+        return []
+    out: list[ShadowLine] = []
+    for prd in periods:
+        if spec.kind == "total":
+            out += [ShadowLine("", market_id, spec.family, prd, "", c, s, 1.0)
+                    for c in _period_ladder(total / div)
+                    for s in ("OVER", "UNDER")]
+        elif spec.kind == "handicap":
+            out += [ShadowLine("", market_id, spec.family, prd, "", h, s, 1.0)
+                    for h in _period_ladder(spread / div) for s in ("T1", "T2")]
+        elif spec.kind == "team_total" and spec.team is not None:
+            c = (total - spread) / 2.0 if spec.team == "T1" else (total + spread) / 2.0
+            out += [ShadowLine("", market_id, spec.family, prd, spec.team, x, s,
+                               1.0)
+                    for x in _period_ladder(c / div) for s in ("OVER", "UNDER")]
+    return out
+
+
 def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
                n_sims: int, source: str, freshness: bool = False,
                overtime: bool = False, set_history: bool = False,
                market_lines_on: bool = False,
                market: MarketLines | None = None,
                market_only: bool = False,
-               markets: Sequence[int] | None = None) -> list[Row]:
+               markets: Sequence[int] | None = None,
+               period_market_lines: bool = False) -> list[Row]:
     """The rows of one historical game, from the model as it stands.
     `markets`: score these market ids instead of history_markets (the
     derived markets' measurement, DERIVED_HISTORY_MARKETS); None: as before.
@@ -929,7 +992,10 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
     `market_lines_on` (A7): a MARKET_LINE_MARKETS family is scored on the
     game's market-positioned lines (`market`; None: no row) instead of the
     synthetic ones; `market_only` scores those families alone (a game outside
-    the thinned sample). Off: the synthetic lines, byte for byte."""
+    the thinned sample). Off: the synthetic lines, byte for byte.
+    `period_market_lines` (epochs.BB_PERIOD_MARKET_LINES, with
+    `market_lines_on`): the PERIOD_MARKET_LINE_MARKETS families too, on
+    period_position_lines."""
     if game.result is None:
         return []
     r = game.rating
@@ -945,8 +1011,11 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
            if model.set_length is not None else {}))
     rows: list[Row] = []
     three = {mid for mid, s in MARKETS[sport.key].items() if s.kind == "three_way"}
+    period_positioned = (PERIOD_MARKET_LINE_MARKETS.get(sport.key, frozenset())
+                         if market_lines_on and period_market_lines
+                         else frozenset())
     positioned = (MARKET_LINE_MARKETS.get(sport.key, frozenset())
-                  if market_lines_on else frozenset())
+                  if market_lines_on else frozenset()) | period_positioned
     scored = (history_markets(sport.key, set_history) if markets is None
               else tuple(markets))
     derived = set(DERIVED_HISTORY_MARKETS.get(sport.key, ()))
@@ -956,7 +1025,10 @@ def score_game(sport: ShadowSport, model: ScoreModel, game: HistoryGame,
              for ln in synthetic_lines(sport, mid, sims, period)]
     if market is not None:
         lines += [ln for mid in HISTORY_MARKETS[sport.key] if mid in positioned
+                  and mid not in period_positioned
                   for ln in market_position_lines(sport, mid, market)]
+        lines += [ln for mid in scored if mid in period_positioned
+                  for ln in period_position_lines(sport, mid, market)]
     for line in lines:
         mid = line.market_id
         p = line_probability(line, sims, sport)
@@ -997,6 +1069,7 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                       markets: Sequence[int] | None = None,
                       season_restart: bool = False,
                       late_in_mean: bool | None = None,
+                      period_market_lines: bool = False,
                      ) -> list[Row]:
     """Rows for the games in [start_ts, end_ts), each forecast from a model
     built only from games that started strictly before it. `markets`: the
@@ -1035,6 +1108,9 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
     R3): hockey's late goal taken out of the third period's mean, forced on
     / off (score_model.late_goal_in_mean_params); None: the params as
     before (ScoreModel.simulate reads the switch on the clock alone).
+    `period_market_lines` (epochs.BB_PERIOD_MARKET_LINES, with
+    `market_lines`): the period families on market-positioned lines too
+    (score_game's).
     """
     ratings = [g.rating for g in history]
     vb_len = set_length and sport.key == "volleyball"
@@ -1081,7 +1157,8 @@ def walk_forward_rows(history: Sequence[HistoryGame], sport: ShadowSport,
                                    overtime, set_history,
                                    market_lines_on=True, market=ml,
                                    market_only=id(g) not in scored,
-                                   markets=markets)
+                                   markets=markets,
+                                   period_market_lines=period_market_lines)
         for g in batch:
             model.book.update(_rated_values(g.rating, sport))
             model.note_game(g.rating)

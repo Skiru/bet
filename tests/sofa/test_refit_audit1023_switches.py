@@ -1,11 +1,14 @@
 """Review R2 #4: the coverage audit 2026-10-23's switches the replays do not
-carry are named by a refit - prepare_refit's install warns for P1 / P3
-(football) / P5 / P14 (calibrate_from_cache replays none of them), and
+carry are named by a refit - prepare_refit's install warns for P3
+(football) / P5 (calibrate_from_cache replays neither; P1 / P14 are replayed
+from 2026-11-05 - --sample-conflict-cut / --tennis-score-winner - and
+refused when missing), and
 fit_sport_confidence warns for P7 (CS2) / P13 (volleyball) and names them
 in fitted_from - never refused, like UNREPLAYABLE_SWITCHES. Offline."""
 
 from __future__ import annotations
 
+import argparse
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -55,10 +58,52 @@ def test_p3_is_read_for_football_only(
     assert not any(w.startswith("PLAYER_HISTORY_ANY_TEAM") for w in warnings)
 
 
-def test_the_sport_fit_names_p7_and_p13_for_their_sports() -> None:
+def test_the_sport_fit_names_p7_for_cs2_and_replays_p13() -> None:
     (cs2,) = fsc.unreplayed_switches("cs2", "2026-10-24")
     assert cs2.startswith("CS2_LINEUP_ELO_UNRATED (P7) is on for 2026-10-24")
-    (vb,) = fsc.unreplayed_switches("volleyball", "2026-10-24")
-    assert vb.startswith("VB_GOLDEN_SET (P13) is on")
+    # P13 is replayed from 2026-11-05 (parse_history golden_set=)
+    assert fsc.unreplayed_switches("volleyball", "2026-10-24") == []
     assert fsc.unreplayed_switches("hockey", "2026-10-24") == []
     assert fsc.unreplayed_switches("cs2", "2026-10-23") == []
+
+
+class _Args(argparse.Namespace):
+    """fit_sport's args: every option at None / False."""
+
+    holdout_days = 30
+    fit_days = 365
+    hk_late_in_mean = "off"
+    cs2_decider_posterior = "off"
+    cs2_burn_in_days = 0
+
+    def __getattr__(self, name: str) -> object:
+        return None
+
+
+class _StopError(Exception):
+    pass
+
+
+@pytest.mark.parametrize(("sport", "before", "expected"), [
+    ("volleyball", "2026-10-24", True),
+    ("volleyball", "2026-10-23", False),
+    ("hockey", "2026-10-24", False),
+])
+def test_the_sport_fit_reads_golden_sets_by_its_day(
+    monkeypatch: pytest.MonkeyPatch, sport: str, before: str, expected: bool,
+) -> None:
+    """VB_GOLDEN_SET (P13): the volleyball history of a fit for a day the
+    switch is on reads the AET / AGS matches (parse_history golden_set=True),
+    as SPORT_CONFIDENCE does; before it, and for another sport, never."""
+    seen: dict[str, object] = {}
+
+    def parse_history(events: object, sp: object, box: object = None,
+                      **kw: object) -> list[object]:
+        seen.update(kw)
+        raise _StopError
+
+    monkeypatch.setattr(fsc, "_events", lambda *a, **k: {})
+    monkeypatch.setattr(fsc.scf, "parse_history", parse_history)
+    with pytest.raises(_StopError):
+        fsc.fit_sport(sport, before, _Args(), "unused.db", "unused")
+    assert seen.get("golden_set", False) is expected

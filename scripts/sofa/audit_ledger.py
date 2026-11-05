@@ -265,7 +265,11 @@ TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
 # The tennis point model (epochs.TENNIS_POINT_MODEL_FROM_UTC, 2026-11-06
 # 00:00Z, operator 11-05: per-set games and serve-count rows priced by the
 # bottom-up point model, their own history curves) starts the same day: both
-# switches share the group "od 11-06".
+# switches share the group "od 11-06". So do the basketball period curves
+# fitted on market-positioned lines (epochs.BB_PERIOD_MARKET_LINES_FROM_UTC,
+# config/sofa_sport_confidence_calibration.next.2026-11-06.json: h1 / h2 /
+# quarter totals, handicaps, team totals) - one group, separated by market
+# family when audited.
 
 
 def epoch_group(row: dict[str, Any]) -> str:
