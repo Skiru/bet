@@ -3542,3 +3542,48 @@ def rating_market_gap(date: str, build_at: datetime | None = None) -> bool:
     """Does the build annotate rating-vs-market disagreement
     (RATING_MARKET_GAP_FROM_UTC on the day being built and the build clock)?"""
     return _audit_1023_on(RATING_MARKET_GAP_FROM_UTC, date, build_at)
+
+
+# Tennis full-match games total / sets total print from confidence 0.60
+# (operator 2026-11-05: "be at least as good as Superbet's price, the margin
+# accepted"; "switches today, ready for tomorrow"). Measured 2026-11-05
+# (scripts/sofa/measure_tennis_totals_floor.py, docs/sofa/evidence/
+# tennis_totals_floor_2026-11-05.md; settled Superbet lines 10-07..11-04,
+# confidence recomputed with today's CONFIDENCE and walk-forward line
+# evidence, match bootstrap): rule R1 (confidence >= 0.60 & x >= 0.90),
+# hold-out 10-21..11-04, 2,393 legs / 1,566 matches: realised - confidence
+# +0.8 pp [-1.3, +2.8], realised - de-vigged price +2.6 pp [+0.5, +4.6],
+# ROI -4.6% [-7.7, -1.6] (calibrated and at the price; loses about the
+# margin - the operator's yardstick, not money). The legs it adds: 2,023,
+# +0.6 pp [-1.7, +2.9], ROI -4.8%. Weak cell: games OVER at 0.65-0.70
+# over-promised -6.5 pp [-14.4, +0.8] (150 legs); below p 0.60 the model
+# ranks worse than the price (AUC -0.016..-0.018), and CATCH_ALL_BUCKET
+# still refuses p_central < 0.60. With the switch a tennis row of
+# TENNIS_TOTALS_FLOOR_MARKETS passes the floor at TENNIS_TOTALS_FLOOR
+# instead of the profile's; a leg printed below the profile's floor carries
+# TENNIS_TOTALS_FLOOR_MARKER (its own floor, read by audit_variants C2) and
+# never joins a builder (the measurement was of singles). Every other gate
+# (x >= 0.90, margin <= 15%, line evidence, curves, BEST_OF_FIVE) applies.
+# By the day and the build clock; no sheet marker (CONFIDENCE only).
+TENNIS_TOTALS_FLOOR_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 0, 0, tzinfo=UTC)
+TENNIS_TOTALS_FLOOR = 0.60
+TENNIS_TOTALS_FLOOR_MARKETS: frozenset[str] = frozenset({"games_total", "sets_total"})
+TENNIS_TOTALS_FLOOR_MARKER = "floor_rule"
+
+
+def tennis_totals_floor(date: str, build_at: datetime | None = None) -> bool:
+    """TENNIS_TOTALS_FLOOR_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(TENNIS_TOTALS_FLOOR_FROM_UTC, date, build_at)
+
+
+def leg_floor(leg: Mapping[str, Any], date: str, default: float,
+              build_at: datetime | None = None) -> float:
+    """The floor a leg is judged on: TENNIS_TOTALS_FLOOR for a tennis row of
+    TENNIS_TOTALS_FLOOR_MARKETS when the switch is on for `date` at
+    `build_at`, never above `default` (a stricter profile keeps its own)."""
+    if (leg.get("sport") == "tennis"
+            and leg.get("market") in TENNIS_TOTALS_FLOOR_MARKETS
+            and tennis_totals_floor(date, build_at)):
+        return min(default, TENNIS_TOTALS_FLOOR)
+    return default

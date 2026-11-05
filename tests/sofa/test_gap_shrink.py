@@ -71,7 +71,7 @@ def test_run_confidence_shrinks_before_the_floor_and_the_price_gate() -> None:
     source = (REPO / "scripts/sofa/run_confidence.py").read_text()
     i = source.index("realised_lo = cal.shrink_for_gap(")
     assert source.index("realised_lo, source, n_cal = hit") < i
-    assert i < source.index("if realised_lo < floor:")
+    assert i < source.index("if realised_lo < row_floor:")
     assert i < source.index("if not profile.clears_price(realised_lo, odds):")
 
 

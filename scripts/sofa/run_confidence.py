@@ -97,8 +97,10 @@ from bet.sofa.epochs import (  # noqa: E402
     PLAYER_MIN_SAMPLE,
     PLAYER_SAMPLE_MARKER,
     STATS_ONLY,
+    TENNIS_TOTALS_FLOOR_MARKER,
     derived_curves,
     derived_sample_gates,
+    leg_floor,
     line_curves,
     line_evidence,
     line_evidence_v2,
@@ -825,9 +827,12 @@ def main() -> int:
             realised_lo, row["p_central"], row.get("market_p")
         )
         rec.confidence = realised_lo
-        if realised_lo < floor:
+        # epochs.TENNIS_TOTALS_FLOOR: tennis games / sets total pass at 0.60
+        row_floor = leg_floor(row, args.date, floor, now)
+        if realised_lo < row_floor:
             rec.refuse("BELOW_CONFIDENCE_FLOOR")
             continue
+        below_profile_floor = realised_lo < floor
         # See CATCH_ALL_BUCKET_TOP: the bottom bucket's lower bound is an
         # average over claims from 0.00 to 0.60 and cannot vouch for one.
         if reads_catch_all_bucket(row["p_central"]):
@@ -1027,6 +1032,9 @@ def main() -> int:
                 # `overround` is None by construction (epochs.ONE_SIDED_SINGLES).
                 **({"one_sided_market": True} if key in one_sided else {}),
                 **({PLAYER_SAMPLE_MARKER: lifted} if lifted else {}),
+                # epochs.TENNIS_TOTALS_FLOOR: printed on its own lower floor
+                **({TENNIS_TOTALS_FLOOR_MARKER: row_floor}
+                   if below_profile_floor else {}),
                 **({DERIVED_SAMPLE_MARKER: derived_counts}
                    if derived_counts is not None else {}),
                 # CLAUDE.md: never strip UNFITTED_CONSTANTS from a row. The
@@ -1208,6 +1216,9 @@ def main() -> int:
         # epochs.PLAYER_SAMPLE_GATES: admitted as a single on the singles'
         # measurement; a builder still needs the sample the gates ask for
         if leg.get(PLAYER_SAMPLE_MARKER):
+            continue
+        # epochs.TENNIS_TOTALS_FLOOR: measured as singles only
+        if leg.get(TENNIS_TOTALS_FLOOR_MARKER) is not None:
             continue
         # epochs.DERIVED_SAMPLE_GATES: a joint of two sides has no
         # observations of its own to intersect; it prints as a single

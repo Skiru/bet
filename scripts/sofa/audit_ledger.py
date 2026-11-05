@@ -150,7 +150,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
-                "od 11-02", "od 11-03")
+                "od 11-02", "od 11-03", "od 11-06")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -255,10 +255,16 @@ READS_ON_REQUEST_EPOCH_FROM_DATE = "2026-11-02"
 # DATE, 2026-11-03; it had stood on the 10-05 fit): 8 more (competition,
 # family) cells refused on its first fit - what prints changes: a new epoch.
 SETTLEABILITY_DAILY_EPOCH_FROM_DATE = "2026-11-03"
+# Tennis games / sets total print from confidence 0.60
+# (epochs.TENNIS_TOTALS_FLOOR_FROM_UTC, 2026-11-06 00:00Z, operator 11-05):
+# more tennis legs print - a new epoch.
+TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE = "2026-11-06"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE:
+            return "od 11-06"
         if str(row.get("date", "")) >= SETTLEABILITY_DAILY_EPOCH_FROM_DATE:
             return "od 11-03"
         if str(row.get("date", "")) >= READS_ON_REQUEST_EPOCH_FROM_DATE:

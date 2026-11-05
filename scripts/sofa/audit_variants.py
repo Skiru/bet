@@ -66,6 +66,8 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
     STATS_ONLY,
+    TENNIS_TOTALS_FLOOR_MARKER,
+    leg_floor,
     one_sided_singles,
     reads_on_request,
 )
@@ -173,6 +175,16 @@ def audit_confidence(runs_dir: str, date: str) -> list[str]:
             min_ev = under.get("min_ev")
             max_ov = float(under.get("max_overround", doc_max_ov))
             built = _utc(str(printed_at))
+        own_floor = single.get(TENNIS_TOTALS_FLOOR_MARKER)
+        if own_floor is not None:
+            # epochs.TENNIS_TOTALS_FLOOR: a leg printed on its own lower
+            # floor - valid only where the switch admits it at its build
+            allowed = leg_floor(single, date, floor, built)
+            if float(own_floor) < allowed - TOL:
+                out.append(
+                    f"C2 {label}: {TENNIS_TOTALS_FLOOR_MARKER} {own_floor} not "
+                    f"admitted (floor {allowed})")
+            floor = allowed
         if conf < floor - TOL:
             out.append(f"C2 {label}: confidence {conf} below floor {floor}")
         if min_ev is None:

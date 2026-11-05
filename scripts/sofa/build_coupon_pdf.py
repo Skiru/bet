@@ -71,7 +71,11 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.contracts import Fixture  # noqa: E402
 from bet.sofa.coupon_html import leg_x, write_html  # noqa: E402
-from bet.sofa.epochs import STATS_ONLY, artifact_epoch  # noqa: E402
+from bet.sofa.epochs import (  # noqa: E402
+    STATS_ONLY,
+    TENNIS_TOTALS_FLOOR_MARKER,
+    artifact_epoch,
+)
 from bet.sofa.icloud_sync import sync_day  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
@@ -712,6 +716,10 @@ def main() -> int:
         + (f"(w tym {n_locked} {LOCKED_LABEL}) " if n_locked else "")
         + "&nbsp;•&nbsp; "
         f"próg pewności {doc_json['confidence_floor']}"
+        # epochs.TENNIS_TOTALS_FLOOR: legs printed on their own lower floor
+        + ("".join(sorted({
+            f" (tenis: liczba gemów / setów w meczu od {s[TENNIS_TOTALS_FLOOR_MARKER]})"
+            for s in singles if s.get(TENNIS_TOTALS_FLOOR_MARKER) is not None})))
         + ("" if profile.min_ev is None
            else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"
                 f" &nbsp;•&nbsp; marża rynku ≤ {profile.max_overround:.0%}"), subtitle))
