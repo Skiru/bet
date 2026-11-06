@@ -328,9 +328,10 @@ def main() -> int:
     sport_printable = fitted["sport_printable"]
     sport_by_gap = dict(fitted["sport_printable_by_gap"])
     design_effect = dict(fitted["design_effect"])
-    sport_cal = scf.SportCalibration.load(
+    # epochs.VB_POINT_MODEL: the rally keys' curves by the clock (a mixed day)
+    sport_cal = scf.with_vb_point_curves(scf.SportCalibration.load(
         Path(args.sport_calibration) if args.sport_calibration
-        else scf.calibration_path_for(args.before))
+        else scf.calibration_path_for(args.before)), args.before, None)
     sport_source = "none"
     if sport_cal is not None:
         if args.sport_rows_dir:

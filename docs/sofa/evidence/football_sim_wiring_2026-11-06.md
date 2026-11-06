@@ -232,3 +232,25 @@ Wyniki:
   - `run_sheet.py`, `run_confidence.py`, `run_settle.py`, `regrade_settled.py`,
     `fit_line_evidence.py`, `audit_ledger.py` (komentarz);
   - testy `test_football_sim.py`, `off_scenarios.py`.
+
+## Przeniesienie do dnia 2026-11-06 (decyzja operatora)
+
+Operator: „WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ”. `FOOTBALL_SIM_FROM_UTC` i
+`FOOTBALL_SIM_FLOOR_FROM_UTC` = **2026-11-06 17:30:00Z**.
+
+- Oba przełączniki działają według dnia i zegara budowy
+  (`epochs._audit_1023_on`).
+- Dzień 11-06 jest mieszany (grupa ledgera „11-06 mieszany”, potem „od
+  11-07”). Nogi wydrukowane wcześniej zostają zablokowane.
+- Przebudowa po 17:30Z sama czyta OFFER ponownie: poranny `04_offer.json` nie
+  ma szczebli tych rynków (`rebuild_plan` `offer_has_sim`). Potem powtarza
+  SHEET, bo wiersze nie mają znacznika.
+- Dowody z linii 11-06 policzono rano bez tych kluczy, a
+  `config/sofa_superbet_line_evidence.json` nie jest przeliczany w ciągu dnia.
+  Do porannego odświeżenia 11-07 noga symulatora czyta więc:
+  - pulowany offset piłki według kubełka d (np. `team_scores_both_halves`
+    UNDER: -1,4 pp);
+  - ogólny limit pasma ceny sportu (`cap:*`), bez własnych linii.
+
+  Tak samo liczył wariant B odłożonej próby.
+

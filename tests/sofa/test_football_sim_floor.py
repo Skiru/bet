@@ -1,5 +1,5 @@
-"""epochs.FOOTBALL_SIM_FLOOR (operator 2026-11-06 "TAK!", from 2026-11-07
-00:00Z with FOOTBALL_SIM): the four football simulator keys that passed their
+"""epochs.FOOTBALL_SIM_FLOOR (operator 2026-11-06 "TAK!", moved by the
+operator into the built day 2026-11-06 at 17:30Z, with FOOTBALL_SIM): the four football simulator keys that passed their
 own 0.60-0.70 band (docs/sofa/evidence/football_sim_floor_2026-11-06.md) pass
 the floor at 0.60, carry the leg's own floor and stay out of builders."""
 
@@ -16,15 +16,16 @@ from bet.sofa import epochs
 from scripts.sofa import audit_variants
 from tests.sofa.coupon_fixtures import AT, DATE, official_single, write_official
 
-ON = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+ON = datetime(2026, 11, 6, 17, 30, tzinfo=UTC)
 
 
-def test_the_switch_is_from_2026_11_07_and_needs_the_simulator(
+def test_the_switch_is_from_2026_11_06_1730z_and_needs_the_simulator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert epochs.FOOTBALL_SIM_FLOOR_FROM_UTC == ON
     assert epochs.FOOTBALL_SIM_FLOOR == 0.60
     assert not epochs.football_sim_floor("2026-11-06", ON - timedelta(minutes=1))
+    assert epochs.football_sim_floor("2026-11-06", ON)
     assert epochs.football_sim_floor("2026-11-07", ON)
     monkeypatch.setattr(epochs, "FOOTBALL_SIM_FROM_UTC", None)
     assert not epochs.football_sim_floor("2026-11-07", ON)
@@ -61,6 +62,7 @@ def test_only_the_passing_simulator_keys_read_the_lower_floor(
 ) -> None:
     assert epochs.leg_floor(leg, "2026-11-07", 0.70, ON) == floor
     assert epochs.leg_floor(leg, "2026-11-06", 0.70, ON - timedelta(hours=1)) == 0.70
+    assert epochs.leg_floor(leg, "2026-11-05", 0.70, ON) == 0.70
 
 
 def test_a_stricter_profile_keeps_its_own_floor() -> None:

@@ -245,6 +245,24 @@ def test_install_takes_only_the_section_and_restores_on_a_failure(
     assert ilc.main([*base, "--dry-run"]) == 2  # no section
 
 
+def test_install_refuses_beside_a_dated_staged_file(tmp_path: Path) -> None:
+    """A dated .next.<YYYY-MM-DD>.json is read from its day (2026-11-06,
+    confidence.calibration_path_for): an install into the installed file
+    alone would never reach it."""
+    target = tmp_path / "sofa_confidence_calibration.json"
+    installed = {"by_market_direction": {"a|OVER": {}}, "fitted_from": {"x": 1}}
+    target.write_text(json.dumps(installed))
+    staged = tmp_path / "staged.json"
+    section = {"goals_for|UNDER": {"1.5": {"0.750-0.800": _bucket(0.72)}}}
+    staged.write_text(json.dumps({**installed, lc.SECTION: section,
+                                  lc.FITTED_FROM: {"db_path": "replay"}}))
+    base = ["--staged", str(staged), "--target", str(target), "--dry-run"]
+    assert ilc.main(base) == 0
+    (tmp_path / "sofa_confidence_calibration.next.2026-11-08.json").write_text(
+        json.dumps({"effective_from": "2026-11-08T00:00:00Z"}))
+    assert ilc.main(base) == 2
+
+
 def test_a_one_sided_single_may_read_its_markets_line_curve() -> None:
     from bet.sofa.confidence import one_sided_single
     leg = {"one_sided_market": True, "overround": None, "calibration_n": 3012,

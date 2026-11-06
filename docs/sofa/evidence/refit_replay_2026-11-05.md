@@ -410,4 +410,74 @@ Replay A skończył się o 14:47:51Z (1 457 004 mecze, wiersze 23 244 s wobec 18
 
 **Wariant tylko z regułami w `config/` (2026-11-06 ok. 16:10Z):** `config/sofa_confidence_calibration.next.json` = `staged_rules_score.next.json` (md5 7444ea60…). E2E na kopii 11-04 z prawdziwego `config/`: 11-06 czyta plik zainstalowany o każdej godzinie (także 11-07 06:00Z), 11-07 plik `.next`; rusza się 2 844 pewności, wszystkie na podmienionych kluczach, 0 na innych; nogi 2 003 → 1 998 (wypada 7: kartki UNDER 4, `goals_total` UNDER 1, `result_or_under` 1, `result_handicap` 1; wchodzą 2: `cards_points_for` UNDER, `shots_on_target_total` UNDER).
 
+**Przesunięcie do dnia 11-06 (2026-11-06 ok. 16:45Z).** Operator: „WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ”. `effective_from` pliku `config/sofa_confidence_calibration.next.json` (i `staged_change.effective_from`) = **2026-11-06T17:30:00Z** zamiast 2026-11-07T00:00:00Z. Krzywe bez zmian (zmienia się tylko start i etykieta). 11-06 zbudowany przed 17:30Z czyta plik zainstalowany, po 17:30Z plik staged. Dzień jest mieszany, grupa księgi „11-06 mieszany”, razem z przełącznikami symulatora i siatkówki / tenisa przesuniętymi na tę samą godzinę. Nogi wydrukowane wcześniej zostają zablokowane. Test: `test_the_real_staged_file_starts_inside_11_06_at_17_30z`.
+
 **Dlaczego sum nie ma na liniach Superbetu (przyczyna znaleziona 2026-11-06 ok. 16:40Z).** `sofa_settled_row` ma klucz unikalny (mecz, rynek, podmiot, linia, kierunek) bez `run_date` (`src/bet/sofa/db.py`). Replay zapisuje swoje wiersze z `ON CONFLICT ... DO UPDATE` tylko nad innym wierszem replayu; wiersza SETTLE nie rusza (`calibrate_from_cache._ONLY_OVER_CACHE_ROWS`, poprawka z 09-26). Suma ma podmiot `""` w obu źródłach, więc każda linia sumy, którą Superbet wystawił i którą SETTLE rozliczył, ma już wiersz żywy i replay jej nie zapisuje. Zostają tylko linie, których Superbet nie wystawił (np. mecz 15254147: replay 0,5 / 4,5 / 5,5, Superbet 1,5–3,5). `goals_for` ma w replayu podmiot = id drużyny, a na żywo nazwę, więc nie koliduje. Replay bez zapisu (`verify/run_window.py`, okno 10-31..11-04) ma wszystkie linie (1,5: 1 024, 2,5: 1 026, 3,5: 1 026). To zamierzone zachowanie zapisu, nie błąd replayu. Pomiar sum dla A (na 11-08) wymaga więc replayu okna 10-18..11-04 bez zapisu, z flagami A, i odczytu wierszy z pamięci.
+
+## 11. Ramię A na 11-08: wybór per rodzina, bramka tabeli, 1X2 (2026-11-06 ok. 16:00–17:45Z)
+
+**Datowany łańcuch (gotowy, nic nie zmienia w druku).** `confidence.calibration_path_for` czyta spośród `sofa_confidence_calibration.next.json` i każdego `sofa_confidence_calibration.next.<RRRR-MM-DD>.json` (`confidence.staged_calibration_paths`) plik o najpóźniejszym `effective_from`, do którego doszedł dzień i zegar budowy. Plik datowany z `effective_from` niezgodnym z nazwą = błąd. `install_new_market_curves.target_files` dopisuje też datowane pliki piłki, `install_line_curves` odmawia obok każdego pliku staged. Testy: `test_staged_calibration_complete.py` (kompletność każdego pliku staged, kolejność łańcucha, niezgodna nazwa, `target_files`), `test_line_curves.py` (odmowa obok pliku datowanego).
+
+**Sumy na liniach Superbetu.** Replay okna 10-18..11-04 bez zapisu, flagi A (`verifyA/run_window_A.py`, 1 051 s, 2 709 329 wierszy piłki meczów z `02_fixtures.json`). Na wspólnych wierszach p identyczne z wierszami replayu A w kopii (2 100 103 wspólne, 0 różnic). Bliźniak bez tabeli (`verifyR/run_window_R.py`, 2 924 522 wiersze) daje historię ramienia reguł.
+
+**Wybór per rodzina (polecenie koordynatora 11-06).** Na p ramienia A, na tych samych wierszach Superbetu 10-18..11-04 (`item5/fb_b_goals_all_W.json`, krzywe hold-out sprzed 10-18). Kandydaci: refit A (jeśli przeszedł (a) historii; `goals_for` OVER dopuszczony), krzywa tylko z regułami (jeśli jest rodziną 11-07), zainstalowana (A0). Wygrywa najniższy log-loss spośród krzywych, które nie są gorsze od A0 o > 1 pp |dryfu| przy >= 0,70 w żadnej grupie epok (n >= 50) i nie mają gorszego log-loss (`A_choose.py`, `A_choice_W.json`):
+
+| wybór | rodziny |
+|---|---|
+| A | `corners_2h_for` UNDER, `corners_for` OVER / UNDER, `goal_kicks_for` UNDER, `goals_2h_for` UNDER, `saves_1h_for` OVER, `saves_for` UNDER, `shots_1h_for` UNDER, `shots_2h_for` UNDER, `shots_for` OVER, `shots_on_target_2h_for` UNDER, `tackles_for` UNDER, `both_over_cards_points` UNDER, `both_over_goals` UNDER, `corners_2h_total` OVER, `fouls_1h_total` UNDER, `goal_kicks_total` OVER, `offsides_total` UNDER, `tackles_total` OVER / UNDER |
+| reguły (11-07) | `shots_on_target_for` OVER, `goals_2h_total` OVER, `shots_on_target_total` UNDER |
+| zainstalowana | reszta, w tym `goals_for` OVER (A: log-loss +11,8 × 1e-4, gorzej w „10-21 mieszany” i „od 10-23”), `goals_for` UNDER (gorzej w „od 10-27”), `cards_points_for` UNDER (+14,5), `goals_1h_for` OVER (+43,1), `cards_points_total` UNDER, `goals_total` UNDER |
+
+Wycinki rynków wyniku: 12 z 13 wycinków 11-07 jest wśród 119 wycinków A. Trzynasty (`women`, `btts_or_over@-@2.5` OVER) zostaje na krzywej reguł.
+
+**Bramka przełącznika tabeli (koordynator 11-06).** Plik złożony 11-08 na p ramienia A wobec pliku 11-07 na p reguł (żywy arkusz na Superbecie, `verifyR` w historii). Obie strony to krzywe hold-out sprzed 10-18, te same wiersze (`measure_cross.py`, `cross_verdict.py`, `cross_live.json`). Log-loss 11-08 minus 11-07, × 1e-4:
+- Superbet 10-18..11-04: całość **−5,4 [−10,6, −0,1]** (n 284 340), dryf przy >= 0,70 −0,8 → −0,8 pp.
+- Historia meczów 10-18..11-04: całość **−2,6 [−4,4, −0,6]** (n 2 728 914).
+- **Rodziny gorsze o > 1 pp |dryfu| przy >= 0,70 (n >= 50), łącznie:**
+
+  | źródło | rodzina | 11-07 | 11-08 |
+  |---|---|---|---|
+  | Superbet | `cards_points_for` UNDER | −2,1 | −4,2 |
+  | Superbet | `cards_points_for` OVER | +3,1 | +4,5 |
+  | Superbet | `cards_points_total` UNDER | −2,6 | −4,2 |
+  | Superbet | `cards_points_total` OVER | +0,1 | +2,1 |
+  | Superbet | `both_over_cards_points` OVER | +1,7 | +3,2 |
+  | Superbet | `goals_for` OVER | −0,5 | −1,6 |
+  | historia | `cards_points_for` UNDER | −0,8 | −2,1 |
+  | historia | `cards_points_total` UNDER | −1,5 | −2,7 |
+  | historia | `goals_1h_for` OVER | −4,0 | −9,1 |
+  | historia | `goals_1h_total` OVER | −0,5 | −1,5 |
+  | historia | `most_goals` OVER | −5,8 | −8,9 |
+  | historia | `most_corners` OVER | −2,2 | −3,9 |
+  | historia | `most_shots_on_target` OVER | −2,1 | −3,4 |
+
+  W podziale na grupy epok jest jeszcze 38 takich komórek na Superbecie.
+
+**Werdykt: nie przechodzi.** Dzień 11-08 czyta plik 11-07. Pliku datowanego piłki nie ma. `FOOTBALL_FORM_TABLE_FROM_UTC` zostaje None. Tabela pomaga w całości, szkodzi w kartkach i części rodzin goli. Decyzja koordynatora: tabela per rodzina, cel 11-09.
+
+**`result_1x2` OVER pod A, osobno** (`item5/r1x2_A.py`, `r1x2_A.json`). Krzywe hold-out sprzed 10-18 (jak `fit_result_1x2_dnb_curve`), linie Superbetu 10-18..11-04:
+
+| nogi | n | trafione − pewność | trafione − cena bez marży | trafione − 1/kurs |
+|---|---|---|---|---|
+| >= 0,70 | 428 | −3,0 pp [−7,3, +0,9] | +1,2 [−2,7, +5,2] | −2,4 [−6,4, +1,5] |
+| do druku (>= 0,70, x >= 0,90) | 351 | **−5,5 pp [−10,3, −1,0]** | +2,0 [−2,5, +6,3] | −1,9 [−6,5, +2,4] |
+
+- Średnia pewność nóg do druku wynosi 0,799, średnie 1/kurs 0,763.
+- Brier minus cena bez marży, wszystkie 9 702 nogi: +22,9 × 1e-3 [+19,9, +25,9].
+- Na nogach do druku obiecuje za dużo (przedział poza zerem), więc nie wchodzi z A.
+- Pomiar na p reguł na późniejszy dzień: zadanie otwarte.
+
+## 12. Tabela sezonu per rodzina (cel 11-09). Reguła zamrożona 2026-11-06 ok. 16:41Z, przed odczytem połówek
+
+Ścieżka: tabela zmienia tylko centra `goals_for` / `goals_1h_for` (`FORM_TABLE_METRICS`). `FootballForecast.supremacy()` to jednak różnica centrów `goals_for`, więc tabela sięga też `closeness_stretch` (kartki, strzały razem), `game_state`, `goals_stretch`, `player_stretch`, `centre_chain` i połów kartek. Na tej samej krzywej (zainstalowanej) tabela poprawia log-loss kartek, ale pogarsza dryf przy >= 0,70 (`cards_points_for` UNDER −3,0 → −4,2 pp, log-loss 0,6447 → 0,6381). To niedopasowanie krzywej do p, nie szum.
+
+Projekt w SHEET: dwie książki ratingu (z tabelą i bez), dwa przebiegi wierszy meczu piłki, każdy wiersz brany z przebiegu, który przypisuje mu jego rodzina (`market|DIR`). Lista rodzin w `epochs`, znacznik wiersza mówi, którego p użył. Krzywe: rodzina tabeli czyta wybór krzywych 11-08 (sekcja 11), reszta plik 11-07.
+
+**Reguła wyboru (zamrożona, koordynator 11-06):**
+1. Wybór na pierwszej połowie okna (10-18..10-26). Rodzina idzie do tabeli, jeśli plik 11-08 na p ramienia A wobec pliku 11-07 na p reguł (te same wiersze, krzywe hold-out, `measure_cross.py`):
+   - ma log-loss nie gorszy na Superbecie i w historii;
+   - nie ma |dryfu| przy >= 0,70 gorszego o > 1 pp łącznie ani w żadnej grupie epok (n >= 50) na Superbecie, ani łącznie w historii.
+2. Potwierdzenie na drugiej połowie (10-27..11-04) tymi samymi warunkami.
+3. Do tabeli idzie tylko rodzina, która przechodzi w obu połowach i ma n >= 50 przy >= 0,70 na Superbecie albo n >= 300 przy >= 0,70 w historii (w każdej połowie). Reszta zostaje bez tabeli.
+4. Potem pełna bramka na całym oknie: plik złożony per rodzina wobec pliku 11-07. Log-loss całości nie gorszy, żadna rodzina z n >= 50 przy >= 0,70 gorsza o > 1 pp. `FOOTBALL_FORM_TABLE_FROM_UTC` = 2026-11-09 00:00Z tylko wtedy, gdy bramka przejdzie.
+5. Rodziny z lepszym log-loss i gorszym dryfem (kartki) raportuję osobno jako „niedopasowanie krzywej do p”. Refit ich krzywych na p z tabelą to osobna, późniejsza pozycja.

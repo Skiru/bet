@@ -42,7 +42,7 @@ for _p in (str(_REPO / "src"), str(_REPO)):
 
 from bet.sofa import line_curves as lc  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
-from bet.sofa.confidence import NEXT_CALIBRATION_NAME  # noqa: E402
+from bet.sofa.confidence import staged_calibration_paths  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 
 TAKEN = (lc.SECTION, lc.FITTED_FROM)
@@ -92,8 +92,8 @@ def main(argv: list[str] | None = None) -> int:
     installed = json.loads(installed_text)
     staged = json.loads(Path(args.staged).read_text(encoding="utf-8"))
     refusals, out = plan(installed, staged)
-    if target.with_name(NEXT_CALIBRATION_NAME).exists():
-        refusals.append(f"a staged {NEXT_CALIBRATION_NAME} exists beside {target}")
+    for staged_path in staged_calibration_paths(target.parent):
+        refusals.append(f"a staged {staged_path.name} exists beside {target}")
     section = out.get(lc.SECTION) or {}
     summary = {"keys": len(section), "lines": sum(len(v) for v in section.values()),
                "missing_keys": sorted(lc.load_keys() - set(section))}

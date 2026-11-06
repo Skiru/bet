@@ -901,7 +901,9 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     """`evidence_path`: the line-evidence file read from
     epochs.LINE_EVIDENCE_FROM_UTC (default: the installed one)."""
     fixtures_doc = si.load_fixtures(Path(runs_dir) / date / si.FIXTURES_FILE)
-    calibration = scf.SportCalibration.load(calibration_path)
+    # epochs.VB_POINT_MODEL: the rally keys by the build clock (a mixed day)
+    calibration = scf.with_vb_point_curves(
+        scf.SportCalibration.load(calibration_path), date, at)
     v2 = epochs.line_evidence_v2(date, at)
     path = evidence_path if evidence_path is not None else DEFAULT_EVIDENCE
     evidence = (LineEvidence.load(path, v2=v2,
@@ -929,6 +931,8 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
         doc["line_evidence_fitted_from"] = evidence.doc.get("fitted_from")
     if scf.is_staged_calibration(calibration_path):
         doc["calibration_file"] = calibration_path.name  # a staged refit
+    if epochs.vb_point_model(date, at):
+        doc["vb_point_curves_file"] = scf.VB_POINT_CURVES_FILE
     record = RefusalRecord()
     printed_before = prev_printed(runs_dir, date)
     for sport in sports:

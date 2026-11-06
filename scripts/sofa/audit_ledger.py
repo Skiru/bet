@@ -150,7 +150,8 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
-                "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06", "od 11-07")
+                "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06",
+                "11-06 mieszany", "od 11-07")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -277,23 +278,33 @@ TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
 # from 2026-11-07 - a new epoch.
 # The football minute-by-minute simulator (epochs.FOOTBALL_SIM_FROM_UTC,
 # 2026-11-07 00:00Z: HT/FT, half results and the other path markets priced
-# by bet.sofa.football_sim, their own history curves) starts the same day:
-# it shares the group "od 11-07" (separated by market family when audited);
+# by bet.sofa.football_sim, their own history curves; moved by the operator
+# to 2026-11-06 17:30Z, so 11-06 is "11-06 mieszany") shares the group
+# "od 11-07" (separated by market family when audited);
 # so does its 0.60 floor for four of its keys (epochs.FOOTBALL_SIM_FLOOR,
 # legs carry "floor_rule").
 # So do the volleyball rally-point model (epochs.VB_POINT_MODEL_FROM_UTC:
 # winner, points / set handicap, points / set-points totals, exact sets, set
 # winner, points parity priced by bet.sofa.volleyball_point_model, their
-# curves in config/sofa_sport_confidence_calibration.next.2026-11-07.json)
-# and the tennis per-set games handicap from the point model
-# (epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC), both 2026-11-07 00:00Z.
+# curves config/sofa_volleyball_point_curves.json, overlaid by the build
+# clock) and the tennis per-set games handicap from the point model
+# (epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC), both moved by the operator to
+# 2026-11-06 17:30Z: their 11-06 legs are in "11-06 mieszany".
 STAGED_REFIT_1107_EPOCH_FROM_DATE = "2026-11-07"
+# The operator moved switches into the built day 2026-11-06 ("WŁĄCZ JAK
+# NAJWIĘCEJ RZECZY OD DZISIAJ"): FOOTBALL_SIM and FOOTBALL_SIM_FLOOR from
+# 17:30Z (and the other 11-07 switches the operator moves), and the staged
+# football / tennis refit (config/sofa_confidence_calibration.next.json,
+# effective_from 2026-11-06 17:30Z): 11-06 is mixed.
+SWITCHES_1106_MIXED_DATE = "2026-11-06"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
         if str(row.get("date", "")) >= STAGED_REFIT_1107_EPOCH_FROM_DATE:
             return "od 11-07"
+        if str(row.get("date", "")) == SWITCHES_1106_MIXED_DATE:
+            return "11-06 mieszany"
         if str(row.get("date", "")) >= TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE:
             return "od 11-06"
         if str(row.get("date", "")) == TENNIS_TOTALS_FLOOR_1105_MIXED_DATE:

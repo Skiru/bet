@@ -1413,8 +1413,9 @@ gdy wiersz go nie ma). Mecz do trzech wygranych setów albo bez id zawodnika =
 `docs/sofa/evidence/tennis_point_model_2026-11-05.md`; krzywe i wynik
 odtworzenia - rozdział 10.
 
-**Handicap gemów w secie z modelu punktowego (od 2026-11-07 00:00Z,
-`epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, operator 2026-11-06:
+**Handicap gemów w secie z modelu punktowego (od 2026-11-06 17:30Z według
+zegara budowy - operator przesunął z 11-07 00:00Z do zbudowanego dnia,
+11-06 mieszany; `epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, operator 2026-11-06:
 „instaluj to, co lepsze od obecnego estymatora; ceny nie pobijemy").**
 `handicap_games_won_set1` / `_set2` dołączają do zakresu modelu punktowego
 (`epochs.tennis_point_markets`): „X (linia)" wygrywa, gdy przewaga gemów X w
@@ -1430,8 +1431,11 @@ ratingu: na odłożonej próbie Brier lepszy punktowo, ale kalibracja >= 0,70 po
 krzywej -8,0 pp wobec -6,8 pp obecnego łańcucha (gorzej o więcej niż 1 pp).
 Pomiar: `docs/sofa/evidence/tennis_handicap_point_model_2026-11-06.md`.
 
-**Symulator piłki minuta po minucie (od 2026-11-07 00:00Z,
-`epochs.FOOTBALL_SIM_FROM_UTC`, operator 2026-11-06).** Rynki „ścieżki", których
+**Symulator piłki minuta po minucie (od 2026-11-06 17:30Z,
+`epochs.FOOTBALL_SIM_FROM_UTC`, operator 2026-11-06; przeniesione przez
+operatora z 11-07 do zbudowanego dnia - 11-06 mieszany, grupa ledgera
+„11-06 mieszany"; przebudowa po 17:30Z sama czyta OFFER ponownie i powtarza
+SHEET).** Rynki „ścieżki", których
 SHEET dotąd nie wyceniał - `epochs.FOOTBALL_SIM_MARKETS`: do przerwy / koniec
 meczu (`htft`), wynik 1. i 2. połowy, połowa z większą liczbą goli, drużyna
 strzeli w obu połowach, obie strzelą w połowach / w którejkolwiek połowie,
@@ -1956,22 +1960,26 @@ modelu zmienione (żadna zablokowana), +1 builder tenisa; pozostałe nogi
 identyczne poza numeracją pozycji i adnotacją peer; audyt bez różnic.
 
 **Tenis - krzywe handicapu w secie z modelu punktowego** (od
-`epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC` = 2026-11-07 00:00Z, grupa
-ledgera „od 11-07"). `handicap_games_won_set1/2` czytają krzywe wyłącznie z
+`epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC` = 2026-11-06 17:30Z, grupy
+ledgera „11-06 mieszany", „od 11-07"; nakładane tylko na arkusz, którego
+wiersze tenisa mają znacznik - `tennis_point_curves.handicap_rows_marked`). `handicap_games_won_set1/2` czytają krzywe wyłącznie z
 `config/sofa_tennis_handicap_point_curves.json` (nakładane przez
 `tennis_point_curves.for_day` po krzywych modelu punktowego, klucze w
 `no_pool_keys`), dopasowanych na krokowym przejściu modelu po historii
 2026-01-01..10-20 (53 235 meczów, 3,19 mln wierszy na liniach .5, klasa
 `tennis_women` osobno). Dowody z linii od p modelu: backfill
 `data/line_evidence/tennis_handicap_point_model_p.json.gz` (11 646 wierszy
-09-18..11-06, `fit_tennis_point_curves.py --handicap --backfill-out`), od
+09-18..11-06, `fit_tennis_point_curves.py --handicap --backfill-out`; wiersze
+11-06 tylko z backfillu, bo rozliczone wiersze nie niosą znacznika), od
 11-07 własne `p_central` arkusza. Odłożona próba 10-20..11-05: Brier model -
 sąsiedzi -0,0114 [-0,0185; -0,0040], >= 0,70 po krzywej -1,0 pp [-3,8; +1,8]
 (sąsiedzi bez krzywej -6,7 pp), model - cena +0,0030 [-0,0006; +0,0070]
 (fakt, nie bramka).
 
-**Piłka - krzywe symulatora** (od `epochs.FOOTBALL_SIM_FROM_UTC` = 2026-11-07
-00:00Z, grupa ledgera „od 11-07", wspólna ze staged refitem). Klucze
+**Piłka - krzywe symulatora** (od `epochs.FOOTBALL_SIM_FROM_UTC` = 2026-11-06
+17:30Z, grupy ledgera „11-06 mieszany", potem „od 11-07", wspólne ze staged
+refitem; do porannego odświeżenia dowodów z linii 11-07 klucze czytają
+pulowany offset piłki wg kubełka d i ogólny limit pasma ceny sportu). Klucze
 symulatora (7.1b) czytają krzywe wyłącznie z
 `config/sofa_football_sim_curves.json` (`bet.sofa.football_sim_curves`,
 nakładane po krzywych tenisa, klucze w `no_pool_keys`), dopasowanych przez
@@ -1992,8 +2000,9 @@ brak; sama krzywa -2,0 pp [-3,5; -0,5] (po dodaniu pominiętej bramki
 `ODDS_TOO_LOW`: 1 971 nóg, +1,9 pp [+0,2; +3,6], ROI -4,2%).
 
 **Piłka - próg 0,60 dla czterech kluczy symulatora** (od
-`epochs.FOOTBALL_SIM_FLOOR_FROM_UTC` = 2026-11-07 00:00Z, razem z
-`FOOTBALL_SIM`; operator 2026-11-06 „TAK!"; grupa ledgera „od 11-07"). Noga
+`epochs.FOOTBALL_SIM_FLOOR_FROM_UTC` = 2026-11-06 17:30Z, razem z
+`FOOTBALL_SIM`; operator 2026-11-06 „TAK!"; grupy ledgera „11-06 mieszany",
+potem „od 11-07"). Noga
 `team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half` UNDER
 albo `btts_halves` OVER przechodzi próg przy pewności 0,60
 (`FOOTBALL_SIM_FLOOR_KEYS`, `epochs.leg_floor`), jak tenisowe sumy gemów /
@@ -2460,7 +2469,12 @@ Superbetu): w paśmie 0,7-0,8 deklarowane / trafione np. wolne trafione
 z gry zawyżają (z gry trafione 0,838 / 0,682 na 768).
 
 
-### Siatkówka - model wymian (od 2026-11-07 00:00Z, `epochs.VB_POINT_MODEL`)
+### Siatkówka - model wymian (od 2026-11-06 17:30Z, `epochs.VB_POINT_MODEL`)
+
+Operator przesunął przełącznik z 11-07 00:00Z na 2026-11-06 17:30Z („WŁĄCZ
+JAK NAJWIĘCEJ RZECZY OD DZISIAJ"), według zegara budowy: 11-06 jest dniem
+mieszanym (grupa ledgera „11-06 mieszany"), nogi wydrukowane wcześniej
+zostają zablokowane.
 
 Operator 2026-11-06: „instaluj to, co lepsze od obecnego estymatora; ceny nie
 pobijemy". Linie siatkówki rynków `epochs.VB_POINT_MODEL_MARKETS` - zwycięzca
@@ -2482,9 +2496,15 @@ znacznik arkusza nie jest potrzebny.
 Krzywe tych kluczy: krokowe przejście modelu po historii 2025-10-01..
 2026-09-28 (25 051 meczów, 4,1 mln wierszy na liniach kwantylowych,
 `sport_confidence.fit_curves`, MIN_BUCKET 200) w
-`config/sofa_sport_confidence_calibration.next.2026-11-07.json`
-(`sports.volleyball.vb_point_model_curves` wymienia klucze; reszta pliku =
-`.next.2026-11-06.json`; plik i przełącznik idą razem - pilnuje tego test).
+`config/sofa_volleyball_point_curves.json`, nakładane przez
+`sport_confidence.with_vb_point_curves` na kalibrację dnia według dnia i
+zegara przełącznika (wybór pliku `calibration_path_for` jest tylko po dniu;
+plik 11-06, z krzywymi okresów koszykówki, zostaje bez zmian; staged
+`.next.2026-11-07.json` ma te same 16 kluczy - tam nakładka nic nie zmienia).
+Nakładka działa też w `fit_line_evidence.py` i `verify_legs.py`. Dowody z
+linii 11-06 dopasowane rano liczono od p modelu wyniku - ponowne
+`fit_line_evidence.py --before 2026-11-06` po 17:30Z liczy te klucze od p
+modelu wymian.
 Dowody z linii tych kluczy liczone od p modelu wymian:
 `data/line_evidence/volleyball_point_model_p.json.gz` (41 818 rozliczonych
 linii 09-29..11-05; ścieżka potoku odtwarza p pomiaru dokładnie na 41 712 z
@@ -2499,8 +2519,8 @@ handicap setów -0,2 pp (-3,0), zwycięzca +2,8 (+0,5), zwycięzca seta +1,8;
 cena lepsza od obu we wszystkich rodzinach (fakt, nie bramka). E2E na kopii
 2026-11-05 (zegar 09:00Z): nogi siatkówki 23 -> 40 (+18 / -1; 12 z nich to
 zwycięzca seta), `NO_MODEL_P` 55 -> 7, żadna noga spoza zakresu nie zmieniona.
-Pomiar: `docs/sofa/evidence/volleyball_point_model_2026-11-06.md`. Grupa
-ledgera „od 11-07".
+Pomiar: `docs/sofa/evidence/volleyball_point_model_2026-11-06.md`. Grupy
+ledgera „11-06 mieszany", „od 11-07".
 
 ### Audyt pokrycia 2026-10-23 („ALL IN”) - przełączniki od 2026-10-24 00:00Z
 

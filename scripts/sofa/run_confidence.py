@@ -425,7 +425,10 @@ def main() -> int:
     cal = live_only_curves.for_day(cal, args.date, now)
     # epochs.TENNIS_POINT_MODEL: the point model's keys read their own
     # history curves (config/sofa_tennis_point_curves.json)
-    cal = tennis_point_curves.for_day(cal, args.date, now)
+    # (the per-set handicap's only for a sheet priced under its switch)
+    cal = tennis_point_curves.for_day(
+        cal, args.date, now,
+        handicap_rows=tennis_point_curves.handicap_rows_marked(sheet))
     # epochs.FOOTBALL_SIM: the simulator's path-market keys read their own
     # history curves (config/sofa_football_sim_curves.json)
     cal = football_sim_curves.for_day(cal, args.date, now)

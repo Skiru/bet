@@ -134,6 +134,43 @@ def calibration_path_for(date: str, config_dir: Path | None = None) -> Path:
             best = (eff, path)
     return best[1] if best else main
 
+
+# epochs.VB_POINT_MODEL: the rally model's volleyball curves (fitted on
+# history) live in their own file and are overlaid onto whatever calibration
+# the day reads while the switch is on for the day and the build clock - the
+# file choice above is by day only, and the switch can start inside a day
+# (2026-11-06 17:30Z, a mixed day whose .next.2026-11-06 file must stay as
+# it is for every other key). The overlay touches only the rally keys, which
+# only legs priced by the rally model (vb_point_model_rule) read; on a day
+# whose file already holds them (.next.2026-11-07) it is a no-op.
+VB_POINT_CURVES_FILE = "sofa_volleyball_point_curves.json"
+
+
+def with_vb_point_curves(calibration: SportCalibration | None, date: str,
+                         build_at: datetime | None,
+                         config_dir: Path | None = None,
+                         ) -> SportCalibration | None:
+    """`calibration` with the rally model's volleyball curves when
+    epochs.VB_POINT_MODEL is on for `date` and `build_at`; else unchanged."""
+    if calibration is None or not epochs.vb_point_model(date, build_at):
+        return calibration
+    from bet.sofa.config import config_path
+
+    path = (config_dir / VB_POINT_CURVES_FILE) if config_dir else config_path(
+        VB_POINT_CURVES_FILE)
+    source = json.loads(path.read_text(encoding="utf-8"))
+    sports = dict(calibration.doc.get("sports") or {})
+    volleyball = dict(sports.get("volleyball") or {})
+    if not volleyball:
+        return calibration
+    curves = dict(volleyball.get("curves") or {})
+    curves.update(source["curves"])
+    volleyball["curves"] = curves
+    volleyball["vb_point_model_curves"] = source["vb_point_model_curves"]
+    sports["volleyball"] = volleyball
+    return SportCalibration({**calibration.doc, "sports": sports})
+
+
 # --- F2: the allow-list ---------------------------------------------------------
 #
 # market id -> family, every one read off shadow.MARKETS (a test holds the two

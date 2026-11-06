@@ -160,6 +160,10 @@ class DayState:
     sheet_has_score: bool = True
     offer_has_set_not: bool = True
     sheet_has_set_not: bool = True
+    # epochs.FOOTBALL_SIM (moved into the built day 2026-11-06 17:30Z): the
+    # offer carries a football path-market rung (OFFER maps them only under
+    # the switch)
+    offer_has_sim: bool = True
     offer_fixtures: int = 0  # fixtures on 04_offer.json with a rung
     open_fixtures: int = 0  # ... a refresh would re-price and CONFIDENCE gate
     oldest_open_rung: datetime | None = None
@@ -562,6 +566,7 @@ def observe(runs_dir: str, date: str, now: datetime,
     offer_markets = {r.get("market") for o in offers for r in o.get("rungs") or []}
     offer_has_score = bool(offer_markets & set(SCORE_MARKETS))
     offer_has_set_not = SET_SCORE_NOT in offer_markets
+    offer_has_sim = bool(offer_markets & epochs.FOOTBALL_SIM_MARKETS)
     priced, open_n, oldest, newest = observe_offer(
         fixtures, offers, fs.load(run), now)
     sports = ({s: observe_sport(runs_dir, s, date, now) for s in SPORTS}
@@ -611,6 +616,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         offer_has_score=offer_has_score,
         sheet_has_score=sheet_has_score,
         offer_has_set_not=offer_has_set_not,
+        offer_has_sim=offer_has_sim,
         sheet_has_set_not=sheet_has_set_not,
         offer_fixtures=priced, open_fixtures=open_n,
         oldest_open_rung=oldest, newest_rung=newest, sports=sports,
@@ -692,6 +698,9 @@ def build_plan(state: DayState, run_id: str = "rebuild",
     set_not_on = epochs.tennis_set_complements(d, now) and state.offer_has_tennis
     score_offer_stale = ((score_on and not state.offer_has_score)
                          or (set_not_on and not state.offer_has_set_not))
+    # epochs.FOOTBALL_SIM came on after OFFER read the day - re-read it once
+    sim_offer_stale = (epochs.football_sim(d, now) and state.offer_has_football
+                       and not state.offer_has_sim)
     if state.open_fixtures == 0:
         if not state.has_offer:
             plan.refusal = ("04_offer.json missing and no fixture is still open: "
@@ -735,6 +744,13 @@ def build_plan(state: DayState, run_id: str = "rebuild",
                 "04_offer.json carries no football score-market / tennis "
                 "set_score_not rung: OFFER reads them "
                 "(epochs.football_score_markets / tennis_set_complements)"))
+        elif sim_offer_stale:
+            plan.steps.append(Step(
+                "OFFER", (PY, "scripts/sofa/run_offer.py", "--date", d,
+                          "--min-minutes-to-kickoff",
+                          str(OFFER_MIN_MINUTES_TO_KICKOFF)),
+                "04_offer.json carries no football path-market rung: OFFER "
+                "reads them (epochs.football_sim)"))
         else:
             plan.notes.append(
                 "OFFER fresh: oldest open price "

@@ -3731,7 +3731,10 @@ def tennis_point_model(date: str, build_at: datetime | None = None) -> bool:
 # docs/sofa/evidence/football_sim_2026-11-06.md (the simulator),
 # docs/sofa/evidence/football_sim_wiring_2026-11-06.md (the wired chain).
 FOOTBALL_SIM = "football_sim_v1"
-FOOTBALL_SIM_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+# Moved by the operator into the built day 2026-11-06 at 17:30Z ("WŁĄCZ JAK
+# NAJWIĘCEJ RZECZY OD DZISIAJ"): 11-06 is mixed (ledger "11-06 mieszany").
+FOOTBALL_SIM_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 17, 30, tzinfo=UTC)
 FOOTBALL_SIM_MARKER = ("football_sim_rule", FOOTBALL_SIM, "football")
 FOOTBALL_SIM_MARKETS: frozenset[str] = frozenset({
     "htft", "result_1h", "result_2h", "higher_scoring_half",
@@ -3760,7 +3763,10 @@ def football_sim(date: str, build_at: datetime | None = None) -> bool:
 # TENNIS_TOTALS_FLOOR_MARKER ("floor_rule", its own floor - audit_variants
 # C2) and never joins a builder. Every other gate applies. By the day and the
 # build clock; no sheet marker (CONFIDENCE only). Ledger group "od 11-07".
-FOOTBALL_SIM_FLOOR_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+# Moved by the operator into the built day 2026-11-06 at 17:30Z ("WŁĄCZ JAK
+# NAJWIĘCEJ RZECZY OD DZISIAJ"): 11-06 is mixed (ledger "11-06 mieszany").
+FOOTBALL_SIM_FLOOR_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 17, 30, tzinfo=UTC)
 FOOTBALL_SIM_FLOOR = 0.60
 FOOTBALL_SIM_FLOOR_KEYS: frozenset[tuple[str, str]] = frozenset({
     ("team_scores_both_halves", "UNDER"), ("half_goals_combo", "OVER"),
@@ -3785,12 +3791,14 @@ def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
 # Sofascore event id) - instead of the score model; every other volleyball
 # line (sets_total, extra points, the derived team-set markets, set points
 # parity, sets count) and every other sport unchanged. The keys read their own
-# history curves: the staged sport calibration
-# config/sofa_sport_confidence_calibration.next.2026-11-07.json carries the
-# rally model's walk-forward curves for these keys (fitted 2025-10-01 ..
-# 2026-09-28, sport_confidence.fit_curves, MIN_BUCKET 200) - the staged file
-# and this switch move together (a test pins it). Line evidence reads these
-# keys' settled Superbet lines at the rally model's p
+# history curves: config/sofa_volleyball_point_curves.json holds the rally
+# model's walk-forward curves for these keys (fitted 2025-10-01 ..
+# 2026-09-28, sport_confidence.fit_curves, MIN_BUCKET 200), overlaid by
+# sport_confidence.with_vb_point_curves onto the day's calibration by this
+# switch's day and build clock (the staged .next.2026-11-07.json carries the
+# same keys). Operator 2026-11-06 ("włącz jak najwięcej rzeczy od dzisiaj")
+# moved it from 11-07 00:00Z to 2026-11-06 17:30Z: 11-06 is mixed. Line
+# evidence reads these keys' settled Superbet lines at the rally model's p
 # (vb_point_pricer.BACKFILL, kept current by
 # scripts/sofa/backfill_vb_point_p.py in refresh_line_evidence.py).
 # Measured 2026-11-06 (docs/sofa/evidence/volleyball_point_model_2026-11-06.md,
@@ -3804,7 +3812,8 @@ def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
 # SPORT_CONFIDENCE re-runs on every rebuild, so no sheet marker is needed. By
 # the day and the build clock. Ledger group "od 11-07".
 VB_POINT_MODEL = "vb_point_model_v1"
-VB_POINT_MODEL_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+VB_POINT_MODEL_FROM_UTC: datetime | None = datetime(
+    2026, 11, 6, 17, 30, tzinfo=UTC)
 VB_POINT_MODEL_LEG_FIELD = "vb_point_model_rule"
 # 745 winner, 1069 points handicap, 230060 points total, 100082 set handicap,
 # 785 exact sets, 744 set winner, 782 set points total, 200896 points parity
@@ -3818,7 +3827,8 @@ def vb_point_model(date: str, build_at: datetime | None = None) -> bool:
 
 
 # Tennis per-set games handicap from the bottom-up point model (operator
-# 2026-11-06, the same rule as VB_POINT_MODEL). Under it SHEET prices the
+# 2026-11-06, the same rule as VB_POINT_MODEL; moved by the operator from
+# 11-07 00:00Z to 2026-11-06 17:30Z, 11-06 mixed). Under it SHEET prices the
 # tennis rows of TENNIS_HANDICAP_POINT_MODEL_MARKETS through the point model's
 # simulations (bet.sofa.tennis_point_sheet, the margin read by
 # bet.sofa.tennis_handicap_point: the subject's games won minus lost in that
@@ -3839,7 +3849,7 @@ def vb_point_model(date: str, build_at: datetime | None = None) -> bool:
 # day and the build clock. Ledger group "od 11-07".
 TENNIS_HANDICAP_POINT_MODEL = "tennis_handicap_point_model_v1"
 TENNIS_HANDICAP_POINT_MODEL_FROM_UTC: datetime | None = datetime(
-    2026, 11, 7, 0, 0, tzinfo=UTC)
+    2026, 11, 6, 17, 30, tzinfo=UTC)
 TENNIS_HANDICAP_POINT_MODEL_MARKER = (
     "tennis_handicap_point_model_rule", TENNIS_HANDICAP_POINT_MODEL, "tennis")
 TENNIS_HANDICAP_POINT_MODEL_MARKETS: frozenset[str] = frozenset(

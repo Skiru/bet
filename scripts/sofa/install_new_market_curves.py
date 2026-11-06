@@ -76,7 +76,11 @@ from pathlib import Path
 from typing import Any
 
 from bet.sofa import sport_confidence as scf
-from bet.sofa.confidence import AWAITING_OWN_CURVE, TENNIS_PER_SET
+from bet.sofa.confidence import (
+    AWAITING_OWN_CURVE,
+    TENNIS_PER_SET,
+    staged_calibration_paths,
+)
 from bet.sofa.line_curves import SECTION as LINE_SECTION
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -365,7 +369,7 @@ def _write_atomic(path: Path, doc: Mapping[str, Any]) -> None:
 
 def target_files(config_dir: Path, target: str) -> list[Path]:
     """The files a target's curves go into: the installed one, its staged
-    `.next.json` and, for the sport target, every dated staged
+    `.next.json` and every dated staged
     `.next.<YYYY-MM-DD>.json` (sport_confidence.calibration_path_for reads the
     latest one a day has reached - from 2026-10-24 the dated file, so an
     install into `.next.json` alone never reached those days)."""
@@ -374,6 +378,10 @@ def target_files(config_dir: Path, target: str) -> list[Path]:
     if target == SPORT_TARGET:
         out += [p for p in scf.staged_calibration_paths(config_dir)
                 if p not in out]
+    if target == FOOTBALL_TARGET:
+        # the football / tennis dated chain (confidence.calibration_path_for,
+        # 2026-11-06): a dated staged file is read from its day as well
+        out += [p for p in staged_calibration_paths(config_dir) if p not in out]
     return out
 
 

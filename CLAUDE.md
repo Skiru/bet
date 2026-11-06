@@ -102,13 +102,17 @@ and a miss recorded before a rule's switch never blocks that rule.
   (hockey refit), from 2026-10-28 `.next.2026-10-28.json` (basketball / CS2
   curves made monotone, review 10-27), so an edit for a coming day goes into the latest staged
   file, never into the installed one or a file a built day reads). Football /
-  tennis read an undated staged `config/sofa_confidence_calibration.next.json`
-  from its `effective_from` (`confidence.calibration_path_for`, no dated
-  chain yet): from 2026-11-07 00:00Z the 11-05 replay refit with the live
+  tennis read a staged file from its `effective_from` (`confidence.calibration_path_for`:
+  the undated `.next.json` or a dated `.next.<YYYY-MM-DD>.json`, the latest start the
+  day and the build clock have reached, each file complete on its own): from 2026-11-06 17:30Z
+  (moved by the operator from 11-07 00:00Z, "WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ";
+  11-06 mixed, ledger "11-06 mieszany") `config/sofa_confidence_calibration.next.json`, the 11-05 replay refit with the live
   rules (16 families / 25 keys + 13 score slices, every other key the
-  installed file's byte for byte, `staged_change`; ledger group "od 11-07";
-  model-state.md). Never copy it over the installed file; promoting it and
-  the next staged day (A, `.next.2026-11-08.json`) need the dated chain first.
+  installed file's byte for byte, `staged_change`; ledger groups "11-06 mieszany", "od 11-07";
+  model-state.md). Never copy it over the installed file; a later staged day
+  is a new dated file carrying 11-07's keys too. Arm A (season table,
+  `FOOTBALL_FORM_TABLE`) and `result_1x2` were declined for 11-08 (table gate
+  and 1X2 over-promise, model-state.md).
 - SHEET keeps the price out of `p_central`; the rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
   statistics to a calibrated confidence through the curves.
@@ -181,21 +185,25 @@ and a miss recorded before a rule's switch never blocks that rule.
   model's p (`data/line_evidence/tennis_point_model_p.json.gz` backfill), the
   sport pools unchanged. `games_total` / `games_won_for` keep today's
   estimator. Hold-out replay of the wired chain 10-20..11-04: see model-state.md.
-- **Tennis per-set handicap from the point model, 2026-11-07**
-  (`TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, operator 11-06: "install what beats
-  the current estimator"): `handicap_games_won_set1/2` join the point model's
+- **Tennis per-set handicap from the point model, 2026-11-06 17:30Z**
+  (`TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, by the build clock; moved by the
+  operator from 11-07 00:00Z, 11-06 mixed; operator 11-06: "install what
+  beats the current estimator"): `handicap_games_won_set1/2` join the point model's
   scope (`epochs.tennis_point_markets`; margin read by
   `bet.sofa.tennis_handicap_point`, OVER only; derived rows take p through
 `run_sheet._point_model_rating_p`, none = NOT_RATED, never the joint), curves
-  `config/sofa_tennis_handicap_point_curves.json`, line evidence from
-  `data/line_evidence/tennis_handicap_point_model_p.json.gz`, row marker
+  `config/sofa_tennis_handicap_point_curves.json` (overlaid only for a sheet
+  whose tennis rows carry the marker, `tennis_point_curves.handicap_rows_marked`),
+  line evidence from the backfill (11-06 rows: backfill only, from 11-07 the
+  rows' own p; `data/line_evidence/tennis_handicap_point_model_p.json.gz`),
+  row marker
   `tennis_handicap_point_model_rule`. Hold-out 10-20..11-05: Brier vs the
   neighbours -0.0114 [-0.0185, -0.0040], >= 0.70 after the curve -1.0 pp
   (neighbours -6.7); vs the price +0.0030 (reported). Full-match
   `handicap_games` stays on the rating (calibration -8.0 vs -6.8 pp failed the
   rule; `docs/sofa/evidence/tennis_handicap_point_model_2026-11-06.md`).
-- **Football minute simulator from 2026-11-07** (`FOOTBALL_SIM_FROM_UTC`,
-  operator 11-06; `bet.sofa.football_sim_sheet`): the path markets SHEET
+- **Football minute simulator from 2026-11-06 17:30Z** (`FOOTBALL_SIM_FROM_UTC`,
+  moved by the operator into the built day, 11-06 mixed; operator 11-06; `bet.sofa.football_sim_sheet`): the path markets SHEET
   never priced - `epochs.FOOTBALL_SIM_MARKETS` (HT/FT, 1H / 2H result,
   higher-scoring half, team scores in both halves, BTTS by halves / in either
   half, 1H first goal, half goals combo; `bet.sofa.football_sim_markets`,
@@ -257,10 +265,10 @@ and a miss recorded before a rule's switch never blocks that rule.
   price, margin accepted" - hold-out calibrated and at the de-vigged price,
   ROI -4.6%): such a leg carries `floor_rule`, never joins a builder, C2
   audits its own floor; every other gate unchanged (model-state.md).
-  The football simulator's keys (from 2026-11-07) print on the same gates:
+  The football simulator's keys (from 2026-11-06 17:30Z) print on the same gates:
   0.70, x >= 0.90, 15% margin on the two-sided rungs, one-sided only from
   their own curve with n >= 300; four of them pass at 0.60
-  (`FOOTBALL_SIM_FLOOR`, 2026-11-07 00:00Z, operator 11-06 "TAK!":
+  (`FOOTBALL_SIM_FLOOR`, 2026-11-06 17:30Z, operator 11-06 "TAK!":
   `team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half`
   UNDER, `btts_halves` OVER - each measured on its own 0.60-0.70 band, frozen
   rule, calibrated and at the de-vigged price, ROI -1..-10%), with
@@ -487,9 +495,11 @@ measurement of Superbet's price and feed nothing else.
   `config/sofa_sport_confidence_calibration.next.2026-11-06.json`. Settled
   Superbet lines 10-18..11-04: >= 0.70 -14.1 -> -0.0 pp, log loss -0.021; most
   period legs stop printing (model-state.md).
-- **Volleyball rally-point model** (`VB_POINT_MODEL`, from 2026-11-07
-  00:00Z, operator 11-06: "install what beats the current estimator; the
-  price need not be beaten"; ledger group "od 11-07"): the lines of
+- **Volleyball rally-point model** (`VB_POINT_MODEL`, from 2026-11-06
+  17:30Z by the build clock - moved by the operator from 11-07 00:00Z into
+  the built day, 11-06 mixed; operator 11-06: "install what beats the current
+  estimator; the price need not be beaten"; ledger groups "11-06 mieszany",
+  "od 11-07"): the lines of
   `epochs.VB_POINT_MODEL_MARKETS` (winner, points / set handicap, points /
   set-points totals, exact sets, set winner, points parity) take p from
   `bet.sofa.volleyball_point_model` through `bet.sofa.vb_point_pricer` (team
@@ -498,9 +508,11 @@ measurement of Superbet's price and feed nothing else.
   SPORT_CONFIDENCE (`DbForecaster`, leg field `vb_point_model_rule`,
   `forecast_source: vb_point_model`); sets total, extra points, team-set and
   sets-count markets keep the score model. Their curves: the rally model's
-  walk-forward in `config/sofa_sport_confidence_calibration.next.2026-11-07.json`
-  (`sports.volleyball.vb_point_model_curves`; the file and the switch move
-  together); line evidence at the rally p (`vb_point_pricer.BACKFILL`, kept by
+  walk-forward in `config/sofa_volleyball_point_curves.json`, overlaid by
+  `sport_confidence.with_vb_point_curves` onto the day's calibration by the
+  switch's build clock (the file choice is by day only; 11-06's
+  `.next.2026-11-06.json` is untouched, `.next.2026-11-07.json` carries the
+  same 16 keys - a no-op there); line evidence at the rally p (`vb_point_pricer.BACKFILL`, kept by
   `backfill_vb_point_p.py`, refresh step 1b). Hold-out 10-20..11-05 vs the
   current chain: Brier better in every wired family (points handicap -0.0048,
   set handicap -0.0057, ...), >= 0.70 points handicap -19.7 pp (current

@@ -41,8 +41,8 @@ from __future__ import annotations
 import dataclasses
 import gzip
 import json
-from collections.abc import Mapping
-from datetime import datetime
+from collections.abc import Iterable, Mapping
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -161,6 +161,17 @@ def _day_of(switch: datetime | None) -> str | None:
     return switch.strftime("%Y-%m-%d") if switch is not None else None
 
 
+def _first_whole_day(switch: datetime | None) -> str | None:
+    """The first day whose sheet rows are all the model's: the switch's day
+    when it starts at 00:00Z, else the next (a mixed day's settled rows carry
+    no marker, so they read the backfill only)."""
+    if switch is None:
+        return None
+    if (switch.hour, switch.minute, switch.second, switch.microsecond) == (0, 0, 0, 0):
+        return switch.strftime("%Y-%m-%d")
+    return (switch + timedelta(days=1)).strftime("%Y-%m-%d")
+
+
 def evidence_p_for(row: Mapping[str, Any], day: str,
                    backfill: Mapping[str, float], before: str,
                    build_at: datetime | None = None,
@@ -174,7 +185,7 @@ def evidence_p_for(row: Mapping[str, Any], day: str,
     if scoped or not epochs.tennis_handicap_point_model(before, build_at):
         return scoped, p
     return evidence_p(row, day, backfill,
-                      _day_of(epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC),
+                      _first_whole_day(epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC),
                       HANDICAP)
 
 
@@ -218,16 +229,29 @@ def merge_evidence(fitted: dict[str, Any], point_fit: Mapping[str, Any],
     bands.update({k: v for k, v in their_bands.items() if ours(k)})
 
 
+def handicap_rows_marked(rows: Iterable[Mapping[str, Any]]) -> bool:
+    """Every tennis sheet row carries epochs.TENNIS_HANDICAP_POINT_MODEL's
+    marker (its per-set handicap rows were priced by the point model); a
+    sheet with no tennis row counts as marked."""
+    field, rule, _ = epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER
+    return all(r.get(field) == rule for r in rows if r.get("sport") == "tennis")
+
+
 def for_day(cal: Calibration, date: str, build_at: datetime | None = None,
-            path: Path | None = None) -> Calibration:
+            path: Path | None = None, handicap_rows: bool = True) -> Calibration:
     """The calibration `date` reads: the point model's keys from `FILE`
     while epochs.TENNIS_POINT_MODEL is on (day and build clock); unchanged
     before it. On without the file the keys have no curve at all (their old
-    curves describe another p): line evidence or NO_LINE_EVIDENCE."""
+    curves describe another p): line evidence or NO_LINE_EVIDENCE.
+
+    The per-set handicap's curves follow epochs.TENNIS_HANDICAP_POINT_MODEL
+    by the build clock and only when the sheet's rows were priced under it
+    (`handicap_rows`, handicap_rows_marked): a sheet built before the switch
+    inside a mixed day keeps the neighbours' curves for its neighbours' p."""
     if not epochs.tennis_point_model(date, build_at):
         return cal
     out = overlay(cal, load(path) or {})
-    if epochs.tennis_handicap_point_model(date, build_at):
+    if handicap_rows and epochs.tennis_handicap_point_model(date, build_at):
         # epochs.TENNIS_HANDICAP_POINT_MODEL: the per-set handicap's own curves
         out = overlay(out, load(config_path(HANDICAP_FILE)) or {}, HANDICAP)
     return out

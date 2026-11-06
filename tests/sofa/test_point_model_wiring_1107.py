@@ -1,7 +1,8 @@
 """epochs.VB_POINT_MODEL (volleyball rally-point model in SPORT_CONFIDENCE)
 and epochs.TENNIS_HANDICAP_POINT_MODEL (tennis per-set games handicap from
-the point model in SHEET), both from 2026-11-07 00:00Z (operator 2026-11-06:
-install what is better than the current estimator). Offline."""
+the point model in SHEET), both from 2026-11-06 17:30Z by the build clock
+(operator 2026-11-06: install what is better than the current estimator;
+moved from 11-07 00:00Z into the day, 11-06 mixed). Offline."""
 
 from __future__ import annotations
 
@@ -30,7 +31,7 @@ from scripts.sofa import refresh_line_evidence as rle
 from scripts.sofa import run_sport_confidence as rsc
 from scripts.sofa.run_sheet import AUDIT_MARKER_FIELDS
 
-ON = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+ON = datetime(2026, 11, 6, 17, 30, tzinfo=UTC)
 REPO = Path(__file__).resolve().parents[2]
 
 
@@ -39,15 +40,18 @@ REPO = Path(__file__).resolve().parents[2]
 # --------------------------------------------------------------------------
 
 
-def test_both_switches_are_from_11_07_by_the_day_and_the_build_clock() -> None:
+def test_both_switches_are_from_11_06_17_30_by_the_day_and_the_build_clock(
+) -> None:
     assert epochs.VB_POINT_MODEL_FROM_UTC == ON
     assert epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC == ON
     for fn in (epochs.vb_point_model, epochs.tennis_handicap_point_model):
-        assert not fn("2026-11-06", ON + timedelta(hours=5))
-        assert not fn("2026-11-07", ON - timedelta(minutes=1))
-        assert fn("2026-11-07", ON)
-    # the per-set handicap widens the point model's scope only from 11-07
-    assert epochs.tennis_point_markets("2026-11-06", ON) == (
+        assert not fn("2026-11-05", ON + timedelta(hours=5))
+        assert not fn("2026-11-06", ON - timedelta(minutes=1))
+        assert fn("2026-11-06", ON)
+        assert fn("2026-11-07", ON + timedelta(hours=8))
+    # the per-set handicap widens the point model's scope only from 17:30Z
+    assert epochs.tennis_point_markets(
+        "2026-11-06", ON - timedelta(minutes=1)) == (
         epochs.TENNIS_POINT_MODEL_MARKETS)
     assert epochs.tennis_point_markets("2026-11-07", ON) == (
         epochs.TENNIS_POINT_MODEL_MARKETS
@@ -69,8 +73,43 @@ def test_the_volleyball_scope_is_the_families_that_passed() -> None:
 
 
 # --------------------------------------------------------------------------
-# Volleyball: the staged calibration carries the rally curves from 11-07
+# Volleyball: the rally curves are overlaid by the switch's build clock
 # --------------------------------------------------------------------------
+
+
+def test_the_rally_curves_follow_the_build_clock_not_the_file() -> None:
+    day = scf.calibration_path_for("2026-11-06")
+    assert day.name.endswith(".next.2026-11-06.json")
+    cal = scf.SportCalibration.load(day)
+    assert cal is not None
+    # before the switch: the very same object, nothing overlaid
+    assert scf.with_vb_point_curves(
+        cal, "2026-11-06", ON - timedelta(minutes=1)) is cal
+    on = scf.with_vb_point_curves(cal, "2026-11-06", ON)
+    assert on is not None and on is not cal
+    staged = json.loads(scf.calibration_path_for("2026-11-07").read_text(
+        encoding="utf-8"))
+    # 11-06 after 17:30Z reads exactly the volleyball section 11-07 reads
+    assert on.doc["sports"]["volleyball"] == staged["sports"]["volleyball"]
+    # every other sport (11-06's basketball period curves) untouched
+    for sport in ("hockey", "basketball", "cs2"):
+        assert on.doc["sports"][sport] == cal.doc["sports"][sport]
+    assert on.doc["effective_from"] == cal.doc["effective_from"]
+    # the overlay is only the rally keys; on 11-07's file it is a no-op
+    source = json.loads(config_path(scf.VB_POINT_CURVES_FILE).read_text(
+        encoding="utf-8"))
+    fams = {scf.allowed_markets("volleyball", True, True)[m]
+            for m in epochs.VB_POINT_MODEL_MARKETS}
+    assert {k.split("|")[0] for k in source["curves"]} == fams
+    assert sorted(source["curves"]) == sorted(
+        source["vb_point_model_curves"]["keys"])
+    old = cal.doc["sports"]["volleyball"]["curves"]
+    for key, curve in on.doc["sports"]["volleyball"]["curves"].items():
+        if key not in source["curves"]:
+            assert old[key] == curve
+    eleven = scf.SportCalibration(staged)
+    assert scf.with_vb_point_curves(
+        eleven, "2026-11-07", ON + timedelta(hours=8)).doc == staged  # type: ignore[union-attr]
 
 
 def test_the_staged_sport_calibration_moves_with_the_switch() -> None:
@@ -80,8 +119,8 @@ def test_the_staged_sport_calibration_moves_with_the_switch() -> None:
         ".next.2026-11-06.json")
     doc = json.loads(path.read_text(encoding="utf-8"))
     assert epochs.VB_POINT_MODEL_FROM_UTC is not None
-    assert doc["effective_from"] == epochs.VB_POINT_MODEL_FROM_UTC.strftime(
-        "%Y-%m-%d")
+    # the staged file starts the first whole day of the switch
+    assert doc["effective_from"] == "2026-11-07"
     prev = json.loads(scf.calibration_path_for("2026-11-06").read_text(
         encoding="utf-8"))
     vb = doc["sports"]["volleyball"]
@@ -307,7 +346,19 @@ def test_the_handicap_curves_are_read_only_under_their_switch() -> None:
         by_class={})
     before = tpc.for_day(cal, "2026-11-06", ON - timedelta(hours=1))
     assert before.by_market_direction["handicap_games_won_set1|OVER"] == old
-    on = tpc.for_day(cal, "2026-11-07", ON + timedelta(hours=1))
+    # a mixed day: a sheet priced before 17:30Z keeps the neighbours' curves
+    unmarked = tpc.for_day(cal, "2026-11-06", ON + timedelta(hours=1),
+                           handicap_rows=False)
+    assert unmarked.by_market_direction["handicap_games_won_set1|OVER"] == old
+    field, rule, _ = epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER
+    assert tpc.handicap_rows_marked([{"sport": "tennis", field: rule},
+                                     {"sport": "football"}])
+    assert not tpc.handicap_rows_marked([{"sport": "tennis", field: rule},
+                                         {"sport": "tennis"}])
+    assert tpc.handicap_rows_marked([])
+    mixed = tpc.for_day(cal, "2026-11-06", ON + timedelta(minutes=1))
+    on = tpc.for_day(cal, "2026-11-07", ON + timedelta(hours=8))
+    assert mixed.by_market_direction == on.by_market_direction
     doc = json.loads(config_path(tpc.HANDICAP_FILE).read_text(encoding="utf-8"))
     assert (on.by_market_direction["handicap_games_won_set1|OVER"]
             == doc["by_market_direction"]["handicap_games_won_set1|OVER"])
@@ -329,7 +380,8 @@ def test_handicap_evidence_reads_backfill_then_own_p_from_its_own_day() -> None:
     at = ON + timedelta(hours=7)
     assert tpc.evidence_p_for(row, "2026-11-06", {key: 0.58}, "2026-11-07",
                               at) == (True, 0.58)
-    # 11-06's sheet priced it with the neighbours: no backfill, no evidence
+    # 11-06 is mixed (rows priced by the neighbours before 17:30Z, settled
+    # rows carry no marker): backfill only, never the row's own p
     assert tpc.evidence_p_for(row, "2026-11-06", {}, "2026-11-07", at) == (
         True, None)
     assert tpc.evidence_p_for(row, "2026-11-07", {}, "2026-11-08",
@@ -362,6 +414,10 @@ def test_the_handicap_sheet_marker_and_the_rebuild(
     before = rp.DayState("2026-11-06", ON - timedelta(hours=8), limit,
                          sheet_tennis_handicap_point_model=False)
     assert "SHEET" not in rp.build_plan(before).names()
+    # the mixed day: a rebuild after 17:30Z re-prices the morning's sheet
+    mixed = rp.DayState("2026-11-06", ON + timedelta(minutes=5), limit,
+                        sheet_tennis_handicap_point_model=False)
+    assert "SHEET" in rp.build_plan(mixed).names()
 
 
 # --- the per-set handicap on the derived path (run_sheet -> derived) ------

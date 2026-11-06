@@ -1,0 +1,565 @@
+{
+  "_doc": "The volleyball rally model's curves (epochs.VB_POINT_MODEL): overlaid by sport_confidence.with_vb_point_curves onto the sport calibration a day reads whenever the switch is on for the day and the build clock (2026-11-06 17:30Z: the day's own .next.2026-11-06 file has none). Fitted on history only; the same 16 keys sit in .next.2026-11-07.json, where the overlay is a no-op. Measured: docs/sofa/evidence/volleyball_point_model_2026-11-06.md.",
+  "vb_point_model_curves": {
+    "keys": [
+      "exact_sets|0:3",
+      "exact_sets|1:3",
+      "exact_sets|2:3",
+      "exact_sets|3:0",
+      "exact_sets|3:1",
+      "exact_sets|3:2",
+      "points_handicap|TEAM",
+      "points_odd_even|EVEN",
+      "points_odd_even|ODD",
+      "points_total|OVER",
+      "points_total|UNDER",
+      "set_handicap|TEAM",
+      "set_points_total|OVER",
+      "set_points_total|UNDER",
+      "set_winner|TEAM",
+      "winner|TEAM"
+    ],
+    "fitted_from": {
+      "window": [
+        "2025-10-01",
+        "2026-09-28"
+      ],
+      "rows": 4104010,
+      "games": 25051,
+      "params": {
+        "prior_var": 0.06,
+        "drift_per_day": 0.0001,
+        "weight": 1.0,
+        "home": 0.04,
+        "form_var": 0.01,
+        "set_var": 0.02,
+        "sideout_men": 0.68,
+        "sideout_women": 0.6,
+        "min_league_teams": 4
+      },
+      "sims": 4000,
+      "lines": "sport_confidence.synthetic_lines rule (LINE_QUANTILES of the game's own simulation)"
+    },
+    "estimator": "bet.sofa.volleyball_point_model through bet.sofa.vb_point_pricer (epochs.VB_POINT_MODEL)",
+    "source": "data/refit_2026-11-06_point_handicap_models/volleyball_curves.json (scripts/sofa/measure_volleyball_point_model.py --stage history, sport_confidence.fit_curves, MIN_BUCKET 200)"
+  },
+  "curves": {
+    "exact_sets|0:3": {
+      "0.000-0.600": {
+        "n": 23473,
+        "realised": 0.1587,
+        "realised_lo95": 0.1541
+      },
+      "0.600-0.700": {
+        "n": 675,
+        "realised": 0.6267,
+        "realised_lo95": 0.5896
+      },
+      "0.700-0.750": {
+        "n": 238,
+        "realised": 0.6807,
+        "realised_lo95": 0.619
+      }
+    },
+    "exact_sets|1:3": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.1419,
+        "realised_lo95": 0.1376
+      }
+    },
+    "exact_sets|2:3": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.095,
+        "realised_lo95": 0.0915
+      }
+    },
+    "exact_sets|3:0": {
+      "0.000-0.600": {
+        "n": 22003,
+        "realised": 0.2283,
+        "realised_lo95": 0.2228
+      },
+      "0.600-0.700": {
+        "n": 1231,
+        "realised": 0.6369,
+        "realised_lo95": 0.6096
+      },
+      "0.700-0.750": {
+        "n": 475,
+        "realised": 0.7453,
+        "realised_lo95": 0.7042
+      },
+      "0.750-0.800": {
+        "n": 397,
+        "realised": 0.7456,
+        "realised_lo95": 0.7005
+      }
+    },
+    "exact_sets|3:1": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.1734,
+        "realised_lo95": 0.1688
+      }
+    },
+    "exact_sets|3:2": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.1044,
+        "realised_lo95": 0.1007
+      }
+    },
+    "points_handicap|TEAM": {
+      "0.000-0.600": {
+        "n": 350721,
+        "realised": 0.2132,
+        "realised_lo95": 0.2119
+      },
+      "0.600-0.700": {
+        "n": 50094,
+        "realised": 0.6674,
+        "realised_lo95": 0.6632
+      },
+      "0.700-0.750": {
+        "n": 24744,
+        "realised": 0.7585,
+        "realised_lo95": 0.7532
+      },
+      "0.750-0.800": {
+        "n": 50081,
+        "realised": 0.7975,
+        "realised_lo95": 0.794
+      },
+      "0.800-0.825": {
+        "n": 24313,
+        "realised": 0.83,
+        "realised_lo95": 0.8252
+      },
+      "0.825-0.850": {
+        "n": 25757,
+        "realised": 0.8632,
+        "realised_lo95": 0.8589
+      },
+      "0.850-0.875": {
+        "n": 25090,
+        "realised": 0.8766,
+        "realised_lo95": 0.8725
+      },
+      "0.875-0.900": {
+        "n": 24911,
+        "realised": 0.9124,
+        "realised_lo95": 0.9089
+      },
+      "0.900-0.925": {
+        "n": 25504,
+        "realised": 0.9221,
+        "realised_lo95": 0.9188
+      },
+      "0.925-0.950": {
+        "n": 24343,
+        "realised": 0.9573,
+        "realised_lo95": 0.9547
+      },
+      "0.950-1.010": {
+        "n": 25766,
+        "realised": 0.962,
+        "realised_lo95": 0.9596
+      }
+    },
+    "points_odd_even|EVEN": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.4994,
+        "realised_lo95": 0.4932
+      }
+    },
+    "points_odd_even|ODD": {
+      "0.000-0.600": {
+        "n": 25051,
+        "realised": 0.5006,
+        "realised_lo95": 0.4944
+      }
+    },
+    "points_total|OVER": {
+      "0.000-0.600": {
+        "n": 175365,
+        "realised": 0.2258,
+        "realised_lo95": 0.2239
+      },
+      "0.600-0.700": {
+        "n": 25045,
+        "realised": 0.6708,
+        "realised_lo95": 0.665
+      },
+      "0.700-0.750": {
+        "n": 24730,
+        "realised": 0.7754,
+        "realised_lo95": 0.7702
+      },
+      "0.750-0.800": {
+        "n": 25070,
+        "realised": 0.8274,
+        "realised_lo95": 0.8226
+      },
+      "0.800-0.825": {
+        "n": 666,
+        "realised": 0.8514,
+        "realised_lo95": 0.8223
+      },
+      "0.825-0.850": {
+        "n": 24363,
+        "realised": 0.8767,
+        "realised_lo95": 0.8726
+      },
+      "0.850-0.875": {
+        "n": 352,
+        "realised": 0.8892,
+        "realised_lo95": 0.8521
+      },
+      "0.875-0.900": {
+        "n": 24636,
+        "realised": 0.9215,
+        "realised_lo95": 0.9181
+      },
+      "0.900-0.925": {
+        "n": 385,
+        "realised": 0.9351,
+        "realised_lo95": 0.9059
+      },
+      "0.925-0.950": {
+        "n": 24470,
+        "realised": 0.9632,
+        "realised_lo95": 0.9607
+      },
+      "0.950-1.010": {
+        "n": 580,
+        "realised": 0.9672,
+        "realised_lo95": 0.9494
+      }
+    },
+    "points_total|UNDER": {
+      "0.000-0.600": {
+        "n": 175356,
+        "realised": 0.2073,
+        "realised_lo95": 0.2054
+      },
+      "0.600-0.700": {
+        "n": 25051,
+        "realised": 0.6478,
+        "realised_lo95": 0.6418
+      },
+      "0.750-0.800": {
+        "n": 25051,
+        "realised": 0.7557,
+        "realised_lo95": 0.7504
+      },
+      "0.800-0.825": {
+        "n": 25029,
+        "realised": 0.8084,
+        "realised_lo95": 0.8035
+      },
+      "0.850-0.875": {
+        "n": 25045,
+        "realised": 0.858,
+        "realised_lo95": 0.8536
+      },
+      "0.900-0.925": {
+        "n": 25051,
+        "realised": 0.9073,
+        "realised_lo95": 0.9036
+      },
+      "0.950-1.010": {
+        "n": 25051,
+        "realised": 0.9553,
+        "realised_lo95": 0.9527
+      }
+    },
+    "set_handicap|TEAM": {
+      "0.000-0.600": {
+        "n": 128955,
+        "realised": 0.3007,
+        "realised_lo95": 0.2982
+      },
+      "0.600-0.700": {
+        "n": 21778,
+        "realised": 0.6575,
+        "realised_lo95": 0.6512
+      },
+      "0.700-0.750": {
+        "n": 11279,
+        "realised": 0.7291,
+        "realised_lo95": 0.7209
+      },
+      "0.750-0.800": {
+        "n": 11970,
+        "realised": 0.7802,
+        "realised_lo95": 0.7727
+      },
+      "0.800-0.825": {
+        "n": 5985,
+        "realised": 0.8194,
+        "realised_lo95": 0.8094
+      },
+      "0.825-0.850": {
+        "n": 6015,
+        "realised": 0.8426,
+        "realised_lo95": 0.8331
+      },
+      "0.850-0.875": {
+        "n": 6412,
+        "realised": 0.869,
+        "realised_lo95": 0.8605
+      },
+      "0.875-0.900": {
+        "n": 6520,
+        "realised": 0.8888,
+        "realised_lo95": 0.8809
+      },
+      "0.900-0.925": {
+        "n": 6540,
+        "realised": 0.9136,
+        "realised_lo95": 0.9066
+      },
+      "0.925-0.950": {
+        "n": 7056,
+        "realised": 0.9418,
+        "realised_lo95": 0.936
+      },
+      "0.950-1.010": {
+        "n": 3586,
+        "realised": 0.9565,
+        "realised_lo95": 0.9493
+      }
+    },
+    "set_points_total|OVER": {
+      "0.000-0.600": {
+        "n": 548626,
+        "realised": 0.2311,
+        "realised_lo95": 0.23
+      },
+      "0.600-0.700": {
+        "n": 85212,
+        "realised": 0.6674,
+        "realised_lo95": 0.6642
+      },
+      "0.700-0.750": {
+        "n": 68354,
+        "realised": 0.747,
+        "realised_lo95": 0.7437
+      },
+      "0.750-0.800": {
+        "n": 63523,
+        "realised": 0.8014,
+        "realised_lo95": 0.7983
+      },
+      "0.800-0.825": {
+        "n": 38098,
+        "realised": 0.8305,
+        "realised_lo95": 0.8267
+      },
+      "0.825-0.850": {
+        "n": 38437,
+        "realised": 0.8568,
+        "realised_lo95": 0.8532
+      },
+      "0.850-0.875": {
+        "n": 39491,
+        "realised": 0.8783,
+        "realised_lo95": 0.875
+      },
+      "0.875-0.900": {
+        "n": 49822,
+        "realised": 0.903,
+        "realised_lo95": 0.9004
+      },
+      "0.900-0.925": {
+        "n": 14489,
+        "realised": 0.9254,
+        "realised_lo95": 0.921
+      },
+      "0.925-0.950": {
+        "n": 77899,
+        "realised": 0.9466,
+        "realised_lo95": 0.945
+      },
+      "0.950-1.010": {
+        "n": 782,
+        "realised": 0.9731,
+        "realised_lo95": 0.9593
+      }
+    },
+    "set_points_total|UNDER": {
+      "0.000-0.600": {
+        "n": 590875,
+        "realised": 0.2397,
+        "realised_lo95": 0.2387
+      },
+      "0.600-0.700": {
+        "n": 59025,
+        "realised": 0.6503,
+        "realised_lo95": 0.6464
+      },
+      "0.700-0.750": {
+        "n": 34321,
+        "realised": 0.7114,
+        "realised_lo95": 0.7066
+      },
+      "0.750-0.800": {
+        "n": 53745,
+        "realised": 0.7683,
+        "realised_lo95": 0.7647
+      },
+      "0.800-0.825": {
+        "n": 18155,
+        "realised": 0.8008,
+        "realised_lo95": 0.795
+      },
+      "0.825-0.850": {
+        "n": 13164,
+        "realised": 0.8257,
+        "realised_lo95": 0.8191
+      },
+      "0.850-0.875": {
+        "n": 25311,
+        "realised": 0.8596,
+        "realised_lo95": 0.8553
+      },
+      "0.875-0.900": {
+        "n": 44734,
+        "realised": 0.8838,
+        "realised_lo95": 0.8808
+      },
+      "0.900-0.925": {
+        "n": 51098,
+        "realised": 0.9104,
+        "realised_lo95": 0.9079
+      },
+      "0.925-0.950": {
+        "n": 41576,
+        "realised": 0.9332,
+        "realised_lo95": 0.9308
+      },
+      "0.950-1.010": {
+        "n": 92729,
+        "realised": 0.9616,
+        "realised_lo95": 0.9603
+      }
+    },
+    "set_winner|TEAM": {
+      "0.000-0.600": {
+        "n": 125636,
+        "realised": 0.3825,
+        "realised_lo95": 0.3798
+      },
+      "0.600-0.700": {
+        "n": 25421,
+        "realised": 0.6499,
+        "realised_lo95": 0.644
+      },
+      "0.700-0.750": {
+        "n": 9629,
+        "realised": 0.7234,
+        "realised_lo95": 0.7144
+      },
+      "0.750-0.800": {
+        "n": 7814,
+        "realised": 0.7782,
+        "realised_lo95": 0.7689
+      },
+      "0.800-0.825": {
+        "n": 3447,
+        "realised": 0.8155,
+        "realised_lo95": 0.8022
+      },
+      "0.825-0.850": {
+        "n": 3165,
+        "realised": 0.8401,
+        "realised_lo95": 0.8269
+      },
+      "0.850-0.875": {
+        "n": 2658,
+        "realised": 0.8634,
+        "realised_lo95": 0.8499
+      },
+      "0.875-0.900": {
+        "n": 2277,
+        "realised": 0.8814,
+        "realised_lo95": 0.8675
+      },
+      "0.900-0.925": {
+        "n": 1963,
+        "realised": 0.9058,
+        "realised_lo95": 0.892
+      },
+      "0.925-0.950": {
+        "n": 1565,
+        "realised": 0.9272,
+        "realised_lo95": 0.9132
+      },
+      "0.950-1.010": {
+        "n": 2515,
+        "realised": 0.9626,
+        "realised_lo95": 0.9545
+      }
+    },
+    "winner|TEAM": {
+      "0.000-0.600": {
+        "n": 30360,
+        "realised": 0.2999,
+        "realised_lo95": 0.2947
+      },
+      "0.600-0.700": {
+        "n": 5148,
+        "realised": 0.6542,
+        "realised_lo95": 0.6411
+      },
+      "0.700-0.750": {
+        "n": 2434,
+        "realised": 0.735,
+        "realised_lo95": 0.7171
+      },
+      "0.750-0.800": {
+        "n": 2482,
+        "realised": 0.7937,
+        "realised_lo95": 0.7773
+      },
+      "0.800-0.825": {
+        "n": 1108,
+        "realised": 0.8123,
+        "realised_lo95": 0.7882
+      },
+      "0.825-0.850": {
+        "n": 1088,
+        "realised": 0.8474,
+        "realised_lo95": 0.8248
+      },
+      "0.850-0.875": {
+        "n": 1115,
+        "realised": 0.87,
+        "realised_lo95": 0.8489
+      },
+      "0.875-0.900": {
+        "n": 1134,
+        "realised": 0.8968,
+        "realised_lo95": 0.8778
+      },
+      "0.900-0.925": {
+        "n": 1156,
+        "realised": 0.917,
+        "realised_lo95": 0.8996
+      },
+      "0.925-0.950": {
+        "n": 1187,
+        "realised": 0.9452,
+        "realised_lo95": 0.9308
+      },
+      "0.950-1.010": {
+        "n": 2890,
+        "realised": 0.9789,
+        "realised_lo95": 0.973
+      }
+    }
+  }
+}

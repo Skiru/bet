@@ -192,7 +192,7 @@ w ofercie) nie jest zmierzona - to podejrzenie.
 >= 0.70 (-0.2 pp na 675 nogach, obecny -3.0) i najbliżej ceny
 (+0.0034, CI przez 0, ale górna granica +0.0103 > +0.002).
 
-## 5. Reguła operatora 2026-11-06 i podłączenie (od 2026-11-07 00:00Z)
+## 5. Reguła operatora 2026-11-06 i podłączenie (od 2026-11-06 17:30Z)
 
 Po hold-oucie operator (przez koordynatora) ustalił regułę wiążącą wszystko:
 instalować to, co lepsze od OBECNEGO estymatora; pobicie ceny nie jest
@@ -217,8 +217,9 @@ więcej niż 1 pp (gdy obie strony mają nogi).
 | team_wins_set | -0.0054 | brak krzywej modelu | nie | zostaje (kalibracji nie da się ocenić) |
 | set_points_odd_even, sets_count | -0.0002 / -0.0064 | brak krzywej modelu | nie | zostają (jw.) |
 
-Podłączenie (`epochs.VB_POINT_MODEL`, 2026-11-07 00:00Z, grupa ledgera
-"od 11-07"):
+Podłączenie (`epochs.VB_POINT_MODEL`, 2026-11-06 17:30Z według zegara
+budowy - operator przesunął z 11-07 00:00Z, „WŁĄCZ JAK NAJWIĘCEJ RZECZY OD
+DZISIAJ"; grupy ledgera "11-06 mieszany", potem "od 11-07"):
 - SPORT_CONFIDENCE (`scripts/sofa/run_sport_confidence.py`, `DbForecaster`)
   dla linii `epochs.VB_POINT_MODEL_MARKETS` bierze p z
   `bet.sofa.vb_point_pricer` (model jak w pomiarze, stałe z
@@ -227,7 +228,12 @@ Podłączenie (`epochs.VB_POINT_MODEL`, 2026-11-07 00:00Z, grupa ledgera
   `forecast_source: vb_point_model`; brak id strony = `NO_MODEL_P`.
 - Krzywe: `config/sofa_sport_confidence_calibration.next.2026-11-07.json` =
   `.next.2026-11-06.json` z 16 kluczami siatkówki z krzywych modelu
-  (`volleyball_curves.json`); plik i przełącznik idą razem (test).
+  (`volleyball_curves.json`). Te same 16 kluczy w
+  `config/sofa_volleyball_point_curves.json` nakłada
+  `sport_confidence.with_vb_point_curves` według zegara przełącznika (wybór
+  pliku kalibracji jest tylko po dniu): 11-06 po 17:30Z czyta dokładnie
+  sekcję siatkówki pliku 11-07, a krzywe okresów koszykówki i reszta pliku
+  11-06 zostają bez zmian (test).
 - Dowody z linii: `data/line_evidence/volleyball_point_model_p.json.gz`
   (41 818 linii 09-29..11-05, z pomiaru + 128 policzonych ścieżką potoku);
   ścieżka potoku (`scripts/sofa/backfill_vb_point_p.py`, bez ziarna z

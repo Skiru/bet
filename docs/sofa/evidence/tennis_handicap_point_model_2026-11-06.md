@@ -128,7 +128,7 @@ pobicie ceny nie jest wymagane (podawane jako fakt). Rodzina przechodzi, gdy
 (a) Brier lub log-loss modelu jest punktowo lepszy od obecnego i (b)
 kalibracja >= 0.70 po krzywej nie jest gorsza od obecnej o więcej niż 1 pp.
 - **per-set (`handicap_games_won_set1/2`): przechodzi** - Brier -0.0114,
-  kalibracja -1.0 pp wobec -6.7 pp obecnego. **Podłączone od 2026-11-07.**
+  kalibracja -1.0 pp wobec -6.7 pp obecnego. **Podłączone od 2026-11-06 17:30Z** (pierwotnie 11-07 00:00Z; przesunięte przez operatora).
 - **`handicap_games`: nie przechodzi** - (a) tak (Brier -0.0040, log-loss
   -0.0090 punktowo), (b) nie: -8.0 pp wobec -6.8 pp obecnego łańcucha, gorzej
   o 1.2 pp (> 1 pp). Zostaje na obecnym estymatorze (sąsiedzi ratingu +
@@ -142,10 +142,14 @@ obu rodzinach.
 
 ## 5. Podłączenie i E2E
 
-- Przełącznik `epochs.TENNIS_HANDICAP_POINT_MODEL` od **2026-11-07 00:00Z**
+- Przełącznik `epochs.TENNIS_HANDICAP_POINT_MODEL` od **2026-11-06 17:30Z**
+  według zegara budowy (operator przesunął z 11-07 00:00Z: „WŁĄCZ JAK
+  NAJWIĘCEJ RZECZY OD DZISIAJ"; 11-06 mieszany, grupa „11-06 mieszany")
   (wymaga też `TENNIS_POINT_MODEL`); marker wiersza
   `tennis_handicap_point_model_rule` - `rebuild_plan` przelicza SHEET dnia,
-  którego wiersze tenisa go nie mają. Grupa ledgera "od 11-07".
+  którego wiersze tenisa go nie mają; krzywe handicapu tylko dla arkusza ze
+  znacznikiem (`tennis_point_curves.handicap_rows_marked`); dowody z linii
+  wierszy 11-06 tylko z backfillu. Potem grupa ledgera "od 11-07".
 - SHEET: wiersze per-set handicapu są pochodne (`derived.price_derived_rungs`);
   pod przełącznikiem `rating_p` dla tych rynków czyta model punktowy
   (`run_sheet._point_model_rating_p` -> `tennis_point_sheet.PointPricer.p` ->

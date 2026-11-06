@@ -62,27 +62,56 @@ DEFAULT_CALIBRATION = config_path("sofa_confidence_calibration.json")
 # keeps the installed one (CLAUDE.md: never install into a day already
 # built). Promoted over the installed file once no earlier day is rebuilt.
 NEXT_CALIBRATION_NAME = "sofa_confidence_calibration.next.json"
+# The dated staged chain (2026-11-06, after the undated 11-07 file): a file
+# `sofa_confidence_calibration.next.<YYYY-MM-DD>.json` whose `effective_from`
+# falls on that date. With several staged files a day reads the one with the
+# latest start it has reached, so a later staged day never re-curves an
+# earlier one (as sport_confidence.calibration_path_for).
+_DATED_NEXT = re.compile(
+    r"^sofa_confidence_calibration\.next\.(\d{4}-\d{2}-\d{2})\.json$")
+
+
+def staged_calibration_paths(config_dir: Path) -> list[Path]:
+    """The undated staged file (if any) and every dated one, by name."""
+    out = [config_dir / NEXT_CALIBRATION_NAME] if (
+        config_dir / NEXT_CALIBRATION_NAME).exists() else []
+    out += sorted(p for p in config_dir.glob("sofa_confidence_calibration.next.*.json")
+                  if _DATED_NEXT.match(p.name))
+    return out
+
+
+def _staged_start(path: Path) -> datetime | None:
+    eff = json.loads(path.read_text(encoding="utf-8")).get("effective_from")
+    if not isinstance(eff, str):
+        return None
+    start = datetime.fromisoformat(eff.replace("Z", "+00:00"))
+    named = _DATED_NEXT.match(path.name)
+    if named and start.strftime("%Y-%m-%d") != named.group(1):
+        raise ValueError(
+            f"{path.name}: effective_from {eff!r} disagrees with the file name")
+    return start
 
 
 def calibration_path_for(
     date: str, build_at: datetime | None = None, main: Path | None = None
 ) -> Path:
-    """The football / tennis calibration a day reads: the staged one when the
-    day and the build clock are both at or after its `effective_from`, else
-    the installed one (sport_confidence.calibration_path_for, with a time).
-    `main` defaults to the installed file of the config dir at call time
-    (SOFA_CONFIG_DIR may point a process elsewhere)."""
+    """The football / tennis calibration a day reads: of the staged files
+    (`.next.json` and the dated `.next.<YYYY-MM-DD>.json`), the one with the
+    latest `effective_from` that the day and the build clock have both
+    reached, else the installed one (sport_confidence.calibration_path_for,
+    with a time). `main` defaults to the installed file of the config dir at
+    call time (SOFA_CONFIG_DIR may point a process elsewhere)."""
     if main is None:
         main = config_path("sofa_confidence_calibration.json")
-    nxt = main.with_name(NEXT_CALIBRATION_NAME)
-    if not nxt.exists():
-        return main
-    eff = json.loads(nxt.read_text(encoding="utf-8")).get("effective_from")
-    if not isinstance(eff, str):
-        return main
-    start = datetime.fromisoformat(eff.replace("Z", "+00:00"))
     at = build_at if build_at is not None else timeutil.now()
-    return nxt if date >= start.strftime("%Y-%m-%d") and at >= start else main
+    best: tuple[datetime, Path] | None = None
+    for path in staged_calibration_paths(main.parent):
+        start = _staged_start(path)
+        if start is None or date < start.strftime("%Y-%m-%d") or at < start:
+            continue
+        if best is None or start > best[0]:
+            best = (start, path)
+    return best[1] if best else main
 
 # The ceiling for an empirical / non-count market with no curve of its own
 # when no empirical market has a curve either. Below the pool's 0.80-0.825

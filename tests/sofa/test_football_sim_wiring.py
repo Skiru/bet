@@ -6,7 +6,7 @@ must not move."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -102,10 +102,14 @@ def test_offer_reads_them_only_under_the_switch() -> None:
     assert off is None and label == "1. połowa/mecz"
     on, _ = classify_odd(item, listing_names=SIDES, football_sim=True)
     assert on == ("htft", "X/1", 0.5, "OVER")
-    assert day_flags("2026-11-06")["football_sim"] is False
-    assert epochs.FOOTBALL_SIM_FROM_UTC == datetime(2026, 11, 7, tzinfo=UTC)
+    assert day_flags("2026-11-05")["football_sim"] is False
+    # moved by the operator into the built day 2026-11-06 at 17:30Z
+    on_at = datetime(2026, 11, 6, 17, 30, tzinfo=UTC)
+    assert epochs.FOOTBALL_SIM_FROM_UTC == on_at
     assert epochs.football_sim("2026-11-07", datetime(2026, 11, 7, 1, tzinfo=UTC))
-    assert not epochs.football_sim("2026-11-06", datetime(2026, 11, 7, 1, tzinfo=UTC))
+    assert epochs.football_sim("2026-11-06", on_at)
+    assert not epochs.football_sim("2026-11-06", on_at - timedelta(minutes=1))
+    assert not epochs.football_sim("2026-11-05", on_at)
 
 
 def test_superbet_words_round_trip_through_classify() -> None:
@@ -442,3 +446,30 @@ def test_line_evidence_backfill_rows_stop_at_the_switch() -> None:
     assert fitted["keys"]["football"] == {"goals_total|OVER": 2,
                                           "result_1h|OVER": 3}
     assert fitted["bands"]["football"] == {}
+
+
+def test_a_rebuild_after_the_switch_rereads_offer_then_sheet() -> None:
+    """FOOTBALL_SIM moved into the built day 2026-11-06 at 17:30Z: a rebuild
+    after it re-reads OFFER (the morning offer has no path rung) and re-runs
+    SHEET (no marker) before CONFIDENCE; before 17:30Z nothing moves."""
+    from bet.sofa import rebuild_plan as rp
+
+    td = timedelta
+
+    def state(now: datetime, **kw: Any) -> Any:
+        base: dict[str, Any] = dict(
+            offer_fixtures=2, open_fixtures=2,
+            oldest_open_rung=now - td(minutes=5), newest_rung=now - td(minutes=5),
+            offer_has_football=True, offer_has_sim=False, sheet_football_sim=False)
+        base.update(kw)
+        return rp.DayState("2026-11-06", now, td(minutes=45), **base)
+
+    after = datetime(2026, 11, 6, 17, 40, tzinfo=UTC)
+    names = rp.build_plan(state(after)).names()
+    assert "OFFER" in names and "SHEET" in names
+    assert names.index("OFFER") < names.index("SHEET") < names.index("CONFIDENCE")
+    sheet_only = rp.build_plan(state(after, offer_has_sim=True)).names()
+    assert "OFFER" not in sheet_only and "SHEET" in sheet_only
+    before = datetime(2026, 11, 6, 17, 20, tzinfo=UTC)
+    early = rp.build_plan(state(before)).names()
+    assert "OFFER" not in early and "SHEET" not in early
