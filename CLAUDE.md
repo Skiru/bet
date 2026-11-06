@@ -101,7 +101,14 @@ and a miss recorded before a rule's switch never blocks that rule.
   10-14..10-23 read `.next.json`, 10-24..10-27 `.next.2026-10-24.json`
   (hockey refit), from 2026-10-28 `.next.2026-10-28.json` (basketball / CS2
   curves made monotone, review 10-27), so an edit for a coming day goes into the latest staged
-  file, never into the installed one or a file a built day reads).
+  file, never into the installed one or a file a built day reads). Football /
+  tennis read an undated staged `config/sofa_confidence_calibration.next.json`
+  from its `effective_from` (`confidence.calibration_path_for`, no dated
+  chain yet): from 2026-11-07 00:00Z the 11-05 replay refit with the live
+  rules (16 families / 25 keys + 13 score slices, every other key the
+  installed file's byte for byte, `staged_change`; ledger group "od 11-07";
+  model-state.md). Never copy it over the installed file; promoting it and
+  the next staged day (A, `.next.2026-11-08.json`) need the dated chain first.
 - SHEET keeps the price out of `p_central`; the rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
   statistics to a calibrated confidence through the curves.

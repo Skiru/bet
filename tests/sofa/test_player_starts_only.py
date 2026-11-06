@@ -162,6 +162,10 @@ def test_the_staged_file_changes_only_the_player_curves() -> None:
         return
     main = json.loads(config_path("sofa_confidence_calibration.json").read_text())
     nxt = json.loads(nxt_path.read_text())
+    if "staged_change" in nxt:
+        # a later staged file (2026-11-07 on) names its own changed keys;
+        # tests/sofa/test_staged_calibration_complete.py checks it
+        return
 
     def strip(doc: dict[str, Any]) -> dict[str, Any]:
         doc = copy.deepcopy(doc)

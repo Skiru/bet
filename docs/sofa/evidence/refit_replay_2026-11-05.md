@@ -348,6 +348,11 @@ Odczyt:
   - w obu liczeniach **0,04 jest optimum wewnątrz siatki**. Wolniejsze kroki poprawiają sumy (do −61,7), ale psują winner i handicap.
 - Następny krok według reguły 6: (a) hold-out 10-07..11-05 z własnymi krzywymi (`--before 2026-11-06`) i (b) linie Superbetu od 10-18. Oba na kopii bazy, po łańcuchu A piłki. Przełącznik najwcześniej od 11-08.
 
+**(a) i (b) dla `alpha` 0,04 (2026-11-06 ok. 16:20Z).** Fit `fit_sport_confidence` z `--before 2026-11-06` i liniami okresów z rynku (`bb_alpha/a004.json`) wobec `bb/on.json` (`alpha` 0,06), każde ramię z własnym p i własnymi krzywymi, sparowane na tej samej linii (`bb_alpha/measure_alpha.py`, `measure_alpha.json`):
+- (a) hold-out historii 10-07..11-05 (4 413 meczów, sparowane 100% wierszy): log-loss pewności 0,04 − 0,06 razem **+8,7 × 1e-4 [+4,3, +13,2]**, `winner` **+41,7 [+12,2, +70,6]**; sumy / handicap / team_total bez różnicy (tylko 181 meczów z liniami). Przy >= 0,70 razem +3,2 → +1,8 pp.
+- (b) linie Superbetu od 10-18 (2 224 mecze): razem −4,4 × 1e-4 [−8,0, −0,7], `total` −15,8 [−19,3, −11,9], ale `winner` **+48,3 [+1,2, +89,9]**; przy >= 0,70 razem +0,0 → −1,0 pp.
+- **Werdykt: nie.** (a) nie spełnia warunku puli (punktowo gorzej, górna granica nad +0,5) i `winner` jest gorszy z przedziałem nad zerem. Wybór na surowym p (sekcja 8) nie przeżył krzywych: lepsze sumy, gorszy zwycięzca. `alpha` zostaje 0,06, nic do `.next.2026-11-08`. Zmierzone i odrzucone.
+
 ## 9. Rynki wyniku i wycinki rynków wyniku pod ramieniem A (2026-11-06 ok. 11:00–11:40Z)
 
 Zgoda koordynatora 11-06 (reguła operatora „instaluj, co jest lepsze od dzisiejszego estymatora”): wycinki rynków wyniku (`fit_score_market_curves.py`, nieedytowany) dopasowane na wierszach 1X2 ramienia A, ta sama zamrożona reguła na wycinek co w `refit_rynki_wynikowe_2026-11-05.md` sekcja 1. Moja kopia reguły (`scoreA/verdict_slices.py`) odtwarza werdykty tamtego raportu co do jednego (0 rozbieżności, 13 „instaluj”).
@@ -383,3 +388,26 @@ Do zapisu: `draw_no_bet` UNDER na krzywej zainstalowanej pod A (A0) wobec bazy: 
 **Tenis `games_won_for` (`by_market` + OVER), punkt 4 koordynatora:** nie spełnia (b) wobec zainstalowanej (102,3 → 102,5). Zostaje.
 
 **Wariant tylko z regułami** (gdy A nie przejdzie): 16 rodzin (25 kluczy) + 13 wycinków „instaluj” z `data/refit_2026-11-05_score/staged`. Bez 1X2, bez `dc_and_over`, bez DNB UNDER. E2E na kopii 11-04: dzień 11-06 czyta plik zainstalowany o każdej godzinie, 11-07 plik `.next`; rusza się 2 844 pewności, wszystkie na podmienionych kluczach, 0 na innych; nogi 2 003 → 1 998.
+
+## 10. Werdykt ramienia A (krok goli ×1,25 + tabela sezonu w 0,341), 2026-11-06 ok. 16:00Z
+
+Replay A skończył się o 14:47:51Z (1 457 004 mecze, wiersze 23 244 s wobec 18 870 s replayu reguł). Fit pełny i z hold-outem: 15:11Z.
+
+**(a) historia 10-18..11-04** (`measure_swap.py`, krzywe `candA/holdout.json` wobec zainstalowanych na wierszach replayu A, `A_verdict.txt`): w większości rodzin lepiej, np. `goals_for` UNDER −26,9 × 1e-4 (górna −20,2), `goals_1h_for` UNDER −21,7, `cards_points_total` UNDER −32,9. Pomiar (b) z `measure_swap` dla A się nie nadaje: czyta żywe `p_central`, a żywe p nie ma tabeli.
+
+**(b) linie Superbetu 10-18..11-04, jak za jak** (`item5/fb_b_goals.py`, każde ramię na wierszach, które pokrywa replay A, 128 110 wierszy; `measure_Acomp_all.log`, `fb_b_goals_all_Acomp.json`):
+- Wybór rodzin wobec A0 (krzywa zainstalowana na p ramienia A), reguła sekcji 3 i bramka w każdej grupie epok (n >= 50 przy >= 0,70, dryf gorszy o > 1 pp → zostaje zainstalowana), `A_select.txt`: przechodzi 11 rodzin (`goals_for` UNDER, `goals_1h_for` OVER, `cards_points_for` UNDER, `saves_for` UNDER, `shots_on_target_for` OVER, `offsides_for` OVER i 5 prawie bez nóg). Bramka grupy zatrzymuje `goals_1h_for` UNDER (od 10-22, od 10-28), `corners_1h_for` UNDER, `offsides_for` UNDER, `shots_for` UNDER. `goals_for` OVER odpada na (a): −1,9 × 1e-4, górna +0,6 przy progu +0,5.
+- **Odstępstwo od sekcji 3:** `fb_b_goals` łączy okno; podział na grupy epok liczę osobno (bramka wyżej) i podaję go obok wyniku łącznego.
+- Plik złożony (11 rodzin, reszta A0) wobec zainstalowanego na żywo: całość dryf przy >= 0,70 −0,93 → −0,93 pp, Brier minus cena bez marży 16,66 → 16,23 × 1e-3; `goals_for` −1,09 → −1,12 pp, 19,63 → 19,43.
+- **Nie przechodzi zamrożonego (b) punktu 5:**
+  1. `goals_for` OVER −0,4 → −1,6 pp (n 2 832), gorzej o > 1 pp. Bez refitu czyta krzywą zainstalowaną na p ramienia A. Własny refit candA trzymałby −0,4. `cards_points_for` OVER +3,1 → +4,5 pp (n 467): obiecuje mniej, nie więcej.
+  2. **Sum goli nie da się zmierzyć.** Wiersze sum z replayu A prawie nigdy nie stoją na liniach Superbetu tych samych meczów: wspólny zbiór ma 0 wierszy `goals_total` i żadnej sumy innych rynków. Przyczyna otwarta (drabinka sum replayu). Zamrożona specyfikacja wymagała sum goli na liniach Superbetu.
+
+**Decyzja koordynatora (11-06):** na 11-07 idzie wariant tylko z regułami (sekcja 9). A z 1X2 najwcześniej na 11-08, pod regułą operatora „lepsze od dzisiejszego, punktowo”:
+- dopuścić refit candA `goals_for` OVER (log-loss punktowo −1,9 × 1e-4, dryf −0,4 wobec −1,6 pp; chybienie górnej granicy o 0,1 × 1e-4 nie blokuje);
+- naprawić ekstrakt sum (linie Superbetu) albo rozstrzygnąć sumy na historii (a) + (b) replayu reguł, i napisać to wprost;
+- dodać datowany łańcuch w `confidence.calibration_path_for` (`.next.2026-11-08.json`), z testem.
+
+**Wariant tylko z regułami w `config/` (2026-11-06 ok. 16:10Z):** `config/sofa_confidence_calibration.next.json` = `staged_rules_score.next.json` (md5 7444ea60…). E2E na kopii 11-04 z prawdziwego `config/`: 11-06 czyta plik zainstalowany o każdej godzinie (także 11-07 06:00Z), 11-07 plik `.next`; rusza się 2 844 pewności, wszystkie na podmienionych kluczach, 0 na innych; nogi 2 003 → 1 998 (wypada 7: kartki UNDER 4, `goals_total` UNDER 1, `result_or_under` 1, `result_handicap` 1; wchodzą 2: `cards_points_for` UNDER, `shots_on_target_total` UNDER).
+
+**Dlaczego sum nie ma na liniach Superbetu (przyczyna znaleziona 2026-11-06 ok. 16:40Z).** `sofa_settled_row` ma klucz unikalny (mecz, rynek, podmiot, linia, kierunek) bez `run_date` (`src/bet/sofa/db.py`). Replay zapisuje swoje wiersze z `ON CONFLICT ... DO UPDATE` tylko nad innym wierszem replayu; wiersza SETTLE nie rusza (`calibrate_from_cache._ONLY_OVER_CACHE_ROWS`, poprawka z 09-26). Suma ma podmiot `""` w obu źródłach, więc każda linia sumy, którą Superbet wystawił i którą SETTLE rozliczył, ma już wiersz żywy i replay jej nie zapisuje. Zostają tylko linie, których Superbet nie wystawił (np. mecz 15254147: replay 0,5 / 4,5 / 5,5, Superbet 1,5–3,5). `goals_for` ma w replayu podmiot = id drużyny, a na żywo nazwę, więc nie koliduje. Replay bez zapisu (`verify/run_window.py`, okno 10-31..11-04) ma wszystkie linie (1,5: 1 024, 2,5: 1 026, 3,5: 1 026). To zamierzone zachowanie zapisu, nie błąd replayu. Pomiar sum dla A (na 11-08) wymaga więc replayu okna 10-18..11-04 bez zapisu, z flagami A, i odczytu wierszy z pamięci.
