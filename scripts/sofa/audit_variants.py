@@ -471,7 +471,9 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
     from bet.sofa import epochs
     from bet.sofa.line_evidence import LineEvidence
 
-    cal = scf.SportCalibration.load(scf.calibration_path_for(date))
+    # the calibration SPORT_CONFIDENCE read at its build clock (the rally
+    # keys of epochs.VB_POINT_MODEL overlaid - a mixed day 2026-11-06)
+    cal = rsc.day_calibration(scf.calibration_path_for(date), date, at)
     evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at),
                                   bucket_deff=epochs.bucket_design_effect(date, at),
                                   price_gap_sports=epochs.price_gap_offset_sports(
@@ -523,14 +525,26 @@ def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],
             out.append(f"U3 {label}: x below 0.90")
         if not scf.line_in_fit(sport, str(leg["family"]), leg.get("line")):
             out.append(f"U3 {label}: line {leg.get('line')} outside the curve's fit")
-        conf = confidence_reading(lambda p_: rsc.read_confidence(
-            cal, evidence, sport, str(leg["family"]), str(leg["side"]),
-            p_, float(leg["odds"]))[0], float(leg["forecast_p"]),
-            float(leg["confidence"])) if cal else None
-        if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
-            out.append(f"U3 {label}: confidence {leg['confidence']} is not the "
-                       f"calibration's {None if conf is None else conf.value}")
+        out.extend(sport_confidence_findings(cal, evidence, leg, label))
     return out
+
+
+def sport_confidence_findings(cal: Any, evidence: Any, leg: dict[str, Any],
+                              label: str) -> list[str]:
+    """U3's confidence check: the leg's printed forecast_p read through the
+    calibration and line evidence SPORT_CONFIDENCE read
+    (run_sport_confidence.read_confidence) must give its printed confidence."""
+    from scripts.sofa import run_sport_confidence as rsc
+
+    sport = str(leg["sport"])
+    conf = confidence_reading(lambda p_: rsc.read_confidence(
+        cal, evidence, sport, str(leg["family"]), str(leg["side"]),
+        p_, float(leg["odds"]))[0], float(leg["forecast_p"]),
+        float(leg["confidence"])) if cal else None
+    if conf is None or abs(conf.value - float(leg["confidence"])) > 1e-4:
+        return [f"U3 {label}: confidence {leg['confidence']} is not the "
+                f"calibration's {None if conf is None else conf.value}"]
+    return []
 
 
 MAX_SPORT_OVERROUND = 0.15

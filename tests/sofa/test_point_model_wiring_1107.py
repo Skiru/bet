@@ -487,3 +487,35 @@ def test_off_the_derived_rows_are_untouched_by_the_point_pricer() -> None:
         k_price=10.0, unfitted=[], rating_p=None, stats_only=True)
     new, _ = _derived(pricer, frozenset())
     assert [r.model_dump() for r in new] == [r.model_dump() for r in old]
+
+
+# --- audit_variants U3 reads the calibration SPORT_CONFIDENCE read ---------
+
+
+def test_u3_rederives_a_rally_leg_through_the_same_calibration() -> None:
+    """2026-11-06 17:35Z: U3 read the day's file without the rally overlay
+    and flagged 41 volleyball legs ("winner 0.8489 is not the calibration's
+    ..."). U3 now reads run_sport_confidence.day_calibration."""
+    from bet.sofa.line_evidence import LineEvidence
+    from scripts.sofa import audit_variants as av
+
+    day, at = "2026-11-06", ON + timedelta(minutes=5)
+    evidence = LineEvidence({})
+    path = scf.calibration_path_for(day)
+    cal = rsc.day_calibration(path, day, at)
+    printed = rsc.read_confidence(cal, evidence, "volleyball", "winner", "T1",
+                                  0.85, 1.2)[0]
+    assert printed is not None
+    leg = {"sport": "volleyball", "family": "winner", "side": "T1",
+           "forecast_p": 0.85, "odds": 1.2, "confidence": printed.value,
+           epochs.VB_POINT_MODEL_LEG_FIELD: epochs.VB_POINT_MODEL}
+    # the old reading (the day's file alone) is the reported mismatch
+    old = scf.SportCalibration.load(path)
+    assert av.sport_confidence_findings(old, evidence, leg, "x")
+    # the reading U3 makes now agrees with what SPORT_CONFIDENCE printed
+    assert av.sport_confidence_findings(cal, evidence, leg, "x") == []
+    # and U3 builds it through the shared reader (no copy of the overlay)
+    import inspect
+    src = inspect.getsource(av.audit_sport_legs)
+    assert "rsc.day_calibration(" in src
+    assert "SportCalibration.load" not in src

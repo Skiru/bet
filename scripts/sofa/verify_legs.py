@@ -384,8 +384,8 @@ def sport_day(runs_dir: Path, date: str, doc: dict[str, Any],
                 fixtures.setdefault((str(f["sport"]), str(f["superbet_event_id"])), f)
     read = None
     if at is not None:
-        cal = scf.with_vb_point_curves(
-            scf.SportCalibration.load(scf.calibration_path_for(date)), date, at)
+        from scripts.sofa import run_sport_confidence as rsc
+        cal = rsc.day_calibration(scf.calibration_path_for(date), date, at)
         evidence = (LineEvidence.load(v2=epochs.line_evidence_v2(date, at),
                                       bucket_deff=epochs.bucket_design_effect(date, at),
                                       price_gap_sports=epochs.price_gap_offset_sports(

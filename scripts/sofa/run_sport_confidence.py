@@ -894,6 +894,17 @@ def leg_dict(sport: str, ev: Any, fixture: Mapping[str, Any], ln: Any,
     return leg
 
 
+def day_calibration(calibration_path: Path, date: str,
+                    at: datetime) -> scf.SportCalibration | None:
+    """The sport calibration a build of `date` at `at` reads: the file, with
+    the volleyball rally keys overlaid while epochs.VB_POINT_MODEL is on for
+    the day and the clock (sport_confidence.with_vb_point_curves). The one
+    reader for SPORT_CONFIDENCE and its audits (audit_variants U3,
+    verify_legs)."""
+    return scf.with_vb_point_curves(
+        scf.SportCalibration.load(calibration_path), date, at)
+
+
 def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecaster,
           at: datetime, sports: tuple[str, ...] = scf.SPORT_KEYS,
           evidence_path: Path | None = None,
@@ -902,8 +913,7 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
     epochs.LINE_EVIDENCE_FROM_UTC (default: the installed one)."""
     fixtures_doc = si.load_fixtures(Path(runs_dir) / date / si.FIXTURES_FILE)
     # epochs.VB_POINT_MODEL: the rally keys by the build clock (a mixed day)
-    calibration = scf.with_vb_point_curves(
-        scf.SportCalibration.load(calibration_path), date, at)
+    calibration = day_calibration(calibration_path, date, at)
     v2 = epochs.line_evidence_v2(date, at)
     path = evidence_path if evidence_path is not None else DEFAULT_EVIDENCE
     evidence = (LineEvidence.load(path, v2=v2,
