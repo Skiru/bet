@@ -21,7 +21,9 @@ from scripts.sofa import prepare_refit as pr
 from tests.sofa.test_cache_replay_holds_slim_events import _db, _event
 from tests.sofa.test_refit_replay_switch_guard import _cfg, _staged
 
-ON = {"closeness_stretch": True, "player_coverage": True}
+ON = {"closeness_stretch": True, "player_coverage": True, "referee": True,
+      "player_share": True, "sample_conflict_cut": True,
+      "tennis_score_winner": True}
 
 
 def _awarded(eid: int, sport: str = "football") -> dict[str, object]:

@@ -761,6 +761,32 @@
           "quote": "hold-out ≥ 10-25 | **+1,8 [−4,3; +7,5]** | +2,3 [−5,3; +10,2] | −3,4 [−9,3; +2,6]"
         }
       ]
+    },
+    {
+      "id": "T-TOP-BAND-090-after-price-gap-offset",
+      "registered_on": "2026-11-05",
+      "status": "REGISTERED",
+      "hypothesis": "Since PRICE_GAP_OFFSET (2026-10-30 08:45Z, line evidence offset by d = curve - 1/odds), printed legs at confidence >= 0.90 realise at their confidence: the -7.1 pp over-promise of the top band 10-21..11-04 (n 790; 727 legs before the switch at -7.7 pp [-11.0, -4.9], growing with d) came from the per-key offset diluting the d > 0 lines, not from the curves' top buckets (calibrated on history, n 13k-183k).",
+      "rule": "Printed singles of 11_coupon.json graded WIN / LOSS in 13_results.json (refund / void / unknown out), confidence >= 0.90, every sport; realised minus mean confidence, also split by d = confidence - 1/odds (< 0, 0-0.03, >= 0.03) and against mean 1/odds.",
+      "population": "Legs of the official coupon from 2026-11-06 (after registration; the 48 legs of 10-31..11-04 already seen are excluded), locked legs included, a leg removed by a read excluded.",
+      "data_window": {
+        "from": "2026-11-06",
+        "to": null
+      },
+      "required_n": {
+        "legs": 300,
+        "matches_min": 150,
+        "basis": "1-24 such legs a day after the switch (48 legs 10-31..11-04, +2.5 pp [-4.3, +8.9]); at n 300 a match bootstrap CI half-width ~ +-4 pp, enough to separate 0 from the -7.7 pp before."
+      },
+      "evaluation": "Realised minus mean confidence, match bootstrap 1000, 95% interval; the d split reported, not judged.",
+      "stop_criterion": "Judged once at n >= 300 legs (kickoff order): PASSED when the interval holds 0 and its lower bound is above -4 pp; FAILED when its upper bound is below 0 (the top band still over-promises: a cap or offset change for the top band needs its own measurement and the operator's go). Nothing prints differently meanwhile.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/refit_replay_2026-11-05.md",
+          "line": 43,
+          "quote": "727 nóg sprzed `PRICE_GAP_OFFSET` daje −7,7 pp [−11,0, −4,9], a 48 nóg z 10-31..11-04 daje +2,5 pp [−4,3, +8,9]"
+        }
+      ]
     }
   ]
 }

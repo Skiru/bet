@@ -70,6 +70,7 @@ from bet.sofa import (  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
+from bet.sofa import vb_point_pricer as vpp  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.comparability import is_friendly_event  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -193,6 +194,12 @@ class DbForecaster:
     _shadow: dict[str, tuple[Any, scf.TeamGames]] = field(default_factory=dict)
     _sims: dict[tuple[str, str], list[shadow.GameResult] | None] = field(
         default_factory=dict)
+    # epochs.VB_POINT_MODEL: the rally model's walk over the volleyball
+    # history (bet.sofa.vb_point_pricer), built with the score model's history
+    _vb_walker: vpp.Walker | None = None
+    _vb_women: dict[int, bool] = field(default_factory=dict)
+    _vb_pricer: vpp.VbPricer = field(
+        default_factory=lambda: vpp.VbPricer(forecasts={}))
     _cs2: tuple[list[cs2_engine.MapRow], dict[int, scf.SeriesRow],
                 cs2_engine.RatingModel] | None = None
     _cs2_exposure: cs2_engine.ExposureBook | None = None
@@ -243,6 +250,10 @@ class DbForecaster:
             if sport == "volleyball" and epochs.vb_golden_set(self._day, self.at):
                 parse_flags["golden_set"] = True
             history = scf.parse_history(events, sp, box, **parse_flags)
+            if sport == "volleyball" and self.vb_point_model():
+                matches = vpp.history_matches(history)
+                self._vb_walker = vpp.Walker(matches)
+                self._vb_women = vpp.women_by_team(matches)
             # audit B9 / C10: volleyball's set length from the history's table
             vb_length = (sport == "volleyball"
                          and epochs.vb_set_length(self.date, self.at))
@@ -273,6 +284,39 @@ class DbForecaster:
             self._shadow[sport] = (model, scf.TeamGames.build(
                 events.values(), sp, **parse_flags))
         return self._shadow[sport]
+
+    def vb_point_model(self) -> bool:
+        """epochs.VB_POINT_MODEL on the built day and the build clock."""
+        return epochs.vb_point_model(self._day, self.at)
+
+    def vb_point_rule(self, sport: str, line: Any) -> dict[str, str]:
+        """{epochs.VB_POINT_MODEL_LEG_FIELD: the switch} for a volleyball
+        line the rally model priced, else {}."""
+        if (sport == "volleyball" and self.vb_point_model()
+                and vpp.in_scope(sport, int(line.market_id))):
+            return {epochs.VB_POINT_MODEL_LEG_FIELD: epochs.VB_POINT_MODEL}
+        return {}
+
+    def _vb_probability(self, fixture: Mapping[str, Any], ev: Any,
+                        line: Any) -> float | None:
+        """epochs.VB_POINT_MODEL: the rally model's p of an in-scope line,
+        as of the fixture's start (None: no forecast - never the score
+        model's, these keys' curves describe the rally model only)."""
+        self._shadow_model("volleyball")
+        if self._vb_walker is None:
+            return None
+        sid = int(fixture["sofascore_event_id"])
+        if sid not in self._vb_pricer.forecasts:
+            start = fixture.get("sofascore_start_utc") or ev.kickoff_utc
+            m = vpp.fixture_match(sid, _utc(str(start)), fixture.get("home_id"),
+                                  fixture.get("away_id"),
+                                  fixture.get("competition_id"), self._vb_women)
+            if m is None:
+                return None
+            self._vb_pricer.forecasts[sid] = self._vb_walker.forecast(m)  # type: ignore[index]
+        return self._vb_pricer.p(sid, bool(fixture["home_is_team1"]),
+                                 int(line.market_id), int(line.period),
+                                 str(line.subject or ""), line.line, str(line.side))
 
     def _cs2_model(self) -> tuple[list[cs2_engine.MapRow], dict[int, scf.SeriesRow],
                                   cs2_engine.RatingModel]:
@@ -389,6 +433,9 @@ class DbForecaster:
                 if off is None or off.p != mp.p:
                     self._cs2_unrated.add(_cs2_side_key(ev, line))
             return None if mp is None else mp.p
+        if (sport == "volleyball" and self.vb_point_model()
+                and vpp.in_scope(sport, int(line.market_id))):
+            return self._vb_probability(fixture, ev, line)
         from bet.sofa.score_model import line_probability, overtime_minutes
 
         sp = shadow.SPORTS[sport]  # type: ignore[index]
@@ -722,6 +769,11 @@ def build_sport(sport: str, date: str, runs_dir: str,
             if sport != "cs2" and int(ln.market_id) in \
                     shadow.DC_PAIR_MARKETS.get(sport, {}):  # type: ignore[call-overload]
                 legs[-1]["dc_pair_rule"] = epochs.BASKETBALL_DC_PAIR
+            vb_rule = getattr(forecaster, "vb_point_rule", None)
+            if vb_rule is not None and (marker := vb_rule(sport, ln)):
+                # epochs.VB_POINT_MODEL: p from the rally-point model
+                legs[-1].update(marker)
+                legs[-1]["forecast_source"] = "vb_point_model"
             late_rule = getattr(forecaster, "late_goal_rule", None)
             if late_rule is not None:
                 # review 2026-10-27 R3: hockey's late goal inside the mean

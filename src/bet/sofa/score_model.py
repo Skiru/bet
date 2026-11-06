@@ -49,6 +49,8 @@ from bet.sofa.football_rating import (
 )
 from bet.sofa.listing_index import iter_indexed_events
 from bet.sofa.resolve import sofascore_gender
+from bet.sofa.season_table import SeasonTable, TableScales
+from bet.sofa.season_table import adjust as table_adjust
 from bet.sofa.shadow import (
     SPORTS,
     GameResult,
@@ -96,6 +98,13 @@ REG_METRIC = {"hockey": "hk_reg_for", "basketball": "bb_reg_for"}
 # (0.04-0.09) moved in opposite directions across windows and stay.
 SCORE_ALPHA = {"hk_reg_for": 0.02, "bb_reg_for": 0.06, VOLLEYBALL_METRIC: 0.14}
 ALPHA_BY_METRIC.update(SCORE_ALPHA)
+
+# The season table's weight and the scales of its three differences, per
+# sport (bet.sofa.season_table; item 5 of the refit 2026-11-05, frozen rule
+# in docs/sofa/evidence/refit_replay_2026-11-05.md section 6). Empty: no
+# sport reads a table; build_model(season_table=True) reads only these.
+SEASON_TABLE_W: dict[str, float] = {}
+SEASON_TABLE_SCALES: dict[str, TableScales] = {}
 
 
 # Audit 2026-10-13 B7 (epochs.BB_PACE_FROM_UTC): basketball's regulation
@@ -451,7 +460,12 @@ def parse_event(event: dict[str, Any], sport: ShadowSport, *,
         return None
     if not isinstance(ts, int) or _is_friendly(event):
         return None
+    season_raw = (event.get("season") or {}).get("id")
+    season = season_raw if isinstance(season_raw, int) else None
     hs, as_ = event.get("homeScore") or {}, event.get("awayScore") or {}
+    hc, ac = hs.get("current"), as_.get("current")
+    final = ((float(hc), float(ac))
+             if isinstance(hc, int) and isinstance(ac, int) else None)
     hp: list[int] = []
     ap: list[int] = []
     for n in range(1, 10):
@@ -471,6 +485,7 @@ def parse_event(event: dict[str, Any], sport: ShadowSport, *,
                 event_id=int(event["id"]), ts=ts, competition_id=competition,
                 home_id=home, away_id=away, values=values,
                 women=sofascore_gender(event) == "W",
+                season_id=season, final=final,
             )
         if len(hp) != sport.regulation_periods:
             return None
@@ -494,6 +509,7 @@ def parse_event(event: dict[str, Any], sport: ShadowSport, *,
         event_id=int(event["id"]), ts=ts, competition_id=competition,
         home_id=home, away_id=away, values=values,
         women=sofascore_gender(event) == "W",
+        season_id=season, final=final,
     )
 
 
@@ -713,10 +729,19 @@ class ScoreModel:
     set_length: SetLengthTable | None = None
     # team -> a women's side (volleyball's set-length cell); from the history
     team_women: dict[int, bool] | None = None
+    # the season table as of the forecast (bet.sofa.season_table; item 5 of
+    # the refit 2026-11-05): None = off; a centre moves by exp(+-w d / 2)
+    table: SeasonTable | None = None
+    table_w: float = 0.0
+    table_scales: TableScales | None = None
 
     def note_game(self, r: FootballResult) -> None:
         """Record a learnt game's box score for the pace / shots freshness rule
-        and its sides' gender for the set-length table."""
+        and its sides' gender for the set-length table (and, with the
+        season table, its final score)."""
+        if self.table is not None and r.final is not None:
+            self.table.note(r.competition_id, r.season_id, r.home_id,
+                            r.away_id, r.final[0], r.final[1], r.ts)
         if self.box_last is not None and (PACE_POSS in r.values
                                           or HK_SHOTS in r.values):
             self.box_last[r.home_id] = r.ts
@@ -894,6 +919,10 @@ class ScoreModel:
             # the total scaled, the margin the points rating's (audit B7b)
             total, margin = f * (eh + ea), eh - ea
             eh, ea = max((total + margin) / 2, 0.0), max((total - margin) / 2, 0.0)
+        if (self.table is not None and self.table_w
+                and self.table_scales is not None):
+            eh, ea = table_adjust(eh, ea, self.table.d(
+                competition, home, away, self.table_scales), self.table_w)
         if self.sport.regulation_periods is None:
             return [eh], [ea]
         sh, sa = self.shares
@@ -1310,7 +1339,8 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                 set_length: bool = False,
                 set_scores: Mapping[int, tuple[Sequence[int], Sequence[int]]]
                 | None = None,
-                season_restart: bool = False) -> ScoreModel:
+                season_restart: bool = False,
+                season_table: bool = False) -> ScoreModel:
     """The rating before the cut; the period shares and, for basketball, the
     quarter spread (one step ahead, before each game updates the book) from
     the last SPREAD_WINDOW_S before it. `shared_league_link` None = the
@@ -1329,7 +1359,11 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
     book as it stood before it.
     `season_restart` (epochs.LEAGUE_SEASON_RESTART_FROM_UTC): a league's rate
     restarts after an off-season gap from the ended season's mean
-    (football_rating.SEASON_GAP_S / SEASON_PRIOR_MATCHES)."""
+    (football_rating.SEASON_GAP_S / SEASON_PRIOR_MATCHES).
+    `season_table` (basketball, item 5 of the refit 2026-11-05): the centres
+    move by the season table as of the cut (SEASON_TABLE_W / _SCALES, set
+    before the spread is fitted, so the spread is the adjusted centre's);
+    the model's note_game keeps the table current between rebuilds."""
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
     book.season_restart = season_restart
@@ -1396,6 +1430,15 @@ def build_model(history: Sequence[FootballResult], sport: ShadowSport,
                        params if params is not None else SimParams(), last,
                        recent=recent or None,
                        strict_league_rate=strict_league_rate)
+    w = SEASON_TABLE_W.get(sport.key, 0.0)
+    scales = SEASON_TABLE_SCALES.get(sport.key)
+    if season_table and w and scales is not None:
+        table = SeasonTable(win_points=1.0, draw_points=0.5)
+        for r in before:
+            if r.final is not None:
+                table.note(r.competition_id, r.season_id, r.home_id,
+                           r.away_id, r.final[0], r.final[1], r.ts)
+        model.table, model.table_w, model.table_scales = table, w, scales
     if pace and sport.key == "basketball":
         model.pace = True
         model.box_last = box_last

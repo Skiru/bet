@@ -119,6 +119,7 @@ def _ts(day: str) -> int:
 
 
 AWARDED_TAG = "|awarded_excluded"
+FORM_TABLE_TAG = "|form_table"
 
 
 def load_matches(hist_path: Path, from_ts: int, cut: int,
@@ -140,6 +141,10 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
                     int(row["ts"]), int(row["event_id"]), row["women"] == "1",
                     row["link"], float(row["lh"]), float(row["la"]),
                     int(row["x"]), int(row["y"])), row["phase"] or None))
+        if out and (FORM_TABLE_TAG in fp) != dc_fit.FORM_TABLE:
+            raise SystemExit(
+                f"{cache} was written under the other --form-table rule - "
+                "drop the cache or match the flag")
         held = fp.endswith(AWARDED_TAG)
         if out and held != awarded_out:  # no rows: no rule to disagree with
             raise SystemExit(
@@ -148,6 +153,8 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
                 "cache or match the flag")
         return fp, out
     fingerprint, history = pickle.loads(hist_path.read_bytes())
+    if dc_fit.FORM_TABLE:
+        fingerprint = f"{fingerprint}{FORM_TABLE_TAG}"
     if awarded_out:
         history = fr.without_awarded(history)
         fingerprint = f"{fingerprint}{AWARDED_TAG}"
@@ -290,11 +297,15 @@ def main() -> int:
         "targets (epochs.AWARDED_EXCLUDED, SHEET from 2026-10-30)"))
     ap.add_argument("--matches-cache", help="replayed matches (csv.gz): read "
                     "when present, else written")
+    ap.add_argument("--form-table", action="store_true",
+                    help="the book with the goals form step and the season "
+                    "table (epochs.FOOTBALL_FORM_TABLE)")
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
                     metavar="CONFIG", help="the book with the cup league strength "
                     "(fit_double_chance_curve.set_cup)")
     args = ap.parse_args()
     dc_fit.set_cup(args.cup_strength)
+    dc_fit.set_form_table(args.form_table)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     hist_path = Path(args.history or _REPO / "data" / "cache" / "football_history.pkl")
@@ -315,6 +326,7 @@ def main() -> int:
         "fitted_at_utc": datetime.now(UTC).isoformat(),
         "script": "scripts/sofa/fit_result_1x2_dnb_curve.py",
         "awarded_excluded": bool(args.awarded_excluded),
+        "form_table": bool(args.form_table),
         "estimator": "football_result.result_probs: NB goals on the pure "
                      "rating centres (FootballForecast.centre goals_for), "
                      f"nb_r {cfg.nb_r} from {cfg_path}; DNB = P(side | no draw)",

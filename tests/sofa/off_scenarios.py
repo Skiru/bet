@@ -55,7 +55,14 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # footballer props v2 (FOOTBALL_PLAYER_PROPS_V2)
                 "player_props_v2_rule",
                 # bottom-up tennis point model (TENNIS_POINT_MODEL)
-                "tennis_point_model_rule")
+                "tennis_point_model_rule",
+                # football goals form step + season table (FOOTBALL_FORM_TABLE)
+                "form_table_rule",
+                # football minute-by-minute simulator (FOOTBALL_SIM)
+                "football_sim_rule",
+                # tennis per-set handicap from the point model
+                # (TENNIS_HANDICAP_POINT_MODEL)
+                "tennis_handicap_point_model_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

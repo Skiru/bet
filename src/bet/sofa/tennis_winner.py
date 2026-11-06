@@ -41,6 +41,7 @@ from bet.sofa.football_card_halves import MARKETS as CARD_HALF_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
+from bet.sofa.football_sim_markets import MARKETS as SIM_MARKETS
 from bet.sofa.market_mapper import fold
 from bet.sofa.tennis_sets import SET_MARKETS
 
@@ -59,10 +60,13 @@ WINNER_LINE = 0.5
 # football_score_markets, epochs.FOOTBALL_SCORE_MARKETS; the tennis
 # set_score_not of TENNIS_SET_COMPLEMENTS is in SET_MARKETS), and the football
 # card halves / side and half red cards and penalties (bet.sofa.
-# football_card_halves, epochs.FOOTBALL_CARD_HALVES).
+# football_card_halves, epochs.FOOTBALL_CARD_HALVES), and the football path
+# markets the minute-by-minute simulator prices (bet.sofa.football_sim_markets,
+# epochs.FOOTBALL_SIM: no sample, never in a builder).
 RATING_ONLY_MARKETS = frozenset(
     {MATCH_WON_FOR, DOUBLE_CHANCE} | INCIDENT_MARKETS | SET_MARKETS
-    | RESULT_1X2_DNB_MARKETS | SCORE_MARKETS | CARD_HALF_MARKETS)
+    | RESULT_1X2_DNB_MARKETS | SCORE_MARKETS | CARD_HALF_MARKETS
+    | SIM_MARKETS)
 # The sheet note a winner row carries (and the rule it was priced under).
 WINNER_NOTE = "TENNIS_MATCH_WINNER"
 

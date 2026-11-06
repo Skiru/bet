@@ -150,7 +150,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
-                "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06")
+                "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06", "od 11-07")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -270,10 +270,28 @@ TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
 # config/sofa_sport_confidence_calibration.next.2026-11-06.json: h1 / h2 /
 # quarter totals, handicaps, team totals) - one group, separated by market
 # family when audited.
+# The football / tennis curves staged in
+# config/sofa_confidence_calibration.next.json (effective_from 2026-11-07
+# 00:00Z: the families of the 2026-11-05 replay refit that passed the frozen
+# verdict, docs/sofa/evidence/refit_replay_2026-11-05.md) change what prints
+# from 2026-11-07 - a new epoch.
+# The football minute-by-minute simulator (epochs.FOOTBALL_SIM_FROM_UTC,
+# 2026-11-07 00:00Z: HT/FT, half results and the other path markets priced
+# by bet.sofa.football_sim, their own history curves) starts the same day:
+# it shares the group "od 11-07" (separated by market family when audited).
+# So do the volleyball rally-point model (epochs.VB_POINT_MODEL_FROM_UTC:
+# winner, points / set handicap, points / set-points totals, exact sets, set
+# winner, points parity priced by bet.sofa.volleyball_point_model, their
+# curves in config/sofa_sport_confidence_calibration.next.2026-11-07.json)
+# and the tennis per-set games handicap from the point model
+# (epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC), both 2026-11-07 00:00Z.
+STAGED_REFIT_1107_EPOCH_FROM_DATE = "2026-11-07"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= STAGED_REFIT_1107_EPOCH_FROM_DATE:
+            return "od 11-07"
         if str(row.get("date", "")) >= TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE:
             return "od 11-06"
         if str(row.get("date", "")) == TENNIS_TOTALS_FLOOR_1105_MIXED_DATE:

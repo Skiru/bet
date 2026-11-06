@@ -40,7 +40,18 @@ def test_only_sheet_reads_the_model_and_only_through_the_switch() -> None:
     readers = sorted(
         p.name for p in [*(root / "src" / "bet" / "sofa").glob("*.py"),
                          *(root / "scripts" / "sofa").glob("*.py")]
-        if p.name not in ("tennis_point_model.py", "measure_tennis_point_model.py")
+        if p.name not in (
+            "tennis_point_model.py", "measure_tennis_point_model.py",
+            # The per-set games handicap read off the point model's
+            # simulations: SHEET reaches it only through tennis_point_sheet
+            # under epochs.TENNIS_HANDICAP_POINT_MODEL (from 2026-11-07).
+            "tennis_handicap_point.py",
+            # Read-only measurement 2026-11-06, nothing prints.
+            "measure_tennis_handicap_point_model.py",
+            # Read-only measurement 2026-11-06, nothing prints (imports the
+            # tennis measure script's bootstrap helper only).
+            "measure_volleyball_point_model.py",
+        )
         and "tennis_point_model import" in p.read_text(encoding="utf-8")
     )
     assert readers == ["fit_tennis_point_curves.py", "run_sheet.py",

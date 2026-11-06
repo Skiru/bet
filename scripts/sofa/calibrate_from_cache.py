@@ -86,6 +86,8 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from bet.sofa import epochs
+from bet.sofa import player_share as psh
+from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa.atomic import write_atomic
 from bet.sofa.closeness_stretch import ClosenessStretchTable
@@ -130,6 +132,7 @@ from bet.sofa.football_rating import (
     FootballForecast,
     FootballResult,
     RatingBook,
+    enable_form_table,
     without_awarded,
 )
 from bet.sofa.football_rating import load_history as load_football_history
@@ -162,10 +165,13 @@ from bet.sofa.players import (
     squad_statistics,
     started,
 )
+from bet.sofa.players import position as squad_position
 from bet.sofa.rating_weight import RatingWeightTable
 from bet.sofa.rating_weight import blend as rating_blend
 from bet.sofa.rating_weight import load_table as load_rating_weight_table
+from bet.sofa.referees import RefereeBook, RefereeEffectTable, RefereeRead
 from bet.sofa.samples import (
+    CONFLICT_CUT_FRIENDLY_IDS,
     FRIENDLY_COMPETITION_IDS,
     INDEXED_HISTORY_LIMIT,
     MIN_HOURS_BETWEEN_MATCHES,
@@ -913,13 +919,21 @@ class RatingReplay:
         self.unrated = 0
 
     @classmethod
-    def from_db(cls, db_path: Path, scoped: bool = False) -> RatingReplay | None:
+    def from_db(cls, db_path: Path, scoped: bool = False,
+                score_winner: bool = False) -> RatingReplay | None:
+        """``score_winner`` (--tennis-score-winner, epochs.
+        TENNIS_RATING_SCORE_WINNER, audit 2026-10-23 P14): the history as
+        SHEET loads it from the switch - an Ended match with no winnerCode
+        takes its winner from a complete set score (tennis_rating.
+        load_history(score_winner=True)); off: the one-argument call."""
         loaded = load_coefficients()
         if loaded is None:
             return None
         coefficients, meta = loaded
+        history = (load_history(db_path, score_winner=True) if score_winner
+                   else load_history(db_path))
         return cls(
-            load_history(db_path), coefficients, tuple(meta["features"]),
+            history, coefficients, tuple(meta["features"]),
             scoped, start_for_rule(
                 meta["features"], meta.get("tier_start"), scoped))
 
@@ -1059,6 +1073,15 @@ class CentreRules:
     # epochs.SAMPLE_CUP_STRENGTH (--sample-cup-strength): B15's gaps read
     # the cup strength with the past match's and the fixture's competition
     sample_cup_strength: bool = False
+    # epochs.FOOTBALL_REFEREE (--referee): a cards / fouls centre of the
+    # table's markets x the match referee's as-of shrunk ratio ** beta
+    # (bet.sofa.referees; the book walks the football history to the
+    # match's UTC day start, as SHEET's fixture_reads walks it to the cut)
+    referee_effect: RefereeEffectTable | None = None
+    # epochs.FOOTBALL_FORM_TABLE (--form-table): the goals rating's faster
+    # step and the season table's centre move (football_rating.
+    # enable_form_table), as SHEET's book from the switch
+    form_table: bool = False
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -1087,6 +1110,9 @@ class CentreRules:
             "cup_strength": (None if self.cup_strength is None
                              else self.cup_strength_path or "in-memory"),
             "sample_cup_strength": self.sample_cup_strength,
+            "referee": (None if self.referee_effect is None
+                        else self.referee_effect.path or "in-memory"),
+            "form_table": self.form_table,
         }
 
 
@@ -1107,6 +1133,16 @@ TENNIS_SAMPLE_SCOPE = False
 # rating history (without_awarded) and a player's history
 # (admitted_football_event), as SAMPLES / SHEET leave it from 2026-10-30.
 AWARDED_EXCLUDED = False
+# --player-share (epochs.FOOTBALL_PLAYER_SHARE): event id -> {(team metric,
+# is_home): the side's team centre} the team replay priced (live_centre, the
+# whole chain), read by the player replay that runs after it; None = off.
+SHARE_TEAM_CENTRES: dict[int, dict[tuple[str, bool], float]] | None = None
+# --sample-conflict-cut (epochs.SAMPLE_CONFLICT_CUT_FROM_UTC, audit 2026-10-23
+# P1): the player replay's side history is cut at an ENTITY_CONFLICT clash
+# (finish_history conflict_cut) and the friendlies added for it are out
+# (admitted_football_event). The team replay builds its histories from
+# Played and applies no one-squad rule, so there is nothing to cut there.
+SAMPLE_CONFLICT_CUT = False
 
 
 def day_start(ts: int) -> int:
@@ -1128,14 +1164,25 @@ class FootballRatingReplay:
 
     def __init__(
         self, history: Iterable[FootballResult], rules: CentreRules,
+        referee_labels: Mapping[int, int] | None = None,
     ) -> None:
         self._history = sorted(history, key=lambda r: r.ts)
         self._next = 0
+        # --referee: the referee book SHEET's referees.fixture_reads builds
+        # (every history result strictly before the cut, under its label),
+        # advanced with the rating book; the match's own label is its
+        # referee (None: no referee named, x1)
+        self.referee_labels: Mapping[int, int] = referee_labels or {}
+        self.referee_book: RefereeBook | None = (
+            RefereeBook(referee_terms.FAMILY_METRIC)
+            if rules.referee_effect is not None else None)
         self.cut = -(2**62)
         self.rules = rules
         self.book = RatingBook(shared_league_link=rules.shared_league_link)
         self.book.unit_strength_from_parent = rules.unit_strength_from_parent
         apply_cup_strength(self.book, rules.cup_strength)
+        if rules.form_table:
+            enable_form_table(self.book)
         self.forecasts = 0
         # --season-phase, or a --goals-stretch table with per-phase
         # coefficients: each event's phase as of its kickoff, asked before
@@ -1162,7 +1209,19 @@ class FootballRatingReplay:
         history = self._history
         while self._next < len(history) and history[self._next].ts < cut_ts:
             self.book.update(history[self._next])
+            if self.referee_book is not None:
+                referee_terms.add_result(self.referee_book, history[self._next],
+                                         self.referee_labels)
             self._next += 1
+
+    def referee_reads(self, event_id: int) -> dict[str, RefereeRead] | None:
+        """family -> the match referee's as-of read (--referee; the book at
+        the last advance - the match's UTC day start); None with the rule
+        off."""
+        if self.referee_book is None:
+            return None
+        return referee_terms.family_reads(self.referee_book,
+                                          self.referee_labels.get(event_id))
 
     @property
     def seen(self) -> int:
@@ -1201,6 +1260,7 @@ def live_centre(
     venues: Sequence[str | None] = (),
     rules: CentreRules | None = None,
     phase: str | None = None,
+    referee_reads: Mapping[str, RefereeRead] | None = None,
 ) -> float:
     """THE hook: the centre SHEET prices a football marginal row with, from
     the replay's shrunk sample centre - every live centre term is applied
@@ -1214,6 +1274,9 @@ def live_centre(
       3a. --count-stretch: a count centre outside GAME_STATE x exp(beta x
          s [+ beta2 x s^2]) (a side) or exp(g1 |s| + g2 s^2) (a total, s
          the home side's);
+      3a''. --referee: a cards / fouls centre of the referee table x the
+         match referee's ratio ** beta (``referee_reads``, the family's
+         as-of read; no referee / no record: x1), as centre_chain applies it;
       3a'. --closeness-stretch: a count centre of CLOSENESS_MARKETS x
          exp(g1 |s| + g2 s^2), s the home side's;
       3b. --goals-stretch: a goals centre x exp(beta x s) (a side) or
@@ -1254,6 +1317,12 @@ def live_centre(
         cs_mult = rules.count_stretch.multiplier(market, cs_sup)
         if cs_mult is not None and cs_sup is not None:
             centre *= cs_mult
+    if rules.referee_effect is not None and match.sport == "football":
+        fam = referee_terms.family_of(market)
+        applied = rules.referee_effect.apply(
+            market, (referee_reads or {}).get(fam) if fam is not None else None)
+        if applied is not None and applied[1]["status"] == referee_terms.APPLIED:
+            centre *= applied[0]
     if rules.closeness_stretch is not None:
         cl_sup = closeness_supremacy(forecast)
         cl_mult = rules.closeness_stretch.multiplier(market, cl_sup)
@@ -1482,6 +1551,11 @@ def iter_rows(
         # fit_meta.friendly_exclusion_sql) but never enters a history.
         if match.kind == MatchKind.FRIENDLY:
             continue
+        if (SAMPLE_CONFLICT_CUT and match.sport == "football"
+                and match.competition_id in CONFLICT_CUT_FRIENDLY_IDS):
+            # --sample-conflict-cut: SAMPLES' admit leaves these friendly
+            # tournaments out of a football sample under the switch
+            continue
         regular = match.kind == MatchKind.REGULAR
         for base, (home_value, away_value) in match.values.items():
             total = home_value + away_value
@@ -1531,6 +1605,10 @@ def _match_rows(
     # its kickoff
     match_phase = (football.phases.get(match.event_id)
                    if football_fc is not None and football is not None else None)
+    # --referee: the match referee's reads, from the book the forecast just
+    # advanced to the match's UTC day start
+    ref_reads = (football.referee_reads(match.event_id)
+                 if football_fc is not None and football is not None else None)
     # --opponent-correction (B15): the sample rescaled through the book SHEET
     # holds for the match's day, before its mean, variance and centre - as
     # run_sheet does, whether or not the fixture has a forecast
@@ -1562,11 +1640,23 @@ def _match_rows(
             return _settle_sample(match, market, subject, actual, sample,
                                   baselines, engine_constants, rating_p)
         venues = tuple(p.venue for p in recent)
+
+        def hook(c: float) -> float:
+            centre = live_centre(match, market, side, c, football_fc, venues,
+                                 phase=match_phase, referee_reads=ref_reads)
+            # --player-share: the side's team centre of a share team metric,
+            # for its footballers' rows (SHEET's team_centres)
+            # (every match the team replay prices is listed, so a player
+            # replay knows which matches it priced at all)
+            if SHARE_TEAM_CENTRES is not None:
+                cents = SHARE_TEAM_CENTRES.setdefault(match.event_id, {})
+                if side is not None and market in psh.TEAM_METRIC_KEYS:
+                    cents[(market, side == "side_a")] = centre
+            return centre
+
         return _settle_centred(
             match, market, subject, actual, sample, baselines,
-            engine_constants, rating_p,
-            lambda c: live_centre(match, market, side, c, football_fc, venues,
-                                  phase=match_phase))
+            engine_constants, rating_p, hook)
 
     for base, (home_value, away_value) in match.values.items():
         total = home_value + away_value
@@ -1676,7 +1766,8 @@ def _match_rows(
                         [p.own for p in rec] if opponent is None
                         else opponent.side(rec, for_market, team, other),
                         baselines, engine_constants),
-                    football_fc, tuple(p.venue for p in rec), phase=match_phase)
+                    football_fc, tuple(p.venue for p in rec), phase=match_phase,
+                    referee_reads=ref_reads)
                 for rec, side, team, other in (
                     (home_recent, "side_a", match.home_id, match.away_id),
                     (away_recent, "side_b", match.away_id, match.home_id))]
@@ -1994,6 +2085,11 @@ def admitted_football_event(
     competition = _competition_id(event)
     if competition is not None and competition in FRIENDLY_COMPETITION_IDS:
         return False
+    # --sample-conflict-cut (epochs.SAMPLE_CONFLICT_CUT): the friendlies
+    # added for the cut (samples.CONFLICT_CUT_FRIENDLY_IDS) are out too
+    if (SAMPLE_CONFLICT_CUT and competition is not None
+            and competition in CONFLICT_CUT_FRIENDLY_IDS):
+        return False
     return entity_id in (
         (event.get("homeTeam") or {}).get("id"),
         (event.get("awayTeam") or {}).get("id"),
@@ -2033,6 +2129,28 @@ PlayerSampleHook = Callable[
     [dict[str, Any], bool, str, str, float, int, float], None]
 
 
+@dataclass(frozen=True)
+class ShareContext:
+    """What the footballer share model (--player-share, epochs.
+    FOOTBALL_PLAYER_SHARE) reads for one target match, aligned with
+    player_rows_for_event's histories:
+
+    * ``team_centres`` - (team metric, is_home) -> the side's team centre
+      the team replay priced for this match (SHARE_TEAM_CENTRES; SHEET's
+      team_centres, the team rows priced first);
+    * ``history_ids`` / ``wide_ids`` - the event id of each squad of
+      ``history`` / ``wide_history``, in the same order;
+    * ``team_obs`` - is_home -> team metric -> the side's (event id, value)
+      over its sampled matches (SAMPLES' team sample: the side's newest
+      ``sample_n`` admitted matches, extract_metric's value, a gap left out)."""
+
+    table: psh.ShareTable
+    team_centres: Mapping[tuple[str, bool], float]
+    history_ids: Mapping[bool, Sequence[int]]
+    wide_ids: Mapping[bool, Sequence[int]]
+    team_obs: Mapping[bool, Mapping[str, Sequence[tuple[int, float]]]]
+
+
 def player_rows_for_event(
     event: dict[str, Any],
     target: dict[bool, Squad | None],
@@ -2048,6 +2166,7 @@ def player_rows_for_event(
     on_sample: PlayerSampleHook | None = None,
     wide_history: dict[bool, list[Squad]] | None = None,
     sample_n: int | None = None,
+    share: ShareContext | None = None,
 ) -> list[SettledRow]:
     """Every settled player rung of one finished match.
 
@@ -2074,6 +2193,13 @@ def player_rows_for_event(
     values, the side found more often there - as
     samples.coverage_player_samples does; the woodwork shot is then counted
     once (players.SHOTS_IDENTITY_PARTS) in his sample and his outcome alike.
+
+    `share` (--player-share, epochs.FOOTBALL_PLAYER_SHARE): a market of its
+    table is centred on his shrunk share of his side's team centre
+    (run_sheet.player_share_centre, bet.sofa.player_share) - his volume over
+    his sample's starts against the side's team sample in the same matches;
+    no team centre for his side or fewer than psh.MIN_SHARE_MATCHES matched
+    starts keeps the old centre; a shared centre takes no player stretch.
     """
     woodwork_once = wide_history is not None
     tally: collections.Counter[str] = (
@@ -2117,21 +2243,15 @@ def player_rows_for_event(
                 if isinstance(actual, GapReason):
                     tally[f"actual_gap:{metric}"] += 1
                     continue
-                per_side = _side_values(metric, matched, starts_only, woodwork_once)
-                n_home = len(per_side.get(True, []))
-                n_away = len(per_side.get(False, []))
-                if wide_matched is not None and sample_n is not None and (
-                        n_home == n_away
-                        or len(per_side[n_home > n_away]) < min_sample):
-                    wide = _side_values(metric, wide_matched, starts_only, True)
-                    w_home = len(wide.get(True, []))
-                    w_away = len(wide.get(False, []))
-                    if w_home != w_away and len(
-                            wide[w_home > w_away][:sample_n]) >= min_sample:
-                        per_side = {side: values[:sample_n]
-                                    for side, values in wide.items()}
-                        n_home, n_away = w_home, w_away
-                        tally["wide_window"] += 1
+                pairs, n_home, n_away, wide_used = _player_sample(
+                    metric, matched, wide_matched, starts_only, woodwork_once,
+                    min_sample, sample_n,
+                    None if share is None else share.history_ids,
+                    None if share is None else share.wide_ids)
+                per_side = {side: [v for _e, v in vals]
+                            for side, vals in pairs.items()}
+                if wide_used:
+                    tally["wide_window"] += 1
                 if n_home == n_away:
                     tally["no_sample" if n_home == 0 else "side_tie"] += 1
                     continue
@@ -2151,7 +2271,18 @@ def player_rows_for_event(
                 variance = statistics.variance(sample) if n > 1 else 0.0
                 sample_sd = statistics.stdev(sample) if n > 1 else 0.0
                 centre = mean
-                if player_stretch is not None and side_supremacy is not None:
+                shared = False
+                if share is not None:
+                    s_centre = _share_centre(
+                        share, metric, is_home, pairs[is_home], name, matched,
+                        wide_matched, starts_only, woodwork_once, min_sample,
+                        sample_n, wide_used)
+                    if s_centre is not None:
+                        centre = s_centre
+                        shared = True
+                        tally[f"player_share:{metric}"] += 1
+                if (player_stretch is not None and side_supremacy is not None
+                        and not shared):
                     p_mult = player_stretch.multiplier(
                         metric, side_supremacy.get(is_home))
                     if p_mult is not None:
@@ -2217,6 +2348,125 @@ def _side_values(
                 values.append(value)
         per_side[side] = values
     return per_side
+
+
+def _side_pairs(
+    metric: str,
+    matched: dict[bool, list[tuple[Squad, str | None]]],
+    ids: Mapping[bool, Sequence[int]] | None,
+    starts_only: bool,
+    woodwork_once: bool,
+) -> dict[bool, list[tuple[int, float]]]:
+    """_side_values with each value's event id (-1 without ``ids``)."""
+    out: dict[bool, list[tuple[int, float]]] = {}
+    for side, pairs in matched.items():
+        side_ids = ids.get(side) if ids is not None else None
+        values: list[tuple[int, float]] = []
+        for i, (past, key) in enumerate(pairs):
+            if key is None:
+                continue
+            if starts_only and started(past[key]) is False:
+                continue
+            value = extract_player_metric(
+                metric, past[key], woodwork_once=woodwork_once)
+            if not isinstance(value, GapReason):
+                values.append((side_ids[i] if side_ids is not None else -1, value))
+        out[side] = values
+    return out
+
+
+def _player_sample(
+    metric: str,
+    matched: dict[bool, list[tuple[Squad, str | None]]],
+    wide_matched: dict[bool, list[tuple[Squad, str | None]]] | None,
+    starts_only: bool,
+    woodwork_once: bool,
+    min_sample: int,
+    sample_n: int | None,
+    ids: Mapping[bool, Sequence[int]] | None = None,
+    wide_ids: Mapping[bool, Sequence[int]] | None = None,
+) -> tuple[dict[bool, list[tuple[int, float]]], int, int, bool]:
+    """A player's sample per side as build_player_samples takes it: his
+    values in the side's sampled matches, a thin / tied one sampled over
+    the wide window under --player-coverage (``wide_matched``), newest
+    ``sample_n`` values. (per side (event id, value), n home, n away, wide
+    window used)."""
+    pairs = _side_pairs(metric, matched, ids, starts_only, woodwork_once)
+    n_home = len(pairs.get(True, []))
+    n_away = len(pairs.get(False, []))
+    if wide_matched is not None and sample_n is not None and (
+            n_home == n_away or len(pairs[n_home > n_away]) < min_sample):
+        wide = _side_pairs(metric, wide_matched, wide_ids, starts_only, True)
+        w_home = len(wide.get(True, []))
+        w_away = len(wide.get(False, []))
+        if w_home != w_away and len(wide[w_home > w_away][:sample_n]) >= min_sample:
+            return ({side: values[:sample_n] for side, values in wide.items()},
+                    w_home, w_away, True)
+    return pairs, n_home, n_away, False
+
+
+def _share_centre(
+    share: ShareContext,
+    metric: str,
+    is_home: bool,
+    own_pairs: Sequence[tuple[int, float]],
+    name: str,
+    matched: dict[bool, list[tuple[Squad, str | None]]],
+    wide_matched: dict[bool, list[tuple[Squad, str | None]]] | None,
+    starts_only: bool,
+    woodwork_once: bool,
+    min_sample: int,
+    sample_n: int | None,
+    wide_used: bool,
+) -> float | None:
+    """run_sheet.player_share_centre on the replay's samples: None (the old
+    centre) for a market outside the table, a side without a team centre,
+    a volume sample on the other side or fewer than MIN_SHARE_MATCHES of
+    his starts matched to the side's team sample."""
+    cell = share.table.cell(metric)
+    if cell is None:
+        return None
+    team_metric = psh.TEAM_METRIC[metric]
+    team_centre = share.team_centres.get((team_metric, is_home))
+    if team_centre is None:
+        return None
+    volume_metric = psh.VOLUME_METRIC[metric]
+    if volume_metric == metric:
+        volume = list(own_pairs)
+    else:
+        v_pairs, v_home, v_away, _w = _player_sample(
+            volume_metric, matched, wide_matched, starts_only, woodwork_once,
+            min_sample, sample_n, share.history_ids, share.wide_ids)
+        if v_home == v_away:
+            return None
+        # SHEET reads his volume sample whichever side it settled on
+        volume = v_pairs[v_home > v_away]
+    team_obs = share.team_obs.get(is_home, {}).get(team_metric) or ()
+    inputs = psh.share_inputs(
+        volume, list(team_obs),
+        list(own_pairs) if metric in psh.ACCURACY_MARKETS else None)
+    if inputs.matches < psh.MIN_SHARE_MATCHES:
+        return None
+    # his position in his newest sampled start that names one
+    # (samples.newest_position over the squads of his observations)
+    pos: str | None = None
+    observed = {e for e, _v in own_pairs}
+    for squads, ids in ((matched, share.history_ids),
+                        (wide_matched, share.wide_ids)):
+        if squads is None or pos is not None:
+            continue
+        for i, (past, key) in enumerate(squads.get(is_home, [])):
+            side_ids = ids.get(is_home) or ()
+            if key is None or i >= len(side_ids) or side_ids[i] not in observed:
+                continue
+            pos = squad_position(past[key])
+            if pos is not None:
+                break
+    return psh.share_centre(
+        his_volume=inputs.his_volume, team_volume=inputs.team_volume,
+        team_centre=team_centre, prior_share=cell.share_prior(pos), m=cell.m,
+        his_count=inputs.his_count if metric in psh.ACCURACY_MARKETS else None,
+        prior_accuracy=cell.accuracy_prior(pos), m_accuracy=cell.m_accuracy)
 
 
 def _event_payloads(
@@ -2349,6 +2599,10 @@ def build_player_rows(
     football: FootballRatingReplay | None = None,
     on_sample: PlayerSampleHook | None = None,
     coverage: bool = False,
+    share: psh.ShareTable | None = None,
+    share_centres: Mapping[int, Mapping[tuple[str, bool], float]] | None = None,
+    conflict_cut: bool = False,
+    only_events: frozenset[int] | None = None,
 ) -> tuple[list[SettledRow], collections.Counter[str]]:
     """The player rows of every finished football match with a squad list
     (`starts_only`: starters' outcomes from their starts - the bet Superbet
@@ -2356,7 +2610,16 @@ def build_player_rows(
     targets are read in kickoff order for it): the shots centres carry each
     side's supremacy term (player_rows_for_event). `coverage`
     (--player-coverage): a thin player is sampled over the side's newest
-    samples.PLAYER_WIDE_SAMPLE_N matches (player_rows_for_event wide_history)."""
+    samples.PLAYER_WIDE_SAMPLE_N matches (player_rows_for_event wide_history).
+    `share` with `share_centres` (--player-share): the share model's centre
+    from each side's team centre the team replay priced for the match
+    (ShareContext). `conflict_cut` (--sample-conflict-cut, epochs.
+    SAMPLE_CONFLICT_CUT, audit 2026-10-23 P1): a side's history is cut at an
+    ENTITY_CONFLICT clash instead of emptied (finish_history conflict_cut).
+    `only_events`: rows for these target ids only (a verification harness;
+    None = every target)."""
+    if share is not None and share_centres is None:
+        raise ValueError("share needs the team replay's centres")
     if player_stretch is not None and football is None:
         raise ValueError("player_stretch needs the football rating replay")
     counts: collections.Counter[str] = collections.Counter()
@@ -2373,9 +2636,14 @@ def build_player_rows(
         squads: collections.OrderedDict[int, dict[bool, Squad | None]] = (
             collections.OrderedDict()
         )
+        flats: collections.OrderedDict[int, dict[str, Any]] = (
+            collections.OrderedDict())
 
         def squads_of(event_id: int) -> dict[bool, Squad | None]:
-            """Both sides' squads of one match, parsed once (bounded cache)."""
+            """Both sides' squads of one match, parsed once (bounded cache);
+            under --player-share each entry also carries its position (an
+            empty shotmap: players.POSITION_KEY only) and the match's flat
+            statistics are kept for the side's team sample."""
             if event_id in squads:
                 squads.move_to_end(event_id)
                 return squads[event_id]
@@ -2387,19 +2655,39 @@ def build_player_rows(
             stats = json.loads(found[0]) if found and found[0] else None
             lineups = json.loads(found[1]) if found and found[1] else None
             both = {
-                h: squad_statistics(lineups, is_home=h, statistics=stats)
+                h: squad_statistics(lineups, is_home=h, statistics=stats,
+                                    shotmap={} if share is not None else None)
                 for h in (True, False)
             }
             squads[event_id] = both
+            if share is not None:
+                try:
+                    flats[event_id] = (extract_flat_statistics(stats)
+                                       if stats else {})
+                except ValueError:
+                    flats[event_id] = {}
+                if len(flats) > 50_000:
+                    flats.popitem(last=False)
             if len(squads) > 50_000:
                 squads.popitem(last=False)
             return both
 
+        def flat_of(event_id: int) -> dict[str, Any]:
+            if event_id not in flats:
+                squads.pop(event_id, None)
+                squads_of(event_id)
+            return flats.get(event_id) or {}
+
         for event in targets:
+            if only_events is not None and int(event["id"]) not in only_events:
+                continue
             kickoff = int(event["startTimestamp"])
             competition = _competition_id(event)
             history: dict[bool, list[Squad]] = {}
             wide_history: dict[bool, list[Squad]] = {}
+            history_ids: dict[bool, list[int]] = {}
+            wide_ids: dict[bool, list[int]] = {}
+            team_obs: dict[bool, dict[str, list[tuple[int, float]]]] = {}
             for is_home in (True, False):
                 entity = int(((event.get("homeTeam" if is_home else "awayTeam")) or {})
                              .get("id") or 0)
@@ -2416,18 +2704,54 @@ def build_player_rows(
                 recent = finish_history(
                     admitted, entity, "football", competition, kickoff,
                     PLAYER_WIDE_SAMPLE_N if coverage else sample_n,
+                    conflict_cut=conflict_cut,
                 )
                 side_squads: list[Squad] = []
                 wide_squads: list[Squad] = []
+                side_ids: list[int] = []
+                wide_side_ids: list[int] = []
+                obs: dict[str, list[tuple[int, float]]] = {}
                 for i, past in enumerate(recent):
                     own_home = (past.get("homeTeam") or {}).get("id") == entity
-                    squad = squads_of(int(past["id"]))[own_home]
+                    past_id = int(past["id"])
+                    squad = squads_of(past_id)[own_home]
                     if squad:
                         wide_squads.append(squad)
+                        wide_side_ids.append(past_id)
                         if i < sample_n:
                             side_squads.append(squad)
+                            side_ids.append(past_id)
+                    if share is not None and i < sample_n:
+                        # SAMPLES' team sample of the side: its newest
+                        # sample_n matches, extract_metric's value
+                        flat = flat_of(past_id)
+                        for team_metric in psh.TEAM_METRIC_KEYS:
+                            tv = extract_metric(team_metric, "football", flat,
+                                                None, past, own_home)
+                            if isinstance(tv, float | int) and not isinstance(
+                                    tv, bool):
+                                obs.setdefault(team_metric, []).append(
+                                    (past_id, float(tv)))
                 history[is_home] = side_squads
                 wide_history[is_home] = wide_squads
+                history_ids[is_home] = side_ids
+                wide_ids[is_home] = wide_side_ids
+                team_obs[is_home] = obs
+            share_ctx = None
+            if (share is not None and share_centres is not None
+                    and int(event["id"]) not in share_centres):
+                # the team replay priced nothing for this match (it is not
+                # in the teams' listings yet): its player rows would carry
+                # the old centre where SHEET read the share - no rows
+                counts["share_no_team_replay"] += 1
+                continue
+            if share is not None and share_centres is not None:
+                share_ctx = ShareContext(
+                    table=share,
+                    team_centres=share_centres.get(int(event["id"])) or {},
+                    history_ids=history_ids,
+                    wide_ids=wide_ids,
+                    team_obs=team_obs)
             produced = player_rows_for_event(
                 event, squads_of(int(event["id"])), history, ladder, min_sample,
                 counts, starters_only=starts_only, starts_only=starts_only,
@@ -2437,6 +2761,7 @@ def build_player_rows(
                 on_sample=on_sample,
                 wide_history=wide_history if coverage else None,
                 sample_n=sample_n,
+                share=share_ctx,
             )
             counts["targets"] += 1
             if produced:
@@ -2556,6 +2881,18 @@ _ONLY_OVER_CACHE_ROWS = (
 WRITE_BATCH = 50_000
 
 
+class _Commit:
+    """A marker in write_settled's row stream: commit what is written so far.
+    The player replay (--player-share) runs inside the stream, after the team
+    rows, and opens its own read connection; on a rollback-journal copy (a
+    VACUUM INTO copy is journal_mode=delete) the writer's open transaction,
+    once spilled, held an EXCLUSIVE lock and the reader failed "database is
+    locked" (refit 2026-11-05)."""
+
+
+COMMIT = _Commit()
+
+
 # By event id, through the UNIQUE(sofascore_event_id, ...) index: the unary
 # `+` keeps the planner off the run_date index, which after the inserts holds
 # ~59M 'cache-calibration' rows - read once per stale id, 2,490 ids, the
@@ -2567,7 +2904,8 @@ _DELETE_STALE_REPLAY_ROWS = (
 
 
 def write_settled(
-    rows: Iterable[SettledRow], db_path: Path, drop_event_ids: Iterable[int] = ()
+    rows: Iterable[SettledRow | _Commit], db_path: Path,
+    drop_event_ids: Iterable[int] = (),
 ) -> int:
     """Upsert the replay rows; delete the replay rows of collapsed copies.
 
@@ -2593,6 +2931,9 @@ def write_settled(
         # between batches is repaired by running it again.
         writing: set[int] = set()
         for row in rows:
+            if isinstance(row, _Commit):
+                conn.commit()
+                continue
             writing.add(row.event_id)
             conn.execute(
                 "INSERT INTO sofa_settled_row "
@@ -2645,10 +2986,15 @@ def replay_players(
     starts_only: bool = False,
     football: FootballRatingReplay | None = None,
     coverage: bool = False,
+    share: psh.ShareTable | None = None,
+    share_centres: Mapping[int, Mapping[tuple[str, bool], float]] | None = None,
+    conflict_cut: bool = False,
 ) -> dict[str, Any]:
     """Append the player rows to `rows`; the summary's player metrics.
     `football` (a fresh rating replay) with CENTRE_RULES.player_stretch:
-    the shots centres carry the supremacy term."""
+    the shots centres carry the supremacy term. `share` / `share_centres`
+    (--player-share) and `conflict_cut` (--sample-conflict-cut):
+    build_player_rows."""
     carried = sorted(k for k in baselines if is_player_metric(k))
     if carried:
         # SHEET would shrink a player toward these and the replay does not:
@@ -2664,6 +3010,9 @@ def replay_players(
         player_stretch=stretch if football is not None else None,
         football=football if stretch is not None else None,
         coverage=coverage,
+        share=share,
+        share_centres=share_centres,
+        conflict_cut=conflict_cut,
     )
     rows.extend(produced)
     by_market = collections.Counter(r.market for r in produced)
@@ -2671,6 +3020,8 @@ def replay_players(
         "player_replay": "OK" if produced else "NO_ROWS",
         "player_starts_only": starts_only,
         "player_coverage": coverage,
+        "player_share": share is not None,
+        "player_sample_conflict_cut": conflict_cut,
         "player_rows": len(produced),
         "player_rows_by_market": dict(sorted(by_market.items())),
         "player_ladder": ladder,
@@ -2968,6 +3319,44 @@ def main() -> int:
         "--no-write", action="store_true",
         help="count and time the rows, write nothing to the DB (a smoke run)",
     )
+    parser.add_argument(
+        "--referee", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: a cards / fouls centre of the referee "
+        "table's markets x the match referee's as-of shrunk ratio ** beta "
+        "(epochs.FOOTBALL_REFEREE_FROM_UTC, bet.sofa.referees; the referee "
+        "of a match from its label - sofa_event_referee / the cached /event, "
+        "none = x1 - and his record from the football history strictly before "
+        "the match's UTC day; CONFIG defaults to config/sofa_referee_effect.json)",
+    )
+    parser.add_argument(
+        "--form-table", action="store_true",
+        help="with --football-rating: the goals rating's step x1.25 and the "
+        "goals centres moved by the season table as of the match "
+        "(epochs.FOOTBALL_FORM_TABLE_FROM_UTC, football_rating."
+        "enable_form_table; item 5 of the refit 2026-11-05)",
+    )
+    parser.add_argument(
+        "--player-share", nargs="?", const="", default=None, metavar="CONFIG",
+        help="with --football-rating: a footballer's shots / SOT / fouls "
+        "centre = his shrunk share of his side's team centre this match "
+        "(epochs.FOOTBALL_PLAYER_SHARE_FROM_UTC, bet.sofa.player_share; the "
+        "team centre the team replay priced, so the player rows are built "
+        "after the team rows; CONFIG defaults to config/sofa_player_share.json)",
+    )
+    parser.add_argument(
+        "--tennis-score-winner", action="store_true",
+        help="the tennis rating's history with an Ended match's winner taken "
+        "from a complete set score when winnerCode is missing "
+        "(epochs.TENNIS_RATING_SCORE_WINNER_FROM_UTC, audit 2026-10-23 P14; "
+        "tennis_rating.load_history(score_winner=True))",
+    )
+    parser.add_argument(
+        "--sample-conflict-cut", action="store_true",
+        help="a footballer's side history cut at an ENTITY_CONFLICT clash "
+        "instead of emptied, and samples.CONFLICT_CUT_FRIENDLY_IDS out of "
+        "every football history (epochs.SAMPLE_CONFLICT_CUT_FROM_UTC, audit "
+        "2026-10-23 P1)",
+    )
     args = parser.parse_args()
     needs_rating = [name for name, on in (
         ("--rated-scope", args.rated_scope), ("--venue-prior", args.venue_prior),
@@ -2979,7 +3368,12 @@ def main() -> int:
         ("--rating-weight", args.rating_weight is not None),
         ("--season-phase", args.season_phase is not None),
         ("--opponent-correction", args.opponent_correction),
-        ("--cup-strength", args.cup_strength is not None)) if on]
+        ("--cup-strength", args.cup_strength is not None),
+        ("--referee", args.referee is not None),
+        ("--player-share", args.player_share is not None)) if on]
+    if args.player_share is not None and args.players != "include":
+        # the share reads the team centres the team replay prices first
+        parser.error("--player-share needs --players include")
     if args.sample_cup_strength and not (
             args.opponent_correction and args.cup_strength is not None):
         parser.error("--sample-cup-strength needs --opponent-correction and "
@@ -3002,7 +3396,14 @@ def main() -> int:
     global COUNT_DISPERSION, CARDS_CORRELATION, PER_MARKET_K
     global CENTRE_RULES, TENNIS_SET_RATINGS, TENNIS_SAMPLE_SCOPE
     global TENNIS_ACES_OPPONENT, TENNIS_ACES_TIERS, AWARDED_EXCLUDED
+    global SHARE_TEAM_CENTRES, SAMPLE_CONFLICT_CUT
     AWARDED_EXCLUDED = bool(args.awarded_excluded)
+    SAMPLE_CONFLICT_CUT = bool(args.sample_conflict_cut)
+    share_table: psh.ShareTable | None = (
+        psh.load_table(Path(args.player_share) if args.player_share else None)
+        if args.player_share is not None else None)
+    if share_table is not None:
+        SHARE_TEAM_CENTRES = {}
     CARDS_CORRELATION = bool(args.cards_correlation)
     PER_MARKET_K = bool(args.per_market_k)
     TENNIS_SET_RATINGS = bool(args.tennis_set_ratings)
@@ -3056,6 +3457,11 @@ def main() -> int:
             cup_strength_path=(args.cup_strength or "config/sofa_cup_strength.json"
                                if args.cup_strength is not None else None),
             sample_cup_strength=bool(args.sample_cup_strength),
+            referee_effect=(
+                referee_terms.load_effect_table(
+                    Path(args.referee) if args.referee else None)
+                if args.referee is not None else None),
+            form_table=bool(args.form_table),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),
@@ -3073,7 +3479,8 @@ def main() -> int:
                          f"not in {sorted(JOINT_BASES)}")
     rating: RatingReplay | None = None
     if args.tennis_rating == "include" and args.players != "only":
-        rating = RatingReplay.from_db(db_path, args.tennis_scoped_table)
+        rating = RatingReplay.from_db(db_path, args.tennis_scoped_table,
+                                      score_winner=args.tennis_score_winner)
         if rating is None:
             # A replay that silently reverts to the sample estimator would
             # fit a curve for a model that no longer ships.
@@ -3117,7 +3524,12 @@ def main() -> int:
 
     player_rows: list[SettledRow] = []
     player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
-    if args.players != "skip":
+    player_football = (FootballRatingReplay(football_history, CENTRE_RULES)
+                       if player_stretch_on and football_history is not None
+                       else None)
+
+    def run_player_replay() -> None:
+        nonlocal player_metrics
         player_metrics = replay_players(
             db_path,
             Path(args.runs_dir or config.runs_dir),
@@ -3126,14 +3538,25 @@ def main() -> int:
             player_rows,
             starts_only=args.player_starts_only,
             coverage=args.player_coverage,
-            football=(FootballRatingReplay(football_history, CENTRE_RULES)
-                      if player_stretch_on and football_history is not None
-                      else None),
+            football=player_football,
+            share=share_table,
+            share_centres=SHARE_TEAM_CENTRES,
+            conflict_cut=SAMPLE_CONFLICT_CUT,
         )
+
+    # --player-share: the player rows read the team centres, so they are
+    # built after the team rows (inside measured()); otherwise before, as
+    # they always were
+    if args.players != "skip" and share_table is None:
+        run_player_replay()
 
     football: FootballRatingReplay | None = None
     if CENTRE_RULES.football_rating and played and football_history is not None:
-        football = FootballRatingReplay(football_history, CENTRE_RULES)
+        football = FootballRatingReplay(
+            football_history, CENTRE_RULES,
+            referee_labels=(referee_terms.load_labels(db_path)
+                            if CENTRE_RULES.referee_effect is not None
+                            else None))
     # each replay holds its own sorted copy: the loaded list is not read again
     football_history = None
 
@@ -3148,7 +3571,7 @@ def main() -> int:
     by_market: collections.Counter[str] = collections.Counter()
     t_rows = datetime.now(UTC)
 
-    def measured() -> Iterator[SettledRow]:
+    def measured() -> Iterator[SettledRow | _Commit]:
         team = iter_rows(played, baselines, rating, joint_bases, football,
                          emit_from, emit_to) if played else iter(())
         for row in team:
@@ -3158,6 +3581,9 @@ def main() -> int:
                 by_market[row.market] += 1
             acc.add(row)
             yield row
+        if args.players != "skip" and share_table is not None:
+            yield COMMIT   # the player replay reads the DB being written
+            run_player_replay()
         for row in player_rows:
             acc.add(row)
             yield row
@@ -3248,6 +3674,10 @@ def main() -> int:
                 "player_starts_only": bool(args.player_starts_only),
                 "player_coverage": bool(args.player_coverage),
                 "awarded_excluded": AWARDED_EXCLUDED,
+                "player_share": (None if share_table is None
+                                 else share_table.path or "in-memory"),
+                "tennis_score_winner": bool(args.tennis_score_winner),
+                "sample_conflict_cut": SAMPLE_CONFLICT_CUT,
             },
             "football_rating_forecasts": football.forecasts if football else None,
             "football_history_results": football.seen if football else None,

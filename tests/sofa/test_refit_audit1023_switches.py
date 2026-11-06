@@ -28,15 +28,21 @@ def _audit_lines(warnings: list[str]) -> list[str]:
 
 
 def test_install_warns_for_each_unreplayed_audit_switch(tmp_path: Path) -> None:
+    full = {"closeness_stretch": True, "player_coverage": True,
+            "referee": True, "player_share": True}
     refusals, warnings = pr.replay_switch_gaps(
-        _staged(closeness_stretch=True, player_coverage=True), at=EVE,
-        config_dir=_cfg(tmp_path))
+        _staged(**full), at=EVE, config_dir=_cfg(tmp_path))
+    assert refusals == [
+        "TENNIS_RATING_SCORE_WINNER (P14) is on, the replay lacks "
+        "--tennis-score-winner",
+        "SAMPLE_CONFLICT_CUT (P1) is on, the replay lacks --sample-conflict-cut"]
+    refusals, warnings = pr.replay_switch_gaps(
+        _staged(**full, sample_conflict_cut=True, tennis_score_winner=True),
+        at=EVE, config_dir=_cfg(tmp_path))
     assert refusals == []
     names = [w.split(" is on")[0] for w in _audit_lines(warnings)]
-    assert names == ["SAMPLE_CONFLICT_CUT (P1)",
-                     "PLAYER_HISTORY_ANY_TEAM (P3, football)",
-                     "PLAYER_SLUG_NAME (P5)",
-                     "TENNIS_RATING_SCORE_WINNER (P14)"]
+    assert names == ["PLAYER_HISTORY_ANY_TEAM (P3, football)",
+                     "PLAYER_SLUG_NAME (P5)"]
     assert all("the replay cannot carry it" in w for w in _audit_lines(warnings))
 
 

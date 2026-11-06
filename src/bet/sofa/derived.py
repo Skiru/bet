@@ -465,9 +465,15 @@ def price_derived_rungs(
     dispersion_table: DispersionTable | None = None,
     side_metric_notes: Mapping[str, Sequence[str]] | None = None,
     side_metric_unfitted: Mapping[str, Sequence[str]] | None = None,
+    point_markets: frozenset[str] = frozenset(),
 ) -> tuple[list[SheetRow], list[tuple[PricedRung, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs): the handicap centre is not pulled onto
     the ladder (K_DERIVED_CENTRE), so p_central does not read the price.
+
+    `point_markets` (epochs.TENNIS_HANDICAP_POINT_MODEL: the per-set games
+    handicap): `rating_p` is the tennis point model's for these markets; a
+    row it cannot price is refused NOT_RATED, never priced by the joint of
+    the samples (the keys' curves describe the point model only).
 
     `marginal_centres` ((side metric, "side_a" | "side_b") -> centre) is given
     by SHEET for football from epochs.DERIVED_MARGINAL_CENTRES_FROM_UTC; both
@@ -692,6 +698,12 @@ def price_derived_rungs(
                     if p_rated is not None
                     else probability(joint, market, rung.line, direction, side)
                 )
+                if p_rated is None and market in point_markets:
+                    skipped.append((
+                        rung, GapReason.NOT_RATED,
+                        "epochs.TENNIS_HANDICAP_POINT_MODEL: no point-model "
+                        f"p for {direction} {rung.line:g}"))
+                    continue
                 if p_raw is None:
                     continue
                 if outside_model_resolution(p_raw):
@@ -780,7 +792,14 @@ def price_derived_rungs(
                 ]
                 if p_rated is not None and rating_note is not None:
                     notes.append(rating_note(side, p_rated, m_p))
-                if p_rated is not None and market in SET_HANDICAP_MARKETS:
+                if p_rated is not None and market in point_markets:
+                    notes.append(
+                        f"TENNIS_POINT_MODEL: p {p_rated:.4f} is the subject's "
+                        f"set-{SET_HANDICAP_MARKETS.get(market, '?')} games "
+                        "margin in the point model's simulations; the joint "
+                        "above is not used "
+                        "(epochs.TENNIS_HANDICAP_POINT_MODEL)")
+                elif p_rated is not None and market in SET_HANDICAP_MARKETS:
                     # R2: only epochs.tennis_set_handicap_neighbours makes the
                     # rating price these rows; off, p_rated is None here.
                     notes.append(
@@ -878,7 +897,9 @@ def price_derived_rungs(
                     )
 
                 row_unfitted = (
-                    [*unfitted, "W_TENNIS_RATING"] if p_rated is not None else unfitted
+                    [*unfitted, "W_TENNIS_RATING"]
+                    if p_rated is not None and market not in point_markets
+                    else unfitted
                 )
                 extra_unfitted = (side_metric_unfitted or {}).get(side_metric, ())
                 if extra_unfitted:

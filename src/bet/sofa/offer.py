@@ -11,6 +11,7 @@ from bet.sofa.football_card_halves import classify_card_half
 from bet.sofa.football_incidents import classify_incident
 from bet.sofa.football_result import DOUBLE_CHANCE, classify_result
 from bet.sofa.football_score_markets import classify as classify_score_market
+from bet.sofa.football_sim_markets import classify as classify_sim_market
 from bet.sofa.market_mapper import (
     PLAYER_PROPS_V2_NAMES,
     classify_derived_market,
@@ -97,6 +98,7 @@ def classify_odd(
     player_props_v2: bool = False,
     stat_variants: bool = False,
     football_card_halves: bool = False,
+    football_sim: bool = False,
 ) -> tuple[ClassifiedOdd | None, str | None]:
     """One Superbet odd as a rung side, or the label it goes into unmapped.
 
@@ -233,6 +235,12 @@ def classify_odd(
             market_name, selection_name, line_text, listing_names)
         if card_half:
             return card_half, None
+    if football_sim:
+        # epochs.FOOTBALL_SIM: the football path markets
+        # (bet.sofa.football_sim_markets), tried last; off changes nothing
+        sim_market = classify_sim_market(market_name, selection_name, listing_names)
+        if sim_market:
+            return sim_market, None
     return None, str(market_name)
 
 
@@ -274,6 +282,7 @@ def day_flags(date: str) -> dict[str, bool]:
         "player_props_v2": epochs.football_player_props_v2(date),
         "football_stat_variants": epochs.football_stat_variants(date),
         "football_card_halves": epochs.football_card_halves(date),
+        "football_sim": epochs.football_sim(date),
     }
 
 
@@ -301,6 +310,7 @@ class OfferFetcher:
         player_props_v2: bool = False,
         football_stat_variants: bool = False,
         football_card_halves: bool = False,
+        football_sim: bool = False,
     ) -> None:
         self.client = client
         # epochs.football_player_props_v2(date): read the v2 footballer
@@ -314,6 +324,9 @@ class OfferFetcher:
         # side / half red cards and penalties (bet.sofa.football_card_halves).
         # Off is the old rule.
         self.football_card_halves = football_card_halves
+        # epochs.football_sim(date): the football path markets (HT/FT, half
+        # results, ... - bet.sofa.football_sim_markets). Off is the old rule.
+        self.football_sim = football_sim
         # epochs.football_score_markets(date) / tennis_set_complements(date):
         # the football "or" / handicap / DC & goals markets
         # (bet.sofa.football_score_markets) and the tennis exact-score
@@ -484,12 +497,13 @@ class OfferFetcher:
                                    and fixture.sport == "tennis")
                 stat_variants = (self.football_stat_variants
                                  and fixture.sport == "football")
+                sim_paths = self.football_sim and fixture.sport == "football"
                 names = (
                     listing_sides(payload)
                     if (self.ampersand_subjects or self.mappable_families or winner
                         or incidents or set_markets or result_1x2_dnb
                         or score_markets or set_complements or stat_variants
-                        or card_halves)
+                        or card_halves or sim_paths)
                     else ()
                 )
                 sides = names if self.ampersand_subjects else ()
@@ -498,7 +512,7 @@ class OfferFetcher:
                     classified_odd, unmapped_label = classify_odd(
                         item, sides, self.mappable_families, names, winner,
                         result, shots, incidents, set_markets, props_v2,
-                        stat_variants, card_halves,
+                        stat_variants, card_halves, sim_paths,
                     )
                     # epochs.FOOTBALL_RESULT_1X2_DNB: one odd may feed a
                     # second rung ("Mecz" 1 is the DC X2's UNDER and the

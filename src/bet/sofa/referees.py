@@ -544,10 +544,25 @@ def fixture_reads(
     for r in history:
         if r.ts >= cut_ts:
             break
-        vals = {fam: float(sum(r.values[m])) for fam, m in FAMILY_METRIC.items()
-                if m in r.values}
-        book.update(labels.get(r.event_id), r.competition_id, vals)
+        add_result(book, r, labels)
     out: dict[int, dict[str, RefereeRead]] = {}
     for eid, rid in fixture_referees.items():
-        out[eid] = {fam: book.read(rid, -1, fam) for fam in FAMILY_METRIC}
+        out[eid] = family_reads(book, rid)
     return out
+
+
+def add_result(book: RefereeBook, result: Any, labels: Mapping[int, int]) -> None:
+    """One history result (football_rating.FootballResult) into the book:
+    its match totals of FAMILY_METRIC under its labelled referee - the one
+    update SHEET's fixture_reads and the cache replay
+    (calibrate_from_cache --referee) both make."""
+    vals = {fam: float(sum(result.values[m])) for fam, m in FAMILY_METRIC.items()
+            if m in result.values}
+    book.update(labels.get(result.event_id), result.competition_id, vals)
+
+
+def family_reads(book: RefereeBook, referee_id: int | None,
+                 ) -> dict[str, RefereeRead]:
+    """family -> the referee's read (the term reads only n and the ratio
+    sum, so the competition is irrelevant: -1)."""
+    return {fam: book.read(referee_id, -1, fam) for fam in FAMILY_METRIC}

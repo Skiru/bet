@@ -108,6 +108,9 @@ class Priced:
 # --cup-strength (epochs.FOOTBALL_CUP_STRENGTH): the book carries the league
 # strength learnt in international club cups, as SHEET's from 2026-10-16.
 CUP: CupStrength | None = None
+# --form-table (epochs.FOOTBALL_FORM_TABLE): the goals rating's faster step
+# and the season table's centre move (football_rating.enable_form_table)
+FORM_TABLE = False
 
 
 def replay(history: Iterable[fr.FootballResult], from_ts: int,
@@ -115,6 +118,8 @@ def replay(history: Iterable[fr.FootballResult], from_ts: int,
     """Every match in [from_ts, to_ts) with both pure rating goals centres,
     priced before the book learns it."""
     book = apply_cup_strength(fr.RatingBook(), CUP)
+    if FORM_TABLE:
+        fr.enable_form_table(book)
     out: list[Match] = []
     for r in history:
         if r.ts >= to_ts:
@@ -203,6 +208,12 @@ def run(priced: Sequence[Priced], h0: int, h1: int, cut: int,
                        "final": len(final_rows)}}
 
 
+def set_form_table(on: bool) -> None:
+    """--form-table: the replay's book is FOOTBALL_FORM_TABLE's."""
+    global FORM_TABLE
+    FORM_TABLE = on
+
+
 def set_cup(arg: str | None) -> None:
     """--cup-strength: None off, "" the installed file, else a path."""
     global CUP
@@ -211,6 +222,9 @@ def set_cup(arg: str | None) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
+    ap.add_argument("--form-table", action="store_true",
+                    help="the book with the goals form step and the season "
+                    "table (epochs.FOOTBALL_FORM_TABLE)")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--history", help="the parsed football history pickle "
                     "(read-only); default data/cache/football_history.pkl")
@@ -230,6 +244,7 @@ def main() -> int:
                     "sofa_cup_strength.json)")
     args = ap.parse_args()
     set_cup(args.cup_strength)
+    set_form_table(args.form_table)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if args.regate:
@@ -256,6 +271,7 @@ def main() -> int:
         "fitted_at_utc": datetime.now(UTC).isoformat(),
         "script": "scripts/sofa/fit_double_chance_curve.py",
         "awarded_excluded": bool(args.awarded_excluded),
+        "form_table": bool(args.form_table),
         "estimator": "football_result.result_probs: NB goals on the pure "
                      "rating centres (FootballForecast.centre goals_for), "
                      f"nb_r {cfg.nb_r} from {cfg_path}",

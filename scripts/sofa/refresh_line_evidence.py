@@ -22,6 +22,11 @@ leg's confidence is read through (bet.sofa.line_evidence). Three steps:
    settled Superbet line, the model built on the line's own day). --dry-run:
    the installed sport curves are NOT touched - a curve refit is a separate,
    deliberate step (prepare_refit / fit_sport_confidence without --dry-run).
+1b. backfill_vb_point_p.py --before <d> while epochs.VB_POINT_MODEL is on for
+   <d>: the volleyball rally model's p of every settled Superbet line of its
+   markets not priced yet (vb_point_pricer.BACKFILL), which step 2 reads for
+   those keys. A failure exits 1 (step 2 then reads the table as it was).
+   --dry-run skips it.
 2. fit_line_evidence.py --before <d> --sport-rows-dir <dir>, read against the
    curves the day <d> reads (sport_confidence.calibration_path_for).
 3. fit_settleability.py --before <d> --dated (from
@@ -57,6 +62,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from bet.sofa import epochs  # noqa: E402
 from bet.sofa.epochs import SETTLEABILITY_DAILY_DATE  # noqa: E402
 
 SPORTS = ("hockey", "basketball", "volleyball", "cs2")
@@ -123,6 +129,12 @@ def fit_commands(before: str, out: Path) -> list[list[str]]:
              "--out", str(out / f"cal_{s}.json")] for s in SPORTS]
 
 
+def vb_point_command(before: str) -> list[str]:
+    """epochs.VB_POINT_MODEL: the rally model's p of the settled lines."""
+    return [sys.executable, "scripts/sofa/backfill_vb_point_p.py", "--before",
+            before]
+
+
 def settleability_command(before: str) -> list[str]:
     return [sys.executable, "scripts/sofa/fit_settleability.py", "--before",
             before, "--dated"]
@@ -178,6 +190,11 @@ def main() -> int:
                 if prev is not None and (prev / rows.name).exists():
                     shutil.copy(prev / rows.name, rows)
                     print(f"  {sport}: kept {prev.name}/{rows.name}", flush=True)
+    if not args.dry_run and epochs.vb_point_model(args.before):
+        vb = subprocess.run(vb_point_command(args.before), cwd=_REPO)
+        print(f"volleyball rally model p: exit {vb.returncode}", flush=True)
+        if vb.returncode != 0:
+            failed.append("vb_point_p")
     cmd = [sys.executable, "scripts/sofa/fit_line_evidence.py", "--before",
            args.before, "--sport-rows-dir", str(out.relative_to(_REPO))]
     if args.dry_run:

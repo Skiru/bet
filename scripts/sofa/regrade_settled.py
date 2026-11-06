@@ -67,6 +67,7 @@ from bet.sofa.football_1x2_dnb import MARKETS as RESULT_1X2_DNB_MARKETS
 from bet.sofa.football_incidents import INCIDENT_MARKETS
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
+from bet.sofa.football_sim_markets import MARKETS as SIM_MARKETS
 from bet.sofa.listing_index import listed_events_by_id
 from bet.sofa.locked_print import kickoff_clocks
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
@@ -91,6 +92,7 @@ from scripts.sofa.run_settle import (
     _settle_result_1x2_dnb,
     _settle_score_market,
     _settle_set_market,
+    _settle_sim_market,
     _subject_is_home,
     load_player_sample_names,
     load_player_sides,
@@ -196,6 +198,9 @@ def grade_live(
     if row["market"] in INCIDENT_MARKETS:
         # the match's regular-time incidents - graded like run_settle
         return _settle_incident(row, event, incidents)
+    if row["market"] in SIM_MARKETS:
+        # the match's path - graded like run_settle (epochs.FOOTBALL_SIM)
+        return _settle_sim_market(row, event, incidents)
     if row["market"] in SET_MARKETS:
         # the listing's set scores - graded like run_settle
         return _settle_set_market(row, event, fixture)

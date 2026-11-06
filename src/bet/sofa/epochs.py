@@ -1427,6 +1427,32 @@ def bb_period_market_lines(date: str | None = None,
     return at >= BB_PERIOD_MARKET_LINES_FROM_UTC
 
 
+# Item 5 of the refit 2026-11-05 (docs/sofa/evidence/
+# refit_replay_2026-11-05.md section 6): the football goals rating follows
+# recent matches faster (x1.25) and its goals centres move by the season
+# table as of the match (football_rating.enable_form_table; 1X2 / DC / DNB,
+# goals_for, goals_1h_for and the goal totals read them). History hold-out
+# 10-01..11-04: log loss per match -10.1 x 1e-3 on 1X2, -13.9 goals_for, the
+# goal total +0.2 [-0.9, +1.2]. A SHEET estimator change: the curves a day
+# from the moment reads are refitted on a replay carrying it. None until the
+# settled Superbet lines (b) pass and the operator's install go.
+FOOTBALL_FORM_TABLE = "form_table_v1"
+FOOTBALL_FORM_TABLE_FROM_UTC: datetime | None = None
+FOOTBALL_FORM_TABLE_MARKER = ("form_table_rule", FOOTBALL_FORM_TABLE, "football")
+
+
+def football_form_table(date: str | None = None,
+                        build_at: datetime | None = None) -> bool:
+    """Does football's goals rating read the form step and the season table
+    (FOOTBALL_FORM_TABLE_FROM_UTC)?"""
+    if FOOTBALL_FORM_TABLE_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    if date is not None and date < FOOTBALL_FORM_TABLE_FROM_UTC.strftime("%Y-%m-%d"):
+        return False
+    return at >= FOOTBALL_FORM_TABLE_FROM_UTC
+
+
 # Audit 2026-10-13 B5: the tennis per-set games (games_set1/2_total,
 # games_won_set1/2/3_for) and sets_total were priced from the players' own
 # samples shrunk to a global prior, with no opponent. From this moment they are
@@ -3667,3 +3693,137 @@ TENNIS_POINT_MODEL_MARKETS: frozenset[str] = frozenset(
 def tennis_point_model(date: str, build_at: datetime | None = None) -> bool:
     """TENNIS_POINT_MODEL_FROM_UTC on the day being built and the build clock."""
     return _audit_1023_on(TENNIS_POINT_MODEL_FROM_UTC, date, build_at)
+
+
+# Football minute-by-minute simulator for the path markets SHEET did not price
+# (operator 2026-11-06: "TEN SYMULATOR MUSI BYĆ JUŻ DZISIAJ"). OFFER reads
+# Superbet's "1. połowa/mecz" (htft), "1.połowa - 1X2" / "2.połowa - 1X2"
+# (result_1h / result_2h), "Połowa z większą liczbą goli"
+# (higher_scoring_half), "<drużyna> zdobędzie gola w obu połowach"
+# (team_scores_both_halves), "Obie drużyny strzelą gola - 1.połowa/2.połowa"
+# (btts_halves), "Obie drużyny strzelą w przynajmniej jednej połowie meczu"
+# (btts_any_half), "1. połowa - 1. gol" (first_goal_1h) and "1.połowa liczba
+# goli & 2.połowa liczba goli" (half_goals_combo) - bet.sofa.
+# football_sim_markets; every row is an event on the 90-minute path, line 0.5
+# (a multi-way market OVER only - one-sided; the two yes / no markets
+# two-sided, OVER = "tak"). SHEET prices them from bet.sofa.football_sim (the
+# pure rating goals / card centres SHEET already computes, 4,000 paths, seed =
+# event id; bet.sofa.football_sim_sheet); SETTLE grades them from the cached
+# event's half-time and 90-minute score, the first goal of the first half
+# from the score alone when it decides it, else the timed goal incidents
+# (bet.sofa.football_sim_markets.sim_value; a contradiction is no grade).
+# CONFIDENCE reads these keys only from their own history curves
+# (config/sofa_football_sim_curves.json, scripts/sofa/fit_football_sim_curves.py
+# on the simulator's walk-forward over the Sofascore history before
+# 2026-10-20; bet.sofa.football_sim_curves); line evidence still lowers.
+# Every print gate unchanged (leg_floor 0.70, x >= 0.90, margin / one-sided
+# rule); rating-only (no sample, never in a builder). The first goal of the
+# match, 1X2, totals, corners, cards and goals by half stay on today's
+# estimator. Rows carry FOOTBALL_SIM_MARKER (every football row of a sheet
+# built under it), so rebuild_plan re-runs SHEET on a sheet built before it.
+# By the day and the build clock. Ledger group "od 11-07". Evidence:
+# docs/sofa/evidence/football_sim_2026-11-06.md (the simulator),
+# docs/sofa/evidence/football_sim_wiring_2026-11-06.md (the wired chain).
+FOOTBALL_SIM = "football_sim_v1"
+FOOTBALL_SIM_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+FOOTBALL_SIM_MARKER = ("football_sim_rule", FOOTBALL_SIM, "football")
+FOOTBALL_SIM_MARKETS: frozenset[str] = frozenset({
+    "htft", "result_1h", "result_2h", "higher_scoring_half",
+    "team_scores_both_halves", "btts_halves", "btts_any_half",
+    "first_goal_1h", "half_goals_combo"})
+
+
+def football_sim(date: str, build_at: datetime | None = None) -> bool:
+    """FOOTBALL_SIM_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(FOOTBALL_SIM_FROM_UTC, date, build_at)
+
+
+# Volleyball rally-point model (operator 2026-11-06: "install whatever is
+# better than the current estimator; the price need not be beaten"). For a
+# volleyball line of VB_POINT_MODEL_MARKETS (Superbet market ids) the p
+# SPORT_CONFIDENCE reads comes from bet.sofa.volleyball_point_model through
+# bet.sofa.vb_point_pricer - each team's rally strength as of the match (an
+# extended Kalman filter on the match point share, the league's mean as a new
+# team's prior), the match simulated rally by rally with the server's side-out
+# (sets to 25, the fifth to 15, by two, best of five; 4,000 matches, seed =
+# Sofascore event id) - instead of the score model; every other volleyball
+# line (sets_total, extra points, the derived team-set markets, set points
+# parity, sets count) and every other sport unchanged. The keys read their own
+# history curves: the staged sport calibration
+# config/sofa_sport_confidence_calibration.next.2026-11-07.json carries the
+# rally model's walk-forward curves for these keys (fitted 2025-10-01 ..
+# 2026-09-28, sport_confidence.fit_curves, MIN_BUCKET 200) - the staged file
+# and this switch move together (a test pins it). Line evidence reads these
+# keys' settled Superbet lines at the rally model's p
+# (vb_point_pricer.BACKFILL, kept current by
+# scripts/sofa/backfill_vb_point_p.py in refresh_line_evidence.py).
+# Measured 2026-11-06 (docs/sofa/evidence/volleyball_point_model_2026-11-06.md,
+# Superbet hold-out 10-20..11-05 computed once, match bootstrap): Brier model
+# - current points_handicap -0.0048, points_total -0.0052, set_handicap
+# -0.0057, exact_sets -0.0014, set_points_total -0.0069, winner -0.0059,
+# set_winner -0.0033, points parity -0.0007; >= 0.70 after the curve
+# realised - confidence points_handicap -19.7 pp (current -22.6), set_handicap
+# -0.2 (-3.0), winner +2.8 (+0.5); the price still better in every family
+# (reported, not a gate). Legs carry VB_POINT_MODEL_LEG_MARKER's field;
+# SPORT_CONFIDENCE re-runs on every rebuild, so no sheet marker is needed. By
+# the day and the build clock. Ledger group "od 11-07".
+VB_POINT_MODEL = "vb_point_model_v1"
+VB_POINT_MODEL_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+VB_POINT_MODEL_LEG_FIELD = "vb_point_model_rule"
+# 745 winner, 1069 points handicap, 230060 points total, 100082 set handicap,
+# 785 exact sets, 744 set winner, 782 set points total, 200896 points parity
+VB_POINT_MODEL_MARKETS: frozenset[int] = frozenset(
+    {745, 1069, 230060, 100082, 785, 744, 782, 200896})
+
+
+def vb_point_model(date: str, build_at: datetime | None = None) -> bool:
+    """VB_POINT_MODEL_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(VB_POINT_MODEL_FROM_UTC, date, build_at)
+
+
+# Tennis per-set games handicap from the bottom-up point model (operator
+# 2026-11-06, the same rule as VB_POINT_MODEL). Under it SHEET prices the
+# tennis rows of TENNIS_HANDICAP_POINT_MODEL_MARKETS through the point model's
+# simulations (bet.sofa.tennis_point_sheet, the margin read by
+# bet.sofa.tennis_handicap_point: the subject's games won minus lost in that
+# set, the set played; "X (line)" wins when the margin exceeds -line, a push
+# is no win) instead of the rating neighbours (TENNIS_SET_HANDICAP_NEIGHBOURS);
+# their curves from config/sofa_tennis_handicap_point_curves.json (the model's
+# walk-forward 2026-01-01 .. 10-20, fit_confidence's format), line evidence at
+# the model's p (tennis_point_curves). Needs TENNIS_POINT_MODEL (the pricer).
+# The full-match handicap_games stays on today's estimator: hold-out Brier
+# -0.0040 [-0.0097, +0.0015] better but >= 0.70 after the curve -8.0 pp vs
+# the current chain's -6.8 pp (worse by more than 1 pp). Measured 2026-11-06
+# (docs/sofa/evidence/tennis_handicap_point_model_2026-11-06.md, hold-out
+# 10-20..11-05 once): per-set handicap Brier model - current -0.0114
+# [-0.0185, -0.0040], >= 0.70 after the curve -1.0 pp [-3.8, +1.8] (current
+# p -6.7); vs the de-vigged price +0.0030 [-0.0006, +0.0070] (reported). Rows
+# carry TENNIS_HANDICAP_POINT_MODEL_MARKER (every tennis row of a sheet built
+# under it), so rebuild_plan re-runs SHEET on a sheet built before it. By the
+# day and the build clock. Ledger group "od 11-07".
+TENNIS_HANDICAP_POINT_MODEL = "tennis_handicap_point_model_v1"
+TENNIS_HANDICAP_POINT_MODEL_FROM_UTC: datetime | None = datetime(
+    2026, 11, 7, 0, 0, tzinfo=UTC)
+TENNIS_HANDICAP_POINT_MODEL_MARKER = (
+    "tennis_handicap_point_model_rule", TENNIS_HANDICAP_POINT_MODEL, "tennis")
+TENNIS_HANDICAP_POINT_MODEL_MARKETS: frozenset[str] = frozenset(
+    {"handicap_games_won_set1", "handicap_games_won_set2"})
+
+
+def tennis_handicap_point_model(date: str,
+                                build_at: datetime | None = None) -> bool:
+    """TENNIS_HANDICAP_POINT_MODEL_FROM_UTC (with TENNIS_POINT_MODEL) on the
+    day being built and the build clock."""
+    return (tennis_point_model(date, build_at)
+            and _audit_1023_on(TENNIS_HANDICAP_POINT_MODEL_FROM_UTC, date,
+                               build_at))
+
+
+def tennis_point_markets(date: str,
+                         build_at: datetime | None = None) -> frozenset[str]:
+    """The tennis markets SHEET prices with the point model on `date`."""
+    if not tennis_point_model(date, build_at):
+        return frozenset()
+    if tennis_handicap_point_model(date, build_at):
+        return TENNIS_POINT_MODEL_MARKETS | TENNIS_HANDICAP_POINT_MODEL_MARKETS
+    return TENNIS_POINT_MODEL_MARKETS

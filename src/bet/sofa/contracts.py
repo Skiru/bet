@@ -424,6 +424,15 @@ class SheetRow(BaseModel):
     # of a sheet whose per-set games / serve-count rows are priced by the
     # bottom-up point model (bet.sofa.tennis_point_sheet); absent when off.
     tennis_point_model_rule: str | None = None
+    # bet.sofa.epochs.TENNIS_HANDICAP_POINT_MODEL: the rule's name on every
+    # tennis row of a sheet whose per-set games handicap rows are priced by
+    # the point model (bet.sofa.tennis_point_sheet); absent when off.
+    tennis_handicap_point_model_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_SIM: the rule's name on every football row of
+    # a sheet whose path-market rows (HT/FT, half results, ...) are priced by
+    # the minute-by-minute simulator (bet.sofa.football_sim_sheet); absent
+    # when off.
+    football_sim_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_CUP_STRENGTH: the rule's name on a football
     # row priced by a rating book carrying the league strength learnt in
     # international club cups (bet.sofa.cup_strength); absent when off.
@@ -452,6 +461,10 @@ class SheetRow(BaseModel):
     # priced while cards / fouls centres carry the referee term
     # (bet.sofa.referees); absent when off.
     referee_rule: str | None = None
+    # bet.sofa.epochs.FOOTBALL_FORM_TABLE: the rule's name on a football row
+    # priced while the goals rating reads the form step and the season
+    # table (football_rating.enable_form_table); absent when off.
+    form_table_rule: str | None = None
     # ... and on a cards / fouls row under it, what the term read: status
     # APPLIED (referee_id, n, ratio, multiplier), NO_REFEREE (nobody named
     # yet - multiplier 1) or NO_REFEREE_RECORD; absent when off.

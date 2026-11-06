@@ -111,7 +111,8 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "tennis_set_ratings", "cup_strength", "sample_cup_strength",
     "tennis_sample_scope", "goals_stretch", "count_stretch", "player_stretch",
     "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
-    "player_coverage", "awarded_excluded",
+    "player_coverage", "awarded_excluded", "referee", "player_share",
+    "tennis_score_winner", "sample_conflict_cut", "form_table",
 )
 
 
@@ -582,6 +583,11 @@ def rebuild_cache_rows(
     closeness_stretch: bool = False,
     player_coverage: bool = False,
     awarded_excluded: bool = False,
+    referee: bool = False,
+    player_share: bool = False,
+    tennis_score_winner: bool = False,
+    sample_conflict_cut: bool = False,
+    form_table: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -591,7 +597,10 @@ def rebuild_cache_rows(
         ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
-        ("--cup-strength", cup_strength)) if on]
+        ("--cup-strength", cup_strength),
+        ("--referee", referee),
+        ("--player-share", player_share),
+        ("--form-table", form_table)) if on]
     if sample_cup_strength and not (opponent_correction and cup_strength):
         raise RefitError("--sample-cup-strength needs --opponent-correction "
                          "and --cup-strength")
@@ -619,7 +628,11 @@ def rebuild_cache_rows(
             (closeness_stretch, "--closeness-stretch",
              "sofa_closeness_stretch.json", "fit_closeness_stretch.py"),
             (cup_strength, "--cup-strength", "sofa_cup_strength.json",
-             "the operator's cup list")):
+             "the operator's cup list"),
+            (referee, "--referee", "sofa_referee_effect.json",
+             "measure_referee_effect.py --write-config"),
+            (player_share, "--player-share", "sofa_player_share.json",
+             "measure_player_share.py")):
         if on and not (paths.config_dir / name).exists():
             raise RefitError(f"{paths.config_dir / name} is absent: {flag} "
                              f"cannot be replayed ({by} first)")
@@ -806,6 +819,20 @@ def rebuild_cache_rows(
         # results awarded at the table out of the team replay, the rating
         # history and the player histories)
         "awarded_excluded": awarded_excluded,
+        # epochs.FOOTBALL_REFEREE (calibrate_from_cache --referee: cards /
+        # fouls centres x the match referee's as-of term)
+        "referee": referee,
+        # epochs.FOOTBALL_PLAYER_SHARE (calibrate_from_cache --player-share)
+        "player_share": player_share,
+        # epochs.TENNIS_RATING_SCORE_WINNER, audit 2026-10-23 P14
+        # (calibrate_from_cache --tennis-score-winner)
+        "tennis_score_winner": tennis_score_winner,
+        # epochs.SAMPLE_CONFLICT_CUT, audit 2026-10-23 P1
+        # (calibrate_from_cache --sample-conflict-cut)
+        "sample_conflict_cut": sample_conflict_cut,
+        # epochs.FOOTBALL_FORM_TABLE, item 5 of the refit 2026-11-05
+        # (calibrate_from_cache --form-table)
+        "form_table": form_table,
     }
     for name, on in new_flags.items():
         if on:
@@ -1980,36 +2007,36 @@ REPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     ("FOOTBALL_PLAYER_COVERAGE", epochs.football_player_coverage,
      "player_coverage"),
     ("AWARDED_EXCLUDED", epochs.awarded_excluded, "awarded_excluded"),
-)
-# Switches the replay cannot carry (no referee labels / no team centres for
-# the player share in calibrate_from_cache): an install fits those markets'
-# curves on centres without them - warned, never refused. (switch name, its
-# is-on function, the config file whose `markets` it moves)
-UNREPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
-    ("FOOTBALL_REFEREE", epochs.football_referee, "sofa_referee_effect.json"),
-    ("FOOTBALL_PLAYER_SHARE", epochs.football_player_share,
-     "sofa_player_share.json"),
-)
-# The coverage audit 2026-10-23's switches the cache replay does not carry
-# (review R2 #4): calibrate_from_cache builds a side's history with
-# finish_history without `conflict_cut`, a player's sample with no slug name
-# and no other team, and the tennis rating from load_history() without
-# `score_winner` - an install while one is on fits the curves it names on
-# samples / ratings without it. Warned like UNREPLAYABLE_SWITCHES, never
-# refused. (switch name, its is-on function, what the replay lacks)
-UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
+    # replayed from 2026-11-05 (calibrate_from_cache --referee /
+    # --player-share / --tennis-score-winner / --sample-conflict-cut)
+    ("FOOTBALL_REFEREE", epochs.football_referee, "referee"),
+    ("FOOTBALL_PLAYER_SHARE", epochs.football_player_share, "player_share"),
+    ("TENNIS_RATING_SCORE_WINNER (P14)", epochs.tennis_rating_score_winner,
+     "tennis_score_winner"),
     ("SAMPLE_CONFLICT_CUT (P1)", epochs.sample_conflict_cut,
-     "every football curve: the history is not cut at an ENTITY_CONFLICT "
-     "clash and the excluded_from_sample_conflict_cut friendlies stay in"),
+     "sample_conflict_cut"),
+    # item 5 of the refit 2026-11-05 (calibrate_from_cache --form-table)
+    ("FOOTBALL_FORM_TABLE", epochs.football_form_table, "form_table"),
+)
+# Switches the replay cannot carry: an install fits those markets' curves on
+# centres without them - warned, never refused. (switch name, its is-on
+# function, the config file whose `markets` it moves). Empty since
+# 2026-11-05: the referee and the player share are replayed (above).
+UNREPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = ()
+# The coverage audit 2026-10-23's switches the cache replay does not carry
+# (review R2 #4): a player's sample with no other team (P3) and no slug name
+# (P5; the replay matches Sofascore names to Sofascore squads, so the slug
+# changes nothing there) - an install while one is on fits the curves it
+# names on samples without it. P1 / P14 are replayed from 2026-11-05.
+# Warned like UNREPLAYABLE_SWITCHES, never refused. (switch name, its is-on
+# function, what the replay lacks)
+UNREPLAYED_AUDIT_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     ("PLAYER_HISTORY_ANY_TEAM (P3, football)",
      lambda date, at=None: epochs.player_history_any_team(date, at, "football"),
      "the football player curves: no thin sample is topped up with his "
      "starts for other teams"),
     ("PLAYER_SLUG_NAME (P5)", epochs.player_slug_name,
      "the football player curves: no player is found by his slug"),
-    ("TENNIS_RATING_SCORE_WINNER (P14)", epochs.tennis_rating_score_winner,
-     "the tennis curves: the rating replay (RatingReplay.from_db) reads "
-     "load_history without score_winner"),
 )
 
 
@@ -2437,6 +2464,35 @@ def build_parser() -> argparse.ArgumentParser:
         "after the switch is on should carry it",
     )
     r.add_argument(
+        "--referee", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_REFEREE "
+        "(calibrate_from_cache --referee; needs sofa_referee_effect.json in "
+        "the refit's config dir). A refit after the switch is on should "
+        "carry it",
+    )
+    r.add_argument(
+        "--player-share", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_PLAYER_SHARE "
+        "(calibrate_from_cache --player-share; needs sofa_player_share.json "
+        "in the refit's config dir). A refit after the switch is on should "
+        "carry it",
+    )
+    r.add_argument(
+        "--tennis-score-winner", action="store_true",
+        help="epochs.TENNIS_RATING_SCORE_WINNER, audit 2026-10-23 P14 "
+        "(calibrate_from_cache --tennis-score-winner)",
+    )
+    r.add_argument(
+        "--sample-conflict-cut", action="store_true",
+        help="epochs.SAMPLE_CONFLICT_CUT, audit 2026-10-23 P1 "
+        "(calibrate_from_cache --sample-conflict-cut)",
+    )
+    r.add_argument(
+        "--form-table", action="store_true",
+        help="with --football-rating: epochs.FOOTBALL_FORM_TABLE (the goals "
+        "step x1.25 and the season table; calibrate_from_cache --form-table)",
+    )
+    r.add_argument(
         "--player-coverage", action="store_true",
         help="epochs.FOOTBALL_PLAYER_COVERAGE (calibrate_from_cache "
         "--player-coverage: a footballer thin in the newest sample_n is "
@@ -2642,6 +2698,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     closeness_stretch=args.closeness_stretch,
                     player_coverage=args.player_coverage,
                     awarded_excluded=args.awarded_excluded,
+                    referee=args.referee,
+                    player_share=args.player_share,
+                    tennis_score_winner=args.tennis_score_winner,
+                    sample_conflict_cut=args.sample_conflict_cut,
+                    form_table=args.form_table,
                 )["exit"]
             )
         if args.command == "fit":

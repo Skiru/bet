@@ -55,6 +55,8 @@ from bet.sofa.football_incidents import INCIDENT_MARKETS, incident_value
 from bet.sofa.football_result import DOUBLE_CHANCE
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.football_score_markets import value_line as score_value_line
+from bet.sofa.football_sim_markets import MARKETS as SIM_MARKETS
+from bet.sofa.football_sim_markets import sim_value
 from bet.sofa.locked_print import LegKey, kickoff_clocks, leg_key, printed_leg_keys
 from bet.sofa.market_mapper import DERIVED_BASE_TO_SIDE_METRIC, derived_base, is_derived
 from bet.sofa.metrics import (
@@ -373,6 +375,19 @@ def _settle_incident(
     regular-time incidents (bet.sofa.football_incidents.incident_value); a
     partial feed is no grade."""
     value = incident_value(row["market"], row["subject"] or "", event, incidents)
+    if isinstance(value, str):
+        return f"{row['market']}:{value}"
+    return value, settle_value(value, row["line"], row["direction"])
+
+
+def _settle_sim_market(
+    row: dict[str, Any], event: dict[str, Any], incidents: dict[str, Any] | None
+) -> tuple[float, str] | str:
+    """(actual, outcome) of a football path-market row (epochs.FOOTBALL_SIM:
+    HT/FT, half results, ... - bet.sofa.football_sim_markets.sim_value: the
+    half-time and 90-minute score, the goal incidents only for the first goal
+    of the first half), or why not; graded at line 0.5."""
+    value = sim_value(row["market"], row["subject"] or "", event, incidents)
     if isinstance(value, str):
         return f"{row['market']}:{value}"
     return value, settle_value(value, row["line"], row["direction"])
@@ -1493,6 +1508,20 @@ def main() -> int:
                         skips.add(event_id, graded)
                         continue
                     value, outcome = graded
+                    emit(row, event_id, competition_id, float(value), outcome)
+                    continue
+
+                if row["market"] in SIM_MARKETS:
+                    # epochs.FOOTBALL_SIM: the match's path (half-time and
+                    # 90-minute score, the goal incidents)
+                    graded = _settle_sim_market(row, event, incidents)
+                    if isinstance(graded, str):
+                        skips.add(event_id, graded)
+                        continue
+                    value, outcome = graded
+                    if outcome == "PUSH":
+                        skips.add(event_id, "PUSH")
+                        continue
                     emit(row, event_id, competition_id, float(value), outcome)
                     continue
 

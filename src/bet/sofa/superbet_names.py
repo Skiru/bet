@@ -435,6 +435,10 @@ def _football_tennis(leg: Mapping[str, Any], sides: Sides | None
         return "Zakład bez remisu", sides[0 if direction == "OVER" else 1]
     if market == "first_goal" and subject in ("1", "2") and sides is not None:
         return "1. gol", sides[0 if subject == "1" else 1]
+    # epochs.FOOTBALL_SIM: the path markets (bet.sofa.football_sim_markets)
+    from bet.sofa import football_sim_markets as fsim
+    if market in fsim.MARKETS:
+        return fsim.superbet_words(market, subject, direction, sides)
 
     if market in ("match_won_for", "set1_won_for", "set2_won_for") \
             and sides is not None and direction in _OU:

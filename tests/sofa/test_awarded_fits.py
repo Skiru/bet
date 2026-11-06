@@ -30,7 +30,11 @@ from tests.sofa.test_cache_replay_holds_slim_events import _db, _event
 from tests.sofa.test_refit_replay_switch_guard import _cfg, _staged
 
 REPO = Path(__file__).resolve().parents[2]
-ON = {"closeness_stretch": True, "player_coverage": True, "awarded_excluded": True}
+# Every football / tennis switch a replay carries since 2026-11-05 (referee,
+# player share, P14, P1): without them the guard refuses before it warns.
+ON = {"closeness_stretch": True, "player_coverage": True, "awarded_excluded": True,
+      "referee": True, "player_share": True, "sample_conflict_cut": True,
+      "tennis_score_winner": True}
 
 
 def _awarded(e: dict[str, Any]) -> dict[str, Any]:

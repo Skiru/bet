@@ -60,6 +60,8 @@ from bet.sofa.reserve_squads import (
 )
 from bet.sofa.resolve import sofascore_gender
 from bet.sofa.samples import FRIENDLY_COMPETITION_IDS
+from bet.sofa.season_table import SeasonTable, TableScales
+from bet.sofa.season_table import adjust as table_adjust
 
 # The per-side metric every football market in scope is built from. A
 # ``_total`` market is the sum of the two sides' forecasts.
@@ -294,6 +296,9 @@ class FootballResult:
     # rule samples reads a fixture's round by): never a league for
     # RatingBook.current_league_domain.
     knockout: bool = False
+    # The final score (home, away), overtime included - the season table's
+    # result (bet.sofa.season_table); set by score_model.parse_event only.
+    final: tuple[float, float] | None = None
 
 
 def _unit(r: FootballResult, home: bool) -> int:
@@ -771,6 +776,29 @@ def _surprise(value: float, base: float) -> float:
     return min(value / base, MAX_SURPRISE)
 
 
+# epochs.FOOTBALL_FORM_TABLE (item 5 of the refit 2026-11-05, frozen rules
+# and measurement: docs/sofa/evidence/refit_replay_2026-11-05.md section 6):
+# the goals rating follows recent matches faster (FORM_TABLE_ALPHA, x1.25)
+# and the goals centres move by the season table as of the match (w and the
+# scales fitted on the training window 2026-06-01..09-30, by maximum
+# likelihood of 1X2 + DNB + DC + goals_for).
+FORM_TABLE_METRICS: frozenset[str] = frozenset({"goals_for", "goals_1h_for"})
+FORM_TABLE_ALPHA: dict[str, float] = {"goals_for": 0.05, "goals_1h_for": 0.025}
+FORM_TABLE_W = 0.341
+FORM_TABLE_SCALES = TableScales(ppg=0.891, position=0.423, diff=2.02)
+
+
+def enable_form_table(book: RatingBook) -> RatingBook:
+    """Turn the book into FOOTBALL_FORM_TABLE's: the faster goals step and an
+    empty season table. Call before the first update - the table counts only
+    what the book learns after it, as the book itself."""
+    book.alpha_override.update(FORM_TABLE_ALPHA)
+    book.season_table = SeasonTable(win_points=3.0, draw_points=1.0)
+    book.table_w = FORM_TABLE_W
+    book.table_scales = FORM_TABLE_SCALES
+    return book
+
+
 @dataclass
 class RatingBook:
     leagues: dict[tuple[int, str], _League] = field(
@@ -791,6 +819,16 @@ class RatingBook:
     # domain is the league it plays now (DOMAIN_ACTIVE_S), the modal rule
     # only when it has none
     current_league_domain: bool = False
+    # metric -> this book's own rating step, in place of ALPHA_BY_METRIC
+    # (a dated switch moves a step without touching a book another day
+    # replays; item 5 of the refit 2026-11-05). Empty = ALPHA_BY_METRIC.
+    alpha_override: dict[str, float] = field(default_factory=dict)
+    # the season table as of the book's last update (bet.sofa.season_table;
+    # epochs.FOOTBALL_FORM_TABLE, item 5 of the refit 2026-11-05): None =
+    # off; FootballForecast.centre moves FORM_TABLE_METRICS by exp(+-w d / 2)
+    season_table: SeasonTable | None = None
+    table_w: float = 0.0
+    table_scales: TableScales | None = None
     strength: dict[tuple[int, str], _Strength] = field(
         default_factory=lambda: defaultdict(_Strength))
     last_ts: int = 0
@@ -1036,6 +1074,12 @@ class RatingBook:
 
     def update(self, r: FootballResult) -> None:
         self.last_ts = max(self.last_ts, r.ts)
+        if self.season_table is not None:
+            goals = r.values.get("goals_for")
+            if goals is not None:
+                self.season_table.note(
+                    r.competition_id, getattr(r, "season_id", None), r.home_id,
+                    r.away_id, goals[0], goals[1], r.ts)
         women = bool(getattr(r, "women", False))
         if women:
             self.women_competitions.add(r.competition_id)
@@ -1069,7 +1113,8 @@ class RatingBook:
             exp = self.expected(
                 r.competition_id, r.home_id, r.away_id, metric, lf,
                 cross=status != LINKED)
-            alpha = ALPHA_BY_METRIC.get(metric, 0.04)
+            alpha = self.alpha_override.get(
+                metric, ALPHA_BY_METRIC.get(metric, 0.04))
             if exp is not None:
                 rates = self.league_rates(r.competition_id, metric)
                 assert rates is not None
@@ -1157,9 +1202,13 @@ def replay(
     cup_competitions: frozenset[int] = frozenset(),
     cup_eta: Mapping[str, float] | None = None,
     current_league_domain: bool = False,
+    form_table: bool = False,
 ) -> RatingBook:
     book = (RatingBook() if shared_league_link is None
             else RatingBook(shared_league_link=shared_league_link))
+    # epochs.FOOTBALL_FORM_TABLE: the faster goals step and the season table
+    if form_table:
+        enable_form_table(book)
     book.unit_strength_from_parent = unit_strength_from_parent
     # epochs.RATING_DOMAIN_CURRENT_LEAGUE (football only)
     book.current_league_domain = current_league_domain
@@ -1260,6 +1309,14 @@ class FootballForecast:
                 f"; cross-league: domains {self.book.domain(self.home_id)} vs "
                 f"{self.book.domain(self.away_id)}, log strength gap {lf:+.2f}"
             )
+        book = self.book
+        if (metric in FORM_TABLE_METRICS and book.season_table is not None
+                and book.table_w and book.table_scales is not None):
+            d = book.season_table.d(self.competition_id, self.home_id,
+                                    self.away_id, book.table_scales)
+            if d:
+                exp = table_adjust(exp[0], exp[1], d, book.table_w)
+                detail += f"; season table d {d:+.2f} (w {book.table_w:g})"
         if market.endswith("_total"):
             return exp[0] + exp[1], f"home {exp[0]:.2f} + away {exp[1]:.2f}, {detail}"
         if side == "side_a":

@@ -1413,6 +1413,42 @@ gdy wiersz go nie ma). Mecz do trzech wygranych setów albo bez id zawodnika =
 `docs/sofa/evidence/tennis_point_model_2026-11-05.md`; krzywe i wynik
 odtworzenia - rozdział 10.
 
+**Handicap gemów w secie z modelu punktowego (od 2026-11-07 00:00Z,
+`epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, operator 2026-11-06:
+„instaluj to, co lepsze od obecnego estymatora; ceny nie pobijemy").**
+`handicap_games_won_set1` / `_set2` dołączają do zakresu modelu punktowego
+(`epochs.tennis_point_markets`): „X (linia)" wygrywa, gdy przewaga gemów X w
+tym secie przekracza -linię (set rozegrany; push nie jest wygraną i nie wchodzi
+do udziału; tylko strona OVER - każdy zawodnik ma własny szczebel), liczone na
+tych samych symulacjach (`bet.sofa.tennis_handicap_point`). To wiersze
+pochodne: `derived.price_derived_rungs` bierze p z modelu przez `rating_p`
+(`run_sheet._point_model_rating_p`, notatka `TENNIS_POINT_MODEL: p ...`);
+bez p modelu wiersz jest NOT_RATED, nigdy z łącznego rozkładu prób. Znacznik wiersza `tennis_handicap_point_model_rule` (rebuild_plan
+powtarza SHEET). Wcześniej czytali je sąsiedzi ratingu
+(`TENNIS_SET_HANDICAP_NEIGHBOURS`). Pełny `handicap_games` zostaje na
+ratingu: na odłożonej próbie Brier lepszy punktowo, ale kalibracja >= 0,70 po
+krzywej -8,0 pp wobec -6,8 pp obecnego łańcucha (gorzej o więcej niż 1 pp).
+Pomiar: `docs/sofa/evidence/tennis_handicap_point_model_2026-11-06.md`.
+
+**Symulator piłki minuta po minucie (od 2026-11-07 00:00Z,
+`epochs.FOOTBALL_SIM_FROM_UTC`, operator 2026-11-06).** Rynki „ścieżki", których
+SHEET dotąd nie wyceniał - `epochs.FOOTBALL_SIM_MARKETS`: do przerwy / koniec
+meczu (`htft`), wynik 1. i 2. połowy, połowa z większą liczbą goli, drużyna
+strzeli w obu połowach, obie strzelą w połowach / w którejkolwiek połowie,
+pierwszy gol 1. połowy, gole w 1. i 2. połowie (`half_goals_combo`, linie
+0.5-3.5). OFFER je mapuje (`bet.sofa.football_sim_markets`, dokładne nazwy
+Superbetu), SETTLE rozlicza z wyniku po 90 minutach z doliczonym czasem i z
+`period1` (pierwszy gol 1. połowy z incydentów tylko, gdy w niej strzeliły obie
+strony; dane sprzeczne lub niepełne = odmowa, nigdy domysł), SHEET bierze
+`p_central` z `bet.sofa.football_sim` (`bet.sofa.football_sim_sheet`: 4 000
+symulacji z ziarnem = id meczu na centrach goli i kartek czystego ratingu,
+stałe `config/sofa_football_sim_params.json`). Wiersze tylko z ratingu - bez
+próbki, nigdy w builderze; znacznik `football_sim_rule` (rebuild_plan sam
+powtarza SHEET), notka `FOOTBALL_SIM`, `UNFITTED_CONSTANTS`. Przedziały minutowe
+i dokładny wynik połowy nie są wpięte (rozliczenie niepewne / lista
+niepełna). Pomiar i odłożona próba:
+`docs/sofa/evidence/football_sim_wiring_2026-11-06.md`; krzywe - rozdział 10.
+
 ### 7.1c Pakiety modelowe (zainstalowane 2026-10-08 23:42Z, WŁĄCZONE od 2026-10-09 00:00Z; poza `CARDS_CORRELATION`)
 
 Cztery pakiety zmierzone poza próbą na historii (raporty w
@@ -1919,6 +1955,41 @@ prawdziwych kuponach tego okna (2 075). E2E na kopii dnia 2026-11-05
 modelu zmienione (żadna zablokowana), +1 builder tenisa; pozostałe nogi
 identyczne poza numeracją pozycji i adnotacją peer; audyt bez różnic.
 
+**Tenis - krzywe handicapu w secie z modelu punktowego** (od
+`epochs.TENNIS_HANDICAP_POINT_MODEL_FROM_UTC` = 2026-11-07 00:00Z, grupa
+ledgera „od 11-07"). `handicap_games_won_set1/2` czytają krzywe wyłącznie z
+`config/sofa_tennis_handicap_point_curves.json` (nakładane przez
+`tennis_point_curves.for_day` po krzywych modelu punktowego, klucze w
+`no_pool_keys`), dopasowanych na krokowym przejściu modelu po historii
+2026-01-01..10-20 (53 235 meczów, 3,19 mln wierszy na liniach .5, klasa
+`tennis_women` osobno). Dowody z linii od p modelu: backfill
+`data/line_evidence/tennis_handicap_point_model_p.json.gz` (11 646 wierszy
+09-18..11-06, `fit_tennis_point_curves.py --handicap --backfill-out`), od
+11-07 własne `p_central` arkusza. Odłożona próba 10-20..11-05: Brier model -
+sąsiedzi -0,0114 [-0,0185; -0,0040], >= 0,70 po krzywej -1,0 pp [-3,8; +1,8]
+(sąsiedzi bez krzywej -6,7 pp), model - cena +0,0030 [-0,0006; +0,0070]
+(fakt, nie bramka).
+
+**Piłka - krzywe symulatora** (od `epochs.FOOTBALL_SIM_FROM_UTC` = 2026-11-07
+00:00Z, grupa ledgera „od 11-07", wspólna ze staged refitem). Klucze
+symulatora (7.1b) czytają krzywe wyłącznie z
+`config/sofa_football_sim_curves.json` (`bet.sofa.football_sim_curves`,
+nakładane po krzywych tenisa, klucze w `no_pool_keys`), dopasowanych przez
+`scripts/sofa/fit_football_sim_curves.py` na krokowym przejściu symulatora po
+historii 2026-06-01..10-20 (40 025 meczów, 2,68 mln wierszy, klasa `women`
+osobno). Próg 0,70 osiągają tylko `team_scores_both_halves` UNDER („nie
+strzeli w obu połowach") i `half_goals_combo` OVER; pozostałe 7 rynków jest
+rozliczanych, ale się nie drukuje. Dowody z linii tych kluczy
+`refresh_line_evidence.py` liczy z backfillu
+`data/line_evidence/football_sim_lines.jsonl.gz` (236 954 rozliczonych linii
+Superbetu 10-14..11-05) i od 11-07 z własnych wierszy; pule sportu bez zmian.
+Bramki druku bez zmian (0,70, x >= 0,90, marża 15% przy dwustronnych,
+jednostronne tylko z własną krzywą n >= 300). Odłożona próba 10-20..11-05
+(reguła zamrożona, krzywa + dzisiejsze dowody z linii + bramki): 2 183 nogi /
+1 791 meczów, pewność 0,790, trafione 0,810, trafione minus pewność +2,0 pp
+[+0,3; +3,6], ROI -4,2% [-6,3; -2,3] - reguła stopu PASS, przewagi nad ceną
+brak; sama krzywa -2,0 pp [-3,5; -0,5].
+
 **Epoka `stats_only` (od 2026-10-05 07:15Z, `bet.sofa.epochs`).** Pewność
 jest wyłącznie ze statystyk: SHEET trzyma cenę poza `p_central`, a cena jest
 tylko warunkiem zakładu — x = pewność × kurs ≥ 0,90, marża drabiny ≤ 15%,
@@ -2371,6 +2442,48 @@ Superbetu): w paśmie 0,7-0,8 deklarowane / trafione np. wolne trafione
 0,735 / 0,723 (stare punkty 0,740 / 0,705); powyżej 0,8 rodziny rzutów
 z gry zawyżają (z gry trafione 0,838 / 0,682 na 768).
 
+
+### Siatkówka - model wymian (od 2026-11-07 00:00Z, `epochs.VB_POINT_MODEL`)
+
+Operator 2026-11-06: „instaluj to, co lepsze od obecnego estymatora; ceny nie
+pobijemy". Linie siatkówki rynków `epochs.VB_POINT_MODEL_MARKETS` - zwycięzca
+(745), handicap punktów (1069), suma punktów (230060), handicap setów
+(100082), dokładny wynik w setach (785), zwycięzca seta (744), suma punktów
+w secie (782), parzystość punktów (200896) - biorą p z modelu wymian
+(`bet.sofa.volleyball_point_model` przez `bet.sofa.vb_point_pricer`), nie z
+modelu wyniku: siła drużyny na skali logitu wymiany na moment startu (filtr
+Kalmana na udziale punktów meczu, nowa drużyna startuje od średniej swojej
+ligi), łańcuch zagrywki z side-outem (sety do 25, piąty do 15, przewaga 2,
+zagrywa zwycięzca wymiany), 4 000 meczów symulowanych wymiana po wymianie z
+ziarnem = id meczu Sofascore, orientacja Superbetu (team1). Mecz bez id strony
+nie ma p (`NO_MODEL_P` - nigdy p modelu wyniku). Liczba setów, punkty z
+przewagą, rynki drużynowe setów i liczba setów pochodna zostają przy modelu
+wyniku. Noga ma pole `vb_point_model_rule` i `forecast_source:
+vb_point_model`; SPORT_CONFIDENCE liczy się przy każdej przebudowie, więc
+znacznik arkusza nie jest potrzebny.
+
+Krzywe tych kluczy: krokowe przejście modelu po historii 2025-10-01..
+2026-09-28 (25 051 meczów, 4,1 mln wierszy na liniach kwantylowych,
+`sport_confidence.fit_curves`, MIN_BUCKET 200) w
+`config/sofa_sport_confidence_calibration.next.2026-11-07.json`
+(`sports.volleyball.vb_point_model_curves` wymienia klucze; reszta pliku =
+`.next.2026-11-06.json`; plik i przełącznik idą razem - pilnuje tego test).
+Dowody z linii tych kluczy liczone od p modelu wymian:
+`data/line_evidence/volleyball_point_model_p.json.gz` (41 818 rozliczonych
+linii 09-29..11-05; ścieżka potoku odtwarza p pomiaru dokładnie na 41 712 z
+41 770 wspólnych linii), uzupełniane co rano przez
+`scripts/sofa/backfill_vb_point_p.py` (krok 1b `refresh_line_evidence.py`).
+Odłożona próba 10-20..11-05 (raz): Brier model - obecny ujemny w każdej
+podłączonej rodzinie (handicap punktów -0,0048, suma punktów -0,0052,
+handicap setów -0,0057, dokładny wynik -0,0014, suma w secie -0,0069,
+zwycięzca -0,0059, zwycięzca seta -0,0033, parzystość -0,0007); >= 0,70 po
+krzywej handicap punktów -19,7 pp (obecny -22,6 - dalej przeszacowuje),
+handicap setów -0,2 pp (-3,0), zwycięzca +2,8 (+0,5), zwycięzca seta +1,8;
+cena lepsza od obu we wszystkich rodzinach (fakt, nie bramka). E2E na kopii
+2026-11-05 (zegar 09:00Z): nogi siatkówki 23 -> 40 (+18 / -1; 12 z nich to
+zwycięzca seta), `NO_MODEL_P` 55 -> 7, żadna noga spoza zakresu nie zmieniona.
+Pomiar: `docs/sofa/evidence/volleyball_point_model_2026-11-06.md`. Grupa
+ledgera „od 11-07".
 
 ### Audyt pokrycia 2026-10-23 („ALL IN”) - przełączniki od 2026-10-24 00:00Z
 

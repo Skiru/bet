@@ -435,12 +435,17 @@ def test_simulated_first_goal_band_matches_the_reader() -> None:
 
 
 def test_no_pipeline_stage_reads_the_simulator() -> None:
-    """A measurement only: nothing but its own measurement script and this
-    test imports bet.sofa.football_sim."""
-    pat = re.compile(r"\bfootball_sim\b")
+    """Wired 2026-11-06 behind epochs.FOOTBALL_SIM: only the wiring modules
+    (football_sim_sheet for SHEET, the curve fit / backfill and the
+    measurements) import bet.sofa.football_sim itself; every pipeline stage
+    reaches it through them (tests/sofa/test_football_sim_wiring.py)."""
+    pat = re.compile(r"^\s*from bet\.sofa\.football_sim import", re.M)
     allowed = {
         REPO / "src/bet/sofa/football_sim.py",
+        REPO / "src/bet/sofa/football_sim_sheet.py",
         REPO / "scripts/sofa/measure_football_sim.py",
+        REPO / "scripts/sofa/fit_football_sim_curves.py",
+        REPO / "scripts/sofa/measure_football_sim_wiring.py",
     }
     hits = [
         p

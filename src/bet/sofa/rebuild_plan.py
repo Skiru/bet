@@ -138,6 +138,9 @@ class DayState:
     sheet_closeness_stretch: bool = True
     sheet_tennis_aces: bool = True
     sheet_tennis_point_model: bool = True
+    sheet_tennis_handicap_point_model: bool = True
+    sheet_form_table: bool = True
+    sheet_football_sim: bool = True
     # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
     # sheet written before the stamp; "mixed": rows disagree) and the files'
     # as they stand
@@ -318,6 +321,9 @@ AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
     epochs.FOOTBALL_PLAYER_SHARE_MARKER,
     epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
     epochs.TENNIS_POINT_MODEL_MARKER,
+    epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER,
+    epochs.FOOTBALL_FORM_TABLE_MARKER,
+    epochs.FOOTBALL_SIM_MARKER,
 )
 
 
@@ -383,6 +389,16 @@ def audit_sheet_stale(state: DayState) -> list[str]:
         (epochs.tennis_point_model(d, now), state.sheet_tennis_point_model,
          "tennis per-set games and serve-count rows read the bottom-up point "
          "model (epochs.tennis_point_model)"),
+        (epochs.tennis_handicap_point_model(d, now),
+         state.sheet_tennis_handicap_point_model,
+         "tennis per-set games handicap rows read the point model "
+         "(epochs.tennis_handicap_point_model)"),
+        (epochs.football_form_table(d, now), state.sheet_form_table,
+         "football goals centres read the form step and the season table "
+         "(epochs.football_form_table)"),
+        (epochs.football_sim(d, now), state.sheet_football_sim,
+         "football path markets (HT/FT, half results, ...) read the "
+         "minute-by-minute simulator (epochs.football_sim)"),
     )
     return [why for on, has, why in checks if on and not has]
 
@@ -582,6 +598,10 @@ def observe(runs_dir: str, date: str, now: datetime,
             epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER],
         sheet_tennis_aces=markers[epochs.TENNIS_ACES_OPPONENT_MARKER],
         sheet_tennis_point_model=markers[epochs.TENNIS_POINT_MODEL_MARKER],
+        sheet_tennis_handicap_point_model=markers[
+            epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER],
+        sheet_form_table=markers[epochs.FOOTBALL_FORM_TABLE_MARKER],
+        sheet_football_sim=markers[epochs.FOOTBALL_SIM_MARKER],
         sheet_config_sha=sheet_config_sha,
         config_sha=sheet_config.fingerprint(date=date, at=now),
         offer_has_tennis=offer_has_tennis,

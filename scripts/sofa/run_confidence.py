@@ -38,6 +38,7 @@ from pydantic import RootModel  # noqa: E402
 from bet.sofa import (  # noqa: E402
     curve_status,
     epochs,
+    football_sim_curves,  # noqa: E402
     live_only_curves,  # noqa: E402
     priced_rows,  # noqa: E402
     tennis_point_curves,  # noqa: E402
@@ -425,6 +426,9 @@ def main() -> int:
     # epochs.TENNIS_POINT_MODEL: the point model's keys read their own
     # history curves (config/sofa_tennis_point_curves.json)
     cal = tennis_point_curves.for_day(cal, args.date, now)
+    # epochs.FOOTBALL_SIM: the simulator's path-market keys read their own
+    # history curves (config/sofa_football_sim_curves.json)
+    cal = football_sim_curves.for_day(cal, args.date, now)
     if so:
         # K2: no anti-selection shrink toward the price; K13: a thin
         # direction bucket caps the market curve as it caps a pool.

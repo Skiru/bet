@@ -23,6 +23,13 @@ this model only.
 Simulation: 4,000 matches per fixture, seeded by the event id (the
 measurement's ``market_sim(f, n=4000, seed=eid % 2**31)``), so a re-run
 prices the same.
+
+``epochs.TENNIS_HANDICAP_POINT_MODEL`` widens the scope (``epochs.
+tennis_point_markets``) to the per-set games handicap: "X (line)" read off the
+same simulations by bet.sofa.tennis_handicap_point (X's games won minus lost
+in that set, the set played; a win when the margin exceeds -line, a push no
+win and out of the share; only the OVER side exists, each player's handicap
+its own rung). The pricer's ``markets`` is the day's scope.
 """
 
 from __future__ import annotations
@@ -34,7 +41,11 @@ from datetime import datetime
 
 import numpy as np
 
-from bet.sofa.epochs import TENNIS_POINT_MODEL_MARKETS
+from bet.sofa import tennis_handicap_point as thp
+from bet.sofa.epochs import (
+    TENNIS_HANDICAP_POINT_MODEL_MARKETS,
+    TENNIS_POINT_MODEL_MARKETS,
+)
 from bet.sofa.tennis_point_model import (
     NB_SHAPE,
     MarketSim,
@@ -51,8 +62,9 @@ NOTE = "TENNIS_POINT_MODEL"
 MARKETS = TENNIS_POINT_MODEL_MARKETS
 
 
-def in_scope(sport: object, market: str) -> bool:
-    return sport == "tennis" and market in MARKETS
+def in_scope(sport: object, market: str,
+             markets: frozenset[str] = MARKETS) -> bool:
+    return sport == "tennis" and market in markets
 
 
 def seed_of(event_id: int) -> int:
@@ -128,6 +140,8 @@ def _grid(market: str, side: int | None, ms: MarketSim) -> np.ndarray | None:
     """Per simulation, the value of a score market (games), or None for a
     serve count (a mixture, read by ``mean_sd``)."""
     sim = ms.sim
+    if market in TENNIS_HANDICAP_POINT_MODEL_MARKETS:
+        return None  # read by thp.mean_sd (needs the side)
     if market in ("games_set1_total", "games_set2_total"):
         k = 0 if market == "games_set1_total" else 1
         played = sim.sets_played > k
@@ -137,7 +151,10 @@ def _grid(market: str, side: int | None, ms: MarketSim) -> np.ndarray | None:
 
 def mean_sd(ms: MarketSim, market: str, side: int | None) -> tuple[float, float] | None:
     """The model's mean and spread of the row's quantity (conditional on the
-    set being played for a per-set market): the row's centre."""
+    set being played for a per-set market): the row's centre. A handicap
+    row: the subject's game margin in that set."""
+    if market in TENNIS_HANDICAP_POINT_MODEL_MARKETS:
+        return None if side is None else thp.mean_sd(ms, market, side)
     grid = _grid(market, side, ms)
     if grid is not None:
         if not len(grid):
@@ -183,6 +200,8 @@ class PointPricer:
 
     forecasts: Mapping[int, MatchForecast]
     sims: int = SIMS
+    # the day's scope (epochs.tennis_point_markets)
+    markets: frozenset[str] = MARKETS
     _cache: dict[int, MarketSim] = field(default_factory=dict)
 
     def market_sim(self, event_id: int) -> MarketSim | None:
@@ -200,8 +219,13 @@ class PointPricer:
         """P(the row wins): OVER = value > line, UNDER = value < line (an
         integer line pushes on equality - neither side wins it)."""
         ms = self.market_sim(event_id)
-        if ms is None or market not in MARKETS:
+        if ms is None or market not in self.markets:
             return None
+        if market in TENNIS_HANDICAP_POINT_MODEL_MARKETS:
+            # epochs.TENNIS_HANDICAP_POINT_MODEL: "X (line)", OVER only
+            if direction != "OVER" or side is None:
+                return None
+            return thp.p_handicap(ms, market, side, line)
         p_over = ms.p_over(market, side, line)
         if p_over is None:
             return None
@@ -212,6 +236,9 @@ class PointPricer:
             at_or_above = ms.p_over(market, side, line - 1.0)
             return None if at_or_above is None else 1.0 - at_or_above
         return 1.0 - p_over
+
+    def covers(self, sport: object, market: str) -> bool:
+        return in_scope(sport, market, self.markets)
 
     def centre(self, event_id: int, market: str,
                side: int | None) -> tuple[float, float] | None:

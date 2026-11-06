@@ -169,3 +169,38 @@ def test_halves_are_opt_in_and_prepare_refit_passes_them_only_when_asked(
             assert cmd[cmd.index("--halves") + 1] == "include"
         else:
             assert "--halves" not in cmd  # calibrate_from_cache's default: skip
+
+
+def test_a_commit_marker_frees_the_db_for_a_reader_mid_stream(
+    tmp_path: Path,
+) -> None:
+    """The player replay (--player-share) reads the DB while write_settled's
+    stream is open (refit 2026-11-05: "database is locked" on the VACUUM INTO
+    copy, journal_mode=delete). COMMIT ends the writer's transaction first."""
+    db = tmp_path / "sofa.db"
+    migrate(str(db))
+    seen: list[str] = []
+
+    def other_writer_can_lock() -> bool:
+        other = sqlite3.connect(db, timeout=0)
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.rollback()
+            return True
+        except sqlite3.OperationalError:
+            return False
+        finally:
+            other.close()
+
+    def rows() -> Any:
+        yield _row(10, "goals_1h_total", 0.8, True)
+        seen.append(f"open:{other_writer_can_lock()}")
+        yield cfc.COMMIT
+        seen.append(f"committed:{other_writer_can_lock()}")
+        yield _row(20, "goals_1h_total", 0.7, False)
+
+    assert cfc.write_settled(rows(), db) == 2
+    # mid-transaction the DB is held; after the marker it is free
+    assert seen == ["open:False", "committed:True"]
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sofa_settled_row").fetchone() == (2,)

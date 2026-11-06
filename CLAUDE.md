@@ -174,6 +174,35 @@ and a miss recorded before a rule's switch never blocks that rule.
   model's p (`data/line_evidence/tennis_point_model_p.json.gz` backfill), the
   sport pools unchanged. `games_total` / `games_won_for` keep today's
   estimator. Hold-out replay of the wired chain 10-20..11-04: see model-state.md.
+- **Tennis per-set handicap from the point model, 2026-11-07**
+  (`TENNIS_HANDICAP_POINT_MODEL_FROM_UTC`, operator 11-06: "install what beats
+  the current estimator"): `handicap_games_won_set1/2` join the point model's
+  scope (`epochs.tennis_point_markets`; margin read by
+  `bet.sofa.tennis_handicap_point`, OVER only; derived rows take p through
+`run_sheet._point_model_rating_p`, none = NOT_RATED, never the joint), curves
+  `config/sofa_tennis_handicap_point_curves.json`, line evidence from
+  `data/line_evidence/tennis_handicap_point_model_p.json.gz`, row marker
+  `tennis_handicap_point_model_rule`. Hold-out 10-20..11-05: Brier vs the
+  neighbours -0.0114 [-0.0185, -0.0040], >= 0.70 after the curve -1.0 pp
+  (neighbours -6.7); vs the price +0.0030 (reported). Full-match
+  `handicap_games` stays on the rating (calibration -8.0 vs -6.8 pp failed the
+  rule; `docs/sofa/evidence/tennis_handicap_point_model_2026-11-06.md`).
+- **Football minute simulator from 2026-11-07** (`FOOTBALL_SIM_FROM_UTC`,
+  operator 11-06; `bet.sofa.football_sim_sheet`): the path markets SHEET
+  never priced - `epochs.FOOTBALL_SIM_MARKETS` (HT/FT, 1H / 2H result,
+  higher-scoring half, team scores in both halves, BTTS by halves / in either
+  half, 1H first goal, half goals combo; `bet.sofa.football_sim_markets`,
+  mapped by OFFER, graded by SETTLE on the 90-minute and `period1` scores,
+  the 1H first goal from incidents only when both sides scored, a
+  contradiction refused) - take p_central from `bet.sofa.football_sim` (4,000
+  sims seeded by event id on SHEET's pure rating centres; rating-only rows,
+  never in a builder; marker `football_sim_rule`, rebuild_plan re-runs SHEET).
+  CONFIDENCE reads them only from `config/sofa_football_sim_curves.json`
+  (`bet.sofa.football_sim_curves`, walk-forward over history 06-01..10-20,
+  never pooled); line evidence from the backfill
+  `data/line_evidence/football_sim_lines.jsonl.gz`. Only
+  `team_scores_both_halves` UNDER and `half_goals_combo` OVER reach 0.70;
+  minute bands are not wired (not reliably settleable). Hold-out: model-state.md.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a
   past match whose payload contradicts itself loses only the metrics that read
   the contradiction (`metrics.identity_gap_for_metric`: shots identity -> shot
@@ -221,6 +250,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   price, margin accepted" - hold-out calibrated and at the de-vigged price,
   ROI -4.6%): such a leg carries `floor_rule`, never joins a builder, C2
   audits its own floor; every other gate unchanged (model-state.md).
+  The football simulator's keys (from 2026-11-07) print on the same gates:
+  0.70, x >= 0.90, 15% margin on the two-sided rungs, one-sided only from
+  their own curve with n >= 300.
 - **Refusals worth knowing** (each named on the row):
   - `CROSS_LEAGUE_UNLINKED`: a football pair is LINKED only when both sides'
     leagues are the competition they share (the hockey / basketball /
@@ -442,6 +474,25 @@ measurement of Superbet's price and feed nothing else.
   `config/sofa_sport_confidence_calibration.next.2026-11-06.json`. Settled
   Superbet lines 10-18..11-04: >= 0.70 -14.1 -> -0.0 pp, log loss -0.021; most
   period legs stop printing (model-state.md).
+- **Volleyball rally-point model** (`VB_POINT_MODEL`, from 2026-11-07
+  00:00Z, operator 11-06: "install what beats the current estimator; the
+  price need not be beaten"; ledger group "od 11-07"): the lines of
+  `epochs.VB_POINT_MODEL_MARKETS` (winner, points / set handicap, points /
+  set-points totals, exact sets, set winner, points parity) take p from
+  `bet.sofa.volleyball_point_model` through `bet.sofa.vb_point_pricer` (team
+  rally strength as of the start, Kalman on the point share, league-mean
+  prior; side-out chain, 4,000 seeded rally-by-rally matches) in
+  SPORT_CONFIDENCE (`DbForecaster`, leg field `vb_point_model_rule`,
+  `forecast_source: vb_point_model`); sets total, extra points, team-set and
+  sets-count markets keep the score model. Their curves: the rally model's
+  walk-forward in `config/sofa_sport_confidence_calibration.next.2026-11-07.json`
+  (`sports.volleyball.vb_point_model_curves`; the file and the switch move
+  together); line evidence at the rally p (`vb_point_pricer.BACKFILL`, kept by
+  `backfill_vb_point_p.py`, refresh step 1b). Hold-out 10-20..11-05 vs the
+  current chain: Brier better in every wired family (points handicap -0.0048,
+  set handicap -0.0057, ...), >= 0.70 points handicap -19.7 pp (current
+  -22.6) - still over-promising; the price beats both
+  (`docs/sofa/evidence/volleyball_point_model_2026-11-06.md`).
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl`; no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from SHADOW_SETTLE's

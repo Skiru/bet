@@ -17,6 +17,7 @@ from pydantic import RootModel
 from rapidfuzz import fuzz
 
 from bet.sofa import epochs, sheet_config
+from bet.sofa import football_sim_sheet as fss
 from bet.sofa import player_share as psh
 from bet.sofa import referees as referee_terms
 from bet.sofa import tennis_aces_opponent as aces_opp
@@ -76,6 +77,7 @@ from bet.sofa.engine import (
 from bet.sofa.epochs import (
     DERIVED_MARGINAL_CENTRES_METRICS,
     STATS_ONLY,
+    TENNIS_HANDICAP_POINT_MODEL_MARKETS,
     derived_marginal_centres_enabled,
     tennis_rating_prices,
 )
@@ -154,6 +156,8 @@ from bet.sofa.football_score_markets import note as score_market_note
 from bet.sofa.football_score_markets import row_p as score_market_row_p
 from bet.sofa.football_score_markets import score_grid
 from bet.sofa.football_score_markets import valid_rung as score_market_rung
+from bet.sofa.football_sim_markets import MARKETS as SIM_MARKETS
+from bet.sofa.football_sim_markets import TWO_SIDED as SIM_TWO_SIDED
 from bet.sofa.game_state import GameStateTable
 from bet.sofa.game_state import load_table as load_game_state_table
 from bet.sofa.goals_stretch import (
@@ -994,10 +998,12 @@ def load_tennis_rating(
 def load_point_pricer(
     db_path: str, fixtures_by_id: Mapping[int, Fixture],
     offers: Sequence[FixtureOffer], only_ids: set[int] | None,
+    markets: frozenset[str] = tps.MARKETS,
 ) -> tps.PointPricer | None:
     """epochs.TENNIS_POINT_MODEL: the day's tennis fixtures with an in-scope
     rung forecast as of their starts (None when there is none - the history
-    is not read)."""
+    is not read). `markets`: the day's scope (epochs.tennis_point_markets;
+    TENNIS_HANDICAP_POINT_MODEL adds the per-set games handicap)."""
     wanted: list[Fixture] = []
     for offer in offers:
         if offer.status == "NO_PRICE":
@@ -1007,7 +1013,7 @@ def load_point_pricer(
         fx = fixtures_by_id.get(offer.sofascore_event_id)
         if fx is None or fx.sport != "tennis":
             continue
-        if any(tps.in_scope(fx.sport, r.market) for r in offer.rungs):
+        if any(tps.in_scope(fx.sport, r.market, markets) for r in offer.rungs):
             wanted.append(fx)
     if not wanted:
         return None
@@ -1017,7 +1023,8 @@ def load_point_pricer(
         fx.sofascore_event_id, fx.kickoff_utc, fx.home_entity_id,
         fx.away_entity_id, fx.category_name, fx.ground_type,
         fx.competition_id, fx.default_period_count, female_of)) is not None]
-    return tps.PointPricer(tps.forecast_fixtures(history, matches))
+    return tps.PointPricer(tps.forecast_fixtures(history, matches),
+                           markets=markets)
 
 
 def sample_centre(
@@ -1359,6 +1366,28 @@ def _stats_only_rating_p(
         if market not in RATING_PRICED_MARKETS or side not in ("side_a", "side_b"):
             return None
         return rating.read(market, side, line, direction)
+    return read
+
+
+def _point_model_rating_p(
+    point_pricer: tps.PointPricer, event_id: int,
+    base: Callable[[str, str | None, float, str], float | None] | None,
+) -> Callable[[str, str | None, float, str], float | None]:
+    """epochs.TENNIS_HANDICAP_POINT_MODEL: the per-set games handicap
+    (derived rows) reads the point model; every other derived market the
+    rating as before."""
+    def read(
+        market: str, side: str | None, line: float, direction: str
+    ) -> float | None:
+        if market in TENNIS_HANDICAP_POINT_MODEL_MARKETS:
+            if market not in point_pricer.markets:
+                return None if base is None else base(
+                    market, side, line, direction)
+            index = {"side_a": 0, "side_b": 1}.get(side or "")
+            if index is None:
+                return None
+            return point_pricer.p(event_id, market, index, line, direction)
+        return None if base is None else base(market, side, line, direction)
     return read
 
 
@@ -1850,6 +1879,58 @@ def incident_rows(
     return rows, skipped
 
 
+def sim_rows(
+    fixture: Fixture,
+    rung: PricedRung,
+    football: FootballForecast | None,
+    pricer: fss.SimPricer,
+    market_ps: dict[tuple[str, str, float, str], float],
+    stats_only: bool,
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.FOOTBALL_SIM: the rows of one football path-market rung (HT/FT,
+    half results, ... - bet.sofa.football_sim_markets) priced by the
+    minute-by-minute simulator on the pure rating centres
+    (bet.sofa.football_sim_sheet) - no sample, no price. A multi-way market
+    OVER only (one-sided), the two yes / no markets both directions. No
+    goals centre for a side: no row (never another estimator - the keys'
+    curves describe the simulator only)."""
+    marker = {epochs.FOOTBALL_SIM_MARKER[0]: epochs.FOOTBALL_SIM}
+    centres = fss.centres_of(football)
+    if centres is None:
+        return [], [(rung, GapReason.NOT_RATED,
+                     "epochs.FOOTBALL_SIM: no football rating goals centre for "
+                     "one of the sides (thin team, friendly, no league rate)")]
+    directions: tuple[Literal["OVER", "UNDER"], ...] = (
+        _BOTH_DIRECTIONS if rung.market in SIM_TWO_SIDED else ("OVER",))
+    rows: list[SheetRow] = []
+    skipped: list[tuple[Any, GapReason, str]] = []
+    for direction in directions:
+        p = pricer.p(fixture.sofascore_event_id, centres, rung.market,
+                     rung.subject, direction)
+        if p is None:
+            skipped.append((rung, GapReason.NOT_RATED,
+                            f"epochs.FOOTBALL_SIM: no simulator p for "
+                            f"{rung.market} {rung.subject!r} {direction}"))
+            continue
+        if outside_model_resolution(p):
+            skipped.append((rung, GapReason.OUTSIDE_MODEL_RESOLUTION,
+                            f"p={p:.4g} for {direction} is outside "
+                            f"[{P_FLOOR}, {P_CEILING}]"))
+            continue
+        notes = [fss.note(rung.market, rung.subject, direction, p, centres,
+                          pricer.sims)]
+        if football is not None and football.fixture_link() == UNLINKED:
+            notes.append(
+                f"{CROSS_LEAGUE_UNLINKED_NOTE}: the two sides share no league "
+                "and their leagues' strengths are unmeasured - the rating "
+                "describes other leagues")
+        notes.append(f"UNFITTED_CONSTANTS: {', '.join(RATING_UNFITTED)}")
+        rows.append(_model_only_row(fixture, rung, direction, p, notes,
+                                    market_ps, stats_only, "football_sim",
+                                    marker))
+    return rows, skipped
+
+
 def card_half_term_mults(
     football: FootballForecast | None,
     game_state: GameStateTable | None,
@@ -2248,6 +2329,9 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_PLAYER_SHARE_MARKER,
     epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
     epochs.TENNIS_POINT_MODEL_MARKER,
+    epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER,
+    epochs.FOOTBALL_FORM_TABLE_MARKER,
+    epochs.FOOTBALL_SIM_MARKER,
 ))
 
 
@@ -2417,6 +2501,7 @@ def process_fixture(
     referee_reads: Mapping[str, RefereeRead] | None = None,
     joint_side_chain_on: bool = False,
     point_pricer: tps.PointPricer | None = None,
+    sim_pricer: fss.SimPricer | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2566,6 +2651,13 @@ def process_fixture(
                     stats_only)
                 rows.extend(c_rows)
                 skipped.extend(c_skipped)
+            # epochs.FOOTBALL_SIM (None while off - OFFER maps no such rung)
+            if (sim_pricer is not None and fixture.sport == "football"
+                    and rung.market in SIM_MARKETS):
+                f_rows, f_skipped = sim_rows(
+                    fixture, rung, football, sim_pricer, market_ps, stats_only)
+                rows.extend(f_rows)
+                skipped.extend(f_skipped)
             if (set_markets_on and fixture.sport == "tennis"
                     and rung.market in SET_MARKETS):
                 s_rows, s_skipped = set_market_rows(
@@ -2903,7 +2995,7 @@ def process_fixture(
         # curves describe this model only).
         point_side: int | None = None
         point_on_row = (point_pricer is not None
-                        and tps.in_scope(fixture.sport, rung.market))
+                        and point_pricer.covers(fixture.sport, rung.market))
         if point_on_row and point_pricer is not None:
             p_side_key = (determine_side(rung.subject, fixture)
                           if rung.subject else None)
@@ -3444,6 +3536,20 @@ def process_fixture(
             centre_terms=centre_terms if joint_side_chain_on else None,
             sample_corrector=sample_corrector if joint_side_chain_on else None,
         )
+    derived_rating_p: Callable[[str, str | None, float, str], float | None] | None = (
+        rating.probability if rating is not None and not stats_only
+        else _stats_only_rating_p(rating)
+        if rating is not None and rating_prices else None
+    )
+    # epochs.TENNIS_HANDICAP_POINT_MODEL: the per-set handicap rows read the
+    # point model (a row it cannot price is refused, never the joint)
+    point_derived = (
+        point_pricer.markets & TENNIS_HANDICAP_POINT_MODEL_MARKETS
+        if point_pricer is not None and fixture.sport == "tennis"
+        else frozenset())
+    if point_derived and point_pricer is not None:
+        derived_rating_p = _point_model_rating_p(
+            point_pricer, fixture.sofascore_event_id, derived_rating_p)
     derived_rows, derived_skipped = price_derived_rungs(
         fixture=fixture,
         samples=samples,
@@ -3460,11 +3566,8 @@ def process_fixture(
                 reliability, market, p, direction
             ),
         ),
-        rating_p=(
-            rating.probability if rating is not None and not stats_only
-            else _stats_only_rating_p(rating)
-            if rating is not None and rating_prices else None
-        ),
+        rating_p=derived_rating_p,
+        point_markets=frozenset(point_derived),
         rating_note=(
             partial(rating_note, rating)
             if rating is not None and not stats_only else None
@@ -3635,6 +3738,9 @@ def _main() -> int:
             # epochs.RATING_DOMAIN_CURRENT_LEAGUE: a side's domain is the
             # league it plays now (a promoted / relegated side)
             current_league_domain=epochs.rating_domain_current_league(args.date),
+            # epochs.FOOTBALL_FORM_TABLE (item 5 of the refit 2026-11-05):
+            # the goals step x1.25 and the season table's centre move
+            form_table=epochs.football_form_table(args.date),
             # epochs.FOOTBALL_CUP_STRENGTH: the league strength learnt in
             # international club cups (a missing / malformed file raises, rc 2)
             **cup_book_args(cup_strength_on),
@@ -3802,9 +3908,21 @@ def _main() -> int:
     # tennis from the bottom-up point model, each fixture forecast as of its
     # start from the cached history (bet.sofa.tennis_point_sheet)
     point_model_on = stats_only and epochs.tennis_point_model(args.date)
+    # epochs.TENNIS_HANDICAP_POINT_MODEL: the per-set games handicap too
+    handicap_point_on = (point_model_on
+                         and epochs.tennis_handicap_point_model(args.date))
     point_pricer = (
-        load_point_pricer(config.db_path, fixtures_by_id, offers, only_ids)
+        load_point_pricer(config.db_path, fixtures_by_id, offers, only_ids,
+                          epochs.tennis_point_markets(args.date))
         if point_model_on else None)
+
+    # epochs.FOOTBALL_SIM: the football path markets from the
+    # minute-by-minute simulator on the fixture's pure rating centres
+    # (bet.sofa.football_sim_sheet); without the fitted constants the switch
+    # prices nothing (the rows are refused NOT_RATED by their absence)
+    football_sim_on = stats_only and epochs.football_sim(args.date)
+    sim_params = fss.load_params() if football_sim_on else None
+    sim_pricer = fss.SimPricer(sim_params) if sim_params is not None else None
 
     try:
         for offer in offers:
@@ -3902,7 +4020,10 @@ def _main() -> int:
                     else None),
                 score_markets=score_markets_config,
                 point_pricer=point_pricer,
+                sim_pricer=sim_pricer,
             )
+            if sim_pricer is not None:
+                sim_pricer.forget(fixture.sofascore_event_id)
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
                 skip_reasons[reason.value] = skip_reasons.get(reason.value, 0) + 1
@@ -3971,6 +4092,11 @@ def _main() -> int:
             (epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
              closeness_stretch_table is not None),
             (epochs.TENNIS_POINT_MODEL_MARKER, point_model_on),
+            (epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER, handicap_point_on),
+            (epochs.FOOTBALL_SIM_MARKER, football_sim_on),
+            (epochs.FOOTBALL_FORM_TABLE_MARKER,
+             football_book is not None
+             and epochs.football_form_table(args.date)),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
         # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
@@ -4075,8 +4201,20 @@ def _main() -> int:
                 if closeness_stretch_table is not None else "old"),
             "tennis_point_model_rule": (
                 epochs.TENNIS_POINT_MODEL if point_model_on else "old"),
+            "tennis_handicap_point_model_rule": (
+                epochs.TENNIS_HANDICAP_POINT_MODEL if handicap_point_on
+                else "old"),
+            "form_table_rule": (
+                epochs.FOOTBALL_FORM_TABLE
+                if football_book is not None
+                and epochs.football_form_table(args.date) else "old"),
             "tennis_point_model_fixtures": (
                 len(point_pricer.forecasts) if point_pricer is not None else 0),
+            # epochs.FOOTBALL_SIM: absent while off (the summary as before)
+            **({"football_sim_rule": epochs.FOOTBALL_SIM,
+                "football_sim_rows": sum(
+                    1 for r in all_rows if r.market in SIM_MARKETS)}
+               if football_sim_on else {}),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

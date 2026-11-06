@@ -53,8 +53,10 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from bet.sofa import (  # noqa: E402
     epochs,
+    football_sim_curves,
     live_only_curves,
     tennis_point_curves,
+    vb_point_pricer,
 )
 from bet.sofa import line_evidence as le  # noqa: E402
 from bet.sofa import sport_confidence as scf  # noqa: E402
@@ -100,13 +102,15 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                derived_curves: bool = False,
                per_line: bool = False,
                point_p: Mapping[str, float] | None = None,
-               point_switch_day: str | None = None) -> Iterator[le.Row]:
+               point_before: str | None = None) -> Iterator[le.Row]:
     """`per_line`: read a men's football line through its own line curve
     (epochs.LINE_CURVES), as CONFIDENCE will on the --before day - the
     offsets are applied to that day's base. `point_p` (epochs.
     TENNIS_POINT_MODEL on the --before day, else None): ONLY the tennis lines
     of the point model's keys, each at the point model's p
-    (tennis_point_curves.evidence_p) or skipped."""
+    (tennis_point_curves.evidence_p_for: the scope and switch days of the
+    `point_before` day - TENNIS_HANDICAP_POINT_MODEL adds the per-set games
+    handicap) or skipped."""
     for day in days:
         run_dir = runs_dir / day
         fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
@@ -127,8 +131,8 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                 else fx.get("competition_name"), board, fx.get("competition_id"))
             p = float(r["p_central"])
             if point_p is not None:
-                scoped, pp = tennis_point_curves.evidence_p(
-                    r, day, point_p, point_switch_day)
+                scoped, pp = tennis_point_curves.evidence_p_for(
+                    r, day, point_p, point_before or day)
                 if not scoped or pp is None:
                     continue  # the point model's lines only, at its own p
                 p = pp
@@ -167,7 +171,12 @@ def graded_odds(runs_dir: str, sport: str, date: str
 
 
 def sport_rows(rows_dir: Path, calibration: scf.SportCalibration,
-               runs_dir: str) -> Iterator[le.Row]:
+               runs_dir: str,
+               vb_point_p: Mapping[str, float] | None = None) -> Iterator[le.Row]:
+    """`vb_point_p` (epochs.VB_POINT_MODEL on the --before day, else None):
+    a volleyball line of the rally model's markets is read at the rally
+    model's p (vb_point_pricer.BACKFILL) or skipped - never at the score
+    model's, these keys' curves describe the rally model."""
     for sport in scf.SPORT_KEYS:
         path = rows_dir / f"{sport}_superbet_settled.jsonl"
         if not path.exists():
@@ -176,9 +185,17 @@ def sport_rows(rows_dir: Path, calibration: scf.SportCalibration,
         for line in path.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
             family, side = str(r["key"]).split("|")
+            _, date, eid = str(r["game"]).split(":")
+            if vb_point_p is not None and vb_point_pricer.in_scope(
+                    sport, r.get("market_id")):
+                vb_p = vb_point_p.get(vb_point_pricer.backfill_key(
+                    date, eid, r["market_id"], r.get("period"), r.get("subject"),
+                    r.get("line"), r["side"]))
+                if vb_p is None:
+                    continue
+                r["p"] = vb_p
             conf = calibration.lookup(sport, family, side, float(r["p"]),
                                       require_admitted=False)
-            _, date, eid = str(r["game"]).split(":")
             if date not in prices:
                 prices[date] = graded_odds(runs_dir, sport, date)
             odds = prices[date].get((eid, r["family"], int(r.get("period") or 0),
@@ -282,13 +299,31 @@ def main() -> int:
     # other key stays the fit above
     point_p: dict[str, float] | None = None
     if epochs.tennis_point_model(args.before):
-        point_p = tennis_point_curves.load_backfill()
-        point_day = (epochs.TENNIS_POINT_MODEL_FROM_UTC.strftime("%Y-%m-%d")
-                     if epochs.TENNIS_POINT_MODEL_FROM_UTC else None)
+        point_p = tennis_point_curves.load_backfill(
+            handicap=epochs.tennis_handicap_point_model(args.before))
         point_fit = le.fit(sheet_rows(
             runs_dir, days, tennis_point_curves.for_day(cal, args.before),
-            False, False, point_p, point_day))
-        tennis_point_curves.merge_evidence(fitted, point_fit)
+            False, False, point_p, args.before))
+        tennis_point_curves.merge_evidence(
+            fitted, point_fit,
+            markets=tennis_point_curves.markets_for(args.before))
+    # epochs.FOOTBALL_SIM: the simulator's keys' own entries from their lines
+    # at the simulator's p against their own curves - the backfilled Superbet
+    # lines before the switch (football_sim_curves.BACKFILL), the days' own
+    # settled rows from it; every pooled number stays the fit above
+    sim_lines: list[dict[str, Any]] | None = None
+    if epochs.football_sim(args.before):
+        sim_cal = football_sim_curves.for_day(cal, args.before)
+        sim_day = (epochs.FOOTBALL_SIM_FROM_UTC.strftime("%Y-%m-%d")
+                   if epochs.FOOTBALL_SIM_FROM_UTC else None)
+        sim_lines = football_sim_curves.load_backfill()
+        live_days = [d for d in days if sim_day is not None and d >= sim_day]
+        sim_fit = le.fit([
+            *football_sim_curves.backfill_rows(sim_lines, args.before, sim_cal,
+                                               sim_day),
+            *(r for r in sheet_rows(runs_dir, live_days, sim_cal)
+              if football_sim_curves.ours(str(r["key"])))])
+        football_sim_curves.merge_evidence(fitted, sim_fit)
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     sport_by_gap = dict(fitted["sport_printable_by_gap"])
@@ -299,8 +334,11 @@ def main() -> int:
     sport_source = "none"
     if sport_cal is not None:
         if args.sport_rows_dir:
+            # epochs.VB_POINT_MODEL: the rally model's lines at its own p
+            vb_p = (vb_point_pricer.load_backfill()
+                    if epochs.vb_point_model(args.before) else None)
             sport_fit = le.fit([*sport_rows(Path(args.sport_rows_dir), sport_cal,
-                                            config.runs_dir),
+                                            config.runs_dir, vb_p),
                                 *player_rows(config.runs_dir, args.before)])
             keys.update(sport_fit["keys"])
             bands.update(sport_fit["bands"])
@@ -308,6 +346,9 @@ def main() -> int:
             sport_by_gap.update(sport_fit["sport_printable_by_gap"])
             design_effect.update(sport_fit["design_effect"])
             sport_source = f"rows:{args.sport_rows_dir}"
+            if vb_p is not None:
+                sport_source += (f"; volleyball rally model p "
+                                 f"(epochs.VB_POINT_MODEL): {len(vb_p)} lines")
         else:
             keys.update(sport_section(sport_cal))
             sport_source = "calibration:oos.superbet_settled (no price-band cap)"
@@ -322,6 +363,10 @@ def main() -> int:
             # in-scope tennis lines (tennis_point_curves.BACKFILL)
             "tennis_point_model_backfill": (
                 None if point_p is None else len(point_p)),
+            # epochs.FOOTBALL_SIM: backfilled graded Superbet lines of the
+            # path markets (football_sim_curves.BACKFILL)
+            "football_sim_backfill": (
+                None if sim_lines is None else len(sim_lines)),
             "sport_source": sport_source,
             "sport_calibration_fitted_from": None if sport_cal is None
             else sport_cal.fitted_from,

@@ -66,7 +66,10 @@ from bet.sofa import tennis_point_sheet as tps  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import CLASS_TENNIS_WOMEN, direction_key  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
-from bet.sofa.epochs import TENNIS_POINT_MODEL_MARKETS  # noqa: E402
+from bet.sofa.epochs import (  # noqa: E402
+    TENNIS_HANDICAP_POINT_MODEL_MARKETS,
+    TENNIS_POINT_MODEL_MARKETS,
+)
 from bet.sofa.tennis_point_model import (  # noqa: E402
     MatchForecast,
     PointMatch,
@@ -216,18 +219,20 @@ def sections(counts: dict[str, Counts]) -> dict[str, Any]:
     }
 
 
-def _day_rows(run_dir: Path) -> list[dict[str, Any]]:
+def _day_rows(run_dir: Path,
+              markets: frozenset[str] = tps.MARKETS) -> list[dict[str, Any]]:
     """The in-scope tennis rows of a day: its settled rows (what the line
     evidence reads), or its sheet while it is not settled yet."""
     for name in ("07_settled.json", "05_sheet.json"):
         path = run_dir / name
         if path.exists():
             return [r for r in json.loads(path.read_text(encoding="utf-8"))
-                    if tps.in_scope(r.get("sport"), str(r.get("market")))]
+                    if tps.in_scope(r.get("sport"), str(r.get("market")), markets)]
     return []
 
 
-def backfill(history: Sequence[PointMatch], runs_dir: Path, days: Sequence[str]
+def backfill(history: Sequence[PointMatch], runs_dir: Path, days: Sequence[str],
+             markets: frozenset[str] = tps.MARKETS,
              ) -> tuple[dict[str, float], dict[str, int]]:
     """The point model's p of every in-scope tennis row of `days`, priced by
     SHEET's own path (run_sheet.load_point_pricer's pieces: the fixture from
@@ -245,7 +250,7 @@ def backfill(history: Sequence[PointMatch], runs_dir: Path, days: Sequence[str]
               "no_side": 0, "no_p": 0}
     for day in days:
         run_dir = runs_dir / day
-        rows = _day_rows(run_dir)
+        rows = _day_rows(run_dir, markets)
         if not rows:
             continue
         per_day[day] = rows
@@ -265,7 +270,8 @@ def backfill(history: Sequence[PointMatch], runs_dir: Path, days: Sequence[str]
                 fx.competition_id, fx.default_period_count, female_of)
             if m is not None:
                 matches[m.event_id] = m
-    pricer = tps.PointPricer(tps.forecast_fixtures(history, list(matches.values())))
+    pricer = tps.PointPricer(tps.forecast_fixtures(history, list(matches.values())),
+                             markets=markets)
     out: dict[str, float] = {}
     for day, rows in per_day.items():
         for r in rows:
@@ -325,6 +331,10 @@ def main() -> int:
                     help="write the point model's p of every in-scope tennis "
                     "sheet row of --backfill-from..--backfill-to (gzipped JSON, "
                     "tennis_point_curves.BACKFILL) instead of fitting curves")
+    ap.add_argument("--handicap", action="store_true",
+                    help="with --backfill-out: the per-set games handicap "
+                    "(epochs.TENNIS_HANDICAP_POINT_MODEL_MARKETS, "
+                    "tennis_point_curves.HANDICAP_BACKFILL) instead")
     ap.add_argument("--backfill-from", default="2026-09-18")
     ap.add_argument("--backfill-to", default="2026-11-05")
     ap.add_argument("--runs-dir", default=str(_REPO / "runs" / "sofa"))
@@ -340,7 +350,10 @@ def main() -> int:
         days = sorted(d.name for d in runs.iterdir()
                       if d.is_dir() and len(d.name) == 10 and d.name[4] == "-"
                       and args.backfill_from <= d.name <= args.backfill_to)
-        out, counts = backfill(history, runs, days)
+        out, counts = backfill(
+            history, runs, days,
+            TENNIS_HANDICAP_POINT_MODEL_MARKETS if args.handicap
+            else tps.MARKETS)
         with gzip.open(args.backfill_out, "wt", encoding="utf-8") as fh:
             json.dump(out, fh)
         print(json.dumps({"stage": "TENNIS_POINT_BACKFILL", "verdict": "OK",
