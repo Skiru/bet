@@ -1988,7 +1988,24 @@ jednostronne tylko z własną krzywą n >= 300). Odłożona próba 10-20..11-05
 (reguła zamrożona, krzywa + dzisiejsze dowody z linii + bramki): 2 183 nogi /
 1 791 meczów, pewność 0,790, trafione 0,810, trafione minus pewność +2,0 pp
 [+0,3; +3,6], ROI -4,2% [-6,3; -2,3] - reguła stopu PASS, przewagi nad ceną
-brak; sama krzywa -2,0 pp [-3,5; -0,5].
+brak; sama krzywa -2,0 pp [-3,5; -0,5] (po dodaniu pominiętej bramki
+`ODDS_TOO_LOW`: 1 971 nóg, +1,9 pp [+0,2; +3,6], ROI -4,2%).
+
+**Piłka - próg 0,60 dla czterech kluczy symulatora** (od
+`epochs.FOOTBALL_SIM_FLOOR_FROM_UTC` = 2026-11-07 00:00Z, razem z
+`FOOTBALL_SIM`; operator 2026-11-06 „TAK!"; grupa ledgera „od 11-07"). Noga
+`team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half` UNDER
+albo `btts_halves` OVER przechodzi próg przy pewności 0,60
+(`FOOTBALL_SIM_FLOOR_KEYS`, `epochs.leg_floor`), jak tenisowe sumy gemów /
+setów. Wydrukowana poniżej 0,70 niesie `floor_rule` (audyt C2 sprawdza jej
+własny próg) i nigdy nie wchodzi do buildera; pozostałe bramki bez zmian.
+Pomiar z regułą zamrożoną przed liczbami (pasmo 0,60-0,70 na liniach
+10-20..11-05, osobno każdy klucz, >= 100 nóg / 50 meczów, skalibrowane i na
+poziomie ceny bez marży): przeszły te 4 klucze (`half_goals_combo` +2,9 pp,
+ROI -3,2%; `team_scores_both_halves` UNDER -2,3 pp [-5,5; +0,8], na granicy,
+ROI -9,9%), pozostałe 7 ma za mało nóg. E2E na kopii 11-05: +63 single, nic
+poza nimi się nie zmienia. Raport:
+`docs/sofa/evidence/football_sim_floor_2026-11-06.md`.
 
 **Epoka `stats_only` (od 2026-10-05 07:15Z, `bet.sofa.epochs`).** Pewność
 jest wyłącznie ze statystyk: SHEET trzyma cenę poza `p_central`, a cena jest

@@ -718,7 +718,11 @@ def main() -> int:
         f"próg pewności {doc_json['confidence_floor']}"
         # epochs.TENNIS_TOTALS_FLOOR: legs printed on their own lower floor
         + ("".join(sorted({
-            f" (tenis: liczba gemów / setów w meczu od {s[TENNIS_TOTALS_FLOOR_MARKER]})"
+            (" (tenis: liczba gemów / setów w meczu od "
+             f"{s[TENNIS_TOTALS_FLOOR_MARKER]})"
+             if s.get("sport") == "tennis"
+             # epochs.FOOTBALL_SIM_FLOOR: the simulator keys' own floor
+             else f" (piłka: rynki połów od {s[TENNIS_TOTALS_FLOOR_MARKER]})")
             for s in singles if s.get(TENNIS_TOTALS_FLOOR_MARKER) is not None})))
         + ("" if profile.min_ev is None
            else f" &nbsp;•&nbsp; pewność × kurs ≥ {profile.min_ev:.2f}"

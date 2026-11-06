@@ -252,7 +252,13 @@ and a miss recorded before a rule's switch never blocks that rule.
   audits its own floor; every other gate unchanged (model-state.md).
   The football simulator's keys (from 2026-11-07) print on the same gates:
   0.70, x >= 0.90, 15% margin on the two-sided rungs, one-sided only from
-  their own curve with n >= 300.
+  their own curve with n >= 300; four of them pass at 0.60
+  (`FOOTBALL_SIM_FLOOR`, 2026-11-07 00:00Z, operator 11-06 "TAK!":
+  `team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half`
+  UNDER, `btts_halves` OVER - each measured on its own 0.60-0.70 band, frozen
+  rule, calibrated and at the de-vigged price, ROI -1..-10%), with
+  `floor_rule`, never in a builder, C2 audits their own floor
+  (`docs/sofa/evidence/football_sim_floor_2026-11-06.md`).
 - **Refusals worth knowing** (each named on the row):
   - `CROSS_LEAGUE_UNLINKED`: a football pair is LINKED only when both sides'
     leagues are the competition they share (the hockey / basketball /

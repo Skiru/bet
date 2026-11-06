@@ -278,7 +278,9 @@ TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
 # The football minute-by-minute simulator (epochs.FOOTBALL_SIM_FROM_UTC,
 # 2026-11-07 00:00Z: HT/FT, half results and the other path markets priced
 # by bet.sofa.football_sim, their own history curves) starts the same day:
-# it shares the group "od 11-07" (separated by market family when audited).
+# it shares the group "od 11-07" (separated by market family when audited);
+# so does its 0.60 floor for four of its keys (epochs.FOOTBALL_SIM_FLOOR,
+# legs carry "floor_rule").
 # So do the volleyball rally-point model (epochs.VB_POINT_MODEL_FROM_UTC:
 # winner, points / set handicap, points / set-points totals, exact sets, set
 # winner, points parity priced by bet.sofa.volleyball_point_model, their

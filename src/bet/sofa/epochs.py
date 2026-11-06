@@ -3642,12 +3642,18 @@ def tennis_totals_floor(date: str, build_at: datetime | None = None) -> bool:
 def leg_floor(leg: Mapping[str, Any], date: str, default: float,
               build_at: datetime | None = None) -> float:
     """The floor a leg is judged on: TENNIS_TOTALS_FLOOR for a tennis row of
-    TENNIS_TOTALS_FLOOR_MARKETS when the switch is on for `date` at
-    `build_at`, never above `default` (a stricter profile keeps its own)."""
+    TENNIS_TOTALS_FLOOR_MARKETS, FOOTBALL_SIM_FLOOR for a football row of
+    FOOTBALL_SIM_FLOOR_KEYS, when the switch is on for `date` at `build_at`,
+    never above `default` (a stricter profile keeps its own)."""
     if (leg.get("sport") == "tennis"
             and leg.get("market") in TENNIS_TOTALS_FLOOR_MARKETS
             and tennis_totals_floor(date, build_at)):
         return min(default, TENNIS_TOTALS_FLOOR)
+    # FOOTBALL_SIM_FLOOR: the simulator keys that passed their own band
+    if (leg.get("sport") == "football"
+            and (leg.get("market"), leg.get("direction")) in FOOTBALL_SIM_FLOOR_KEYS
+            and football_sim_floor(date, build_at)):
+        return min(default, FOOTBALL_SIM_FLOOR)
     return default
 
 
@@ -3736,6 +3742,36 @@ FOOTBALL_SIM_MARKETS: frozenset[str] = frozenset({
 def football_sim(date: str, build_at: datetime | None = None) -> bool:
     """FOOTBALL_SIM_FROM_UTC on the day being built and the build clock."""
     return _audit_1023_on(FOOTBALL_SIM_FROM_UTC, date, build_at)
+
+
+# Football simulator keys below the 0.70 floor (operator 2026-11-06 "TAK!",
+# measured as TENNIS_TOTALS_FLOOR was; rule frozen before the numbers in
+# docs/sofa/evidence/football_sim_floor_2026-11-06.md,
+# scripts/sofa/measure_football_sim_floor.py). On the backfilled Superbet
+# lines 2026-10-20 .. 11-05 (curve + line evidence, every other print gate),
+# legs at confidence 0.60-0.70 per market|direction: a key passes with >= 100
+# legs / 50 matches, realised - confidence upper 95% >= 0 and realised - the
+# de-vigged price upper 95% >= 0. Passed (4 of 11): team_scores_both_halves
+# UNDER (897 legs, -2.3 pp [-5.5, +0.8], ROI -9.9%), half_goals_combo OVER
+# (1,351, +2.9 pp [+0.4, +5.4], ROI -3.2%), btts_any_half UNDER (110, +4.4 pp
+# [-4.7, +12.7]), btts_halves OVER (106, +8.8 pp [+0.2, +17.1]); the others
+# had too few legs. With the switch (and FOOTBALL_SIM) such a leg passes the
+# floor at FOOTBALL_SIM_FLOOR; printed below the profile's floor it carries
+# TENNIS_TOTALS_FLOOR_MARKER ("floor_rule", its own floor - audit_variants
+# C2) and never joins a builder. Every other gate applies. By the day and the
+# build clock; no sheet marker (CONFIDENCE only). Ledger group "od 11-07".
+FOOTBALL_SIM_FLOOR_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+FOOTBALL_SIM_FLOOR = 0.60
+FOOTBALL_SIM_FLOOR_KEYS: frozenset[tuple[str, str]] = frozenset({
+    ("team_scores_both_halves", "UNDER"), ("half_goals_combo", "OVER"),
+    ("btts_any_half", "UNDER"), ("btts_halves", "OVER")})
+
+
+def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
+    """FOOTBALL_SIM_FLOOR_FROM_UTC (with FOOTBALL_SIM) on the day being built
+    and the build clock."""
+    return (football_sim(date, build_at)
+            and _audit_1023_on(FOOTBALL_SIM_FLOOR_FROM_UTC, date, build_at))
 
 
 # Volleyball rally-point model (operator 2026-11-06: "install whatever is

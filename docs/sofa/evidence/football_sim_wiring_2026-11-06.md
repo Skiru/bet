@@ -165,6 +165,18 @@ dopasuje je `refresh_line_evidence`, dołożone do dzisiejszego pliku.
 - **D:** linie sprzed 11-07 (to przeczyta 11-07; w próbie, optymistyczne):
   2 280 nóg, +1,9 pp [+0,2; +3,6], ROI -4,0%.
 
+**Poprawka po fakcie (pominięta bramka).** Pierwsze uruchomienie nie stosowało
+`ODDS_TOO_LOW` (kurs < 1/0,9202 = 1,087, `run_confidence` `MIN_ODDS`).
+Skrypt dostał tę bramkę i został uruchomiony ponownie, reszta reguły bez
+zmian:
+
+- B: 1 971 nóg / 1 628 meczów, +1,9 pp [+0,2; +3,6], ROI -4,2% [-6,3; -2,1],
+  reguła stopu PASS;
+- A: 2 974 nóg, -2,4 pp [-4,0; -0,7];
+- odmowy `ODDS_TOO_LOW`: 578.
+
+Liczby w tabeli powyżej są z pierwszego uruchomienia, bez tej bramki.
+
 Wniosek: sama krzywa lekko przeszacowuje (A). Dowody z linii doprowadzają
 łańcuch do kalibracji: B i C pokrywają zero albo są powyżej.
 

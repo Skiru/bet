@@ -21,8 +21,10 @@ FROZEN RULE (written 2026-11-06 before any hold-out number was computed):
        (LineEvidence.read with the day's v2 / design effect / price-gap
        settings) - the keys have no own lines in it, so the sport's pooled
        football offset lowers them. B is the verdict variant.
-* Print gates (unchanged, CONFIDENCE's): p_central >= 0.60 (catch-all
-  bucket), confidence >= 0.70 (leg_floor), confidence x odds >= 0.90; a
+* Print gates (unchanged, CONFIDENCE's): odds >= MIN_ODDS_FOR_CEILING
+  (ODDS_TOO_LOW - added after the first run, which omitted it; both
+  reported), p_central >= 0.60 (catch-all bucket), confidence >= 0.70
+  (leg_floor), confidence x odds >= 0.90; a
   two-sided rung (team_scores_both_halves, btts_any_half) needs the rung's
   overround <= 15% (both prices of one snapshot); a one-sided leg needs its
   confidence from its own market curve (source "market:" / "line:") with
@@ -66,6 +68,7 @@ from bet.sofa import (  # noqa: E402
 from bet.sofa import football_sim_curves as fsc  # noqa: E402
 from bet.sofa import line_evidence as le  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
+    MIN_ODDS_FOR_CEILING,
     OWN_CURVE_SOURCES,
     Calibration,
     calibration_path_for,
@@ -165,6 +168,12 @@ def main() -> int:
             conf, source, n = float(hit[0]), str(hit[1]), int(hit[2])
             leg = {"eid": r["eid"], "y": int(r["y"]), "conf": conf,
                    "odds": float(r["odds"]), "market": market}
+            if leg["odds"] < MIN_ODDS_FOR_CEILING:
+                # ODDS_TOO_LOW (run_confidence MIN_ODDS): omitted from the
+                # first run of 2026-11-06 - a gate omission corrected after
+                # the result, reported beside it (evidence report section 5)
+                refusals["odds_too_low"] += 1
+                continue
             if conf < FLOOR:
                 refusals["below_floor"] += 1
                 continue
