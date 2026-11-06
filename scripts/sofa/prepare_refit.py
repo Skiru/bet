@@ -113,6 +113,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
     "player_coverage", "awarded_excluded", "referee", "player_share",
     "tennis_score_winner", "sample_conflict_cut", "form_table",
+    "form_table_per_family",
 )
 
 
@@ -588,6 +589,7 @@ def rebuild_cache_rows(
     tennis_score_winner: bool = False,
     sample_conflict_cut: bool = False,
     form_table: bool = False,
+    form_table_per_family: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
@@ -600,7 +602,8 @@ def rebuild_cache_rows(
         ("--cup-strength", cup_strength),
         ("--referee", referee),
         ("--player-share", player_share),
-        ("--form-table", form_table)) if on]
+        ("--form-table", form_table),
+        ("--form-table-per-family", form_table_per_family)) if on]
     if sample_cup_strength and not (opponent_correction and cup_strength):
         raise RefitError("--sample-cup-strength needs --opponent-correction "
                          "and --cup-strength")
@@ -833,6 +836,8 @@ def rebuild_cache_rows(
         # epochs.FOOTBALL_FORM_TABLE, item 5 of the refit 2026-11-05
         # (calibrate_from_cache --form-table)
         "form_table": form_table,
+        # ... as SHEET prices it from 2026-11-07: per family (two books)
+        "form_table_per_family": form_table_per_family,
     }
     for name, on in new_flags.items():
         if on:
@@ -2015,8 +2020,10 @@ REPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
      "tennis_score_winner"),
     ("SAMPLE_CONFLICT_CUT (P1)", epochs.sample_conflict_cut,
      "sample_conflict_cut"),
-    # item 5 of the refit 2026-11-05 (calibrate_from_cache --form-table)
-    ("FOOTBALL_FORM_TABLE", epochs.football_form_table, "form_table"),
+    # item 5 of the refit 2026-11-05, per family from 2026-11-07
+    # (calibrate_from_cache --form-table-per-family: two books, a row of
+    # epochs.FOOTBALL_FORM_TABLE_FAMILIES from the table book)
+    ("FOOTBALL_FORM_TABLE", epochs.football_form_table, "form_table_per_family"),
 )
 # Switches the replay cannot carry: an install fits those markets' curves on
 # centres without them - warned, never refused. (switch name, its is-on
@@ -2493,6 +2500,11 @@ def build_parser() -> argparse.ArgumentParser:
         "step x1.25 and the season table; calibrate_from_cache --form-table)",
     )
     r.add_argument(
+        "--form-table-per-family", action="store_true",
+        help="with --football-rating: FOOTBALL_FORM_TABLE as SHEET prices it "
+        "from 2026-11-07 (calibrate_from_cache --form-table-per-family)",
+    )
+    r.add_argument(
         "--player-coverage", action="store_true",
         help="epochs.FOOTBALL_PLAYER_COVERAGE (calibrate_from_cache "
         "--player-coverage: a footballer thin in the newest sample_n is "
@@ -2703,6 +2715,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     tennis_score_winner=args.tennis_score_winner,
                     sample_conflict_cut=args.sample_conflict_cut,
                     form_table=args.form_table,
+                    form_table_per_family=args.form_table_per_family,
                 )["exit"]
             )
         if args.command == "fit":

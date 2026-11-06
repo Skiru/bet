@@ -57,7 +57,7 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 # bottom-up tennis point model (TENNIS_POINT_MODEL)
                 "tennis_point_model_rule",
                 # football goals form step + season table (FOOTBALL_FORM_TABLE)
-                "form_table_rule",
+                "form_table_rule", "form_table_p",
                 # football minute-by-minute simulator (FOOTBALL_SIM)
                 "football_sim_rule",
                 # tennis per-set handicap from the point model

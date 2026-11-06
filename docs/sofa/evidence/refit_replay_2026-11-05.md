@@ -481,3 +481,63 @@ Projekt w SHEET: dwie książki ratingu (z tabelą i bez), dwa przebiegi wierszy
 3. Do tabeli idzie tylko rodzina, która przechodzi w obu połowach i ma n >= 50 przy >= 0,70 na Superbecie albo n >= 300 przy >= 0,70 w historii (w każdej połowie). Reszta zostaje bez tabeli.
 4. Potem pełna bramka na całym oknie: plik złożony per rodzina wobec pliku 11-07. Log-loss całości nie gorszy, żadna rodzina z n >= 50 przy >= 0,70 gorsza o > 1 pp. `FOOTBALL_FORM_TABLE_FROM_UTC` = 2026-11-09 00:00Z tylko wtedy, gdy bramka przejdzie.
 5. Rodziny z lepszym log-loss i gorszym dryfem (kartki) raportuję osobno jako „niedopasowanie krzywej do p”. Refit ich krzywych na p z tabelą to osobna, późniejsza pozycja.
+
+### 12.1 Wynik (2026-11-06 ok. 18:00Z)
+
+**Połówki** (`cross_half1.json`, `cross_half2.json`, `table_select_halves.py` → `table_select.json`). Przez regułę przechodzi 35 rodzin:
+- obie strony `both_over_corners` UNDER i `both_over_shots_on_target` UNDER;
+- faule: `fouls_1h_for` UNDER, `fouls_1h_total` OVER / UNDER, `fouls_2h_total` OVER, `fouls_for` OVER, `fouls_total` UNDER;
+- wszystkie połówki `goal_kicks` (8), `goal_kicks_for` UNDER, `goal_kicks_total` UNDER;
+- gole: `goals_2h_for` OVER / UNDER;
+- `handicap_cards_points` OVER;
+- spalone: `offsides_1h_for` UNDER, `offsides_1h_total` OVER, `offsides_2h_total` OVER;
+- strzały: `shots_2h_total` OVER, `shots_on_target_2h_total` UNDER, `shots_on_target_total` OVER;
+- odbiory: `tackles_for` OVER, `tackles_total` UNDER;
+- auty: `throw_ins_1h_*` (4) i `throw_ins_2h_for` OVER / UNDER.
+
+Większość z nich ma na Superbecie mało nóg przy >= 0,70. Przechodzą przez próg historii n >= 300.
+
+**Niedopasowanie krzywej do p** (log-loss lepszy, dryf gorszy, choć w jednej połowie): `cards_points_for` UNDER, `corners_1h_for` OVER, `corners_for` OVER, `corners_total` UNDER, `goals_1h_for` OVER, `goals_1h_total` OVER, `goals_for` OVER, `most_corners` / `most_goals` / `most_shots_on_target` OVER, `offsides_total` UNDER, `saves_for` OVER, `shots_for` OVER, `shots_on_target_for` OVER, `shots_total` OVER. Wszystkie zostają bez tabeli. Refit ich krzywych na p z tabelą to osobna pozycja.
+
+**Pełna bramka na całym oknie** (`cross_perfamily.json`, `cross_perfamily_verdict.txt`). Arkusz per rodzina (35 rodzin na p ramienia A z krzywą wyboru 11-08, reszta = plik 11-07 na p reguł) wobec pliku 11-07, krzywe hold-out:
+- log-loss Superbet **−1,8 × 1e-4 [−2,8, −0,7]** (n 284 340);
+- log-loss historia **−1,0 [−1,3, −0,7]** (n 2 729 009);
+- dryf przy >= 0,70: −0,8 → −0,8 pp (Superbet), +0,3 → +0,3 pp (historia);
+- **0 rodzin gorszych o > 1 pp**, łącznie i w każdej grupie epok.
+
+**Przechodzi.** `FOOTBALL_FORM_TABLE_FROM_UTC` = 2026-11-09 00:00Z, `FOOTBALL_FORM_TABLE_FAMILIES` = te 35 rodzin.
+
+**Krzywe 11-09:** `config/sofa_confidence_calibration.next.2026-11-09.json` = plik 11-06 17:30Z (wszystkie jego klucze) plus pełny refit A dla 4 rodzin tabeli, w których wybór 11-08 wskazał A:
+- `fouls_1h_total` UNDER;
+- `goal_kicks_for` UNDER;
+- `goals_2h_for` UNDER (zastępuje krzywą reguł 11-07);
+- `tackles_total` UNDER.
+
+Reszta rodzin tabeli czyta krzywą zainstalowaną, jak w pomiarze. Plik ma 6 nowych ścieżek kluczy, `staged_change.form_table_families_refit`.
+
+**Kod:**
+- `run_sheet`: dwie książki ratingu i dwa przebiegi meczu piłki (`merge_form_table_rows`), znacznik wiersza `form_table_p` („table” / „no_table”), `form_table_rule` = `form_table_v2_per_family`.
+- Replay: `calibrate_from_cache --form-table-per-family`, dwie książki, wiersz rodziny tabeli z książki z tabelą.
+- `prepare_refit`: od włączenia wymaga `--form-table-per-family` (samo `--form-table`, czyli wszystkie wiersze na tabeli, to ramię pomiarowe).
+- Grupa księgi „od 11-09”.
+
+**1X2 na p reguł (bez tabeli)** (`item5/r1x2_base.json`), ta sama poprzeczka:
+
+| nogi | n | trafione − pewność | trafione − 1/kurs |
+|---|---|---|---|
+| do druku | 317 | **−7,8 pp [−12,6, −2,9]** | −1,5 [−6,0, +3,0] |
+| >= 0,70 | 392 | −4,4 [−8,8, −0,5] | – |
+
+Brier minus cena bez marży: +26,9 × 1e-3 [+23,7, +30,0]. Obiecuje za dużo, gorzej niż pod A. **Nie wchodzi.**
+
+### 12.2 Przesunięcie na 2026-11-07 00:00Z (2026-11-06, operator: „jak najwcześniej”)
+
+Bramka z 12.1 przeszła, więc operator przesunął włączenie z 11-09 na **2026-11-07 00:00Z**. Nie wchodzi do dnia 11-06: ten dzień jest już mieszany od 17:30Z, a podwójny SHEET jest nowy. `FOOTBALL_FORM_TABLE_FROM_UTC` = 2026-11-07 00:00Z, a plik krzywych ma teraz nazwę `config/sofa_confidence_calibration.next.2026-11-07.json` (`effective_from` 2026-11-07T00:00:00Z). Zawartość pliku się nie zmieniła: to ten sam plik, który przeszedł bramkę. Księga zapisuje to w grupie „od 11-07” (tej samej co przełączniki z 11-06 17:30Z), a grupa „od 11-09” znika. Kolejność plików w łańcuchu:
+
+| dzień | od godziny budowy | czytany plik |
+|---|---|---|
+| 11-06 | po 17:30Z | `.next.json` |
+| 11-07 | przed 00:00Z | `.next.json` |
+| 11-07 | od 00:00Z | `.next.2026-11-07.json` |
+
+Reguła z §12 („= 2026-11-09”) zostaje zapisana tak, jak była w chwili zamrożenia.

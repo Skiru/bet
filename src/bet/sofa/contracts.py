@@ -465,6 +465,10 @@ class SheetRow(BaseModel):
     # priced while the goals rating reads the form step and the season
     # table (football_rating.enable_form_table); absent when off.
     form_table_rule: str | None = None
+    # ... and which p the row read under it (epochs.FOOTBALL_FORM_TABLE_FAMILIES):
+    # "table" (its family reads the book with the season table) or "no_table"
+    # (the book without it); absent when off.
+    form_table_p: str | None = None
     # ... and on a cards / fouls row under it, what the term read: status
     # APPLIED (referee_id, n, ratio, multiplier), NO_REFEREE (nobody named
     # yet - multiplier 1) or NO_REFEREE_RECORD; absent when off.

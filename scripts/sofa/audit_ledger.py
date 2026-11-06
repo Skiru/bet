@@ -295,7 +295,10 @@ STAGED_REFIT_1107_EPOCH_FROM_DATE = "2026-11-07"
 # NAJWIĘCEJ RZECZY OD DZISIAJ"): FOOTBALL_SIM and FOOTBALL_SIM_FLOOR from
 # 17:30Z (and the other 11-07 switches the operator moves), and the staged
 # football / tennis refit (config/sofa_confidence_calibration.next.json,
-# effective_from 2026-11-06 17:30Z): 11-06 is mixed.
+# effective_from 2026-11-06 17:30Z): 11-06 is mixed. The football season
+# table per family (epochs.FOOTBALL_FORM_TABLE_FROM_UTC 2026-11-07 00:00Z,
+# its curves in config/sofa_confidence_calibration.next.2026-11-07.json)
+# shares "od 11-07" (separated by market family when audited).
 SWITCHES_1106_MIXED_DATE = "2026-11-06"
 
 

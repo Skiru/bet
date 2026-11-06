@@ -1082,6 +1082,12 @@ class CentreRules:
     # step and the season table's centre move (football_rating.
     # enable_form_table), as SHEET's book from the switch
     form_table: bool = False
+    # ... per family (--form-table-per-family, epochs.FOOTBALL_FORM_TABLE as
+    # SHEET prices it from 2026-11-07): a non-empty set of "market|DIRECTION"
+    # makes the replay walk two books - without the table and with it - and
+    # a row of a family in the set comes from the table book, every other
+    # row from the plain one (iter_rows)
+    form_table_families: frozenset[str] = frozenset()
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -1113,11 +1119,22 @@ class CentreRules:
             "referee": (None if self.referee_effect is None
                         else self.referee_effect.path or "in-memory"),
             "form_table": self.form_table,
+            "form_table_families": sorted(self.form_table_families),
         }
 
 
 # Set by main() from the flags; the replay as it was by default.
 CENTRE_RULES = CentreRules()
+
+
+def _plain_rules(rules: CentreRules) -> CentreRules:
+    """The rules of the plain book: under --form-table-per-family the book
+    without the table (no family list, form_table off); otherwise as given
+    (--form-table alone = every row on the table book, a measurement arm)."""
+    if not rules.form_table_families:
+        return rules
+    return dataclasses.replace(rules, form_table=False,
+                               form_table_families=frozenset())
 
 # --tennis-set-ratings (audit 2026-10-13 B5): the set bases are loaded
 # (load_cache tennis_sets) and their markets read off the rating's neighbours.
@@ -1518,6 +1535,7 @@ def iter_rows(
     football: FootballRatingReplay | None = None,
     emit_from: int | None = None,
     emit_to: int | None = None,
+    football_table: FootballRatingReplay | None = None,
 ) -> Iterator[SettledRow]:
     """build() one row at a time, for a measurement that aggregates the
     replay without holding tens of millions of rows.
@@ -1542,9 +1560,24 @@ def iter_rows(
             # every fit (review round 3). Never settled, never in a history.
             continue
         if emit_from is None or match.timestamp >= emit_from:
-            yield from _match_rows(
-                match, history, baselines, engine_constants, correlations,
-                rating, joint_bases, football)
+            if football_table is not None and match.sport == "football":
+                # --form-table-per-family: the match on both books, each row
+                # from the book its family reads (run_sheet.merge_form_table_rows)
+                fams = football_table.rules.form_table_families
+                for row in _match_rows(
+                        match, history, baselines, engine_constants,
+                        correlations, rating, joint_bases, football):
+                    if f"{row.market}|{row.direction}" not in fams:
+                        yield row
+                for row in _match_rows(
+                        match, history, baselines, engine_constants,
+                        correlations, rating, joint_bases, football_table):
+                    if f"{row.market}|{row.direction}" in fams:
+                        yield row
+            else:
+                yield from _match_rows(
+                    match, history, baselines, engine_constants, correlations,
+                    rating, joint_bases, football)
 
         # Only after settling: a match may never contribute to its own sample.
         # A friendly is settled like any match (the fit drops friendly rows,
@@ -3333,7 +3366,13 @@ def main() -> int:
         help="with --football-rating: the goals rating's step x1.25 and the "
         "goals centres moved by the season table as of the match "
         "(epochs.FOOTBALL_FORM_TABLE_FROM_UTC, football_rating."
-        "enable_form_table; item 5 of the refit 2026-11-05)",
+        "enable_form_table; item 5 of the refit 2026-11-05) - every row",
+    )
+    parser.add_argument(
+        "--form-table-per-family", action="store_true",
+        help="with --football-rating: the table as SHEET prices it from "
+        "2026-11-07 - two books, a row of epochs.FOOTBALL_FORM_TABLE_FAMILIES "
+        "from the table book, every other row from the plain one",
     )
     parser.add_argument(
         "--player-share", nargs="?", const="", default=None, metavar="CONFIG",
@@ -3370,7 +3409,12 @@ def main() -> int:
         ("--opponent-correction", args.opponent_correction),
         ("--cup-strength", args.cup_strength is not None),
         ("--referee", args.referee is not None),
-        ("--player-share", args.player_share is not None)) if on]
+        ("--player-share", args.player_share is not None),
+        ("--form-table", args.form_table),
+        ("--form-table-per-family", args.form_table_per_family)) if on]
+    if args.form_table_per_family and not epochs.FOOTBALL_FORM_TABLE_FAMILIES:
+        parser.error("--form-table-per-family: epochs.FOOTBALL_FORM_TABLE_FAMILIES "
+                     "is empty")
     if args.player_share is not None and args.players != "include":
         # the share reads the team centres the team replay prices first
         parser.error("--player-share needs --players include")
@@ -3461,7 +3505,9 @@ def main() -> int:
                 referee_terms.load_effect_table(
                     Path(args.referee) if args.referee else None)
                 if args.referee is not None else None),
-            form_table=bool(args.form_table),
+            form_table=bool(args.form_table or args.form_table_per_family),
+            form_table_families=(epochs.FOOTBALL_FORM_TABLE_FAMILIES
+                                 if args.form_table_per_family else frozenset()),
             # the book's rules SHEET would use for a day built now
             shared_league_link=epochs.link_shared_league(today),
             unit_strength_from_parent=epochs.unit_strength_from_parent(today),
@@ -3524,7 +3570,8 @@ def main() -> int:
 
     player_rows: list[SettledRow] = []
     player_metrics: dict[str, Any] = {"player_replay": "SKIPPED"}
-    player_football = (FootballRatingReplay(football_history, CENTRE_RULES)
+    player_football = (FootballRatingReplay(football_history,
+                                            _plain_rules(CENTRE_RULES))
                        if player_stretch_on and football_history is not None
                        else None)
 
@@ -3551,12 +3598,16 @@ def main() -> int:
         run_player_replay()
 
     football: FootballRatingReplay | None = None
+    football_table: FootballRatingReplay | None = None
     if CENTRE_RULES.football_rating and played and football_history is not None:
+        labels = (referee_terms.load_labels(db_path)
+                  if CENTRE_RULES.referee_effect is not None else None)
         football = FootballRatingReplay(
-            football_history, CENTRE_RULES,
-            referee_labels=(referee_terms.load_labels(db_path)
-                            if CENTRE_RULES.referee_effect is not None
-                            else None))
+            football_history, _plain_rules(CENTRE_RULES), referee_labels=labels)
+        if CENTRE_RULES.form_table_families:
+            # --form-table-per-family: the second book, with the table
+            football_table = FootballRatingReplay(
+                football_history, CENTRE_RULES, referee_labels=labels)
     # each replay holds its own sorted copy: the loaded list is not read again
     football_history = None
 
@@ -3573,7 +3624,7 @@ def main() -> int:
 
     def measured() -> Iterator[SettledRow | _Commit]:
         team = iter_rows(played, baselines, rating, joint_bases, football,
-                         emit_from, emit_to) if played else iter(())
+                         emit_from, emit_to, football_table) if played else iter(())
         for row in team:
             team_count[0] += 1
             if window or args.no_write:

@@ -305,6 +305,9 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
     # the replay refit staged in sofa_confidence_calibration.next.json
     assert audit_ledger.epoch_group(
         {"date": "2026-11-07", "epoch": "stats_only"}) == "od 11-07"
+    # the football season table per family from 2026-11-07 shares the group
+    assert audit_ledger.epoch_group(
+        {"date": "2026-11-09", "epoch": "stats_only"}) == "od 11-07"
     assert audit_ledger.EPOCH_GROUPS[-21:] == (
         "10-16 mieszany", "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
         "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",

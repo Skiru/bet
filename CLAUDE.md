@@ -110,9 +110,19 @@ and a miss recorded before a rule's switch never blocks that rule.
   rules (16 families / 25 keys + 13 score slices, every other key the
   installed file's byte for byte, `staged_change`; ledger groups "11-06 mieszany", "od 11-07";
   model-state.md). Never copy it over the installed file; a later staged day
-  is a new dated file carrying 11-07's keys too. Arm A (season table,
-  `FOOTBALL_FORM_TABLE`) and `result_1x2` were declined for 11-08 (table gate
-  and 1X2 over-promise, model-state.md).
+  is a new dated file carrying 11-07's keys too. From 2026-11-07 00:00Z
+  `.next.2026-11-07.json` (the season table's 4 refit curves; 11-06 after
+  17:30Z still reads `.next.json`).
+- **Football season table per family from 2026-11-07 00:00Z** (`FOOTBALL_FORM_TABLE`,
+  coordinator 11-06, moved from 11-09 by the operator, never into 11-06; ledger "od 11-07"; report `refit_replay_2026-11-05.md` section 12): SHEET
+  prices each football fixture on two rating books, without and with the goals
+  form step + season table, and a row of `epochs.FOOTBALL_FORM_TABLE_FAMILIES`
+  (35 `market|DIR`, selected on 10-18..10-26, confirmed on 10-27..11-04) takes
+  the table run's row (`form_table_p` "table" / "no_table"); cards, goals_for,
+  goals_1h_for, most_* stay off (curve / p mismatch, a later refit). A refit
+  replays it with `--form-table-per-family`. The whole-sheet table and
+  `result_1x2` were declined (table gate; 1X2 over-promises on printable legs
+  under A -5.5 pp and on rules p -7.8 pp).
 - SHEET keeps the price out of `p_central`; the rating is published beside it
   as `forecast_p` ("model", uncalibrated, never a gate). CONFIDENCE maps the
   statistics to a calibrated confidence through the curves.

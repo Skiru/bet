@@ -1436,9 +1436,71 @@ def bb_period_market_lines(date: str | None = None,
 # goal total +0.2 [-0.9, +1.2]. A SHEET estimator change: the curves a day
 # from the moment reads are refitted on a replay carrying it. None until the
 # settled Superbet lines (b) pass and the operator's install go.
-FOOTBALL_FORM_TABLE = "form_table_v1"
-FOOTBALL_FORM_TABLE_FROM_UTC: datetime | None = None
+#
+# Per family (coordinator 2026-11-06, report section 12): the whole-sheet
+# switch failed its gate against the 11-07 file (log loss better overall,
+# cards / goal-side families over-promising more), so SHEET prices every
+# football fixture twice - on the book with the table and on the book
+# without it - and a row takes the table's p only when its family
+# ("market|DIRECTION") is in FOOTBALL_FORM_TABLE_FAMILIES (chosen on the
+# first half of 10-18..11-04, confirmed on the second; frozen rule in the
+# report). The row says which p it read (`form_table_p`: "table" /
+# "no_table"). The table reaches the other families through supremacy
+# (closeness, game state, stretches), so a family out of the list reads the
+# whole no-table chain, exactly as the 11-07 file was measured.
+FOOTBALL_FORM_TABLE = "form_table_v2_per_family"
+# Gate (report section 12, 2026-11-06): the per-family sheet against the
+# 11-07 file on the same rows, hold-out curves - log loss Superbet -1.8e-4
+# [-2.8, -0.7] (n 284,340), history -1.0e-4 [-1.3, -0.7] (n 2,729,009); no
+# family (n >= 50 at >= 0.70) and no ledger group's family worse by > 1 pp.
+# The curves: config/sofa_confidence_calibration.next.2026-11-07.json.
+# Moved by the operator from 11-09 to 2026-11-07 00:00Z ("as early as
+# possible"); never into 11-06 (already mixed at 17:30Z, the dual SHEET new).
+FOOTBALL_FORM_TABLE_FROM_UTC: datetime | None = datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
 FOOTBALL_FORM_TABLE_MARKER = ("form_table_rule", FOOTBALL_FORM_TABLE, "football")
+FOOTBALL_FORM_TABLE_FAMILIES: frozenset[str] = frozenset({
+    "both_over_corners|UNDER",
+    "both_over_shots_on_target|UNDER",
+    "fouls_1h_for|UNDER",
+    "fouls_1h_total|OVER",
+    "fouls_1h_total|UNDER",
+    "fouls_2h_total|OVER",
+    "fouls_for|OVER",
+    "fouls_total|UNDER",
+    "goal_kicks_1h_for|OVER",
+    "goal_kicks_1h_for|UNDER",
+    "goal_kicks_1h_total|OVER",
+    "goal_kicks_1h_total|UNDER",
+    "goal_kicks_2h_for|OVER",
+    "goal_kicks_2h_for|UNDER",
+    "goal_kicks_2h_total|OVER",
+    "goal_kicks_2h_total|UNDER",
+    "goal_kicks_for|UNDER",
+    "goal_kicks_total|UNDER",
+    "goals_2h_for|OVER",
+    "goals_2h_for|UNDER",
+    "handicap_cards_points|OVER",
+    "offsides_1h_for|UNDER",
+    "offsides_1h_total|OVER",
+    "offsides_2h_total|OVER",
+    "shots_2h_total|OVER",
+    "shots_on_target_2h_total|UNDER",
+    "shots_on_target_total|OVER",
+    "tackles_for|OVER",
+    "tackles_total|UNDER",
+    "throw_ins_1h_for|OVER",
+    "throw_ins_1h_for|UNDER",
+    "throw_ins_1h_total|OVER",
+    "throw_ins_1h_total|UNDER",
+    "throw_ins_2h_for|OVER",
+    "throw_ins_2h_for|UNDER",
+})
+
+
+def football_form_table_family(market: str, direction: str | None) -> bool:
+    """Does a football row of this market and direction read the table's p
+    (FOOTBALL_FORM_TABLE_FAMILIES)?"""
+    return f"{market}|{direction}" in FOOTBALL_FORM_TABLE_FAMILIES
 
 
 def football_form_table(date: str | None = None,

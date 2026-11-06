@@ -43,9 +43,20 @@ def _history() -> list[fr.FootballResult]:
     return out
 
 
-def test_the_switch_is_off_until_its_install() -> None:
-    assert epochs.FOOTBALL_FORM_TABLE_FROM_UTC is None
-    assert not epochs.football_form_table("2026-11-08")
+def test_the_switch_is_on_from_11_07_per_family() -> None:
+    # per family from 2026-11-07 00:00Z (report section 12, moved from 11-09
+    # by the operator): 11-06 (mixed at 17:30Z already) and every earlier day
+    # never read the table, at any clock
+    late = datetime(2026, 11, 12, tzinfo=UTC)
+    assert not epochs.football_form_table("2026-11-06", late)
+    assert not epochs.football_form_table(
+        "2026-11-07", datetime(2026, 11, 6, 23, 59, tzinfo=UTC))
+    assert epochs.football_form_table("2026-11-07", late)
+    assert epochs.FOOTBALL_FORM_TABLE_FAMILIES
+    # the families the measured damage sits in stay off the table
+    for hurt in ("cards_points_for|UNDER", "cards_points_total|UNDER",
+                 "goals_for|OVER", "goals_1h_for|OVER", "most_goals|OVER"):
+        assert hurt not in epochs.FOOTBALL_FORM_TABLE_FAMILIES
 
 
 def test_off_the_book_is_the_old_one() -> None:
@@ -134,6 +145,7 @@ def test_a_refit_replay_without_the_table_is_refused_once_it_is_on(
           "awarded_excluded": True, "referee": True, "player_share": True,
           "sample_conflict_cut": True, "tennis_score_winner": True}
     eve = datetime(2026, 11, 6, 22, 0, tzinfo=UTC)
+    monkeypatch.setattr(epochs, "FOOTBALL_FORM_TABLE_FROM_UTC", None)
     refusals, _ = pr.replay_switch_gaps(_staged(**on), at=eve,
                                         config_dir=_cfg(tmp_path))
     assert not any("FOOTBALL_FORM_TABLE" in r for r in refusals)
@@ -142,12 +154,18 @@ def test_a_refit_replay_without_the_table_is_refused_once_it_is_on(
     refusals, _ = pr.replay_switch_gaps(_staged(**on), at=eve,
                                         config_dir=_cfg(tmp_path))
     assert any(r.startswith("FOOTBALL_FORM_TABLE is on") for r in refusals)
+    # every row on the table book (the measurement arm) is not SHEET's rule
     refusals, _ = pr.replay_switch_gaps(_staged(**on, form_table=True), at=eve,
                                         config_dir=_cfg(tmp_path))
+    assert any(r.startswith("FOOTBALL_FORM_TABLE is on") for r in refusals)
+    refusals, _ = pr.replay_switch_gaps(
+        _staged(**on, form_table_per_family=True), at=eve,
+        config_dir=_cfg(tmp_path))
     assert not any("FOOTBALL_FORM_TABLE" in r for r in refusals)
     args = pr.build_parser().parse_args(
-        ["--date", "2026-11-07", "rebuild-cache-rows", "--form-table"])
-    assert args.form_table
+        ["--date", "2026-11-07", "rebuild-cache-rows", "--form-table",
+         "--form-table-per-family"])
+    assert args.form_table and args.form_table_per_family
 
 
 def test_rebuild_plan_re_runs_sheet_on_a_missing_marker(
@@ -155,6 +173,7 @@ def test_rebuild_plan_re_runs_sheet_on_a_missing_marker(
 ) -> None:
     day, after = "2026-11-07", datetime(2026, 11, 7, 9, 0, tzinfo=UTC)
     stale = rp.DayState(day, after, timedelta(minutes=45), sheet_form_table=False)
+    monkeypatch.setattr(epochs, "FOOTBALL_FORM_TABLE_FROM_UTC", None)
     assert not any("football_form_table" in s.reason
                    for s in rp.build_plan(stale).steps if s.name == "SHEET")
     monkeypatch.setattr(epochs, "FOOTBALL_FORM_TABLE_FROM_UTC",

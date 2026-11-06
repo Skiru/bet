@@ -161,7 +161,13 @@ def test_the_real_staged_file_starts_inside_11_06_at_17_30z() -> None:
     assert confidence.calibration_path_for(
         "2026-11-06", datetime(2026, 11, 6, 17, 30, tzinfo=UTC), INSTALLED) == STAGED
     assert confidence.calibration_path_for("2026-11-06", late, INSTALLED) == STAGED
-    assert confidence.calibration_path_for("2026-11-07", late, INSTALLED) == STAGED
+    dated = INSTALLED.with_name("sofa_confidence_calibration.next.2026-11-07.json")
+    # from 2026-11-07 00:00Z the dated file (the season table per family)
+    want = dated if dated.exists() else STAGED
+    assert confidence.calibration_path_for("2026-11-07", late, INSTALLED) == want
+    assert confidence.calibration_path_for(
+        "2026-11-07", datetime(2026, 11, 6, 23, 59, tzinfo=UTC), INSTALLED) == STAGED
+    assert confidence.calibration_path_for("2026-11-06", late, INSTALLED) == STAGED
 
 
 def test_the_dated_chain_reads_the_latest_start_each_day_has_reached(

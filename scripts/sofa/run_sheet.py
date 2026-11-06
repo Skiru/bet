@@ -2452,6 +2452,44 @@ def player_share_centre(
                     "epochs.FOOTBALL_PLAYER_SHARE")
 
 
+def merge_form_table_rows(
+    rows: list[SheetRow],
+    skipped: list[tuple[Any, GapReason, str]],
+    table_rows: list[SheetRow],
+) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+    """epochs.FOOTBALL_FORM_TABLE per family: one fixture priced on the book
+    without the season table (`rows`, `skipped`) and on the book with it
+    (`table_rows`). A row of a family in FOOTBALL_FORM_TABLE_FAMILIES comes
+    from the table run, every other row from the no-table run, in the
+    no-table run's order (a table row the no-table run did not price goes
+    last). A rung skipped by the no-table run and priced by the table run
+    for a table family is no longer skipped. Joint and derived rows are
+    taken whole by their own family - nothing mixes inside a row."""
+    def key(r: SheetRow) -> tuple[str, str | None, float | None, str | None]:
+        return (r.market, r.subject, r.line, r.direction)
+
+    table = {key(r): r for r in table_rows
+             if epochs.football_form_table_family(r.market, r.direction)}
+    out: list[SheetRow] = []
+    used: set[tuple[str, str | None, float | None, str | None]] = set()
+    for r in rows:
+        if epochs.football_form_table_family(r.market, r.direction):
+            t = table.get(key(r))
+            if t is not None:
+                out.append(t)
+                used.add(key(r))
+            # a table family the table run did not price: no row (as the
+            # table book would have priced it)
+            continue
+        out.append(r)
+    out.extend(r for k, r in table.items() if k not in used)
+    priced = {(r.market, r.subject, r.line) for r in out}
+    kept = [s for s in skipped
+            if (getattr(s[0], "market", None), getattr(s[0], "subject", None),
+                getattr(s[0], "line", None)) not in priced]
+    return out, kept
+
+
 def process_fixture(
     fixture: Fixture,
     samples: FixtureSamples,
@@ -3686,6 +3724,7 @@ def _main() -> int:
     # the link rule of the day being built (epochs.link_shared_league)
     link_shared = epochs.link_shared_league(args.date)
     football_book: RatingBook | None = None
+    football_book_table: RatingBook | None = None
     football_history: list[Any] | None = None
     # epochs.SEASON_PHASE (audit 2026-10-13 C1): read only while on
     season_phase_on = (stats_only_epoch(args.date)
@@ -3729,22 +3768,29 @@ def _main() -> int:
             referee_reads_by_event = referee_terms.fixture_reads(
                 football_history, referee_terms.load_labels(config.db_path),
                 int(cut.timestamp()), fixture_referees)
-        football_book = replay_football(
-            football_history,
-            int(cut.timestamp()),
-            shared_league_link=link_shared,
-            # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
-            unit_strength_from_parent=epochs.unit_strength_from_parent(args.date),
-            # epochs.RATING_DOMAIN_CURRENT_LEAGUE: a side's domain is the
-            # league it plays now (a promoted / relegated side)
-            current_league_domain=epochs.rating_domain_current_league(args.date),
-            # epochs.FOOTBALL_FORM_TABLE (item 5 of the refit 2026-11-05):
-            # the goals step x1.25 and the season table's centre move
-            form_table=epochs.football_form_table(args.date),
-            # epochs.FOOTBALL_CUP_STRENGTH: the league strength learnt in
-            # international club cups (a missing / malformed file raises, rc 2)
-            **cup_book_args(cup_strength_on),
-        )
+        def _book(form_table: bool) -> RatingBook:
+            return replay_football(
+                football_history or [],
+                int(cut.timestamp()),
+                shared_league_link=link_shared,
+                # epochs.UNIT_STRENGTH_FROM_PARENT (audit 2026-10-13 A1)
+                unit_strength_from_parent=epochs.unit_strength_from_parent(args.date),
+                # epochs.RATING_DOMAIN_CURRENT_LEAGUE: a side's domain is the
+                # league it plays now (a promoted / relegated side)
+                current_league_domain=epochs.rating_domain_current_league(args.date),
+                # epochs.FOOTBALL_FORM_TABLE (item 5 of the refit 2026-11-05):
+                # the goals step x1.25 and the season table's centre move
+                form_table=form_table,
+                # epochs.FOOTBALL_CUP_STRENGTH: the league strength learnt in
+                # international club cups (a missing / malformed file raises, rc 2)
+                **cup_book_args(cup_strength_on),
+            )
+
+        football_book = _book(False)
+        # epochs.FOOTBALL_FORM_TABLE, per family: a second book with the
+        # season table; the rows of FOOTBALL_FORM_TABLE_FAMILIES read it
+        if epochs.football_form_table(args.date):
+            football_book_table = _book(True)
 
     all_rows = []
     skip_reasons: dict[str, int] = {}
@@ -3828,6 +3874,9 @@ def _main() -> int:
                      and epochs.sample_cup_strength(args.date))
     sample_corrector = (SampleCorrector(football_book, cup_aware=sample_cup_on)
                         if opponent_on and football_book is not None else None)
+    sample_corrector_table = (
+        SampleCorrector(football_book_table, cup_aware=sample_cup_on)
+        if opponent_on and football_book_table is not None else None)
     # Audit 2026-10-13 D2: the tennis match winner from the rating (off: no
     # such rung reaches SHEET at all - OFFER does not map it).
     tennis_winner_on = stats_only and epochs.tennis_match_winner(args.date)
@@ -3944,84 +3993,96 @@ def _main() -> int:
             if forecast is not None and set_handicap_on:
                 forecast = forecast.with_set_handicap(True)
             rated_fixtures += forecast is not None
-            rows, skipped = process_fixture(
-                fixture,
-                fixture_samples,
-                offer,
-                baselines,
-                reliability,
-                engine_constants,
-                vetoes,
-                config,
-                side_correlations,
-                day_obs,
-                forecast,
-                (
-                    FootballForecast(
-                        football_book,
-                        fixture.competition_id,
-                        fixture.home_entity_id,
-                        fixture.away_entity_id,
-                        strict_league_rate=league_rate_on,
-                        rated_scope=(RATED_SCOPE_MARKETS if rated_scope_on
-                                     else frozenset()),
-                    )
-                    if football_book is not None and fixture.sport == "football"
-                    else None
-                ),
-                tennis_tiers,
-                stats_only=stats_only,
-                rating_prices=rating_prices,
-                marginal_centres_on=marginal_centres_on,
-                sheet_margins_on=sheet_margins_on,
-                joint_side_chain_on=joint_side_chain_on,
-                dispersion_table=dispersion_table,
-                per_market_k_on=per_market_k_on,
-                game_state=game_state_table,
-                goals_stretch=goals_stretch_table,
-                count_stretch=count_stretch_table,
-                referee_effect=referee_effect_table,
-                referee_reads=referee_reads_by_event.get(fixture.sofascore_event_id),
-                player_stretch=player_stretch_table,
-                player_share=player_share_table,
-                closeness_stretch=closeness_stretch_table,
-                venue_prior_on=venue_prior_on,
-                set_rating_prices=set_rating_prices,
-                aces_opponent_on=aces_opponent_on,
-                sample_corrector=sample_corrector,
-                tennis_winner_on=tennis_winner_on,
-                result_config=result_config,
-                incident_pricing=incident_pricing,
-                card_half_rates=card_half_rates,
-                card_half_terms_on=card_half_terms_on,
-                set_markets_on=set_markets_on,
-                season_phase=(season_phase_table if season_index is not None
-                              else None),
-                season_phase_label=(
-                    season_index.phase(
-                        fixture.competition_id, fixture.season_id,
-                        int(fixture.kickoff_utc.timestamp()),
-                        fixture.home_entity_id, fixture.away_entity_id)
-                    if season_index is not None and fixture.sport == "football"
-                    else None),
-                rating_weights=rating_weight_table,
-                men_friendly_baseline=men_friendly_prior,
-                shot_detail_on=shot_detail_on,
-                shot_detail_fit=shot_detail_fit,
-                result_1x2_dnb=result_1x2_dnb_config,
-                result_phase=(
-                    season_index.phase(
-                        fixture.competition_id, fixture.season_id,
-                        int(fixture.kickoff_utc.timestamp()),
-                        fixture.home_entity_id, fixture.away_entity_id)
-                    if (season_index is not None and fixture.sport == "football"
-                        and (result_1x2_dnb_config is not None
-                             or score_markets_config is not None))
-                    else None),
-                score_markets=score_markets_config,
-                point_pricer=point_pricer,
-                sim_pricer=sim_pricer,
-            )
+            def _priced(
+                book: RatingBook | None, corrector: SampleCorrector | None,
+            ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
+                return process_fixture(
+                    fixture,
+                    fixture_samples,
+                    offer,
+                    baselines,
+                    reliability,
+                    engine_constants,
+                    vetoes,
+                    config,
+                    side_correlations,
+                    day_obs,
+                    forecast,
+                    (
+                        FootballForecast(
+                            book,
+                            fixture.competition_id,
+                            fixture.home_entity_id,
+                            fixture.away_entity_id,
+                            strict_league_rate=league_rate_on,
+                            rated_scope=(RATED_SCOPE_MARKETS if rated_scope_on
+                                         else frozenset()),
+                        )
+                        if book is not None and fixture.sport == "football"
+                        else None
+                    ),
+                    tennis_tiers,
+                    stats_only=stats_only,
+                    rating_prices=rating_prices,
+                    marginal_centres_on=marginal_centres_on,
+                    sheet_margins_on=sheet_margins_on,
+                    joint_side_chain_on=joint_side_chain_on,
+                    dispersion_table=dispersion_table,
+                    per_market_k_on=per_market_k_on,
+                    game_state=game_state_table,
+                    goals_stretch=goals_stretch_table,
+                    count_stretch=count_stretch_table,
+                    referee_effect=referee_effect_table,
+                    referee_reads=referee_reads_by_event.get(fixture.sofascore_event_id),
+                    player_stretch=player_stretch_table,
+                    player_share=player_share_table,
+                    closeness_stretch=closeness_stretch_table,
+                    venue_prior_on=venue_prior_on,
+                    set_rating_prices=set_rating_prices,
+                    aces_opponent_on=aces_opponent_on,
+                    sample_corrector=corrector,
+                    tennis_winner_on=tennis_winner_on,
+                    result_config=result_config,
+                    incident_pricing=incident_pricing,
+                    card_half_rates=card_half_rates,
+                    card_half_terms_on=card_half_terms_on,
+                    set_markets_on=set_markets_on,
+                    season_phase=(season_phase_table if season_index is not None
+                                  else None),
+                    season_phase_label=(
+                        season_index.phase(
+                            fixture.competition_id, fixture.season_id,
+                            int(fixture.kickoff_utc.timestamp()),
+                            fixture.home_entity_id, fixture.away_entity_id)
+                        if season_index is not None and fixture.sport == "football"
+                        else None),
+                    rating_weights=rating_weight_table,
+                    men_friendly_baseline=men_friendly_prior,
+                    shot_detail_on=shot_detail_on,
+                    shot_detail_fit=shot_detail_fit,
+                    result_1x2_dnb=result_1x2_dnb_config,
+                    result_phase=(
+                        season_index.phase(
+                            fixture.competition_id, fixture.season_id,
+                            int(fixture.kickoff_utc.timestamp()),
+                            fixture.home_entity_id, fixture.away_entity_id)
+                        if (season_index is not None and fixture.sport == "football"
+                            and (result_1x2_dnb_config is not None
+                                 or score_markets_config is not None))
+                        else None),
+                    score_markets=score_markets_config,
+                    point_pricer=point_pricer,
+                    sim_pricer=sim_pricer,
+                )
+
+            rows, skipped = _priced(football_book, sample_corrector)
+            if football_book_table is not None and fixture.sport == "football":
+                # epochs.FOOTBALL_FORM_TABLE (per family): the fixture again on
+                # the book with the season table; a row of a table family
+                # takes that run's row, every other row the no-table run's
+                t_rows, _t_skipped = _priced(football_book_table,
+                                             sample_corrector_table)
+                rows, skipped = merge_form_table_rows(rows, skipped, t_rows)
             if sim_pricer is not None:
                 sim_pricer.forget(fixture.sofascore_event_id)
             all_rows.extend(rows)
@@ -4095,10 +4156,17 @@ def _main() -> int:
             (epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER, handicap_point_on),
             (epochs.FOOTBALL_SIM_MARKER, football_sim_on),
             (epochs.FOOTBALL_FORM_TABLE_MARKER,
-             football_book is not None
-             and epochs.football_form_table(args.date)),
+             football_book_table is not None),
         ):
             all_rows = stamp_marker(all_rows, marker, on)
+        if football_book_table is not None:
+            # which p each football row read (merge_form_table_rows)
+            all_rows = [
+                r.model_copy(update={"form_table_p": (
+                    "table" if epochs.football_form_table_family(
+                        r.market, r.direction) else "no_table")})
+                if r.sport == "football" else r
+                for r in all_rows]
         # epochs.FOOTBALL_PLAYER_PROPS_V2: its rows exist only while OFFER
         # read them, so the mark goes on those rows alone (off: no row).
         all_rows = [
@@ -4206,8 +4274,10 @@ def _main() -> int:
                 else "old"),
             "form_table_rule": (
                 epochs.FOOTBALL_FORM_TABLE
-                if football_book is not None
-                and epochs.football_form_table(args.date) else "old"),
+                if football_book_table is not None else "old"),
+            "form_table_families": (
+                sorted(epochs.FOOTBALL_FORM_TABLE_FAMILIES)
+                if football_book_table is not None else []),
             "tennis_point_model_fixtures": (
                 len(point_pricer.forecasts) if point_pricer is not None else 0),
             # epochs.FOOTBALL_SIM: absent while off (the summary as before)
