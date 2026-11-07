@@ -49,6 +49,7 @@ from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_identity as li  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
+from bet.sofa import locked_print as lp  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
 from bet.sofa import price_gap as pg  # noqa: E402
 from bet.sofa import rating_market_gap as rmg  # noqa: E402
@@ -128,6 +129,7 @@ def assemble(
     price_gap_extra: frozenset[str] = frozenset(),
     same_event_active: bool = False,
     boards: dict[int, tuple[str, str]] | None = None,
+    shown_keys: set[tuple[Any, ...]] | None = None,
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
@@ -152,7 +154,9 @@ def assemble(
     `same_event_active` / `boards`: one leg per (match, event) - two market
     names of one outcome print once (bet.sofa.leg_identity,
     epochs.SAME_EVENT_DEDUP_FROM_UTC); `boards` are Superbet's side names
-    by Sofascore id (superbet_names.board_sides) for a subject naming a team."""
+    by Sofascore id (superbet_names.board_sides) for a subject naming a team;
+    `shown_keys`: every single of the day's printed renders
+    (locked_print.history_keys) - of two twins the one already shown stays."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -192,7 +196,12 @@ def assemble(
     fresh, removed_by_form = cf.apply_form(fresh, form, form_active)
     removed_same_event: list[dict[str, Any]] = []
     if same_event_active:
-        fresh, removed_same_event = li.dedupe(locked, fresh, boards)
+        refused = [*(conf.get("removed_by_reads") or []),
+                   *((sports or {}).get("removed_by_reads") or [])]
+        shown = shown_keys or set()
+        fresh, removed_same_event = li.dedupe(
+            locked, fresh, boards, refused=refused,
+            shown=lambda leg: lp.printed_key(leg) in shown)
     blocks_out: list[dict[str, Any]] = []
     ordered: list[dict[str, Any]] = []
     position = 0
@@ -566,7 +575,8 @@ def main() -> int:
                    price_gap_active=price_gap_flag(args.date, at),
                    price_gap_extra=price_gap_sports(args.date, at),
                    same_event_active=same_event_dedup(args.date, at),
-                   boards=boards)
+                   boards=boards,
+                   shown_keys=lp.history_keys(lp.print_history(run)))
     # every leg named as Superbet's screen names it (superbet_market /
     # superbet_selection) - what the operator looks for before he clicks
     name_on_superbet(doc, boards)

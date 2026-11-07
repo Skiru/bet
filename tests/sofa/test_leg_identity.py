@@ -100,6 +100,10 @@ def test_basketball_full_game_never_matched():
     assert li.event_key(_sp("basketball", "handicap", "T1", -0.5)) is None
     assert _same(_sp("basketball", "quarter_handicap", "T1", -0.5, period=2),
                  _sp("basketball", "quarter_1x2", "T1", period=2))
+    # overtime's place in the 4th quarter / second half is not verified
+    assert li.event_key(_sp("basketball", "quarter_handicap", "T1", -0.5,
+                            period=4)) is None
+    assert li.event_key(_sp("basketball", "h2_handicap", "T1", -0.5)) is None
 
 
 def test_volleyball_set_handicap_two_and_a_half_is_wins_a_set():
@@ -182,3 +186,26 @@ def test_coupon_prints_one_leg_per_event_only_under_the_switch(active):
         assert doc["same_event_dedup"] == {"active": True, "removed": 1}
     else:
         assert len(markets) == 3 and doc[li.REMOVED_FIELD] == []
+
+
+def test_an_event_a_read_refused_does_not_print_under_its_twin():
+    refused = _fb("btts_halves", "Nie/Nie", odds=1.52)
+    twin = _fb("btts_any_half", direction="UNDER", odds=1.50)
+    kept, removed = li.dedupe([], [twin], refused=[refused])
+    assert kept == [] and removed[0]["same_event_refused"] is True
+    # in the coupon: a removed_by_reads leg takes its fresh twin with it
+    conf = _conf_doc([twin])
+    conf["removed_by_reads"] = [refused]
+    doc = assemble(conf, None, [], {}, "now", same_event_active=True)
+    assert doc["singles"] == []
+    assert doc[li.REMOVED_FIELD][0]["market"] == "btts_any_half"
+
+
+def test_the_twin_already_shown_stays_when_the_price_moves():
+    shown = _fb("btts_any_half", direction="UNDER", odds=1.50)
+    dearer = _fb("btts_halves", "Nie/Nie", odds=1.53)
+    kept, _ = li.dedupe([], [dearer, shown],
+                        shown=lambda leg: leg["market"] == "btts_any_half")
+    assert kept == [shown]
+    kept, _ = li.dedupe([], [dearer, shown])
+    assert kept == [dearer]

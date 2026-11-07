@@ -2701,14 +2701,17 @@ niego 08).
   „<drużyna> powyżej 0.5 gola” = „<drużyna> wygra lub obie strzelą”; „nie
   0-0” pod czterema nazwami (gole powyżej 0.5, „1 lub powyżej 0.5”, „2 lub
   powyżej 0.5”, „BTTS lub powyżej 0.5”); hokej handicap ±0.5 = podwójna szansa
-  / 1X2 (także w tercjach); koszykówka w połowach i kwartach (nigdy cały mecz
-  — handicap liczy dogrywkę, 1X2 nie); siatkówka handicap setowy ±2.5 =
+  / 1X2 (także w tercjach); koszykówka w 1. połowie i kwartach 1–3 (nigdy cały
+  mecz — handicap liczy dogrywkę, 1X2 nie — ani 2. połowa / 4. kwarta, gdzie
+  udział dogrywki w handicapie Superbetu nie jest sprawdzony); siatkówka handicap setowy ±2.5 =
   „wygra seta”; CS2 do dwóch wygranych map handicap +1.5 = „liczba map
   powyżej 0.5” (noga CS2 niesie `best_of`, bez niego nie ma dopasowania).
   Tożsamość to **logika** (piłka: ocena na każdej ścieżce wyniku do przerwy i
   końcowego graderami SETTLE), nigdy zgodność rozliczonych wierszy (DNB to nie
   podwójna szansa — remis zwraca jedno). Noga zablokowana zostaje, a jej
-  świeży bliźniak wypada; spośród świeżych zostaje wyższy kurs, potem niższa
+  świeży bliźniak wypada; wypada też świeży bliźniak zdarzenia zdjętego przez
+  odczyt (`same_event_refused` — bliźniak nigdy nie był czytany); spośród
+  świeżych zostaje ta już pokazana na wydruku, potem wyższy kurs, potem niższa
   pewność; reszta trafia do `removed_as_same_event` (z `same_event_as`).
   Wcześniej 667 wydrukowanych nóg 10-13..11-06 było drugą nogą już
   wydrukowanego zdarzenia — ledger liczył te wyniki podwójnie (ROI bez zmian,

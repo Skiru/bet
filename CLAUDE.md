@@ -397,14 +397,17 @@ and a miss recorded before a rule's switch never blocks that rule.
   one outcome print once - e.g. `btts_any_half` UNDER = `btts_halves`
   "Nie/Nie", a side's goals over 0.5 = `result_or_btts` of that side, the four
   names of "not 0-0", hockey handicap +-0.5 = double chance / 1X2 (and per
-  period), basketball half / quarter likewise (never the full game: overtime),
+  period), basketball first half / quarters 1-3 likewise (never the full
+  game, the second half or the 4th quarter: overtime),
   volleyball set handicap +-2.5 = "wins a set", best-of-3 CS2 maps handicap
   +1.5 = "maps over 0.5" (CS2 legs carry `best_of`; none = no match). The
   identity is LOGIC (football: graded on every half-time / full-time path
   with SETTLE's graders), never agreement on settled rows (a DNB is not the
-  double chance). A locked leg stays and its fresh twin goes; among fresh
-  legs the higher price stays, then the lower confidence; the rest go to
-  `removed_as_same_event` (`same_event_as`). Before it 667 printed legs of
+  double chance). A locked leg stays and its fresh twin goes; a fresh twin
+  of an event a read refused (`removed_by_reads`) goes too
+  (`same_event_refused`: the twin was never read); among fresh legs one
+  already on a printed render stays, else the higher price, then the lower
+  confidence; the rest go to `removed_as_same_event` (`same_event_as`). Before it 667 printed legs of
   10-13..11-06 were a second leg of an event already printed - the ledger
   counted those outcomes twice (ROI the same, -5.27%;
   `measure_same_event.py`). Ledger group "od 11-08".

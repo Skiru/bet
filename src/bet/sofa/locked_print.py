@@ -626,6 +626,11 @@ def first_prints(
     }
 
 
+def printed_key(leg: Mapping[str, Any]) -> tuple[Any, ...]:
+    """A single's key as history_keys holds it."""
+    return _any_key(leg)
+
+
 def history_keys(history: list[dict[str, Any]]) -> set[tuple[Any, ...]]:
     """Every printed single's key (leg_key; a measured sport's sport_key) and
     every printed builder's legs (leg_key) in any render of the history."""

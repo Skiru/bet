@@ -21,8 +21,10 @@ which is not the same bet):
   team per half (and who scored first in the first half); the key is that
   outcome vector. A vector constant on the paths (a line beyond them) has
   no key;
-* hockey (regulation and periods) and basketball (halves, quarters - never
-  the full game, whose handicap counts overtime and whose 1X2 does not):
+* hockey (regulation and periods) and basketball (first half, quarters 1-3 -
+  never the full game, whose handicap counts overtime and whose 1X2 does
+  not, nor the second half / 4th quarter, where overtime's place in
+  Superbet's handicap is not verified):
   1X2, double chance and half-goal handicaps as the set of margins
   team1 - team2 they win on;
 * volleyball: winner, set handicap, "wins a set" and exact sets as the set
@@ -32,9 +34,10 @@ which is not the same bet):
 
 Anything else has no key (None) and is never deduplicated. `dedupe` keeps
 one leg per (match, key): a locked leg always stays and a fresh leg of its
-event goes; among fresh legs the higher price stays (the same outcome at a
-better price), on a tie the lower confidence (the price may only lower a
-confidence), then the market name.
+event goes; a fresh leg of an event a read refused goes too; among fresh
+legs one already on a printed render stays, else the higher price (the same
+outcome at a better price), on a tie the lower confidence (the price may
+only lower a confidence), then the market name.
 """
 
 from __future__ import annotations
@@ -209,10 +212,13 @@ def _margin_scope(sport: str, family: str, period: int) -> tuple[str, str] | Non
             return f"p{period}", base
         return None
     if sport == "basketball":
-        if prefix == "quarter_" and period > 0:
+        # never a period overtime may touch (the second half, the 4th
+        # quarter): our grader reads regulation there, Superbet's rule for
+        # its handicap is not verified (review 2026-11-07) - no key, no drop
+        if prefix == "quarter_" and 0 < period < 4:
             return f"q{period}", base
-        if prefix in ("h1_", "h2_"):
-            return prefix[:2], base
+        if prefix == "h1_":
+            return "h1", base
         return None
     return None
 
@@ -365,17 +371,31 @@ def _brief(leg: Mapping[str, Any]) -> dict[str, Any]:
 def dedupe(locked: Sequence[Mapping[str, Any]],
            fresh: Iterable[dict[str, Any]],
            boards: Mapping[int, Sides] | None = None,
+           refused: Sequence[Mapping[str, Any]] = (),
+           shown: Callable[[Mapping[str, Any]], bool] | None = None,
            ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """(fresh legs kept, legs removed as the same event). Locked legs are
     never touched; a fresh leg whose event a locked leg of its match holds
-    goes; among fresh legs of one event the best (see the module doc) stays.
-    Each removed leg carries `same_event_as` (the leg kept)."""
+    goes; so does one whose event a read or a veto refused (`refused`, the
+    coupon's removed_by_reads: the twin was never in front of an analyst,
+    so it must not print the refused outcome under another name - review
+    2026-11-07). Among fresh legs of one event a leg already on a printed
+    render (`shown`) stays first - the operator may have bet the leg he saw
+    and the other was never read - then the best (see the module doc).
+    Each removed leg carries `same_event_as` (the leg kept or refused) and
+    `same_event_refused` when a read refused the event."""
     fresh = list(fresh)
     held: dict[tuple[str, str], Mapping[str, Any]] = {}
+    refused_keys: set[tuple[str, str]] = set()
     for leg in locked:
         key = event_key(leg, _board_of(leg, boards))
         if key is not None:
             held.setdefault((_match(leg), key), leg)
+    for leg in refused:
+        key = event_key(leg, _board_of(leg, boards))
+        if key is not None and (_match(leg), key) not in held:
+            held[(_match(leg), key)] = leg
+            refused_keys.add((_match(leg), key))
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     keyless: list[dict[str, Any]] = []
     order: dict[int, int] = {id(leg): i for i, leg in enumerate(fresh)}
@@ -393,6 +413,7 @@ def dedupe(locked: Sequence[Mapping[str, Any]],
             losers = legs
         else:
             ranked = sorted(legs, key=lambda x: (
+                not (shown is not None and shown(x)),
                 -price(x), float(x.get("confidence") or 0.0),
                 str(x.get("market") or x.get("family") or ""),
                 str(x.get("subject") or ""), str(x.get("direction") or "")))
@@ -400,6 +421,8 @@ def dedupe(locked: Sequence[Mapping[str, Any]],
             kept.append(ranked[0])
         for leg in losers:
             removed.append({**leg, "same_event_as": _brief(winner),
-                            "same_event_key": gk[1]})
+                            "same_event_key": gk[1],
+                            **({"same_event_refused": True}
+                               if gk in refused_keys else {})})
     kept.sort(key=lambda x: order[id(x)])
     return kept, removed

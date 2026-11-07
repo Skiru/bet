@@ -585,13 +585,18 @@ goal markets graded on every half-time / full-time path (0..6 goals per team
 per half, first scorer of the half) with SETTLE's own graders
 (`football_score_markets.event_mask`, `football_sim_markets.path_holds`,
 plain counts); hockey regulation / periods and basketball halves / quarters
-as the set of margins (team1's handicap for both sides; never basketball's
-full game - its handicap counts overtime, its 1X2 does not); volleyball and
+as the set of margins (team1's handicap for both sides; basketball only the
+first half and quarters 1-3 - never the full game, whose handicap counts
+overtime and whose 1X2 does not, nor the second half / 4th quarter, where
+overtime's place in Superbet's handicap is unverified); volleyball and
 best-of-3 CS2 as the set of set / map scores (CS2 legs carry `best_of` from
 SPORT_IDENTITY, none = no key). `build_coupon.assemble` keeps one fresh leg
 per (match, key) after the coupon form: a locked leg stays and its fresh twin
-goes; else the higher price, then the lower confidence; the rest go to
-`removed_as_same_event`. Identities found on the coupons 10-13..11-06:
+goes; a fresh twin of an event a read refused goes (`same_event_refused`;
+the independent review of 11-07 found the twin would otherwise print the
+refused outcome unread); a leg already on a printed render stays first (a
+price move must not swap the leg the operator saw); else the higher price,
+then the lower confidence; the rest go to `removed_as_same_event`. Identities found on the coupons 10-13..11-06:
 `goals_for` side O0.5 = `result_or_btts` that side (360 groups); "not 0-0" =
 `goals_total` O0.5 = `result_or_over` 1 / 2 @0.5 (= `btts_or_over` @0.5)
 (119); hockey (period) handicap +-0.5 = (period) double chance (74);
