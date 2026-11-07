@@ -3820,7 +3820,12 @@ def football_sim(date: str, build_at: datetime | None = None) -> bool:
 # UNDER (897 legs, -2.3 pp [-5.5, +0.8], ROI -9.9%), half_goals_combo OVER
 # (1,351, +2.9 pp [+0.4, +5.4], ROI -3.2%), btts_any_half UNDER (110, +4.4 pp
 # [-4.7, +12.7]), btts_halves OVER (106, +8.8 pp [+0.2, +17.1]); the others
-# had too few legs. With the switch (and FOOTBALL_SIM) such a leg passes the
+# had too few legs. Audit 2026-11-07: btts_any_half UNDER and btts_halves
+# "Nie/Nie" (the only btts_halves selection reaching p 0.60) are ONE event -
+# three distinct events passed, not four; both printed together on 11-06 and
+# print once from SAME_EVENT_DEDUP. The test's 0.95 upper bound >= 0 with no
+# margin is lenient (team_scores_both_halves UNDER passed at ROI -9.9%).
+# With the switch (and FOOTBALL_SIM) such a leg passes the
 # floor at FOOTBALL_SIM_FLOOR; printed below the profile's floor it carries
 # TENNIS_TOTALS_FLOOR_MARKER ("floor_rule", its own floor - audit_variants
 # C2) and never joins a builder. Every other gate applies. By the day and the
@@ -3867,7 +3872,11 @@ def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
 # Superbet hold-out 10-20..11-05 computed once, match bootstrap): Brier model
 # - current points_handicap -0.0048, points_total -0.0052, set_handicap
 # -0.0057, exact_sets -0.0014, set_points_total -0.0069, winner -0.0059,
-# set_winner -0.0033, points parity -0.0007; >= 0.70 after the curve
+# set_winner -0.0033, points parity -0.0007 (point estimates: the intervals
+# of points_handicap [-0.0135, +0.0038] and points parity [-0.0018, +0.0005]
+# cross zero, and the wired families were chosen on this hold-out after the
+# pre-registered rule passed none - audit 2026-11-07: the forward ledger is
+# the first clean measurement); >= 0.70 after the curve
 # realised - confidence points_handicap -19.7 pp (current -22.6), set_handicap
 # -0.2 (-3.0), winner +2.8 (+0.5); the price still better in every family
 # (reported, not a gate). Legs carry VB_POINT_MODEL_LEG_MARKER's field;
@@ -3935,3 +3944,26 @@ def tennis_point_markets(date: str,
     if tennis_handicap_point_model(date, build_at):
         return TENNIS_POINT_MODEL_MARKETS | TENNIS_HANDICAP_POINT_MODEL_MARKETS
     return TENNIS_POINT_MODEL_MARKETS
+
+
+# Audit 2026-11-07 (operator "TAK!" 11-07): one event under two market names
+# printed twice - "both teams score in at least one half: no" and "1st half /
+# 2nd half: No/No" (both FOOTBALL_SIM_FLOOR keys, printed together on 11-06),
+# "<team> over 0.5 goals" and "<team> wins or both teams score", the four
+# names of "not 0-0", hockey handicap +0.5 / double chance (and per period),
+# volleyball set handicap +2.5 / "wins a set", best-of-3 CS2 maps handicap
+# +1.5 / "maps over 0.5". About 552 football, 74 hockey and 41 volleyball
+# legs of the printed coupons 10-13..11-06 were the second leg of an event
+# already printed; the ledger counted the outcome twice. From this switch
+# build_coupon keeps one leg per (match, event) (bet.sofa.leg_identity:
+# a locked leg stays and a fresh leg of its event goes; else the higher
+# price, then the lower confidence); the others go to removed_as_same_event.
+# A logical identity, never a measurement on rows (a draw-refunded DNB is
+# not the double chance's event). By the day and the build clock; ledger
+# group "od 11-08".
+SAME_EVENT_DEDUP_FROM_UTC: datetime | None = datetime(2026, 11, 8, 0, 0, tzinfo=UTC)
+
+
+def same_event_dedup(date: str, build_at: datetime | None = None) -> bool:
+    """SAME_EVENT_DEDUP_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(SAME_EVENT_DEDUP_FROM_UTC, date, build_at)

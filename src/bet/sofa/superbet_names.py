@@ -625,7 +625,8 @@ def annotate(doc: dict[str, Any], sides_by_event: Mapping[int, Sides]) -> int:
     named = 0
     # (legs, the context a builder leg lacks: its builder's event and match)
     pools: list[tuple[Any, Mapping[str, Any]]] = [
-        (doc.get(k) or [], {}) for k in ("singles", "legs", "removed_by_reads")]
+        (doc.get(k) or [], {}) for k in ("singles", "legs", "removed_by_reads",
+                                         "removed_as_same_event")]
     pools += [(b.get("legs") or [],
                {"sofascore_event_id": b.get("sofascore_event_id"),
                 "match": b.get("match")})

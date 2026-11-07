@@ -47,6 +47,7 @@ from bet.sofa import builder_screen as bs  # noqa: E402
 from bet.sofa import coupon_form as cf  # noqa: E402
 from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
+from bet.sofa import leg_identity as li  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
 from bet.sofa import price_gap as pg  # noqa: E402
@@ -77,6 +78,7 @@ from bet.sofa.epochs import (  # noqa: E402
     read_by_event,
     read_by_value,
     read_scope_events,
+    same_event_dedup,
 )
 from bet.sofa.football_score_markets import (  # noqa: E402
     display_market as score_display_market,
@@ -124,6 +126,8 @@ def assemble(
     stakes_by_event: dict[int, list[str]] | None = None,
     price_gap_active: bool = False,
     price_gap_extra: frozenset[str] = frozenset(),
+    same_event_active: bool = False,
+    boards: dict[int, tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     """11_coupon.json from its sources. Pure, so a test can pin it.
 
@@ -144,7 +148,11 @@ def assemble(
     its price says what such legs realised (bet.sofa.price_gap,
     epochs.PRICE_GAP_FLAG_FROM_UTC) - annotation only as well;
     `price_gap_extra`: the later sports flagged too (CS2,
-    epochs.CS2_PRICE_GAP_FROM_UTC)."""
+    epochs.CS2_PRICE_GAP_FROM_UTC).
+    `same_event_active` / `boards`: one leg per (match, event) - two market
+    names of one outcome print once (bet.sofa.leg_identity,
+    epochs.SAME_EVENT_DEDUP_FROM_UTC); `boards` are Superbet's side names
+    by Sofascore id (superbet_names.board_sides) for a subject naming a team."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -182,6 +190,9 @@ def assemble(
         outside_window = len(fresh) - len(kept)
         fresh = kept
     fresh, removed_by_form = cf.apply_form(fresh, form, form_active)
+    removed_same_event: list[dict[str, Any]] = []
+    if same_event_active:
+        fresh, removed_same_event = li.dedupe(locked, fresh, boards)
     blocks_out: list[dict[str, Any]] = []
     ordered: list[dict[str, Any]] = []
     position = 0
@@ -262,6 +273,9 @@ def assemble(
         "singles": out_singles,
         "builders": builders,
         "legs": legs,
+        li.REMOVED_FIELD: removed_same_event,
+        "same_event_dedup": {"active": same_event_active,
+                             "removed": len(removed_same_event)},
         "removed_by_reads": [
             *(conf.get("removed_by_reads") or []),
             *((sports or {}).get("removed_by_reads") or []),
@@ -540,6 +554,7 @@ def main() -> int:
         elif tables is None:
             print("STAKES_NOT_SHOWN: football_history.pkl is absent or unreadable",
                   file=sys.stderr)
+    boards = board_sides(run)
     doc = assemble(conf, sports, requests, samples, now, args.date,
                    form=form, form_active=coupon_form_active(args.date, at),
                    screen_prices=screen,
@@ -549,10 +564,12 @@ def main() -> int:
                    read_events_n=read_scope_events(args.date, at),
                    stakes_by_event=stakes_by_event,
                    price_gap_active=price_gap_flag(args.date, at),
-                   price_gap_extra=price_gap_sports(args.date, at))
+                   price_gap_extra=price_gap_sports(args.date, at),
+                   same_event_active=same_event_dedup(args.date, at),
+                   boards=boards)
     # every leg named as Superbet's screen names it (superbet_market /
     # superbet_selection) - what the operator looks for before he clicks
-    name_on_superbet(doc, board_sides(run))
+    name_on_superbet(doc, boards)
     write_atomic(run / COUPON_ARTIFACT,
                  json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
     write_atomic(run / COUPON_ARTIFACT.replace(".json", ".md"),

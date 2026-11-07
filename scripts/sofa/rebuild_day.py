@@ -19,7 +19,9 @@ bet.sofa.rebuild_plan (offline, tested) from the files' ages and the clock:
 3. ensure_bridge + FIXTURE_CHECK, (SHEET again when FIXTURE_CHECK's fresh
    /event names a referee the sheet priced without - rebuild_plan.
    after_fixture_check, epochs.FOOTBALL_REFEREE: step 2 runs before
-   FIXTURE_CHECK and cannot see it), CONFIDENCE, SPORT_CONFIDENCE,
+   FIXTURE_CHECK and cannot see it; COUPON again after such a SHEET while
+   the coupon is audited - rebuild_plan.coupon_after_late_sheet),
+   CONFIDENCE, SPORT_CONFIDENCE,
    COUPON_ASSEMBLY (build_coupon.py), PDF (build_coupon_pdf.py), then
    audit_variants.py and audit_coupon.py (--skip-audits leaves them out and
    says so).
@@ -239,6 +241,9 @@ def main() -> int:
             # sheet's cards / fouls rows before CONFIDENCE reads them
             extra = rp.after_fixture_check(runs_dir, args.date, now(), db_path,
                                            run_id=run_id)
+            # a late SHEET re-runs COUPON after it (audit_coupon in step)
+            extra = rp.coupon_after_late_sheet(extra, plan.steps[i:], args.date,
+                                               run_id=run_id)
             for k, added in enumerate(extra):
                 plan.steps.insert(i + k, added)
                 print(f"    + {added.name}: {added.reason}", flush=True)

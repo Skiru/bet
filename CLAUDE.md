@@ -118,8 +118,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   prices each football fixture on two rating books, without and with the goals
   form step + season table, and a row of `epochs.FOOTBALL_FORM_TABLE_FAMILIES`
   (35 `market|DIR`, selected on 10-18..10-26, confirmed on 10-27..11-04) takes
-  the table run's row (`form_table_p` "table" / "no_table"); cards, goals_for,
-  goals_1h_for, most_* stay off (curve / p mismatch, a later refit). A refit
+  the table run's row (`form_table_p` "table" / "no_table"); card counts,
+  goals_for, goals_1h_for, most_* stay off (curve / p mismatch, a later
+  refit) - `handicap_cards_points` OVER is one of the 35. A refit
   replays it with `--form-table-per-family`. The whole-sheet table and
   `result_1x2` were declined (table gate; 1X2 over-promises on printable legs
   under A -5.5 pp and on rules p -7.8 pp).
@@ -128,8 +129,12 @@ and a miss recorded before a rule's switch never blocks that rule.
   statistics to a calibrated confidence through the curves.
 - **Line evidence** (`bet.sofa.line_evidence`,
   `config/sofa_superbet_line_evidence.json`, refitted every morning by
-  `refresh_line_evidence.py`, which never touches a curve): every key is also
-  read through its own settled Superbet lines. Confidence = the lowest of
+  `refresh_line_evidence.py`, which never touches a curve; `day_status.py`
+  `line_evidence` WARNs when it is fitted for an earlier day; once refitted
+  mid-day - 11-06 17:34Z, for the 17:30Z switches, so 11-06's late legs read
+  the new keys' own offsets): every key is also read through its own
+  settled Superbet lines. From a fit for 2026-11-08 the tennis pool leaves
+  out the point model's rows (they enter through its own evidence only). Confidence = the lowest of
   - the curve lowered by the key's **offset** (realised minus confidence on
     printable lines; needs `MIN_OFFSET_ROWS` 50 lines and `MIN_OFFSET_GAMES` 30
     games, else the sport's pooled offset with `MIN_SPORT_OFFSET_GAMES` 20;
@@ -283,7 +288,10 @@ and a miss recorded before a rule's switch never blocks that rule.
   UNDER, `btts_halves` OVER - each measured on its own 0.60-0.70 band, frozen
   rule, calibrated and at the de-vigged price, ROI -1..-10%), with
   `floor_rule`, never in a builder, C2 audits their own floor
-  (`docs/sofa/evidence/football_sim_floor_2026-11-06.md`).
+  (`docs/sofa/evidence/football_sim_floor_2026-11-06.md`). `btts_any_half`
+  UNDER and `btts_halves` "Nie/Nie" are ONE event (audit 2026-11-07): the
+  floor stands on three distinct events, and the two legs print once from
+  `SAME_EVENT_DEDUP` (below).
 - **Refusals worth knowing** (each named on the row):
   - `CROSS_LEAGUE_UNLINKED`: a football pair is LINKED only when both sides'
     leagues are the competition they share (the hockey / basketball /
@@ -384,6 +392,22 @@ and a miss recorded before a rule's switch never blocks that rule.
   zmienna"; an exposure-per-match section. A leg printed before its start stays
   (locked); a leg removed before its start stays removed. `ladder_form` /
   `max_positions_per_match` are OFF unless `config/sofa_coupon_form.json` sets them.
+- **One event, one leg** (`SAME_EVENT_DEDUP`, from 2026-11-08 00:00Z, audit
+  2026-11-07, operator "TAK!"; `bet.sofa.leg_identity`): two market names of
+  one outcome print once - e.g. `btts_any_half` UNDER = `btts_halves`
+  "Nie/Nie", a side's goals over 0.5 = `result_or_btts` of that side, the four
+  names of "not 0-0", hockey handicap +-0.5 = double chance / 1X2 (and per
+  period), basketball half / quarter likewise (never the full game: overtime),
+  volleyball set handicap +-2.5 = "wins a set", best-of-3 CS2 maps handicap
+  +1.5 = "maps over 0.5" (CS2 legs carry `best_of`; none = no match). The
+  identity is LOGIC (football: graded on every half-time / full-time path
+  with SETTLE's graders), never agreement on settled rows (a DNB is not the
+  double chance). A locked leg stays and its fresh twin goes; among fresh
+  legs the higher price stays, then the lower confidence; the rest go to
+  `removed_as_same_event` (`same_event_as`). Before it 667 printed legs of
+  10-13..11-06 were a second leg of an event already printed - the ledger
+  counted those outcomes twice (ROI the same, -5.27%;
+  `measure_same_event.py`). Ledger group "od 11-08".
 - **Superbet's words** (`bet.sofa.superbet_names`, display only): every leg
   carries `superbet_market` / `superbet_selection` as the screen writes them
   ("3. tercja - Seattle Kraken - liczba goli" / "poniżej 1.5"); a market it does
@@ -497,7 +521,8 @@ measurement of Superbet's price and feed nothing else.
   headshots) and series families from a Beta-mixed series distribution
   (`cs2_engine.SERIES_KAPPA`); round parity unpriced.
 - **Basketball period curves** (`BB_PERIOD_MARKET_LINES`, from 2026-11-06
-  00:00Z, operator's install go 11-05; ledger group "od 11-06"): the h1 / h2 /
+  00:00Z, operator's install go 11-05; ledger: 11-06 is "11-06 mieszany",
+  then "od 11-07" - the group "od 11-06" holds no day): the h1 / h2 /
   quarter total, handicap and team-total curves are fitted on lines placed
   where the market stood - the game's Sofascore total / spread / period count,
   +-2 points (`sport_confidence.period_position_lines`), as the full-game ones
@@ -524,8 +549,9 @@ measurement of Superbet's price and feed nothing else.
   `.next.2026-11-06.json` is untouched, `.next.2026-11-07.json` carries the
   same 16 keys - a no-op there); line evidence at the rally p (`vb_point_pricer.BACKFILL`, kept by
   `backfill_vb_point_p.py`, refresh step 1b). Hold-out 10-20..11-05 vs the
-  current chain: Brier better in every wired family (points handicap -0.0048,
-  set handicap -0.0057, ...), >= 0.70 points handicap -19.7 pp (current
+  current chain: Brier better in every wired family by point estimate (points
+  handicap -0.0048 [-0.0135, +0.0038] and points parity cross zero; the
+  families were chosen on this hold-out - audit 2026-11-07), >= 0.70 points handicap -19.7 pp (current
   -22.6) - still over-promising; the price beats both
   (`docs/sofa/evidence/volleyball_point_model_2026-11-06.md`).
 - Hockey / basketball player lines: p = player_model's pre-game number in

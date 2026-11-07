@@ -783,6 +783,11 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 # audit 2026-10-23 P7: priced through the unrated pairs'
                 # lineup calibration (review R3 F10)
                 legs[-1]["lineup_unrated_rule"] = cs2_engine.LINEUP_UNRATED_RULE
+            if sport == "cs2" and fixture.get("best_of"):
+                # the series' format as SPORT_IDENTITY knows it - read by
+                # bet.sofa.leg_identity (a maps handicap and "maps over 0.5"
+                # are one event only in a best of 3); a label, never guessed
+                legs[-1]["best_of"] = int(fixture["best_of"])
             if (sport == "cs2" and epochs.cs2_decider_map_posterior(date, at)
                     and getattr(ln, "map_nr", None) is not None
                     and cs2_engine.decider_map(

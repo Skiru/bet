@@ -90,8 +90,13 @@ def fixture_match(
     (best of five or unknown sides)."""
     if home_id is None or away_id is None:
         return None
-    if default_period_count not in (None, 3):
-        return None  # best of five is not modelled (measured bo3 only)
+    if default_period_count != 3:
+        # best of five is not modelled (measured bo3 only), and a format the
+        # fixture does not state is not guessed as best of three (audit
+        # 2026-11-07: a Grand Slam men's match without the field would have
+        # been priced bo3 - match aces / double faults far too low; 12,689 of
+        # 12,689 tennis fixtures of the last 60 days carried 3)
+        return None
     return PointMatch(
         event_id=int(event_id), ts=int(kickoff.timestamp()),
         tier=tier_group(str(category_name or "")),

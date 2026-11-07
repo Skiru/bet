@@ -578,6 +578,31 @@ Verdict rule (operator via coordinator, 11-06, after the frozen hold-outs ran): 
 - Hockey / basketball player names: football's token and surname rules, then
   tokens without Jr / Sr / II suffixes (`shadow.player_value`, 2026-10-17).
 
+### One event, one leg (`SAME_EVENT_DEDUP`, 2026-11-08 00:00Z; audit 2026-11-07, operator "TAK!"; ledger group "od 11-08")
+
+`bet.sofa.leg_identity.event_key` names the event a leg wins on - football
+goal markets graded on every half-time / full-time path (0..6 goals per team
+per half, first scorer of the half) with SETTLE's own graders
+(`football_score_markets.event_mask`, `football_sim_markets.path_holds`,
+plain counts); hockey regulation / periods and basketball halves / quarters
+as the set of margins (team1's handicap for both sides; never basketball's
+full game - its handicap counts overtime, its 1X2 does not); volleyball and
+best-of-3 CS2 as the set of set / map scores (CS2 legs carry `best_of` from
+SPORT_IDENTITY, none = no key). `build_coupon.assemble` keeps one fresh leg
+per (match, key) after the coupon form: a locked leg stays and its fresh twin
+goes; else the higher price, then the lower confidence; the rest go to
+`removed_as_same_event`. Identities found on the coupons 10-13..11-06:
+`goals_for` side O0.5 = `result_or_btts` that side (360 groups); "not 0-0" =
+`goals_total` O0.5 = `result_or_over` 1 / 2 @0.5 (= `btts_or_over` @0.5)
+(119); hockey (period) handicap +-0.5 = (period) double chance (74);
+volleyball set handicap +-2.5 = `team_wins_set` (41); `btts_any_half` UNDER
+= `btts_halves` Nie/Nie (2). 667 second legs in all; one leg per event
+leaves the coupon's ROI where it was (-5.27% both, `measure_same_event.py`).
+The grouping is the same on 0..9-goal paths (checked 11-07). Not a
+measurement of an edge: a correctness fix of the count and the exposure.
+Not in it (no printed pair): tennis `games_won_setN_for` 5.5 = handicap
++1.5 per set; DNB vs double chance (a draw refunds one) is NOT the same bet.
+
 ## (b) Switches OFF (`None`)
 
 ### Waiting for the operator
@@ -744,7 +769,7 @@ better (-0.0006 [-0.0078, +0.0069]) and its legs overstate (35 / 15 matches,
 | per-line curves | 10-18 12:04Z (`install_line_curves.py`) | `by_market_direction_line` only | `config/backup_2026-10-18_line_curves/` |
 | hockey refit 2026-10-23 | staged 2026-10-23, read from 2026-10-24 00:00Z (`config/sofa_sport_confidence_calibration.next.2026-10-24.json`, the dated staged chain of `sport_confidence.calibration_path_for`; 10-14..10-23 keep reading `.next.json`) | hockey section only: `fit_sport_confidence.py --sport hockey --before 2026-10-23 --league-rate-rule` (fit 2025-09-23..2026-09-23, 785,934 rows; holdout 09-23..10-23, 647,144 rows / 3,375 games; no season restart, no A7); new-market DC curves carried; basketball / volleyball / CS2 sections byte-identical to `.next.json`. Settled Superbet lines 09-29..10-21 (out of sample for both): log loss -0.00048 [-0.00062, -0.00033] (71,948 lines / 1,788 games; `handicap` alone +0.00224 [+0.00187, +0.00262] worse); confidence >= 0.70 -0.5 pp [-1.5, +0.5] -> -0.2 pp [-1.2, +0.8], difference +0.30 pp [+0.13, +0.49]; history holdout +0.00003 [-0.00002, +0.00008], >= 0.70 +0.8 -> +0.9 pp. Pre-registered `T-HOCKEY-REFIT-1024` (PROPOSED) | DB copy `data/refit_2026-10-23/sp.db` deleted; rows / comparisons kept in `data/refit_2026-10-23/`; `docs/sofa/history/REFIT_HOKEJ_SIATKOWKA_2026-10-23.md` |
 | basketball period curves 2026-11-05 | staged 2026-11-05, read from 2026-11-06 00:00Z (`config/sofa_sport_confidence_calibration.next.2026-11-06.json`) | 15 basketball period keys (h1 / h2 / quarter total OVER / UNDER, handicap TEAM, team_total OVER / UNDER) from `fit_sport_confidence.py --sport basketball --before 2026-11-06 --bb-period-market-lines on` (A7 cache, 5,910 games with lines, 1,564,738 fit rows); the rest of the file = `.next.2026-10-28`; keys not admitted (read under line evidence, `require_admitted=False`) | DB copy `data/refit_2026-11-05_replay/sofa_copy.db`; candidate and control arm `data/refit_2026-11-05_replay/bb/`; section (a) "Basketball period curves" |
-| football simulator curves 2026-11-06 | written 2026-11-06, read only under `FOOTBALL_SIM` (from 2026-11-07 00:00Z; `football_sim_curves.for_day`) | `config/sofa_football_sim_curves.json`: the 9 simulator keys (11 direction curves + class `women`), `fit_football_sim_curves.py` on the simulator's walk-forward 2026-06-01..10-20 (40,025 matches, 2,681,246 rows; code d16ca339; params `config/sofa_football_sim_params.json`) | new file, nothing replaced; measurement caches `data/football_sim_2026-11-06/`; line backfill `data/line_evidence/football_sim_lines.jsonl.gz` |
+| football simulator curves 2026-11-06 | written 2026-11-06, read only under `FOOTBALL_SIM` (from 2026-11-06 17:30Z, moved by the operator from 11-07 00:00Z; `football_sim_curves.for_day`) | `config/sofa_football_sim_curves.json`: the 9 simulator keys (11 direction curves + class `women`), `fit_football_sim_curves.py` on the simulator's walk-forward 2026-06-01..10-20 (40,025 matches, 2,681,246 rows; code d16ca339; params `config/sofa_football_sim_params.json`) | new file, nothing replaced; measurement caches `data/football_sim_2026-11-06/`; line backfill `data/line_evidence/football_sim_lines.jsonl.gz` |
 | football season table per family 2026-11-06 | staged 2026-11-06, read from 2026-11-07 00:00Z (`config/sofa_confidence_calibration.next.2026-11-07.json`, dated chain) | the 11-06 17:30Z staged file + 4 candA refit curves (6 key paths) of table families; every other key that file's or the installed one's (`staged_change`) | arm A replay (`--form-table`) on `data/refit_2026-11-05_replay/sofa_copy.db`; candidate `candA/full.json`; selection `table_select.json`, gate `cross_perfamily_verdict.txt` |
 | football / tennis replay refit 2026-11-05 (rules-only) | staged 2026-11-06, read from 2026-11-06 17:30Z (operator moved it into the built day; `config/sofa_confidence_calibration.next.json`, undated - see "The staged football / tennis chain" below) | 25 curve keys of 16 families + 13 score slices (section a); every other key byte-equal to the installed file (`staged_change`) | replay `data/refit_2026-11-05_replay/sofa_copy.db` (VACUUM INTO copy, 1,457,004 matches, 139.5M rows); candidate `cand/full.json`, verdict `rules_verdict.txt`, composer `compose_staged.py`, plan `plan_rules_score.json`; score slices `data/refit_2026-11-05_score/staged/`; installed file unchanged |
 
@@ -1073,6 +1098,26 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (e) Open questions, not modelled yet, before the next refit
 
+- **Audit 2026-11-07 of the 11-06 changes - open, need a measurement or the
+  operator** (`docs/sofa/history/AUDYT_ZMIAN_2026-11-06.md`): football sim
+  multi-way markets (HT/FT, half-goal combos, `btts_halves`) skip the 15%
+  margin rule as one-sided although Superbet quotes the whole outcome set
+  (39 of 52 `half_goals_combo` legs on 11-06 at 15.2-16.9%); the sim floor
+  rule (upper 95% >= 0, no margin) is lenient and measured on the last
+  pre-start snapshot, not the print's prices; volleyball rally model: gender
+  from history only (a pair with no history gets the men's side-out under a
+  Superbet "(K)"), no minimum history (Kagoshima 3 matches, 6 legs on
+  11-06), home edge +0.04 at neutral venues, best of 3 priced as best of 5
+  (6 of 63.5k games), `points_total|OVER` / `set_points_total|UNDER` too few
+  lines for their own offset (read the near-zero pool); line evidence for the
+  35 season-table families is fitted on no-table p and applied to table p
+  (only lowers); `fitted_from` of the staged `.next*` files does not record
+  the flags the replaced keys were fitted with (recorded in
+  `refit_replay_2026-11-05.md`); U3 / verify_legs read the line evidence
+  installed now, not the build's (older, false findings on a re-audit after
+  a morning refit); a per-set tennis leg on a match retired later is refunded
+  whole - Superbet may settle a completed set (unverified offline).
+
 - **Continental cups at a big rating-vs-market gap (2026-11-04)**: whole
   ladder, hold-out, D >= 1: 14 matches, -16.8 pp [-29.6, -3.8] against the
   price (printed 10 matches, -16.6 pp [-44.3, +7.9]) - a **suspicion**, not a
@@ -1198,9 +1243,10 @@ Groups are never pooled.
 | "od 11-02" | 11-02 | READS_ON_REQUEST 00:00Z - /sofa-day prints without the analysts (reads only via /sofa-analyze, /kupon) |
 | "od 11-03" | 11-03 .. 11-04 | SETTLEABILITY_DAILY 00:00Z - the NOT_SETTLEABLE list refitted every morning |
 | "11-05 mieszany" | 11-05 | TENNIS_TOTALS_FLOOR moved by the operator into the built day at 17:05Z; legs printed before stay locked |
-| "od 11-06" | 11-06 | TENNIS_TOTALS_FLOOR 00:00Z - tennis games_total / sets_total print from confidence 0.60 (operator 11-05); TENNIS_POINT_MODEL 00:00Z - tennis per-set games and serve counts priced by the point model with their own history curves (operator 11-05); basketball period curves on market-positioned lines (`BB_PERIOD_MARKET_LINES`, `.next.2026-11-06`: h1 / h2 / quarter totals, handicaps, team totals); all share the group (coordinator 11-05) - a later audit separates them by market family |
-| "11-06 mieszany" | 11-06 | switches moved by the operator into the built day at 17:30Z ("WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ"): the staged football / tennis refit (`.next.json` read from 17:30Z) and the other 17:30Z switches (their sections): FOOTBALL_SIM + FOOTBALL_SIM_FLOOR (football path markets from the minute simulator, 0.60 for four keys; until the 11-07 morning refit of line evidence they read the pooled football offset by d bucket and the sport-wide price-band cap, no own lines); VB_POINT_MODEL (volleyball rally model, its curves overlaid by the clock) and TENNIS_HANDICAP_POINT_MODEL (per-set handicap from the point model; the rebuild re-runs SHEET on the marker); legs printed before stay locked; summed with neither neighbour |
-| "od 11-07" | 11-07 .. | current; the staged football / tennis refit (`.next.json`, effective_from 11-06 17:30Z, so from the day's start: 16 replay-refit families with the live rules + 13 score-market slices, no 1X2, no form table) and FOOTBALL_SIM (from 11-06 17:30Z, so from the day's start) - football path markets (HT/FT, half results, both halves, half goal combos ...) priced by the minute simulator with their own history curves (operator 11-06), FOOTBALL_SIM_FLOOR 0.60 for four of its keys (`floor_rule`); VB_POINT_MODEL 00:00Z - volleyball winner / handicaps / totals / exact sets / set winner / parity from the rally-point model with its own curves (`.next.2026-11-07`); TENNIS_HANDICAP_POINT_MODEL 00:00Z - tennis per-set games handicap from the point model; all share the group - a later audit separates them by market family; FOOTBALL_FORM_TABLE per family 00:00Z (moved by the operator from 11-09) - 35 football families read the goals rating with the season table (`form_table_p` "table"), curves `.next.2026-11-07.json` |
+| "od 11-06" | none (11-06 became "11-06 mieszany") | TENNIS_TOTALS_FLOOR 00:00Z - tennis games_total / sets_total print from confidence 0.60 (operator 11-05); TENNIS_POINT_MODEL 00:00Z - tennis per-set games and serve counts priced by the point model with their own history curves (operator 11-05); basketball period curves on market-positioned lines (`BB_PERIOD_MARKET_LINES`, `.next.2026-11-06`: h1 / h2 / quarter totals, handicaps, team totals); all share the group (coordinator 11-05) - a later audit separates them by market family |
+| "11-06 mieszany" | 11-06 | switches moved by the operator into the built day at 17:30Z ("WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ"): the staged football / tennis refit (`.next.json` read from 17:30Z) and the other 17:30Z switches (their sections): FOOTBALL_SIM + FOOTBALL_SIM_FLOOR (football path markets from the minute simulator, 0.60 for four keys; line evidence was refitted at 11-06 17:34:29Z, just before the 17:34:52Z rebuild, so the late legs read the simulator keys' OWN offsets - fitted on lines of 10-14..11-05, the floor's hold-out window - not the pooled offset the evidence docs describe; audit 2026-11-07); VB_POINT_MODEL (volleyball rally model, its curves overlaid by the clock) and TENNIS_HANDICAP_POINT_MODEL (per-set handicap from the point model; the rebuild re-runs SHEET on the marker); legs printed before stay locked; summed with neither neighbour |
+| "od 11-08" | 11-08 .. | current; SAME_EVENT_DEDUP 00:00Z - one leg per (match, event), two market names of one outcome print once (audit 2026-11-07); TENNIS_POINT_POOL_SPLIT (line evidence fitted for 11-08 on: the tennis pool without the point model's rows) |
+| "od 11-07" | 11-07 | the staged football / tennis refit (`.next.json`, effective_from 11-06 17:30Z, so from the day's start: 16 replay-refit families with the live rules + 13 score-market slices, no 1X2, no form table) and FOOTBALL_SIM (from 11-06 17:30Z, so from the day's start) - football path markets (HT/FT, half results, both halves, half goal combos ...) priced by the minute simulator with their own history curves (operator 11-06), FOOTBALL_SIM_FLOOR 0.60 for four of its keys (`floor_rule`); VB_POINT_MODEL 00:00Z - volleyball winner / handicaps / totals / exact sets / set winner / parity from the rally-point model with its own curves (`.next.2026-11-07`); TENNIS_HANDICAP_POINT_MODEL 00:00Z - tennis per-set games handicap from the point model; all share the group - a later audit separates them by market family; FOOTBALL_FORM_TABLE per family 00:00Z (moved by the operator from 11-09) - 35 football families read the goals rating with the season table (`form_table_p` "table"), curves `.next.2026-11-07.json` |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 
 There is no group "od 10-17": PLAYER_SAMPLE_GATES 00:00Z falls in "10-17 mieszany".

@@ -151,7 +151,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
                 "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06",
-                "11-06 mieszany", "od 11-07")
+                "11-06 mieszany", "od 11-07", "od 11-08")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -257,8 +257,9 @@ READS_ON_REQUEST_EPOCH_FROM_DATE = "2026-11-02"
 # family) cells refused on its first fit - what prints changes: a new epoch.
 SETTLEABILITY_DAILY_EPOCH_FROM_DATE = "2026-11-03"
 # Tennis games / sets total print from confidence 0.60
-# (epochs.TENNIS_TOTALS_FLOOR_FROM_UTC, 2026-11-06 00:00Z, operator 11-05):
-# more tennis legs print - a new epoch.
+# (epochs.TENNIS_TOTALS_FLOOR_FROM_UTC, 2026-11-05 17:05Z - moved by the
+# operator from 11-06 00:00Z, operator 11-05): more tennis legs print - a new
+# epoch.
 TENNIS_TOTALS_FLOOR_EPOCH_FROM_DATE = "2026-11-06"
 # moved by the operator into the built day 2026-11-05 at 17:05Z: legs
 # printed before stay locked, so 11-05 is mixed - its own group.
@@ -266,16 +267,20 @@ TENNIS_TOTALS_FLOOR_1105_MIXED_DATE = "2026-11-05"
 # The tennis point model (epochs.TENNIS_POINT_MODEL_FROM_UTC, 2026-11-06
 # 00:00Z, operator 11-05: per-set games and serve-count rows priced by the
 # bottom-up point model, their own history curves) starts the same day: both
-# switches share the group "od 11-06". So do the basketball period curves
+# switches would share the group "od 11-06" - but 11-06 became mixed (the
+# switches the operator moved to 11-06 17:30Z, below), so "od 11-06" holds
+# no day: 11-06 is "11-06 mieszany" and 11-07 on "od 11-07". So do the
+# basketball period curves
 # fitted on market-positioned lines (epochs.BB_PERIOD_MARKET_LINES_FROM_UTC,
 # config/sofa_sport_confidence_calibration.next.2026-11-06.json: h1 / h2 /
 # quarter totals, handicaps, team totals) - one group, separated by market
 # family when audited.
 # The football / tennis curves staged in
-# config/sofa_confidence_calibration.next.json (effective_from 2026-11-07
-# 00:00Z: the families of the 2026-11-05 replay refit that passed the frozen
+# config/sofa_confidence_calibration.next.json (effective_from 2026-11-06
+# 17:30Z, moved by the operator from 11-07 00:00Z: the families of the
+# 2026-11-05 replay refit that passed the frozen
 # verdict, docs/sofa/evidence/refit_replay_2026-11-05.md) change what prints
-# from 2026-11-07 - a new epoch.
+# from 2026-11-07 - a new epoch (11-06 after 17:30Z: "11-06 mieszany").
 # The football minute-by-minute simulator (epochs.FOOTBALL_SIM_FROM_UTC,
 # 2026-11-07 00:00Z: HT/FT, half results and the other path markets priced
 # by bet.sofa.football_sim, their own history curves; moved by the operator
@@ -300,10 +305,18 @@ STAGED_REFIT_1107_EPOCH_FROM_DATE = "2026-11-07"
 # its curves in config/sofa_confidence_calibration.next.2026-11-07.json)
 # shares "od 11-07" (separated by market family when audited).
 SWITCHES_1106_MIXED_DATE = "2026-11-06"
+# One leg per (match, event) (epochs.SAME_EVENT_DEDUP_FROM_UTC, 2026-11-08
+# 00:00Z, audit 2026-11-07, operator "TAK!"): two market names of one
+# outcome stop printing twice - fewer positions, each event counted once: a
+# new epoch. scripts/sofa/measure_same_event.py shows the earlier days with
+# one leg per event beside the official figures (a view, never the ledger).
+SAME_EVENT_DEDUP_EPOCH_FROM_DATE = "2026-11-08"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= SAME_EVENT_DEDUP_EPOCH_FROM_DATE:
+            return "od 11-08"
         if str(row.get("date", "")) >= STAGED_REFIT_1107_EPOCH_FROM_DATE:
             return "od 11-07"
         if str(row.get("date", "")) == SWITCHES_1106_MIXED_DATE:

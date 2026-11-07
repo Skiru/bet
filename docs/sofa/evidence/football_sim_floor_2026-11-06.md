@@ -170,3 +170,20 @@ Operator: „WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ”. `FOOTBALL_SIM_FROM_UTC
 
   Tak samo liczył wariant B odłożonej próby.
 
+
+## Audyt 2026-11-07 — uwagi
+
+Pełny raport: `docs/sofa/history/AUDYT_ZMIAN_2026-11-06.md`.
+
+- `btts_any_half` UNDER i `btts_halves` „Nie/Nie” to **to samo zdarzenie**
+  (jedyna selekcja `btts_halves`, która dochodzi do p 0,60). Przeszły więc
+  3 różne zdarzenia, nie 4; pasma 110 i 106 nóg to w dużej mierze te same
+  mecze. 11-06 obie nogi wydrukowały się razem na dwóch meczach. Od
+  `SAME_EVENT_DEDUP` (2026-11-08) drukuje się jedna.
+- Reguła przejścia (górna granica 95% ≥ 0, bez marginesu) jest łagodna:
+  `team_scores_both_halves` UNDER przeszło przy −2,3 pp [−5,5; +0,8], ROI −9,9%.
+- Linie z hold-outu to ostatni snapshot przed startem; kupon drukuje godziny
+  wcześniej po innych cenach — pomiar opisuje inny zbiór nóg niż drukowany.
+- 11-06 po 17:30Z nogi symulatora czytały **własne** przesunięcia dowodu linii
+  (przeliczenie o 17:34:29Z), dopasowane na liniach okna hold-outu, a nie
+  przesunięcie zbiorcze z wariantu B — do ok. 1,4 pp wyżej niż zmierzono.

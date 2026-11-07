@@ -254,3 +254,16 @@ Operator: „WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ”. `FOOTBALL_SIM_FROM_UTC
 
   Tak samo liczył wariant B odłożonej próby.
 
+
+## Audyt 2026-11-07 — uwagi
+
+Pełny raport: `docs/sofa/history/AUDYT_ZMIAN_2026-11-06.md`.
+
+- Sekcja „Przeniesienie” mówi, że plik dowodu linii nie jest przeliczany w
+  ciągu dnia. 11-06 został przeliczony o 17:34:29Z (przed rebuildem
+  17:34:52Z); nogi symulatora czytały własne przesunięcia kluczy.
+- Rynki wielowynikowe symulatora (HT/FT, kombinacje goli w połowach,
+  `btts_halves`) są mapowane jako jednostronne i omijają regułę marży 15%,
+  choć Superbet kwotuje cały zestaw: 39 z 52 nóg `half_goals_combo` 11-06
+  miało marżę 15,2–16,9%. Zgodne z CLAUDE.md, ale to luka projektowa —
+  zmiana wymaga pomiaru i decyzji operatora.

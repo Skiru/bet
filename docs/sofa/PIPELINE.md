@@ -2694,6 +2694,25 @@ niego 08).
   górę, bez numeru, z `printed_under` (w tym `epoch`). Noga zdjęta przed
   startem zostaje zdjęta.
 - Buildery B1.. (osobne strony PDF, odsyłacz przy bloku meczu).
+- **Jedno zdarzenie — jedna noga** (`SAME_EVENT_DEDUP`, od 2026-11-08 00:00Z,
+  audyt 2026-11-07, operator „TAK!”; `bet.sofa.leg_identity`): dwie nazwy
+  rynku tego samego wyniku drukują się raz. Przykłady: „Obie drużyny strzelą
+  w przynajmniej jednej połowie: nie” = „1. połowa / 2. połowa: Nie/Nie”;
+  „<drużyna> powyżej 0.5 gola” = „<drużyna> wygra lub obie strzelą”; „nie
+  0-0” pod czterema nazwami (gole powyżej 0.5, „1 lub powyżej 0.5”, „2 lub
+  powyżej 0.5”, „BTTS lub powyżej 0.5”); hokej handicap ±0.5 = podwójna szansa
+  / 1X2 (także w tercjach); koszykówka w połowach i kwartach (nigdy cały mecz
+  — handicap liczy dogrywkę, 1X2 nie); siatkówka handicap setowy ±2.5 =
+  „wygra seta”; CS2 do dwóch wygranych map handicap +1.5 = „liczba map
+  powyżej 0.5” (noga CS2 niesie `best_of`, bez niego nie ma dopasowania).
+  Tożsamość to **logika** (piłka: ocena na każdej ścieżce wyniku do przerwy i
+  końcowego graderami SETTLE), nigdy zgodność rozliczonych wierszy (DNB to nie
+  podwójna szansa — remis zwraca jedno). Noga zablokowana zostaje, a jej
+  świeży bliźniak wypada; spośród świeżych zostaje wyższy kurs, potem niższa
+  pewność; reszta trafia do `removed_as_same_event` (z `same_event_as`).
+  Wcześniej 667 wydrukowanych nóg 10-13..11-06 było drugą nogą już
+  wydrukowanego zdarzenia — ledger liczył te wyniki podwójnie (ROI bez zmian,
+  −5,27%; `measure_same_event.py`). Grupa ledgera „od 11-08”.
 - `removed_by_reads`: nogi, które przeszły każdą bramkę, a zdjął je odczyt
   WATCH / NO_BET albo automatyczny `MODEL_ABOVE_OWN_SAMPLE`, z `reason`
   (`analyst` / `verifier` / `auto`). Dla nóg sportów weta i odczyty stosuje tu

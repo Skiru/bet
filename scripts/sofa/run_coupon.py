@@ -19,7 +19,11 @@ from pydantic import RootModel
 
 from bet.sofa.artifact_guard import incomplete_reason
 from bet.sofa.atomic import write_atomic
-from bet.sofa.confidence import MIN_MINUTES_TO_KICKOFF, Calibration
+from bet.sofa.confidence import (
+    MIN_MINUTES_TO_KICKOFF,
+    Calibration,
+    calibration_path_for,
+)
 from bet.sofa.config import SofaConfig
 from bet.sofa.contracts import Fixture, FixtureOffer, SheetRow, Veto
 from bet.sofa.coupon import CouponResult, build_coupon
@@ -289,8 +293,10 @@ def main() -> int:
         max_price_age=timedelta(minutes=config.price_max_age_min),
         max_singles=args.max_singles,
         # The same measured ceiling CONFIDENCE enforces. Both paths read one
-        # calibration so they cannot disagree about what has been observed.
-        calibration=Calibration.load(),
+        # calibration so they cannot disagree about what has been observed -
+        # the day's file by the build clock (calibration_path_for; it read the
+        # installed file while CONFIDENCE read a staged one, audit 2026-11-07)
+        calibration=Calibration.load(calibration_path_for(args.date, current_time)),
         reads=load_reads(run_dir / "reads.json"),
     )
 

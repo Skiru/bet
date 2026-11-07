@@ -2452,41 +2452,92 @@ def player_share_centre(
                     "epochs.FOOTBALL_PLAYER_SHARE")
 
 
+FORM_TABLE_RUN_NOT_PRICED = "FORM_TABLE_RUN_NOT_PRICED"
+
+
+def _rung_directions(rung: Any) -> tuple[str, ...]:
+    """The directions Superbet quoted on a skipped rung (a PricedRung's
+    over / under odds); a rung that says neither stands for both."""
+    over = getattr(rung, "over_odds", None)
+    under = getattr(rung, "under_odds", None)
+    out = tuple(d for d, odds in (("OVER", over), ("UNDER", under))
+                if odds is not None)
+    return out or ("OVER", "UNDER")
+
+
 def merge_form_table_rows(
     rows: list[SheetRow],
     skipped: list[tuple[Any, GapReason, str]],
     table_rows: list[SheetRow],
+    table_skipped: list[tuple[Any, GapReason, str]] | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """epochs.FOOTBALL_FORM_TABLE per family: one fixture priced on the book
     without the season table (`rows`, `skipped`) and on the book with it
-    (`table_rows`). A row of a family in FOOTBALL_FORM_TABLE_FAMILIES comes
-    from the table run, every other row from the no-table run, in the
-    no-table run's order (a table row the no-table run did not price goes
-    last). A rung skipped by the no-table run and priced by the table run
-    for a table family is no longer skipped. Joint and derived rows are
-    taken whole by their own family - nothing mixes inside a row."""
+    (`table_rows`, `table_skipped`). A row of a family in
+    FOOTBALL_FORM_TABLE_FAMILIES comes from the table run, every other row
+    from the no-table run, in the no-table run's order (a table row the
+    no-table run did not price goes last). Joint and derived rows are taken
+    whole by their own family - nothing mixes inside a row.
+
+    Skips, per (market, direction) - a skip record covers a rung (market,
+    subject, line), each of its quoted directions read from its own family's
+    run: the no-table run's record stays while a non-table direction of the
+    rung is unpriced; the table run's own record (its reason) stays while a
+    table-family direction is unpriced; a table-family row only the no-table
+    run priced, with no table record, gets one (GapReason.NOT_RATED, detail
+    FORM_TABLE_RUN_NOT_PRICED). Counts only: no priced row changes."""
     def key(r: SheetRow) -> tuple[str, str | None, float | None, str | None]:
         return (r.market, r.subject, r.line, r.direction)
+
+    def rung_key(rung: Any) -> tuple[Any, Any, Any]:
+        return (getattr(rung, "market", None), getattr(rung, "subject", None),
+                getattr(rung, "line", None))
 
     table = {key(r): r for r in table_rows
              if epochs.football_form_table_family(r.market, r.direction)}
     out: list[SheetRow] = []
     used: set[tuple[str, str | None, float | None, str | None]] = set()
+    dropped: list[SheetRow] = []
     for r in rows:
         if epochs.football_form_table_family(r.market, r.direction):
             t = table.get(key(r))
             if t is not None:
                 out.append(t)
                 used.add(key(r))
-            # a table family the table run did not price: no row (as the
-            # table book would have priced it)
+            else:
+                # a table family the table run did not price: no row (as the
+                # table book would have priced it) - a skip record below
+                dropped.append(r)
             continue
         out.append(r)
     out.extend(r for k, r in table.items() if k not in used)
-    priced = {(r.market, r.subject, r.line) for r in out}
-    kept = [s for s in skipped
-            if (getattr(s[0], "market", None), getattr(s[0], "subject", None),
-                getattr(s[0], "line", None)) not in priced]
+    priced = {key(r) for r in out}
+
+    def unpriced(rung: Any, table_family: bool) -> bool:
+        m, subject, line = rung_key(rung)
+        return any(
+            (m, subject, line, d) not in priced
+            for d in _rung_directions(rung)
+            if bool(epochs.football_form_table_family(str(m), d)) == table_family)
+
+    kept = [s for s in skipped if unpriced(s[0], False)]
+    seen = {(rung_key(s[0]), s[1]) for s in kept}
+    table_seen: set[tuple[Any, Any, Any]] = set()
+    for s in table_skipped or []:
+        if not unpriced(s[0], True):
+            continue
+        table_seen.add(rung_key(s[0]))
+        if (rung_key(s[0]), s[1]) not in seen:
+            seen.add((rung_key(s[0]), s[1]))
+            kept.append(s)
+    for r in dropped:
+        rk = (r.market, r.subject, r.line)
+        if rk in table_seen or key(r) in priced:
+            continue
+        table_seen.add(rk)
+        kept.append((r, GapReason.NOT_RATED,
+                     f"{FORM_TABLE_RUN_NOT_PRICED}: {r.market}|{r.direction} "
+                     "priced by the no-table run only"))
     return out, kept
 
 
@@ -4080,9 +4131,10 @@ def _main() -> int:
                 # epochs.FOOTBALL_FORM_TABLE (per family): the fixture again on
                 # the book with the season table; a row of a table family
                 # takes that run's row, every other row the no-table run's
-                t_rows, _t_skipped = _priced(football_book_table,
-                                             sample_corrector_table)
-                rows, skipped = merge_form_table_rows(rows, skipped, t_rows)
+                t_rows, t_skipped = _priced(football_book_table,
+                                            sample_corrector_table)
+                rows, skipped = merge_form_table_rows(rows, skipped, t_rows,
+                                                      t_skipped)
             if sim_pricer is not None:
                 sim_pricer.forget(fixture.sofascore_event_id)
             all_rows.extend(rows)

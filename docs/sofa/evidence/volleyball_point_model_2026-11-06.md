@@ -274,3 +274,22 @@ w każdej rodzinie.
   `volleyball_tune.json`, `volleyball_tune2.json`, `volleyball_history.json`,
   `volleyball_curves.json`, `volleyball_dev.json`, `volleyball_holdout.json`,
   `volleyball_sb_holdout.jsonl`.
+
+## Audyt 2026-11-07 — uwagi
+
+Pełny raport: `docs/sofa/history/AUDYT_ZMIAN_2026-11-06.md`.
+
+- Rodziny podłączono po obejrzeniu hold-outu (reguła z sekcji 4 nie
+  przepuszczała żadnej; reguła z sekcji 5 powstała po policzeniu wyników).
+  „Brier lepszy w każdej rodzinie” to prawda dla estymat punktowych:
+  przedziały `points_handicap` −0,0048 [−0,0135; +0,0038] i parzystości
+  punktów −0,0007 [−0,0018; +0,0005] obejmują zero. Pierwszym czystym
+  pomiarem jest ledger od 11-07.
+- `points_total|OVER` (17 linii, −32 pp) i `set_points_total|UNDER` (27,
+  −13,7 pp) mają za mało linii na własne przesunięcie i czytają zbiorcze
+  siatkówki (−0,47 pp); 11-06 żadna noga nie przeszła (BELOW_FLOOR).
+- Bez pomiaru, do decyzji: płeć z historii (para bez historii dostaje
+  męski side-out nawet przy „(K)” Superbetu), brak minimum historii
+  (Kagoshima: 3 mecze, 6 nóg), przewaga gospodarza +0,04 także na neutralnym
+  terenie, mecz do dwóch wygranych setów wyceniany jak do trzech (6 z 63,5 tys.
+  w historii).

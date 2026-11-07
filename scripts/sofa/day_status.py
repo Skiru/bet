@@ -35,6 +35,12 @@ named, never shown as passed:
                   (config/sofa_settleability.<D>.json, refresh_line_evidence
                   step 3) or WARN naming the older one; NOT_CHECKED before
                   epochs.SETTLEABILITY_DAILY_DATE
+    line_evidence the line evidence CONFIDENCE reads
+                  (config/sofa_superbet_line_evidence.json): OK when it was
+                  fitted for the day (`fitted_from.before` = the day), WARN
+                  when for an earlier day (refresh_line_evidence.py --before
+                  <D> not run yet - sofa-day 1a), NOT_CHECKED once refitted
+                  for a later day (audit 2026-11-07: nothing said so)
     backfill      a backfill driver log (runs/sofa/backfill/*.log) whose last
                   start / STOP line is a STOP of the last 12 h
                   (backfill_driver.py gave up on the bridge; WARN)
@@ -64,7 +70,7 @@ from bet.sofa import epochs, timeutil  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.clv import CLOSE_MIN_MINUTES, is_close  # noqa: E402
-from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.config import SofaConfig, config_path  # noqa: E402
 from bet.sofa.epochs import STATS_ONLY_DATE  # noqa: E402
 from bet.sofa.icloud_sync import differences as icloud_differences  # noqa: E402
 from bet.sofa.settleability import path_for as settleability_path_for  # noqa: E402
@@ -495,6 +501,24 @@ def icloud_check(runs: Path, date: str) -> Check:
     return Check("icloud", OK, f"{dest}: pdf + html equal to the local render")
 
 
+def line_evidence_check(date: str, path: Path | None = None) -> Check:
+    path = path if path is not None else config_path("sofa_superbet_line_evidence.json")
+    try:
+        fitted = json.loads(path.read_text(encoding="utf-8")).get("fitted_from") or {}
+    except (OSError, ValueError) as exc:
+        return Check("line_evidence", WARN, f"{path.name} unreadable: {exc}")
+    before = str(fitted.get("before") or "")
+    at = str(fitted.get("fitted_at_utc") or "?")
+    if before == date:
+        return Check("line_evidence", OK, f"fitted for {date} at {at}")
+    if before > date:
+        return Check("line_evidence", NOT_CHECKED,
+                     f"refitted since for {before} (at {at})")
+    return Check("line_evidence", WARN,
+                 f"fitted for {before or '?'} (at {at}), not for {date} - "
+                 f"refresh_line_evidence.py --before {date} before CONFIDENCE")
+
+
 def settleability_check(date: str, config: Path | None = None) -> Check:
     if date < epochs.SETTLEABILITY_DAILY_DATE:
         return Check("settleability", NOT_CHECKED,
@@ -621,6 +645,7 @@ def checks(runs: Path, date: str, now: datetime,
         coupon_check(run, now),
         icloud_check(runs, date),
         settleability_check(date),
+        line_evidence_check(date),
         fixtures_check(run),
         identity_check(run),
         history_check(runs, date, db_path),

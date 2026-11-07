@@ -506,6 +506,25 @@ def after_fixture_check(runs_dir: str, date: str, now: datetime,
                                "after FIXTURE_CHECK's /event")]
 
 
+def coupon_after_late_sheet(added: list[Step], remaining: list[Step],
+                            date: str, run_id: str = "rebuild") -> list[Step]:
+    """`added` (the steps inserted mid-rebuild, after_fixture_check) with
+    COUPON after them when one is a SHEET: the plan's own COUPON ran before
+    FIXTURE_CHECK, so a later SHEET would leave 06_coupon.json older than the
+    sheet and audit_coupon would report its rows "vanished in silence"
+    (2026-11-06 19:42Z). Only when the rebuild still audits the coupon
+    (AUDIT_COUPON among the `remaining` steps) and no COUPON is still to run."""
+    names = [s.name for s in remaining]
+    if (not any(s.name == "SHEET" for s in added) or "AUDIT_COUPON" not in names
+            or "COUPON" in names or any(s.name == "COUPON" for s in added)):
+        return list(added)
+    return [*added, Step(
+        "COUPON", _pipeline(date, "COUPON", run_id),
+        "SHEET re-ran after the plan's COUPON: 06_coupon.json again from the "
+        "new sheet, keeps audit_coupon in step (the priced selector, not the "
+        "coupon)", soft=True)]
+
+
 def observe(runs_dir: str, date: str, now: datetime,
             price_max_age: timedelta,
             db_path: str | Path | None = None) -> DayState:

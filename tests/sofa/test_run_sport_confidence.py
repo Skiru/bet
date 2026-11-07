@@ -243,7 +243,9 @@ def test_a_cs2_leg_names_its_teams_and_map(tmp_path: Path):
     doc, code = rsc.build(DATE, str(tmp_path), cal, fc, AT, sports=("cs2",))
     assert code == 0
     (leg,) = doc["legs"]
-    assert set(leg) == LEG_FIELDS | {"team1", "team2", "map_nr"}
+    # best_of: the series' format, for bet.sofa.leg_identity (audit 2026-11-07)
+    assert set(leg) == LEG_FIELDS | {"team1", "team2", "map_nr", "best_of"}
+    assert leg["best_of"] == 3
     assert leg["market_id"] is None and leg["map_nr"] == 1 and leg["period"] == 1
     assert leg["forecast_source"] == "cs2_engine"
     assert (leg["team1"], leg["team2"]) == ("NAVI Junior", "BIG")

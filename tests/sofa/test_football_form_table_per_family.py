@@ -73,7 +73,12 @@ def test_a_table_family_follows_the_table_run_only(families: None) -> None:
     out, kept = rs.merge_form_table_rows(plain, skipped, table)
     # 2.5 priced only without the table: no row; 1.5 priced only with it: kept
     assert [(r.line, r.p_central) for r in out] == [(1.5, 0.66)]
-    assert [s[0].market for s in kept] == ["cards_points_for"]
+    # skips per (market, direction): 1.5 UNDER (not a table family) is still
+    # unpriced, so its no-table record stays; 2.5 OVER dropped by the merge
+    # gets its own record (audit 2026-11-07)
+    assert [(s[0].market, s[0].line, s[2].split(":")[0]) for s in kept] == [
+        ("goals_2h_total", 1.5, "x"), ("cards_points_for", 1.5, "y"),
+        ("goals_2h_total", 2.5, rs.FORM_TABLE_RUN_NOT_PRICED)]
 
 
 def test_no_families_is_the_no_table_sheet(monkeypatch: pytest.MonkeyPatch) -> None:

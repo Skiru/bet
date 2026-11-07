@@ -541,3 +541,29 @@ Bramka z 12.1 przeszła, więc operator przesunął włączenie z 11-09 na **202
 | 11-07 | od 00:00Z | `.next.2026-11-07.json` |
 
 Reguła z §12 („= 2026-11-09”) zostaje zapisana tak, jak była w chwili zamrożenia.
+
+## Audyt 2026-11-07 — uwagi
+
+Pełny raport: `docs/sofa/history/AUDYT_ZMIAN_2026-11-06.md`.
+
+- Sekcja 12: „połowa potwierdzająca” nie była ślepa. Wyniki z całego okna
+  (`cross_live.json`, 16:31Z, 10-18..11-04) i selekcja 36 rodzin
+  (`table_families.json`, 16:38Z) istniały przed zamrożeniem reguły (16:41Z).
+  Łączny efekt utrzymuje się w obu połowach (historia −0,97 / −1,10 ×1e-4,
+  Superbet −1,33 / −2,83 ×1e-4), ale wybór poszczególnych rodzin nie jest
+  poza próbą.
+- Ramię Superbetu porównuje krzywe 11-07 na p z żywego arkusza z krzywymi
+  11-08 na p z odtworzenia (kopia DB z 11-05) — miesza efekt tabeli z efektem
+  odtworzenie-vs-żywy. Ramię historii porównuje podobne z podobnym i przechodzi
+  samo (−1,0e-4 [−1,3; −0,7]).
+- Pochodzenie plików staged: nagłówek `fitted_from` obu plików `.next*`
+  to wciąż zainstalowany 10-17 (`awarded_excluded: null`, bez flag
+  referee / share / P14 / P1 / form-table), a `staged_change` nie zapisuje
+  flag. Podmienione klucze dopasowano faktycznie z `--awarded-excluded
+  --referee --player-share --tennis-score-winner --sample-conflict-cut`
+  (`chain.sh`), tabela dodatkowo `--form-table` (`chainA.sh`); bez flag
+  serwisowych tenisa. Plików konfiguracyjnych czytanych przez zbudowane dni
+  nie edytowano — zapis tutaj.
+- Dowód linii jest budowany z p dawnych arkuszy (bez tabeli), a od 11-07
+  stosowany do p z tabelą dla 35 rodzin; sekcja 3 mierzyła krzywe bez dowodu
+  linii. Dowód linii tylko obniża, więc błąd jest ograniczony.

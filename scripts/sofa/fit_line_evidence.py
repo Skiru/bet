@@ -42,7 +42,7 @@ import dataclasses
 import json
 import sys
 from collections.abc import Iterator, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +77,21 @@ from bet.sofa.shadow import SETTLED_FILE, shadow_day_dir  # noqa: E402
 
 SHEET_SPORTS = ("football", "tennis")
 
+# audit 2026-11-07: from a refit for this day on, the main (pooled) fit leaves
+# out the tennis lines SHEET priced with the point model (epochs.
+# TENNIS_POINT_MODEL / TENNIS_HANDICAP_POINT_MODEL) - their p_central is the
+# point model's, not the estimator the installed / pooled curves describe, so
+# they skewed the tennis pooled offset, the price-gap shrink target and the
+# price-band cells; they enter only through the point-model evidence path
+# (tennis_point_curves.merge_evidence). A refit for an earlier day reproduces
+# the old file.
+TENNIS_POINT_POOL_SPLIT_FROM_DATE = "2026-11-08"
+
+
+def tennis_point_pool_split(before: str) -> bool:
+    """TENNIS_POINT_POOL_SPLIT_FROM_DATE on the day being fitted for."""
+    return before >= TENNIS_POINT_POOL_SPLIT_FROM_DATE
+
 
 def stats_only_days(runs_dir: Path, before: str) -> list[str]:
     return sorted(
@@ -98,11 +113,41 @@ def _board_sides(run_dir: Path) -> dict[str, tuple[str, str]]:
             for e in entries if isinstance(e, dict) and e.get("superbet_event_id")}
 
 
+def point_priced_markets(run_dir: Path, day: str) -> frozenset[str]:
+    """The tennis markets whose settled p_central on `day` is the point
+    model's (epochs.tennis_point_markets): by the day when the switches were
+    the same all day; on a day a switch turned on mid-day, by the markers of
+    the day's own 05_sheet.json (every tennis row of a sheet built under a
+    switch carries its marker; SETTLE copies the sheet's p_central) - no sheet
+    = only what was on from 00:00Z."""
+    start = datetime.fromisoformat(day).replace(tzinfo=UTC)
+    first = epochs.tennis_point_markets(day, start)
+    last = epochs.tennis_point_markets(
+        day, start + timedelta(days=1) - timedelta(microseconds=1))
+    if first == last:
+        return last
+    path = run_dir / "05_sheet.json"
+    if not path.exists():
+        return first
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    rows = doc if isinstance(doc, list) else doc.get("rows") or []
+    tennis = [r for r in rows if isinstance(r, dict) and r.get("sport") == "tennis"]
+    out: set[str] = set(first)
+    for (field, rule, _), markets in (
+            (epochs.TENNIS_POINT_MODEL_MARKER, epochs.TENNIS_POINT_MODEL_MARKETS),
+            (epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER,
+             epochs.TENNIS_HANDICAP_POINT_MODEL_MARKETS)):
+        if tennis and any(r.get(field) == rule for r in tennis):
+            out |= markets & last
+    return frozenset(out)
+
+
 def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                derived_curves: bool = False,
                per_line: bool = False,
                point_p: Mapping[str, float] | None = None,
-               point_before: str | None = None) -> Iterator[le.Row]:
+               point_before: str | None = None,
+               exclude_point_priced: bool = False) -> Iterator[le.Row]:
     """`per_line`: read a men's football line through its own line curve
     (epochs.LINE_CURVES), as CONFIDENCE will on the --before day - the
     offsets are applied to that day's base. `point_p` (epochs.
@@ -110,9 +155,13 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
     of the point model's keys, each at the point model's p
     (tennis_point_curves.evidence_p_for: the scope and switch days of the
     `point_before` day - TENNIS_HANDICAP_POINT_MODEL adds the per-set games
-    handicap) or skipped."""
+    handicap) or skipped. `exclude_point_priced`
+    (TENNIS_POINT_POOL_SPLIT_FROM_DATE): leave out the tennis lines priced by
+    the point model (point_priced_markets) - the pooled fit's rows."""
     for day in days:
         run_dir = runs_dir / day
+        point_priced = (point_priced_markets(run_dir, day)
+                        if exclude_point_priced else frozenset())
         fixtures = {int(f["sofascore_event_id"]): f for f in json.loads(
             (run_dir / "02_fixtures.json").read_text(encoding="utf-8"))}
         sides = _board_sides(run_dir)
@@ -123,6 +172,8 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
             if r.get("p_central") is None or not r.get("offered_odds") \
                     or not r.get("direction"):
                 continue
+            if sport == "tennis" and r.get("market") in point_priced:
+                continue  # the point model's p: its own evidence path only
             fx = fixtures.get(int(r["sofascore_event_id"])) or {}
             board = next((sides[str(i)] for i in fx.get("superbet_event_ids") or []
                           if str(i) in sides), None)
@@ -290,9 +341,10 @@ def main() -> int:
     # epochs.LINE_CURVES: the base is the curve the --before day reads, at its
     # own line where that day reads per line
     per_line = day_reads_per_line(args.before)
+    pool_split = tennis_point_pool_split(args.before)
     fitted = le.fit(sheet_rows(runs_dir, days, cal,
                                reads_derived_curves(args.before, args.derived_curves),
-                               per_line))
+                               per_line, exclude_point_priced=pool_split))
     # epochs.TENNIS_POINT_MODEL: the point model's keys' own entries from
     # their lines at the point model's p against their own curves; every
     # pooled number (the sport's offsets, bands, design effect) and every
@@ -353,7 +405,7 @@ def main() -> int:
         else:
             keys.update(sport_section(sport_cal))
             sport_source = "calibration:oos.superbet_settled (no price-band cap)"
-    doc = {
+    doc: dict[str, Any] = {
         "fitted_from": {
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
             "before": args.before,
@@ -391,6 +443,10 @@ def main() -> int:
         "sport_printable_by_gap": sport_by_gap,
         "design_effect": design_effect,
     }
+    if pool_split:
+        # TENNIS_POINT_POOL_SPLIT_FROM_DATE: point-model-priced tennis lines
+        # out of the pooled fit (absent before it: the old file reproduced)
+        doc["fitted_from"]["tennis_point_pool_split"] = True
     summary = {
         sport: {
             "keys": len(entry),

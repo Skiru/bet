@@ -119,7 +119,9 @@ def test_best_of_five_or_no_ids_is_not_priced_and_gender_is_either_side() -> Non
     kick = datetime(2026, 11, 6, 12, tzinfo=UTC)
     assert tps.fixture_match(1, kick, 1, 2, "ATP", None, 7, 5, {}) is None
     assert tps.fixture_match(1, kick, None, 2, "ATP", None, 7, 3, {}) is None
-    m = tps.fixture_match(1, kick, 1, 2, "WTA", "Clay", 7, None, {2: True})
+    # an unstated format is not guessed as best of three (audit 2026-11-07)
+    assert tps.fixture_match(1, kick, 1, 2, "WTA", "Clay", 7, None, {2: True}) is None
+    m = tps.fixture_match(1, kick, 1, 2, "WTA", "Clay", 7, 3, {2: True})
     assert m is not None and m.female and m.surface == "clay"
     assert not m.completed  # the fixture teaches nothing
 
