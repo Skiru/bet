@@ -275,7 +275,12 @@ entry of the day).
    read-set part = one report); never split yours. If the path holds another
    report, take the next free `_r<n>` - never overwrite one. Your own report
    you may rewrite until the caller has merged it. Write no other file in the
-   repo or `runs/`; scratch goes to `${TMPDIR:-/tmp}`.
+   repo or `runs/`; scratch goes to `${TMPDIR:-/tmp}`, **every scratch file
+   named after your report's basename** (`${TMPDIR:-/tmp}/<report basename>.<what>`,
+   e.g. `2026-11-08_analiza_football_3.reads.json`): the caller runs several
+   analysts of one sport in parallel on one TMPDIR, and a shared name like
+   `reads.json` or `mr_football.txt` lets one analyst's block land in
+   another's report (11-08: two football parts wrote a foreign reads block).
 2. Report structure:
    1. **Nagłówek** - read-set file, `11_coupon.json` `epoch`, legs read
       (required / buffer / asked by the operator), the snapshot time, the one
@@ -301,9 +306,9 @@ entry of the day).
    1. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_analyst_report.py --report <path>`
       - exit 1 = rewrite what it lists (findings: `references/context-pass.md`,
       "The check"; the PostToolUse hook sends the same list);
-   2. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --read-set <your read-set file> --dry-run > "${TMPDIR:-/tmp}/mr_<sport>.txt" 2>&1; echo exit=$?`
+   2. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --read-set <your read-set file> --dry-run > "${TMPDIR:-/tmp}/<report basename>.mr.txt" 2>&1; echo exit=$?`
       (always `--read-set`; a chat slip's `read_set_slip_*.json` also
-      `--slip`), then `grep -E 'UNMATCHED|LEG_WITHOUT|refus' "${TMPDIR:-/tmp}/mr_<sport>.txt"`
+      `--slip`), then `grep -E 'UNMATCHED|LEG_WITHOUT|refus' "${TMPDIR:-/tmp}/<report basename>.mr.txt"`
       (not `tail`). Exit 1 = `UNMATCHED_VETO` / `UNMATCHED_READ` /
       `LEG_WITHOUT_READ` (a key that hits no row / a leg you missed), exit 2
       = a block does not validate: fix the report and re-run both.
