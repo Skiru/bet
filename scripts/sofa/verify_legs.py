@@ -97,6 +97,10 @@ CHECKS = ("sheet_row", "side", "sheet_notes", "own_sample", "clocks",
 BAD_NOTES = ("P_SHRUNK_TO_PRICE", "CENTRE_SHRUNK_TO_LADDER", "CROSS_LEAGUE_UNLINKED")
 # A subject that names an outcome, not a side (1X2 / DC / first goal codes).
 CODE_SUBJECTS = frozenset({"", "1", "X", "2", "12", "1X", "X2", "nikt", "T1", "T2"})
+# Football simulator markets whose subject is a choice code, never a side
+# ("U2.5/O0.5", "Nie/Nie", "1/X", "1. połowa"): 158 false side DEFECTs on 11-08.
+CHOICE_SUBJECT_MARKETS = frozenset({"half_goals_combo", "btts_halves", "htft",
+                                    "higher_scoring_half"})
 MAX_CLOCK_GAP = timedelta(hours=1)
 MAX_START_GAP_H = 1.0
 CONF_TOL = 5e-5 * 2  # the printed confidence is rounded to 4 dp
@@ -223,7 +227,8 @@ def side_name(leg: Leg) -> str | None:
     """The side name a subject carries, None when it names no side."""
     subject = str(leg.raw.get("subject") or "")
     market = str(leg.raw.get("market") or "")
-    if subject in CODE_SUBJECTS or is_player_metric(market):
+    if (subject in CODE_SUBJECTS or market in CHOICE_SUBJECT_MARKETS
+            or is_player_metric(market)):
         return None
     parsed = split_score_subject(subject)
     return parsed[0] if parsed is not None else subject

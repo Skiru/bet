@@ -114,6 +114,18 @@ def test_a_side_the_names_contradict_is_a_defect(
     assert recs[3]["side"] == {"code": "side_b", "independent": "side_a"}
 
 
+def test_a_simulator_choice_code_is_not_a_side() -> None:
+    """11-08: 158 false side DEFECTs read "U2.5/O0.5" / "Nie/Nie" as teams."""
+    def name(market: str, subject: str) -> str | None:
+        return verify_legs.side_name(verify_legs.Leg(
+            raw={"market": market, "subject": subject}, kind="single"))
+    assert name("half_goals_combo", "U2.5/O0.5") is None
+    assert name("btts_halves", "Nie/Nie") is None
+    assert name("htft", "1/X") is None
+    assert name("team_scores_both_halves", "1") is None
+    assert name("corners_for", "FC Utrecht") == "FC Utrecht"
+
+
 def test_the_independent_side_match() -> None:
     side = verify_legs.independent_side
     assert side("karagumruk", "Fatih Karagümrük", "Keçiörengücü") == "side_a"
