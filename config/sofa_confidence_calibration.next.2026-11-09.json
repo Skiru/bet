@@ -12960,58 +12960,6 @@
     "realised_lo95": 0.9454
    }
   },
-  "draw_no_bet|UNDER": {
-   "0.000-0.600": {
-    "n": 318912,
-    "realised": 0.3555,
-    "realised_lo95": 0.3538
-   },
-   "0.600-0.700": {
-    "n": 37216,
-    "realised": 0.675,
-    "realised_lo95": 0.6702
-   },
-   "0.700-0.750": {
-    "n": 11875,
-    "realised": 0.7566,
-    "realised_lo95": 0.7488
-   },
-   "0.750-0.800": {
-    "n": 8594,
-    "realised": 0.8072,
-    "realised_lo95": 0.7987
-   },
-   "0.800-0.825": {
-    "n": 3242,
-    "realised": 0.8489,
-    "realised_lo95": 0.8361
-   },
-   "0.825-0.850": {
-    "n": 2634,
-    "realised": 0.8618,
-    "realised_lo95": 0.8481
-   },
-   "0.850-0.875": {
-    "n": 2096,
-    "realised": 0.8826,
-    "realised_lo95": 0.8681
-   },
-   "0.875-0.900": {
-    "n": 1726,
-    "realised": 0.9183,
-    "realised_lo95": 0.9044
-   },
-   "0.900-0.925": {
-    "n": 1259,
-    "realised": 0.9071,
-    "realised_lo95": 0.8898
-   },
-   "0.925-0.950": {
-    "n": 957,
-    "realised": 0.906,
-    "realised_lo95": 0.8858
-   }
-  },
   "btts_or_over@-@0.5|OVER": {
    "0.600-0.700": {
     "n": 746,
@@ -14589,48 +14537,6 @@
     "n": 655,
     "realised": 0.8916,
     "realised_lo95": 0.8655
-   }
-  },
-  "result_or_over@2@5.5|OVER": {
-   "0.000-0.600": {
-    "n": 439559,
-    "realised": 0.3835,
-    "realised_lo95": 0.3821
-   },
-   "0.600-0.700": {
-    "n": 36166,
-    "realised": 0.661,
-    "realised_lo95": 0.6561
-   },
-   "0.700-0.750": {
-    "n": 8906,
-    "realised": 0.7525,
-    "realised_lo95": 0.7435
-   },
-   "0.750-0.800": {
-    "n": 5329,
-    "realised": 0.8015,
-    "realised_lo95": 0.7905
-   },
-   "0.800-0.825": {
-    "n": 1787,
-    "realised": 0.8204,
-    "realised_lo95": 0.8019
-   },
-   "0.825-0.850": {
-    "n": 1332,
-    "realised": 0.8423,
-    "realised_lo95": 0.8218
-   },
-   "0.850-0.875": {
-    "n": 927,
-    "realised": 0.8468,
-    "realised_lo95": 0.8222
-   },
-   "0.875-0.900": {
-    "n": 531,
-    "realised": 0.8795,
-    "realised_lo95": 0.849
    }
   },
   "result_or_over@X@1.5|OVER": {
@@ -33315,51 +33221,6 @@
    },
    "installed_from": "data/refit_2026-11-08_schedule/f7/x1x2_1015/term/curves.json"
   },
-  "draw_no_bet|UNDER": {
-   "history": "/Users/mkoziol/projects/bet/data/cache/football_history.pkl",
-   "history_fingerprint": "2026-10-04.5|113691|2026-10-15T06:22:56.659225+00:00|472948|2026-10-15T06:22:49.230244+00:00|851,853,854,855,856,857,858,889,1072,1295,1794,2105,2302,10785,17123,18553,18593,20112,22437,22948,23160,23238,24752,24803,25657,26767,26798,27110,27111,27112,27113,27115,27118,27120,27122,27138,27158,27159,27171,27190,27206,27208,27684,27748,27793,28008,28385,28527,28748,28832,28834,28852,28932,29895,30029,30854,31133,31598,31752,32053,32366,32368,32435,32832,32833,33822,34432,34965,35309,35457,35633,35799,35879,35960,36224,36470,36573,36974,37908|reserve:15724800/21600/158400/2|10383:325,390;20546:325,390;20620:325,390;20898:325,390;21028:325,390;22637:155;24285:325,390;54661:155|idx:1012542|2026-10-15T06:22:46.201732+00:00",
-   "window": [
-    "2024-10-01",
-    "2026-10-15"
-   ],
-   "before": "2026-10-15",
-   "fitted_at_utc": "2026-10-15T21:26:45.494738+00:00",
-   "script": "scripts/sofa/fit_result_1x2_dnb_curve.py",
-   "estimator": "football_result.result_probs: NB goals on the pure rating centres (FootballForecast.centre goals_for), nb_r 7.586 from /Users/mkoziol/projects/bet/config/sofa_football_result.json; DNB = P(side | no draw)",
-   "classes": {
-    "season_early": "men's match, as-of phase early (season_phase.phases_by_event; football_1x2_dnb.curve_class)",
-    "women": "women's match, every phase",
-    "(none)": "men's match, any other phase or none"
-   },
-   "nb_r": 7.586,
-   "nb_r_source": "scripts/sofa/measure_football_result_phase.py 2026-10-13, variant A (pure rating, no season phase), train 2024-10-01..2026-06-08; docs/sofa/evidence/football_result_phase_2026-10-13.md",
-   "cup_strength": "config",
-   "matches_rated": 595031,
-   "matches_unlinked_excluded": 22516,
-   "selections": {
-    "train": 1908204,
-    "holdout": 125026,
-    "final": 2033270,
-    "holdout_by_class": {
-     "None": 98579,
-     "season_early": 17302,
-     "women": 9145
-    }
-   },
-   "holdout": {
-    "train_window": [
-     "2024-10-01",
-     "2026-09-01"
-    ],
-    "holdout_window": [
-     "2026-09-01",
-     "2026-10-14"
-    ],
-    "rule": "curve value >= 0.7: n >= 300 and realised - curve >= -0.02 (one-sided: only an overstatement fails)"
-   },
-   "group": "football_result_1x2_dnb",
-   "replaced_at_refit": "2026-10-16 (cup strength)"
-  },
   "season_early:draw_no_bet|OVER": {
    "history": "data/refit_2026-11-08_schedule/cache/football_history.pkl",
    "history_fingerprint": "2026-10-30.1|141854|2026-11-08T16:31:47.573254+00:00|577911|2026-11-08T16:39:21.464353+00:00|851,853,854,855,856,857,858,889,1072,1295,1794,2105,2302,10785,17123,18553,18593,20112,22437,22948,23160,23238,24752,24803,25657,26767,26798,27110,27111,27112,27113,27115,27118,27120,27122,27138,27158,27159,27171,27190,27206,27208,27684,27748,27793,28008,28385,28527,28748,28832,28834,28852,28932,29895,30029,30854,31133,31598,31752,32053,32366,32368,32435,32832,32833,33822,34432,34965,35309,35457,35633,35799,35879,35960,36224,36470,36573,36974,37908|reserve:15724800/21600/158400/2|10383:325,390;20546:325,390;20620:325,390;20898:325,390;21028:325,390;22637:155;24285:325,390;54661:155|idx:1185873|2026-11-08T16:31:47.573254+00:00|schedule_term",
@@ -34665,16 +34526,6 @@
     ]
    },
    "installed_from": "data/refit_2026-11-08_schedule/f7/score_1015/term/football_score_markets/curves.json"
-  },
-  "result_or_over@2@5.5|OVER": {
-   "group": "football_score_markets",
-   "holdout_from": "2026-09-01",
-   "holdout_to": "2026-10-14",
-   "before": "2026-10-15",
-   "fitted_at_utc": "2026-10-16T06:06:18+00:00",
-   "script": "scripts/sofa/fit_score_market_curves.py",
-   "rows": "/Users/mkoziol/projects/bet/data/refit_new_markets_2026-10-16_cup/football_result_1x2_dnb/rows.csv.gz",
-   "nb_r": 7.586
   },
   "result_or_over@X@1.5|OVER": {
    "holdout_from": "2026-09-01",
@@ -58602,15 +58453,45 @@
    "season_early:result_or_under@X@4.5|OVER",
    "season_early:result_or_under@X@5.5|OVER"
   ],
-  "kept_installed": [
+  "removed_keys": [
+   [
+    "by_market_direction",
+    "draw_no_bet|UNDER"
+   ],
+   [
+    "new_market_curves_fitted_from",
+    "draw_no_bet|UNDER"
+   ],
+   [
+    "by_market_direction",
+    "result_or_over@2@5.5|OVER"
+   ],
+   [
+    "new_market_curves_fitted_from",
+    "result_or_over@2@5.5|OVER"
+   ]
+  ],
+  "removed_failing_gate": [
    {
     "key": "draw_no_bet|UNDER",
     "why": "overstates: gap -0.0234 < -0.02",
+    "gap": -0.0234,
+    "gap_ci95": [
+     -0.038,
+     -0.0097
+    ],
+    "n": 3006,
     "source": "data/refit_2026-11-08_schedule/f7/x1x2_1015/term/curves.json"
    },
    {
     "key": "result_or_over@2@5.5|OVER",
     "why": "overstates: gap -0.0229 < -0.02",
+    "gap": -0.0229,
+    "gap_ci95": [
+     -0.0411,
+     -0.0049
+    ],
+    "n": 2364,
     "source": "data/refit_2026-11-08_schedule/f7/score_1015/term/football_score_markets/curves.json"
    }
   ],

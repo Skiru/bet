@@ -259,8 +259,9 @@ and a miss recorded before a rule's switch never blocks that rule.
   `schedule_term_rule` (rebuild_plan re-runs SHEET). Their curves:
   `config/sofa_confidence_calibration.next.2026-11-09.json` (138 keys refitted
   with `--schedule-term` on a DB copy, every other key the 11-07 file's;
-  `draw_no_bet|UNDER` and `result_or_over@2@5.5|OVER` kept, failing their gate
-  with and without the term) and `config/sofa_football_sim_curves.next.2026-11-09.json`
+  `draw_no_bet|UNDER` and `result_or_over@2@5.5|OVER` removed - no curve, no
+  pool: line evidence or `NO_LINE_EVIDENCE` - failing their gate with and
+  without the term, operator 11-09; `staged_change.removed_keys`) and `config/sofa_football_sim_curves.next.2026-11-09.json`
   (`football_sim_curves.path_for`, dated staged files). PDF / HTML / dossier
   note "kontekst terminarza w modelu (t = ...)" - display only.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a

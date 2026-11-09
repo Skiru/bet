@@ -1471,8 +1471,9 @@ kalendarza: t = 0. Liczniki, stan gry, punkty kartek i próbki - bez poprawki. W
 `p_central_no_schedule_term` (cień odwrócony; do nóg CONFIDENCE i `07_settled.json`, nie do
 `sofa_settled_row` - migracja wymaga zgody), znacznik `schedule_term_rule` (rebuild_plan powtarza SHEET).
 Krzywe: `config/sofa_confidence_calibration.next.2026-11-09.json` (138 kluczy przefitowanych z
-`--schedule-term` na kopii bazy; `draw_no_bet|UNDER` i `result_or_over@2@5.5|OVER` zostają zainstalowane - nie
-przechodzą bramki także bez poprawki) i `config/sofa_football_sim_curves.next.2026-11-09.json`. Notka „kontekst
+`--schedule-term` na kopii bazy; `draw_no_bet|UNDER` i `result_or_over@2@5.5|OVER` usunięte - nie
+przechodzą bramki z poprawką ani bez niej; bez krzywej i bez puli: ich nogi czytają własne rozliczone linie
+(Wilson) albo `NO_LINE_EVIDENCE`; operator 11-09; `staged_change.removed_keys`) i `config/sofa_football_sim_curves.next.2026-11-09.json`. Notka „kontekst
 terminarza w modelu (t = ...)” na PDF / HTML / w dossier - tylko wyświetlanie. Test na przyszłość
 `T-SCHEDULE-TERM-FORWARD` (reguła wycofania z pre-rejestracji). Raport:
 `docs/sofa/evidence/schedule_context_2026-11-09.md`.

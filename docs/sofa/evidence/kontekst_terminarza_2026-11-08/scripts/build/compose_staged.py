@@ -3,8 +3,11 @@
 Copies config/sofa_confidence_calibration.next.2026-11-07.json and replaces
 ONLY the curves of epochs.SCHEDULE_TERM_MARKETS that file holds, each from the
 --schedule-term refit of the same fitter and window it was installed from
-(new_market_curves_fitted_from). A key whose term refit fails its own gate keeps
-the installed curve (recorded in staged_change.kept_installed). Every other key
+(new_market_curves_fitted_from). A key whose term refit fails its own gate on the
+window it was installed from is REMOVED (no curve: its legs read their own
+settled lines or nothing - never the uncorrected curve on corrected p;
+operator 2026-11-09 "jezeli poprawnie ale nie ma wartosci to wyczysc";
+staged_change.removed_keys). Every other key
 is byte-identical. Writes the dated .next.<D>.json and the simulator's dated
 staged file. Never touches an installed or an earlier staged file.
 
@@ -56,13 +59,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--day", required=True)
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--effective-from", default=None,
+                    help="exact start (operator moved it), else <day>T00:00:00Z")
+    ap.add_argument("--label", default=None)
+    ap.add_argument("--force", action="store_true", help="replace an existing output")
     a = ap.parse_args()
-    eff = f"{a.day}T00:00:00Z"
+    eff = a.effective_from or f"{a.day}T00:00:00Z"
     base = json.loads(BASE.read_text())
     new = copy.deepcopy(base)
     nm = base["new_market_curves_fitted_from"]
     S = epochs.SCHEDULE_TERM_MARKETS
-    replaced, kept, outs, paths = [], [], {}, []
+    replaced, kept, outs, paths, removed = [], [], {}, [], []
     slots = [(None, k) for k in base["by_market_direction"]]
     for cls, d in base.get("by_class", {}).items():
         slots += [(cls, k) for k in d.get("by_market_direction", {})]
@@ -78,7 +85,17 @@ def main() -> int:
         gate = out.get("gate", {}).get(pk, {})
         cur = curve_of(out, cls, key)
         if cur is None or not gate.get("pass"):
-            kept.append({"key": pk, "why": gate.get("why") or gate.get("reason") or "no curve", "source": str(src.relative_to(REPO))})
+            kept.append({"key": pk, "why": gate.get("why") or gate.get("reason") or "no curve",
+                         "gap": gate.get("gap"), "gap_ci95": gate.get("gap_ci95"), "n": gate.get("n"),
+                         "source": str(src.relative_to(REPO))})
+            if cls is None:
+                del new["by_market_direction"][key]
+                removed.append(["by_market_direction", key])
+            else:
+                del new["by_class"][cls]["by_market_direction"][key]
+                removed.append(["by_class", cls, "by_market_direction", key])
+            del new["new_market_curves_fitted_from"][pk]
+            removed.append(["new_market_curves_fitted_from", pk])
             continue
         if cls is None:
             new["by_market_direction"][key] = cur
@@ -93,7 +110,7 @@ def main() -> int:
         replaced.append(pk)
     new["effective_from"] = eff
     new["staged_change"] = {
-        "label": f"od {a.day[5:].replace('-', '-')}",
+        "label": a.label or f"od {a.day[5:]}",
         "effective_from": eff,
         "switch": "SCHEDULE_TERM",
         "rule": epochs.SCHEDULE_TERM,
@@ -107,17 +124,19 @@ def main() -> int:
         "base_staged_change": {k: v for k, v in base["staged_change"].items()
                                if k not in ("refitted_keys", "added_keys")},
         "schedule_term_keys": replaced,
-        "kept_installed": kept,
+        "removed_keys": removed,
+        "removed_failing_gate": kept,
         "note": "only SCHEDULE_TERM_MARKETS curves refitted with --schedule-term on a DB copy "
                 "(data/refit_2026-11-08_schedule/f7); every other key byte-identical to base_file",
     }
-    print(f"replaced {len(replaced)} kept {len(kept)}")
+    print(f"replaced {len(replaced)} removed {len(kept)}")
     for k in kept:
-        print("  KEPT", k)
+        print("  REMOVED", k)
     # every other key unchanged
-    changed = [(c, k) for c, k in slots
-               if (base["by_market_direction"] if c is None else base["by_class"][c]["by_market_direction"])[k]
-               != (new["by_market_direction"] if c is None else new["by_class"][c]["by_market_direction"])[k]]
+    def cur_of(doc: dict, c: str | None, k: str):
+        sec = doc["by_market_direction"] if c is None else doc["by_class"][c]["by_market_direction"]
+        return sec.get(k)
+    changed = [(c, k) for c, k in slots if cur_of(base, c, k) != cur_of(new, c, k)]
     assert all(mk(k) in S for _, k in changed)
     print(f"curves changed {len(changed)}")
     sim_term = json.loads((F7 / "sim/term/curves.json").read_text())
@@ -132,7 +151,7 @@ def main() -> int:
     out_sim = REPO / f"config/sofa_football_sim_curves.next.{a.day}.json"
     if a.write:
         for p in (out_cal, out_sim):
-            if p.exists():
+            if p.exists() and not a.force:
                 sys.exit(f"refuse: {p} exists")
         out_cal.write_text(json.dumps(new, indent=1, sort_keys=False) + "\n")
         out_sim.write_text(json.dumps(sim_term, indent=1, sort_keys=False) + "\n")

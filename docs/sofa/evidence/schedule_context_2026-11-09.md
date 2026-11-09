@@ -70,9 +70,12 @@ Kopia: `data/refit_2026-11-08_schedule/` (VACUUM INTO z bazy tylko do odczytu); 
 
 Zainstalowane jako pliki datowane (nigdy na plik zainstalowany, nigdy w zbudowany dzień):
 `config/sofa_confidence_calibration.next.2026-11-09.json` (pierwotnie `.next.2026-11-10`) - plik 11-07 + **138** kluczy z refitu z poprawką (ten sam
-fitter i okno co zainstalowane; `staged_change.schedule_term_keys`); **2 klucze zostają zainstalowane**
-(`draw_no_bet|UNDER` luka −0,0234, `result_or_over@2@5.5|OVER` −0,0229 - nie przechodzą bramki także w kontroli, więc
-przyczyną jest nowsza historia, nie poprawka; otwarte). `config/sofa_football_sim_curves.next.2026-11-09.json` -
+fitter i okno co zainstalowane; `staged_change.schedule_term_keys`); **2 klucze usunięte**
+(`draw_no_bet|UNDER` luka −0,0234 [−0,038, −0,0097], `result_or_over@2@5.5|OVER` −0,0229 [−0,0411, −0,0049] - nie
+przechodzą bramki także w kontroli (−0,0264 / −0,0207), więc przyczyną jest nowsza historia, nie poprawka; policzone
+poprawnie, ale krzywa przeszacowuje - operator 11-09: „wyczyść”; `staged_change.removed_keys`). Od 11-09 11:30Z
+te klucze nie mają krzywej ani puli: noga czyta własne rozliczone linie Superbetu (Wilson) albo `NO_LINE_EVIDENCE`.
+Okno 11-05 by je przepuściło - nieużyte, bo to byłby wybór okna po obejrzeniu wyniku. `config/sofa_football_sim_curves.next.2026-11-09.json` -
 nowy łańcuch datowany (`football_sim_curves.path_for`). Przeliczenie wierszy cache (krok 22, ~6 h) niepotrzebne:
 żaden z 140 kluczy zakresu nie pochodzi z ogólnego fitu (wszystkie w `new_market_curves_fitted_from`).
 
@@ -155,7 +158,7 @@ co poprawiłeś na dzisiaj” - przełącznik i pliki krzywych przeniesione na 2
 - Serwis tenisa: odchylenia budowy względem pre-rejestracji opisane w STAN (doprecyzowania); grupa nie zgłoszona.
 - Wycinki: wynik w podgrupach to opis (P5), nie podstawa do włączania czegokolwiek osobno.
 - `draw_no_bet|UNDER`, `result_or_over@2@5.5|OVER` - przestają przechodzić swoją bramkę na nowszej historii (także
-  bez poprawki); decyzja o ich losie to osobny pomiar i zgoda operatora.
+  bez poprawki); usunięte 11-09 (operator), powrót tylko z nowego refitu, który przejdzie bramkę.
 - `sofa_settled_row` bez pól cienia - migracja kolumny na zgodę operatora.
 - Cień: ~20 wierszy dziennie przy p ~0,05 / 0,95 istnieje tylko z poprawką (bez pary w teście na przyszłość), ~37 znika - BELOW_BAR, bez wpływu na druk.
 - SHEET dłuższy o ok. 3-4 min na przebieg (kalendarz terminarza).

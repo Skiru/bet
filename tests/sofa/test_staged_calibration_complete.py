@@ -32,6 +32,16 @@ def _changed(staged: dict[str, Any]) -> tuple[Paths, Paths]:
             {tuple(k) for k in change.get("added_keys", [])})
 
 
+def _removed(staged: dict[str, Any]) -> Paths:
+    """Keys a staged file deliberately leaves out (a refit that failed its
+    own gate: no curve rather than the old one - the schedule term, 11-09)."""
+    return {tuple(k) for k in staged["staged_change"].get("removed_keys", [])}
+
+
+def _under(path: tuple[str, ...], roots: Paths) -> bool:
+    return any(path[:len(r)] == r for r in roots)
+
+
 def _paths(node: Any, stop: set[tuple[str, ...]],
            prefix: tuple[str, ...] = ()) -> set[tuple[str, ...]]:
     """Every key path, not descending into a refitted curve (its buckets may differ)."""
@@ -68,21 +78,32 @@ def test_every_key_path_of_the_installed_file_is_in_the_staged_one(
         staged_path: Path) -> None:
     installed, staged = _load(staged_path)
     refitted, _ = _changed(staged)
-    missing = sorted(_paths(installed, refitted) - _paths(staged, refitted))
+    removed = _removed(staged)
+    missing = sorted(p for p in _paths(installed, refitted) - _paths(staged, refitted)
+                     if not _under(p, removed))
     assert not missing, missing[:20]
+    for path in removed:
+        _get(installed, path)  # removed from the installed file's key set
+        with pytest.raises(KeyError):
+            _get(staged, path)
     assert set(staged) - set(installed) == STAGED_ONLY
 
 
 def _compare(inst: Any, stag: Any, path: tuple[str, ...],
-             refitted: set[tuple[str, ...]], added: set[tuple[str, ...]]) -> None:
+             refitted: set[tuple[str, ...]], added: set[tuple[str, ...]],
+             removed: Paths | None = None) -> None:
+    removed = removed or set()
     if path in refitted:
         return
     if isinstance(inst, dict) and isinstance(stag, dict) and any(
-            r[:len(path)] == path for r in refitted | added):
+            r[:len(path)] == path for r in refitted | added | removed):
         extra = {k for k in stag if (*path, k) not in added}
-        assert extra == set(inst), (path, sorted(extra ^ set(inst))[:10])
+        kept = {k for k in inst if (*path, k) not in removed}
+        assert extra == kept, (path, sorted(extra ^ kept)[:10])
         for k, v in inst.items():
-            _compare(v, stag[k], (*path, k), refitted, added)
+            if (*path, k) in removed:
+                continue
+            _compare(v, stag[k], (*path, k), refitted, added, removed)
         return
     assert json.dumps(stag, sort_keys=True) == json.dumps(inst, sort_keys=True), path
 
@@ -92,9 +113,10 @@ def test_keys_not_refitted_are_the_installed_ones_byte_for_byte(
         staged_path: Path) -> None:
     installed, staged = _load(staged_path)
     refitted, added = _changed(staged)
+    removed = _removed(staged)
     assert refitted or added, "a staged file that changes nothing should not exist"
     body = {k: v for k, v in staged.items() if k not in STAGED_ONLY}
-    _compare(installed, body, (), refitted, added)
+    _compare(installed, body, (), refitted, added, removed)
     for path in refitted:
         assert _get(staged, path) != _get(installed, path), path
     for path in added:
@@ -112,7 +134,8 @@ def test_the_staged_file_loads_and_names_its_start(staged_path: Path) -> None:
     assert start.second == 0 and start.tzinfo is not None
     # moved by the operator into a built day (2026-11-09 11:30Z, the schedule term)
     moved = {"sofa_confidence_calibration.next.2026-11-09.json"}
-    if staged_path.name != confidence.NEXT_CALIBRATION_NAME and staged_path.name not in moved:
+    if (staged_path.name != confidence.NEXT_CALIBRATION_NAME
+            and staged_path.name not in moved):
         assert start.hour == 0 and start.minute == 0
     assert staged["staged_change"]["effective_from"] == staged["effective_from"]
     confidence.Calibration.load(staged_path)
@@ -214,3 +237,27 @@ def test_install_new_market_curves_merges_into_every_staged_football_file(
                      encoding="utf-8")
     files = inmc.target_files(tmp_path, "sofa_confidence_calibration.json")
     assert dated in files and tmp_path / confidence.NEXT_CALIBRATION_NAME in files
+
+
+def test_the_schedule_term_file_removes_the_two_keys_failing_their_gate() -> None:
+    """The schedule term's staged file (2026-11-09 11:30Z): the two keys whose
+    --schedule-term refit failed the one-sided gate on their install window
+    have NO curve (operator 2026-11-09: correct but no value -> cleared)."""
+    path = INSTALLED.parent / "sofa_confidence_calibration.next.2026-11-09.json"
+    staged = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("draw_no_bet|UNDER", "result_or_over@2@5.5|OVER"):
+        assert key not in staged["by_market_direction"]
+        assert key not in staged["new_market_curves_fitted_from"]
+        assert ["by_market_direction", key] in staged["staged_change"]["removed_keys"]
+    assert "kept_installed" not in staged["staged_change"]
+    why = {r["key"]: r for r in staged["staged_change"]["removed_failing_gate"]}
+    assert set(why) == {"draw_no_bet|UNDER", "result_or_over@2@5.5|OVER"}
+    assert all(r["gap"] < -0.02 and r["gap_ci95"][1] < 0 for r in why.values())
+    cal = confidence.Calibration.load(path)
+    assert cal is not None
+    for market, direction in (("draw_no_bet", "UNDER"),
+                              ("result_or_over@2@5.5", "OVER")):
+        for p in (0.72, 0.78, 0.85):
+            # no curve and no pool standing in: line evidence or nothing
+            assert cal.realised(market, p, "football", direction) is None
+    assert cal.realised("draw_no_bet", 0.78, "football", "OVER") is not None

@@ -646,9 +646,12 @@ it for these markets (skills).
 Curves (fitters take `--schedule-term`, section (c)): refitted on the DB copy
 `data/refit_2026-11-08_schedule/f7/` each with a control run without the term; staged
 `config/sofa_confidence_calibration.next.2026-11-09.json` (the 11-07 file + 138 in-scope keys from the term
-refit of the same fitter and window as installed; `staged_change.schedule_term_keys`; kept installed:
-`draw_no_bet|UNDER` gap -0.0234 and `result_or_over@2@5.5|OVER` -0.0229 fail their gate with AND without
-the term - newer history, an open question (e)) and `config/sofa_football_sim_curves.next.2026-11-09.json`
+refit of the same fitter and window as installed; `staged_change.schedule_term_keys`; REMOVED
+(`staged_change.removed_keys` / `removed_failing_gate`, operator 11-09 "correct but no value -> clear"):
+`draw_no_bet|UNDER` gap -0.0234 [-0.038, -0.0097] and `result_or_over@2@5.5|OVER` -0.0229 [-0.0411, -0.0049]
+fail their gate with AND without the term (control -0.0264 / -0.0207) - from 11-09 11:30Z no curve and no
+pool (`draw_no_bet` is OWN_CURVE_ONLY, the joint derived): their legs read their own settled lines
+(Wilson) or are `NO_LINE_EVIDENCE`; the 11-05 window would pass them, not used - chosen after looking) and `config/sofa_football_sim_curves.next.2026-11-09.json`
 (control reproduced the installed file exactly; floor keys identical). Term vs control lo95 moved at most
 DC 0.0010, DNB 0.0026, first goal 0.0063, score slices 0.0239, simulator 0.0062 (thin 0.021); no gate flips
 on an installed key. Forward test `T-SCHEDULE-TERM-FORWARD` (registered 11-09, window from 11-10 - the mixed day is not in it, ~158,000
