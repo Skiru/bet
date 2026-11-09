@@ -1,0 +1,827 @@
+{
+ "study": "schedule_context_2026-11",
+ "mode": "exam",
+ "spec_sha": "87a5087f59796dd0efb6cd33160ac88b04120d2b",
+ "f0_sha": "2b291085",
+ "started_utc": "2026-11-09T08:31:08+00:00",
+ "finished_utc": "2026-11-09T08:39:21+00:00",
+ "hashes": {
+  "fb_frozen.json": "47eadabd89afe483cf4d856771d4077f4b06c5802b17b7a12229776fd3ea1f80",
+  "fr_frozen.json": "820cd60b1b689f3e864f04131fd4c26e4ff2464b5100f3c521087204eb05cb65",
+  "tennis/tw_frozen.json": "57d34d9af08a0f86b1a5587339e4fb36885cf86a940e3037680a3fe74639ad0c",
+  "season_phase_dev.json": "c05218d3a91c7917d6f4c7fb997c34df0a9e69372990ae493105cc83fbd1c7c1",
+  "docs/sofa/evidence/kontekst_terminarza_2026-11-08/scripts/exam_groups.py": "bcb865c858cf5329a554fbfaa4b0d4b34dd473de006d327d1f724f40e054a133",
+  "docs/sofa/evidence/kontekst_terminarza_2026-11-08/scripts/fb_analysis.py": "12161a3ddacccdb744ea4f7561e4cb6dc425777e38bab939659fa251d585e619",
+  "docs/sofa/evidence/kontekst_terminarza_2026-11-08/scripts/fr_analysis.py": "1493342e303e79b4446400620a800767129bab3ffdb28926b1ea31b07826a63c",
+  "docs/sofa/evidence/kontekst_terminarza_2026-11-08/scripts/nbvec.py": "8223a49a732d98829205328c09c032d805b878262c1b7b4b713db6b67b0946cb",
+  "docs/sofa/evidence/kontekst_terminarza_2026-11-08/scripts/tw_analysis.py": "6e6d5c1b468773a4365bd3961aa957d983a66fe0e3845e968d653ad8866131a2",
+  "src/bet/sofa/schedule_features.py": "70d11ec3c0627dd36d72e9140f9b7a74f364147b5898649948a140c88ae50db9"
+ },
+ "K": 4,
+ "groups": {
+  "goals": {
+   "info": {
+    "rows": 2037702,
+    "matches": 321233
+   },
+   "matches": 321233,
+   "P1": {
+    "delta": 8.345406639598439e-05,
+    "p_one_sided": 0.633,
+    "q025": -0.00038160117944365527,
+    "q975": 0.0005472650899133426,
+    "holm_level": 0.05,
+    "upper_at_level": 0.0004753545821968121,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 1.3156094517540471e-05,
+    "upper95": 7.746262144883147e-05,
+    "rows": 2037702
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "goals_for",
+      "coef": "own_R5_other",
+      "c": -0.04157214790662496,
+      "exposed_share": 0.02757288946497794
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R4_intl",
+      "c": 0.03321072367458828,
+      "exposed_share": 0.041043058274407664
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R5_winter",
+      "c": 0.055787685026839624,
+      "exposed_share": 0.02054124897892935
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R5_other",
+      "c": 0.07416722162437113,
+      "exposed_share": 0.032305651479101895
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_R5_other",
+      "c": -0.049782770938138654,
+      "exposed_share": 0.02757288946497794
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_R5_winter",
+      "c": 0.08243366884496893,
+      "exposed_share": 0.02054124897892935
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_R5_other",
+      "c": 0.08560957041360487,
+      "exposed_share": 0.032305651479101895
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_R5_other",
+      "c": -0.06339530513985837,
+      "exposed_share": 0.02757288946497794
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_R4_intl",
+      "c": 0.03260860052836486,
+      "exposed_share": 0.041043058274407664
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_R5_other",
+      "c": 0.0680221482122536,
+      "exposed_share": 0.032305651479101895
+     }
+    ],
+    "rows": 1318469,
+    "exposure": {
+     "own_R1": 0.09404164982263519,
+     "opp_R1": 0.09230175301808385,
+     "own_R2": 0.15718609993864097,
+     "opp_R2": 0.1553612561235797,
+     "own_R4_intl": 0.04078897569832889,
+     "opp_R4_intl": 0.041043058274407664,
+     "own_R4_other": 0.07079043951734929,
+     "opp_R4_other": 0.07165507873146809,
+     "own_R5_winter": 0.018312906863945985,
+     "opp_R5_winter": 0.02054124897892935,
+     "own_R5_other": 0.02757288946497794,
+     "opp_R5_other": 0.032305651479101895,
+     "own_cont_prev4": 0.0037171901652598583,
+     "opp_cont_prev4": 0.0036572721846323273,
+     "own_cont_prev4_x_R1": 0.0024073376014149745,
+     "opp_cont_prev4_x_R1": 0.002358037997101183,
+     "own_et_prev": 0.006116184756714037,
+     "opp_et_prev": 0.00603654693436099,
+     "own_dense14": 0.022526126894147683,
+     "opp_dense14": 0.021621289541126867,
+     "own_cont_next4": 0.0017421721709042837,
+     "opp_cont_next4": 0.0017156262301199347
+    }
+   },
+   "P3": {
+    "point": 5.2893544809400864e-05,
+    "upper95": 8.042717285182248e-05,
+    "rows": 36678636,
+    "dropped": 0,
+    "pass": false
+   },
+   "P4": {
+    "pass": true,
+    "rows": 15559563,
+    "realised": 0.9426962055425335,
+    "mean_cb": 0.9428750225276643,
+    "mean_ct": 0.9428126074201636,
+    "gap_base": 0.00017881698513078081,
+    "gap_treat": 0.00011640187763006793,
+    "treat_selected": {
+     "rows": 15562036,
+     "realised": 0.9426537761511411,
+     "mean_ct": 0.9429099223327908
+    }
+   },
+   "P5": {
+    "strata": {
+     "women": {
+      "point": -0.00010541318342583927,
+      "upper95": 0.0001483832073040537,
+      "rows": 152469,
+      "gated": true,
+      "pass": true
+     },
+     "men": {
+      "point": 2.2745433999052384e-05,
+      "upper95": 8.398054135098558e-05,
+      "rows": 1885233,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t1": {
+      "point": 0.00013442368919189927,
+      "upper95": 0.00024431724733903594,
+      "rows": 582473,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": 9.629060648163797e-05,
+      "upper95": 0.00020733020611978892,
+      "rows": 600996,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": -5.3080578823948285e-05,
+      "upper95": 5.941267343531251e-05,
+      "rows": 703425,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": 6.340339015992356e-05,
+      "upper95": 0.0010783956856193757,
+      "rows": 12007,
+      "gated": true,
+      "pass": false
+     },
+     "domestic": {
+      "point": 1.2858261290535376e-05,
+      "upper95": 7.259014349207225e-05,
+      "rows": 2025695,
+      "gated": true,
+      "pass": true
+     },
+     "round_le3": {
+      "point": -6.658032951947216e-05,
+      "upper95": 4.8061588280072604e-05,
+      "rows": 468250,
+      "gated": true,
+      "pass": true
+     },
+     "round_gt3": {
+      "point": 3.694565963665922e-05,
+      "upper95": 0.00010800689663953647,
+      "rows": 1569452,
+      "gated": true,
+      "pass": true
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: path (i) touches only goals rows (D3)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "metric": "goals_for",
+      "coef": "own_R5_other",
+      "c": -0.04157214790662496,
+      "exposed_share": 0.02757288946497794,
+      "exam_b": -0.017352787651752116,
+      "exam_se": 0.0061921769848395465,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R4_intl",
+      "c": 0.03321072367458828,
+      "exposed_share": 0.041043058274407664,
+      "exam_b": 0.021703493188512984,
+      "exam_se": 0.0059579876359879495,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R5_winter",
+      "c": 0.055787685026839624,
+      "exposed_share": 0.02054124897892935,
+      "exam_b": 0.0449565654709139,
+      "exam_se": 0.008558478110699572,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_R5_other",
+      "c": 0.07416722162437113,
+      "exposed_share": 0.032305651479101895,
+      "exam_b": 0.0375014388847462,
+      "exam_se": 0.004991910039801454,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_R5_other",
+      "c": -0.049782770938138654,
+      "exposed_share": 0.02757288946497794,
+      "exam_b": -0.018134223323643145,
+      "exam_se": 0.013014552827504513,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_R5_winter",
+      "c": 0.08243366884496893,
+      "exposed_share": 0.02054124897892935,
+      "exam_b": 0.03773322102928621,
+      "exam_se": 0.01894422999263351,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_R5_other",
+      "c": 0.08560957041360487,
+      "exposed_share": 0.032305651479101895,
+      "exam_b": 0.03299460834986949,
+      "exam_se": 0.0110007652701865,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_R5_other",
+      "c": -0.06339530513985837,
+      "exposed_share": 0.02757288946497794,
+      "exam_b": -0.02134588238170161,
+      "exam_se": 0.01205952805963849,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_R4_intl",
+      "c": 0.03260860052836486,
+      "exposed_share": 0.041043058274407664,
+      "exam_b": 0.014677409609262674,
+      "exam_se": 0.010302283831641215,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_R5_other",
+      "c": 0.0680221482122536,
+      "exposed_share": 0.032305651479101895,
+      "exam_b": 0.03739442380290037,
+      "exam_se": 0.00996996452160196,
+      "same_sign": true
+     }
+    ]
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "football_result": {
+   "info": {
+    "matches": 287962
+   },
+   "matches": 287962,
+   "P1": {
+    "delta": -0.00022283785781598007,
+    "p_one_sided": 0.0005,
+    "q025": -0.0003401123928598882,
+    "q975": -0.00010107085898460248,
+    "holm_level": 0.0125,
+    "upper_at_level": -8.56522176240706e-05,
+    "pass_": true
+   },
+   "delta_per_row": {
+    "point": -0.00022283785781598007,
+    "upper95": -0.00012254363362314895,
+    "rows": 287962
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "goals_for(rating)",
+      "coef": "own_R5_winter",
+      "c": -0.07640270310285832,
+      "exposed_share": 0.022709159055660864
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "own_R5_other",
+      "c": -0.035347848476692714,
+      "exposed_share": 0.03419387960250445
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R4_intl",
+      "c": 0.03458464194931481,
+      "exposed_share": 0.04415101384341433
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R5_winter",
+      "c": 0.03617548939850316,
+      "exposed_share": 0.022709159055660864
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R5_other",
+      "c": 0.06937762198488565,
+      "exposed_share": 0.03419387960250445
+     }
+    ],
+    "sides": 557088
+   },
+   "P3": {
+    "point": -0.00015480439587776265,
+    "upper95": -5.202492458639586e-05,
+    "rows": 863886,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 41395,
+    "realised": 0.7853122357772678,
+    "mean_cb": 0.7933830769590438,
+    "mean_ct": 0.7907456289149011,
+    "gap_base": 0.008070841181775923,
+    "gap_treat": 0.005433393137633247,
+    "treat_selected": {
+     "rows": 41961,
+     "realised": 0.7846333500154906,
+     "mean_ct": 0.7929761192316659
+    }
+   },
+   "P5": {
+    "strata": {
+     "women": {
+      "point": -0.0002275313271435456,
+      "upper95": 0.00013521398234943706,
+      "rows": 20259,
+      "gated": true,
+      "pass": true
+     },
+     "men": {
+      "point": -0.00022248266943517323,
+      "upper95": -0.00011631099233515234,
+      "rows": 267703,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t1": {
+      "point": -0.0001135619550159005,
+      "upper95": 5.602422641224704e-05,
+      "rows": 85264,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": -0.00016836855358122894,
+      "upper95": 4.1426231331257606e-06,
+      "rows": 89413,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": -0.00034807566048965965,
+      "upper95": -0.0001868147910515661,
+      "rows": 113285,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": -0.0001639878380054696,
+      "upper95": 0.0009534261617652122,
+      "rows": 1441,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": -0.00022313383220720084,
+      "upper95": -0.00011980888375792573,
+      "rows": 286521,
+      "gated": true,
+      "pass": true
+     },
+     "round_le3": {
+      "point": -0.0004491819720380398,
+      "upper95": -0.00023553549233497516,
+      "rows": 56042,
+      "gated": true,
+      "pass": true
+     },
+     "round_gt3": {
+      "point": -0.00016814323532015108,
+      "upper95": -5.744655245166846e-05,
+      "rows": 231920,
+      "gated": true,
+      "pass": true
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: path (ii) touches only rating-result rows (D3)"
+     }
+    },
+    "pass": true
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "metric": "goals_for(rating)",
+      "coef": "own_R5_winter",
+      "c": -0.07640270310285832,
+      "exposed_share": 0.022709159055660864,
+      "exam_b": -0.08149034320915088,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "own_R5_other",
+      "c": -0.035347848476692714,
+      "exposed_share": 0.03419387960250445,
+      "exam_b": -0.015606366372138178,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R4_intl",
+      "c": 0.03458464194931481,
+      "exposed_share": 0.04415101384341433,
+      "exam_b": 0.025950055533515225,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R5_winter",
+      "c": 0.03617548939850316,
+      "exposed_share": 0.022709159055660864,
+      "exam_b": 0.025094832279356473,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for(rating)",
+      "coef": "opp_R5_other",
+      "c": 0.06937762198488565,
+      "exposed_share": 0.03419387960250445,
+      "exam_b": 0.03915608025117956,
+      "same_sign": true
+     }
+    ]
+   },
+   "verdict": "PASS"
+  },
+  "tennis_winner": {
+   "info": {
+    "matches": 73110
+   },
+   "matches": 73110,
+   "P1": {
+    "delta": -0.0015771900234113091,
+    "p_one_sided": 0.031,
+    "q025": -0.0032197224451794458,
+    "q975": 4.959680407600176e-05,
+    "holm_level": 0.016666666666666666,
+    "upper_at_level": 0.0001932698401173131,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": -0.0015771900234113091,
+    "upper95": -0.00028719650026918115,
+    "rows": 73110
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "bucket": "games78>=3 either",
+      "coef": "d_games78",
+      "share": 0.46360279031596224,
+      "mean_abs_dp": 0.03656955081765457
+     },
+     {
+      "bucket": "layoff21 either",
+      "coef": "d_layoff21",
+      "share": 0.13847626863630147,
+      "mean_abs_dp": 0.019861266635673773
+     },
+     {
+      "bucket": "ret14 either",
+      "coef": "d_ret14",
+      "share": 0.020708521406100397,
+      "mean_abs_dp": 0.03131715738309007
+     }
+    ],
+    "buckets": {
+     "games78>=3 either": {
+      "share": 0.46360279031596224,
+      "mean_abs_dp": 0.03656955081765457
+     },
+     "layoff21 either": {
+      "share": 0.13847626863630147,
+      "mean_abs_dp": 0.019861266635673773
+     },
+     "ret14 either": {
+      "share": 0.020708521406100397,
+      "mean_abs_dp": 0.03131715738309007
+     }
+    }
+   },
+   "P3": {
+    "point": -0.0014372661639564716,
+    "upper95": 7.466619643537389e-05,
+    "rows": 146220,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 33950,
+    "realised": 0.8209425625920471,
+    "mean_cb": 0.8079408244526968,
+    "mean_ct": 0.8047841382228266,
+    "gap_base": 0.01300173813935035,
+    "gap_treat": 0.016158424369220548,
+    "treat_selected": {
+     "rows": 34573,
+     "realised": 0.8202065195383681,
+     "mean_ct": 0.8095365604205441
+    }
+   },
+   "P5": {
+    "strata": {
+     "ITF": {
+      "point": -0.0018644156074648958,
+      "upper95": -0.00023502191158279915,
+      "rows": 53841,
+      "gated": true,
+      "pass": true
+     },
+     "CH": {
+      "point": -0.0010898986742973523,
+      "upper95": 0.0010778975646374845,
+      "rows": 12139,
+      "gated": true,
+      "pass": false
+     },
+     "TOUR": {
+      "point": -0.00023787964695480963,
+      "upper95": 0.002070705861026551,
+      "rows": 7130,
+      "gated": true,
+      "pass": false
+     },
+     "women": {
+      "point": -0.002104042574062914,
+      "upper95": -8.552779571585425e-06,
+      "rows": 31543,
+      "gated": true,
+      "pass": true
+     },
+     "men": {
+      "point": -0.001177389460339556,
+      "upper95": 0.0005480843022793298,
+      "rows": 41567,
+      "gated": true,
+      "pass": false
+     }
+    },
+    "other_groups": {
+     "tennis_games_sets": {
+      "point": -0.0004648221949849369,
+      "upper95": 0.00016417291987156255,
+      "rows": 1972129,
+      "pass": false
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "bucket": "games78>=3 either",
+      "coef": "d_games78",
+      "share": 0.46360279031596224,
+      "mean_abs_dp": 0.03656955081765457,
+      "dev": -0.09570625580583549,
+      "exam": -0.052047872633359776,
+      "same_sign": true
+     },
+     {
+      "bucket": "layoff21 either",
+      "coef": "d_layoff21",
+      "share": 0.13847626863630147,
+      "mean_abs_dp": 0.019861266635673773,
+      "dev": -0.23075635178355164,
+      "exam": -0.24853286543731928,
+      "same_sign": true
+     },
+     {
+      "bucket": "ret14 either",
+      "coef": "d_ret14",
+      "share": 0.020708521406100397,
+      "mean_abs_dp": 0.03131715738309007,
+      "dev": -0.06719846345900102,
+      "exam": -0.19336646906539856,
+      "same_sign": true
+     }
+    ]
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "tennis_games_sets": {
+   "info": {
+    "matches": 69521,
+    "lines": 1972129
+   },
+   "matches": 69521,
+   "P1": {
+    "delta": -0.013185790344981352,
+    "p_one_sided": 0.1175,
+    "q025": -0.034015757656208005,
+    "q975": 0.008766356560831792,
+    "holm_level": 0.025,
+    "upper_at_level": 0.008766356560831792,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": -0.0004648221949849369,
+    "upper95": 0.00015303509271060467,
+    "rows": 1972129
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "bucket": "games78>=3 either",
+      "coef": "d_games78",
+      "share": 0.4693401993642209,
+      "mean_abs_dp": 0.02732764133599047
+     },
+     {
+      "bucket": "layoff21 either",
+      "coef": "d_layoff21",
+      "share": 0.13518217517009248,
+      "mean_abs_dp": 0.02166565479353197
+     },
+     {
+      "bucket": "ret14 either",
+      "coef": "d_ret14",
+      "share": 0.020871391378144734,
+      "mean_abs_dp": 0.026465007657868314
+     }
+    ]
+   },
+   "P3": {
+    "point": -0.0005711494484082684,
+    "upper95": -4.617120279365582e-05,
+    "rows": 3944258,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 1319593,
+    "realised": 0.8454538634260715,
+    "mean_cb": 0.8413844300288489,
+    "mean_ct": 0.8388341902707276,
+    "gap_base": 0.004069433397222655,
+    "gap_treat": 0.0066196731553439525,
+    "treat_selected": {
+     "rows": 1324520,
+     "realised": 0.8452790444840395,
+     "mean_ct": 0.8415654978607819
+    }
+   },
+   "P5": {
+    "strata": {
+     "ITF": {
+      "point": -0.0005707468696370783,
+      "upper95": 0.0002993805969700574,
+      "rows": 1266470,
+      "gated": true,
+      "pass": true
+     },
+     "CH": {
+      "point": -0.0003239838745234592,
+      "upper95": 0.0007512453759037579,
+      "rows": 452500,
+      "gated": true,
+      "pass": false
+     },
+     "TOUR": {
+      "point": -0.00018665281251037074,
+      "upper95": 0.0010259167149336804,
+      "rows": 253159,
+      "gated": true,
+      "pass": false
+     },
+     "women": {
+      "point": -0.0006038411860198202,
+      "upper95": 0.0004453592697494828,
+      "rows": 814794,
+      "gated": true,
+      "pass": true
+     },
+     "men": {
+      "point": -0.0003669492024795026,
+      "upper95": 0.0004329015004057126,
+      "rows": 1157335,
+      "gated": true,
+      "pass": true
+     }
+    },
+    "other_groups": {
+     "tennis_winner": {
+      "point": -0.0015771900234113091,
+      "upper95": -0.00021776456929888726,
+      "rows": 73110,
+      "pass": true
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "bucket": "games78>=3 either",
+      "coef": "d_games78",
+      "share": 0.4693401993642209,
+      "mean_abs_dp": 0.02732764133599047,
+      "dev": -0.09570625580583549,
+      "exam": -0.052047872633359776,
+      "same_sign": true
+     },
+     {
+      "bucket": "layoff21 either",
+      "coef": "d_layoff21",
+      "share": 0.13518217517009248,
+      "mean_abs_dp": 0.02166565479353197,
+      "dev": -0.23075635178355164,
+      "exam": -0.24853286543731928,
+      "same_sign": true
+     },
+     {
+      "bucket": "ret14 either",
+      "coef": "d_ret14",
+      "share": 0.020871391378144734,
+      "mean_abs_dp": 0.026465007657868314,
+      "dev": -0.06719846345900102,
+      "exam": -0.19336646906539856,
+      "same_sign": true
+     }
+    ]
+   },
+   "verdict": "NOT_PASSED"
+  }
+ }
+}

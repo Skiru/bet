@@ -166,3 +166,15 @@ zamiany na inną kolumnę po wyniku).
 18. Bramki przed commitem specyfikacji: pytest 6683 passed / 2 failed (`test_player_sample_gates.py` - te same co w F0;
    na czystym HEAD 2b291085 + moje pliki 17/17 passed - przyczyna w cudzych niezacommitowanych zmianach), ruff czysto,
    mypy --strict czysto (389 plików), rejestr testów 0 uwag.
+
+## F5-F6 EGZAMIN (jedyny) - 2026-11-09 08:31:08Z..08:39:21Z, spec `87a5087f59796dd0efb6cd33160ac88b04120d2b`
+Log: `docs/sofa/evidence/schedule_context_exam_log.md`; wynik: `docs/sofa/evidence/kontekst_terminarza_2026-11-08/exam_result.json`.
+| grupa | Delta (mecz) [95%] | p jedn. / Holm | P2 | P3 | P4 | P5 | P6 | werdykt |
+|---|---|---|---|---|---|---|---|---|
+| football_result | -0.000223 [-0.000340, -0.000101] | 0.0005 / 0.0125 tak | tak | -0.000155 (gór. -0.000052) tak | tak | tak | tak | **PASS** |
+| goals | +0.000083 [-0.000382, +0.000547] | 0.633 nie | tak | +0.000053 nie | tak | nie (kontynentalne) | tak | NOT_PASSED |
+| tennis_winner | -0.001577 [-0.003220, +0.000050] | 0.031 / 0.0167 nie | tak | tak | tak | nie (CH, TOUR, mężczyźni, gemy) | tak | NOT_PASSED |
+| tennis_games_sets | -0.013186 [-0.034016, +0.008766] | 0.1175 / 0.025 nie | tak | tak | tak | nie (CH, TOUR) | tak | NOT_PASSED |
+"Pomogło" = tak (1 grupa). Do instalacji (F7) tylko `football_result`: zamrożone `fr_frozen.json` na drodze (ii)
+(środki goli ratingu -> 1X2 / DC / DNB / wynik / symulator), przełącznik od 2026-11-10 00:00Z (najwcześniej; nigdy w
+zbudowany dzień). Gole (i), tenis - bez zmian (x1).
