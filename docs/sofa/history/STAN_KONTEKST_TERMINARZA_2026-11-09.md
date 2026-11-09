@@ -199,3 +199,14 @@ zbudowany dzień). Gole (i), tenis - bez zmian (x1).
 - [x] 30 rejestr `T-SCHEDULE-TERM-FORWARD` (przed D; reguła wycofania z pre-rejestracji 11).
 - [x] 31 dokumentacja (CLAUDE.md, model-state.md, PIPELINE, CONFIG, RUNBOOK, REJESTR_TESTOW, raport `docs/sofa/evidence/schedule_context_2026-11-09.md`) (model-state.md, CLAUDE.md, PIPELINE/CONFIG/RUNBOOK, raport PL).
 - [x] 32 bramki (6746 passed, ruff, mypy, rejestr). [x] 33 E2E na kopii 11-08 - wszystko PASS, md5 1 020 plików bez zmian (`e2e/`). [x] 34 commit `ab9df80f` (tylko własne ścieżki) - bramki na czystym worktree commita 6740 passed / 8 skipped, ruff, mypy, rejestr; `origin/main` bf72c923 bez ruchu -> push ab9df80f 2026-11-09 ~11:12Z (razem z wcześniejszymi niewypchniętymi: e4fb587d, a1bb93e4 - cudze poprawki, przeszły bramki; 2b291085, 87a5087f, d996e343).
+
+## Po instalacji: operator przeniósł przełącznik na dziś (2026-11-09)
+Operator: „włącz to wszystko co poprawiłeś na dzisiaj i przebuduj kupon”. `SCHEDULE_TERM_FROM_UTC` 2026-11-10 00:00Z ->
+**2026-11-09 11:30Z**; pliki krzywych przemianowane na `.next.2026-11-09.json` (effective_from 11:30Z, treść bez zmian);
+księga „11-09 mieszany”, potem „od 11-10”; poprawka backfillu: wiersz policzony przez SHEET pod przełącznikiem nie jest
+poprawiany drugi raz (test). Bramki 6748 passed; commit `1304a5bc` wypchnięty. Line evidence przefitowane na 11-09 o
+11:35Z z p po poprawce. `rebuild_day.py --date 2026-11-09` 11:35-11:57Z: SHEET powtórzony (marker), 8 795 wierszy piłki z
+markerem, 3 473 z cieniem, p ruszyło na 2 456 (maks. 0,039); `config_sha` 9bd05a66; brak `WARN rating_market_gap`;
+AUDIT_VARIANTS 0 uwag; druk `printed/20261109T115737Z`, 34 nogi zablokowane z wcześniejszych druków; notka na 259
+miejscach HTML; `day_status` OK (iCloud zgodny, line_evidence 11:35Z). Kod wyjścia przebudowy 1 = PARTIAL kroków
+LATE_RESOLVE / OFFER / SPORT_IDENTITY (zdrowe).
