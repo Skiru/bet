@@ -210,3 +210,18 @@ markerem, 3 473 z cieniem, p ruszyło na 2 456 (maks. 0,039); `config_sha` 9bd05
 AUDIT_VARIANTS 0 uwag; druk `printed/20261109T115737Z`, 34 nogi zablokowane z wcześniejszych druków; notka na 259
 miejscach HTML; `day_status` OK (iCloud zgodny, line_evidence 11:35Z). Kod wyjścia przebudowy 1 = PARTIAL kroków
 LATE_RESOLVE / OFFER / SPORT_IDENTITY (zdrowe).
+
+## Krok 36 - usunięcie 2 krzywych nieprzechodzących bramki (11-09, 12:05-12:40Z)
+
+Operator 11-09: „jeżeli poprawnie, ale nie ma wartości - wyczyść”. `draw_no_bet|UNDER` (zakład bez remisu na gościa;
+luka −0,0234 [−0,038, −0,0097], n 3006) i `result_or_over@2@5.5|OVER` (gość wygra lub > 5,5 gola; −0,0229
+[−0,0411, −0,0049], n 2364) policzone poprawnie (kontrola bez poprawki odtwarza zainstalowane, −0,0264 / −0,0207),
+ale krzywa przeszacowuje - usunięte z `config/sofa_confidence_calibration.next.2026-11-09.json`
+(`staged_change.removed_keys` / `removed_failing_gate`; commit b8cecc65). Bez krzywej i bez puli (`draw_no_bet` w
+OWN_CURVE_ONLY, łączony rynek pochodny): noga czyta własne rozliczone linie (Wilson) albo `NO_LINE_EVIDENCE`. Test:
+`test_staged_calibration_complete.py` (removed_keys, `realised` = None). Bramki: 6749 passed, ruff / mypy / rejestr czyste.
+Line evidence przefitowany 12:17Z (`schedule_term_backfill` obecny). Rebuild 12:18-12:25Z: 884 pojedyncze (85 zablokowanych),
+5 builderów, AUDIT_VARIANTS 0, day_status OK, brak `WARN rating_market_gap`. Noga „Zakład bez remisu: SCM Râmnicu Vâlcea”
+(1,18; było 0,7742 z krzywej) ma teraz 0,6826 z własnych linii -> BELOW_CONFIDENCE_FLOOR; mecz o 15:00Z, więc
+zgodnie z `locked_print` usunięta przed startem. Zakres poprawki: 334 nogi piłkarskie, każda niezablokowana (299) z
+`schedule_term`; 29 bez - wszystkie zablokowane z wydruku 09:20Z (przed przełącznikiem).
