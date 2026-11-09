@@ -307,16 +307,19 @@ def test_the_audit_epoch_from_10_14_is_never_added_to_earlier_days() -> None:
         {"date": "2026-11-07", "epoch": "stats_only"}) == "od 11-07"
     # one leg per event (SAME_EVENT_DEDUP, audit 2026-11-07) from 2026-11-08
     assert audit_ledger.epoch_group(
-        {"date": "2026-11-09", "epoch": "stats_only"}) == "od 11-08"
-    # the schedule term (SCHEDULE_TERM, exam 2026-11-09) from 2026-11-10
+        {"date": "2026-11-08", "epoch": "stats_only"}) == "od 11-08"
+    # the schedule term (SCHEDULE_TERM, exam 2026-11-09) moved by the operator
+    # into 2026-11-09 at 11:30Z: a mixed day of its own, then "od 11-10"
+    assert audit_ledger.epoch_group(
+        {"date": "2026-11-09", "epoch": "stats_only"}) == "11-09 mieszany"
     assert audit_ledger.epoch_group(
         {"date": "2026-11-10", "epoch": "stats_only"}) == "od 11-10"
-    assert audit_ledger.EPOCH_GROUPS[-23:] == (
+    assert audit_ledger.EPOCH_GROUPS[-24:] == (
         "10-16 mieszany", "10-17 mieszany", "od 10-18", "10-18 mieszany", "od 10-19",
         "od 10-21", "10-21 mieszany", "od 10-22", "od 10-23", "od 10-24",
         "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
         "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06", "11-06 mieszany",
-        "od 11-07", "od 11-08", "od 11-10")
+        "od 11-07", "od 11-08", "11-09 mieszany", "od 11-10")
 
 
 def test_the_mixed_refit_day_10_13_is_its_own_ledger_group() -> None:

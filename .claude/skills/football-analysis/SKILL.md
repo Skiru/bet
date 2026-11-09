@@ -74,7 +74,7 @@ Template and step table: `references/event-protocol.md`.
    `LONG_LAYOFF` >= 21 d, `CONGESTED` >= 3 in 7 d). For a make-up fixture find
    out **why** it was postponed and whether the cause still holds.
    Congestion is a rotation / availability argument, not fatigue.
-   From 2026-11-10 the result / score / first-goal / simulator markets
+   From 2026-11-09 11:30Z the result / score / first-goal / simulator markets
    (`epochs.SCHEDULE_TERM_MARKETS`: 1X2, DNB, double chance, the score
    combos, first goal, the minute simulator's keys but its four 0.60-floor
    ones) carry the fixture-congestion / rest term in the model: the leg's

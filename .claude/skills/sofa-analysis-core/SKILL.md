@@ -84,7 +84,7 @@ names, not bare `sofascore_event_id`s.
 | `offered_odds`, x = confidence x odds | the price and the betting condition (x >= 0.90), already applied | never evidence for or against a leg |
 | `price_gap` | confidence above 1/odds + 0.03: such legs realised about at their price | annotation, quote at the price |
 | `rating_market_gap` | football: Superbet's goal margin for its favourite exceeds our rating's by >= 1.0 (`d`, `market_margin`, `rating_margin`) on a leg that depends on the favourite's strength; such legs realised about at their price, below their confidence | context only - never a WATCH / NO_BET ground on its own; a removal still needs a dated fact or a defect |
-| `schedule_term`, `p_central_no_schedule_term` | football from 2026-11-10, result / score / first-goal / simulator markets: the fixture-congestion / rest term (t per side, status) already in `model_p`, and the p without it; note "kontekst terminarza w modelu" | in the model - a WATCH on rest / fatigue alone double-counts it on these legs |
+| `schedule_term`, `p_central_no_schedule_term` | football from 2026-11-09 11:30Z, result / score / first-goal / simulator markets: the fixture-congestion / rest term (t per side, status) already in `model_p`, and the p without it; note "kontekst terminarza w modelu" | in the model - a WATCH on rest / fatigue alone double-counts it on these legs |
 | `context_flags`, `stakes`, `peer` | schedule flags, table-stakes direction, the surer leg of a match at a similar price | questions you answer, never gates |
 
 Recompute a number only **from the row's own fields** (say so). Never present `p_bar`, `surplus`,
@@ -142,7 +142,7 @@ Recompute a number only **from the row's own fields** (say so). Never present `p
    price already holds (home advantage, the referee's rate, form, table) is
    no reason unless its input changed. Rest is in no model (football /
    tennis: shown in `schedule` / `context_flags`) - except football's
-   result / score / first-goal / simulator legs from 2026-11-10, whose
+   result / score / first-goal / simulator legs from 2026-11-09 11:30Z, whose
    `schedule_term` carries congestion / rest; the price probably holds
    it - a note. A fact on two
    independent domains may carry a NO_BET; one domain, an opinion or a mood

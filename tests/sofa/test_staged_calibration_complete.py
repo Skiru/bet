@@ -110,7 +110,9 @@ def test_the_staged_file_loads_and_names_its_start(staged_path: Path) -> None:
     # a staged day starts at 00:00Z unless the operator moved it to an exact
     # time (the undated file: 2026-11-06 17:30Z, a mixed day)
     assert start.second == 0 and start.tzinfo is not None
-    if staged_path.name != confidence.NEXT_CALIBRATION_NAME:
+    # moved by the operator into a built day (2026-11-09 11:30Z, the schedule term)
+    moved = {"sofa_confidence_calibration.next.2026-11-09.json"}
+    if staged_path.name != confidence.NEXT_CALIBRATION_NAME and staged_path.name not in moved:
         assert start.hour == 0 and start.minute == 0
     assert staged["staged_change"]["effective_from"] == staged["effective_from"]
     confidence.Calibration.load(staged_path)

@@ -1,5 +1,5 @@
 {
- "effective_from": "2026-11-10T00:00:00Z",
+ "effective_from": "2026-11-09T11:30:00Z",
  "_doc": "What the model's probability turns into in practice. Fitted by scripts/sofa/fit_confidence.py. A market with too few rows in a bucket falls back to its SPORT's pooled curve, then the global one; a bucket absent from all three means the confidence view refuses the row rather than guessing. A market is never served from a pool ABOVE the top of its own measured range - see Calibration.realised. by_market_direction is the same curve split by OVER/UNDER and is read first; the two directions of one rung are complements, so the pooled curve describes neither. thin_by_market_direction holds the direction buckets with min_thin_bucket..min_market_bucket rows: where the lookup falls to a pool, the pool is capped at that bucket's realised_lo95; from the 2026-10-05 stats-only epoch so is the by_market curve (both directions pooled) - see Calibration.cap_market_by_thin.",
  "fitted_from": {
   "db_path": "data/refit_2026-10-17/sofa_replay.db",
@@ -56349,8 +56349,8 @@
   "friendly_competitions_excluded": 79
  },
  "staged_change": {
-  "label": "od 11-10",
-  "effective_from": "2026-11-10T00:00:00Z",
+  "label": "11-09 mieszany, od 11-10",
+  "effective_from": "2026-11-09T11:30:00Z",
   "switch": "SCHEDULE_TERM",
   "rule": "schedule_term_v1",
   "base_file": "config/sofa_confidence_calibration.next.2026-11-07.json",

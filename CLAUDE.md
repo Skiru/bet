@@ -233,11 +233,13 @@ and a miss recorded before a rule's switch never blocks that rule.
   `data/line_evidence/football_sim_lines.jsonl.gz`. Only
   `team_scores_both_halves` UNDER and `half_goals_combo` OVER reach 0.70;
   minute bands are not wired (not reliably settleable). Hold-out: model-state.md.
-- **Football schedule term from 2026-11-10 00:00Z** (`SCHEDULE_TERM_FROM_UTC`,
+- **Football schedule term from 2026-11-09 11:30Z** (`SCHEDULE_TERM_FROM_UTC`,
+  moved by the operator from 11-10 00:00Z into the built day; 11-09 mixed;
   `schedule_term_v1`; the one pre-registered exam of 2026-11-09, spec
   `87a5087f`, `docs/sofa/evidence/schedule_context_exam_log.md`: of goals,
   football_result, tennis_winner, tennis_games_sets only **football_result**
-  passed rule (c); the rest measured and declined; ledger "od 11-10";
+  passed rule (c); the rest measured and declined; ledger "11-09 mieszany",
+  then "od 11-10";
   `bet.sofa.schedule_term`): the pure rating goals centres
   (`FootballForecast.centre("goals_for")`) of `epochs.SCHEDULE_TERM_MARKETS`
   (1X2, DNB, DC, score markets, first goal, the simulator's path markets
@@ -255,10 +257,10 @@ and a miss recorded before a rule's switch never blocks that rule.
   `07_settled.json`; not in `sofa_settled_row` - no migration),
   `T-SCHEDULE-TERM-FORWARD` judges it (withdrawal rule frozen); marker
   `schedule_term_rule` (rebuild_plan re-runs SHEET). Their curves:
-  `config/sofa_confidence_calibration.next.2026-11-10.json` (138 keys refitted
+  `config/sofa_confidence_calibration.next.2026-11-09.json` (138 keys refitted
   with `--schedule-term` on a DB copy, every other key the 11-07 file's;
   `draw_no_bet|UNDER` and `result_or_over@2@5.5|OVER` kept, failing their gate
-  with and without the term) and `config/sofa_football_sim_curves.next.2026-11-10.json`
+  with and without the term) and `config/sofa_football_sim_curves.next.2026-11-09.json`
   (`football_sim_curves.path_for`, dated staged files). PDF / HTML / dossier
   note "kontekst terminarza w modelu (t = ...)" - display only.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a

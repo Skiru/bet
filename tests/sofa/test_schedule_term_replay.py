@@ -369,8 +369,9 @@ def test_for_day_overlays_the_staged_curves(
 
 
 def test_the_staged_sim_curves_start_with_the_schedule_term() -> None:
-    """The live config: the installed file until 2026-11-10 00:00Z, then the
-    schedule term's refit staged as sofa_football_sim_curves.next.2026-11-10.json
+    """The live config: the installed file until 2026-11-09 11:30Z (moved by
+    the operator into the built day), then the schedule term's refit staged as
+    sofa_football_sim_curves.next.2026-11-09.json
     (effective_from = epochs.SCHEDULE_TERM_FROM_UTC); its four 0.60-floor keys
     are the installed file's."""
     import json
@@ -378,13 +379,14 @@ def test_the_staged_sim_curves_start_with_the_schedule_term() -> None:
     from bet.sofa import epochs
 
     main = config_path(fsc.FILE)
-    staged = main.parent / "sofa_football_sim_curves.next.2026-11-10.json"
+    staged = main.parent / "sofa_football_sim_curves.next.2026-11-09.json"
     assert fsc.staged_paths(main.parent) == [staged]
     at = epochs.SCHEDULE_TERM_FROM_UTC
-    assert at == datetime(2026, 11, 10, tzinfo=UTC)
-    assert fsc.path_for("2026-11-09", datetime(2026, 11, 9, 23, tzinfo=UTC)) == main
+    assert at == datetime(2026, 11, 9, 11, 30, tzinfo=UTC)
+    assert fsc.path_for("2026-11-08", datetime(2026, 11, 9, 23, tzinfo=UTC)) == main
+    assert fsc.path_for("2026-11-09", at) == staged
+    assert fsc.path_for("2026-11-09", at - timedelta(minutes=1)) == main
     assert fsc.path_for("2026-11-10", at) == staged
-    assert fsc.path_for("2026-11-10", at - timedelta(minutes=1)) == main
     inst = json.loads(main.read_text())["by_market_direction"]
     new = json.loads(staged.read_text())["by_market_direction"]
     for market in epochs.SCHEDULE_TERM_FLOOR_EXCLUDED:

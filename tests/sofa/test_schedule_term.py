@@ -107,9 +107,9 @@ def test_market_scope_matches_the_code() -> None:
 
 
 def test_switch_reads_the_day_and_the_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    # installed from the next day 00:00Z after the exam's install commit
+    # moved by the operator into the built day 2026-11-09 at 11:30Z
+    assert epochs.SCHEDULE_TERM_FROM_UTC == datetime(2026, 11, 9, 11, 30, tzinfo=UTC)
     at = datetime(2026, 11, 10, tzinfo=UTC)
-    assert epochs.SCHEDULE_TERM_FROM_UTC == at
     monkeypatch.setattr(epochs, "SCHEDULE_TERM_FROM_UTC", None)
     assert not epochs.schedule_term("2030-01-01", datetime(2030, 1, 1, tzinfo=UTC))
     monkeypatch.setattr(epochs, "SCHEDULE_TERM_FROM_UTC", at)

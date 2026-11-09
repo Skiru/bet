@@ -319,6 +319,12 @@ def price_day(day: str, want: Mapping[str, Mapping[str, Any]],
             continue
         counts[f"sheet:status:{term.status}"] += 1
         p_row = float(r["p_central"])
+        if r.get("p_central_no_schedule_term") is not None:
+            # SHEET priced it under the switch (a mixed day's later build):
+            # its p_central is already the corrected one - never twice
+            out[key] = p_row
+            counts["sheet:own_corrected"] += 1
+            continue
         if not term.moves:
             out[key] = p_row  # t = 0: SHEET's row is the uncorrected one
             counts["sheet:t0"] += 1

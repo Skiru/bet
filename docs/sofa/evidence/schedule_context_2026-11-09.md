@@ -1,8 +1,9 @@
 # Kontekst terminarza w prognozie piłki i tenisa - wynik i wdrożenie (2026-11-09)
 
 **Werdykt: pomogło - tylko `football_result` (1X2 ze środków goli ratingu).** Gole (liczniki), zwycięzca tenisa i
-gemy / sety tenisa zmierzone i odrzucone. Wdrożone od **2026-11-10 00:00Z** (`epochs.SCHEDULE_TERM_FROM_UTC`),
-grupa ledgera „od 11-10”.
+gemy / sety tenisa zmierzone i odrzucone. Wdrożone od **2026-11-09 11:30Z** (`epochs.SCHEDULE_TERM_FROM_UTC`; operator przeniósł
+z 11-10 00:00Z do zbudowanego dnia - 11-09 mieszany, nogi wydrukowane wcześniej zablokowane), grupy ledgera
+„11-09 mieszany”, potem „od 11-10”.
 
 Plan: `docs/sofa/history/PLAN_KONTEKST_TERMINARZA_PILKA_TENIS_2026-11-08.md`; pre-rejestracja (zamrożona przed
 jakimkolwiek spojrzeniem na wyniki): `docs/sofa/evidence/schedule_context_prereg_2026-11-09.md`; reguły wiążące:
@@ -68,10 +69,10 @@ Kopia: `data/refit_2026-11-08_schedule/` (VACUUM INTO z bazy tylko do odczytu); 
 | symulator | 660 s / 1124 s | 0,0062 (cienkie 0,021); kontrola = plik zainstalowany bajt w bajt | klucze progu identyczne |
 
 Zainstalowane jako pliki datowane (nigdy na plik zainstalowany, nigdy w zbudowany dzień):
-`config/sofa_confidence_calibration.next.2026-11-10.json` - plik 11-07 + **138** kluczy z refitu z poprawką (ten sam
+`config/sofa_confidence_calibration.next.2026-11-09.json` (pierwotnie `.next.2026-11-10`) - plik 11-07 + **138** kluczy z refitu z poprawką (ten sam
 fitter i okno co zainstalowane; `staged_change.schedule_term_keys`); **2 klucze zostają zainstalowane**
 (`draw_no_bet|UNDER` luka −0,0234, `result_or_over@2@5.5|OVER` −0,0229 - nie przechodzą bramki także w kontroli, więc
-przyczyną jest nowsza historia, nie poprawka; otwarte). `config/sofa_football_sim_curves.next.2026-11-10.json` -
+przyczyną jest nowsza historia, nie poprawka; otwarte). `config/sofa_football_sim_curves.next.2026-11-09.json` -
 nowy łańcuch datowany (`football_sim_curves.path_for`). Przeliczenie wierszy cache (krok 22, ~6 h) niepotrzebne:
 żaden z 140 kluczy zakresu nie pochodzi z ogólnego fitu (wszystkie w `new_market_curves_fitted_from`).
 
@@ -144,7 +145,8 @@ Briera 1X2 z `p_central` wobec `p_central_no_schedule_term`, ~158 000 meczów i 
 ## 6b. Commit i push
 
 Instalacja: commit `ab9df80f` (2026-11-09), wypchnięty na `origin/main` (szybkie przewinięcie z `bf72c923`); przełącznik
-od 2026-11-10 00:00Z - następny dzień po commicie instalacji. Wcześniejsze commity badania: `2b291085` (F0), `87a5087f`
+od 2026-11-10 00:00Z - następny dzień po commicie instalacji; następnie operator: „włącz to wszystko
+co poprawiłeś na dzisiaj” - przełącznik i pliki krzywych przeniesione na 2026-11-09 11:30Z (dzień mieszany). Wcześniejsze commity badania: `2b291085` (F0), `87a5087f`
 (spec egzaminu), `d996e343` (wynik egzaminu).
 
 ## 7. Otwarte

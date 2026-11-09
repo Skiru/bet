@@ -152,7 +152,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
                 "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06",
                 "11-06 mieszany", "od 11-07", "od 11-08",
-                "od 11-10")
+                "11-09 mieszany", "od 11-10")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -312,20 +312,25 @@ SWITCHES_1106_MIXED_DATE = "2026-11-06"
 # new epoch. scripts/sofa/measure_same_event.py shows the earlier days with
 # one leg per event beside the official figures (a view, never the ledger).
 SAME_EVENT_DEDUP_EPOCH_FROM_DATE = "2026-11-08"
-# The schedule term (epochs.SCHEDULE_TERM_FROM_UTC, 2026-11-10 00:00Z, the
+# The schedule term (epochs.SCHEDULE_TERM_FROM_UTC, 2026-11-09 11:30Z, the
 # pre-registered exam of 2026-11-09, docs/sofa/evidence/
 # schedule_context_exam_log.md: football_result PASS): the 1X2 / DNB / DC /
 # score / first goal / simulator path markets read the pure rating goals
 # centres x exp(t) and their curves staged in
-# config/sofa_confidence_calibration.next.2026-11-10.json and
-# config/sofa_football_sim_curves.next.2026-11-10.json - a new epoch.
+# config/sofa_confidence_calibration.next.2026-11-09.json and
+# config/sofa_football_sim_curves.next.2026-11-09.json - a new epoch. Moved by
+# the operator from 2026-11-10 00:00Z into the built day 2026-11-09 at 11:30Z:
+# legs printed before stay locked, so 11-09 is mixed - its own group.
 SCHEDULE_TERM_EPOCH_FROM_DATE = "2026-11-10"
+SCHEDULE_TERM_1109_MIXED_DATE = "2026-11-09"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
         if str(row.get("date", "")) >= SCHEDULE_TERM_EPOCH_FROM_DATE:
             return "od 11-10"
+        if str(row.get("date", "")) == SCHEDULE_TERM_1109_MIXED_DATE:
+            return "11-09 mieszany"
         if str(row.get("date", "")) >= SAME_EVENT_DEDUP_EPOCH_FROM_DATE:
             return "od 11-08"
         if str(row.get("date", "")) >= STAGED_REFIT_1107_EPOCH_FROM_DATE:

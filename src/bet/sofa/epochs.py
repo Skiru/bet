@@ -3866,7 +3866,9 @@ def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
 # SHEET on a sheet built before it. By the day and the build clock. None =
 # off everywhere (nothing changes).
 SCHEDULE_TERM = "schedule_term_v1"
-SCHEDULE_TERM_FROM_UTC: datetime | None = datetime(2026, 11, 10, 0, 0, tzinfo=UTC)
+# moved by the operator from 2026-11-10 00:00Z into the built day 2026-11-09
+# ("wlacz to wszystko co poprawiles na dzisiaj"): 11-09 is mixed.
+SCHEDULE_TERM_FROM_UTC: datetime | None = datetime(2026, 11, 9, 11, 30, tzinfo=UTC)
 SCHEDULE_TERM_MARKER = ("schedule_term_rule", SCHEDULE_TERM, "football")
 SCHEDULE_TERM_FLOOR_EXCLUDED: frozenset[str] = frozenset({
     "team_scores_both_halves", "half_goals_combo", "btts_any_half",

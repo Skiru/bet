@@ -74,9 +74,14 @@ def test_evidence_p_old_rows_from_the_backfill_new_rows_their_own() -> None:
     for row in (_row("corners_total"), _row("btts_halves", subject="Tak/Tak"),
                 _row("result_1x2", sport="tennis")):
         assert ste.evidence_p(row, old, table) == (False, None)
-    # a mixed switch day reads the backfill for its rows too
+    # a mixed switch day reads the backfill for its rows too: the live switch
+    # was moved by the operator into 2026-11-09 at 11:30Z, so the first whole
+    # day is 11-10; a 00:00Z start is its own day
+    assert ste.first_whole_day() == SWITCH_DAY
     assert ste.first_whole_day(epochs.SCHEDULE_TERM_FROM_UTC.replace(hour=17)) == (
-        "2026-11-11")
+        "2026-11-10")
+    assert ste.first_whole_day(epochs.SCHEDULE_TERM_FROM_UTC.replace(
+        day=10, hour=0, minute=0)) == "2026-11-10"
 
 
 def test_simulator_lines_floor_keys_untouched_in_scope_corrected() -> None:
@@ -99,7 +104,7 @@ def test_nothing_is_read_before_the_switch_day(monkeypatch: pytest.MonkeyPatch) 
         raise AssertionError("read before the switch")
 
     monkeypatch.setattr(ste, "load_backfill", boom)
-    assert fle.schedule_term_backfill("2026-11-09") is None
+    assert fle.schedule_term_backfill("2026-11-08") is None
     monkeypatch.setattr(ste, "load_backfill", lambda *a, **k: _bfill(x=0.5))
     got = fle.schedule_term_backfill(SWITCH_DAY)
     assert got is not None and dict(got.sheet) == {"x": 0.5}
@@ -257,6 +262,24 @@ def test_a_zero_term_keeps_the_rows_p() -> None:
     assert got == {k: r["p_central"] for k, r in want.items()}
 
 
+def test_a_row_sheet_priced_under_the_switch_is_never_corrected_twice() -> None:
+    """A mixed day (the switch moved into 2026-11-09 at 11:30Z): a settled
+    row that carries p_central_no_schedule_term was priced by SHEET under the
+    switch - its own p_central is the corrected p, whatever the term."""
+    off = tst._sheet(None)
+    moved = tst._applied(0.05, -0.04)
+    want = {ste.sheet_key("2026-11-09", r["sofascore_event_id"], r["market"],
+                          r["subject"], r["line"], r["direction"]):
+            {**r, "p_central_no_schedule_term": 0.5}
+            for r in off if r["market"] in ste.markets()}
+    assert want
+    counts: Counter[str] = Counter()
+    got = bf.price_day("2026-11-09", want, [], lambda _d, _e: moved, None, 1,
+                       counts, {})
+    assert got == {k: r["p_central"] for k, r in want.items()}
+    assert counts["sheet:own_corrected"] == len(want)
+
+
 def test_backfill_days_stop_at_the_switch_and_the_day(tmp_path: Path) -> None:
     for day in ("2026-10-12", "2026-10-14", "2026-11-09", SWITCH_DAY):
         (tmp_path / day).mkdir()
@@ -273,7 +296,8 @@ def test_backfill_days_stop_at_the_switch_and_the_day(tmp_path: Path) -> None:
 def test_refresh_runs_the_backfill_only_under_the_switch() -> None:
     from scripts.sofa import refresh_line_evidence as rle
 
-    assert not rle.schedule_term_step("2026-11-09", False)
+    assert not rle.schedule_term_step("2026-11-08", False)
+    assert rle.schedule_term_step("2026-11-09", False)  # the mixed switch day
     assert rle.schedule_term_step(SWITCH_DAY, False)
     assert not rle.schedule_term_step(SWITCH_DAY, True)  # never in a dry run
     cmd = rle.schedule_term_command(SWITCH_DAY)

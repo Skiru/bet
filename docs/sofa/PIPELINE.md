@@ -1454,8 +1454,9 @@ i dokładny wynik połowy nie są wpięte (rozliczenie niepewne / lista
 niepełna). Pomiar i odłożona próba:
 `docs/sofa/evidence/football_sim_wiring_2026-11-06.md`; krzywe - rozdział 10.
 
-**Kontekst terminarza w piłce (od 2026-11-10 00:00Z, `epochs.SCHEDULE_TERM_FROM_UTC`,
-`schedule_term_v1`; grupa ledgera „od 11-10”).** Jedyny egzamin z góry (2026-11-09, spec `87a5087f`,
+**Kontekst terminarza w piłce (od 2026-11-09 11:30Z, `epochs.SCHEDULE_TERM_FROM_UTC`,
+`schedule_term_v1`; przeniesione przez operatora z 11-10 00:00Z do zbudowanego dnia - grupy ledgera „11-09 mieszany”,
+potem „od 11-10”).** Jedyny egzamin z góry (2026-11-09, spec `87a5087f`,
 `docs/sofa/evidence/schedule_context_exam_log.md`, reguła (c), Holm K = 4) zaliczyła tylko grupa
 `football_result`: Delta Briera 1X2 −0,000223 [−0,000340; −0,000101]. Gole (licznikowe), zwycięzca tenisa i
 gemy / sety tenisa - niezaliczone; rożne, strzały, kartki / faule, spalone i serwis tenisa odpadły na bramkach
@@ -1469,9 +1470,9 @@ przefit na pełnej historii; stałe kalendarza w `unfitted_constants`). Reprezen
 kalendarza: t = 0. Liczniki, stan gry, punkty kartek i próbki - bez poprawki. Wiersz niesie `schedule_term` i
 `p_central_no_schedule_term` (cień odwrócony; do nóg CONFIDENCE i `07_settled.json`, nie do
 `sofa_settled_row` - migracja wymaga zgody), znacznik `schedule_term_rule` (rebuild_plan powtarza SHEET).
-Krzywe: `config/sofa_confidence_calibration.next.2026-11-10.json` (138 kluczy przefitowanych z
+Krzywe: `config/sofa_confidence_calibration.next.2026-11-09.json` (138 kluczy przefitowanych z
 `--schedule-term` na kopii bazy; `draw_no_bet|UNDER` i `result_or_over@2@5.5|OVER` zostają zainstalowane - nie
-przechodzą bramki także bez poprawki) i `config/sofa_football_sim_curves.next.2026-11-10.json`. Notka „kontekst
+przechodzą bramki także bez poprawki) i `config/sofa_football_sim_curves.next.2026-11-09.json`. Notka „kontekst
 terminarza w modelu (t = ...)” na PDF / HTML / w dossier - tylko wyświetlanie. Test na przyszłość
 `T-SCHEDULE-TERM-FORWARD` (reguła wycofania z pre-rejestracji). Raport:
 `docs/sofa/evidence/schedule_context_2026-11-09.md`.
