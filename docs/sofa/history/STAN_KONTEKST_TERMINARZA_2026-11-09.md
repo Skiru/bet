@@ -4,16 +4,25 @@ Plan: `docs/sofa/history/PLAN_KONTEKST_TERMINARZA_PILKA_TENIS_2026-11-08.md`; in
 `docs/sofa/evidence/kontekst_terminarza_2026-11-08/PROMPT_SESJI_WDROZENIOWEJ.md`;
 pre-rejestracja: `docs/sofa/evidence/schedule_context_prereg_2026-11-09.md`.
 
-## Faza bieżąca: F7 - instalacja `football_result` (egzamin: PASS tylko ta grupa; commit wyniku `d996e343`)
+## Faza bieżąca: ZAKOŃCZONE (F0-F8 + krok 35); stan na 2026-11-09 12:35Z
+
+Werdykt: wdrożone tylko `football_result` (egzamin PASS); goals, tennis_winner, tennis_games_sets NIE zaliczyły
+(measured and declined, model-state.md (d)); tennis_serve i strzały nie zgłoszone (S2 / S4). Przełącznik przeniesiony
+przez operatora na 2026-11-09 11:30Z (dzień mieszany). Wszystkie commity niżej są na `origin/main` (sprawdzone 12:35Z).
 
 | faza | stan | SHA / hash / ścieżka |
 |---|---|---|
-| F0 pre-rejestracja + plan + materiały r1-r3 + tabela rodzin z kodu | commit `2b291085` (lokalnie; nie wypchnięty) | |
+| F0 pre-rejestracja + plan + materiały r1-r3 + tabela rodzin z kodu | commit `2b291085` (wypchnięty) | |
 | F1 `src/bet/sofa/schedule_features.py` + `tests/sofa/test_schedule_features.py` (11 testów) | w tym samym commicie (G1: moduł przed przebiegiem) | sha256 modułu - sekcja "Hashe" niżej |
 | kopia bazy | gotowa (585 s) | `data/refit_2026-11-08_schedule/sofa_copy.db` (VACUUM INTO z `file:data/sofa.db?mode=ro`, start 2026-11-09 ~00:00Z), log `vacuum.log` |
 | F2 rejestrator (D4) `data/refit_2026-11-08_schedule/record.py`; próba 5 dni 2025-10-01..05 (`smoke/`, `smoke.log`) | zakończona: rc 0, 18 663 619 rekordów, 1 932 266 prognoz, 30 247 s (`full.log` SUMMARY) | potem pełny przebieg `--from 2024-07-01` -> `full/`, `full.log` |
 | tenis zwycięzca: eksploracja, walidacja (spojrzenie 1/3), S1-S5, zamrożenie | zrobione | `tennis/tw_frozen.json`, `looks.md` |
-| F3-F8 (piłka, wynik 1X2, gemy tenisa, egzamin, wdrożenie, push) | nie zaczęte - czekają na `SUMMARY` | |
+| F3-F4 zamrożenie + skrypt egzaminu | commit `87a5087f` | `looks.md` |
+| F5-F6 egzamin (jeden) + raport | commit `d996e343` | spec `87a5087f`, `docs/sofa/evidence/schedule_context_2026-11-09.md` |
+| F7 instalacja `football_result` (od 11-10) | commity `ab9df80f`, `6f0c34c1` | E2E `e2e/`, bramki 6740 passed na czystym worktree |
+| przeniesienie na 11-09 11:30Z (operator) | commity `1304a5bc`, `dc0d3e4c` | rebuild 11:35-11:57Z |
+| usunięcie 2 krzywych bez wartości (operator) | commity `b8cecc65`, `a7c6a8f4`, `4fe8b92b` | rebuild 12:18-12:25Z |
+| F8 push | wszystko na `origin/main` (razem z cudzymi `e4fb587d`, `a1bb93e4`, które były przed moimi) | |
 
 ## Hashe
 - `src/bet/sofa/schedule_features.py` sha256 `70d11ec3c0627dd36d72e9140f9b7a74f364147b5898649948a140c88ae50db9`
@@ -33,6 +42,14 @@ pre-rejestracja: `docs/sofa/evidence/schedule_context_prereg_2026-11-09.md`.
   `docs/sofa/evidence/ucl_kolejka_2026-11-03_04_kartki.md` - nigdy nie dodawane.
 
 ## Następny krok (dla kolejnej sesji)
+Brak kroku wykonawczego. Otwarte (nie blokują):
+- `T-SCHEDULE-TERM-FORWARD` - ocena od 11-10 wg reguły wycofania (pre-rejestracja sekcja 11); 11-09 (mieszany) poza nim.
+- `sofa_settled_row` bez pól cienia (operator 11-09: bez nowej kolumny) - cień tylko w nogach CONFIDENCE i `07_settled.json`.
+- `draw_no_bet|UNDER`, `result_or_over@2@5.5|OVER` bez krzywej - powrót tylko z refitu, który przejdzie bramkę.
+- Wariant "+aktualizacja ratingu" niepoliczony (wymaga drugiego przebiegu rejestratora) - opisany w raporcie.
+- `config/sofa_superbet_line_evidence.json` przefitowany 11-09 12:17Z, niezacommitowany (plik dzienny, jak co dzień).
+
+### Historyczne (noc 11-08/09, nieaktualne)
 Stan na 2026-11-09 ~00:30Z (zegar UTC maszyny 11-08 23:50Z):
 - Próba D4 zgodna: 2 293 232 wiersze przeliczone, 0 rozbieżności, 19 min (`smoke.log`).
 - Pełny przebieg `full/` w toku (`full.log`; koniec = linia `SUMMARY`). Jeśli padł: wznowić tym samym poleceniem
@@ -191,10 +208,12 @@ zbudowany dzień). Gole (i), tenis - bez zmian (x1).
 - [x] 17 (`schedule_term`, `p_central_no_schedule_term`, `schedule_term_rule`; przeniesione do nóg CONFIDENCE i `07_settled.json`; NIE do `sofa_settled_row` - brak wolnej kolumny, migracja wymaga zgody operatora) pole wiersza: termin, cechy, `p_central` bez poprawki (cień odwrócony).
 - [x] 18 `rebuild_plan` marker.  [x] 19 testy `rating_market_gap` / `SAME_EVENT_DEDUP`.  [x] 20 wyświetlanie (PDF / HTML / dossier / read set: "kontekst terminarza w modelu (t = ...)", `schedule_term_view.py`) + skille (football-analysis, sofa-analysis-core, tennis-analysis).
 - [x] 21 testy (`test_schedule_term*.py`: 18 + 17 + 12 + 12).
-- [x] 22-27 krzywe drogi (ii) przefitowane na kopii z terminem i kontrolą bez (`f7/`); `.next.2026-11-10.json` (138 kluczy; 2 zostają
-      zainstalowane - nie przechodzą bramki także bez terminu) + `sofa_football_sim_curves.next.2026-11-10.json`; 22 (rebuild-cache-rows)
+- [x] 22-27 krzywe drogi (ii) przefitowane na kopii z terminem i kontrolą bez (`f7/`); `.next.2026-11-10.json` (138 kluczy; 2 nie przechodzą
+      bramki także bez terminu - najpierw zostawione, 11-09 12:05Z usunięte, krok 36; plik dziś `.next.2026-11-09.json`) + `sofa_football_sim_curves.next.2026-11-10.json`; 22 (rebuild-cache-rows)
       niepotrzebny: żaden klucz zakresu nie pochodzi z ogólnego fitu (sprawdzone: 140 kluczy, wszystkie z `new_market_curves_fitted_from`).
       [x] 25 tabele środka: żadna z 6 nie czyta poprawionych środków; `nb_r` i frailty symulatora zmierzone - bez zmian (`step25/report.md`).
+- [x] 24 tenis: nie dotyczy (żadna grupa tenisa nie zaliczyła). [x] 26 pliki datowane (`compose_staged.py`).
+      [x] 27 instalacja = pliki staged + `tests/sofa` (bramki); `prepare_refit install` nieużyty - nie nadpisujemy pliku zainstalowanego.
 - [x] 28 line evidence: `backfill_schedule_term_p.py` -> `data/line_evidence/schedule_term_p.json.gz` (10-14..11-08), `fit_line_evidence` + `refresh_line_evidence` krok 1c. [x] 29 grupa księgi "od 11-10".
 - [x] 30 rejestr `T-SCHEDULE-TERM-FORWARD` (przed D; reguła wycofania z pre-rejestracji 11).
 - [x] 31 dokumentacja (CLAUDE.md, model-state.md, PIPELINE, CONFIG, RUNBOOK, REJESTR_TESTOW, raport `docs/sofa/evidence/schedule_context_2026-11-09.md`) (model-state.md, CLAUDE.md, PIPELINE/CONFIG/RUNBOOK, raport PL).
@@ -210,6 +229,9 @@ markerem, 3 473 z cieniem, p ruszyło na 2 456 (maks. 0,039); `config_sha` 9bd05
 AUDIT_VARIANTS 0 uwag; druk `printed/20261109T115737Z`, 34 nogi zablokowane z wcześniejszych druków; notka na 259
 miejscach HTML; `day_status` OK (iCloud zgodny, line_evidence 11:35Z). Kod wyjścia przebudowy 1 = PARTIAL kroków
 LATE_RESOLVE / OFFER / SPORT_IDENTITY (zdrowe).
+
+## Krok 35 - pierwsza budowa dnia z przełącznikiem sprawdzona
+11:57Z i 12:25Z: SHEET z markerem (`config_sha` 9bd05a66), brak `WARN rating_market_gap`, AUDIT_VARIANTS 0, day_status OK.
 
 ## Krok 36 - usunięcie 2 krzywych nieprzechodzących bramki (11-09, 12:05-12:27Z)
 
