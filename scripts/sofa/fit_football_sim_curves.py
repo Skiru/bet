@@ -73,6 +73,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 from bet.sofa import football_sim_curves as fsc  # noqa: E402
 from bet.sofa import football_sim_markets as fsm  # noqa: E402
 from bet.sofa import football_sim_sheet as fss  # noqa: E402
+from bet.sofa import schedule_term as sterm  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import CLASS_WOMEN, direction_key, match_class  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
@@ -136,29 +137,53 @@ def first_1h_of(m: MinuteMatch) -> str | None:
 _PARAMS: SimParams | None = None
 
 
-def _init(params_json: dict[str, Any]) -> None:
-    global _PARAMS
+def _init(params_json: dict[str, Any],
+          excluded: frozenset[str] = frozenset()) -> None:
+    global _PARAMS, EXCLUDED
     _PARAMS = SimParams.from_json(params_json)
+    EXCLUDED = excluded
 
 
-def centres_of_values(values: Mapping[str, tuple[float, float]]) -> Centres | None:
+def centres_of_values(values: Mapping[str, tuple[float, float]],
+                      term: sterm.FixtureTerm | None = None) -> Centres | None:
+    """The simulator's centres of a match's stored pure rating centres;
+    `term` (--schedule-term, epochs.SCHEDULE_TERM) puts exp(t) on the goals
+    centres as SHEET's ScheduleTermForecast does (fss.centres_of on the
+    wrapped forecast: the cards stay the rating's)."""
     goals = values.get("goals_for")
     if goals is None or min(goals) <= 0:
         return None
+    gh, ga = float(goals[0]), float(goals[1])
+    if term is not None:
+        gh, ga = sterm.ReplayTerms.scaled(gh, ga, term)
     cards = values.get("cards_points_for")
-    return Centres(goals=(float(goals[0]), float(goals[1])), halves={},
+    return Centres(goals=(gh, ga), halves={},
                    cards=None if cards is None or min(cards) <= 0
                    else (float(cards[0]), float(cards[1])))
 
 
-def rows_for(job: tuple[MinuteMatch, Centres]) -> list[dict[str, Any]]:
-    m, centres = job
+# --schedule-term: the simulator's 0.60-floor keys keep the uncorrected p
+# (config/sofa_schedule_terms.json excluded_markets, pre-registration D13) -
+# priced on the job's base centres
+EXCLUDED: frozenset[str] = frozenset()
+
+
+def rows_for(job: tuple[MinuteMatch, Centres] | tuple[MinuteMatch, Centres, Centres]
+             ) -> list[dict[str, Any]]:
+    """A match's rows. A 3-tuple (match, corrected, base) is a
+    --schedule-term job: the markets of EXCLUDED read `base`."""
+    m, centres = job[0], job[1]
+    base = job[2] if len(job) == 3 else centres
     assert _PARAMS is not None and m.ht is not None
     pricer = fss.SimPricer(_PARAMS)
+    base_pricer = fss.SimPricer(_PARAMS) if base != centres else pricer
     first = first_1h_of(m)
     out: list[dict[str, Any]] = []
     for market, subject, direction in SUBJECTS:
-        p = pricer.p(m.event_id, centres, market, subject, direction)
+        if market in EXCLUDED:
+            p = base_pricer.p(m.event_id, base, market, subject, direction)
+        else:
+            p = pricer.p(m.event_id, centres, market, subject, direction)
         if p is None:
             continue
         held = fsm.path_holds(market, subject, m.ht, m.ft, first)
@@ -404,7 +429,15 @@ def main() -> int:
     ap.add_argument("--backfill-from", default="2026-10-14")
     ap.add_argument("--backfill-to", default="2026-11-05")
     ap.add_argument("--runs-dir", default=str(_REPO / "runs" / "sofa"))
+    ap.add_argument("--schedule-term", action="store_true", help=(
+        "curves: the goals centres x exp(t) of the as-of schedule features "
+        "(epochs.SCHEDULE_TERM; calendar from --db-path), the 0.60-floor keys "
+        "of config/sofa_schedule_terms.json on the uncorrected centres"))
     args = ap.parse_args()
+    if args.schedule_term and args.backfill_out:
+        print("REFUSED: --schedule-term fits curves; the backfill is not "
+              "wired to it", file=sys.stderr)
+        return 2
 
     params = fss.load_params()
     if params is None:
@@ -422,19 +455,31 @@ def main() -> int:
     forecasts: dict[int, dict[str, tuple[float, float]]] = _pickle(
         cache / "forecasts.pkl")
     lo, hi = _ts(args.from_day), _ts(args.before)
-    jobs: list[tuple[MinuteMatch, Centres]] = []
+    replay = (sterm.load_replay_terms(args.db_path) if args.schedule_term
+              else None)
+    excluded = (frozenset(replay.terms.excluded_markets) if replay is not None
+                else frozenset())
+    jobs: list[Any] = []
     for m in minutes:
         if not (lo <= m.ts < hi) or m.ht is None:
             continue
-        c = centres_of_values(forecasts.get(m.event_id) or {})
-        if c is not None:
+        values = forecasts.get(m.event_id) or {}
+        c = centres_of_values(values)
+        if c is None:
+            continue
+        if replay is None:
             jobs.append((m, c))
+            continue
+        term = replay.of_result(m)
+        corrected = centres_of_values(values, term)
+        assert corrected is not None
+        jobs.append((m, corrected, c))
     every, women = _counts(), _counts()
     n_rows = 0
     sink = gzip.open(args.rows_out, "wt", encoding="utf-8") if args.rows_out else None
     try:
         with ProcessPoolExecutor(max_workers=args.workers, initializer=_init,
-                                 initargs=(params.to_json(),)) as pool:
+                                 initargs=(params.to_json(), excluded)) as pool:
             for i, chunk in enumerate(pool.map(rows_for, jobs, chunksize=32)):
                 for r in chunk:
                     add(every, r["market"], r["direction"], r["p"], r["y"])
@@ -476,6 +521,10 @@ def main() -> int:
             "classes": {CLASS_WOMEN: "a women's match (football_rating women)"},
             "code_commit": _commit(),
             "fitted_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            **({} if replay is None else {
+                "schedule_term": {**replay.stamp(args.db_path),
+                                  "excluded_markets_uncorrected": sorted(excluded)},
+                "replay_rules": {"flags": ["--schedule-term"]}}),
         },
         **sections(every),
         "by_class": {CLASS_WOMEN: sections(women)},

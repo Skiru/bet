@@ -41,6 +41,7 @@ from bet.sofa import (  # noqa: E402
     football_sim_curves,  # noqa: E402
     live_only_curves,  # noqa: E402
     priced_rows,  # noqa: E402
+    schedule_term_view,  # noqa: E402
     tennis_point_curves,  # noqa: E402
     timeutil,
 )
@@ -1077,6 +1078,11 @@ def main() -> int:
                     }
                     if so else {}
                 ),
+                # epochs.SCHEDULE_TERM: the row's term (status, t_home,
+                # t_away) and its p without the term (the inverted shadow,
+                # T-SCHEDULE-TERM-FORWARD) - written only when the row carries
+                # them (bet.sofa.schedule_term_view). Never a gate.
+                **schedule_term_view.leg_fields(row),
                 # Not serialised: the builder needs to intersect legs on the
                 # matches they came from. Stripped before the artifact is
                 # written.

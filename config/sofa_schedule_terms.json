@@ -1,0 +1,71 @@
+{
+ "_doc": "Football schedule / fatigue term on the PURE rating goals centres (path (ii)): FootballForecast.centre('goals_for', side) x exp(t_side), t_side = sum_c coef[own_c] * own.indicators()[c] + sum_c coef[opp_c] * opp.indicators()[c] over schedule_features.FOOTBALL_COLUMNS (a coefficient absent = 0); t = 0 for both sides when either has no calendar coverage, and for a national-team fixture. Read by bet.sofa.schedule_term under epochs.SCHEDULE_TERM; the coefficients are the frozen, shrunk dev fit that passed the one exam (group football_result) - installed as they are, never refitted. excluded_markets: the simulator's four 0.60-floor keys keep the uncorrected p until their floor is re-measured on the corrected p (pre-registration D13 / plan item 8).",
+ "fitted_from": {
+  "exam_spec_sha": "87a5087f59796dd0efb6cd33160ac88b04120d2b",
+  "exam_result_commit": "d996e343",
+  "exam_result": "docs/sofa/evidence/kontekst_terminarza_2026-11-08/exam_result.json",
+  "frozen_file": "docs/sofa/evidence/kontekst_terminarza_2026-11-08/frozen/fr_frozen.json",
+  "frozen_file_sha256": "820cd60b1b689f3e864f04131fd4c26e4ff2464b5100f3c521087204eb05cb65",
+  "method": "dev 2024-07-01..2025-12-31 Poisson GLM, team-season FE, shrunk tau 0.05 (pre-registration 6)",
+  "group": "football_result",
+  "path": "(ii)",
+  "nb_r": 7.586,
+  "tau": 0.05,
+  "book": 1
+ },
+ "columns": [
+  "R1",
+  "R2",
+  "R4_intl",
+  "R4_other",
+  "R5_season_start",
+  "R5_winter",
+  "R5_other",
+  "cont_prev4",
+  "cont_prev4_x_R1",
+  "et_prev",
+  "dense14",
+  "cont_next4"
+ ],
+ "coef": {
+  "own_R1": -0.0018505226487876914,
+  "own_R2": -0.0032277309357601714,
+  "own_R4_intl": -0.012210796538868817,
+  "own_R4_other": -0.00021060424422573052,
+  "own_R5_winter": -0.07640270310285832,
+  "own_R5_other": -0.035347848476692714,
+  "own_cont_prev4": -0.032755016695016494,
+  "own_cont_prev4_x_R1": 0.03685659154191883,
+  "own_et_prev": -0.016937973240267693,
+  "own_dense14": -0.0030446160114563736,
+  "own_cont_next4": -0.02992964833918967,
+  "opp_R1": -0.0038544745357951132,
+  "opp_R2": -0.011213480789970386,
+  "opp_R4_intl": 0.03458464194931481,
+  "opp_R4_other": 0.02490133521288869,
+  "opp_R5_winter": 0.03617548939850316,
+  "opp_R5_other": 0.06937762198488565,
+  "opp_cont_prev4": -0.0017641201193624894,
+  "opp_cont_prev4_x_R1": -0.006832002413664854,
+  "opp_et_prev": -0.008838200545247638,
+  "opp_dense14": 0.00273165889677391,
+  "opp_cont_next4": -0.05378452301425081
+ },
+ "excluded_markets": [
+  "btts_any_half",
+  "btts_halves",
+  "half_goals_combo",
+  "team_scores_both_halves"
+ ],
+ "unfitted_constants": [
+  "SCHEDULE_REST_EDGES",
+  "SCHEDULE_CONTINENTAL_WINDOW_H",
+  "SCHEDULE_DENSE14_MATCHES",
+  "SCHEDULE_INTL_DAY_MATCHES",
+  "SCHEDULE_COVERAGE_DAYS",
+  "SCHEDULE_ET_PREV_DAYS",
+  "SCHEDULE_WINTER_MARK",
+  "SCHEDULE_SHRINK_TAU",
+  "SCHEDULE_SQL_WINDOW_DAYS"
+ ]
+}

@@ -1,0 +1,20 @@
+<class 'list'>
+rows 164939
+football rows 156927
+('floor', True, False) 9010
+('marker', 'schedule_term_v1') 156927
+('other', False, False) 104895
+('scope', True, False) 20
+('scope', True, True) 43002
+out-of-scope rows with fields: 0 []
+non-football rows with fields/marker: 0
+floor rows 9010 with shadow 0 shadow!=p 0 status Counter({'EXCLUDED_FLOOR': 9010})
+scope rows 43022 status Counter({'APPLIED': 42899, 'NATIONAL': 123})
+scope p - shadow: n 43002 nonzero 17473 mean|d| 0.004030962055743146 max|d| 0.03629999999999994
+fixtures 891 Counter({'APPLIED': 889, 'NATIONAL': 2})
+t sides 1778 nonzero 644 min -0.049 max 0.069 mean -0.0003 sd 0.0104 deciles [-0.011, -0.003, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.002]
+example schedule_term keys ['status', 't_home', 't_away', 'home', 'away']
+{"status": "APPLIED", "t_home": -0.016205, "t_away": -0.047196, "home": {"coverage": true, "rest_d": 4.875, "rest_bucket": "R2", "intl_return": false, "layoff_kind": null, "cont_prev4": false, "et_prev": false, "dense14": false, "cont_next4": false, "matches_7d": 1, "matches_14d": 3, "indicators": ["R2"]}, "away": {"coverage": true, "rest_d": 3.875, "rest_bucket": "R2", "intl_return": false, "layoff_kind": null, "cont_prev4": true, "et_prev": false, "dense14": false, "cont_next4": false, "matches_7d": 1, "matches_14d": 3, "indicators": ["R2", "cont_prev4"]}}
+config_sha Counter({'9bd05a665c3e1270': 164939})
+SHEET_CONFIG_FILES has schedule_terms: False ('sofa_engine_constants.json', 'sofa_league_baselines.json', 'sofa_market_reliability.json', 'sofa_tennis_tier_baselines.json', 'tennis_rating.json', 'sofa_count_dispersion.json', 'sofa_side_correlations.json', 'sofa_game_state.json', 'sofa_season_phase.json', 'sofa_rating_weight.json')
+real config_sha Counter({'e3bfb520c986fb3d': 166529})

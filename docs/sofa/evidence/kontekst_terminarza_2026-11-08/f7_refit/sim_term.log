@@ -1,0 +1,9 @@
+5000 / 40025 matches, 334937 rows
+10000 / 40025 matches, 669868 rows
+15000 / 40025 matches, 1004820 rows
+20000 / 40025 matches, 1339781 rows
+25000 / 40025 matches, 1674733 rows
+30000 / 40025 matches, 2009658 rows
+35000 / 40025 matches, 2344607 rows
+40000 / 40025 matches, 2679571 rows
+{"stage": "FIT_FOOTBALL_SIM_CURVES", "verdict": "OK", "metrics": {"matches": 40025, "rows": 2681246}, "keys": 11, "output_path": "data/refit_2026-11-08_schedule/f7/sim/term/curves.json"}

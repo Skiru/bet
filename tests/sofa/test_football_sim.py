@@ -446,6 +446,9 @@ def test_no_pipeline_stage_reads_the_simulator() -> None:
         REPO / "scripts/sofa/measure_football_sim.py",
         REPO / "scripts/sofa/fit_football_sim_curves.py",
         REPO / "scripts/sofa/measure_football_sim_wiring.py",
+        # epochs.SCHEDULE_TERM's line-evidence backfill (the simulator's
+        # lines at the corrected centres)
+        REPO / "scripts/sofa/backfill_schedule_term_p.py",
     }
     hits = [
         p

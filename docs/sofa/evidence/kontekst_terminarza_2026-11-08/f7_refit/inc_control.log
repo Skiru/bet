@@ -1,0 +1,20 @@
+[09:30:15] copying incident lists into data/refit_2026-11-08_schedule/f7/inc/control/football_incidents/incidents.db
+[09:30:57] copying data/refit_2026-11-08_schedule/cache/football_history.pkl into data/refit_2026-11-08_schedule/f7/inc/control/football_incidents/football_history.pkl
+[09:31:00] football history 1091838 matches
+[09:31:49] incident lists for 186805 history matches, 178891 readable
+[09:33:01] football rows 911390
+[09:33:07] football_incidents done (172s)
+{
+ "football_incidents": {
+  "first_goal|OVER": true,
+  "red_cards_total|OVER": false,
+  "red_cards_total|UNDER": true,
+  "penalties_total|OVER": false,
+  "penalties_total|UNDER": true,
+  "women:first_goal|OVER": false,
+  "women:red_cards_total|OVER": false,
+  "women:red_cards_total|UNDER": true,
+  "women:penalties_total|OVER": false,
+  "women:penalties_total|UNDER": true
+ }
+}

@@ -1,0 +1,15 @@
+== ON vs CTRL(off, same clock 08:00) | ON 9855 other 9826
+ in-scope tot 4761 vs 4737
+   [('result_or_over', 1818, 1805), ('result_or_under', 1627, 1618), ('double_chance', 734, 738), ('result_handicap', 246, 244), ('btts_or_over', 108, 109), ('draw_no_bet', 108, 102), ('result_or_btts', 46, 51), ('result_or_clean_sheet', 29, 27), ('dc_and_under', 23, 23), ('dc_and_over', 12, 12), ('first_goal', 10, 8)]
+ football out-of-scope tot 4690 vs 4685
+   [('team_scores_both_halves', 323, 322), ('goals_for', 244, 243), ('corners_1h_total', 215, 214), ('corners_for', 212, 211), ('shots_on_target_total', 112, 113), ('saves_for', 30, 29), ('penalties_1h_for', 1, 0)]
+ in-scope: only ON 129 only other 105 both 4646 both w/ different confidence 4525
+ out-of-scope: only ON 6 only other 1 by sport only-ON Counter({'football': 6}) only-other Counter({'football': 1})
+  out-of-scope symmetric diff by market [('goals_for', 1), ('saves_for', 1), ('team_scores_both_halves', 1), ('penalties_1h_for', 1), ('shots_on_target_total', 1), ('corners_1h_total', 1), ('corners_for', 1)]
+== ON vs REAL (built 17:5x, off) | ON 9855 other 9961
+ in-scope tot 4761 vs 4694
+   [('result_or_over', 1818, 1772), ('result_or_under', 1627, 1606), ('double_chance', 734, 735), ('result_handicap', 246, 234), ('draw_no_bet', 108, 109), ('btts_or_over', 108, 107), ('result_or_btts', 46, 51), ('result_or_clean_sheet', 29, 32), ('dc_and_under', 23, 26), ('dc_and_over', 12, 14), ('first_goal', 10, 8)]
+ football out-of-scope tot 4690 vs 4645
+   [('goals_total', 514, 505), ('corners_total', 487, 481), ('goals_2h_total', 403, 406), ('team_scores_both_halves', 323, 322), ('goals_1h_total', 292, 279), ('goals_for', 244, 242), ('corners_1h_total', 215, 213), ('corners_for', 212, 210), ('half_goals_combo', 157, 156), ('both_over_goals_2h', 120, 125), ('shots_on_target_total', 112, 111), ('goals_2h_for', 91, 95), ('cards_points_total', 89, 93), ('red_cards_total', 96, 85), ('penalties_total', 94, 82), ('corners_1h_for', 79, 80), ('goals_1h_for', 70, 78), ('shots_total', 73, 68), ('corners_2h_for', 50, 49), ('shots_on_target_for', 48, 45), ('player_tackles_for', 33, 35), ('offsides_total', 31, 32), ('saves_for', 30, 28), ('cards_points_1h_total', 23, 22), ('player_shots_for', 16, 15)]
+ in-scope: only ON 203 only other 154 both 4572 both w/ different confidence 4398
+ out-of-scope: only ON 117 only other 272 by sport only-ON Counter({'football': 112, 'tennis': 5}) only-other Counter({'volleyball': 140, 'football': 67, 'hockey': 51, 'basketball': 7, 'tennis': 6, 'cs2': 1})

@@ -1,0 +1,14 @@
+keys ON 164939 REAL 166529 both 164831 onlyON 108 onlyREAL 1698
+('football', False, False) 103290
+('football', False, True) 1529
+('football', True, False) 34504
+('football', True, True) 17496
+('tennis', False, False) 8012
+out-of-scope changed by market: [('player_shots_for', 206), ('corners_for', 172), ('shots_on_target_for', 126), ('shots_for', 102), ('shots_on_target_total', 96), ('shots_total', 84), ('player_shots_on_target_for', 72), ('corners_1h_for', 68), ('player_fouls_for', 68), ('corners_total', 54), ('both_over_corners', 54), ('both_over_shots_on_target', 48), ('cards_points_total', 44), ('corners_1h_total', 40), ('cards_points_for', 26), ('cards_points_1h_for', 22), ('shots_1h_for', 22), ('most_corners', 21), ('corners_2h_for', 20), ('corners_2h_total', 20)]
+handicap_cards_points [((16285081, 'football', 'handicap_cards_points', 'como', -0.5, 'OVER'), 0.3566, 0.3567), ((16311006, 'football', 'handicap_cards_points', 'le mans', -0.5, 'OVER'), 0.4653, 0.4652)]
+shots_on_target_total [((16403932, 'football', 'shots_on_target_total', '', 10.5, 'OVER'), 0.3445, 0.3444), ((16397743, 'football', 'shots_on_target_total', '', 6.5, 'UNDER'), 0.1761, 0.176)]
+corners_total [((16278748, 'football', 'corners_total', '', 6.5, 'OVER'), 0.7833, 0.7834), ((16278748, 'football', 'corners_total', '', 6.5, 'UNDER'), 0.2167, 0.2166)]
+corners_for [((16278748, 'football', 'corners_for', 'midtjylland', 3.5, 'OVER'), 0.8695, 0.8696), ((16278748, 'football', 'corners_for', 'midtjylland', 3.5, 'UNDER'), 0.1305, 0.1304)]
+cards_points_total [((16278748, 'football', 'cards_points_total', '', 2.5, 'OVER'), 0.5936, 0.5951), ((16278748, 'football', 'cards_points_total', '', 2.5, 'UNDER'), 0.4064, 0.4049)]
+cards_points_for [((16278748, 'football', 'cards_points_for', 'midtjylland', 1.5, 'OVER'), 0.3662, 0.3678), ((16278748, 'football', 'cards_points_for', 'midtjylland', 1.5, 'UNDER'), 0.6338, 0.6322)]
+in-scope shadow == real p: 42982 of 42990

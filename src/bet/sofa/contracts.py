@@ -433,6 +433,15 @@ class SheetRow(BaseModel):
     # the minute-by-minute simulator (bet.sofa.football_sim_sheet); absent
     # when off.
     football_sim_rule: str | None = None
+    # bet.sofa.epochs.SCHEDULE_TERM: the rule's name on every football row of
+    # a sheet whose path (ii) rows read the schedule term on the pure rating
+    # goals centres (bet.sofa.schedule_term); on such a row (and on the
+    # simulator's excluded floor keys, status EXCLUDED_FLOOR) the term
+    # (status, t_home / t_away, both sides' features) and, on a corrected row,
+    # its p without the term (the inverted shadow); all absent when off.
+    schedule_term_rule: str | None = None
+    schedule_term: dict[str, Any] | None = None
+    p_central_no_schedule_term: float | None = None
     # bet.sofa.epochs.FOOTBALL_CUP_STRENGTH: the rule's name on a football
     # row priced by a rating book carrying the league strength learnt in
     # international club cups (bet.sofa.cup_strength); absent when off.

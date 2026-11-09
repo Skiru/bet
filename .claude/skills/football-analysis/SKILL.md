@@ -74,6 +74,15 @@ Template and step table: `references/event-protocol.md`.
    `LONG_LAYOFF` >= 21 d, `CONGESTED` >= 3 in 7 d). For a make-up fixture find
    out **why** it was postponed and whether the cause still holds.
    Congestion is a rotation / availability argument, not fatigue.
+   From 2026-11-10 the result / score / first-goal / simulator markets
+   (`epochs.SCHEDULE_TERM_MARKETS`: 1X2, DNB, double chance, the score
+   combos, first goal, the minute simulator's keys but its four 0.60-floor
+   ones) carry the fixture-congestion / rest term in the model: the leg's
+   `schedule_term` (t per side; `p_central_no_schedule_term` = p without it;
+   note "kontekst terminarza w modelu"). On those markets a WATCH resting on
+   rest / fatigue / congestion alone double-counts it - only a dated
+   consequence (a rotation confirmed, a player out) may carry one. Count
+   markets (goals, corners, cards...) read no term.
 4. **Sample integrity.** `03_samples.json`, per side: n, dates, opponents,
    venues, competitions. Ask: a manager change, promotion or transfer window
    inside it? are the h2h the misses? one side thin while the other carries

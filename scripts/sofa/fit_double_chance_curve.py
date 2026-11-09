@@ -71,6 +71,7 @@ for _p in (str(_REPO), str(_REPO / "src")):
 
 from bet.sofa import football_rating as fr  # noqa: E402
 from bet.sofa import football_result as res  # noqa: E402
+from bet.sofa import schedule_term as sterm  # noqa: E402
 from bet.sofa.config import config_path  # noqa: E402
 from bet.sofa.cup_strength import CupStrength  # noqa: E402
 from bet.sofa.cup_strength import apply as apply_cup_strength  # noqa: E402
@@ -111,6 +112,11 @@ CUP: CupStrength | None = None
 # --form-table (epochs.FOOTBALL_FORM_TABLE): the goals rating's faster step
 # and the season table's centre move (football_rating.enable_form_table)
 FORM_TABLE = False
+# --schedule-term (epochs.SCHEDULE_TERM): the path (ii) goals centres x
+# exp(t) of the match's schedule features as of its kick-off - SHEET's
+# ScheduleTermForecast on bet.sofa.schedule_term's per-match read
+SCHEDULE: sterm.ReplayTerms | None = None
+SCHEDULE_DB: str | None = None
 
 
 def replay(history: Iterable[fr.FootballResult], from_ts: int,
@@ -126,7 +132,10 @@ def replay(history: Iterable[fr.FootballResult], from_ts: int,
             break
         goals = r.values.get("goals_for")
         if r.ts >= from_ts and goals is not None:
-            fc = fr.FootballForecast(book, r.competition_id, r.home_id, r.away_id)
+            fc: fr.FootballForecast = fr.FootballForecast(
+                book, r.competition_id, r.home_id, r.away_id)
+            if SCHEDULE is not None:
+                fc = SCHEDULE.forecast(fc, r)
             ch = fc.centre("goals_for", "side_a")
             ca = fc.centre("goals_for", "side_b")
             if ch is not None and ca is not None:
@@ -214,6 +223,53 @@ def set_form_table(on: bool) -> None:
     FORM_TABLE = on
 
 
+def set_schedule_term(db_path: str | None) -> None:
+    """--schedule-term: None off, else the DB whose listed football events
+    make the calendar (one full calendar, read-only)."""
+    global SCHEDULE, SCHEDULE_DB
+    SCHEDULE = None if db_path is None else sterm.load_replay_terms(db_path)
+    SCHEDULE_DB = db_path
+
+
+def schedule_stamp(flags: list[str]) -> dict[str, Any]:
+    """fitted_from entries of a --schedule-term run ({} when off, so an
+    output without the flag is the one before it)."""
+    if SCHEDULE is None or SCHEDULE_DB is None:
+        return {}
+    return {"schedule_term": SCHEDULE.stamp(SCHEDULE_DB),
+            "replay_rules": {"flags": sorted(flags)}}
+
+
+def add_schedule_args(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--schedule-term", action="store_true", help=(
+        "the path (ii) goals centres x exp(t) of the as-of schedule features "
+        "(epochs.SCHEDULE_TERM, bet.sofa.schedule_term); needs --db-path"))
+    ap.add_argument("--db-path", help="--schedule-term: the DB (a COPY) whose "
+                    "listed football events make the calendar")
+
+
+def schedule_db(args: argparse.Namespace) -> str | None:
+    if not args.schedule_term:
+        return None
+    if not args.db_path:
+        raise SystemExit("--schedule-term needs --db-path (a copy of the DB)")
+    return str(args.db_path)
+
+
+def replay_flags(args: argparse.Namespace) -> list[str]:
+    """The replay rules of a run, as flags."""
+    out = []
+    if getattr(args, "cup_strength", None) is not None:
+        out.append("--cup-strength")
+    if getattr(args, "form_table", False):
+        out.append("--form-table")
+    if getattr(args, "awarded_excluded", False):
+        out.append("--awarded-excluded")
+    if getattr(args, "schedule_term", False):
+        out.append("--schedule-term")
+    return out
+
+
 def set_cup(arg: str | None) -> None:
     """--cup-strength: None off, "" the installed file, else a path."""
     global CUP
@@ -242,9 +298,14 @@ def main() -> int:
                     metavar="CONFIG", help="the book with the cup league strength "
                     "(epochs.FOOTBALL_CUP_STRENGTH; default config/"
                     "sofa_cup_strength.json)")
+    add_schedule_args(ap)
     args = ap.parse_args()
     set_cup(args.cup_strength)
     set_form_table(args.form_table)
+    if args.regate and args.schedule_term:
+        raise SystemExit("--regate re-decides saved rows; --schedule-term "
+                         "cannot apply to them")
+    set_schedule_term(schedule_db(args))
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if args.regate:
@@ -284,6 +345,7 @@ def main() -> int:
         "holdout": {"train_window": [args.from_, args.holdout_from],
                     "holdout_window": [args.holdout_from, args.holdout_to],
                     "rule": gate_mod.RULE_TEXT},
+        **schedule_stamp(replay_flags(args)),
     }
     write_docs(out, args, result, fitted_from,
                f"nb_r {cfg.nb_r}; rated matches {len(matches)}, UNLINKED left out "

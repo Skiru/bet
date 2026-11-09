@@ -1,0 +1,24 @@
+E2E mode=on now=2026-11-09T10:54:32.324086+00:00 schedule_term_on=True calibration=sofa_confidence_calibration.next.2026-11-10.json sim_curves=sofa_football_sim_curves.next.2026-11-10.json
+# day status 2026-11-08 at 2026-11-08T08:05:00Z (read-only, no network)
+OK          offer                  newest 2026-11-08T16:32:06Z (-8.5 h ago), oldest 2026-11-08T07:27:40Z (37 min ago), 1193 offers; a rebuild needs <= 45 min
+WARN        sport:hockey           no /Users/mkoziol/projects/bet/data/refit_2026-11-08_schedule/e2e/runs/sofa/shadow/hockey/2026-11-08/snapshots.jsonl
+WARN        sport:basketball       no /Users/mkoziol/projects/bet/data/refit_2026-11-08_schedule/e2e/runs/sofa/shadow/basketball/2026-11-08/snapshots.jsonl
+WARN        sport:volleyball       no /Users/mkoziol/projects/bet/data/refit_2026-11-08_schedule/e2e/runs/sofa/shadow/volleyball/2026-11-08/snapshots.jsonl
+WARN        sport:cs2              no /Users/mkoziol/projects/bet/data/refit_2026-11-08_schedule/e2e/runs/sofa/cs2/2026-11-08/snapshots.jsonl
+WARN        loop:capture_closing   not running, 9718 printed official leg(s) still to close - their CLV will be a hole (start capture_closing.py --loop)
+OK          loop:paper_capture     not running; nothing left to capture
+WARN        loop:shadow_daily      not running, not done; no step logged
+WARN        loop:cs2_daily         not running, not done; no step logged
+NOT_CHECKED bridge                 no network here and no stored check result (check_bridge.py writes none) - last FIXTURE_CHECK 2026-11-08T16:54:48.205296Z: 1166 read through it, 0 UNVERIFIED
+OK          backfill               no driver left stopped by a STOP in the last 12 h
+OK          ledger                 324 rows; MISMATCH 0; D-1 2026-11-07: 6 variant(s) recorded
+OK          clv                    0/0 printed official legs past their window have a close (9718 printed); closing.jsonl present
+OK          coupon                 11_coupon.json 2026-11-08T08:00:00Z (5 min ago), not older than its sources (08_confidence.json 2026-11-08T08:00:00Z, 08_confidence_sports.json 2026-11-08T16:55:51.358001Z)
+NOT_CHECKED icloud                 no iCloud copy for this runs dir
+OK          settleability          sofa_settleability.2026-11-08.json
+NOT_CHECKED line_evidence          refitted since for 2026-11-09 (at 2026-11-09T09:05:41+00:00)
+OK          fixtures               1166 checked, UNVERIFIED 0
+OK          identity               basketball 202/207 (98%); cs2 22/27 (81%); hockey 58/61 (95%); volleyball 106/169 (63%)
+NOT_CHECKED sport_history          2026-11-07: no pinned sport game
+
+verdict: WARN

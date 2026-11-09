@@ -39,7 +39,7 @@ from zoneinfo import ZoneInfo
 
 from rapidfuzz import fuzz
 
-from bet.sofa import epochs, prematch_lineups
+from bet.sofa import epochs, prematch_lineups, schedule_term_view
 from bet.sofa import h2h as h2h_fetch
 from bet.sofa.comparability import is_awarded_event, is_friendly_event
 from bet.sofa.contracts import GapReason
@@ -1384,6 +1384,9 @@ def leg_rows(legs: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
         row = {k: leg[k] for k in keep if leg.get(k) is not None}
         if isinstance(leg.get("price_gap"), Mapping):
             row["price_gap"] = True
+        # epochs.SCHEDULE_TERM: congestion / rest is already in this leg's p
+        if note := schedule_term_view.label(leg):
+            row["schedule_term_note"] = note
         peer = leg.get("peer")
         if isinstance(peer, Mapping) and peer.get("preferred"):
             row["peer_preferred"] = True

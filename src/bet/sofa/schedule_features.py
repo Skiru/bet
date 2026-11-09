@@ -265,6 +265,10 @@ class Calendar:
     def __len__(self) -> int:
         return len(self._by_id)
 
+    def get(self, event_id: int) -> CalendarMatch | None:
+        """The calendar's entry of an event id (None: not listed)."""
+        return self._by_id.get(event_id)
+
     def _index(self) -> dict[int, list[tuple[int, int]]]:
         if self._sides is None:
             sides: dict[int, list[tuple[int, int]]] = defaultdict(list)

@@ -283,6 +283,15 @@ CONFIDENCE nie jest etapem `run_pipeline.py` (nie ma `--only CONFIDENCE`).
 W epoce stats-only odmawia (kod 2) arkusza zbudowanego nie pod tą regułą —
 wtedy przebudowa zaczyna się od SHEET.
 
+Od 2026-11-10 00:00Z (`SCHEDULE_TERM`) SHEET buduje kalendarz terminarza piłki
+(ok. 70-95 s dłużej na dzień) i mnoży środki goli ratingu rynków 1X2 / DNB / DC /
+wyniku / pierwszego gola / symulatora przez exp(t). Arkusz zbudowany przed tą
+godziną nie ma znacznika `schedule_term_rule` - `rebuild_day.py` sam powtarza
+SHEET. Kontrola pierwszego dnia: `rebuild_plan` powtórzył SHEET, `config_sha`
+wierszy obejmuje `sofa_schedule_terms.json`, w stderr CONFIDENCE brak
+`WARN rating_market_gap`, nogi objęte mają `schedule_term` i
+`p_central_no_schedule_term`.
+
 ### 2b. Sporty mierzone na kuponie (od 2026-10-05 08:30Z)
 
 ```bash

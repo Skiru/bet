@@ -1,0 +1,39 @@
+2026-10-13
+2026-10-14
+2026-10-15
+2026-10-16
+2026-10-17
+2026-10-18
+2026-10-19
+2026-10-20
+2026-10-21
+2026-10-22
+2026-10-23
+2026-10-24
+2026-10-25
+2026-10-26
+2026-10-27
+2026-10-28
+2026-10-29
+2026-10-30
+2026-10-31
+2026-11-01
+2026-11-02
+2026-11-03
+2026-11-04
+2026-11-05
+2026-11-06
+2026-11-07
+btts_or_over              n=  12062 mismatch(>1e-6 after 4dp)=  6705 maxdiff=0.000300 unparsed=0
+dc_and_over               n=  24240 mismatch(>1e-6 after 4dp)= 11384 maxdiff=0.000300 unparsed=0
+dc_and_under              n=  25833 mismatch(>1e-6 after 4dp)= 14378 maxdiff=0.000300 unparsed=0
+double_chance             n=  29522 mismatch(>1e-6 after 4dp)= 13543 maxdiff=0.000300 unparsed=0
+draw_no_bet               n=  19286 mismatch(>1e-6 after 4dp)= 12502 maxdiff=0.000500 unparsed=0
+first_goal                n=  15110 mismatch(>1e-6 after 4dp)=  6878 maxdiff=0.000300 unparsed=0
+result_1x2                n=  19830 mismatch(>1e-6 after 4dp)= 11427 maxdiff=0.000300 unparsed=0
+result_handicap           n=  10637 mismatch(>1e-6 after 4dp)=  5091 maxdiff=0.000200 unparsed=0
+result_or_btts            n=   5152 mismatch(>1e-6 after 4dp)=  2626 maxdiff=0.000300 unparsed=0
+result_or_clean_sheet     n=   5164 mismatch(>1e-6 after 4dp)=  2538 maxdiff=0.000300 unparsed=0
+result_or_over            n= 132103 mismatch(>1e-6 after 4dp)= 58759 maxdiff=0.000300 unparsed=0
+result_or_under           n= 130839 mismatch(>1e-6 after 4dp)= 65684 maxdiff=0.000300 unparsed=0
+sim                       n=  25104 mismatch(>1e-6 after 4dp)=  7024 maxdiff=0.001300 unparsed=0

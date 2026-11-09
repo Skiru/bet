@@ -3847,6 +3847,42 @@ def football_sim_floor(date: str, build_at: datetime | None = None) -> bool:
             and _audit_1023_on(FOOTBALL_SIM_FLOOR_FROM_UTC, date, build_at))
 
 
+# Football schedule / fatigue term, path (ii) (pre-registration
+# docs/sofa/evidence/schedule_context_prereg_2026-11-09.md; the one exam,
+# spec 87a5087f, result docs/sofa/evidence/kontekst_terminarza_2026-11-08/
+# exam_result.json: group football_result PASSED, goals / tennis groups did
+# not). SHEET multiplies each side's PURE rating goals centre
+# (FootballForecast.centre("goals_for", side)) by exp(t_side) from the frozen
+# coefficients of config/sofa_schedule_terms.json (bet.sofa.schedule_term;
+# t = 0 for a national-team fixture or a side without calendar coverage) on
+# the rows of SCHEDULE_TERM_MARKETS: 1X2, draw no bet, double chance, the
+# score markets, the first goal and the simulator's path markets except its
+# four 0.60-floor keys (they keep the uncorrected p until their floor is
+# re-measured - pre-registration D13). The game-state supremacy, card points
+# and every sample row read the uncorrected forecast. Every such row carries
+# `schedule_term` (t and both sides' features) and `p_central_no_schedule_term`
+# (the inverted shadow, T-SCHEDULE-TERM-FORWARD); every football row of a
+# sheet built under it carries SCHEDULE_TERM_MARKER, so rebuild_plan re-runs
+# SHEET on a sheet built before it. By the day and the build clock. None =
+# off everywhere (nothing changes).
+SCHEDULE_TERM = "schedule_term_v1"
+SCHEDULE_TERM_FROM_UTC: datetime | None = datetime(2026, 11, 10, 0, 0, tzinfo=UTC)
+SCHEDULE_TERM_MARKER = ("schedule_term_rule", SCHEDULE_TERM, "football")
+SCHEDULE_TERM_FLOOR_EXCLUDED: frozenset[str] = frozenset({
+    "team_scores_both_halves", "half_goals_combo", "btts_any_half",
+    "btts_halves"})
+SCHEDULE_TERM_MARKETS: frozenset[str] = frozenset({
+    "result_1x2", "draw_no_bet", "double_chance", "btts_or_over",
+    "dc_and_over", "dc_and_under", "result_handicap", "result_or_btts",
+    "result_or_clean_sheet", "result_or_over", "result_or_under",
+    "first_goal"}) | (FOOTBALL_SIM_MARKETS - SCHEDULE_TERM_FLOOR_EXCLUDED)
+
+
+def schedule_term(date: str, build_at: datetime | None = None) -> bool:
+    """SCHEDULE_TERM_FROM_UTC on the day being built and the build clock."""
+    return _audit_1023_on(SCHEDULE_TERM_FROM_UTC, date, build_at)
+
+
 # Volleyball rally-point model (operator 2026-11-06: "install whatever is
 # better than the current estimator; the price need not be beaten"). For a
 # volleyball line of VB_POINT_MODEL_MARKETS (Superbet market ids) the p

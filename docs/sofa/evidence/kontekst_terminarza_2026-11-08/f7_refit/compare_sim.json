@@ -1,0 +1,1854 @@
+{
+ "sim": [
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "btts_any_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 39776,
+   "n_control": 39776,
+   "n_term": 39776,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      36475,
+      0.415
+     ],
+     "control": [
+      36475,
+      0.415
+     ],
+     "term": [
+      36475,
+      0.415
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      2856,
+      0.537
+     ],
+     "control": [
+      2856,
+      0.537
+     ],
+     "term": [
+      2856,
+      0.537
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      445,
+      0.5766
+     ],
+     "control": [
+      445,
+      0.5766
+     ],
+     "term": [
+      445,
+      0.5766
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "btts_any_half|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 39277,
+   "n_control": 39277,
+   "n_term": 39277,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      24162,
+      0.516
+     ],
+     "control": [
+      24162,
+      0.516
+     ],
+     "term": [
+      24162,
+      0.516
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      10784,
+      0.6058
+     ],
+     "control": [
+      10784,
+      0.6058
+     ],
+     "term": [
+      10784,
+      0.6058
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      2835,
+      0.6341
+     ],
+     "control": [
+      2835,
+      0.6341
+     ],
+     "term": [
+      2835,
+      0.6341
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      1496,
+      0.6714
+     ],
+     "control": [
+      1496,
+      0.6714
+     ],
+     "term": [
+      1496,
+      0.6714
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "btts_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 159352,
+   "n_control": 159352,
+   "n_term": 159352,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      144237,
+      0.2056
+     ],
+     "control": [
+      144237,
+      0.2056
+     ],
+     "term": [
+      144237,
+      0.2056
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      10784,
+      0.6058
+     ],
+     "control": [
+      10784,
+      0.6058
+     ],
+     "term": [
+      10784,
+      0.6058
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      2835,
+      0.6341
+     ],
+     "control": [
+      2835,
+      0.6341
+     ],
+     "term": [
+      2835,
+      0.6341
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      1496,
+      0.6714
+     ],
+     "control": [
+      1496,
+      0.6714
+     ],
+     "term": [
+      1496,
+      0.6714
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "first_goal_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.00019999999999997797,
+   "n_installed": 119093,
+   "n_control": 119093,
+   "n_term": 119081,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      117262,
+      0.324
+     ],
+     "control": [
+      117262,
+      0.324
+     ],
+     "term": [
+      117259,
+      0.324
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      1831,
+      0.614
+     ],
+     "control": [
+      1831,
+      0.614
+     ],
+     "term": [
+      1822,
+      0.6138
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "half_goals_combo|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 1440661,
+   "n_control": 1440661,
+   "n_term": 1440661,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      1341990,
+      0.2185
+     ],
+     "control": [
+      1341990,
+      0.2185
+     ],
+     "term": [
+      1341990,
+      0.2185
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      72022,
+      0.6456
+     ],
+     "control": [
+      72022,
+      0.6456
+     ],
+     "term": [
+      72022,
+      0.6456
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      11982,
+      0.671
+     ],
+     "control": [
+      11982,
+      0.671
+     ],
+     "term": [
+      11982,
+      0.671
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      7697,
+      0.7155
+     ],
+     "control": [
+      7697,
+      0.7155
+     ],
+     "term": [
+      7697,
+      0.7155
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      2538,
+      0.7318
+     ],
+     "control": [
+      2538,
+      0.7318
+     ],
+     "term": [
+      2538,
+      0.7318
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      1864,
+      0.7645
+     ],
+     "control": [
+      1864,
+      0.7645
+     ],
+     "term": [
+      1864,
+      0.7645
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      1316,
+      0.7911
+     ],
+     "control": [
+      1316,
+      0.7911
+     ],
+     "term": [
+      1316,
+      0.7911
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      807,
+      0.7741
+     ],
+     "control": [
+      807,
+      0.7741
+     ],
+     "term": [
+      807,
+      0.7741
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      445,
+      0.7843
+     ],
+     "control": [
+      445,
+      0.7843
+     ],
+     "term": [
+      445,
+      0.7843
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "higher_scoring_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 120073,
+   "n_control": 120073,
+   "n_term": 120074,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      120073,
+      0.3307
+     ],
+     "control": [
+      120073,
+      0.3307
+     ],
+     "term": [
+      120074,
+      0.3307
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "htft|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.006199999999999983,
+   "n_installed": 359865,
+   "n_control": 359865,
+   "n_term": 359850,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      359143,
+      0.1084
+     ],
+     "control": [
+      359143,
+      0.1084
+     ],
+     "term": [
+      359135,
+      0.1084
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      722,
+      0.6056
+     ],
+     "control": [
+      722,
+      0.6056
+     ],
+     "term": [
+      715,
+      0.6118
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "result_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0023000000000000798,
+   "n_installed": 119607,
+   "n_control": 119607,
+   "n_term": 119598,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      118371,
+      0.3259
+     ],
+     "control": [
+      118371,
+      0.3259
+     ],
+     "term": [
+      118372,
+      0.3259
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      1236,
+      0.6054
+     ],
+     "control": [
+      1236,
+      0.6054
+     ],
+     "term": [
+      1226,
+      0.6031
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "result_2h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0024999999999999467,
+   "n_installed": 119565,
+   "n_control": 119565,
+   "n_term": 119558,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      117127,
+      0.3223
+     ],
+     "control": [
+      117127,
+      0.3223
+     ],
+     "term": [
+      117127,
+      0.3223
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      1997,
+      0.6065
+     ],
+     "control": [
+      1997,
+      0.6065
+     ],
+     "term": [
+      1987,
+      0.6046
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      441,
+      0.6704
+     ],
+     "control": [
+      441,
+      0.6704
+     ],
+     "term": [
+      444,
+      0.6679
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "team_scores_both_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 79421,
+   "n_control": 79421,
+   "n_term": 79421,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      78151,
+      0.262
+     ],
+     "control": [
+      78151,
+      0.262
+     ],
+     "term": [
+      78151,
+      0.262
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      1270,
+      0.5664
+     ],
+     "control": [
+      1270,
+      0.5664
+     ],
+     "term": [
+      1270,
+      0.5664
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "team_scores_both_halves|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 80050,
+   "n_control": 80050,
+   "n_term": 80050,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      13449,
+      0.5239
+     ],
+     "control": [
+      13449,
+      0.5239
+     ],
+     "term": [
+      13449,
+      0.5239
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      16258,
+      0.6582
+     ],
+     "control": [
+      16258,
+      0.6582
+     ],
+     "term": [
+      16258,
+      0.6582
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      11765,
+      0.7247
+     ],
+     "control": [
+      11765,
+      0.7247
+     ],
+     "term": [
+      11765,
+      0.7247
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      12787,
+      0.7617
+     ],
+     "control": [
+      12787,
+      0.7617
+     ],
+     "term": [
+      12787,
+      0.7617
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      6248,
+      0.7895
+     ],
+     "control": [
+      6248,
+      0.7895
+     ],
+     "term": [
+      6248,
+      0.7895
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      5776,
+      0.8146
+     ],
+     "control": [
+      5776,
+      0.8146
+     ],
+     "term": [
+      5776,
+      0.8146
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      5041,
+      0.8328
+     ],
+     "control": [
+      5041,
+      0.8328
+     ],
+     "term": [
+      5041,
+      0.8328
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      3907,
+      0.8509
+     ],
+     "control": [
+      3907,
+      0.8509
+     ],
+     "term": [
+      3907,
+      0.8509
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      2700,
+      0.8773
+     ],
+     "control": [
+      2700,
+      0.8773
+     ],
+     "term": [
+      2700,
+      0.8773
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      1464,
+      0.8795
+     ],
+     "control": [
+      1464,
+      0.8795
+     ],
+     "term": [
+      1464,
+      0.8795
+     ]
+    },
+    "0.950-1.010": {
+     "installed": [
+      655,
+      0.9145
+     ],
+     "control": [
+      655,
+      0.9145
+     ],
+     "term": [
+      655,
+      0.9145
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "btts_any_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 183,
+   "n_control": 183,
+   "n_term": 183,
+   "buckets": {
+    "0.750-0.800": {
+     "installed": [
+      183,
+      0.562
+     ],
+     "control": [
+      183,
+      0.562
+     ],
+     "term": [
+      183,
+      0.562
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "btts_any_half|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 690,
+   "n_control": 690,
+   "n_term": 690,
+   "buckets": {
+    "0.800-0.825": {
+     "installed": [
+      368,
+      0.644
+     ],
+     "control": [
+      368,
+      0.644
+     ],
+     "term": [
+      368,
+      0.644
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      221,
+      0.6854
+     ],
+     "control": [
+      221,
+      0.6854
+     ],
+     "term": [
+      221,
+      0.6854
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      101,
+      0.7807
+     ],
+     "control": [
+      101,
+      0.7807
+     ],
+     "term": [
+      101,
+      0.7807
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "btts_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 690,
+   "n_control": 690,
+   "n_term": 690,
+   "buckets": {
+    "0.800-0.825": {
+     "installed": [
+      368,
+      0.644
+     ],
+     "control": [
+      368,
+      0.644
+     ],
+     "term": [
+      368,
+      0.644
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      221,
+      0.6854
+     ],
+     "control": [
+      221,
+      0.6854
+     ],
+     "term": [
+      221,
+      0.6854
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      101,
+      0.7807
+     ],
+     "control": [
+      101,
+      0.7807
+     ],
+     "term": [
+      101,
+      0.7807
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "first_goal_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.007199999999999984,
+   "n_installed": 442,
+   "n_control": 442,
+   "n_term": 455,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      300,
+      0.6736
+     ],
+     "control": [
+      300,
+      0.6736
+     ],
+     "term": [
+      310,
+      0.6702
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      142,
+      0.6246
+     ],
+     "control": [
+      142,
+      0.6246
+     ],
+     "term": [
+      145,
+      0.6318
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "half_goals_combo|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 179,
+   "n_control": 179,
+   "n_term": 179,
+   "buckets": {
+    "0.925-0.950": {
+     "installed": [
+      179,
+      0.8402
+     ],
+     "control": [
+      179,
+      0.8402
+     ],
+     "term": [
+      179,
+      0.8402
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "htft|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.01859999999999995,
+   "n_installed": 161,
+   "n_control": 161,
+   "n_term": 172,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      161,
+      0.6927
+     ],
+     "control": [
+      161,
+      0.6927
+     ],
+     "term": [
+      172,
+      0.6741
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "result_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.02070000000000005,
+   "n_installed": 338,
+   "n_control": 338,
+   "n_term": 347,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      220,
+      0.684
+     ],
+     "control": [
+      220,
+      0.684
+     ],
+     "term": [
+      228,
+      0.6669
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      118,
+      0.6423
+     ],
+     "control": [
+      118,
+      0.6423
+     ],
+     "term": [
+      119,
+      0.663
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "result_2h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0044999999999999485,
+   "n_installed": 241,
+   "n_control": 241,
+   "n_term": 244,
+   "buckets": {
+    "0.750-0.800": {
+     "installed": [
+      241,
+      0.6536
+     ],
+     "control": [
+      241,
+      0.6536
+     ],
+     "term": [
+      244,
+      0.6491
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "team_scores_both_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 449,
+   "n_control": 449,
+   "n_term": 449,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      297,
+      0.6494
+     ],
+     "control": [
+      297,
+      0.6494
+     ],
+     "term": [
+      297,
+      0.6494
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      152,
+      0.593
+     ],
+     "control": [
+      152,
+      0.593
+     ],
+     "term": [
+      152,
+      0.593
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:btts_any_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 2739,
+   "n_control": 2739,
+   "n_term": 2739,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      2739,
+      0.3881
+     ],
+     "control": [
+      2739,
+      0.3881
+     ],
+     "term": [
+      2739,
+      0.3881
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:btts_any_half|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 2518,
+   "n_control": 2518,
+   "n_term": 2518,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      1694,
+      0.5359
+     ],
+     "control": [
+      1694,
+      0.5359
+     ],
+     "term": [
+      1694,
+      0.5359
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      824,
+      0.5681
+     ],
+     "control": [
+      824,
+      0.5681
+     ],
+     "term": [
+      824,
+      0.5681
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:btts_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 11365,
+   "n_control": 11365,
+   "n_term": 11365,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      10541,
+      0.1979
+     ],
+     "control": [
+      10541,
+      0.1979
+     ],
+     "term": [
+      10541,
+      0.1979
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      824,
+      0.5681
+     ],
+     "control": [
+      824,
+      0.5681
+     ],
+     "term": [
+      824,
+      0.5681
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:first_goal_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0001000000000000445,
+   "n_installed": 8373,
+   "n_control": 8373,
+   "n_term": 8375,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      8373,
+      0.3032
+     ],
+     "control": [
+      8373,
+      0.3032
+     ],
+     "term": [
+      8375,
+      0.3031
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:half_goals_combo|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 105587,
+   "n_control": 105587,
+   "n_term": 105587,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      98822,
+      0.2182
+     ],
+     "control": [
+      98822,
+      0.2182
+     ],
+     "term": [
+      98822,
+      0.2182
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      5355,
+      0.6084
+     ],
+     "control": [
+      5355,
+      0.6084
+     ],
+     "term": [
+      5355,
+      0.6084
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      849,
+      0.6379
+     ],
+     "control": [
+      849,
+      0.6379
+     ],
+     "term": [
+      849,
+      0.6379
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      561,
+      0.6504
+     ],
+     "control": [
+      561,
+      0.6504
+     ],
+     "term": [
+      561,
+      0.6504
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:higher_scoring_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 8846,
+   "n_control": 8846,
+   "n_term": 8847,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      8846,
+      0.3236
+     ],
+     "control": [
+      8846,
+      0.3236
+     ],
+     "term": [
+      8847,
+      0.3236
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:htft|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 9.999999999998899e-05,
+   "n_installed": 26275,
+   "n_control": 26275,
+   "n_term": 26272,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      26275,
+      0.1011
+     ],
+     "control": [
+      26275,
+      0.1011
+     ],
+     "term": [
+      26272,
+      0.101
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:result_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 9.999999999998899e-05,
+   "n_installed": 8490,
+   "n_control": 8490,
+   "n_term": 8485,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      8490,
+      0.3067
+     ],
+     "control": [
+      8490,
+      0.3067
+     ],
+     "term": [
+      8485,
+      0.3066
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:result_2h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.00019999999999997797,
+   "n_installed": 8314,
+   "n_control": 8314,
+   "n_term": 8313,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      8314,
+      0.2994
+     ],
+     "control": [
+      8314,
+      0.2994
+     ],
+     "term": [
+      8313,
+      0.2992
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:team_scores_both_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 5574,
+   "n_control": 5574,
+   "n_term": 5574,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      5574,
+      0.2504
+     ],
+     "control": [
+      5574,
+      0.2504
+     ],
+     "term": [
+      5574,
+      0.2504
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "by_market_direction",
+   "key": "women:team_scores_both_halves|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 4205,
+   "n_control": 4205,
+   "n_term": 4205,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      1283,
+      0.4537
+     ],
+     "control": [
+      1283,
+      0.4537
+     ],
+     "term": [
+      1283,
+      0.4537
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      1010,
+      0.6478
+     ],
+     "control": [
+      1010,
+      0.6478
+     ],
+     "term": [
+      1010,
+      0.6478
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      712,
+      0.6879
+     ],
+     "control": [
+      712,
+      0.6879
+     ],
+     "term": [
+      712,
+      0.6879
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      785,
+      0.7255
+     ],
+     "control": [
+      785,
+      0.7255
+     ],
+     "term": [
+      785,
+      0.7255
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      415,
+      0.8027
+     ],
+     "control": [
+      415,
+      0.8027
+     ],
+     "term": [
+      415,
+      0.8027
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:btts_any_half|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 157,
+   "n_control": 157,
+   "n_term": 157,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      157,
+      0.4258
+     ],
+     "control": [
+      157,
+      0.4258
+     ],
+     "term": [
+      157,
+      0.4258
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:btts_any_half|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 392,
+   "n_control": 392,
+   "n_term": 392,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      255,
+      0.5666
+     ],
+     "control": [
+      255,
+      0.5666
+     ],
+     "term": [
+      255,
+      0.5666
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      137,
+      0.6347
+     ],
+     "control": [
+      137,
+      0.6347
+     ],
+     "term": [
+      137,
+      0.6347
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:btts_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 392,
+   "n_control": 392,
+   "n_term": 392,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": [
+      255,
+      0.5666
+     ],
+     "control": [
+      255,
+      0.5666
+     ],
+     "term": [
+      255,
+      0.5666
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      137,
+      0.6347
+     ],
+     "control": [
+      137,
+      0.6347
+     ],
+     "term": [
+      137,
+      0.6347
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:first_goal_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0010999999999999899,
+   "n_installed": 305,
+   "n_control": 305,
+   "n_term": 299,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      305,
+      0.5874
+     ],
+     "control": [
+      305,
+      0.5874
+     ],
+     "term": [
+      299,
+      0.5863
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:half_goals_combo|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 352,
+   "n_control": 352,
+   "n_term": 352,
+   "buckets": {
+    "0.800-0.825": {
+     "installed": [
+      205,
+      0.6265
+     ],
+     "control": [
+      205,
+      0.6265
+     ],
+     "term": [
+      205,
+      0.6265
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      147,
+      0.6724
+     ],
+     "control": [
+      147,
+      0.6724
+     ],
+     "term": [
+      147,
+      0.6724
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:htft|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.009599999999999942,
+   "n_installed": 148,
+   "n_control": 148,
+   "n_term": 146,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      148,
+      0.6318
+     ],
+     "control": [
+      148,
+      0.6318
+     ],
+     "term": [
+      146,
+      0.6414
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:result_1h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.012299999999999978,
+   "n_installed": 218,
+   "n_control": 218,
+   "n_term": 222,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      218,
+      0.6285
+     ],
+     "control": [
+      218,
+      0.6285
+     ],
+     "term": [
+      222,
+      0.6162
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:result_2h|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0034999999999999476,
+   "n_installed": 290,
+   "n_control": 290,
+   "n_term": 290,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      290,
+      0.5917
+     ],
+     "control": [
+      290,
+      0.5917
+     ],
+     "term": [
+      290,
+      0.5952
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:team_scores_both_halves|OVER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 180,
+   "n_control": 180,
+   "n_term": 180,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      180,
+      0.5271
+     ],
+     "control": [
+      180,
+      0.5271
+     ],
+     "term": [
+      180,
+      0.5271
+     ]
+    }
+   }
+  },
+  {
+   "group": "sim",
+   "section": "thin_by_market_direction",
+   "key": "women:team_scores_both_halves|UNDER",
+   "max_dlo95_control_vs_installed": 0.0,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_installed": 1693,
+   "n_control": 1693,
+   "n_term": 1693,
+   "buckets": {
+    "0.800-0.825": {
+     "installed": [
+      393,
+      0.7647
+     ],
+     "control": [
+      393,
+      0.7647
+     ],
+     "term": [
+      393,
+      0.7647
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      361,
+      0.8099
+     ],
+     "control": [
+      361,
+      0.8099
+     ],
+     "term": [
+      361,
+      0.8099
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      330,
+      0.8324
+     ],
+     "control": [
+      330,
+      0.8324
+     ],
+     "term": [
+      330,
+      0.8324
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      271,
+      0.8464
+     ],
+     "control": [
+      271,
+      0.8464
+     ],
+     "term": [
+      271,
+      0.8464
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      201,
+      0.8513
+     ],
+     "control": [
+      201,
+      0.8513
+     ],
+     "term": [
+      201,
+      0.8513
+     ]
+    },
+    "0.950-1.010": {
+     "installed": [
+      137,
+      0.9077
+     ],
+     "control": [
+      137,
+      0.9077
+     ],
+     "term": [
+      137,
+      0.9077
+     ]
+    }
+   }
+  }
+ ]
+}

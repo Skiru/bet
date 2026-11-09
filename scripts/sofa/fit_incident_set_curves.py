@@ -278,7 +278,12 @@ def replay_football(history: Sequence[fr.FootballResult],
         if rec is None or res.values.get("goals_for") is None:
             continue
         klass = CLASS_WOMEN if res.women else ""
-        fc = fr.FootballForecast(book, res.competition_id, res.home_id, res.away_id)
+        fc: fr.FootballForecast = fr.FootballForecast(
+            book, res.competition_id, res.home_id, res.away_id)
+        if dc_fit.SCHEDULE is not None:
+            # --schedule-term (epochs.SCHEDULE_TERM): first_goal is a path
+            # (ii) market; the red / penalty rates read no centre
+            fc = dc_fit.SCHEDULE.forecast(fc, res)
         home = fc.centre("goals_for", "side_a")
         away = fc.centre("goals_for", "side_b")
         if home is not None and away is not None:
@@ -831,6 +836,7 @@ def run_football(args: argparse.Namespace, source: str) -> dict[str, Any]:
         "rows": len(rows), "curve_rows": sum(1 for r in rows if usable(r)),
         "incident_records": len(records),
         "first_goal_nb_exact": bool(args.first_goal_nb_exact),
+        **dc_fit.schedule_stamp(dc_fit.replay_flags(args)),
         "estimator": ("football_incidents.first_goal_probs on "
                       "FootballForecast.centre(goals_for) of the day-cut "
                       f"RatingBook (shared league link), NB r {nb_r}; "
@@ -1023,8 +1029,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
                     metavar="CONFIG", help="the football book with the cup "
                     "league strength (fit_double_chance_curve.set_cup)")
+    ap.add_argument("--schedule-term", action="store_true", help=(
+        "football_incidents: first_goal on the goals centres x exp(t) of the "
+        "as-of schedule features (epochs.SCHEDULE_TERM); the calendar is read "
+        "from --db-path"))
+    ap.add_argument("--db-path", help="the source DB the copies (and the "
+                    "--schedule-term calendar) are read from; default "
+                    "SofaConfig's - pass a COPY")
     args = ap.parse_args(argv)
     dc_fit.set_cup(args.cup_strength)
+    if args.schedule_term and (args.regate or args.group != "football_incidents"):
+        print("REFUSED: --schedule-term replays the football_incidents group "
+              "only (--group football_incidents, no --regate)", file=sys.stderr)
+        return 2
     if args.regate:
         result = {}
         for group in GROUPS:
@@ -1041,7 +1058,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result[group] = {k: g["pass"] for k, g in doc["gate"].items()}
         print(json.dumps(result, indent=1))
         return 0
-    source = str(SofaConfig.from_env().db_path)
+    source = str(args.db_path or SofaConfig.from_env().db_path)
+    if args.schedule_term:
+        dc_fit.set_schedule_term(source)
     t0 = time.time()
     summary: dict[str, Any] = {}
     for group in GROUPS:

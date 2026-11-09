@@ -233,6 +233,34 @@ and a miss recorded before a rule's switch never blocks that rule.
   `data/line_evidence/football_sim_lines.jsonl.gz`. Only
   `team_scores_both_halves` UNDER and `half_goals_combo` OVER reach 0.70;
   minute bands are not wired (not reliably settleable). Hold-out: model-state.md.
+- **Football schedule term from 2026-11-10 00:00Z** (`SCHEDULE_TERM_FROM_UTC`,
+  `schedule_term_v1`; the one pre-registered exam of 2026-11-09, spec
+  `87a5087f`, `docs/sofa/evidence/schedule_context_exam_log.md`: of goals,
+  football_result, tennis_winner, tennis_games_sets only **football_result**
+  passed rule (c); the rest measured and declined; ledger "od 11-10";
+  `bet.sofa.schedule_term`): the pure rating goals centres
+  (`FootballForecast.centre("goals_for")`) of `epochs.SCHEDULE_TERM_MARKETS`
+  (1X2, DNB, DC, score markets, first goal, the simulator's path markets
+  except the four 0.60-floor keys, `SCHEDULE_TERM_FLOOR_EXCLUDED`) are
+  multiplied by exp(t), t = own + opponent terms of each side's rest (days:
+  R1 < 3.5, R2 3.5-5.5, R4 8.5-20.5 after an international break or not, R5
+  >= 20.5 winter / other; R3 the reference), a continental game within 96 h
+  before (and x R1) or after, extra time within 7 days, >= 4 games in 14
+  days, as of the start (`bet.sofa.schedule_features`); frozen dev
+  coefficients `config/sofa_schedule_terms.json` (never refitted on full
+  history; `UNFITTED_CONSTANTS` named). Counts, game state, card points and
+  samples read the uncorrected forecast; national teams / no calendar
+  coverage: t = 0. Rows carry `schedule_term` and the inverted shadow
+  `p_central_no_schedule_term` (carried to CONFIDENCE legs and
+  `07_settled.json`; not in `sofa_settled_row` - no migration),
+  `T-SCHEDULE-TERM-FORWARD` judges it (withdrawal rule frozen); marker
+  `schedule_term_rule` (rebuild_plan re-runs SHEET). Their curves:
+  `config/sofa_confidence_calibration.next.2026-11-10.json` (138 keys refitted
+  with `--schedule-term` on a DB copy, every other key the 11-07 file's;
+  `draw_no_bet|UNDER` and `result_or_over@2@5.5|OVER` kept, failing their gate
+  with and without the term) and `config/sofa_football_sim_curves.next.2026-11-10.json`
+  (`football_sim_curves.path_for`, dated staged files). PDF / HTML / dossier
+  note "kontekst terminarza w modelu (t = ...)" - display only.
 - **Sample integrity** (`IDENTITY_GATE_PER_FAMILY`, from 10-21 10:50Z): a
   past match whose payload contradicts itself loses only the metrics that read
   the contradiction (`metrics.identity_gap_for_metric`: shots identity -> shot

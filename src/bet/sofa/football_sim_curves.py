@@ -35,12 +35,13 @@ from __future__ import annotations
 import dataclasses
 import gzip
 import json
+import re
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from bet.sofa import epochs
+from bet.sofa import epochs, timeutil
 from bet.sofa.config import config_path
 
 if TYPE_CHECKING:
@@ -51,6 +52,12 @@ BACKFILL = Path(__file__).resolve().parents[3] / "data" / "line_evidence" / (
     "football_sim_lines.jsonl.gz")
 SECTIONS = ("by_market", "by_market_direction", "thin_by_market_direction")
 SPORT = "football"
+# A refit staged for a coming day (pattern confidence.calibration_path_for):
+# config/sofa_football_sim_curves.next.<YYYY-MM-DD>.json, its
+# `effective_from` (ISO UTC) on that date. A day reads the staged file with
+# the latest effective_from that the day and the build clock have reached,
+# else FILE - so a refit for day D never re-curves a day already built.
+_DATED_NEXT = re.compile(r"^sofa_football_sim_curves\.next\.(\d{4}-\d{2}-\d{2})\.json$")
 
 
 def _in_scope(key: str) -> bool:
@@ -63,6 +70,43 @@ def load(path: Path | None = None) -> dict[str, Any] | None:
         return None
     doc: dict[str, Any] = json.loads(p.read_text(encoding="utf-8"))
     return doc
+
+
+def staged_paths(config_dir: Path) -> list[Path]:
+    """Every dated staged file of the config dir, by name."""
+    return sorted(p for p in config_dir.glob("sofa_football_sim_curves.next.*.json")
+                  if _DATED_NEXT.match(p.name))
+
+
+def _staged_start(path: Path) -> datetime | None:
+    eff = json.loads(path.read_text(encoding="utf-8")).get("effective_from")
+    if not isinstance(eff, str):
+        return None
+    start = datetime.fromisoformat(eff.replace("Z", "+00:00"))
+    named = _DATED_NEXT.match(path.name)
+    if named and start.strftime("%Y-%m-%d") != named.group(1):
+        raise ValueError(
+            f"{path.name}: effective_from {eff!r} disagrees with the file name")
+    return start
+
+
+def path_for(date: str, build_at: datetime | None = None,
+             main: Path | None = None) -> Path:
+    """The simulator curves `date` reads: the dated staged file with the
+    latest `effective_from` that the day and the build clock (default: now)
+    have both reached, else the installed FILE. A staged file without
+    `effective_from` is never read."""
+    if main is None:
+        main = config_path(FILE)
+    at = build_at if build_at is not None else timeutil.now()
+    best: tuple[datetime, Path] | None = None
+    for path in staged_paths(main.parent):
+        start = _staged_start(path)
+        if start is None or date < start.strftime("%Y-%m-%d") or at < start:
+            continue
+        if best is None or start > best[0]:
+            best = (start, path)
+    return best[1] if best else main
 
 
 def _replace(section: Mapping[str, Any] | None,
@@ -115,11 +159,13 @@ def overlay(cal: Calibration, doc: Mapping[str, Any]) -> Calibration:
 
 def for_day(cal: Calibration, date: str, build_at: datetime | None = None,
             path: Path | None = None) -> Calibration:
-    """The calibration `date` reads: the simulator's keys from `FILE` while
-    epochs.FOOTBALL_SIM is on (day and build clock); unchanged before it."""
+    """The calibration `date` reads: the simulator's keys from `FILE` (or
+    the staged file `path_for` names for the day) while epochs.FOOTBALL_SIM
+    is on (day and build clock); unchanged before it."""
     if not epochs.football_sim(date, build_at):
         return cal
-    return overlay(cal, load(path) or {})
+    return overlay(cal, load(path if path is not None
+                             else path_for(date, build_at)) or {})
 
 
 # --- line evidence --------------------------------------------------------------

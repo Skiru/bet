@@ -27,6 +27,12 @@ leg's confidence is read through (bet.sofa.line_evidence). Three steps:
    markets not priced yet (vb_point_pricer.BACKFILL), which step 2 reads for
    those keys. A failure exits 1 (step 2 then reads the table as it was).
    --dry-run skips it.
+1c. backfill_schedule_term_p.py --before <d> while epochs.SCHEDULE_TERM is on
+   for <d>: the schedule term's corrected p of every settled Superbet line of
+   its keys before the switch not priced yet (schedule_term_evidence.
+   BACKFILL), which step 2 reads for those keys (from the switch on the rows'
+   own p). A failure exits 1 (step 2 then reads the table as it was).
+   --dry-run skips it.
 2. fit_line_evidence.py --before <d> --sport-rows-dir <dir>, read against the
    curves the day <d> reads (sport_confidence.calibration_path_for).
 3. fit_settleability.py --before <d> --dated (from
@@ -135,6 +141,18 @@ def vb_point_command(before: str) -> list[str]:
             before]
 
 
+def schedule_term_command(before: str) -> list[str]:
+    """epochs.SCHEDULE_TERM: the corrected p of the settled lines."""
+    return [sys.executable, "scripts/sofa/backfill_schedule_term_p.py",
+            "--before", before]
+
+
+def schedule_term_step(before: str, dry_run: bool) -> bool:
+    """Step 1c runs while epochs.SCHEDULE_TERM is on for the day (never in
+    a dry run)."""
+    return not dry_run and epochs.schedule_term(before)
+
+
 def settleability_command(before: str) -> list[str]:
     return [sys.executable, "scripts/sofa/fit_settleability.py", "--before",
             before, "--dated"]
@@ -195,6 +213,11 @@ def main() -> int:
         print(f"volleyball rally model p: exit {vb.returncode}", flush=True)
         if vb.returncode != 0:
             failed.append("vb_point_p")
+    if schedule_term_step(args.before, args.dry_run):
+        stp = subprocess.run(schedule_term_command(args.before), cwd=_REPO)
+        print(f"schedule term corrected p: exit {stp.returncode}", flush=True)
+        if stp.returncode != 0:
+            failed.append("schedule_term_p")
     cmd = [sys.executable, "scripts/sofa/fit_line_evidence.py", "--before",
            args.before, "--sport-rows-dir", str(out.relative_to(_REPO))]
     if args.dry_run:

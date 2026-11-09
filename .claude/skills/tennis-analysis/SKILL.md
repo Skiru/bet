@@ -125,7 +125,8 @@ Template and step table: `references/event-protocol.md`.
    concrete scorelines settling each rung (`6-3 6-4` = 19, `7-6 6-7 7-6` =
    39, a player's games in `6-2 6-3` = 5). Which rung does the modal
    scoreline land on?
-7. **Schedule and fatigue.** `schedule` (`last_match_utc`, `rest_days`,
+7. **Schedule and fatigue.** (No schedule term in tennis's model - its
+   groups did not pass the 2026-11-09 exam; football only.) `schedule` (`last_match_utc`, `rest_days`,
    `matches_7d`, `matches_14d`) and `context_flags`; the previous match's
    length from the web; back-to-back days, a qualifier's extra rounds, a
    recent retirement. Known before the price, all of it - and points to

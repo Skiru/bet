@@ -1,0 +1,14 @@
+dc_control rc=0 secs=132
+x1015_control rc=0 secs=140
+inc_control rc=0 secs=173
+dc_term rc=0 secs=388
+x1015_term rc=0 secs=395
+inc_term rc=0 secs=245
+x1105_control rc=0 secs=176
+x1105_term rc=0 secs=632
+sim_control rc=0 secs=660
+score1015_control rc=0 secs=88
+score1015_term rc=0 secs=89
+score1105_control rc=0 secs=75
+score1105_term rc=0 secs=76
+sim_term rc=0 secs=1124

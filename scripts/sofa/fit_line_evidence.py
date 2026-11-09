@@ -29,6 +29,13 @@ statement about that curve, so a refit of the curves re-runs this):
 
 Every row carries Superbet's price for line_evidence's price-band cap.
 
+epochs.SCHEDULE_TERM (from the --before day of the switch): the keys of
+epochs.SCHEDULE_TERM_MARKETS are read at the corrected p - rows before the
+switch from schedule_term_evidence.BACKFILL (backfill_schedule_term_p.py),
+from it their own p_central; the simulator's in-scope keys likewise in its
+own path. Only those keys' entries change; every pooled number is the fit
+of the rows as stored. Before the switch's day nothing is read.
+
 Usage:
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/fit_line_evidence.py \
         --before <d> [--dry-run] [--sport-rows-dir <dir>]
@@ -41,7 +48,7 @@ import argparse
 import dataclasses
 import json
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -55,6 +62,7 @@ from bet.sofa import (  # noqa: E402
     epochs,
     football_sim_curves,
     live_only_curves,
+    schedule_term_evidence,
     tennis_point_curves,
     vb_point_pricer,
 )
@@ -147,7 +155,9 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                per_line: bool = False,
                point_p: Mapping[str, float] | None = None,
                point_before: str | None = None,
-               exclude_point_priced: bool = False) -> Iterator[le.Row]:
+               exclude_point_priced: bool = False,
+               p_for: PFor | None = None,
+               only_scoped: bool = False) -> Iterator[le.Row]:
     """`per_line`: read a men's football line through its own line curve
     (epochs.LINE_CURVES), as CONFIDENCE will on the --before day - the
     offsets are applied to that day's base. `point_p` (epochs.
@@ -157,7 +167,10 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
     `point_before` day - TENNIS_HANDICAP_POINT_MODEL adds the per-set games
     handicap) or skipped. `exclude_point_priced`
     (TENNIS_POINT_POOL_SPLIT_FROM_DATE): leave out the tennis lines priced by
-    the point model (point_priced_markets) - the pooled fit's rows."""
+    the point model (point_priced_markets) - the pooled fit's rows.
+    `p_for` (epochs.SCHEDULE_TERM on the --before day, else None): a row it
+    calls in scope is read at the p it gives (None: skipped), every other
+    row as stored; `only_scoped`: the in-scope rows alone."""
     for day in days:
         run_dir = runs_dir / day
         point_priced = (point_priced_markets(run_dir, day)
@@ -187,6 +200,14 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                 if not scoped or pp is None:
                     continue  # the point model's lines only, at its own p
                 p = pp
+            if p_for is not None:
+                scoped_st, p_st = p_for(r, day)
+                if scoped_st and p_st is None:
+                    continue  # no corrected p: no evidence
+                if scoped_st and p_st is not None:
+                    p = p_st
+                elif only_scoped:
+                    continue
             hit = None if is_derived(r["market"]) and not derived_curves \
                 else cal.realised(
                 curve_market(r), p, sport, r["direction"], klass,
@@ -198,6 +219,41 @@ def sheet_rows(runs_dir: Path, days: list[str], cal: Calibration,
                    "game": f"{day}:{r['sofascore_event_id']}",
                    "base": None if hit is None else float(hit[0]),
                    "odds": float(r["offered_odds"])}
+
+
+PFor = Callable[[Mapping[str, Any], str], tuple[bool, float | None]]
+
+
+def schedule_term_p_for(backfill: schedule_term_evidence.Backfill,
+                        scope: frozenset[str]) -> PFor:
+    """epochs.SCHEDULE_TERM: sheet_rows' `p_for` over `scope`
+    (schedule_term_evidence.evidence_p)."""
+    def p_for(row: Mapping[str, Any], day: str) -> tuple[bool, float | None]:
+        return schedule_term_evidence.evidence_p(row, day, backfill, scope=scope)
+    return p_for
+
+
+def schedule_term_backfill(before: str, path: Path | None = None
+                           ) -> schedule_term_evidence.Backfill | None:
+    """The corrected-p table the --before day's fit reads: None while
+    epochs.SCHEDULE_TERM is off for it (nothing changes) or when the table
+    is missing (the rows as stored, a WARN on stderr)."""
+    if not epochs.schedule_term(before):
+        return None
+    got = schedule_term_evidence.load_backfill(path)
+    if got is None:
+        print("WARN schedule_term: no corrected-p table "
+              f"({path or schedule_term_evidence.BACKFILL}); the in-scope keys read "
+              "their rows as stored - run backfill_schedule_term_p.py",
+              file=sys.stderr)
+    return got
+
+
+def apply_schedule_term(fitted: dict[str, Any], rows: Iterator[le.Row]) -> None:
+    """epochs.SCHEDULE_TERM: the sheet-path in-scope keys' entries from
+    `rows` (sheet_rows over the in-scope rows at the corrected p); every
+    pooled number and every other key stays `fitted`'s (in place)."""
+    schedule_term_evidence.merge_evidence(fitted, le.fit(rows))
 
 
 def graded_odds(runs_dir: str, sport: str, date: str
@@ -327,6 +383,9 @@ def main() -> int:
                     help="the sport curves the offsets are read against "
                     "(default: the ones the --before day reads, "
                     "sport_confidence.calibration_path_for)")
+    ap.add_argument("--schedule-term-backfill", default=None,
+                    help="the corrected-p table (epochs.SCHEDULE_TERM; default "
+                    "schedule_term_evidence.BACKFILL)")
     args = ap.parse_args()
     config = SofaConfig.from_env()
     runs_dir = Path(config.runs_dir)
@@ -342,6 +401,10 @@ def main() -> int:
     # own line where that day reads per line
     per_line = day_reads_per_line(args.before)
     pool_split = tennis_point_pool_split(args.before)
+    # epochs.SCHEDULE_TERM: None while off for the --before day
+    schedule_bf = schedule_term_backfill(
+        args.before, Path(args.schedule_term_backfill)
+        if args.schedule_term_backfill else None)
     fitted = le.fit(sheet_rows(runs_dir, days, cal,
                                reads_derived_curves(args.before, args.derived_curves),
                                per_line, exclude_point_priced=pool_split))
@@ -370,12 +433,30 @@ def main() -> int:
                    if epochs.FOOTBALL_SIM_FROM_UTC else None)
         sim_lines = football_sim_curves.load_backfill()
         live_days = [d for d in days if sim_day is not None and d >= sim_day]
+        # epochs.SCHEDULE_TERM: the simulator's in-scope keys at the
+        # corrected p (the backfilled lines and the live rows alike); the
+        # four floor keys as stored
+        sim_read = (sim_lines if schedule_bf is None else
+                    list(schedule_term_evidence.sim_lines(sim_lines, schedule_bf)))
+        sim_p_for = (None if schedule_bf is None else schedule_term_p_for(
+            schedule_bf, schedule_term_evidence.sim_markets()))
         sim_fit = le.fit([
-            *football_sim_curves.backfill_rows(sim_lines, args.before, sim_cal,
+            *football_sim_curves.backfill_rows(sim_read, args.before, sim_cal,
                                                sim_day),
-            *(r for r in sheet_rows(runs_dir, live_days, sim_cal)
+            *(r for r in sheet_rows(runs_dir, live_days, sim_cal, p_for=sim_p_for)
               if football_sim_curves.ours(str(r["key"])))])
         football_sim_curves.merge_evidence(fitted, sim_fit)
+    # epochs.SCHEDULE_TERM: 1X2 / DNB / DC / score markets / first goal at
+    # the corrected p (rows before the switch from the backfill, from it
+    # their own p_central), merged over the pooled fit's entries
+    if schedule_bf is not None:
+        apply_schedule_term(fitted, sheet_rows(
+            runs_dir, days, cal,
+            reads_derived_curves(args.before, args.derived_curves), per_line,
+            exclude_point_priced=pool_split,
+            p_for=schedule_term_p_for(schedule_bf,
+                                      schedule_term_evidence.sheet_markets()),
+            only_scoped=True))
     keys, bands = fitted["keys"], fitted["bands"]
     sport_printable = fitted["sport_printable"]
     sport_by_gap = dict(fitted["sport_printable_by_gap"])
@@ -420,6 +501,17 @@ def main() -> int:
             # path markets (football_sim_curves.BACKFILL)
             "football_sim_backfill": (
                 None if sim_lines is None else len(sim_lines)),
+            # epochs.SCHEDULE_TERM: corrected p of the in-scope football
+            # lines before the switch (schedule_term_evidence.BACKFILL);
+            # absent while off
+            **({"schedule_term_backfill": {
+                "sheet": len(schedule_bf.sheet),
+                "sim_lines": len(schedule_bf.sim_lines),
+                "built_through": schedule_bf.meta.get("built_through"),
+                "config_sha256": schedule_bf.meta.get("config_sha256")}}
+               if schedule_bf is not None
+               else {"schedule_term_backfill": "MISSING"}
+               if epochs.schedule_term(args.before) else {}),
             "sport_source": sport_source,
             "sport_calibration_fitted_from": None if sport_cal is None
             else sport_cal.fitted_from,

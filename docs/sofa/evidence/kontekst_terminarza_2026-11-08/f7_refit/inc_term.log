@@ -1,0 +1,18 @@
+[09:35:06] football history 1091838 matches
+[09:35:36] incident lists for 186805 history matches, 178891 readable
+[09:37:10] football rows 911553
+[09:37:15] football_incidents done (132s)
+{
+ "football_incidents": {
+  "first_goal|OVER": true,
+  "red_cards_total|OVER": false,
+  "red_cards_total|UNDER": true,
+  "penalties_total|OVER": false,
+  "penalties_total|UNDER": true,
+  "women:first_goal|OVER": false,
+  "women:red_cards_total|OVER": false,
+  "women:red_cards_total|UNDER": true,
+  "women:penalties_total|OVER": false,
+  "women:penalties_total|UNDER": true
+ }
+}

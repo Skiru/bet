@@ -1,0 +1,7 @@
+keys ON 164939 REAL 164956 both 164919 onlyON 20 onlyREAL 37
+('football', False, False) 104895
+('football', True, False) 34539
+('football', True, True) 17473
+('tennis', False, False) 8012
+out-of-scope changed by market: []
+in-scope shadow == real p: 43002 of 43002

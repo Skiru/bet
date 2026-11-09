@@ -1,0 +1,16 @@
+on legs 10024 football 9757 in-scope 5025
+in-scope with schedule_term 5025 with shadow 5025
+out-of-scope legs w/ fields 0
+leg schedule_term keys Counter({('status', 't_away', 't_home'): 5536})
+statuses Counter({(True, 'APPLIED'): 5023, (False, 'EXCLUDED_FLOOR'): 511, (True, 'NATIONAL'): 2})
+floor_rule legs on 290 Counter({('half_goals_combo', 'OVER'): 132, ('team_scores_both_halves', 'UNDER'): 101, ('sets_total', 'UNDER'): 21, ('btts_halves', 'OVER'): 16, ('btts_any_half', 'UNDER'): 15, ('games_total', 'UNDER'): 5})
+floor_rule legs ctrl 290
+floor legs identical (p, conf) to ctrl 290 of 290 floor confidences <0.70: 290
+floor legs carrying schedule_term Counter({'EXCLUDED_FLOOR': 264, None: 26})
+legs with equal model_p on/ctrl: 7736 of which confidence differs: 2992
+ differing by market [('result_or_over', 1234), ('result_or_under', 1017), ('double_chance', 468), ('result_handicap', 121), ('btts_or_over', 56), ('draw_no_bet', 44), ('result_or_btts', 29), ('dc_and_under', 10), ('result_or_clean_sheet', 8), ('dc_and_over', 3), ('first_goal', 2)]
+ differing in markets changed between staged files: 2992 / 2992
+ differing outside changed curve markets: 0 []
+  ex result_or_over X 1.5 OVER p 0.9083 conf on 0.8963 market:result_or_over@X@1.5|OVER-0.0191sbd1 ctrl 0.8946 market:result_or_over@X@1.5|OVER-0.0191sbd1
+  ex result_handicap 1 1.5 OVER p 0.9099 conf on 0.8963 market:result_handicap@1@1.5|OVER-0.0167sbd1 ctrl 0.8956 market:result_handicap@1@1.5|OVER-0.0167sbd1
+  ex result_or_under 1 3.5 OVER p 0.9293 conf on 0.8926 market:result_or_under@1@3.5|OVER-0.0233sbd1 ctrl 0.8913 market:result_or_under@1@3.5|OVER-0.0233sbd1

@@ -84,6 +84,7 @@ from bet.sofa import (  # noqa: E402
     dossier,
     h2h,
     prematch_lineups,
+    schedule_term_view,
     timeutil,  # noqa: E402
 )
 from bet.sofa.atomic import write_atomic  # noqa: E402
@@ -103,7 +104,8 @@ FIELDS = (
     "position", "group_key", "sport", "match", "competition", "kickoff_utc",
     "sofascore_event_id", "market", "subject", "line", "direction", "period",
     "superbet_market", "superbet_selection", "confidence", "offered_odds",
-    "locked", "price_gap", "rating_market_gap", "superbet_event_id",
+    "locked", "price_gap", "rating_market_gap", "schedule_term",
+    "superbet_event_id",
     "source_date", "model_p",
     "forecast_p", "calibrated_on", "sample_size", "sample_hit_rate",
     "sample_oldest_days", "sample_newest_days", "context_flags",
@@ -216,6 +218,9 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False,
         if "offered_odds" not in compact and compact.get("odds") is not None:
             compact["offered_odds"] = compact["odds"]
         compact.update(sport=sport, group_key=group_key(leg), in_set=why)
+        # epochs.SCHEDULE_TERM: congestion / rest is already in the leg's p
+        if note := schedule_term_view.label(leg):
+            compact["schedule_term_note"] = note
         kickoff = compact.get("kickoff_utc")
         if cutoff is not None and isinstance(kickoff, str) and (
                 datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))

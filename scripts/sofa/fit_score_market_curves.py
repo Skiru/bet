@@ -146,6 +146,18 @@ def rows_awarded_excluded(path: Path) -> bool | None:
     return flag if isinstance(flag, bool) else None
 
 
+def rows_schedule_term(path: Path) -> dict[str, Any] | None:
+    """The --schedule-term stamp of the fit_result_1x2_dnb_curve run that
+    made `path` (epochs.SCHEDULE_TERM: its lh / la are the corrected goals
+    centres); None when that run was made without it."""
+    doc = path.parent / "curves.json"
+    if not doc.exists():
+        return None
+    held = json.loads(doc.read_text(encoding="utf-8")).get("fitted_from") or {}
+    got = held.get("schedule_term")
+    return got if isinstance(got, dict) else None
+
+
 def football_rows(path: Path, nb_r: float) -> dict[str, Rows]:
     lh, la, hg, ag, ts, ev, women, early = [], [], [], [], [], [], [], []
     with gzip.open(path, "rt") as fh:
@@ -324,7 +336,18 @@ def main() -> int:
     ap.add_argument("--before", default="2026-10-15")
     ap.add_argument("--result-config")
     ap.add_argument("--only", choices=("football", "tennis"))
+    ap.add_argument("--schedule-term", action="store_true", help=(
+        "the football rows are a fit_result_1x2_dnb_curve.py --schedule-term "
+        "run's (epochs.SCHEDULE_TERM); refused when they are not, and a run "
+        "without the flag refuses such rows"))
     args = ap.parse_args()
+    if args.only in (None, "football"):
+        held = rows_schedule_term(Path(args.football_rows))
+        if (held is not None) != bool(args.schedule_term):
+            print(f"REFUSED: {args.football_rows} was made "
+                  f"{'with' if held is not None else 'without'} --schedule-term;"
+                  " match the flag", file=sys.stderr)
+            return 2
     out = Path(args.out_dir)
     h0, h1, cut = _ts(args.holdout_from), _ts(args.holdout_to), _ts(args.before)
     cfg = res.load_config(Path(args.result_config) if args.result_config
@@ -340,7 +363,10 @@ def main() -> int:
         write_group(out / FOOTBALL_GROUP, FOOTBALL_GROUP, result,
                     {**window, "rows": args.football_rows, "nb_r": cfg.nb_r,
                      "awarded_excluded": rows_awarded_excluded(
-                         Path(args.football_rows))})
+                         Path(args.football_rows)),
+                     **({"schedule_term": rows_schedule_term(
+                         Path(args.football_rows))} if args.schedule_term
+                        else {})})
         summary[FOOTBALL_GROUP] = {k: g["pass"] for k, g in result["gate"].items()}
     if args.only in (None, "tennis"):
         rows = tennis_rows(Path(args.tennis_rows))

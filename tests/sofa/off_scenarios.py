@@ -62,7 +62,10 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 "football_sim_rule",
                 # tennis per-set handicap from the point model
                 # (TENNIS_HANDICAP_POINT_MODEL)
-                "tennis_handicap_point_model_rule")
+                "tennis_handicap_point_model_rule",
+                # football schedule term on the pure rating (SCHEDULE_TERM)
+                "schedule_term_rule", "schedule_term",
+                "p_central_no_schedule_term")
 
 
 def _row(r: Any) -> dict[str, Any]:

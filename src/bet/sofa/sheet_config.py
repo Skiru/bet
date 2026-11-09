@@ -48,12 +48,14 @@ SHEET_CONFIG_FILES: tuple[str, ...] = (
 # scripts/sofa/measure_player_share.py, staged until the switch),
 # config/sofa_closeness_stretch.json (epochs.FOOTBALL_CLOSENESS_STRETCH,
 # scripts/sofa/fit_closeness_stretch.py), config/sofa_referee_effect.json
-# (epochs.FOOTBALL_REFEREE, scripts/sofa/measure_referee_effect.py).
+# (epochs.FOOTBALL_REFEREE, scripts/sofa/measure_referee_effect.py),
+# config/sofa_schedule_terms.json (epochs.SCHEDULE_TERM, the frozen
+# coefficients of the schedule-context exam, bet.sofa.schedule_term).
 SHEET_OPTIONAL_FILES: tuple[str, ...] = (
     "sofa_shot_detail.json", "sofa_goals_stretch.json",
     "sofa_count_stretch.json", "sofa_player_stretch.json",
     "sofa_player_share.json", "sofa_closeness_stretch.json",
-    "sofa_referee_effect.json")
+    "sofa_referee_effect.json", "sofa_schedule_terms.json")
 DIGEST_CHARS = 16
 TENNIS_RATING_FILE = "tennis_rating.json"
 

@@ -34,6 +34,7 @@ from bet.sofa.atomic import tmp_path
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
 from bet.sofa.rating_market_gap import label as rating_market_gap_label
+from bet.sofa.schedule_term_view import label as schedule_term_label
 from bet.sofa.superbet_names import annotate as name_on_superbet
 from bet.sofa.superbet_names import board_sides
 from bet.sofa.superbet_names import label as superbet_label
@@ -278,6 +279,8 @@ def build_view(
             # bet.sofa.rating_market_gap: the market's favourite much stronger
             # than our rating, the PDF's sentence
             "rating_market_gap": rating_market_gap_label(leg),
+            # epochs.SCHEDULE_TERM: the term moved the leg's p (both t)
+            "schedule_term": schedule_term_label(leg),
             "verdict": _verdict(leg),
             # in the read set (confidence.legs_requiring_read) ...
             "read": id(leg) in read_ids,

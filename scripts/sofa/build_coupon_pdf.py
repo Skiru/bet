@@ -46,6 +46,7 @@ from bet.sofa import (  # noqa: E402
     analyses,  # noqa: E402
     price_gap,
     rating_market_gap,
+    schedule_term_view,
     timeutil,
 )
 from bet.sofa import coupon_results as cr  # noqa: E402
@@ -400,6 +401,16 @@ def rating_market_gap_label(leg: dict[str, Any]) -> str:
     if not text:
         return ""
     return f"<br/><font size=6.5 color='#b25b00'>{escape(text)}</font>"
+
+
+def schedule_term_label(leg: dict[str, Any]) -> str:
+    """epochs.SCHEDULE_TERM: the fixture-congestion / rest term moved the
+    leg's p (bet.sofa.schedule_term_view, with both sides' t). Shown, never a
+    gate."""
+    text = schedule_term_view.label(leg)
+    if not text:
+        return ""
+    return f"<br/><font size=6.5 color='#555555'>{escape(text)}</font>"
 
 
 # A leg the previous build printed and whose match started before this
@@ -964,7 +975,7 @@ def main() -> int:
                 same += ("<br/><font size=6.5 color='#b23b3b'><b>start przed "
                          "renderem PDF</b></font>")
             same += (read_label(leg) + context_label(leg) + price_gap_label(leg)
-                     + rating_market_gap_label(leg))
+                     + rating_market_gap_label(leg) + schedule_term_label(leg))
             srows.append([
                 Paragraph(str(i), small),
                 Paragraph(f"{leg['match']}<br/><font size=6.5>"
@@ -1349,7 +1360,8 @@ def render_stats_only(
                                "renderem PDF</b></font>")
             match_cell += (read_label(leg) + context_label(leg)
                            + stakes_label(leg) + price_gap_label(leg)
-                           + rating_market_gap_label(leg) + peer_label(leg))
+                           + rating_market_gap_label(leg)
+                           + schedule_term_label(leg) + peer_label(leg))
             subj = f" ({leg['subject']})" if leg.get("subject") else ""
             lno = ladder_of.get(id(leg))
             if lno is not None and lno not in pos_headed:

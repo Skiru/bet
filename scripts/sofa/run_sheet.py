@@ -20,6 +20,7 @@ from bet.sofa import epochs, sheet_config
 from bet.sofa import football_sim_sheet as fss
 from bet.sofa import player_share as psh
 from bet.sofa import referees as referee_terms
+from bet.sofa import schedule_term as sterm
 from bet.sofa import tennis_aces_opponent as aces_opp
 from bet.sofa import tennis_point_sheet as tps
 from bet.sofa.artifact_guard import incomplete_reason
@@ -1027,6 +1028,38 @@ def load_point_pricer(
                            markets=markets)
 
 
+def load_schedule_terms(
+    db_path: str, fixtures_by_id: Mapping[int, Fixture],
+    offers: Sequence[FixtureOffer], only_ids: set[int] | None,
+    terms: sterm.ScheduleTerms,
+) -> dict[int, sterm.FixtureTerm]:
+    """epochs.SCHEDULE_TERM: the day's football fixtures with a path (ii)
+    rung, each side's schedule features as of the kick-off from the listed
+    events (bet.sofa.schedule_term, one read-only query) - empty when there
+    is none."""
+    keys: list[sterm.FixtureKey] = []
+    in_scope = epochs.SCHEDULE_TERM_MARKETS | terms.excluded_markets
+    for offer in offers:
+        if offer.status == "NO_PRICE":
+            continue
+        if only_ids is not None and offer.sofascore_event_id not in only_ids:
+            continue
+        fx = fixtures_by_id.get(offer.sofascore_event_id)
+        if fx is None or fx.sport != "football":
+            continue
+        if any(r.market in in_scope for r in offer.rungs):
+            keys.append(sterm.FixtureKey(
+                event_id=fx.sofascore_event_id,
+                kickoff_ts=int(fx.kickoff_utc.timestamp()),
+                home_id=fx.home_entity_id, away_id=fx.away_entity_id,
+                competition_id=fx.competition_id, season_id=fx.season_id,
+                national=fx.national_teams))
+    if not keys:
+        return {}
+    return sterm.load_fixture_terms(db_path, keys, terms,
+                                    load_cup_strength().competitions)
+
+
 def sample_centre(
     *,
     fixture: Fixture,
@@ -1931,6 +1964,60 @@ def sim_rows(
     return rows, skipped
 
 
+RowsAndSkips = tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]
+
+
+def schedule_term_rows(
+    market: str,
+    football: FootballForecast | None,
+    term: sterm.FixtureTerm | None,
+    terms: sterm.ScheduleTerms | None,
+    price: Callable[[FootballForecast | None, bool], RowsAndSkips],
+) -> RowsAndSkips:
+    """epochs.SCHEDULE_TERM: one path (ii) rung's rows. `price(forecast,
+    shadow)` prices the rung on a forecast (`shadow`: the uncorrected
+    repricing - the simulator reads its own pricer there). Off (no term), a
+    market out of scope or no rating: the rows as they were. A market of
+    epochs.SCHEDULE_TERM_MARKETS is priced on the corrected goals centres
+    and carries `schedule_term` and `p_central_no_schedule_term` (the
+    uncorrected rows' p - the inverted shadow); a simulator floor key keeps
+    the uncorrected p and says so (status EXCLUDED_FLOOR)."""
+    if term is None or terms is None or football is None:
+        return price(football, False)
+    if market in terms.excluded_markets:
+        rows, skipped = price(football, False)
+        field_ = term.row_field(sterm.EXCLUDED_FLOOR)
+        return [r.model_copy(update={"schedule_term": field_}) for r in rows], skipped
+    if market not in epochs.SCHEDULE_TERM_MARKETS:
+        return price(football, False)
+    if not term.moves:
+        rows, skipped = price(football, False)
+        return [r.model_copy(update={
+            "notes": [*r.notes, sterm.unfitted_note()],
+            "schedule_term": term.row_field(),
+            "p_central_no_schedule_term": r.p_central}) for r in rows], skipped
+    wrapped = sterm.ScheduleTermForecast.wrap(football, term.t_home, term.t_away)
+    rows, skipped = price(wrapped, False)
+    base_rows, _ = price(football, True)
+    base_p = {(r.market, r.subject, r.line, r.direction): r.p_central
+              for r in base_rows}
+    home = football.centre("goals_for", "side_a")
+    away = football.centre("goals_for", "side_b")
+    out: list[SheetRow] = []
+    for r in rows:
+        notes = list(r.notes)
+        if home is not None and away is not None:
+            notes = [sterm.pure_note(n, home[0], away[0], term) for n in notes]
+        notes.append(sterm.term_note(term))
+        notes.append(sterm.unfitted_note())
+        out.append(r.model_copy(update={
+            "notes": notes,
+            "schedule_term": term.row_field(),
+            "p_central_no_schedule_term": base_p.get(
+                (r.market, r.subject, r.line, r.direction))}))
+    return out, skipped
+
+
 def card_half_term_mults(
     football: FootballForecast | None,
     game_state: GameStateTable | None,
@@ -2332,6 +2419,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER,
     epochs.FOOTBALL_FORM_TABLE_MARKER,
     epochs.FOOTBALL_SIM_MARKER,
+    epochs.SCHEDULE_TERM_MARKER,
 ))
 
 
@@ -2388,6 +2476,8 @@ def sheet_row_json(row: SheetRow) -> dict[str, Any]:
                                       "result_1x2_dnb_rule", "result_phase",
                                       "score_market_rule", "set_complement_rule",
                                       "referee_read", "player_props_v2_rule",
+                                      "schedule_term",
+                                      "p_central_no_schedule_term",
                                       "config_sha"):
         if out.get(key) is None:
             out.pop(key, None)
@@ -2591,6 +2681,9 @@ def process_fixture(
     joint_side_chain_on: bool = False,
     point_pricer: tps.PointPricer | None = None,
     sim_pricer: fss.SimPricer | None = None,
+    schedule_term: sterm.FixtureTerm | None = None,
+    schedule_terms: sterm.ScheduleTerms | None = None,
+    base_sim_pricer: fss.SimPricer | None = None,
 ) -> tuple[list[SheetRow], list[tuple[Any, GapReason, str]]]:
     """`stats_only` (bet.sofa.epochs, from 2026-10-05): the price no longer
     enters p_central - no ladder centre, no rating blended with the price, no
@@ -2605,7 +2698,14 @@ def process_fixture(
     B15 / A5): a football sample is rescaled to a neutral opponent and
     today's domain before its mean, variance and hits
     (bet.sofa.opponent_correction); the row carries the values it priced
-    from (`corrected_sample`) for CONFIDENCE's gates. None: the raw sample."""
+    from (`corrected_sample`) for CONFIDENCE's gates. None: the raw sample.
+
+    `schedule_term` / `schedule_terms` (epochs.SCHEDULE_TERM; None = off,
+    the rows as they were): the fixture's term and the installed config -
+    the path (ii) rows (double chance, 1X2 / DNB, score markets, first goal,
+    simulator) read the corrected goals centres through schedule_term_rows;
+    `base_sim_pricer` prices the simulator's uncorrected shadow (its own
+    cache, so the two do not re-simulate each other)."""
     rows: list[SheetRow] = []
     skipped: list[tuple[Any, GapReason, str]] = []
     # the football centre terms after sample_centre (bet.sofa.centre_chain)
@@ -2693,36 +2793,61 @@ def process_fixture(
             # epochs.FOOTBALL_RESULT_MARKETS is off - OFFER maps no such rung)
             if (result_config is not None and fixture.sport == "football"
                     and rung.market == DOUBLE_CHANCE):
-                dc_rows, dc_skipped = double_chance_rows(
-                    fixture, rung, football, result_config, market_ps,
-                    stats_only)
+                dc_cfg: ResultConfig = result_config
+
+                def _dc(fc: FootballForecast | None, _shadow: bool,
+                        rung: PricedRung = rung,
+                        cfg: ResultConfig = dc_cfg) -> RowsAndSkips:
+                    return double_chance_rows(fixture, rung, fc, cfg,
+                                              market_ps, stats_only)
+                dc_rows, dc_skipped = schedule_term_rows(
+                    rung.market, football, schedule_term, schedule_terms, _dc)
                 rows.extend(dc_rows)
                 skipped.extend(dc_skipped)
             # epochs.FOOTBALL_RESULT_1X2_DNB (None while off - OFFER maps no
             # such rung)
             if (result_1x2_dnb is not None and fixture.sport == "football"
                     and rung.market in RESULT_1X2_DNB_MARKETS):
-                r_rows, r_skipped = result_1x2_dnb_rows(
-                    fixture, rung, football, result_1x2_dnb, result_phase,
-                    market_ps, stats_only)
+                r_cfg: ResultConfig = result_1x2_dnb
+
+                def _r(fc: FootballForecast | None, _shadow: bool,
+                       rung: PricedRung = rung,
+                       cfg: ResultConfig = r_cfg) -> RowsAndSkips:
+                    return result_1x2_dnb_rows(fixture, rung, fc, cfg,
+                                               result_phase, market_ps,
+                                               stats_only)
+                r_rows, r_skipped = schedule_term_rows(
+                    rung.market, football, schedule_term, schedule_terms, _r)
                 rows.extend(r_rows)
                 skipped.extend(r_skipped)
             # epochs.FOOTBALL_SCORE_MARKETS (None while off - OFFER maps no
             # such rung)
             if (score_markets is not None and fixture.sport == "football"
                     and rung.market in SCORE_MARKETS):
-                sm_rows, sm_skipped = score_market_rows(
-                    fixture, rung, football, score_markets, market_ps,
-                    stats_only, result_phase)
+                sm_cfg: ResultConfig = score_markets
+
+                def _sm(fc: FootballForecast | None, _shadow: bool,
+                        rung: PricedRung = rung,
+                        cfg: ResultConfig = sm_cfg) -> RowsAndSkips:
+                    return score_market_rows(fixture, rung, fc, cfg, market_ps,
+                                             stats_only, result_phase)
+                sm_rows, sm_skipped = schedule_term_rows(
+                    rung.market, football, schedule_term, schedule_terms, _sm)
                 rows.extend(sm_rows)
                 skipped.extend(sm_skipped)
             # epochs.FOOTBALL_INCIDENT_MARKETS / TENNIS_SET_MARKETS (None /
             # False while off - OFFER maps no such rung)
             if (incident_pricing is not None and fixture.sport == "football"
                     and rung.market in FOOTBALL_INCIDENT_MARKETS):
-                i_rows, i_skipped = incident_rows(
-                    fixture, rung, football, incident_pricing, market_ps,
-                    stats_only)
+                i_cfg: IncidentPricing = incident_pricing
+
+                def _i(fc: FootballForecast | None, _shadow: bool,
+                       rung: PricedRung = rung,
+                       cfg: IncidentPricing = i_cfg) -> RowsAndSkips:
+                    return incident_rows(fixture, rung, fc, cfg, market_ps,
+                                         stats_only)
+                i_rows, i_skipped = schedule_term_rows(
+                    rung.market, football, schedule_term, schedule_terms, _i)
                 rows.extend(i_rows)
                 skipped.extend(i_skipped)
             # epochs.FOOTBALL_CARD_HALVES (None while off - OFFER maps no
@@ -2743,8 +2868,17 @@ def process_fixture(
             # epochs.FOOTBALL_SIM (None while off - OFFER maps no such rung)
             if (sim_pricer is not None and fixture.sport == "football"
                     and rung.market in SIM_MARKETS):
-                f_rows, f_skipped = sim_rows(
-                    fixture, rung, football, sim_pricer, market_ps, stats_only)
+                f_pricer: fss.SimPricer = sim_pricer
+
+                def _f(fc: FootballForecast | None, shadow: bool,
+                       rung: PricedRung = rung,
+                       pricer: fss.SimPricer = f_pricer) -> RowsAndSkips:
+                    if shadow and base_sim_pricer is not None:
+                        pricer = base_sim_pricer
+                    return sim_rows(fixture, rung, fc, pricer, market_ps,
+                                    stats_only)
+                f_rows, f_skipped = schedule_term_rows(
+                    rung.market, football, schedule_term, schedule_terms, _f)
                 rows.extend(f_rows)
                 skipped.extend(f_skipped)
             if (set_markets_on and fixture.sport == "tennis"
@@ -4024,6 +4158,19 @@ def _main() -> int:
     sim_params = fss.load_params() if football_sim_on else None
     sim_pricer = fss.SimPricer(sim_params) if sim_params is not None else None
 
+    # epochs.SCHEDULE_TERM: the path (ii) rows on the pure rating goals
+    # centres x exp(t) of each side's schedule features (bet.sofa.
+    # schedule_term; a missing / malformed config raises, rc 2). The
+    # simulator's uncorrected shadow reads its own pricer.
+    schedule_term_on = stats_only and epochs.schedule_term(args.date)
+    schedule_terms_cfg = sterm.load() if schedule_term_on else None
+    schedule_terms_by_event = (
+        load_schedule_terms(config.db_path, fixtures_by_id, offers, only_ids,
+                            schedule_terms_cfg)
+        if schedule_terms_cfg is not None else {})
+    base_sim_pricer = (fss.SimPricer(sim_params)
+                       if sim_params is not None and schedule_term_on else None)
+
     try:
         for offer in offers:
             if offer.status == "NO_PRICE":
@@ -4124,6 +4271,13 @@ def _main() -> int:
                     score_markets=score_markets_config,
                     point_pricer=point_pricer,
                     sim_pricer=sim_pricer,
+                    schedule_term=(
+                        schedule_terms_by_event.get(
+                            fixture.sofascore_event_id, sterm.NO_TERM)
+                        if schedule_terms_cfg is not None
+                        and fixture.sport == "football" else None),
+                    schedule_terms=schedule_terms_cfg,
+                    base_sim_pricer=base_sim_pricer,
                 )
 
             rows, skipped = _priced(football_book, sample_corrector)
@@ -4137,6 +4291,8 @@ def _main() -> int:
                                                       t_skipped)
             if sim_pricer is not None:
                 sim_pricer.forget(fixture.sofascore_event_id)
+            if base_sim_pricer is not None:
+                base_sim_pricer.forget(fixture.sofascore_event_id)
             all_rows.extend(rows)
             for _rung, reason, _detail in skipped:
                 skip_reasons[reason.value] = skip_reasons.get(reason.value, 0) + 1
@@ -4207,6 +4363,7 @@ def _main() -> int:
             (epochs.TENNIS_POINT_MODEL_MARKER, point_model_on),
             (epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER, handicap_point_on),
             (epochs.FOOTBALL_SIM_MARKER, football_sim_on),
+            (epochs.SCHEDULE_TERM_MARKER, schedule_terms_cfg is not None),
             (epochs.FOOTBALL_FORM_TABLE_MARKER,
              football_book_table is not None),
         ):
@@ -4337,6 +4494,15 @@ def _main() -> int:
                 "football_sim_rows": sum(
                     1 for r in all_rows if r.market in SIM_MARKETS)}
                if football_sim_on else {}),
+            # epochs.SCHEDULE_TERM: absent while off (the summary as before)
+            **({"schedule_term_rule": epochs.SCHEDULE_TERM,
+                "schedule_term_fixtures": len(schedule_terms_by_event),
+                "schedule_term_applied": sum(
+                    1 for t in schedule_terms_by_event.values() if t.moves),
+                "schedule_term_rows": sum(
+                    1 for r in all_rows
+                    if r.p_central_no_schedule_term is not None)}
+               if schedule_terms_cfg is not None else {}),
             "config_sha": config_sha,
             **({"derived_margins_rule": epochs.DERIVED_SHEET_MARGINS_RULE}
                if sheet_margins_on else {}),

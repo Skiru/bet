@@ -1,0 +1,3661 @@
+{
+ "x1015": [
+  {
+   "group": "1x2_dnb_1015",
+   "key": "draw_no_bet|OVER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.006099999999999994,
+   "max_dlo95_term_vs_control": 0.0025999999999999357,
+   "n_control": 458249,
+   "n_term": 458153,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      205087,
+      0.4186
+     ],
+     "control": [
+      240566,
+      0.414
+     ],
+     "term": [
+      240428,
+      0.4138
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      79122,
+      0.6568
+     ],
+     "control": [
+      92682,
+      0.6579
+     ],
+     "term": [
+      92144,
+      0.6575
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      34049,
+      0.7405
+     ],
+     "control": [
+      39718,
+      0.7428
+     ],
+     "term": [
+      39708,
+      0.7416
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      27822,
+      0.793
+     ],
+     "control": [
+      33267,
+      0.7991
+     ],
+     "term": [
+      33214,
+      0.7985
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      11351,
+      0.8295
+     ],
+     "control": [
+      13759,
+      0.8302
+     ],
+     "term": [
+      13820,
+      0.8303
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      9619,
+      0.8652
+     ],
+     "control": [
+      11627,
+      0.8653
+     ],
+     "term": [
+      11766,
+      0.8651
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      7933,
+      0.8852
+     ],
+     "control": [
+      9735,
+      0.8894
+     ],
+     "term": [
+      9743,
+      0.8868
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      5967,
+      0.9073
+     ],
+     "control": [
+      7431,
+      0.9088
+     ],
+     "term": [
+      7605,
+      0.9074
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      4520,
+      0.9239
+     ],
+     "control": [
+      5635,
+      0.9279
+     ],
+     "term": [
+      5785,
+      0.9294
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      3041,
+      0.947
+     ],
+     "control": [
+      3829,
+      0.9447
+     ],
+     "term": [
+      3940,
+      0.9454
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 31770,
+    "with_curve_value": 31770,
+    "n": 8662,
+    "matches": 8662,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 2691,
+      "curve": 0.7447,
+      "realised": 0.7202
+     },
+     "0.750-0.800": {
+      "n": 2333,
+      "curve": 0.8006,
+      "realised": 0.7818
+     },
+     "0.800-0.825": {
+      "n": 964,
+      "curve": 0.8317,
+      "realised": 0.8122
+     },
+     "0.825-0.850": {
+      "n": 752,
+      "curve": 0.8655,
+      "realised": 0.8657
+     },
+     "0.850-0.875": {
+      "n": 663,
+      "curve": 0.8909,
+      "realised": 0.8718
+     },
+     "0.875-0.900": {
+      "n": 562,
+      "curve": 0.911,
+      "realised": 0.8861
+     },
+     "0.900-0.925": {
+      "n": 398,
+      "curve": 0.9288,
+      "realised": 0.9221
+     },
+     "0.925-0.950": {
+      "n": 299,
+      "curve": 0.9466,
+      "realised": 0.9298
+     }
+    },
+    "mean_curve": 0.8173,
+    "realised": 0.7985,
+    "gap": -0.0188,
+    "gap_ci95": [
+     -0.0266,
+     -0.0111
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   },
+   "gate_term": {
+    "holdout_forecasts": 31765,
+    "with_curve_value": 31765,
+    "n": 8668,
+    "matches": 8668,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 2695,
+      "curve": 0.7434,
+      "realised": 0.7206
+     },
+     "0.750-0.800": {
+      "n": 2321,
+      "curve": 0.7998,
+      "realised": 0.7841
+     },
+     "0.800-0.825": {
+      "n": 958,
+      "curve": 0.8323,
+      "realised": 0.8058
+     },
+     "0.825-0.850": {
+      "n": 760,
+      "curve": 0.8651,
+      "realised": 0.8684
+     },
+     "0.850-0.875": {
+      "n": 658,
+      "curve": 0.8879,
+      "realised": 0.8739
+     },
+     "0.875-0.900": {
+      "n": 568,
+      "curve": 0.9097,
+      "realised": 0.882
+     },
+     "0.900-0.925": {
+      "n": 408,
+      "curve": 0.9304,
+      "realised": 0.9216
+     },
+     "0.925-0.950": {
+      "n": 300,
+      "curve": 0.9476,
+      "realised": 0.9267
+     }
+    },
+    "mean_curve": 0.8167,
+    "realised": 0.7988,
+    "gap": -0.0179,
+    "gap_ci95": [
+     -0.0265,
+     -0.0099
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "draw_no_bet|UNDER",
+   "installed": true,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": 0.015199999999999991,
+   "max_dlo95_term_vs_control": 0.0035000000000000586,
+   "n_control": 458249,
+   "n_term": 458153,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      318912,
+      0.3538
+     ],
+     "control": [
+      374974,
+      0.3518
+     ],
+     "term": [
+      374183,
+      0.3512
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      37216,
+      0.6702
+     ],
+     "control": [
+      43924,
+      0.6726
+     ],
+     "term": [
+      43958,
+      0.671
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      11875,
+      0.7488
+     ],
+     "control": [
+      14262,
+      0.7538
+     ],
+     "term": [
+      14465,
+      0.752
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      8594,
+      0.7987
+     ],
+     "control": [
+      10444,
+      0.8033
+     ],
+     "term": [
+      10618,
+      0.8016
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      3242,
+      0.8361
+     ],
+     "control": [
+      3920,
+      0.8351
+     ],
+     "term": [
+      3957,
+      0.8371
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      2634,
+      0.8481
+     ],
+     "control": [
+      3266,
+      0.8541
+     ],
+     "term": [
+      3329,
+      0.855
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      2096,
+      0.8681
+     ],
+     "control": [
+      2607,
+      0.8833
+     ],
+     "term": [
+      2674,
+      0.8831
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      1726,
+      0.9044
+     ],
+     "control": [
+      2095,
+      0.8993
+     ],
+     "term": [
+      2150,
+      0.9004
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      1259,
+      0.8898
+     ],
+     "control": [
+      1549,
+      0.8978
+     ],
+     "term": [
+      1589,
+      0.8943
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      957,
+      0.8858
+     ],
+     "control": [
+      1208,
+      0.8923
+     ],
+     "term": [
+      1230,
+      0.8933
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 31770,
+    "with_curve_value": 31770,
+    "n": 2996,
+    "matches": 2996,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 1008,
+      "curve": 0.756,
+      "realised": 0.7302
+     },
+     "0.750-0.800": {
+      "n": 771,
+      "curve": 0.8061,
+      "realised": 0.7769
+     },
+     "0.800-0.825": {
+      "n": 292,
+      "curve": 0.8382,
+      "realised": 0.8014
+     },
+     "0.825-0.850": {
+      "n": 233,
+      "curve": 0.8566,
+      "realised": 0.8283
+     },
+     "0.850-0.875": {
+      "n": 190,
+      "curve": 0.8858,
+      "realised": 0.8579
+     },
+     "0.875-0.900": {
+      "n": 177,
+      "curve": 0.8998,
+      "realised": 0.904
+     },
+     "0.900-0.925": {
+      "n": 175,
+      "curve": 0.9033,
+      "realised": 0.8743
+     },
+     "0.925-0.950": {
+      "n": 150,
+      "curve": 0.8967,
+      "realised": 0.8733
+     }
+    },
+    "mean_curve": 0.8171,
+    "realised": 0.7907,
+    "gap": -0.0264,
+    "gap_ci95": [
+     -0.0411,
+     -0.0117
+    ],
+    "pass": false,
+    "why": "overstates: gap -0.0264 < -0.02",
+    "two_sided_pass": false
+   },
+   "gate_term": {
+    "holdout_forecasts": 31765,
+    "with_curve_value": 31765,
+    "n": 3006,
+    "matches": 3006,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 1003,
+      "curve": 0.7535,
+      "realised": 0.7378
+     },
+     "0.750-0.800": {
+      "n": 783,
+      "curve": 0.8046,
+      "realised": 0.7714
+     },
+     "0.800-0.825": {
+      "n": 295,
+      "curve": 0.8388,
+      "realised": 0.8237
+     },
+     "0.825-0.850": {
+      "n": 224,
+      "curve": 0.8587,
+      "realised": 0.8125
+     },
+     "0.850-0.875": {
+      "n": 202,
+      "curve": 0.8857,
+      "realised": 0.8564
+     },
+     "0.875-0.900": {
+      "n": 175,
+      "curve": 0.9005,
+      "realised": 0.9086
+     },
+     "0.900-0.925": {
+      "n": 178,
+      "curve": 0.9006,
+      "realised": 0.8652
+     },
+     "0.925-0.950": {
+      "n": 146,
+      "curve": 0.8972,
+      "realised": 0.8767
+     }
+    },
+    "mean_curve": 0.8162,
+    "realised": 0.7927,
+    "gap": -0.0234,
+    "gap_ci95": [
+     -0.038,
+     -0.0097
+    ],
+    "pass": false,
+    "why": "overstates: gap -0.0234 < -0.02",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "result_1x2|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.0032999999999999696,
+   "n_control": 1157918,
+   "n_term": 1157780,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": null,
+     "control": [
+      1027245,
+      0.3544
+     ],
+     "term": [
+      1025676,
+      0.354
+     ]
+    },
+    "0.600-0.700": {
+     "installed": null,
+     "control": [
+      80689,
+      0.6855
+     ],
+     "term": [
+      81121,
+      0.6838
+     ]
+    },
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      21638,
+      0.7744
+     ],
+     "term": [
+      21965,
+      0.7726
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      13553,
+      0.8276
+     ],
+     "term": [
+      13863,
+      0.827
+     ]
+    },
+    "0.800-0.825": {
+     "installed": null,
+     "control": [
+      4643,
+      0.8526
+     ],
+     "term": [
+      4761,
+      0.8493
+     ]
+    },
+    "0.825-0.850": {
+     "installed": null,
+     "control": [
+      3586,
+      0.8653
+     ],
+     "term": [
+      3670,
+      0.8633
+     ]
+    },
+    "0.850-0.875": {
+     "installed": null,
+     "control": [
+      2657,
+      0.8721
+     ],
+     "term": [
+      2723,
+      0.8748
+     ]
+    },
+    "0.875-0.900": {
+     "installed": null,
+     "control": [
+      1855,
+      0.9058
+     ],
+     "term": [
+      1894,
+      0.905
+     ]
+    },
+    "0.900-0.925": {
+     "installed": null,
+     "control": [
+      1262,
+      0.9192
+     ],
+     "term": [
+      1293,
+      0.9194
+     ]
+    },
+    "0.925-0.950": {
+     "installed": null,
+     "control": [
+      790,
+      0.9318
+     ],
+     "term": [
+      814,
+      0.9338
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 79560,
+    "with_curve_value": 79560,
+    "n": 4164,
+    "matches": 4164,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 1671,
+      "curve": 0.7778,
+      "realised": 0.7367
+     },
+     "0.750-0.800": {
+      "n": 1094,
+      "curve": 0.8318,
+      "realised": 0.7852
+     },
+     "0.800-0.825": {
+      "n": 394,
+      "curve": 0.8573,
+      "realised": 0.8122
+     },
+     "0.825-0.850": {
+      "n": 318,
+      "curve": 0.8655,
+      "realised": 0.8711
+     },
+     "0.850-0.875": {
+      "n": 262,
+      "curve": 0.8769,
+      "realised": 0.8435
+     },
+     "0.875-0.900": {
+      "n": 196,
+      "curve": 0.9096,
+      "realised": 0.8827
+     },
+     "0.900-0.925": {
+      "n": 137,
+      "curve": 0.9258,
+      "realised": 0.8832
+     },
+     "0.925-0.950": {
+      "n": 92,
+      "curve": 0.9342,
+      "realised": 0.9239
+     }
+    },
+    "mean_curve": 0.827,
+    "realised": 0.7894,
+    "gap": -0.0376,
+    "gap_ci95": [
+     -0.05,
+     -0.0255
+    ],
+    "pass": false,
+    "why": "overstates: gap -0.0376 < -0.02",
+    "two_sided_pass": false
+   },
+   "gate_term": {
+    "holdout_forecasts": 79548,
+    "with_curve_value": 79548,
+    "n": 4185,
+    "matches": 4185,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 1679,
+      "curve": 0.7753,
+      "realised": 0.7421
+     },
+     "0.750-0.800": {
+      "n": 1105,
+      "curve": 0.8309,
+      "realised": 0.7882
+     },
+     "0.800-0.825": {
+      "n": 404,
+      "curve": 0.854,
+      "realised": 0.8069
+     },
+     "0.825-0.850": {
+      "n": 305,
+      "curve": 0.8648,
+      "realised": 0.859
+     },
+     "0.850-0.875": {
+      "n": 264,
+      "curve": 0.8784,
+      "realised": 0.8523
+     },
+     "0.875-0.900": {
+      "n": 201,
+      "curve": 0.9082,
+      "realised": 0.8856
+     },
+     "0.900-0.925": {
+      "n": 140,
+      "curve": 0.9247,
+      "realised": 0.8929
+     },
+     "0.925-0.950": {
+      "n": 87,
+      "curve": 0.9384,
+      "realised": 0.908
+     }
+    },
+    "mean_curve": 0.8254,
+    "realised": 0.7914,
+    "gap": -0.034,
+    "gap_ci95": [
+     -0.0456,
+     -0.0225
+    ],
+    "pass": false,
+    "why": "overstates: gap -0.0340 < -0.02",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "season_early:draw_no_bet|OVER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.015000000000000013,
+   "max_dlo95_term_vs_control": 0.005099999999999993,
+   "n_control": 33877,
+   "n_term": 33871,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      14662,
+      0.4481
+     ],
+     "control": [
+      17764,
+      0.4437
+     ],
+     "term": [
+      17748,
+      0.4433
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      6269,
+      0.6128
+     ],
+     "control": [
+      7519,
+      0.6154
+     ],
+     "term": [
+      7521,
+      0.6153
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      2500,
+      0.6761
+     ],
+     "control": [
+      3120,
+      0.6723
+     ],
+     "term": [
+      3126,
+      0.671
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      1983,
+      0.718
+     ],
+     "control": [
+      2507,
+      0.72
+     ],
+     "term": [
+      2514,
+      0.7228
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      795,
+      0.7432
+     ],
+     "control": [
+      997,
+      0.7526
+     ],
+     "term": [
+      991,
+      0.7532
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      596,
+      0.8019
+     ],
+     "control": [
+      782,
+      0.8169
+     ],
+     "term": [
+      783,
+      0.8158
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      534,
+      0.8134
+     ],
+     "control": [
+      685,
+      0.8007
+     ],
+     "term": [
+      676,
+      0.8028
+     ]
+    },
+    "0.875-0.900": {
+     "installed": null,
+     "control": [
+      503,
+      0.8257
+     ],
+     "term": [
+      512,
+      0.8308
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 5493,
+    "with_curve_value": 5261,
+    "n": 797,
+    "matches": 797,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.750-0.800": {
+      "n": 389,
+      "curve": 0.7188,
+      "realised": 0.7352
+     },
+     "0.800-0.825": {
+      "n": 172,
+      "curve": 0.7486,
+      "realised": 0.7849
+     },
+     "0.825-0.850": {
+      "n": 117,
+      "curve": 0.8124,
+      "realised": 0.8547
+     },
+     "0.850-0.875": {
+      "n": 119,
+      "curve": 0.7931,
+      "realised": 0.8487
+     }
+    },
+    "mean_curve": 0.7501,
+    "realised": 0.7804,
+    "gap": 0.0304,
+    "gap_ci95": [
+     0.0011,
+     0.0601
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": false
+   },
+   "gate_term": {
+    "holdout_forecasts": 5493,
+    "with_curve_value": 5362,
+    "n": 898,
+    "matches": 898,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.750-0.800": {
+      "n": 386,
+      "curve": 0.723,
+      "realised": 0.7306
+     },
+     "0.800-0.825": {
+      "n": 173,
+      "curve": 0.749,
+      "realised": 0.7861
+     },
+     "0.825-0.850": {
+      "n": 117,
+      "curve": 0.8111,
+      "realised": 0.8547
+     },
+     "0.850-0.875": {
+      "n": 118,
+      "curve": 0.796,
+      "realised": 0.8475
+     },
+     "0.875-0.900": {
+      "n": 104,
+      "curve": 0.8175,
+      "realised": 0.8942
+     }
+    },
+    "mean_curve": 0.76,
+    "realised": 0.7918,
+    "gap": 0.0317,
+    "gap_ci95": [
+     0.0053,
+     0.0577
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "season_early:draw_no_bet|UNDER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.0043999999999999595,
+   "n_control": 33751,
+   "n_term": 33747,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": null,
+     "control": [
+      29212,
+      0.3742
+     ],
+     "term": [
+      29202,
+      0.374
+     ]
+    },
+    "0.600-0.700": {
+     "installed": null,
+     "control": [
+      3042,
+      0.6105
+     ],
+     "term": [
+      3055,
+      0.6122
+     ]
+    },
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      899,
+      0.7181
+     ],
+     "term": [
+      894,
+      0.7165
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      598,
+      0.7408
+     ],
+     "term": [
+      596,
+      0.7364
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 5493,
+    "with_curve_value": 5319,
+    "n": 277,
+    "matches": 277,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 172,
+      "curve": 0.7269,
+      "realised": 0.6977
+     },
+     "0.750-0.800": {
+      "n": 105,
+      "curve": 0.7423,
+      "realised": 0.7524
+     }
+    },
+    "mean_curve": 0.7327,
+    "realised": 0.7184,
+    "gap": -0.0143,
+    "gap_ci95": [
+     -0.0677,
+     0.0398
+    ],
+    "pass": false,
+    "why": "n 277 < 300",
+    "two_sided_pass": false
+   },
+   "gate_term": {
+    "holdout_forecasts": 5493,
+    "with_curve_value": 5320,
+    "n": 278,
+    "matches": 278,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 174,
+      "curve": 0.7257,
+      "realised": 0.6954
+     },
+     "0.750-0.800": {
+      "n": 104,
+      "curve": 0.7375,
+      "realised": 0.75
+     }
+    },
+    "mean_curve": 0.7301,
+    "realised": 0.7158,
+    "gap": -0.0143,
+    "gap_ci95": [
+     -0.0644,
+     0.0389
+    ],
+    "pass": false,
+    "why": "n 278 < 300",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "season_early:result_1x2|OVER",
+   "installed": false,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.00770000000000004,
+   "n_control": 87717,
+   "n_term": 87713,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": null,
+     "control": [
+      79558,
+      0.3554
+     ],
+     "term": [
+      79536,
+      0.3554
+     ]
+    },
+    "0.600-0.700": {
+     "installed": null,
+     "control": [
+      5751,
+      0.6073
+     ],
+     "term": [
+      5756,
+      0.6069
+     ]
+    },
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      1501,
+      0.7276
+     ],
+     "term": [
+      1503,
+      0.7246
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      907,
+      0.7251
+     ],
+     "term": [
+      918,
+      0.7328
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 14128,
+    "with_curve_value": 13885,
+    "n": 461,
+    "matches": 461,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 266,
+      "curve": 0.7255,
+      "realised": 0.7481
+     },
+     "0.750-0.800": {
+      "n": 195,
+      "curve": 0.7209,
+      "realised": 0.7538
+     }
+    },
+    "mean_curve": 0.7236,
+    "realised": 0.7505,
+    "gap": 0.027,
+    "gap_ci95": [
+     -0.0121,
+     0.0661
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": false
+   },
+   "gate_term": {
+    "holdout_forecasts": 14127,
+    "with_curve_value": 13881,
+    "n": 458,
+    "matches": 458,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 264,
+      "curve": 0.7222,
+      "realised": 0.7462
+     },
+     "0.750-0.800": {
+      "n": 194,
+      "curve": 0.724,
+      "realised": 0.7784
+     }
+    },
+    "mean_curve": 0.723,
+    "realised": 0.7598,
+    "gap": 0.0369,
+    "gap_ci95": [
+     -0.0047,
+     0.0739
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "women:draw_no_bet|OVER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.012599999999999945,
+   "max_dlo95_term_vs_control": 0.0031999999999999806,
+   "n_control": 35962,
+   "n_term": 35942,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      16711,
+      0.3217
+     ],
+     "control": [
+      19012,
+      0.3221
+     ],
+     "term": [
+      19013,
+      0.3222
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      4779,
+      0.6466
+     ],
+     "control": [
+      5732,
+      0.6513
+     ],
+     "term": [
+      5697,
+      0.6525
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      2305,
+      0.7289
+     ],
+     "control": [
+      2775,
+      0.7313
+     ],
+     "term": [
+      2774,
+      0.7282
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      2084,
+      0.7921
+     ],
+     "control": [
+      2514,
+      0.7887
+     ],
+     "term": [
+      2511,
+      0.7897
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      1011,
+      0.8232
+     ],
+     "control": [
+      1194,
+      0.8226
+     ],
+     "term": [
+      1186,
+      0.8196
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      949,
+      0.8464
+     ],
+     "control": [
+      1101,
+      0.8548
+     ],
+     "term": [
+      1106,
+      0.8516
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      888,
+      0.9065
+     ],
+     "control": [
+      1021,
+      0.8939
+     ],
+     "term": [
+      1034,
+      0.8921
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      832,
+      0.8885
+     ],
+     "control": [
+      977,
+      0.8992
+     ],
+     "term": [
+      970,
+      0.9008
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      762,
+      0.916
+     ],
+     "control": [
+      851,
+      0.9221
+     ],
+     "term": [
+      862,
+      0.9217
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      735,
+      0.9487
+     ],
+     "control": [
+      785,
+      0.9474
+     ],
+     "term": [
+      789,
+      0.9492
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 3297,
+    "with_curve_value": 3297,
+    "n": 1011,
+    "matches": 1011,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 264,
+      "curve": 0.7301,
+      "realised": 0.75
+     },
+     "0.750-0.800": {
+      "n": 242,
+      "curve": 0.7864,
+      "realised": 0.8182
+     },
+     "0.800-0.825": {
+      "n": 105,
+      "curve": 0.8231,
+      "realised": 0.8286
+     },
+     "0.825-0.850": {
+      "n": 99,
+      "curve": 0.8544,
+      "realised": 0.8687
+     },
+     "0.850-0.875": {
+      "n": 94,
+      "curve": 0.8939,
+      "realised": 0.9043
+     },
+     "0.875-0.900": {
+      "n": 69,
+      "curve": 0.8977,
+      "realised": 0.9275
+     },
+     "0.900-0.925": {
+      "n": 77,
+      "curve": 0.9231,
+      "realised": 0.9221
+     },
+     "0.925-0.950": {
+      "n": 61,
+      "curve": 0.9462,
+      "realised": 0.9672
+     }
+    },
+    "mean_curve": 0.8198,
+    "realised": 0.8388,
+    "gap": 0.019,
+    "gap_ci95": [
+     -0.0041,
+     0.0402
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   },
+   "gate_term": {
+    "holdout_forecasts": 3297,
+    "with_curve_value": 3297,
+    "n": 1011,
+    "matches": 1011,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.700-0.750": {
+      "n": 275,
+      "curve": 0.726,
+      "realised": 0.7564
+     },
+     "0.750-0.800": {
+      "n": 230,
+      "curve": 0.7881,
+      "realised": 0.813
+     },
+     "0.800-0.825": {
+      "n": 96,
+      "curve": 0.8203,
+      "realised": 0.8229
+     },
+     "0.825-0.850": {
+      "n": 105,
+      "curve": 0.8489,
+      "realised": 0.8857
+     },
+     "0.850-0.875": {
+      "n": 94,
+      "curve": 0.8942,
+      "realised": 0.883
+     },
+     "0.875-0.900": {
+      "n": 74,
+      "curve": 0.8988,
+      "realised": 0.9324
+     },
+     "0.900-0.925": {
+      "n": 78,
+      "curve": 0.9226,
+      "realised": 0.9231
+     },
+     "0.925-0.950": {
+      "n": 59,
+      "curve": 0.9483,
+      "realised": 0.9661
+     }
+    },
+    "mean_curve": 0.8183,
+    "realised": 0.8388,
+    "gap": 0.0205,
+    "gap_ci95": [
+     -0.002,
+     0.0426
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": false
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "women:draw_no_bet|UNDER",
+   "installed": false,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.010199999999999987,
+   "n_control": 35613,
+   "n_term": 35580,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": null,
+     "control": [
+      26919,
+      0.3309
+     ],
+     "term": [
+      26889,
+      0.3311
+     ]
+    },
+    "0.600-0.700": {
+     "installed": null,
+     "control": [
+      3477,
+      0.7126
+     ],
+     "term": [
+      3470,
+      0.7091
+     ]
+    },
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      1475,
+      0.7851
+     ],
+     "term": [
+      1452,
+      0.7846
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      1250,
+      0.822
+     ],
+     "term": [
+      1287,
+      0.8279
+     ]
+    },
+    "0.800-0.825": {
+     "installed": null,
+     "control": [
+      594,
+      0.8666
+     ],
+     "term": [
+      582,
+      0.8564
+     ]
+    },
+    "0.825-0.850": {
+     "installed": null,
+     "control": [
+      516,
+      0.8681
+     ],
+     "term": [
+      516,
+      0.8617
+     ]
+    },
+    "0.850-0.875": {
+     "installed": null,
+     "control": [
+      485,
+      0.8827
+     ],
+     "term": [
+      489,
+      0.8905
+     ]
+    },
+    "0.875-0.900": {
+     "installed": null,
+     "control": [
+      458,
+      0.908
+     ],
+     "term": [
+      462,
+      0.9039
+     ]
+    },
+    "0.900-0.925": {
+     "installed": null,
+     "control": [
+      439,
+      0.9334
+     ],
+     "term": [
+      433,
+      0.9325
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 3297,
+    "with_curve_value": 3225,
+    "n": 777,
+    "matches": 777,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.600-0.700": {
+      "n": 350,
+      "curve": 0.7118,
+      "realised": 0.7257
+     },
+     "0.700-0.750": {
+      "n": 138,
+      "curve": 0.785,
+      "realised": 0.7971
+     },
+     "0.750-0.800": {
+      "n": 115,
+      "curve": 0.8309,
+      "realised": 0.7478
+     },
+     "0.800-0.825": {
+      "n": 51,
+      "curve": 0.8664,
+      "realised": 0.8824
+     },
+     "0.825-0.850": {
+      "n": 40,
+      "curve": 0.8709,
+      "realised": 0.85
+     },
+     "0.850-0.875": {
+      "n": 46,
+      "curve": 0.8806,
+      "realised": 0.913
+     },
+     "0.875-0.900": {
+      "n": 37,
+      "curve": 0.9166,
+      "realised": 0.8378
+     }
+    },
+    "mean_curve": 0.7805,
+    "realised": 0.7748,
+    "gap": -0.0057,
+    "gap_ci95": [
+     -0.0381,
+     0.0236
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   },
+   "gate_term": {
+    "holdout_forecasts": 3297,
+    "with_curve_value": 3227,
+    "n": 779,
+    "matches": 779,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.600-0.700": {
+      "n": 349,
+      "curve": 0.7086,
+      "realised": 0.7192
+     },
+     "0.700-0.750": {
+      "n": 133,
+      "curve": 0.7853,
+      "realised": 0.7895
+     },
+     "0.750-0.800": {
+      "n": 118,
+      "curve": 0.8367,
+      "realised": 0.7542
+     },
+     "0.800-0.825": {
+      "n": 53,
+      "curve": 0.8585,
+      "realised": 0.8491
+     },
+     "0.825-0.850": {
+      "n": 40,
+      "curve": 0.8619,
+      "realised": 0.875
+     },
+     "0.850-0.875": {
+      "n": 45,
+      "curve": 0.8895,
+      "realised": 0.9111
+     },
+     "0.875-0.900": {
+      "n": 41,
+      "curve": 0.911,
+      "realised": 0.8537
+     }
+    },
+    "mean_curve": 0.7803,
+    "realised": 0.7715,
+    "gap": -0.0088,
+    "gap_ci95": [
+     -0.0387,
+     0.0204
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   }
+  },
+  {
+   "group": "1x2_dnb_1015",
+   "key": "women:result_1x2|OVER",
+   "installed": false,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.006000000000000005,
+   "n_control": 88337,
+   "n_term": 88303,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": null,
+     "control": [
+      73392,
+      0.3403
+     ],
+     "term": [
+      73280,
+      0.3399
+     ]
+    },
+    "0.600-0.700": {
+     "installed": null,
+     "control": [
+      7449,
+      0.7086
+     ],
+     "term": [
+      7449,
+      0.7072
+     ]
+    },
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      2505,
+      0.7987
+     ],
+     "term": [
+      2543,
+      0.8029
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      1988,
+      0.8447
+     ],
+     "term": [
+      2005,
+      0.8393
+     ]
+    },
+    "0.800-0.825": {
+     "installed": null,
+     "control": [
+      784,
+      0.8596
+     ],
+     "term": [
+      795,
+      0.8656
+     ]
+    },
+    "0.825-0.850": {
+     "installed": null,
+     "control": [
+      687,
+      0.878
+     ],
+     "term": [
+      668,
+      0.8746
+     ]
+    },
+    "0.850-0.875": {
+     "installed": null,
+     "control": [
+      642,
+      0.9075
+     ],
+     "term": [
+      654,
+      0.9023
+     ]
+    },
+    "0.875-0.900": {
+     "installed": null,
+     "control": [
+      486,
+      0.918
+     ],
+     "term": [
+      503,
+      0.9161
+     ]
+    },
+    "0.900-0.925": {
+     "installed": null,
+     "control": [
+      404,
+      0.9397
+     ],
+     "term": [
+      406,
+      0.943
+     ]
+    }
+   },
+   "gate_control": {
+    "holdout_forecasts": 8171,
+    "with_curve_value": 8089,
+    "n": 1277,
+    "matches": 1277,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.600-0.700": {
+      "n": 655,
+      "curve": 0.7074,
+      "realised": 0.7252
+     },
+     "0.700-0.750": {
+      "n": 213,
+      "curve": 0.8056,
+      "realised": 0.7324
+     },
+     "0.750-0.800": {
+      "n": 181,
+      "curve": 0.8461,
+      "realised": 0.8398
+     },
+     "0.800-0.825": {
+      "n": 64,
+      "curve": 0.8591,
+      "realised": 0.875
+     },
+     "0.825-0.850": {
+      "n": 56,
+      "curve": 0.8795,
+      "realised": 0.875
+     },
+     "0.850-0.875": {
+      "n": 57,
+      "curve": 0.914,
+      "realised": 0.8596
+     },
+     "0.875-0.900": {
+      "n": 51,
+      "curve": 0.9301,
+      "realised": 0.8431
+     }
+    },
+    "mean_curve": 0.7767,
+    "realised": 0.7674,
+    "gap": -0.0093,
+    "gap_ci95": [
+     -0.0335,
+     0.0128
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   },
+   "gate_term": {
+    "holdout_forecasts": 8169,
+    "with_curve_value": 8084,
+    "n": 1269,
+    "matches": 1269,
+    "min_n": 300,
+    "max_gap": 0.02,
+    "print_floor": 0.7,
+    "rule": "one_sided",
+    "buckets": {
+     "0.600-0.700": {
+      "n": 650,
+      "curve": 0.7064,
+      "realised": 0.72
+     },
+     "0.700-0.750": {
+      "n": 218,
+      "curve": 0.8084,
+      "realised": 0.7523
+     },
+     "0.750-0.800": {
+      "n": 174,
+      "curve": 0.8418,
+      "realised": 0.8218
+     },
+     "0.800-0.825": {
+      "n": 63,
+      "curve": 0.8629,
+      "realised": 0.9048
+     },
+     "0.825-0.850": {
+      "n": 59,
+      "curve": 0.8788,
+      "realised": 0.8475
+     },
+     "0.850-0.875": {
+      "n": 56,
+      "curve": 0.9083,
+      "realised": 0.8571
+     },
+     "0.875-0.900": {
+      "n": 49,
+      "curve": 0.9251,
+      "realised": 0.8571
+     }
+    },
+    "mean_curve": 0.7756,
+    "realised": 0.766,
+    "gap": -0.0097,
+    "gap_ci95": [
+     -0.0341,
+     0.0153
+    ],
+    "pass": true,
+    "why": "",
+    "two_sided_pass": true
+   }
+  }
+ ],
+ "inc": [
+  {
+   "group": "incidents",
+   "key": "first_goal|OVER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.008899999999999908,
+   "max_dlo95_term_vs_control": 0.006299999999999972,
+   "n_control": 484946,
+   "n_term": 485102,
+   "buckets": {
+    "0.000-0.600": {
+     "installed": [
+      367829,
+      0.3226
+     ],
+     "control": [
+      441892,
+      0.3223
+     ],
+     "term": [
+      441982,
+      0.3221
+     ]
+    },
+    "0.600-0.700": {
+     "installed": [
+      26958,
+      0.6411
+     ],
+     "control": [
+      33250,
+      0.641
+     ],
+     "term": [
+      33300,
+      0.6415
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      4473,
+      0.7308
+     ],
+     "control": [
+      5850,
+      0.7283
+     ],
+     "term": [
+      5858,
+      0.7285
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      2034,
+      0.7526
+     ],
+     "control": [
+      2780,
+      0.7615
+     ],
+     "term": [
+      2793,
+      0.763
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      502,
+      0.7933
+     ],
+     "control": [
+      708,
+      0.7907
+     ],
+     "term": [
+      707,
+      0.7844
+     ]
+    },
+    "0.825-0.850": {
+     "installed": null,
+     "control": [
+      466,
+      0.8029
+     ],
+     "term": [
+      462,
+      0.8059
+     ]
+    }
+   },
+   "gate_control": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 433952,
+    "holdout_n": 47579,
+    "ge_070": {
+     "n": 1013,
+     "mean_p": 0.7429,
+     "curve": 0.7424,
+     "realised": 0.7404,
+     "gap_pp": -0.2
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 638,
+      "mean_p": 0.7214,
+      "curve": 0.7279,
+      "realised": 0.7241,
+      "gap_pp": -0.38
+     },
+     "0.750-0.800": {
+      "n": 295,
+      "mean_p": 0.771,
+      "curve": 0.7591,
+      "realised": 0.7695,
+      "gap_pp": 1.04
+     },
+     "0.800-0.825": {
+      "n": 80,
+      "mean_p": 0.811,
+      "curve": 0.7961,
+      "realised": 0.7625,
+      "gap_pp": -3.36
+     }
+    },
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 395802,
+      "realised": 0.3233,
+      "realised_lo95": 0.3218
+     },
+     "0.600-0.700": {
+      "n": 29226,
+      "realised": 0.6448,
+      "realised_lo95": 0.6393
+     },
+     "0.700-0.750": {
+      "n": 5099,
+      "realised": 0.7401,
+      "realised_lo95": 0.7279
+     },
+     "0.750-0.800": {
+      "n": 2400,
+      "realised": 0.7762,
+      "realised_lo95": 0.7591
+     },
+     "0.800-0.825": {
+      "n": 600,
+      "realised": 0.8283,
+      "realised_lo95": 0.7961
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 434133,
+    "holdout_n": 47562,
+    "ge_070": {
+     "n": 1012,
+     "mean_p": 0.7434,
+     "curve": 0.7425,
+     "realised": 0.7411,
+     "gap_pp": -0.14
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 635,
+      "mean_p": 0.7217,
+      "curve": 0.7284,
+      "realised": 0.7228,
+      "gap_pp": -0.56
+     },
+     "0.750-0.800": {
+      "n": 297,
+      "mean_p": 0.7715,
+      "curve": 0.7606,
+      "realised": 0.771,
+      "gap_pp": 1.04
+     },
+     "0.800-0.825": {
+      "n": 80,
+      "mean_p": 0.8118,
+      "curve": 0.7873,
+      "realised": 0.775,
+      "gap_pp": -1.23
+     }
+    },
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 395903,
+      "realised": 0.323,
+      "realised_lo95": 0.3216
+     },
+     "0.600-0.700": {
+      "n": 29271,
+      "realised": 0.6455,
+      "realised_lo95": 0.64
+     },
+     "0.700-0.750": {
+      "n": 5115,
+      "realised": 0.7406,
+      "realised_lo95": 0.7284
+     },
+     "0.750-0.800": {
+      "n": 2410,
+      "realised": 0.7776,
+      "realised_lo95": 0.7606
+     },
+     "0.800-0.825": {
+      "n": 600,
+      "realised": 0.82,
+      "realised_lo95": 0.7873
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "penalties_total|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": null,
+   "n_control": 0,
+   "n_term": 0,
+   "buckets": {},
+   "gate_control": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 94904,
+    "holdout_n": 11072,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 94904,
+      "realised": 0.2179,
+      "realised_lo95": 0.2153
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 94904,
+    "holdout_n": 11072,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 94904,
+      "realised": 0.2179,
+      "realised_lo95": 0.2153
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "penalties_total|UNDER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.017100000000000004,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_control": 106872,
+   "n_term": 106872,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      7988,
+      0.6875
+     ],
+     "control": [
+      11541,
+      0.686
+     ],
+     "term": [
+      11541,
+      0.686
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      23514,
+      0.7253
+     ],
+     "control": [
+      29241,
+      0.728
+     ],
+     "term": [
+      29241,
+      0.728
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      26937,
+      0.7611
+     ],
+     "control": [
+      34212,
+      0.7614
+     ],
+     "term": [
+      34212,
+      0.7614
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      7470,
+      0.7939
+     ],
+     "control": [
+      9254,
+      0.7977
+     ],
+     "term": [
+      9254,
+      0.7977
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      4545,
+      0.8167
+     ],
+     "control": [
+      5474,
+      0.8166
+     ],
+     "term": [
+      5474,
+      0.8166
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      1819,
+      0.8247
+     ],
+     "control": [
+      2396,
+      0.8418
+     ],
+     "term": [
+      2396,
+      0.8418
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      536,
+      0.8729
+     ],
+     "control": [
+      616,
+      0.8748
+     ],
+     "term": [
+      616,
+      0.8748
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      1254,
+      0.9248
+     ],
+     "control": [
+      1526,
+      0.9174
+     ],
+     "term": [
+      1526,
+      0.9174
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      10184,
+      0.9509
+     ],
+     "control": [
+      12612,
+      0.952
+     ],
+     "term": [
+      12612,
+      0.952
+     ]
+    }
+   },
+   "gate_control": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 94904,
+    "holdout_n": 11072,
+    "ge_070": {
+     "n": 9797,
+     "mean_p": 0.7925,
+     "curve": 0.7861,
+     "realised": 0.802,
+     "gap_pp": 1.58
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 3611,
+      "mean_p": 0.7282,
+      "curve": 0.7267,
+      "realised": 0.7413,
+      "gap_pp": 1.46
+     },
+     "0.750-0.800": {
+      "n": 3088,
+      "mean_p": 0.7736,
+      "curve": 0.7599,
+      "realised": 0.7782,
+      "gap_pp": 1.83
+     },
+     "0.800-0.825": {
+      "n": 735,
+      "mean_p": 0.8107,
+      "curve": 0.7984,
+      "realised": 0.7973,
+      "gap_pp": -0.11
+     },
+     "0.825-0.850": {
+      "n": 461,
+      "mean_p": 0.8361,
+      "curve": 0.8103,
+      "realised": 0.8698,
+      "gap_pp": 5.95
+     },
+     "0.850-0.875": {
+      "n": 248,
+      "mean_p": 0.8632,
+      "curve": 0.8363,
+      "realised": 0.875,
+      "gap_pp": 3.87
+     },
+     "0.875-0.900": {
+      "n": 60,
+      "mean_p": 0.8853,
+      "curve": 0.8793,
+      "realised": 0.9167,
+      "gap_pp": 3.74
+     },
+     "0.900-0.925": {
+      "n": 180,
+      "mean_p": 0.9186,
+      "curve": 0.915,
+      "realised": 0.9333,
+      "gap_pp": 1.83
+     },
+     "0.925-0.950": {
+      "n": 1414,
+      "mean_p": 0.9421,
+      "curve": 0.9519,
+      "realised": 0.9547,
+      "gap_pp": 0.28
+     }
+    },
+    "train_curve": {
+     "0.600-0.700": {
+      "n": 10175,
+      "realised": 0.6947,
+      "realised_lo95": 0.6857
+     },
+     "0.700-0.750": {
+      "n": 25508,
+      "realised": 0.7322,
+      "realised_lo95": 0.7267
+     },
+     "0.750-0.800": {
+      "n": 30796,
+      "realised": 0.7647,
+      "realised_lo95": 0.7599
+     },
+     "0.800-0.825": {
+      "n": 8433,
+      "realised": 0.8069,
+      "realised_lo95": 0.7984
+     },
+     "0.825-0.850": {
+      "n": 4869,
+      "realised": 0.8213,
+      "realised_lo95": 0.8103
+     },
+     "0.850-0.875": {
+      "n": 2026,
+      "realised": 0.8524,
+      "realised_lo95": 0.8363
+     },
+     "0.875-0.900": {
+      "n": 490,
+      "realised": 0.9082,
+      "realised_lo95": 0.8793
+     },
+     "0.900-0.925": {
+      "n": 1290,
+      "realised": 0.9302,
+      "realised_lo95": 0.915
+     },
+     "0.925-0.950": {
+      "n": 11132,
+      "realised": 0.9559,
+      "realised_lo95": 0.9519
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 94904,
+    "holdout_n": 11072,
+    "ge_070": {
+     "n": 9797,
+     "mean_p": 0.7925,
+     "curve": 0.7861,
+     "realised": 0.802,
+     "gap_pp": 1.58
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 3611,
+      "mean_p": 0.7282,
+      "curve": 0.7267,
+      "realised": 0.7413,
+      "gap_pp": 1.46
+     },
+     "0.750-0.800": {
+      "n": 3088,
+      "mean_p": 0.7736,
+      "curve": 0.7599,
+      "realised": 0.7782,
+      "gap_pp": 1.83
+     },
+     "0.800-0.825": {
+      "n": 735,
+      "mean_p": 0.8107,
+      "curve": 0.7984,
+      "realised": 0.7973,
+      "gap_pp": -0.11
+     },
+     "0.825-0.850": {
+      "n": 461,
+      "mean_p": 0.8361,
+      "curve": 0.8103,
+      "realised": 0.8698,
+      "gap_pp": 5.95
+     },
+     "0.850-0.875": {
+      "n": 248,
+      "mean_p": 0.8632,
+      "curve": 0.8363,
+      "realised": 0.875,
+      "gap_pp": 3.87
+     },
+     "0.875-0.900": {
+      "n": 60,
+      "mean_p": 0.8853,
+      "curve": 0.8793,
+      "realised": 0.9167,
+      "gap_pp": 3.74
+     },
+     "0.900-0.925": {
+      "n": 180,
+      "mean_p": 0.9186,
+      "curve": 0.915,
+      "realised": 0.9333,
+      "gap_pp": 1.83
+     },
+     "0.925-0.950": {
+      "n": 1414,
+      "mean_p": 0.9421,
+      "curve": 0.9519,
+      "realised": 0.9547,
+      "gap_pp": 0.28
+     }
+    },
+    "train_curve": {
+     "0.600-0.700": {
+      "n": 10175,
+      "realised": 0.6947,
+      "realised_lo95": 0.6857
+     },
+     "0.700-0.750": {
+      "n": 25508,
+      "realised": 0.7322,
+      "realised_lo95": 0.7267
+     },
+     "0.750-0.800": {
+      "n": 30796,
+      "realised": 0.7647,
+      "realised_lo95": 0.7599
+     },
+     "0.800-0.825": {
+      "n": 8433,
+      "realised": 0.8069,
+      "realised_lo95": 0.7984
+     },
+     "0.825-0.850": {
+      "n": 4869,
+      "realised": 0.8213,
+      "realised_lo95": 0.8103
+     },
+     "0.850-0.875": {
+      "n": 2026,
+      "realised": 0.8524,
+      "realised_lo95": 0.8363
+     },
+     "0.875-0.900": {
+      "n": 490,
+      "realised": 0.9082,
+      "realised_lo95": 0.8793
+     },
+     "0.900-0.925": {
+      "n": 1290,
+      "realised": 0.9302,
+      "realised_lo95": 0.915
+     },
+     "0.925-0.950": {
+      "n": 11132,
+      "realised": 0.9559,
+      "realised_lo95": 0.9519
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "red_cards_total|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": null,
+   "n_control": 0,
+   "n_term": 0,
+   "buckets": {},
+   "gate_control": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 90717,
+    "holdout_n": 10784,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 90717,
+      "realised": 0.1733,
+      "realised_lo95": 0.1709
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 90717,
+    "holdout_n": 10784,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 90717,
+      "realised": 0.1733,
+      "realised_lo95": 0.1709
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "red_cards_total|UNDER",
+   "installed": true,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": 0.006299999999999972,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_control": 102210,
+   "n_term": 102210,
+   "buckets": {
+    "0.600-0.700": {
+     "installed": [
+      3107,
+      0.6641
+     ],
+     "control": [
+      3994,
+      0.6578
+     ],
+     "term": [
+      3994,
+      0.6578
+     ]
+    },
+    "0.700-0.750": {
+     "installed": [
+      5677,
+      0.7188
+     ],
+     "control": [
+      6258,
+      0.7191
+     ],
+     "term": [
+      6258,
+      0.7191
+     ]
+    },
+    "0.750-0.800": {
+     "installed": [
+      17868,
+      0.7764
+     ],
+     "control": [
+      22532,
+      0.7787
+     ],
+     "term": [
+      22532,
+      0.7787
+     ]
+    },
+    "0.800-0.825": {
+     "installed": [
+      13020,
+      0.8097
+     ],
+     "control": [
+      18460,
+      0.8112
+     ],
+     "term": [
+      18460,
+      0.8112
+     ]
+    },
+    "0.825-0.850": {
+     "installed": [
+      13303,
+      0.8314
+     ],
+     "control": [
+      15896,
+      0.8284
+     ],
+     "term": [
+      15896,
+      0.8284
+     ]
+    },
+    "0.850-0.875": {
+     "installed": [
+      10782,
+      0.8524
+     ],
+     "control": [
+      13424,
+      0.8539
+     ],
+     "term": [
+      13424,
+      0.8539
+     ]
+    },
+    "0.875-0.900": {
+     "installed": [
+      5379,
+      0.8759
+     ],
+     "control": [
+      7275,
+      0.877
+     ],
+     "term": [
+      7275,
+      0.877
+     ]
+    },
+    "0.900-0.925": {
+     "installed": [
+      4735,
+      0.8976
+     ],
+     "control": [
+      6239,
+      0.8984
+     ],
+     "term": [
+      6239,
+      0.8984
+     ]
+    },
+    "0.925-0.950": {
+     "installed": [
+      6600,
+      0.9365
+     ],
+     "control": [
+      8132,
+      0.9391
+     ],
+     "term": [
+      8132,
+      0.9391
+     ]
+    }
+   },
+   "gate_control": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 90717,
+    "holdout_n": 10784,
+    "ge_070": {
+     "n": 10301,
+     "mean_p": 0.8307,
+     "curve": 0.826,
+     "realised": 0.8331,
+     "gap_pp": 0.71
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 642,
+      "mean_p": 0.7213,
+      "curve": 0.7158,
+      "realised": 0.7539,
+      "gap_pp": 3.81
+     },
+     "0.750-0.800": {
+      "n": 2484,
+      "mean_p": 0.7771,
+      "curve": 0.7772,
+      "realised": 0.7939,
+      "gap_pp": 1.67
+     },
+     "0.800-0.825": {
+      "n": 1763,
+      "mean_p": 0.8114,
+      "curve": 0.8122,
+      "realised": 0.8037,
+      "gap_pp": -0.85
+     },
+     "0.825-0.850": {
+      "n": 1707,
+      "mean_p": 0.8377,
+      "curve": 0.8283,
+      "realised": 0.8313,
+      "gap_pp": 0.3
+     },
+     "0.850-0.875": {
+      "n": 1440,
+      "mean_p": 0.8619,
+      "curve": 0.8532,
+      "realised": 0.8639,
+      "gap_pp": 1.07
+     },
+     "0.875-0.900": {
+      "n": 912,
+      "mean_p": 0.8869,
+      "curve": 0.8773,
+      "realised": 0.8805,
+      "gap_pp": 0.32
+     },
+     "0.900-0.925": {
+      "n": 682,
+      "mean_p": 0.9116,
+      "curve": 0.9004,
+      "realised": 0.8842,
+      "gap_pp": -1.62
+     },
+     "0.925-0.950": {
+      "n": 671,
+      "mean_p": 0.9408,
+      "curve": 0.9392,
+      "realised": 0.9538,
+      "gap_pp": 1.46
+     }
+    },
+    "train_curve": {
+     "0.600-0.700": {
+      "n": 3563,
+      "realised": 0.6778,
+      "realised_lo95": 0.6623
+     },
+     "0.700-0.750": {
+      "n": 5616,
+      "realised": 0.7276,
+      "realised_lo95": 0.7158
+     },
+     "0.750-0.800": {
+      "n": 19995,
+      "realised": 0.783,
+      "realised_lo95": 0.7772
+     },
+     "0.800-0.825": {
+      "n": 16630,
+      "realised": 0.8181,
+      "realised_lo95": 0.8122
+     },
+     "0.825-0.850": {
+      "n": 14165,
+      "realised": 0.8345,
+      "realised_lo95": 0.8283
+     },
+     "0.850-0.875": {
+      "n": 11937,
+      "realised": 0.8595,
+      "realised_lo95": 0.8532
+     },
+     "0.875-0.900": {
+      "n": 6198,
+      "realised": 0.8854,
+      "realised_lo95": 0.8773
+     },
+     "0.900-0.925": {
+      "n": 5374,
+      "realised": 0.9084,
+      "realised_lo95": 0.9004
+     },
+     "0.925-0.950": {
+      "n": 7080,
+      "realised": 0.9448,
+      "realised_lo95": 0.9392
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 90717,
+    "holdout_n": 10784,
+    "ge_070": {
+     "n": 10301,
+     "mean_p": 0.8307,
+     "curve": 0.826,
+     "realised": 0.8331,
+     "gap_pp": 0.71
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 642,
+      "mean_p": 0.7213,
+      "curve": 0.7158,
+      "realised": 0.7539,
+      "gap_pp": 3.81
+     },
+     "0.750-0.800": {
+      "n": 2484,
+      "mean_p": 0.7771,
+      "curve": 0.7772,
+      "realised": 0.7939,
+      "gap_pp": 1.67
+     },
+     "0.800-0.825": {
+      "n": 1763,
+      "mean_p": 0.8114,
+      "curve": 0.8122,
+      "realised": 0.8037,
+      "gap_pp": -0.85
+     },
+     "0.825-0.850": {
+      "n": 1707,
+      "mean_p": 0.8377,
+      "curve": 0.8283,
+      "realised": 0.8313,
+      "gap_pp": 0.3
+     },
+     "0.850-0.875": {
+      "n": 1440,
+      "mean_p": 0.8619,
+      "curve": 0.8532,
+      "realised": 0.8639,
+      "gap_pp": 1.07
+     },
+     "0.875-0.900": {
+      "n": 912,
+      "mean_p": 0.8869,
+      "curve": 0.8773,
+      "realised": 0.8805,
+      "gap_pp": 0.32
+     },
+     "0.900-0.925": {
+      "n": 682,
+      "mean_p": 0.9116,
+      "curve": 0.9004,
+      "realised": 0.8842,
+      "gap_pp": -1.62
+     },
+     "0.925-0.950": {
+      "n": 671,
+      "mean_p": 0.9408,
+      "curve": 0.9392,
+      "realised": 0.9538,
+      "gap_pp": 1.46
+     }
+    },
+    "train_curve": {
+     "0.600-0.700": {
+      "n": 3563,
+      "realised": 0.6778,
+      "realised_lo95": 0.6623
+     },
+     "0.700-0.750": {
+      "n": 5616,
+      "realised": 0.7276,
+      "realised_lo95": 0.7158
+     },
+     "0.750-0.800": {
+      "n": 19995,
+      "realised": 0.783,
+      "realised_lo95": 0.7772
+     },
+     "0.800-0.825": {
+      "n": 16630,
+      "realised": 0.8181,
+      "realised_lo95": 0.8122
+     },
+     "0.825-0.850": {
+      "n": 14165,
+      "realised": 0.8345,
+      "realised_lo95": 0.8283
+     },
+     "0.850-0.875": {
+      "n": 11937,
+      "realised": 0.8595,
+      "realised_lo95": 0.8532
+     },
+     "0.875-0.900": {
+      "n": 6198,
+      "realised": 0.8854,
+      "realised_lo95": 0.8773
+     },
+     "0.900-0.925": {
+      "n": 5374,
+      "realised": 0.9084,
+      "realised_lo95": 0.9004
+     },
+     "0.925-0.950": {
+      "n": 7080,
+      "realised": 0.9448,
+      "realised_lo95": 0.9392
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "women:first_goal|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": null,
+   "n_control": 0,
+   "n_term": 0,
+   "buckets": {},
+   "gate_control": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 20526,
+    "holdout_n": 3504,
+    "ge_070": {
+     "n": 187,
+     "mean_p": 0.7434,
+     "curve": 0.7523,
+     "realised": 0.8182,
+     "gap_pp": 6.58
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 106,
+      "mean_p": 0.7213,
+      "curve": 0.7416,
+      "realised": 0.8019,
+      "gap_pp": 6.03
+     },
+     "0.750-0.800": {
+      "n": 81,
+      "mean_p": 0.7724,
+      "curve": 0.7664,
+      "realised": 0.8395,
+      "gap_pp": 7.31
+     }
+    },
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 17218,
+      "realised": 0.2928,
+      "realised_lo95": 0.2861
+     },
+     "0.600-0.700": {
+      "n": 1856,
+      "realised": 0.6697,
+      "realised_lo95": 0.648
+     },
+     "0.700-0.750": {
+      "n": 550,
+      "realised": 0.7782,
+      "realised_lo95": 0.7416
+     },
+     "0.750-0.800": {
+      "n": 410,
+      "realised": 0.8073,
+      "realised_lo95": 0.7664
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 20509,
+    "holdout_n": 3505,
+    "ge_070": {
+     "n": 183,
+     "mean_p": 0.7448,
+     "curve": 0.7497,
+     "realised": 0.8197,
+     "gap_pp": 6.99
+    },
+    "buckets": {
+     "0.700-0.750": {
+      "n": 101,
+      "mean_p": 0.7224,
+      "curve": 0.7349,
+      "realised": 0.802,
+      "gap_pp": 6.71
+     },
+     "0.750-0.800": {
+      "n": 82,
+      "mean_p": 0.7725,
+      "curve": 0.768,
+      "realised": 0.8415,
+      "gap_pp": 7.35
+     }
+    },
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 17193,
+      "realised": 0.2926,
+      "realised_lo95": 0.2859
+     },
+     "0.600-0.700": {
+      "n": 1857,
+      "realised": 0.6737,
+      "realised_lo95": 0.652
+     },
+     "0.700-0.750": {
+      "n": 556,
+      "realised": 0.7716,
+      "realised_lo95": 0.7349
+     },
+     "0.750-0.800": {
+      "n": 413,
+      "realised": 0.8087,
+      "realised_lo95": 0.768
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "women:penalties_total|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": null,
+   "n_control": 0,
+   "n_term": 0,
+   "buckets": {},
+   "gate_control": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 4965,
+    "holdout_n": 996,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 4965,
+      "realised": 0.1907,
+      "realised_lo95": 0.18
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 4965,
+    "holdout_n": 996,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 4965,
+      "realised": 0.1907,
+      "realised_lo95": 0.18
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "women:penalties_total|UNDER",
+   "installed": false,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_control": 4875,
+   "n_term": 4875,
+   "buckets": {
+    "0.700-0.750": {
+     "installed": null,
+     "control": [
+      874,
+      0.6855
+     ],
+     "term": [
+      874,
+      0.6855
+     ]
+    },
+    "0.750-0.800": {
+     "installed": null,
+     "control": [
+      1664,
+      0.7527
+     ],
+     "term": [
+      1664,
+      0.7527
+     ]
+    },
+    "0.800-0.825": {
+     "installed": null,
+     "control": [
+      933,
+      0.8041
+     ],
+     "term": [
+      933,
+      0.8041
+     ]
+    },
+    "0.825-0.850": {
+     "installed": null,
+     "control": [
+      864,
+      0.8303
+     ],
+     "term": [
+      864,
+      0.8303
+     ]
+    },
+    "0.850-0.875": {
+     "installed": null,
+     "control": [
+      540,
+      0.8394
+     ],
+     "term": [
+      540,
+      0.8394
+     ]
+    }
+   },
+   "gate_control": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 4965,
+    "holdout_n": 996,
+    "ge_070": {
+     "n": 609,
+     "mean_p": 0.8093,
+     "curve": 0.7912,
+     "realised": 0.8161,
+     "gap_pp": 2.49
+    },
+    "buckets": {
+     "0.750-0.800": {
+      "n": 275,
+      "mean_p": 0.7715,
+      "curve": 0.7542,
+      "realised": 0.7564,
+      "gap_pp": 0.22
+     },
+     "0.800-0.825": {
+      "n": 72,
+      "mean_p": 0.8126,
+      "curve": 0.8049,
+      "realised": 0.8056,
+      "gap_pp": 0.07
+     },
+     "0.825-0.850": {
+      "n": 140,
+      "mean_p": 0.8361,
+      "curve": 0.823,
+      "realised": 0.8786,
+      "gap_pp": 5.56
+     },
+     "0.850-0.875": {
+      "n": 122,
+      "mean_p": 0.862,
+      "curve": 0.83,
+      "realised": 0.8852,
+      "gap_pp": 5.52
+     }
+    },
+    "train_curve": {
+     "0.700-0.750": {
+      "n": 779,
+      "realised": 0.7227,
+      "realised_lo95": 0.6903
+     },
+     "0.750-0.800": {
+      "n": 1389,
+      "realised": 0.7768,
+      "realised_lo95": 0.7542
+     },
+     "0.800-0.825": {
+      "n": 860,
+      "realised": 0.8314,
+      "realised_lo95": 0.8049
+     },
+     "0.825-0.850": {
+      "n": 724,
+      "realised": 0.8508,
+      "realised_lo95": 0.823
+     },
+     "0.850-0.875": {
+      "n": 418,
+      "realised": 0.866,
+      "realised_lo95": 0.83
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 4965,
+    "holdout_n": 996,
+    "ge_070": {
+     "n": 609,
+     "mean_p": 0.8093,
+     "curve": 0.7912,
+     "realised": 0.8161,
+     "gap_pp": 2.49
+    },
+    "buckets": {
+     "0.750-0.800": {
+      "n": 275,
+      "mean_p": 0.7715,
+      "curve": 0.7542,
+      "realised": 0.7564,
+      "gap_pp": 0.22
+     },
+     "0.800-0.825": {
+      "n": 72,
+      "mean_p": 0.8126,
+      "curve": 0.8049,
+      "realised": 0.8056,
+      "gap_pp": 0.07
+     },
+     "0.825-0.850": {
+      "n": 140,
+      "mean_p": 0.8361,
+      "curve": 0.823,
+      "realised": 0.8786,
+      "gap_pp": 5.56
+     },
+     "0.850-0.875": {
+      "n": 122,
+      "mean_p": 0.862,
+      "curve": 0.83,
+      "realised": 0.8852,
+      "gap_pp": 5.52
+     }
+    },
+    "train_curve": {
+     "0.700-0.750": {
+      "n": 779,
+      "realised": 0.7227,
+      "realised_lo95": 0.6903
+     },
+     "0.750-0.800": {
+      "n": 1389,
+      "realised": 0.7768,
+      "realised_lo95": 0.7542
+     },
+     "0.800-0.825": {
+      "n": 860,
+      "realised": 0.8314,
+      "realised_lo95": 0.8049
+     },
+     "0.825-0.850": {
+      "n": 724,
+      "realised": 0.8508,
+      "realised_lo95": 0.823
+     },
+     "0.850-0.875": {
+      "n": 418,
+      "realised": 0.866,
+      "realised_lo95": 0.83
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "women:red_cards_total|OVER",
+   "installed": false,
+   "pass_control": false,
+   "pass_term": false,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": null,
+   "n_control": 0,
+   "n_term": 0,
+   "buckets": {},
+   "gate_control": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 3627,
+    "holdout_n": 794,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 3627,
+      "realised": 0.0921,
+      "realised_lo95": 0.0831
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": false,
+    "reason": "n < 300",
+    "rule": "one_sided",
+    "two_sided_pass": false,
+    "train_n": 3627,
+    "holdout_n": 794,
+    "ge_070": null,
+    "buckets": {},
+    "train_curve": {
+     "0.000-0.600": {
+      "n": 3627,
+      "realised": 0.0921,
+      "realised_lo95": 0.0831
+     }
+    },
+    "symmetric": false
+   }
+  },
+  {
+   "group": "incidents",
+   "key": "women:red_cards_total|UNDER",
+   "installed": false,
+   "pass_control": true,
+   "pass_term": true,
+   "max_dlo95_control_vs_installed": null,
+   "max_dlo95_term_vs_control": 0.0,
+   "n_control": 3809,
+   "n_term": 3809,
+   "buckets": {
+    "0.875-0.900": {
+     "installed": null,
+     "control": [
+      667,
+      0.8419
+     ],
+     "term": [
+      667,
+      0.8419
+     ]
+    },
+    "0.900-0.925": {
+     "installed": null,
+     "control": [
+      1259,
+      0.8957
+     ],
+     "term": [
+      1259,
+      0.8957
+     ]
+    },
+    "0.925-0.950": {
+     "installed": null,
+     "control": [
+      1883,
+      0.9169
+     ],
+     "term": [
+      1883,
+      0.9169
+     ]
+    }
+   },
+   "gate_control": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 3627,
+    "holdout_n": 794,
+    "ge_070": {
+     "n": 695,
+     "mean_p": 0.9202,
+     "curve": 0.896,
+     "realised": 0.905,
+     "gap_pp": 0.9
+    },
+    "buckets": {
+     "0.875-0.900": {
+      "n": 143,
+      "mean_p": 0.8875,
+      "curve": 0.8384,
+      "realised": 0.8671,
+      "gap_pp": 2.87
+     },
+     "0.900-0.925": {
+      "n": 177,
+      "mean_p": 0.9148,
+      "curve": 0.8948,
+      "realised": 0.9096,
+      "gap_pp": 1.48
+     },
+     "0.925-0.950": {
+      "n": 375,
+      "mean_p": 0.9351,
+      "curve": 0.9186,
+      "realised": 0.9173,
+      "gap_pp": -0.13
+     }
+    },
+    "train_curve": {
+     "0.875-0.900": {
+      "n": 523,
+      "realised": 0.87,
+      "realised_lo95": 0.8384
+     },
+     "0.900-0.925": {
+      "n": 1082,
+      "realised": 0.9131,
+      "realised_lo95": 0.8948
+     },
+     "0.925-0.950": {
+      "n": 1508,
+      "realised": 0.9324,
+      "realised_lo95": 0.9186
+     }
+    },
+    "symmetric": false
+   },
+   "gate_term": {
+    "pass": true,
+    "reason": "PASS",
+    "rule": "one_sided",
+    "two_sided_pass": true,
+    "train_n": 3627,
+    "holdout_n": 794,
+    "ge_070": {
+     "n": 695,
+     "mean_p": 0.9202,
+     "curve": 0.896,
+     "realised": 0.905,
+     "gap_pp": 0.9
+    },
+    "buckets": {
+     "0.875-0.900": {
+      "n": 143,
+      "mean_p": 0.8875,
+      "curve": 0.8384,
+      "realised": 0.8671,
+      "gap_pp": 2.87
+     },
+     "0.900-0.925": {
+      "n": 177,
+      "mean_p": 0.9148,
+      "curve": 0.8948,
+      "realised": 0.9096,
+      "gap_pp": 1.48
+     },
+     "0.925-0.950": {
+      "n": 375,
+      "mean_p": 0.9351,
+      "curve": 0.9186,
+      "realised": 0.9173,
+      "gap_pp": -0.13
+     }
+    },
+    "train_curve": {
+     "0.875-0.900": {
+      "n": 523,
+      "realised": 0.87,
+      "realised_lo95": 0.8384
+     },
+     "0.900-0.925": {
+      "n": 1082,
+      "realised": 0.9131,
+      "realised_lo95": 0.8948
+     },
+     "0.925-0.950": {
+      "n": 1508,
+      "realised": 0.9324,
+      "realised_lo95": 0.9186
+     }
+    },
+    "symmetric": false
+   }
+  }
+ ]
+}

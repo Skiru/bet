@@ -1,0 +1,18 @@
+SOFA_NOW: the clock is frozen at 2026-11-08T08:00:00+00:00 (a replay, not a live run)
+E2E mode=off now=2026-11-08T08:00:00+00:00 schedule_term_on=False calibration=sofa_confidence_calibration.next.2026-11-07.json sim_curves=sofa_football_sim_curves.json
+sheet_schedule_term(marker present): False
+  note: DAY_OVER hockey/basketball/volleyball: no open event on file - no SHADOW refresh
+  note: DAY_OVER cs2: no open event on file - no CS2 refresh
+  note: SHEET kept: built under 'stats_only'
+  note: CONFIG_CHANGED: 05_sheet.json priced on fitted config e3bfb520c986fb3d, the files are now 9bd05a665c3e1270 (a refit install or a table fit, bet.sofa.sheet_config) - SHEET kept: an install never goes into a built day unless the operator says so; then run_pipeline.py --only SHEET by hand before the rebuild
+  plan  1. BRIDGE           LATE_RESOLVE asks Sofascore
+  plan  2. LATE_RESOLVE     23 board entries with no fixture start more than 20 min ahead (epochs.late_resolve): new fixtures only, through OFFER / SAMPLES / SHEET --event-ids
+  plan  3. OFFER            oldest price of 1002 open fixtures is 32 min old > 30 min (CONFIDENCE STALE_PRICE at 45 min, minus the rebuild's margin)
+  plan  4. COUPON           06_coupon.json older than the sheet / vetoes / reads: keeps audit_coupon in step (the priced selector, not the coupon)
+  plan  5. FIXTURE_CHECK    fresh /event start and status before CONFIDENCE (K12/K14); no bridge = UNVERIFIED, nothing refused
+  plan  6. CONFIDENCE       football / tennis -> 08_confidence.json
+  plan  7. SPORT_CONFIDENCE measured sports -> 08_confidence_sports.json
+  plan  8. COUPON_ASSEMBLY  the one coupon -> 11_coupon.json
+  plan  9. PDF              KUPON_<d>.pdf + KUPON_<d>.html + 12_printed.json
+  plan 10. AUDIT_VARIANTS   C1-C3 / U1-U3 on the coupon artifact
+  plan 11. AUDIT_COUPON     06_coupon.json audit (the priced selector, not the coupon)

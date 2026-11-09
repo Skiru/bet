@@ -35,6 +35,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple, cast
 
+from bet.sofa import schedule_term_view
 from bet.sofa.atomic import write_atomic
 from bet.sofa.cache import SofaCache
 from bet.sofa.client import SofascoreClient, breaker_tripped
@@ -1263,6 +1264,10 @@ def main() -> int:
 
     settled_at = datetime.now(UTC).isoformat()
     rows: list[SettledRow] = []
+    # rows[i]'s schedule-term fields from its SHEET row (bet.sofa.
+    # schedule_term_view): 07_settled.json only - sofa_settled_row has no
+    # column for them and is not migrated; {} for every other row.
+    row_extras: list[dict[str, Any]] = []
     # A4 grades: 07_settled_printed.json, never sofa_settled_row.
     printed_rows: list[dict[str, Any]] = []
     skips = SkipLedger()
@@ -1314,6 +1319,7 @@ def main() -> int:
                 row, args.date, event_id, competition_id, value, outcome, settled_at
             )
         )
+        row_extras.append(schedule_term_view.leg_fields(row))
 
     reached: set[int] = set()
     try:
@@ -1653,7 +1659,8 @@ def main() -> int:
     previous_rows = [
         r for r in previous_rows if int(r["sofascore_event_id"]) not in refunded
     ]
-    current_rows = [dict(vars(r)) for r in rows]
+    current_rows = [{**vars(r), **extra} for r, extra in zip(rows, row_extras,
+                                                              strict=True)]
     merged_rows = merge_settled(previous_rows, current_rows)
 
     printed_path = run_dir / PRINTED_SETTLED_FILE

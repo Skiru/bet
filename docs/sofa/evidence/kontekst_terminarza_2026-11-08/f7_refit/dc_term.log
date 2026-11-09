@@ -1,0 +1,1 @@
+{"out_dir": "data/refit_2026-11-08_schedule/f7/dc/term", "pass": ["double_chance|OVER", "women:double_chance|OVER"], "fail": [], "counts": {"train": 1850704, "holdout": 152976, "final": 2004874}}

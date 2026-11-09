@@ -787,6 +787,37 @@
           "quote": "727 nóg sprzed `PRICE_GAP_OFFSET` daje −7,7 pp [−11,0, −4,9], a 48 nóg z 10-31..11-04 daje +2,5 pp [−4,3, +8,9]"
         }
       ]
+    },
+    {
+      "id": "T-SCHEDULE-TERM-FORWARD",
+      "registered_on": "2026-11-09",
+      "status": "REGISTERED",
+      "hypothesis": "The schedule term (epochs.SCHEDULE_TERM, schedule_term_v1, frozen coefficients config/sofa_schedule_terms.json = fr_frozen of the exam, spec 87a5087f) improves the football 1X2 probabilities on new data: the pure rating goals centres x exp(t) give a lower Brier score of the 1X2 outcome than the same centres without the term.",
+      "rule": "Football SHEET rows of epochs.SCHEDULE_TERM_MARKETS from 2026-11-10 that carry both p_central and p_central_no_schedule_term (inverted shadow) and a settled outcome in sofa_settled_row / 07_settled.json; the metric is the exam's: per match, the 1X2 Brier of the result_1x2 rows from the corrected centres minus from the uncorrected ones (Delta < 0 = the term helps), averaged over matches; the other in-scope markets reported beside it, never pooled into Delta.",
+      "population": "Every settled football match with a result_1x2 row under the switch (printed or not), friendlies and awarded results excluded as SHEET excludes them; national-team and no-coverage rows (t = 0) count with Delta 0.",
+      "data_window": {
+        "from": "2026-11-10",
+        "to": null
+      },
+      "required_n": {
+        "matches": 158000,
+        "min_weeks": 6,
+        "basis": "Exam effect -0.000223 per match; validate 2026-11-09 Delta -0.000327 [-0.000513, -0.000137] on 137,984 matches gives a per-match sd of 0.0356; one-sided alpha 0.05, power 0.80 to see an effect of the exam's size: n = ((1.645 + 0.842) x 0.0356 / 0.000223)^2 ~ 158,000 matches. Live volume ~300-400 rated football matches a day: about 13-17 months. Judged at the later of 6 weeks and the required n (pre-registration section 11)."
+      },
+      "evaluation": "Pigeonhole bootstrap over home x away team (as the exam, scripts/sofa/measure_schedule_exam.py cluster_boot), 2000 reps, seeded; Delta and its 95% interval.",
+      "stop_criterion": "Withdrawal rule frozen in docs/sofa/evidence/schedule_context_prereg_2026-11-09.md section 11: at the later of 6 weeks and the required n, if the uncorrected centres are better - Delta > 0 with its lower 95% bound > 0 - the switch goes off from the next day 00:00Z (FAILED). Delta < 0 with the upper bound < 0: PASSED. Otherwise NOT_PASSED: the switch stays (the exam decided it). Nothing is judged earlier; no peeking changes the rule.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/schedule_context_exam_log.md",
+          "line": 5,
+          "quote": "goals NOT_PASSED, football_result PASS"
+        },
+        {
+          "source": "docs/sofa/evidence/schedule_context_prereg_2026-11-09.md",
+          "line": 244,
+          "quote": "T-SCHEDULE-TERM-FORWARD"
+        }
+      ]
     }
   ]
 }

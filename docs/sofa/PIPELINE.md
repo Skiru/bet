@@ -1454,6 +1454,28 @@ i dokładny wynik połowy nie są wpięte (rozliczenie niepewne / lista
 niepełna). Pomiar i odłożona próba:
 `docs/sofa/evidence/football_sim_wiring_2026-11-06.md`; krzywe - rozdział 10.
 
+**Kontekst terminarza w piłce (od 2026-11-10 00:00Z, `epochs.SCHEDULE_TERM_FROM_UTC`,
+`schedule_term_v1`; grupa ledgera „od 11-10”).** Jedyny egzamin z góry (2026-11-09, spec `87a5087f`,
+`docs/sofa/evidence/schedule_context_exam_log.md`, reguła (c), Holm K = 4) zaliczyła tylko grupa
+`football_result`: Delta Briera 1X2 −0,000223 [−0,000340; −0,000101]. Gole (licznikowe), zwycięzca tenisa i
+gemy / sety tenisa - niezaliczone; rożne, strzały, kartki / faule, spalone i serwis tenisa odpadły na bramkach
+zgłoszenia. Na żywo (`bet.sofa.schedule_term`, `run_sheet.schedule_term_rows`): dla wierszy
+`epochs.SCHEDULE_TERM_MARKETS` (1X2, DNB, podwójna szansa, rynki wyniku, pierwszy gol, rynki symulatora poza
+czterema kluczami progu 0,60) czyste środki goli ratingu x exp(t); t = człony własne i rywala: odpoczynek
+(R1 < 3,5 dnia, R2 3,5-5,5, R4 8,5-20,5 po przerwie reprezentacyjnej lub nie, R5 >= 20,5 zima / inne; R3
+odniesienie), mecz pucharowy kontynentalny 96 h przed / po, dogrywka w 7 dniach, >= 4 mecze w 14 dniach
+(`bet.sofa.schedule_features`), zamrożone współczynniki z rozwoju `config/sofa_schedule_terms.json` (nigdy
+przefit na pełnej historii; stałe kalendarza w `unfitted_constants`). Reprezentacje i strony bez pokrycia
+kalendarza: t = 0. Liczniki, stan gry, punkty kartek i próbki - bez poprawki. Wiersz niesie `schedule_term` i
+`p_central_no_schedule_term` (cień odwrócony; do nóg CONFIDENCE i `07_settled.json`, nie do
+`sofa_settled_row` - migracja wymaga zgody), znacznik `schedule_term_rule` (rebuild_plan powtarza SHEET).
+Krzywe: `config/sofa_confidence_calibration.next.2026-11-10.json` (138 kluczy przefitowanych z
+`--schedule-term` na kopii bazy; `draw_no_bet|UNDER` i `result_or_over@2@5.5|OVER` zostają zainstalowane - nie
+przechodzą bramki także bez poprawki) i `config/sofa_football_sim_curves.next.2026-11-10.json`. Notka „kontekst
+terminarza w modelu (t = ...)” na PDF / HTML / w dossier - tylko wyświetlanie. Test na przyszłość
+`T-SCHEDULE-TERM-FORWARD` (reguła wycofania z pre-rejestracji). Raport:
+`docs/sofa/evidence/schedule_context_2026-11-09.md`.
+
 ### 7.1c Pakiety modelowe (zainstalowane 2026-10-08 23:42Z, WŁĄCZONE od 2026-10-09 00:00Z; poza `CARDS_CORRELATION`)
 
 Cztery pakiety zmierzone poza próbą na historii (raporty w

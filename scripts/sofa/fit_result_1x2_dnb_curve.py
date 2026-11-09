@@ -120,6 +120,7 @@ def _ts(day: str) -> int:
 
 AWARDED_TAG = "|awarded_excluded"
 FORM_TABLE_TAG = "|form_table"
+SCHEDULE_TAG = "|schedule_term"
 
 
 def load_matches(hist_path: Path, from_ts: int, cut: int,
@@ -145,6 +146,10 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
             raise SystemExit(
                 f"{cache} was written under the other --form-table rule - "
                 "drop the cache or match the flag")
+        if out and (SCHEDULE_TAG in fp) != (dc_fit.SCHEDULE is not None):
+            raise SystemExit(
+                f"{cache} was written under the other --schedule-term rule - "
+                "drop the cache or match the flag")
         held = fp.endswith(AWARDED_TAG)
         if out and held != awarded_out:  # no rows: no rule to disagree with
             raise SystemExit(
@@ -155,6 +160,8 @@ def load_matches(hist_path: Path, from_ts: int, cut: int,
     fingerprint, history = pickle.loads(hist_path.read_bytes())
     if dc_fit.FORM_TABLE:
         fingerprint = f"{fingerprint}{FORM_TABLE_TAG}"
+    if dc_fit.SCHEDULE is not None:
+        fingerprint = f"{fingerprint}{SCHEDULE_TAG}"
     if awarded_out:
         history = fr.without_awarded(history)
         fingerprint = f"{fingerprint}{AWARDED_TAG}"
@@ -303,9 +310,11 @@ def main() -> int:
     ap.add_argument("--cup-strength", nargs="?", const="", default=None,
                     metavar="CONFIG", help="the book with the cup league strength "
                     "(fit_double_chance_curve.set_cup)")
+    dc_fit.add_schedule_args(ap)
     args = ap.parse_args()
     dc_fit.set_cup(args.cup_strength)
     dc_fit.set_form_table(args.form_table)
+    dc_fit.set_schedule_term(dc_fit.schedule_db(args))
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     hist_path = Path(args.history or _REPO / "data" / "cache" / "football_history.pkl")
@@ -344,6 +353,7 @@ def main() -> int:
         "holdout": {"train_window": [args.from_, args.holdout_from],
                     "holdout_window": [args.holdout_from, args.holdout_to],
                     "rule": gate_mod.RULE_TEXT},
+        **dc_fit.schedule_stamp(dc_fit.replay_flags(args)),
     }
     by_md: dict[str, Any] = {}
     by_class: dict[str, Any] = {}

@@ -4,7 +4,7 @@ Plan: `docs/sofa/history/PLAN_KONTEKST_TERMINARZA_PILKA_TENIS_2026-11-08.md`; in
 `docs/sofa/evidence/kontekst_terminarza_2026-11-08/PROMPT_SESJI_WDROZENIOWEJ.md`;
 pre-rejestracja: `docs/sofa/evidence/schedule_context_prereg_2026-11-09.md`.
 
-## Faza bieżąca: F3 - analizy dev (piłka / wynik 1X2 / gemy tenisa); F2 zakończona 2026-11-09 ~07:55Z
+## Faza bieżąca: F7 - instalacja `football_result` (egzamin: PASS tylko ta grupa; commit wyniku `d996e343`)
 
 | faza | stan | SHA / hash / ścieżka |
 |---|---|---|
@@ -127,16 +127,16 @@ zamiany na inną kolumnę po wyniku).
    mecz (suma ~27 linii) -> zdane. S5: te same mecze egzaminu i kubły co `tennis_winner` (33 894 >= 8 575) -> zdane.
 
 ## Lista otwartych punktów planu (kontrola kompletności, 2026-11-09 ~08:10Z)
-- [ ] F3 opisowo (nie bramki, do raportu): kontrast w meczu (różnica stron), warstwy (kobiety, |s| terciles,
+- [x] (pkt 16) F3 opisowo (nie bramki, do raportu): kontrast w meczu (różnica stron), warstwy (kobiety, |s| terciles,
       kontynentalne / krajowe, runda <= 3), test rozrzutu chi2/df, połowy (per metryka - jest w fitach),
       tylko-prognoza vs +aktualizacja (D3 iii: termin poza aktualizacją ratingu; wariant +aktualizacja opisowo).
-- [ ] r3 krok 8: raport X egzaminu (bez wyników): rozkłady ekspozycji, wiersze grupa x kubeł; kontrola
+- [x] (pkt 16) r3 krok 8: raport X egzaminu (bez wyników): rozkłady ekspozycji, wiersze grupa x kubeł; kontrola
       odtworzenie vs żywe (ostatnie 30 dni `03_samples.json`, kubły w 3 pp).
-- [ ] tennis_serve: budowa / eksploracja / moc (agent w tle), potem walidacja (spojrzenie zalogowane) i zamrożenie.
-- [ ] walidacje: gole, strzały, wynik 1X2 (w toku, spojrzenie 1); zamrożenie piłki i 1X2.
-- [ ] `tg_build.py exam` (X egzaminu gemów, bez wyników).
-- [ ] `measure_schedule_exam.py` + test w `tests/sofa/`; krzywe P3 z rozwoju; P5 warstwy.
-- [ ] commit skryptów + zamrożonych JSON (SHA) -> jeden egzamin -> raport PL -> F7 / odrzucenie -> F8.
+- [x] (pkt 15, S2 niezdane) tennis_serve: budowa / eksploracja / moc (agent w tle), potem walidacja (spojrzenie zalogowane) i zamrożenie.
+- [x] (pkt 13-14) walidacje: gole, strzały, wynik 1X2 (w toku, spojrzenie 1); zamrożenie piłki i 1X2.
+- [x] `tg_build.py exam` (X egzaminu gemów, bez wyników).
+- [x] `measure_schedule_exam.py` + test w `tests/sofa/`; krzywe P3 z rozwoju; P5 warstwy.
+- [x] commit skryptów + zamrożonych JSON (SHA 87a5087f) -> jeden egzamin -> raport PL -> F7 / odrzucenie -> F8.
 13. Walidacja piłki (spojrzenie 1, spec 5f910b239ced, faza z rozwoju D10): gole Delta -0.000120 [-0.000838, +0.000516]
    na 146 240 meczach -> S4 zdane; strzały + celne Delta +0.002881 [-0.002107, +0.007896] -> **S4 niezdane, grupa
    nie zgłaszana**. Strzałów nie przespecyfikowuję po wyniku (żadnego kolejnego spojrzenia dla nich).
@@ -178,3 +178,24 @@ Log: `docs/sofa/evidence/schedule_context_exam_log.md`; wynik: `docs/sofa/eviden
 "Pomogło" = tak (1 grupa). Do instalacji (F7) tylko `football_result`: zamrożone `fr_frozen.json` na drodze (ii)
 (środki goli ratingu -> 1X2 / DC / DNB / wynik / symulator), przełącznik od 2026-11-10 00:00Z (najwcześniej; nigdy w
 zbudowany dzień). Gole (i), tenis - bez zmian (x1).
+
+## F7 - lista kroków (r3 13-35) tylko dla `football_result` (droga ii); stan
+- [x] 13 raport skutków (`kontekst_terminarza_2026-11-08/d12/d12_report.md`: 747 wypada / 198 wchodzi, trafienia 0,7819 -> 0,7822) (egzamin + rozliczone 10-13..11-07, klucze drogi ii); progi: 4 klucze progu 0.60 symulatora
+      (`team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half` UNDER, `btts_halves` OVER) WYŁĄCZONE
+      z przełącznika (D13; plan pkt 8) - czytają p bez poprawki.
+- [x] 14 (`SCHEDULE_TERM_FROM_UTC` = 2026-11-10 00:00Z, ustawione 09:59Z) `epochs`: `SCHEDULE_TERM`, `SCHEDULE_TERM_FROM_UTC` = dzień po commicie instalacji 00:00Z, helper, marker.
+- [x] 15 (SHEET: `schedule_term.py`, `run_sheet.schedule_term_rows`; parzystość cech 0/1152 stron na kopii; fittery `--schedule-term`: DC, 1X2/DNB, wynikowe, pierwszy gol, symulator; `test_schedule_term_replay.py` 17 testów) hak tylko dla konsumentów drogi (ii) w SHEET (owinięty prognoz ratingu, oba tomy) + identyczny w replay
+      fitterów; test zgodności live == replay.
+- [x] 16 `config/sofa_schedule_terms.json` = zamrożone współczynniki z rozwoju (`fr_frozen.json`, NIE przefit na
+      pełnej historii - plan 3.3), w `SHEET_OPTIONAL_FILES`.
+- [x] 17 (`schedule_term`, `p_central_no_schedule_term`, `schedule_term_rule`; przeniesione do nóg CONFIDENCE i `07_settled.json`; NIE do `sofa_settled_row` - brak wolnej kolumny, migracja wymaga zgody operatora) pole wiersza: termin, cechy, `p_central` bez poprawki (cień odwrócony).
+- [x] 18 `rebuild_plan` marker.  [x] 19 testy `rating_market_gap` / `SAME_EVENT_DEDUP`.  [x] 20 wyświetlanie (PDF / HTML / dossier / read set: "kontekst terminarza w modelu (t = ...)", `schedule_term_view.py`) + skille (football-analysis, sofa-analysis-core, tennis-analysis).
+- [x] 21 testy (`test_schedule_term*.py`: 18 + 17 + 12 + 12).
+- [x] 22-27 krzywe drogi (ii) przefitowane na kopii z terminem i kontrolą bez (`f7/`); `.next.2026-11-10.json` (138 kluczy; 2 zostają
+      zainstalowane - nie przechodzą bramki także bez terminu) + `sofa_football_sim_curves.next.2026-11-10.json`; 22 (rebuild-cache-rows)
+      niepotrzebny: żaden klucz zakresu nie pochodzi z ogólnego fitu (sprawdzone: 140 kluczy, wszystkie z `new_market_curves_fitted_from`).
+      [x] 25 tabele środka: żadna z 6 nie czyta poprawionych środków; `nb_r` i frailty symulatora zmierzone - bez zmian (`step25/report.md`).
+- [x] 28 line evidence: `backfill_schedule_term_p.py` -> `data/line_evidence/schedule_term_p.json.gz` (10-14..11-08), `fit_line_evidence` + `refresh_line_evidence` krok 1c. [x] 29 grupa księgi "od 11-10".
+- [x] 30 rejestr `T-SCHEDULE-TERM-FORWARD` (przed D; reguła wycofania z pre-rejestracji 11).
+- [x] 31 dokumentacja (CLAUDE.md, model-state.md, PIPELINE, CONFIG, RUNBOOK, REJESTR_TESTOW, raport `docs/sofa/evidence/schedule_context_2026-11-09.md`) (model-state.md, CLAUDE.md, PIPELINE/CONFIG/RUNBOOK, raport PL).
+- [x] 32 bramki (6746 passed, ruff, mypy, rejestr). [x] 33 E2E na kopii 11-08 - wszystko PASS, md5 1 020 plików bez zmian (`e2e/`). [ ] 34 commit + push zweryfikowanego SHA.
