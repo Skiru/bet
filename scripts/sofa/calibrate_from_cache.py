@@ -198,6 +198,14 @@ from bet.sofa.tennis_rating import (
     start_for_rule,
 )
 
+
+def cards_out_of_closeness(table: ClosenessStretchTable,
+                           off: bool) -> ClosenessStretchTable:
+    """--cards-closeness-off (epochs.CARDS_CLOSENESS_OFF): the table without
+    the cards markets; else as loaded."""
+    return table.without(epochs.CARDS_CLOSENESS_OFF_MARKETS) if off else table
+
+
 # Metric base -> Sofascore statistics key. Goals are not here: they come off
 # the listing, which covers twenty times more matches than /statistics does.
 STAT_KEYS = {
@@ -1103,6 +1111,11 @@ class CentreRules:
             "closeness_stretch": (
                 None if self.closeness_stretch is None
                 else self.closeness_stretch.path or "in-memory"),
+            # epochs.CARDS_CLOSENESS_OFF: the cards markets out of it
+            "cards_closeness_off": (
+                self.closeness_stretch is not None
+                and not any(m in self.closeness_stretch.coefficients
+                            for m in epochs.CARDS_CLOSENESS_OFF_MARKETS)),
             "player_stretch": (None if self.player_stretch is None
                                else self.player_stretch.path or "in-memory"),
             "rating_weights": (None if self.rating_weights is None
@@ -3257,6 +3270,12 @@ def main() -> int:
         "on should carry it. Fitted on the same history: in-sample for it",
     )
     parser.add_argument(
+        "--cards-closeness-off", action="store_true",
+        help="with --closeness-stretch: the cards markets out of the closeness "
+        "term (epochs.CARDS_CLOSENESS_OFF_FROM_UTC). A refit after the switch "
+        "is on must carry it",
+    )
+    parser.add_argument(
         "--player-stretch", nargs="?", const="", default=None, metavar="CONFIG",
         help="with --football-rating: a footballer's shots centre "
         "(player_stretch.PLAYER_STRETCH_MARKETS) x exp(beta x s), s his side's "
@@ -3415,6 +3434,8 @@ def main() -> int:
     if args.form_table_per_family and not epochs.FOOTBALL_FORM_TABLE_FAMILIES:
         parser.error("--form-table-per-family: epochs.FOOTBALL_FORM_TABLE_FAMILIES "
                      "is empty")
+    if args.cards_closeness_off and args.closeness_stretch is None:
+        parser.error("--cards-closeness-off needs --closeness-stretch")
     if args.player_share is not None and args.players != "include":
         # the share reads the team centres the team replay prices first
         parser.error("--player-share needs --players include")
@@ -3477,9 +3498,10 @@ def main() -> int:
                     Path(args.count_stretch) if args.count_stretch else None)
                 if args.count_stretch is not None else None),
             closeness_stretch=(
-                load_closeness_stretch_table(
+                cards_out_of_closeness(load_closeness_stretch_table(
                     Path(args.closeness_stretch)
-                    if args.closeness_stretch else None)
+                    if args.closeness_stretch else None),
+                    args.cards_closeness_off)
                 if args.closeness_stretch is not None else None),
             player_stretch=(
                 load_player_stretch_table(

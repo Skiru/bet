@@ -608,6 +608,36 @@ measurement of an edge: a correctness fix of the count and the exposure.
 Not in it (no printed pair): tennis `games_won_setN_for` 5.5 = handicap
 +1.5 per set; DNB vs double chance (a draw refunds one) is NOT the same bet.
 
+### Cards out of the closeness term (`CARDS_CLOSENESS_OFF`, 2026-11-10 00:00Z; operator 2026-11-09 "zrób 3 iteracje ... znajdź dziury i błędy i popraw", the 11-06 rule "better than the current one"; ledger group "od 11-10")
+
+From the switch `closeness_stretch.for_day` drops `cards_points_for` /
+`cards_points_total` from the closeness table (the card halves lose the
+full-match term with them, `run_sheet.card_half_term_mults`); shots keep it.
+Found by a three-round audit of the printed legs 10-24..11-08 (95,156 legs
+joined to their metadata): since 10-31 no metadata separates hits from misses
+beyond the confidence in football / tennis; settlement 0 misgrades; print
+gates clean; the PRICE_GAP_OFFSET for basketball / volleyball / CS2
+re-measured with the full chain (band cap) - not better, declined again. The
+one hole: cards. On every Superbet-settled cards line (`07_settled.json`),
+printable at the 11-09 curves, cards were calibrated before 10-21 and from
+10-21 (referee + closeness) UNDER over-promises (team 2.5 -12.2 pp, total 4.5
+-16.4 pp on 10-31..11-08) and OVER under-promises (total 1.5 +5.9). Cards
+alone drift: actual / centre 1.00 -> 1.03 -> 1.08 (every other count
+0.96-1.03). The closeness exponent on the live centre (Poisson, free level):
+cards_points_for -0.20 [-0.65, +0.40], total -0.15 [-0.75, +0.45], installed
+1, each half alike. Simulation (18,542 lines / 1,200 matches; NB at the
+sheet's own dispersion, |dp| p95 0.0001): raw log-loss off - on -36e-4
+[-76, +1] (10-31..11-08 -55e-4 [-108, -7]), confidence Brier -5.6e-4
+[-20.5, +7.6], printed realised - confidence -3.0 -> -2.7 pp, ROI equal;
+curves unchanged (the 10-17 cards curves measured no better). Contradicts the
+history measurement of 10-21 (every league): the Superbet population decides.
+Not a cure: printed cards UNDER still ~-5.6 pp - a cards-only level drift
+(referee `ratio` averages 0.98 on the days' matches, varying by league, n
+small; season phase for cards; a refit of the cards curves on a replay with
+the rule) - open, unmeasured. Report
+`docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md`; test
+`tests/sofa/test_cards_closeness_off.py`; forward `T-CARDS-CLOSENESS-OFF-forward`.
+
 ### Football schedule term (`SCHEDULE_TERM`, 2026-11-09 11:30Z - moved by the operator from 11-10 00:00Z into the built day, 11-09 mixed; the pre-registered exam of 2026-11-09, operator's consent 2026-11-08 to install only groups passing rule (c); ledger groups "11-09 mieszany", then "od 11-10")
 
 Pre-registration `docs/sofa/evidence/schedule_context_prereg_2026-11-09.md` (frozen before any look), plan
@@ -1322,7 +1352,7 @@ Groups are never pooled.
 | "11-06 mieszany" | 11-06 | switches moved by the operator into the built day at 17:30Z ("WŁĄCZ JAK NAJWIĘCEJ RZECZY OD DZISIAJ"): the staged football / tennis refit (`.next.json` read from 17:30Z) and the other 17:30Z switches (their sections): FOOTBALL_SIM + FOOTBALL_SIM_FLOOR (football path markets from the minute simulator, 0.60 for four keys; line evidence was refitted at 11-06 17:34:29Z, just before the 17:34:52Z rebuild, so the late legs read the simulator keys' OWN offsets - fitted on lines of 10-14..11-05, the floor's hold-out window - not the pooled offset the evidence docs describe; audit 2026-11-07); VB_POINT_MODEL (volleyball rally model, its curves overlaid by the clock) and TENNIS_HANDICAP_POINT_MODEL (per-set handicap from the point model; the rebuild re-runs SHEET on the marker); legs printed before stay locked; summed with neither neighbour |
 | "od 11-08" | 11-08, 11-09 | SAME_EVENT_DEDUP 00:00Z - one leg per (match, event), two market names of one outcome print once (audit 2026-11-07); TENNIS_POINT_POOL_SPLIT (line evidence fitted for 11-08 on: the tennis pool without the point model's rows) |
 | "11-09 mieszany" | 11-09 | SCHEDULE_TERM moved by the operator into the built day at 11:30Z (legs printed before stay locked; line evidence refitted after 11:30Z with the corrected p) |
-| "od 11-10" | 11-10 .. | current; SCHEDULE_TERM from the day's start - football 1X2 / DNB / DC / score / first goal / simulator path markets (not the 4 floor keys) read the rating goals centres x exp(schedule term), their curves `.next.2026-11-09.json` + simulator `.next.2026-11-09.json` (exam 2026-11-09: football_result PASS) |
+| "od 11-10" | 11-10 .. | current; CARDS_CLOSENESS_OFF from 00:00Z (cards out of the closeness term); SCHEDULE_TERM from the day's start - football 1X2 / DNB / DC / score / first goal / simulator path markets (not the 4 floor keys) read the rating goals centres x exp(schedule term), their curves `.next.2026-11-09.json` + simulator `.next.2026-11-09.json` (exam 2026-11-09: football_result PASS) |
 | "od 11-07" | 11-07 | the staged football / tennis refit (`.next.json`, effective_from 11-06 17:30Z, so from the day's start: 16 replay-refit families with the live rules + 13 score-market slices, no 1X2, no form table) and FOOTBALL_SIM (from 11-06 17:30Z, so from the day's start) - football path markets (HT/FT, half results, both halves, half goal combos ...) priced by the minute simulator with their own history curves (operator 11-06), FOOTBALL_SIM_FLOOR 0.60 for four of its keys (`floor_rule`); VB_POINT_MODEL 00:00Z - volleyball winner / handicaps / totals / exact sets / set winner / parity from the rally-point model with its own curves (`.next.2026-11-07`); TENNIS_HANDICAP_POINT_MODEL 00:00Z - tennis per-set games handicap from the point model; all share the group - a later audit separates them by market family; FOOTBALL_FORM_TABLE per family 00:00Z (moved by the operator from 11-09) - 35 football families read the goals rating with the season table (`form_table_p` "table"), curves `.next.2026-11-07.json` |
 | "od 10-28" | 10-28, 10-29 | confidence review: JOINT_FILLED_SIDE_CHAIN (R1), TENNIS_SET_HANDICAP_NEIGHBOURS (R2) 00:00Z, monotone basketball / CS2 curves (`.next.2026-10-28.json`) |
 

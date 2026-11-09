@@ -65,7 +65,10 @@ _NEW_MARKERS = ("dispersion_rule", "tennis_table_rule", "k_rule", "cards_rule",
                 "tennis_handicap_point_model_rule",
                 # football schedule term on the pure rating (SCHEDULE_TERM)
                 "schedule_term_rule", "schedule_term",
-                "p_central_no_schedule_term")
+                "p_central_no_schedule_term",
+                # the cards markets out of the closeness term
+                # (CARDS_CLOSENESS_OFF)
+                "cards_closeness_rule")
 
 
 def _row(r: Any) -> dict[str, Any]:

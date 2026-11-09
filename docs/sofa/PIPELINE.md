@@ -1340,6 +1340,21 @@ NB centrum przy wyniku, nie linie Superbetu):
   czytają centra stron, więc też się ruszają. Faule, sumy rożnych, dyspersja
   zależna od |s| - zmierzone, nie włączone
   (`docs/sofa/evidence/football_closeness_stretch_2026-10-21.md`).
+- `epochs.CARDS_CLOSENESS_OFF_FROM_UTC` (**2026-11-10 00:00Z**; operator
+  2026-11-09, reguła z 11-06 „lepsze od obecnego”): od tej chwili człon
+  wyrównania meczu działa tylko na `shots_total` / `shots_1h_total`;
+  `cards_points_for` / `cards_points_total` i połowy kartek (centrum strony
+  bierze człon pełnego meczu) zostają przy GAME_STATE i sędzim
+  (`closeness_stretch.for_day`). Na każdej rozliczonej linii kartek
+  Superbetu 10-21..11-08 wykładnik członu na żywym centrum wynosi −0,2
+  (zainstalowane 1; przedział wyklucza 1 w obu połowach okna), symulacja
+  bez członu: log-loss p −36e-4, kalibracja wydrukowanych −3,0 → −2,7 pp.
+  UNDER kartek dalej przeszacowuje (~−5,6 pp): od 10-21 dryfuje poziom samych
+  kartek (1,00 → 1,08 × centrum) - otwarte. Znacznik `cards_closeness_rule`
+  (`rebuild_plan` przelicza SHEET bez niego), replay
+  `calibrate_from_cache.py --cards-closeness-off` (`prepare_refit.py
+  rebuild-cache-rows --cards-closeness-off`; `install` odmawia bez flagi).
+  `docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md`.
 - `epochs.FOOTBALL_FORM_TABLE_FROM_UTC` (**2026-11-07 00:00Z**, per rodzina; koordynator 2026-11-06, operator przesunął z 11-09): krok ratingu goli x1,25 i tabela sezonu (w 0,341) przesuwająca centra `goals_for` / `goals_1h_for` (`football_rating.enable_form_table`). Przez `FootballForecast.supremacy` sięga też wyrównania meczu, GAME_STATE i rozciągnięć. SHEET liczy więc dwie książki ratingu (bez tabeli i z nią) i wycenia każdy mecz piłki dwa razy (`merge_form_table_rows`). Wiersz rodziny z `epochs.FOOTBALL_FORM_TABLE_FAMILIES` (35 `market|DIR`) bierze wiersz z przebiegu z tabelą, każdy inny z przebiegu bez niej. Pole wiersza `form_table_p` („table” / „no_table”), znacznik `form_table_rule` = `form_table_v2_per_family` (`rebuild_plan` przelicza SHEET bez niego). Kartki, `goals_for`, `goals_1h_for` i `most_*` zostają bez tabeli: log-loss lepszy, dryf gorszy, czyli niedopasowanie krzywej do p. Krzywe: `config/sofa_confidence_calibration.next.2026-11-07.json`. Replay: `calibrate_from_cache.py --form-table-per-family` (`prepare_refit.py` wymaga go przy włączonym przełączniku). Pomiar i bramka: `docs/sofa/evidence/refit_replay_2026-11-05.md` sekcja 12.
 - Bety B1 dopasowano ponownie na żywym centrum (z B2 i wagą B14),
   zainstalowane 2026-10-13 20:57Z (df5323ea): `corners_for` 0,129 -> 0,0986,

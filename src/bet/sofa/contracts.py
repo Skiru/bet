@@ -462,6 +462,10 @@ class SheetRow(BaseModel):
     # closeness_stretch.CLOSENESS_MARKETS carry the closeness term
     # (bet.sofa.closeness_stretch); absent when off.
     closeness_rule: str | None = None
+    # bet.sofa.epochs.CARDS_CLOSENESS_OFF: the rule's name on a football row
+    # priced while the cards markets are out of the closeness term; absent
+    # when off.
+    cards_closeness_rule: str | None = None
     # bet.sofa.epochs.FOOTBALL_PLAYER_STRETCH: the rule's name on a football
     # row priced while a footballer's shots centres carry the supremacy
     # stretch (bet.sofa.player_stretch); absent when off.

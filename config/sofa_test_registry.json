@@ -818,6 +818,32 @@
           "quote": "T-SCHEDULE-TERM-FORWARD"
         }
       ]
+    },
+    {
+      "id": "T-CARDS-CLOSENESS-OFF-forward",
+      "registered_on": "2026-11-09",
+      "status": "REGISTERED",
+      "hypothesis": "Without the closeness term (epochs.CARDS_CLOSENESS_OFF, cards_closeness_off_v1) the football cards probabilities are better on new data: SHEET's cards_points_for / cards_points_total p at the centre without exp(g1 |s| + g2 s^2) has a lower log-loss on Superbet-settled lines than the same row's p with the term put back.",
+      "rule": "Every Superbet-settled cards_points_for / cards_points_total line from 2026-11-10 (07_settled.json, outcome WIN / LOSS, p_central present). Arm off = the row's p_central. Arm on = the NB at the row's own dispersion (solved from its p_central, centre and line, as docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md) at centre x closeness_stretch.load_table().multiplier(market, s), s the home side's expected goal difference of the row's GAME_STATE note. Delta = mean per line of log-loss(off) - log-loss(on); < 0 = the switch helps. Printed realised - confidence of the cards legs reported beside it, never pooled into Delta.",
+      "population": "Football cards_points_for / cards_points_total lines Superbet offered and SETTLE graded from 2026-11-10, printed or not; rows without a GAME_STATE supremacy (t unknown) out.",
+      "data_window": {
+        "from": "2026-11-10",
+        "to": null
+      },
+      "required_n": {
+        "matches": 2750,
+        "min_weeks": 6,
+        "basis": "10-21..11-08: Delta -36.2e-4 [-75.6, +1.4] on 18,542 lines / 1,200 matches (match bootstrap SE ~19.5e-4); one-sided alpha 0.05 at power 0.80 for that effect needs SE ~12.9e-4: 1,200 x (19.5 / 12.9)^2 ~ 2,750 matches, about 6 weeks at ~65 matches a day with cards lines."
+      },
+      "evaluation": "Match bootstrap (event id), 2000 reps, seeded; Delta and its 95% interval.",
+      "stop_criterion": "At the later of 6 weeks and 2,750 matches: Delta > 0 with its lower 95% bound > 0 - the term back on the cards from the next day 00:00Z (FAILED); Delta < 0 with the upper bound < 0 - PASSED; otherwise NOT_PASSED and the switch stays. Nothing judged earlier.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md",
+          "line": 85,
+          "quote": "W każdej połowie przedział wyklucza 1."
+        }
+      ]
     }
   ]
 }

@@ -113,7 +113,7 @@ REPLAY_FLAG_KEYS: tuple[str, ...] = (
     "tennis_aces_opponent", "tennis_serve_markets", "closeness_stretch",
     "player_coverage", "awarded_excluded", "referee", "player_share",
     "tennis_score_winner", "sample_conflict_cut", "form_table",
-    "form_table_per_family",
+    "form_table_per_family", "cards_closeness_off",
 )
 
 
@@ -590,12 +590,14 @@ def rebuild_cache_rows(
     sample_conflict_cut: bool = False,
     form_table: bool = False,
     form_table_per_family: bool = False,
+    cards_closeness_off: bool = False,
 ) -> dict[str, Any]:
     needs_rating = [name for name, on in (
         ("--rated-scope", rated_scope), ("--venue-prior", venue_prior),
         ("--game-state", game_state), ("--goals-stretch", goals_stretch),
         ("--count-stretch", count_stretch), ("--player-stretch", player_stretch),
         ("--closeness-stretch", closeness_stretch),
+        ("--cards-closeness-off", cards_closeness_off),
         ("--rating-weight", rating_weight),
         ("--season-phase", season_phase),
         ("--opponent-correction", opponent_correction),
@@ -607,6 +609,8 @@ def rebuild_cache_rows(
     if sample_cup_strength and not (opponent_correction and cup_strength):
         raise RefitError("--sample-cup-strength needs --opponent-correction "
                          "and --cup-strength")
+    if cards_closeness_off and not closeness_stretch:
+        raise RefitError("--cards-closeness-off needs --closeness-stretch")
     if needs_rating and not football_rating:
         # SHEET applies them only through the football rating's forecast
         raise RefitError(f"{', '.join(needs_rating)} need --football-rating")
@@ -838,6 +842,9 @@ def rebuild_cache_rows(
         "form_table": form_table,
         # ... as SHEET prices it from 2026-11-07: per family (two books)
         "form_table_per_family": form_table_per_family,
+        # epochs.CARDS_CLOSENESS_OFF (calibrate_from_cache
+        # --cards-closeness-off: the cards markets out of the closeness term)
+        "cards_closeness_off": cards_closeness_off,
     }
     for name, on in new_flags.items():
         if on:
@@ -2024,6 +2031,8 @@ REPLAYABLE_SWITCHES: tuple[tuple[str, Callable[..., bool], str], ...] = (
     # (calibrate_from_cache --form-table-per-family: two books, a row of
     # epochs.FOOTBALL_FORM_TABLE_FAMILIES from the table book)
     ("FOOTBALL_FORM_TABLE", epochs.football_form_table, "form_table_per_family"),
+    # 2026-11-09: the cards markets out of the closeness term from 11-10
+    ("CARDS_CLOSENESS_OFF", epochs.cards_closeness_off, "cards_closeness_off"),
 )
 # Switches the replay cannot carry: an install fits those markets' curves on
 # centres without them - warned, never refused. (switch name, its is-on
@@ -2471,6 +2480,12 @@ def build_parser() -> argparse.ArgumentParser:
         "after the switch is on should carry it",
     )
     r.add_argument(
+        "--cards-closeness-off", action="store_true",
+        help="with --closeness-stretch: epochs.CARDS_CLOSENESS_OFF - the cards "
+        "markets out of the closeness term (calibrate_from_cache "
+        "--cards-closeness-off). A refit after the switch is on must carry it",
+    )
+    r.add_argument(
         "--referee", action="store_true",
         help="with --football-rating: epochs.FOOTBALL_REFEREE "
         "(calibrate_from_cache --referee; needs sofa_referee_effect.json in "
@@ -2716,6 +2731,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sample_conflict_cut=args.sample_conflict_cut,
                     form_table=args.form_table,
                     form_table_per_family=args.form_table_per_family,
+                    cards_closeness_off=args.cards_closeness_off,
                 )["exit"]
             )
         if args.command == "fit":

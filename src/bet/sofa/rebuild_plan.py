@@ -142,6 +142,7 @@ class DayState:
     sheet_form_table: bool = True
     sheet_football_sim: bool = True
     sheet_schedule_term: bool = True
+    sheet_cards_closeness_off: bool = True
     # bet.sofa.sheet_config: the fingerprint the sheet's rows carry (None: a
     # sheet written before the stamp; "mixed": rows disagree) and the files'
     # as they stand
@@ -330,6 +331,7 @@ AUDIT_MARKERS: tuple[tuple[str, str, str], ...] = (
     epochs.FOOTBALL_FORM_TABLE_MARKER,
     epochs.FOOTBALL_SIM_MARKER,
     epochs.SCHEDULE_TERM_MARKER,
+    epochs.CARDS_CLOSENESS_OFF_MARKER,
 )
 
 
@@ -408,6 +410,11 @@ def audit_sheet_stale(state: DayState) -> list[str]:
         (epochs.schedule_term(d, now), state.sheet_schedule_term,
          "football path (ii) rows read the schedule term on the pure rating "
          "goals centres (epochs.schedule_term)"),
+        (epochs.cards_closeness_off(d, now)
+         and epochs.football_closeness_stretch(d, now),
+         state.sheet_cards_closeness_off,
+         "football cards centres are out of the closeness term "
+         "(epochs.cards_closeness_off)"),
     )
     return [why for on, has, why in checks if on and not has]
 
@@ -632,6 +639,7 @@ def observe(runs_dir: str, date: str, now: datetime,
         sheet_form_table=markers[epochs.FOOTBALL_FORM_TABLE_MARKER],
         sheet_football_sim=markers[epochs.FOOTBALL_SIM_MARKER],
         sheet_schedule_term=markers[epochs.SCHEDULE_TERM_MARKER],
+        sheet_cards_closeness_off=markers[epochs.CARDS_CLOSENESS_OFF_MARKER],
         sheet_config_sha=sheet_config_sha,
         config_sha=sheet_config.fingerprint(date=date, at=now),
         offer_has_tennis=offer_has_tennis,

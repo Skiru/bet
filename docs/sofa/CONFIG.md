@@ -635,7 +635,8 @@ wierszy SETTLE na żywo, bez bramki); test
 `--player-coverage` do `calibrate_from_cache.py` i zapisuje je w
 `fitted_from.replay_rules.flags`. `install` odmawia, gdy przełącznik
 odtwarzalny (`REPLAYABLE_SWITCHES`: `FOOTBALL_CLOSENESS_STRETCH`,
-`FOOTBALL_PLAYER_COVERAGE`) jest włączony teraz lub w dniu po instalacji, a
+`FOOTBALL_PLAYER_COVERAGE`, ..., od 2026-11-10 `CARDS_CLOSENESS_OFF` z flagą
+`--cards-closeness-off`) jest włączony teraz lub w dniu po instalacji, a
 replay nie miał jego flagi; furtka jawna:
 `install --allow-missing-replay-flag=--player-coverage` (powtarzana per
 flaga, zapisana w `install_manifest.json`). Przełączniki, których replay nie

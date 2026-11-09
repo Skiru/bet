@@ -47,9 +47,11 @@ installed curves on the legs at >= 0.70. Evidence: EVIDENCE.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bet.sofa import epochs
 from bet.sofa import supremacy_stretch as ss
 
 CONFIG_FILE = "sofa_closeness_stretch.json"
@@ -79,6 +81,23 @@ def supremacy(forecast: Any) -> float | None:
 
 class ClosenessStretchTable(ss.StretchTable):
     SPEC = SPEC
+
+    def without(self, markets: frozenset[str]) -> ClosenessStretchTable:
+        """The table with `markets` dropped: their multiplier is None, the
+        centre left as it is (epochs.CARDS_CLOSENESS_OFF)."""
+        return ClosenessStretchTable(
+            {m: c for m, c in self.coefficients.items() if m not in markets},
+            self.path,
+            {m: c for m, c in self.by_phase.items() if m not in markets})
+
+
+def for_day(table: ClosenessStretchTable, date: str,
+            build_at: datetime | None = None) -> ClosenessStretchTable:
+    """The table the day reads: without the cards markets from
+    epochs.CARDS_CLOSENESS_OFF_FROM_UTC (by the day and the build clock)."""
+    if epochs.cards_closeness_off(date, build_at):
+        return table.without(epochs.CARDS_CLOSENESS_OFF_MARKETS)
+    return table
 
 
 def parse_table(data: Mapping[str, Any],

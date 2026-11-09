@@ -180,7 +180,19 @@ and a miss recorded before a rule's switch never blocks that rule.
   samples to the last 20 matches (`FOOTBALL_PLAYER_COVERAGE`); new markets:
   fouls drawn on a player, card points by half, side / half reds and
   penalties, both-over throw-ins / goal kicks / tackles, shots handicaps.
-  Neither the referee nor the share is replayed by a refit yet.
+  The referee and the share are replayed since the 11-05 refit.
+- **Cards out of the closeness term from 2026-11-10 00:00Z**
+  (`CARDS_CLOSENESS_OFF`, operator 11-09 "find the holes and fix"; the
+  11-06 rule "better than the current one"): `closeness_stretch.for_day`
+  drops `cards_points_for` / `cards_points_total` (and so the card halves'
+  full-match term); shots keep it. On every Superbet-settled cards line
+  10-21..11-08 the term's exponent on the live centre is -0.2 (installed 1,
+  CI excludes 1 in each half), simulated off: raw log-loss -36e-4, printed
+  calibration -3.0 -> -2.7 pp. Cards UNDER still over-promise (~-5.6 pp
+  printed): a cards-only level drift since 10-21 (1.00 -> 1.08 x centre),
+  open. Marker `cards_closeness_rule`; a refit carries
+  `--cards-closeness-off` (an install without it is refused);
+  `docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md`.
 - **Tennis rating from 2026-10-24** (`TENNIS_RATING_SCORE_WINNER`, audit P14):
   an Ended match with no `winnerCode` takes its winner from a complete set
   score (never retired / walkover); SHEET reads it by the day and the build

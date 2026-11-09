@@ -33,6 +33,7 @@ from bet.sofa.centre_chain import (
     apply_team_terms,
 )
 from bet.sofa.closeness_stretch import ClosenessStretchTable
+from bet.sofa.closeness_stretch import for_day as closeness_for_day
 from bet.sofa.closeness_stretch import load_table as load_closeness_stretch_table
 from bet.sofa.closeness_stretch import supremacy as closeness_supremacy
 from bet.sofa.confidence import CLASS_WOMEN, WOMEN_COMPETITION_IDS, match_class
@@ -2420,6 +2421,7 @@ AUDIT_MARKER_FIELDS: tuple[str, ...] = tuple(m[0] for m in (
     epochs.FOOTBALL_FORM_TABLE_MARKER,
     epochs.FOOTBALL_SIM_MARKER,
     epochs.SCHEDULE_TERM_MARKER,
+    epochs.CARDS_CLOSENESS_OFF_MARKER,
 ))
 
 
@@ -4043,10 +4045,13 @@ def _main() -> int:
         if stats_only and epochs.football_player_share(args.date) else None)
     # epochs.FOOTBALL_CLOSENESS_STRETCH (off: None, the centre byte for byte;
     # a missing / malformed config raises, rc 2)
+    # epochs.CARDS_CLOSENESS_OFF: the cards markets out of it from the switch
     closeness_stretch_table = (
-        load_closeness_stretch_table()
+        closeness_for_day(load_closeness_stretch_table(), args.date)
         if stats_only and epochs.football_closeness_stretch(args.date)
         else None)
+    cards_closeness_off_on = (closeness_stretch_table is not None
+                              and epochs.cards_closeness_off(args.date))
     rated_scope_on = stats_only and epochs.football_rated_scope(args.date)
     venue_prior_on = stats_only and epochs.football_venue_prior(args.date)
     # epochs.SAMPLE_OPPONENT_CORRECTION (audit 2026-10-13 B15 / A5): the
@@ -4360,6 +4365,7 @@ def _main() -> int:
              player_share_table is not None),
             (epochs.FOOTBALL_CLOSENESS_STRETCH_MARKER,
              closeness_stretch_table is not None),
+            (epochs.CARDS_CLOSENESS_OFF_MARKER, cards_closeness_off_on),
             (epochs.TENNIS_POINT_MODEL_MARKER, point_model_on),
             (epochs.TENNIS_HANDICAP_POINT_MODEL_MARKER, handicap_point_on),
             (epochs.FOOTBALL_SIM_MARKER, football_sim_on),

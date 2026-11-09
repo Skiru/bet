@@ -2611,6 +2611,47 @@ def football_closeness_stretch(date: str, build_at: datetime | None = None) -> b
             and at >= FOOTBALL_CLOSENESS_STRETCH_FROM_UTC)
 
 
+# Cards out of the closeness stretch (operator 2026-11-09: "find the holes
+# and errors and fix them"; docs/sofa/evidence/kartki_bez_closeness_2026-11-09.md).
+# From this moment the closeness term reads only shots_total / shots_1h_total:
+# cards_points_for and cards_points_total (and the card halves, whose side
+# centre takes the full-match term through run_sheet.card_half_term_mults)
+# keep GAME_STATE and the referee, never exp(g1 |s| + g2 s^2). Measured on
+# every Superbet-settled cards line 10-21..11-08 (1,200 matches, 18,542
+# lines): the term's exponent on the live centre b = -0.20 [-0.65, +0.40]
+# (cards_points_for) / -0.15 [-0.75, +0.45] (total), installed 1, each half
+# (10-21..10-30 / 10-31..11-08) alike; cards realised 1.00 -> 1.03 -> 1.08 x
+# the centre from 10-21 while every other count stayed at ~1.0; simulated
+# off (NB at the sheet's own dispersion, |dp| p95 0.0001): raw p log-loss
+# -36e-4 [-76, +1] (10-31..11-08: -55e-4 [-108, -7]), confidence Brier
+# -5.6e-4 [-20.5, +7.6], printed realised - confidence -3.0 -> -2.7 pp - the
+# operator's "better than the current one" (2026-11-06). The history
+# measurement of 2026-10-21 (every league of 2026) said the opposite: the
+# live Superbet population is the one that prints. Not a cure for the cards
+# UNDER over-statement (-5.6 pp printed after it too): the rest is a level
+# drift of cards only, open. Rows priced under it carry
+# `cards_closeness_rule`, so a rebuild re-runs SHEET on a sheet without it.
+# A refit replays it with calibrate_from_cache --cards-closeness-off.
+# None: OFF, byte for byte.
+CARDS_CLOSENESS_OFF = "cards_closeness_off_v1"
+CARDS_CLOSENESS_OFF_FROM_UTC: datetime | None = datetime(
+    2026, 11, 10, tzinfo=UTC)
+CARDS_CLOSENESS_OFF_MARKETS: frozenset[str] = frozenset({
+    "cards_points_for", "cards_points_total"})
+CARDS_CLOSENESS_OFF_MARKER = (
+    "cards_closeness_rule", CARDS_CLOSENESS_OFF, "football")
+
+
+def cards_closeness_off(date: str, build_at: datetime | None = None) -> bool:
+    """Are the cards markets out of the closeness term
+    (CARDS_CLOSENESS_OFF_FROM_UTC, by the day and the build clock)?"""
+    if CARDS_CLOSENESS_OFF_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return (date >= CARDS_CLOSENESS_OFF_FROM_UTC.strftime("%Y-%m-%d")
+            and at >= CARDS_CLOSENESS_OFF_FROM_UTC)
+
+
 # Football "or" result markets, the underdog's European handicap and the
 # double chance & goals pairs that clear their gate
 # (bet.sofa.football_score_markets): OFFER reads "Mecz lub liczba goli",
