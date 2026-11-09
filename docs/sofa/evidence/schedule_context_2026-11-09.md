@@ -141,6 +141,12 @@ Briera 1X2 z `p_central` wobec `p_central_no_schedule_term`, ~158 000 meczów i 
 ~300-400 meczach dziennie ok. 13-17 miesięcy). Reguła wycofania (pre-rejestracja, sekcja 11): bez poprawki lepiej
 (Delta > 0, dolna granica 95% > 0) = przełącznik wyłączony od następnego dnia 00:00Z.
 
+## 6b. Commit i push
+
+Instalacja: commit `ab9df80f` (2026-11-09), wypchnięty na `origin/main` (szybkie przewinięcie z `bf72c923`); przełącznik
+od 2026-11-10 00:00Z - następny dzień po commicie instalacji. Wcześniejsze commity badania: `2b291085` (F0), `87a5087f`
+(spec egzaminu), `d996e343` (wynik egzaminu).
+
 ## 7. Otwarte
 
 - Wariant „+update” (aktualizacja ratingu z poprawką) - nieobliczalny w tym przebiegu; nie zgłaszany.
