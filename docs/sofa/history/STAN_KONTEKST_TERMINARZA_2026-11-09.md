@@ -211,7 +211,7 @@ AUDIT_VARIANTS 0 uwag; druk `printed/20261109T115737Z`, 34 nogi zablokowane z wc
 miejscach HTML; `day_status` OK (iCloud zgodny, line_evidence 11:35Z). Kod wyjścia przebudowy 1 = PARTIAL kroków
 LATE_RESOLVE / OFFER / SPORT_IDENTITY (zdrowe).
 
-## Krok 36 - usunięcie 2 krzywych nieprzechodzących bramki (11-09, 12:05-12:40Z)
+## Krok 36 - usunięcie 2 krzywych nieprzechodzących bramki (11-09, 12:05-12:27Z)
 
 Operator 11-09: „jeżeli poprawnie, ale nie ma wartości - wyczyść”. `draw_no_bet|UNDER` (zakład bez remisu na gościa;
 luka −0,0234 [−0,038, −0,0097], n 3006) i `result_or_over@2@5.5|OVER` (gość wygra lub > 5,5 gola; −0,0229
