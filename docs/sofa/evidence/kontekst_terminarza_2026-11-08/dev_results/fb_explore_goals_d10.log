@@ -1,0 +1,5 @@
+goals goals_for rows 617707 gain 132.1
+goals goals_1h_for rows 399225 gain 49.9
+goals goals_2h_for rows 398442 gain 46.3
+goals S1 p 0.005 S3 {'R1': (-0.0031, True), 'R2': (-0.0048, True), 'cont_prev4': (-0.0756, True), 'et_prev': (-0.0512, True), 'dense14': (-0.0108, True), 'R5_winter': (-0.1076, True), 'R5_other': (-0.0573, True)}
+{'S2_lag_goals_for': [-0.005, 0.0021], 'S2_lag_corners_for': [0.0067, 0.015], 'S2_lag_shots_for': [0.0239, 0.0072], 'S2_mechfree_opp_R1_offsides': [0.0355, 0.021]}

@@ -1,0 +1,25 @@
+goals goals_for rows 617707 gain 132.8
+goals goals_1h_for rows 399225 gain 50.0
+goals goals_2h_for rows 398442 gain 46.5
+goals S1 p 0.005 S3 {'R1': (-0.003, True), 'R2': (-0.0049, True), 'cont_prev4': (-0.0753, True), 'et_prev': (-0.0512, True), 'dense14': (-0.0109, True), 'R5_winter': (-0.1083, True), 'R5_other': (-0.0573, True)}
+corners corners_for rows 27174 gain 20.1
+corners corners_1h_for rows 9584 gain 22.1
+corners corners_2h_for rows 9584 gain 23.8
+corners S1 p 0.005 S3 {'R1': (0.0047, False), 'R2': (-0.0231, True), 'cont_prev4': (-0.0658, True), 'et_prev': (-0.0571, True), 'dense14': (0.0074, False), 'R5_winter': (-0.1834, True), 'R5_other': (-0.2469, True)}
+shots_sot shots_for rows 21626 gain 26.7
+shots_sot shots_1h_for rows 9559 gain 28.5
+shots_sot shots_2h_for rows 9559 gain 17.2
+shots_sot shots_on_target_for rows 26466 gain 22.7
+shots_sot shots_on_target_1h_for rows 9571 gain 17.0
+shots_sot shots_on_target_2h_for rows 9571 gain 9.5
+shots_sot S1 p 0.005 S3 {'R1': (0.0221, False), 'R2': (-0.0146, True), 'cont_prev4': (-0.0698, True), 'et_prev': (-0.0054, True), 'dense14': (-0.0118, True)}
+cards_fouls cards_points_for rows 28013 gain 11.4
+cards_fouls fouls_for rows 24885 gain 9.5
+cards_fouls fouls_1h_for rows 26 skipped (< 2000)
+cards_fouls fouls_2h_for rows 26 skipped (< 2000)
+cards_fouls S1 p 0.3483 S3 {}
+offsides offsides_for rows 25463 gain 14.7
+offsides offsides_1h_for rows 9569 gain 16.0
+offsides offsides_2h_for rows 9576 gain 7.5
+offsides S1 p 0.1592 S3 {}
+{'S2_lag_goals_for': [-0.0049, 0.0022], 'S2_lag_corners_for': [0.0067, 0.015], 'S2_lag_shots_for': [0.0239, 0.0072], 'S2_mechfree_opp_R1_offsides': [0.0355, 0.021]}

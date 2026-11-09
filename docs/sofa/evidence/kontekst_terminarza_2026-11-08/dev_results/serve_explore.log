@@ -1,0 +1,42 @@
+explore matches(dev table, window) 32434; player rows (serve counts, completed, coverage) 26636
+FULL spec coefficients (beta, cluster SE by player) / shrunk:
+  games78         -0.00384 (SE 0.00125)  shr -0.00383
+  games7d_prev    +0.00036 (SE 0.00079)  shr +0.00036
+  rounds_cur      +0.01964 (SE 0.00329)  shr +0.01955
+  layoff21        -0.01897 (SE 0.00878)  shr -0.01840
+  ret14           -0.00653 (SE 0.02096)  shr -0.00556
+  surface_switch  -0.02503 (SE 0.00784)  shr -0.02443
+  dom_prev        +0.01485 (SE 0.01302)  shr +0.01390
+  qual            -0.03334 (SE 0.00580)  shr -0.03289
+  intercept +0.01122 (SE 0.00692)
+S3 (registered direction -1 = serve point p down): {'games78': (-0.00384, True), 'games7d_prev': (0.00036, False), 'layoff21': (-0.01897, True), 'ret14': (-0.00653, True)}
+M4 removed: ['games7d_prev'] kept: ['games78', 'rounds_cur', 'layoff21', 'ret14', 'surface_switch', 'dom_prev', 'qual']
+KEPT spec coefficients (beta, cluster SE) / shrunk:
+  games78         -0.00353 (SE 0.00107)  shr -0.00353
+  rounds_cur      +0.01888 (SE 0.00280)  shr +0.01882
+  layoff21        -0.01943 (SE 0.00873)  shr -0.01886
+  ret14           -0.00638 (SE 0.02094)  shr -0.00543
+  surface_switch  -0.02508 (SE 0.00784)  shr -0.02448
+  dom_prev        +0.01604 (SE 0.01273)  shr +0.01507
+  qual            -0.03318 (SE 0.00578)  shr -0.03274
+S3 on kept spec: {'games78': True, 'layoff21': True, 'ret14': True}
+S1 kept spec: deviance gain 272.40, null mean 185.83, null max 293.54, p 0.0100
+S1 full spec: deviance gain 272.80, null mean 196.23, null max 294.07, p 0.0100
+S2 rows 24669: beta games78 -0.00262 (SE 0.00119), lag -0.00207 (SE 0.00100); |lag| < 0.5|beta|: False
+S2 mechanism-free outcome: n/a for tennis (pre-registration 6)
+SENSITIVITY (exploratory, not the variant) - own + returner columns, rows 25786
+  games78              -0.00434 (SE 0.00118)
+  rounds_cur           +0.02165 (SE 0.00413)
+  layoff21             -0.02005 (SE 0.00937)
+  ret14                -0.00459 (SE 0.02150)
+  surface_switch       -0.03037 (SE 0.00836)
+  dom_prev             +0.01137 (SE 0.01348)
+  qual                 -0.02735 (SE 0.00585)
+  opp_games78          +0.00218 (SE 0.00116)
+  opp_rounds_cur       -0.00641 (SE 0.00412)
+  opp_layoff21         +0.00911 (SE 0.00940)
+  opp_ret14            +0.02135 (SE 0.02221)
+  opp_surface_switch   +0.01935 (SE 0.00859)
+  opp_dom_prev         +0.04657 (SE 0.01332)
+GATES (explore): {'S1': True, 'S2': False, 'S3': True}
+wrote serve_explore.json, secs 4

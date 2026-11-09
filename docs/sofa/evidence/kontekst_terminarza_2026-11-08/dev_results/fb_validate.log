@@ -1,0 +1,2 @@
+| 2026-11-09 08:05Z | goals | validate | spec 5f910b239ced | matches 146240 rows 883171 | Delta -0.000120 [-0.000838, +0.000516] | S4 pass |
+| 2026-11-09 08:05Z | shots_sot | validate | spec 5f910b239ced | matches 14902 rows 147059 | Delta +0.002881 [-0.002107, +0.007896] | S4 fail |

@@ -1,0 +1,103 @@
+{
+  "_doc": "Season-phase coefficients (audit 2026-10-13 C1): a football goals centre x exp(c[market][phase]), mid-season 0. INERT while epochs.SEASON_PHASE_FROM_UTC is None. Written by scripts/sofa/fit_season_phase.py.",
+  "fitted_from": {
+    "fitted_at_utc": "2026-11-09T08:02:22+00:00",
+    "train_from": "2024-10-01",
+    "before": "2026-01-01",
+    "awarded_excluded": true,
+    "method": "per phase log(sum y / sum centre) minus mid-season's; centre = W_FOOTBALL_RATING blend (centre_replay)",
+    "evidence": "docs/sofa/evidence/season_phase_2026-10-13.md"
+  },
+  "unfitted_constants": [
+    "SEASON_PHASE_EARLY_ROUNDS",
+    "SEASON_PHASE_FINAL_ROUNDS",
+    "SEASON_PHASE_LATE_SHARE",
+    "SEASON_PHASE_MIN_SEASON_ROUNDS"
+  ],
+  "markets": {
+    "goals_for": {
+      "coefficients": {
+        "early": -0.039056,
+        "late": 0.014885,
+        "final": 0.018514
+      },
+      "n_rows": 828542,
+      "n_rows_by_phase": {
+        "early": 51318,
+        "mid": 237894,
+        "late": 15978,
+        "final": 19338
+      }
+    },
+    "goals_total": {
+      "coefficients": {
+        "early": -0.033087,
+        "late": 0.014386,
+        "final": 0.018689
+      },
+      "n_rows": 414271,
+      "n_rows_by_phase": {
+        "early": 25659,
+        "mid": 118947,
+        "late": 7989,
+        "final": 9669
+      }
+    },
+    "goals_1h_for": {
+      "coefficients": {
+        "early": -0.014243,
+        "late": 0.023855,
+        "final": 0.033395
+      },
+      "n_rows": 528212,
+      "n_rows_by_phase": {
+        "early": 33854,
+        "mid": 167012,
+        "late": 11820,
+        "final": 13204
+      }
+    },
+    "goals_1h_total": {
+      "coefficients": {
+        "early": -0.009172,
+        "late": 0.023326,
+        "final": 0.032946
+      },
+      "n_rows": 264106,
+      "n_rows_by_phase": {
+        "early": 16927,
+        "mid": 83506,
+        "late": 5910,
+        "final": 6602
+      }
+    },
+    "goals_2h_for": {
+      "coefficients": {
+        "early": -0.05331,
+        "late": 0.003397,
+        "final": 0.018869
+      },
+      "n_rows": 525884,
+      "n_rows_by_phase": {
+        "early": 33998,
+        "mid": 166648,
+        "late": 11708,
+        "final": 13026
+      }
+    },
+    "goals_2h_total": {
+      "coefficients": {
+        "early": -0.048469,
+        "late": 0.002799,
+        "final": 0.019435
+      },
+      "n_rows": 262942,
+      "n_rows_by_phase": {
+        "early": 16999,
+        "mid": 83324,
+        "late": 5854,
+        "final": 6513
+      }
+    }
+  }
+}
