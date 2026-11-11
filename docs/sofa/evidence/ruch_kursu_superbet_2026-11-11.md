@@ -51,3 +51,24 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_price_drift.py --split 20
 - To ta sama informacja co marża rynku w `lesser_loss`. Wewnątrz marży
   < 8,6% podział po marży własnej daje dev +2,3% przy n 344, ale hold-out
   −0,5% przy n 305 - nie powtarza się. Niczego nie wdrażam.
+
+## Iteracja 3: „poniżej" kontra „powyżej" przy tej samej cenie (literatura: gracze przepłacają za „powyżej")
+
+- Wydrukowane single liczbowe (sumy, rożne, kartki, strzały, gemy itd.)
+  10-30..11-10, ROI przed podatkiem, przedziały z bootstrapu po meczach.
+- **Piłka** (n po 2-4 tys. na komórkę):
+
+  | kurs | „poniżej" dev / hold-out | „powyżej" dev / hold-out |
+  |---|---|---|
+  | 1,00-1,20 | −4,5% / −4,1% | −4,9% / −5,0% |
+  | 1,20-1,40 | −3,8% / −4,1% | −4,8% / −3,1% |
+
+  Różnicy nie ma.
+- **Tenis:** obie strony −4..−13%, bez spójnego kierunku.
+- **Hokej, krótkie „poniżej" 1,00-1,20:** +0,9% [−3,2; +4,8] przy n 395 (dev)
+  i +2,1% [−3,5; +6,9] przy n 221 (hold-out). Za mało, przedziały obejmują
+  zero. To tylko trop do ponownego pomiaru przy ~1 000 nóg.
+- **Rynki zwycięzcy w tenisie** (`match_won_for`, `set1/2_won_for`): 37-60 nóg
+  na komórkę, połówki się nie zgadzają.
+
+Niczego nie wdrażam.
