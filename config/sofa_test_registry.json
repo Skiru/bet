@@ -863,7 +863,7 @@
         "pewna_matches_min": 300,
         "basis": "10-30..11-10: ~260 marked legs a day in ~100 matches, ~55 pewna legs a day; a match-bootstrap half-width ~3 pp on the marked ROI at 1,000 matches, ~3.5 pp on pewna at 300 matches."
       },
-      "evaluation": "Marked minus unmarked ROI (before the tax), match bootstrap 1000, 95% interval; pewna: realised hit, mean confidence, mean 1/odds and ROI with its interval (scripts/sofa/measure_lesser_loss.py --from 2026-11-12).",
+      "evaluation": "Marked minus unmarked ROI (before the tax) as ONE paired match bootstrap (each draw resamples matches once and computes both groups from it), 1000 draws, 95% interval; pewna: realised hit, mean confidence, mean 1/odds and ROI with its interval. Command: scripts/sofa/measure_lesser_loss.py --from 2026-11-12 --first-matches <the match count reached first in kickoff order>. Pre-registration measurement (10-30..11-10, same script): paired difference dev +2.3 pp [-0.2, +5.2], hold-out +3.6 pp [+0.8, +6.2].",
       "stop_criterion": "Judged once when both counts are reached (kickoff order). Mark PASSED when the marked minus unmarked ROI interval lies above 0; FAILED when its upper bound is below +1 pp (the mark is withdrawn, proposed to the operator). Pewna reported: PASSED when its ROI interval holds 0 or lies above it and its hit is >= 0.87; FAILED when its ROI upper bound is below 0. Nothing prints differently either way; the 12% tax is reported beside every number.",
       "evidence": [
         {

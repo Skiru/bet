@@ -2932,11 +2932,16 @@ niego 08).
     10-30..11-10, przed podatkiem): hold-out 11-05..11-10 mniej złe −1,7%
     [−4,6; +1,0] wobec −5,1% wszystkich; pewne +0,6% [−3,1; +3,9], weszło
     90,4% (dev to samo: +0,6%, 90,1%). Próg 0,85 wybrany po obejrzeniu
-    danych. Po podatku każdy koszyk traci ~11-14%. Na PDF (zielone,
+    danych. Po podatku każdy oznaczony stopień traci ~11-14% (wszystkie nogi ~−16,5%). Na PDF (zielone,
     pogrubione), HTML (zielony znacznik, filtry „mniej złe" i „pewne mniej
     złe") i w `.md`. **Adnotacja: żadna noga nie jest dodana, zdjęta ani
     przestawiona, żadna pewność się nie rusza; bez grupy epok księgi.** Test:
-    `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py --from 2026-11-12`).
+    `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py --from 2026-11-12
+    --first-matches N`, różnica oznaczone − nieoznaczone jednym bootstrapem po
+    meczach; wybór cech: `scripts/sofa/measure_leg_features.py`). Na dniu bez
+    oznaczonej nogi HTML chowa oba filtry. W tabeli nóg już w grze PDF pisze
+    sam stopień („PEWNA mniej zła noga" / „mniej zła noga"), pełne zdanie
+    stoi przy nogach otwartych.
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

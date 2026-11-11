@@ -12,7 +12,7 @@ from bet.sofa import coupon_html as ch
 from bet.sofa import epochs
 from bet.sofa import lesser_loss as ll
 from scripts.sofa.build_coupon import assemble, render_md
-from scripts.sofa.build_coupon_pdf import lesser_loss_label
+from scripts.sofa.build_coupon_pdf import lesser_loss_label, lesser_loss_short_label
 
 UTC = datetime.UTC
 
@@ -122,3 +122,12 @@ def test_an_inactive_build_clears_an_old_mark() -> None:
                                         "sample_size": 99}}
     off = assemble(_conf([stale]), None, [], {}, "now", "2026-11-12")
     assert "lesser_loss" not in off["singles"][0]
+
+
+def test_the_locked_table_carries_the_tier_in_a_word() -> None:
+    assert lesser_loss_short_label(leg()) == ""
+    plain = {**leg(), "lesser_loss": ll.annotate(leg())}
+    strong = {**leg(), "lesser_loss": ll.annotate(leg(conf=0.88, odds=1.12))}
+    assert "mniej zła noga" in lesser_loss_short_label(plain)
+    assert "PEWNA" not in lesser_loss_short_label(plain)
+    assert "PEWNA mniej zła noga" in lesser_loss_short_label(strong)

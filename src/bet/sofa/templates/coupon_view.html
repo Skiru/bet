@@ -238,8 +238,8 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label class="chk" id="upwrap"><input type="checkbox" id="upcoming">tylko nierozpoczęte</label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
-<label class="chk"><input type="checkbox" id="lesser">tylko mniej złe nogi (niska marża, pewność blisko kursu, próbka ≥ 20)</label>
-<label class="chk"><input type="checkbox" id="lesserstrong">tylko pewne mniej złe nogi (to samo i pewność ≥ 0,85)</label>
+<span id="lesswrap"><label class="chk"><input type="checkbox" id="lesser">tylko mniej złe nogi (niska marża, pewność blisko kursu, próbka ≥ 20)</label>
+<label class="chk"><input type="checkbox" id="lesserstrong">tylko pewne mniej złe nogi (to samo i pewność ≥ 0,85)</label></span>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
 <div class="acts"><button class="btn" id="reset">Wyczyść filtry</button></div>
 </div>
@@ -482,7 +482,12 @@ $("sort").innerHTML=[["confidence",-1],["x",-1],["odds",-1],["ko_local",1],["odd
   .map(([k,d])=>'<option value="'+k+":"+d+'">'+(COLS.find(c=>c[0]===k)||[0,k])[1]+(d<0?" ↓":" ↑")+'</option>').join("");
 $("sort").addEventListener("change",e=>{const[k,d]=e.target.value.split(":");setSort(k,+d)});
 // quick chips: each sport with its legs, then the filters used most on a phone
-const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"],["lesser","mniej złe"],["lesserstrong","pewne mniej złe"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
+// bet.sofa.lesser_loss: a day with no marked leg (before the switch, or a
+// build without it) shows neither the filters nor the chips - a ticked filter
+// there would empty the list for no visible reason
+const HASLESS=R.some(r=>r.lesser),LESS=new Set(["lesser","lesserstrong"]);
+if(!HASLESS)$("lesswrap").style.display="none";
+const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"]],HASLESS?[["lesser","mniej złe"],["lesserstrong","pewne mniej złe"]]:[],[["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
 if(RES)$("upwrap").style.display="none";
 function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0)+1));
   let h='<button class="chip" data-sport="">wszystkie<span class="n">'+R.length+'</span></button>';
@@ -513,7 +518,7 @@ const KEY="kupon:"+DAY;
 function save(){try{const s={sortKey,sortDir,group:$("group").checked};FIELDS.forEach(k=>s[k]=$(k).value);CHECKS.forEach(k=>s[k]=$(k).checked);
   localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
 function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(!s)return;
-  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="upcoming"||!RES)});
+  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="upcoming"||!RES)&&(!LESS.has(k)||HASLESS)});
   if(typeof s.group==="boolean")$("group").checked=s.group;
   if(s.sortKey&&COLS.some(c=>c[0]===s.sortKey)){sortKey=s.sortKey;sortDir=s.sortDir<0?-1:1}}catch(e){}}
 document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventListener("input",render));

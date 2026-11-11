@@ -413,6 +413,17 @@ def lesser_loss_label(leg: dict[str, Any]) -> str:
     return f"<br/><font size=6.5 color='#2e7d32'><b>{escape(text)}</b></font>"
 
 
+def lesser_loss_short_label(leg: dict[str, Any]) -> str:
+    """The lesser-loss tier in a word, for the compact table of legs already
+    in play (the full sentence stays on the open legs' rows)."""
+    mark = leg.get("lesser_loss")
+    if not isinstance(mark, dict):
+        return ""
+    text = ("PEWNA mniej zła noga" if mark.get("tier") == "pewna"
+            else "mniej zła noga")
+    return f"<br/><font size=6.5 color='#2e7d32'><b>{escape(text)}</b></font>"
+
+
 def schedule_term_label(leg: dict[str, Any]) -> str:
     """epochs.SCHEDULE_TERM: the fixture-congestion / rest term moved the
     leg's p (bet.sofa.schedule_term_view, with both sides' t). Shown, never a
@@ -1311,7 +1322,8 @@ def render_stats_only(
             rows.append([
                 Paragraph(f"{escape(str(leg.get('match', '')))}<br/><font size=6.5>"
                           f"{str(leg.get('kickoff_utc') or '')[11:16]}Z</font>"
-                          + score_note(entry) + ref + read_label(leg), small),
+                          + score_note(entry) + ref + read_label(leg)
+                          + lesser_loss_short_label(leg), small),
                 Paragraph(market_cell(leg, ladder_marker(lno),
                                       f"{leg.get('market')}{escape(subj)}"), small),
                 Paragraph(line_cell(leg), small),

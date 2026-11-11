@@ -528,7 +528,7 @@ in 13_results.json, before the 12% tax, match bootstrap: marked dev -3.2%
 "pewna" dev +0.6% [-3.2, +4.2] 90.1% won, hold-out +0.6% [-3.1, +3.9] 90.4%
 won (the 0.85 edge chosen after both halves were seen). Not separating at
 one price: star, price_gap, rating_market_gap, odds, line_offset, model or
-own sample minus price. After the tax every group loses ~11-14%.
+own sample minus price. After the tax every marked tier loses ~11-14% (every leg ~-16.5%).
 Annotation only: nothing added, removed, re-ranked; no confidence moves; no
 ledger group. `docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`;
 pre-registered `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py`).

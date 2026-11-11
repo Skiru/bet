@@ -52,12 +52,27 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_lesser_loss.py \
 | **PEWNE mniej złe (pewność ≥ 0,85)** | **+0,6% [−3,2; +4,2], weszło 90,1%**, n 312 / 237 | **+0,6% [−3,1; +3,9], weszło 90,4%**, n 332 / 231 |
 | nieoznaczone | −5,5% | −5,3% |
 
+Różnica oznaczone − nieoznaczone, liczona jednym bootstrapem po meczach
+(obie grupy z tego samego losowania): dev +2,3 pp [−0,2; +5,2], hold-out
+**+3,6 pp [+0,8; +6,2]**. To ta statystyka rozstrzyga test `T-LESSER-LOSS-flag`
+(`measure_lesser_loss.py --from 2026-11-12 --first-matches N`).
+
+Wybór cech da się odtworzyć skryptem:
+
+```
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_leg_features.py \
+    --from 2026-10-30 --to 2026-11-10 --split 2026-11-05
+```
+
+Granice z dev wychodzą tam: marża 0,0859, pewność − 1/kurs −0,0471, próbka
+20. Na nodze zapisane są zaokrąglone (0,086 i −0,047).
+
 ## Zastrzeżenia
 
 - Trzy cechy wybrano z dziesięciu. Próg 0,85 stopnia „pewna" ustalono po
   obejrzeniu obu połówek (na prośbę operatora o stabilność). Uczciwy werdykt
   da dopiero `T-LESSER-LOSS-flag` na dniach od 11-12.
-- Po podatku 12% żaden koszyk nie jest na plusie. „PEWNE" przy +0,6% przed
+- Po podatku 12% żaden koszyk nie jest na plusie (wszystkie nogi ~−16,5%). „PEWNE" przy +0,6% przed
   podatkiem to około −11% po nim. Znacznik mówi „traci mniej" i „wchodzi
   częściej", nigdy „ma przewagę".
 - Noga jednostronna (bez marży) nie jest oznaczana nigdy.
