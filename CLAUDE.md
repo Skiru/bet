@@ -424,6 +424,17 @@ and a miss recorded before a rule's switch never blocks that rule.
   on a day of >= 20 football matches (SHEET's note wording moved), is a
   `WARN rating_market_gap` on CONFIDENCE's stderr and never stops the build
   (`rating_market_gap.safe_views`). `T-RATING-MARKET-GAP-flag`.
+- **Lesser-loss legs** (annotation only, `LESSER_LOSS_MARK_FROM_UTC`
+  2026-11-12 00:00Z, operator 2026-11-11; `bet.sofa.lesser_loss`, written by
+  COUPON from the leg's own fields): a printed single with overround < 0.086,
+  confidence - 1/odds >= -0.047 and `sample_size` >= 20 carries
+  `lesser_loss` (tier `pewna` at confidence >= 0.85; one-sided legs never),
+  a green sentence on the PDF / md and a tag plus two filters on the HTML.
+  Printed 10-30..11-10 before the tax, hold-out 11-05..11-10: marked -1.7%
+  [-4.6, +1.0] vs -5.1% for all; `pewna` +0.6% [-3.1, +3.9] at 90.4% won
+  (the 0.85 edge chosen after seeing both halves); every group loses ~11-14%
+  after the 12% tax. Nothing moves, no ledger group
+  (`docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`, `T-LESSER-LOSS-flag`).
 - **Bet Builders:** one per fixture, by best `combined_probability`; an internal
   haircut x >= 0.90 decides stakeable and is never printed. **sofa does not
   price a builder**: the PDF shows its legs with Superbet's single prices, the

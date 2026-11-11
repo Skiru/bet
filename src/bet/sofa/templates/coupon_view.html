@@ -238,6 +238,8 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label class="chk" id="upwrap"><input type="checkbox" id="upcoming">tylko nierozpoczęte</label>
 <label class="chk"><input type="checkbox" id="nolock">ukryj zablokowane</label>
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
+<label class="chk"><input type="checkbox" id="lesser">tylko mniej złe nogi (niska marża, pewność blisko kursu, próbka ≥ 20)</label>
+<label class="chk"><input type="checkbox" id="lesserstrong">tylko pewne mniej złe nogi (to samo i pewność ≥ 0,85)</label>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
 <div class="acts"><button class="btn" id="reset">Wyczyść filtry</button></div>
 </div>
@@ -318,6 +320,8 @@ function pass(r){
   if($("dir").value&&r.direction!==$("dir").value)return false;
   if($("nolock").checked&&r.locked)return false;
   if($("readonly").checked&&!r.read_done)return false;
+  if($("lesser").checked&&!r.lesser)return false;
+  if($("lesserstrong").checked&&!r.lesser_strong)return false;
   if($("upcoming").checked&&started(r.ko_utc))return false;
   const rs=$("res").value;if(rs&&(!r.res||(rs==="unknown"?!(r.res.status==="unknown"||r.res.status==="refund"):r.res.status!==rs)))return false;
   const q=$("q").value.trim().toLowerCase();
@@ -332,6 +336,7 @@ function tags(r){let t="";
   if(r.peer)t+='<span class="tag'+(r.starred?' acc':'')+'">'+esc(r.peer)+'</span>';
   if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
   if(r.rating_market_gap)t+='<span class="tag warn">'+esc(r.rating_market_gap)+'</span>';
+  if(r.lesser_loss)t+='<span class="tag ok">'+esc(r.lesser_loss)+'</span>';
   if(r.schedule_term)t+='<span class="tag">'+esc(r.schedule_term)+'</span>';
   if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
@@ -477,7 +482,7 @@ $("sort").innerHTML=[["confidence",-1],["x",-1],["odds",-1],["ko_local",1],["odd
   .map(([k,d])=>'<option value="'+k+":"+d+'">'+(COLS.find(c=>c[0]===k)||[0,k])[1]+(d<0?" ↓":" ↑")+'</option>').join("");
 $("sort").addEventListener("change",e=>{const[k,d]=e.target.value.split(":");setSort(k,+d)});
 // quick chips: each sport with its legs, then the filters used most on a phone
-const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
+const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"],["lesser","mniej złe"],["lesserstrong","pewne mniej złe"],["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
 if(RES)$("upwrap").style.display="none";
 function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0)+1));
   let h='<button class="chip" data-sport="">wszystkie<span class="n">'+R.length+'</span></button>';
@@ -490,7 +495,7 @@ $("chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;
   else if(b.dataset.t==="xone")$("xmin").value=num("xmin")>=1?"":"1.00";
   else{const c=$(b.dataset.t);c.checked=!c.checked}
   render()};
-const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly"];
+const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","lesser","lesserstrong"];
 function syncUi(){
   document.querySelectorAll("#chips .chip").forEach(b=>{let on;
     if(b.dataset.sport!=null)on=$("sport").value===b.dataset.sport;

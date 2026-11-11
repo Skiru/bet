@@ -31,6 +31,7 @@ from bet.sofa import coupon_results as cr
 from bet.sofa import coupon_sports as cs
 from bet.sofa import dossier, priced_view
 from bet.sofa.atomic import tmp_path
+from bet.sofa.lesser_loss import label as lesser_loss_label
 from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
 from bet.sofa.rating_market_gap import label as rating_market_gap_label
@@ -279,6 +280,11 @@ def build_view(
             # bet.sofa.rating_market_gap: the market's favourite much stronger
             # than our rating, the PDF's sentence
             "rating_market_gap": rating_market_gap_label(leg),
+            # bet.sofa.lesser_loss: low margin, close to the price, long
+            # sample - the PDF's sentence; "lesser" drives the page's filter
+            "lesser_loss": lesser_loss_label(leg),
+            "lesser": bool(leg.get("lesser_loss")),
+            "lesser_strong": (leg.get("lesser_loss") or {}).get("tier") == "pewna",
             # epochs.SCHEDULE_TERM: the term moved the leg's p (both t)
             "schedule_term": schedule_term_label(leg),
             "verdict": _verdict(leg),

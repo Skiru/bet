@@ -2921,6 +2921,22 @@ niego 08).
     grupy epok księgi.** Podejrzenie (nie pomiar): puchary kontynentalne
     -16,8 pp względem ceny na 14 meczach hold-out - ponowny pomiar przy ~100.
     Test: `T-RATING-MARKET-GAP-flag`.
+  - `lesser_loss` na nodze i podsumowanie `lesser_loss` w dokumencie (od
+    `epochs.LESSER_LOSS_MARK_FROM_UTC` = 2026-11-12 00:00Z, prośba operatora
+    2026-11-11: „chcę mieć to zaznaczane na kuponie"; `bet.sofa.lesser_loss`,
+    liczone w COUPON z pól samej nogi). **Mniej zła noga** to singiel na
+    rynku o marży < 8,6%, z pewnością najwyżej 4,7 pp pod 1/kurs i z próbką
+    ≥ 20 meczów (progi zamrożone). Noga jednostronna (bez marży) nigdy. Stopień
+    **„pewna"**: to samo i pewność ≥ 0,85. Pomiar
+    (`docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`, wydrukowane single
+    10-30..11-10, przed podatkiem): hold-out 11-05..11-10 mniej złe −1,7%
+    [−4,6; +1,0] wobec −5,1% wszystkich; pewne +0,6% [−3,1; +3,9], weszło
+    90,4% (dev to samo: +0,6%, 90,1%). Próg 0,85 wybrany po obejrzeniu
+    danych. Po podatku każdy koszyk traci ~11-14%. Na PDF (zielone,
+    pogrubione), HTML (zielony znacznik, filtry „mniej złe" i „pewne mniej
+    złe") i w `.md`. **Adnotacja: żadna noga nie jest dodana, zdjęta ani
+    przestawiona, żadna pewność się nie rusza; bez grupy epok księgi.** Test:
+    `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py --from 2026-11-12`).
   - `coupon_form` / `removed_by_coupon_form` — pokrętła operatora z
     `config/sofa_coupon_form.json` (`docs/sofa/CONFIG.md`): domyślnie
     wszystko się drukuje (`ladder_form: "group"`, bez limitu na mecz); działają

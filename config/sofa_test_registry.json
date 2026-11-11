@@ -844,6 +844,34 @@
           "quote": "W każdej połowie przedział wyklucza 1."
         }
       ]
+    },
+    {
+      "id": "T-LESSER-LOSS-flag",
+      "registered_on": "2026-11-11",
+      "status": "REGISTERED",
+      "hypothesis": "A printed single marked lesser_loss (bet.sofa.lesser_loss: overround < 0.086, confidence - 1/odds >= -0.047, sample_size >= 20) loses less per unit staked than an unmarked printed single; its 'pewna' tier (confidence >= 0.85) wins about 90% of the time at about its price.",
+      "rule": "Printed singles of 11_coupon.json graded WIN / LOSS in 13_results.json (refund / void / unknown out), every sport; the mark recomputed by lesser_loss.annotate from the leg's printed confidence / odds and its own overround / sample_size (scripts/sofa/measure_lesser_loss.py). ROI before the tax per group: marked, pewna, unmarked.",
+      "population": "Legs of the official coupon from 2026-11-12, locked legs included, a leg removed by a read excluded.",
+      "data_window": {
+        "from": "2026-11-12",
+        "to": null
+      },
+      "required_n": {
+        "legs": 3000,
+        "matches_min": 1000,
+        "pewna_legs": 600,
+        "pewna_matches_min": 300,
+        "basis": "10-30..11-10: ~260 marked legs a day in ~100 matches, ~55 pewna legs a day; a match-bootstrap half-width ~3 pp on the marked ROI at 1,000 matches, ~3.5 pp on pewna at 300 matches."
+      },
+      "evaluation": "Marked minus unmarked ROI (before the tax), match bootstrap 1000, 95% interval; pewna: realised hit, mean confidence, mean 1/odds and ROI with its interval (scripts/sofa/measure_lesser_loss.py --from 2026-11-12).",
+      "stop_criterion": "Judged once when both counts are reached (kickoff order). Mark PASSED when the marked minus unmarked ROI interval lies above 0; FAILED when its upper bound is below +1 pp (the mark is withdrawn, proposed to the operator). Pewna reported: PASSED when its ROI interval holds 0 or lies above it and its hit is >= 0.87; FAILED when its ROI upper bound is below 0. Nothing prints differently either way; the 12% tax is reported beside every number.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md",
+          "line": 1,
+          "quote": "hold-out 11-05..11-10: mniej złe -1,7% [-4,6; +1,0], PEWNE +0,6% [-3,1; +3,9], wszystkie -5,1%"
+        }
+      ]
     }
   ]
 }

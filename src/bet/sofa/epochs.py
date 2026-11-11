@@ -3706,6 +3706,25 @@ def rating_market_gap(date: str, build_at: datetime | None = None) -> bool:
     return _audit_1023_on(RATING_MARKET_GAP_FROM_UTC, date, build_at)
 
 
+# A printed single on a low-margin market (overround < 0.086), whose
+# confidence sits at most 4.7 pp under 1/odds and whose own sample holds
+# >= 20 matches carries a `lesser_loss` entry and a sentence on the PDF / HTML
+# (bet.sofa.lesser_loss): such legs lost about half as much (hold-out
+# 11-05..11-10: -1.7% [-4.6, +1.0] vs -5.1% for every leg, before the tax;
+# docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md). Annotation only: no leg
+# is added, removed or re-ranked, no confidence moves, nothing reads it for a
+# read, a veto or a builder - so no ledger epoch group. Judged forward by
+# T-LESSER-LOSS-flag. Operator 2026-11-11 ("chcę mieć to zaznaczane na
+# kuponie"); from the next day 00:00Z.
+LESSER_LOSS_MARK_FROM_UTC: datetime | None = datetime(2026, 11, 12, 0, 0, tzinfo=UTC)
+
+
+def lesser_loss_mark(date: str, build_at: datetime | None = None) -> bool:
+    """Does the build mark lesser-loss legs (LESSER_LOSS_MARK_FROM_UTC on the
+    day being built and the build clock)?"""
+    return _audit_1023_on(LESSER_LOSS_MARK_FROM_UTC, date, build_at)
+
+
 # Tennis full-match games total / sets total print from confidence 0.60
 # (operator 2026-11-05: "be at least as good as Superbet's price, the margin
 # accepted"; "switches today, ready for tomorrow"). Measured 2026-11-05

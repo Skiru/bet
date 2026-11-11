@@ -516,6 +516,23 @@ about at the price, below the confidence - the same mechanism as `price_gap`
 re-ranked; no confidence moves; not in `confidence.read_value`; never a read /
 veto ground on its own. Pre-registered: `T-RATING-MARKET-GAP-flag`.
 
+### Lesser-loss mark (2026-11-12 00:00Z, `LESSER_LOSS_MARK_FROM_UTC`; operator 2026-11-11)
+
+`bet.sofa.lesser_loss`, computed in COUPON from the leg's own fields: a
+printed single with overround < 0.086, confidence - 1/odds >= -0.047 and
+sample_size >= 20 carries `lesser_loss` (tier "pewna" at confidence >= 0.85,
+else "mniej_zla"); one-sided legs never. Ten leg fields cut into quintiles on
+10-30..11-04 (dev), read on 11-05..11-10 (hold-out), printed singles graded
+in 13_results.json, before the 12% tax, match bootstrap: marked dev -3.2%
+[-5.9, -0.4], hold-out -1.7% [-4.6, +1.0] vs -5.4% / -5.1% for every leg;
+"pewna" dev +0.6% [-3.2, +4.2] 90.1% won, hold-out +0.6% [-3.1, +3.9] 90.4%
+won (the 0.85 edge chosen after both halves were seen). Not separating at
+one price: star, price_gap, rating_market_gap, odds, line_offset, model or
+own sample minus price. After the tax every group loses ~11-14%.
+Annotation only: nothing added, removed, re-ranked; no confidence moves; no
+ledger group. `docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`;
+pre-registered `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py`).
+
 ### Basketball period curves on market-positioned lines (2026-11-06 00:00Z; operator's install go 2026-11-05; ledger group "od 11-06")
 
 | constant | from | what | evidence |

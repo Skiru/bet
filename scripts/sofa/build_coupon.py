@@ -49,6 +49,7 @@ from bet.sofa import coupon_sports as cs  # noqa: E402
 from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa import leg_identity as li  # noqa: E402
 from bet.sofa import leg_relations as lr  # noqa: E402
+from bet.sofa import lesser_loss as ll  # noqa: E402
 from bet.sofa import locked_print as lp  # noqa: E402
 from bet.sofa import peer_choice as pc  # noqa: E402
 from bet.sofa import price_gap as pg  # noqa: E402
@@ -73,6 +74,7 @@ from bet.sofa.epochs import (  # noqa: E402
     artifact_epoch,
     builder_screen_price_required,
     coupon_form_active,
+    lesser_loss_mark,
     peer_choice,
     price_gap_flag,
     price_gap_sports,
@@ -128,6 +130,7 @@ def assemble(
     price_gap_active: bool = False,
     price_gap_extra: frozenset[str] = frozenset(),
     same_event_active: bool = False,
+    lesser_loss_active: bool = False,
     boards: dict[int, tuple[str, str]] | None = None,
     shown_keys: set[tuple[Any, ...]] | None = None,
 ) -> dict[str, Any]:
@@ -151,6 +154,9 @@ def assemble(
     epochs.PRICE_GAP_FLAG_FROM_UTC) - annotation only as well;
     `price_gap_extra`: the later sports flagged too (CS2,
     epochs.CS2_PRICE_GAP_FROM_UTC).
+    `lesser_loss_active`: a low-margin leg close to its price with a long
+    sample says what such legs lost (bet.sofa.lesser_loss,
+    epochs.LESSER_LOSS_MARK_FROM_UTC) - annotation only.
     `same_event_active` / `boards`: one leg per (match, event) - two market
     names of one outcome print once (bet.sofa.leg_identity,
     epochs.SAME_EVENT_DEDUP_FROM_UTC); `boards` are Superbet's side names
@@ -245,6 +251,9 @@ def assemble(
         leg.pop("price_gap", None)
         if price_gap_active and (gap := pg.annotate(leg, price_gap_extra)) is not None:
             leg["price_gap"] = gap
+        leg.pop("lesser_loss", None)
+        if lesser_loss_active and (mark := ll.annotate(leg)) is not None:
+            leg["lesser_loss"] = mark
     # epochs.FOOTBALL_SCORE_MARKETS / TENNIS_SET_COMPLEMENTS: the leg named in
     # Superbet's words ("Mecz lub liczba goli: <team> lub powyżej 2.5 (Tak)"),
     # not "result_or_over (1) 2.5 OVER"; no other leg is touched
@@ -319,6 +328,11 @@ def assemble(
             "gap": pg.GAP,
             "later_sports": sorted(price_gap_extra) if price_gap_active else [],
             "legs": sum(1 for s in out_singles if s.get("price_gap")),
+        },
+        "lesser_loss": {
+            "active": lesser_loss_active,
+            "rule": ll.RULE,
+            "legs": sum(1 for s in out_singles if s.get("lesser_loss")),
         },
         "builders_refused": bs.refused_builders(builders),
         "builder_screen_prices": {
@@ -451,8 +465,8 @@ def prepare_sports(
 
 def _note(leg: dict[str, Any]) -> str:
     """The peer proposal, the stakes, the price gap and the rating-vs-market
-    gap of a leg, as plain text."""
-    parts = [pc.label(leg), pg.label(leg), rmg.label(leg)]
+    gap and the lesser-loss mark of a leg, as plain text."""
+    parts = [pc.label(leg), pg.label(leg), rmg.label(leg), ll.label(leg)]
     st = leg.get("stakes")
     if st:
         parts.append(", ".join(st["flags"])
@@ -575,6 +589,7 @@ def main() -> int:
                    price_gap_active=price_gap_flag(args.date, at),
                    price_gap_extra=price_gap_sports(args.date, at),
                    same_event_active=same_event_dedup(args.date, at),
+                   lesser_loss_active=lesser_loss_mark(args.date, at),
                    boards=boards,
                    shown_keys=lp.history_keys(lp.print_history(run)))
     # every leg named as Superbet's screen names it (superbet_market /
