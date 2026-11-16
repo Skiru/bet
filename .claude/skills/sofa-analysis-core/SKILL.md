@@ -265,6 +265,34 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
 - **Count what a null hits**: `subject: null` covers every subject of the
   match (no player field). Key a player leg to the player as the leg writes him.
 
+- **Stability of the leg's variable** (every read, every sport, reports
+  merged from `epochs.STABILITY_LABEL_FROM_UTC`; operator 2026-11-16): each
+  read carries `stability` - `STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW` - and
+  `stability_reason`, one Polish sentence. Judge **the variable the leg
+  settles on**, not the team or the match: can that count / event land
+  otherwise today than its sample and model say?
+  - `CHWIEJNA`: a concrete reason acting **through the leg's variable** - a
+    fresh losing run or a clear form slump of the side the leg needs, an
+    unsure / changed XI, a key absence, an unconfirmed goalie / player,
+    rotation or a second game in a short time, motivation that changes the
+    style (a dead rubber, a must-win), a volatile variable itself (a spread
+    sample, a line near the centre, an outcome hanging on one event), thin
+    or contradictory data (a small sample, another class, a cross-league
+    bridge). A missing goalie is a reason for goals, not for corners.
+  - `STABILNA`: sample and context agree and nothing says today is unusual
+    for this variable (known typical XI, no rotation, no slump, a clear
+    margin to the line).
+  - `BRAK_PODSTAW`: your analysis says nothing that lets you judge this leg.
+  The label **removes nothing** (a CHWIEJNA KEEP stays on the coupon; the
+  removal rules above are unchanged - `STABILITY_REMOVAL` is off until a
+  measurement passes and the operator says so). It is shown on the PDF /
+  HTML / `/kupon` table and measured (T-STABILITY-LABEL-FORWARD). Form, a
+  streak or h2h may make a leg CHWIEJNA - that is what the label is for -
+  while still never removing it. A family KEEP (`line: null`) carries one
+  label for every rung; when rungs differ (one near the centre, one far),
+  write leg-level reads. `report_check` sends back a report whose read lacks
+  either field (`STABILNOŚĆ:`) and `merge_reads.py` refuses it.
+
 Schemas, matching rules, every `reason_class` and `context` tag, worked
 examples: `references/veto-contract.md` (read it before writing the first
 entry of the day).

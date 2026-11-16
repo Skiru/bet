@@ -58,7 +58,7 @@ from bet.sofa.epochs import OLD, STATS_ONLY, artifact_epoch  # noqa: E402
 from bet.sofa.locked_print import leg_key, printed_leg_keys  # noqa: E402
 from bet.sofa.settleability import date_range  # noqa: E402
 from bet.sofa.timeutil import now  # noqa: E402
-from bet.sofa.veto import removal_context  # noqa: E402
+from bet.sofa.veto import leg_stability, removal_context  # noqa: E402
 from scripts.sofa import audit_settlement as settle_audit  # noqa: E402
 from scripts.sofa.audit_settlement import summarize_units  # noqa: E402
 
@@ -279,6 +279,16 @@ def confidence_rows(runs_dir: str, date: str, db_path: str) -> list[dict[str, An
                 tag: summarize_units(
                     [s for s in r_singles if removal_context(s["source"]) == tag])
                 for tag in sorted({removal_context(s["source"]) for s in r_singles})
+            }
+        # by the reads' stability of the leg's variable (epochs.STABILITY_LABEL,
+        # veto.leg_stability: CHWIEJNA wins; "-" unread / no label) - only on
+        # a variant whose legs carry one, so earlier rows read as they did
+        labels = {leg_stability(s["source"]) for s in g["singles"]}
+        if labels - {"-"}:
+            row["by_stability"] = {
+                label: summarize_units(
+                    [s for s in g["singles"] if leg_stability(s["source"]) == label])
+                for label in sorted(labels)
             }
         out.append(row)
     return out

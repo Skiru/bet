@@ -520,6 +520,27 @@ and a miss recorded before a rule's switch never blocks that rule.
   first on the web checklist), **checked by the code**
   (`report_check.retirement_findings`). `sofa-analyst-sport` runs on Sonnet
   (operator 10-26: cost).
+- **Stability label** (`STABILITY_LABEL_FROM_UTC` 2026-11-16 17:00Z,
+  operator 11-16 "the same day, an hour after the deployment"; display
+  only, no ledger group): every read merged from it carries `stability`
+  (`STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW`, the leg's own variable today)
+  and a one-sentence `stability_reason` (`contracts.LegRead`);
+  `report_check` `STABILNOŚĆ:` sends a report without them back and
+  `merge_reads.py` refuses it; an older day's report re-merged keeps its
+  rules. CHWIEJNA wins when readers disagree (`veto.leg_stability`). Shown
+  on the PDF (`read_label`), the HTML (tag, filters "chwiejne" /
+  "stabilne") and the /kupon md "czytana" column ("KEEP · chwiejna:
+  <powód>"); the ledger rows carry `by_stability`, 7i a stability table,
+  `measure_read_value.py --all-sports` the kept legs by it. **It removes
+  nothing**: the retro test (blind Sonnet classification of 11,391 archived
+  section x leg pairs 10-26..11-15, pre-registered) was NOT_PASSED -
+  CHWIEJNA minus STABILNA (hit - 1/odds) hold-out +0.3 pp [-3.0, +3.8], dev
+  -1.3 [-3.5, +1.1]; shaky legs are longer prices, not worse than their
+  price (`docs/sofa/evidence/chwiejna_noga_2026-11-16.md`).
+  `STABILITY_REMOVAL_FROM_UTC` (CHWIEJNA -> `removed_by_reads`, context
+  "STABILITY") stays `None` - only after T-STABILITY-LABEL-FORWARD
+  (from 11-17, 300 CHWIEJNA pairs, `measure_stability_label.py measure
+  --from-reads`) passes and with the operator's go.
 
 ### Measured sports (hockey, basketball, volleyball, CS2)
 

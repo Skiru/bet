@@ -185,6 +185,18 @@ Template and step table: `references/event-protocol.md`.
 A correct value the model does not use is a note, never a `DEFEKT:`. There
 is no `RYNEK:` removal in tennis.
 
+## Stability (every read; sofa-analysis-core "Verdicts", stability)
+
+`CHWIEJNA` in tennis, through the leg's variable: a player's games / sets /
+win / handicap after a recent retirement, a medical time-out or a loss he
+did not finish; a surface or format change from his sample; a qualifier or
+a third match in three days; a games total or per-set line decided by
+tie-breaks (two big servers, a line at x.5 near 12 / 22); aces / double
+faults of a player with a spread sample or a new serve issue; ITF / class
+mixing in the sample. `STABILNA`: the same surface and format, both
+players' recent matches normal, a clear margin on serve / return to the
+line.
+
 ## Tennis output requirements
 
 Per match, in the section of `references/event-protocol.md`, with these

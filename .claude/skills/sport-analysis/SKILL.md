@@ -107,6 +107,19 @@ price: a note, never a `DEFEKT:`.
   bet (Bo3 `team_maps` OVER 0.5 and `maps_handicap` +1.5) are an exposure
   line, never a removal.
 
+## Stability (every read; sofa-analysis-core "Verdicts", stability)
+
+`CHWIEJNA`, through the leg's variable - **hockey**: goals / result with the
+starting goalie unconfirmed or a backup, a back-to-back, a losing run;
+period lines (few goals, one event decides). **Basketball**: totals /
+handicaps with a game-time decision or stars resting, a back-to-back;
+quarters. **Volleyball**: sets / points with the six rotated, a cup game
+between league games, a losing run. **CS2**: the winner / maps after a
+fresh series loss or a losing run, a stand-in, an unsettled map pool; one
+map's rounds. `STABILNA`: confirmed goalie / full rosters / settled five,
+the model and both sides' recent games agree with a clear margin. Yesterday's
+result is never a removal - it may make the leg CHWIEJNA.
+
 ## Never a reason
 
 A league's tendency, a winning run, yesterday's result, a family's past hit

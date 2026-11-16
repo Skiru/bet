@@ -196,6 +196,19 @@ Template and step table: `references/event-protocol.md`.
 - A make-up fixture nobody asked about (a round-5 make-up after a viral
   outbreak: UNDER 3.5 lost 4-0).
 
+## Stability (every read; sofa-analysis-core "Verdicts", stability)
+
+`CHWIEJNA` in football, through the leg's variable: goals / result legs of a
+side on a losing run, with a new coach, a key forward or keeper out or
+unconfirmed, a dead rubber or a must-win that changes the game; corners /
+shots OVER of a side that may not have the ball tonight (`ZESTAWIENIE
+PRZECIW`, a ladder that moved); cards with the referee not named or a
+derby; a player prop with the XI not confirmed (`lineups` predicted) or a
+role change; halves and first goal (one event decides); a line at the
+sample's centre; a cup tie between levels or a cross-league bridge.
+`STABILNA`: own sample and the opponent's concession agree with a clear
+margin, the XI typical / confirmed, nothing in the web pass.
+
 ## Football output requirements
 
 Per match, always state - even when the answer is "brak": the **Styl gry i

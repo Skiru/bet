@@ -50,7 +50,7 @@ from bet.sofa.settle import (  # noqa: E402
     refund_event_ids,
     void_leg_keys,
 )
-from bet.sofa.veto import removal_context  # noqa: E402
+from bet.sofa.veto import leg_stability, removal_context  # noqa: E402
 from scripts.sofa.audit_boosts import audit_day as audit_boosts_day  # noqa: E402
 from scripts.sofa.audit_boosts import render as render_boosts  # noqa: E402
 from scripts.sofa.audit_niches import latest_artifact as latest_niches  # noqa: E402
@@ -434,6 +434,19 @@ def render_removed_by_reads(
                      f"{g['units']:+.2f} j."])
     out.append(_table(["tag kontekstu", "nóg", "weszło / nie", "wynik"], rows))
     out.append("")
+    # by the reads' stability of the leg's variable (epochs.STABILITY_LABEL;
+    # CHWIEJNA wins) - only on a day whose reads carry one
+    labels = sorted({leg_stability(r) for r in removed})
+    if labels != ["-"]:
+        rows = []
+        for label in labels:
+            group = [r for r in removed if leg_stability(r) == label]
+            g = settle_singles(group, by_key)
+            rows.append([label, len(group), f"{g['won']} / {g['lost']}",
+                         f"{g['units']:+.2f} j."])
+        out.append(_table(["stabilność (analityk)", "nóg", "weszło / nie", "wynik"],
+                          rows))
+        out.append("")
     return out
 
 

@@ -10,7 +10,11 @@ removed it: hit rate against the mean confidence and the mean
         --from <d> --to <d> [--md-out f]
 
 Read-only evidence (CLAUDE.md "Changing the pipeline" 1), never a gate. The
-measured sports' legs are graded apart (coupon_sports) and are not in it.
+measured sports' legs (graded by coupon_sports) join only with
+`--all-sports`, and the report then names every sport it pooled and splits
+by sport. Every read leg also carries its reads' stability
+(veto.leg_stability, epochs.STABILITY_LABEL: CHWIEJNA wins, "-" none) - the
+kept legs are split by it (T-STABILITY-LABEL-FORWARD's KEEP view).
 """
 
 from __future__ import annotations
@@ -32,19 +36,15 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
 
 from bet.sofa.confidence import is_sheet_sport  # noqa: E402
 from bet.sofa.config import SofaConfig  # noqa: E402
+from bet.sofa.veto import leg_stability  # noqa: E402
+from scripts.sofa.measure_stability_label import leg_read_key, read_key  # noqa: E402
 from scripts.sofa.record_results import graded_confidence  # noqa: E402
 
 Row = dict[str, Any]
 
 
-def _key(x: dict[str, Any]) -> tuple[Any, ...]:
-    line = x.get("line")
-    return (int(x["sofascore_event_id"]), x.get("market"),
-            str(x.get("subject") or "").lower(),
-            None if line is None else float(line), x.get("direction"))
-
-
-def rows(runs_dir: str, days: list[str], db_path: str) -> list[Row]:
+def rows(runs_dir: str, days: list[str], db_path: str,
+         all_sports: bool = False) -> list[Row]:
     out: list[Row] = []
     for d in days:
         path = Path(runs_dir) / d / "reads.json"
@@ -52,7 +52,9 @@ def rows(runs_dir: str, days: list[str], db_path: str) -> list[Row]:
             continue
         verdict: dict[tuple[Any, ...], tuple[str, str]] = {}
         for r in json.loads(path.read_text(encoding="utf-8")):
-            k = _key(r)
+            # a read names the leg by (event, market | family, period,
+            # subject, line, direction) - one key for every sport
+            k = read_key(r)
             # WATCH / NO_BET win over KEEP, as veto.read_refusal reads them
             if k not in verdict or r["verdict"] != "KEEP":
                 verdict[k] = (r["verdict"], r["author"])
@@ -64,12 +66,12 @@ def rows(runs_dir: str, days: list[str], db_path: str) -> list[Row]:
                 src, outcome = pos["source"], str(pos.get("outcome"))
                 # the measured sports are graded apart - never pooled here;
                 # a leg the automatic gate removed (reason "auto") is no read's
-                if not is_sheet_sport(src) or outcome not in (
+                if (not all_sports and not is_sheet_sport(src)) or outcome not in (
                         "WIN", "LOSS", "WON", "LOST"):
                     continue
                 if removed and src.get("reason") in (None, "auto"):
                     continue
-                v = verdict.get(_key(src))
+                v = verdict.get(leg_read_key(src))
                 odds = pos.get("odds") or src.get("offered_odds")
                 if v is None or not odds:
                     continue
@@ -80,6 +82,8 @@ def rows(runs_dir: str, days: list[str], db_path: str) -> list[Row]:
                     "author": str(src.get("reason")) if removed else v[1],
                     "win": outcome in ("WIN", "WON"), "odds": float(odds),
                     "conf": float(src.get("confidence") or 0.0),
+                    "sport": str(src.get("sport") or "football"),
+                    "stability": leg_stability(src),
                 })
     return out
 
@@ -122,7 +126,9 @@ def diff(rs: list[Row]) -> float:
 
 
 def report(rs: list[Row], first: str, last: str) -> str:
-    lines = [f"# Read value {first}..{last} (football / tennis, read and settled legs)",
+    sports = sorted({r["sport"] for r in rs})
+    pooled = " / ".join(sports)
+    lines = [f"# Read value {first}..{last} ({pooled}, read and settled legs)",
              "", "| group | n | matches | hit | confidence | 1/odds | ROI | ROI 95% |",
              "|---|---|---|---|---|---|---|---|"]
     gone = [r for r in rs if r["removed"]]
@@ -144,6 +150,29 @@ def report(rs: list[Row], first: str, last: str) -> str:
     lo, hi = bootstrap(rs, diff)
     lines += ["", f"(hit - 1/odds) removed minus kept: {100 * diff(rs):+.1f} pp "
               f"[{100 * lo:+.1f}, {100 * hi:+.1f}] (match bootstrap)."]
+    kept = [r for r in rs if not r["removed"]]
+    extra: list[tuple[str, list[Row]]] = []
+    if len(sports) > 1:
+        extra += [(f"kept, {sp}", [r for r in kept if r["sport"] == sp])
+                  for sp in sports]
+    labels = sorted({r["stability"] for r in kept})
+    if labels != ["-"]:
+        extra += [(f"kept, stability {lab}", [r for r in kept if r["stability"] == lab])
+                  for lab in labels]
+    if extra:
+        lines += ["", "| kept legs by | n | matches | hit | confidence | 1/odds | "
+                  "hit - 1/odds | ROI | ROI 95% |",
+                  "|---|---|---|---|---|---|---|---|---|"]
+        for name, g in extra:
+            if not g:
+                continue
+            s = stats(g)
+            lo, hi = bootstrap(g, lambda x: stats(x)["roi"])
+            lines.append(
+                f"| {name} | {len(g)} | {len({(r['day'], r['event']) for r in g})} "
+                f"| {s['hit']:.3f} | {s['conf']:.3f} | {s['price']:.3f} "
+                f"| {100 * (s['hit'] - s['price']):+.1f} pp | {100 * s['roi']:+.1f}% "
+                f"| [{100 * lo:+.1f}, {100 * hi:+.1f}] |")
     return "\n".join(lines) + "\n"
 
 
@@ -153,10 +182,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="end", required=True)
     ap.add_argument("--runs-dir", default="runs/sofa")
     ap.add_argument("--md-out")
+    ap.add_argument("--all-sports", action="store_true",
+                    help="also the measured sports' read legs (split by sport)")
     args = ap.parse_args(argv)
     a, b = date.fromisoformat(args.start), date.fromisoformat(args.end)
     days = [(a + timedelta(n)).isoformat() for n in range((b - a).days + 1)]
-    rs = rows(args.runs_dir, days, SofaConfig.from_env().db_path)
+    rs = rows(args.runs_dir, days, SofaConfig.from_env().db_path, args.all_sports)
     if not rs:
         print("no read and settled legs")
         return 1

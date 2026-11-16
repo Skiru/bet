@@ -321,6 +321,13 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 - `context`: `MARKET` for a RYNEK reason, `RETIREMENT` for a KRECZ reason, a CONTEXT signal (`MOTIVATION |
   ROTATION | ABSENCES | DERBY | SCHEDULE | CONDITIONS | MORALE`) for a web
   fact, else `null`. Never a read on a locked leg.
+- `stability` + `stability_reason` on **every** read (reports merged from
+  `epochs.STABILITY_LABEL_FROM_UTC`; `report_check` `STABILNOŚĆ:`, merge
+  refuses without): `STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW` - is the leg's
+  own variable predictable today (sofa-analysis-core "Verdicts",
+  stability)? Judge it yourself: you may disagree with the analyst's label
+  (the view and the ledger take CHWIEJNA when either says so). It removes
+  nothing.
 
 Return to the caller only (<= 12 lines): the report path you actually wrote;
 legs verified / printed beyond the set; the `verify_legs.py --all` line

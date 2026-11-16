@@ -872,6 +872,31 @@
           "quote": "hold-out 11-05..11-10: mniej złe -1,7% [-4,6; +1,0], PEWNE +0,6% [-3,1; +3,9], wszystkie -5,1%"
         }
       ]
+    },
+    {
+      "id": "T-STABILITY-LABEL-FORWARD",
+      "registered_on": "2026-11-16",
+      "status": "REGISTERED",
+      "hypothesis": "A read leg the analyst (or the verifier) labels CHWIEJNA - the leg's own variable may land otherwise today (form slump, an unsure XI, rotation, motivation, a volatile variable, thin data) - realises further below its printed price than a leg labelled STABILNA.",
+      "rule": "Unit: a pair (an analysis section of analyses.json / analyses_slip.json, a leg of that match read in the same merge: read_at_utc = recorded_at_utc, same author), the section merged before the leg's kickoff, the read's verdict KEEP, the leg graded WIN / LOSS in the day's 13_results.json (refund / void / ungraded out), every sport; the label is the read's own `stability` field (contracts.LegRead). Measure: (hit - 1/odds at the printed odds) of CHWIEJNA minus that of STABILNA (BRAK_PODSTAW reported, out of the contrast); hit - confidence and flat ROI reported. scripts/sofa/measure_stability_label.py measure --from 2026-11-17 --to <d> --from-reads (no --labels).",
+      "population": "Reads merged from 2026-11-17 00:00Z (reports carrying `stability`, epochs.STABILITY_LABEL_FROM_UTC), legs with kickoff from 2026-11-17, both /sofa-analyze / C3 reads (reads.json) and /kupon reads (reads_slip.json).",
+      "data_window": {
+        "from": "2026-11-17",
+        "to": null
+      },
+      "required_n": {
+        "shaky_pairs": 300,
+        "basis": "Retro classification 10-26..11-15 (docs/sofa/evidence/chwiejna_noga_2026-11-16.md): ~11,000 KEEP pairs in 21 days; the forward share of CHWIEJNA is unknown - 300 shaky pairs gives a match-bootstrap half-width of about 5-6 pp on the difference at ~1.3 prices."
+      },
+      "evaluation": "Match bootstrap (cluster = (day, event)), 2000 draws, seed 1, 95% percentile interval; per sport and pooled; the same difference within price bands <1.10 / 1.10-1.30 / 1.30-1.60 / 1.60-2.20 / >=2.20 and band-stratified (weighted by CHWIEJNA pairs).",
+      "stop_criterion": "Judged once, on the first 300 CHWIEJNA pairs in kickoff order (every STABILNA pair up to the 300th shaky pair's kickoff); later pairs reported apart. PASSED when CHWIEJNA - STABILNA < 0 with the 95% upper bound < 0; else NOT_PASSED. A PASSED with the band-stratified difference < 0 lets the session propose STABILITY_REMOVAL (epochs.STABILITY_REMOVAL_FROM_UTC, off) to the operator - never switch it on its own; a NOT_PASSED keeps the label display only. An earlier look never changes the rule; a changed definition is a new test.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/chwiejna_noga_2026-11-16.md",
+          "line": 143,
+          "quote": "### A8. Test prospektywny T-STABILITY-LABEL-FORWARD"
+        }
+      ]
     }
   ]
 }

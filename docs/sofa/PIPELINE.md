@@ -2783,6 +2783,21 @@ niego 08).
   z literatury); h2h, forma, tabela, luka model-próbka i `price_gap` nadal
   nie zdejmują nogi. Weto - te same źródła (`WETO BEZ FAKTU`); raport
   weryfikatora (`_weryfikacja`) sprawdzany tymi samymi regułami zdjęcia.
+  **Stabilność nogi** (`epochs.STABILITY_LABEL_FROM_UTC` = 2026-11-16 17:00Z,
+  operator 2026-11-16, tylko wyświetlanie): każdy odczyt scalony od tej
+  chwili ma `stability` (`STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW` - czy
+  zmienna, którą rozlicza noga, jest dziś przewidywalna) i jedno zdanie
+  `stability_reason`; bez nich hook odsyła raport (`STABILNOŚĆ:`), a
+  merge_reads go odrzuca. Gdy czytający się różnią, wygrywa CHWIEJNA
+  (`veto.leg_stability`). Widać ją w PDF (`read_label`), w HTML (znacznik,
+  filtry „chwiejne” / „stabilne”) i w kolumnie „czytana” /kupon („KEEP ·
+  chwiejna: <powód>”); dziennik ma `by_stability`, audyt 7i - tabelę
+  stabilności. **Nie zdejmuje nogi**: test wstecz (ślepa klasyfikacja
+  11 391 par sekcja x noga z 10-26..11-15, rejestracja przed pomiarem)
+  NIEZALICZONY - CHWIEJNA − STABILNA (trafność − 1/kurs) hold-out
+  +0,3 pp [−3,0; +3,8], dev −1,3 [−3,5; +1,1]
+  (`docs/sofa/evidence/chwiejna_noga_2026-11-16.md`); `STABILITY_REMOVAL`
+  wyłączony, test prospektywny T-STABILITY-LABEL-FORWARD od 11-17.
 - Kopia `read_requests` i zbiór do przeczytania
   (`confidence.legs_requiring_read`: pierwsze `READ_REQUIRED_SINGLES` = 30 (od 2026-10-09 00:00Z jednostką jest mecz: wszystkie niezablokowane nogi 30 pierwszych meczów kuponu, `READ_REQUIRED_EVENTS`, `read_unit: "event"` w artefakcie; od 2026-10-14 00:00Z, `READ_BY_VALUE_FROM_UTC`, 30 meczów o najwyższej wartości: pewność x kurs najlepszej niezablokowanej nogi meczu, pewność nogi piłkarskiej / tenisowej liczona najwyżej 1/kurs + 0,03, `confidence.read_value`, `read_order: "value"`; operator 2026-10-13)
   pozycji niezablokowanych, każda noga wydrukowanego buildera, prośby z

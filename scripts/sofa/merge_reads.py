@@ -155,7 +155,10 @@ SLIP_VETOES, SLIP_READS = "vetoes_slip.json", "reads_slip.json"
 # 2026-10-29): such a report is refused whole, never merged in part; a
 # `RYNEK:` WATCH is checked against its leg's dossier row (E2E 2026-10-29)
 BLOCKING_FINDINGS = ("USUNIĘCIE BEZ FAKTU", "RYNEK TYLKO WATCH", "RYNEK BEZ TAGU",
-                     "WETO BEZ FAKTU", *MARKET_BLOCKING, *RETIREMENT_BLOCKING)
+                     "WETO BEZ FAKTU", *MARKET_BLOCKING, *RETIREMENT_BLOCKING,
+                     # every read owes its leg's stability from
+                     # epochs.STABILITY_LABEL_FROM_UTC (report_check.stability_required)
+                     "STABILNOŚĆ")
 
 
 def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,

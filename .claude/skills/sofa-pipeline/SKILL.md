@@ -198,6 +198,12 @@ Nothing can **promote** a leg.
   nothing. A sport leg: `market` = family, `direction` = side
   (`T1|T2|DRAW|ODD|EVEN|YES|NO|1X|X2|12` or exact score "3:1"), `period` =
   period / quarter / set / CS2 map; COUPON_ASSEMBLY applies it (`reads_sport`).
+  Every read merged from `epochs.STABILITY_LABEL_FROM_UTC` also carries
+  `stability` (`STABILNA | CHWIEJNA | BRAK_PODSTAW` - the leg's own variable
+  today) and a one-sentence `stability_reason` (`sofa-analysis-core`
+  "Verdicts"); `report_check` / `merge_reads.py` refuse a report without
+  them. It removes nothing (`STABILITY_REMOVAL` is off); shown on the PDF /
+  HTML / `/kupon` table, measured by T-STABILITY-LABEL-FORWARD.
 - **`read_requests.json`** - the operator's extra legs: `{"group_key":
   "sofa:<id>", "market"?, "line"?, "direction"?}` (or `{"position": n}`), each
   with `requested_by`, `at_utc`. Prefer `group_key`: positions shift every rebuild.

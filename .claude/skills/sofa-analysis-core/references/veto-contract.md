@@ -109,13 +109,22 @@ match started is excluded from the grade.
 | `author` | `analyst \| verifier` | you are `"analyst"` |
 | `reason` | non-empty str | Polish; rides on the leg as `reads`; a WATCH / NO_BET reason carries one of the marks of core "What a removal's reason must name" (`report_check`) |
 | `context` | a `context` tag above, `MARKET` (a football `RYNEK:` WATCH - required there) or `RETIREMENT` (a tennis `KRECZ:` WATCH, reports from 2026-11-02 - required there), optional | exactly one of `MOTIVATION`, `ROTATION`, `ABSENCES`, `DERBY`, `SCHEDULE`, `CONDITIONS`, `MORALE`, `MARKET`, `RETIREMENT`, or null / left out when none fits - anything else (`"OTHER"`, `"NONE"`) fails validation and merge_reads refuses the report (E2E 10-29) |
+| `stability` | `STABILNA \| CHWIEJNA \| BRAK_PODSTAW` | the leg's variable today (core "Verdicts", stability) - required on every read merged from `epochs.STABILITY_LABEL_FROM_UTC`; removes nothing |
+| `stability_reason` | non-empty str | one Polish sentence, through the leg's variable; required with `stability`, never without it |
 
 A WATCH / NO_BET copies `market` / `subject` / `line` / `direction` /
 `period` from the read-set leg, never retyped from the PDF.
 
 Eight keys are required (`sofascore_event_id`, `market`, `subject`, `line`,
 `direction`, `verdict`, `author`, `reason`); `period` and `context` may be
-left out.
+left out. From `epochs.STABILITY_LABEL_FROM_UTC` `stability` and
+`stability_reason` are required too (`report_check` `STABILNOŚĆ:`; merge
+refuses the report). Example:
+`{"sofascore_event_id": 15800001, "market": "winner", "subject": "", "line": null,
+"direction": "T1", "period": 0, "verdict": "KEEP", "author": "analyst",
+"reason": "...", "stability": "CHWIEJNA", "stability_reason": "Brute przegrał
+wczoraj serię 1:2 (Inferno 1:13) i w turnieju 0:2 z ILLYRIANS - wynik serii
+zależy od formy, która właśnie siadła"}`.
 
 Effect (`veto.read_refusal`; `coupon_sports.apply_reads` for a sport leg):
 KEEP removes nothing; WATCH removes with refusal `WATCHED`, NO_BET with

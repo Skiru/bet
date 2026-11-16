@@ -14,7 +14,7 @@ singles, which the runbook says are not the coupon — and never reached
 The only structured output an analyst had could not touch the product.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -160,7 +160,36 @@ def read_note(read: LegRead) -> dict[str, Any]:
         note["read_at_utc"] = read.read_at_utc
     if read.context:
         note["context"] = read.context
+    if read.stability:
+        note["stability"] = read.stability
+        note["stability_reason"] = read.stability_reason
     return note
+
+
+# CHWIEJNA wins over STABILNA, STABILNA over BRAK_PODSTAW: a leg any reader
+# called shaky is shown and counted as shaky (the verifier may disagree).
+_STABILITY_RANK = {"CHWIEJNA": 0, "STABILNA": 1, "BRAK_PODSTAW": 2}
+
+
+def leg_stability(leg: Mapping[str, Any]) -> str:
+    """The stability label of the reads riding on a leg ("-" when none
+    carries one) - the ledger's `by_stability` key and the view's tag."""
+    labels = [str(r.get("stability")) for r in leg.get("reads") or []
+              if isinstance(r, Mapping) and r.get("stability") in _STABILITY_RANK]
+    return min(labels, key=lambda x: _STABILITY_RANK[x], default="-")
+
+
+def stability_note(reads: Iterable[Mapping[str, Any]]) -> tuple[str, str] | None:
+    """(label, reason) of the deciding stability read (leg_stability's rule;
+    the newest of that label) - None when no read carries one."""
+    rs = [r for r in reads if isinstance(r, Mapping)
+          and r.get("stability") in _STABILITY_RANK]
+    if not rs:
+        return None
+    best = min(_STABILITY_RANK[str(r["stability"])] for r in rs)
+    pick = max((r for r in rs if _STABILITY_RANK[str(r["stability"])] == best),
+               key=lambda r: str(r.get("read_at_utc") or ""))
+    return str(pick["stability"]), str(pick.get("stability_reason") or "")
 
 
 def removal_context(leg: Mapping[str, Any]) -> str:

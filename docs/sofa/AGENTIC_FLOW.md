@@ -216,6 +216,15 @@ pewność, kurs, `locked`, `price_gap`, `in_set` = `required` / `buffer`):
      `price_gap` ani most między ligami nie zdejmują nogi (10-26: 19 z 24
      WATCH było tego rodzaju; pomiar 10-13..10-25 nie pokazał, by takie
      zdjęcia cokolwiek dawały);
+   - STABILNOŚĆ / STABILNOŚĆ BEZ POWODU (od 2026-11-16 17:00Z,
+     `epochs.STABILITY_LABEL_FROM_UTC`; blokuje merge): odczyt bez
+     `stability` (`STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW`) albo bez
+     `stability_reason`. Analityk i weryfikator oceniają każdą nogę, każdy
+     sport (weryfikator może się nie zgodzić; wygrywa CHWIEJNA); etykieta
+     nic nie zdejmuje (test wstecz NIEZALICZONY,
+     `docs/sofa/evidence/chwiejna_noga_2026-11-16.md`). Agent, którego
+     definicja wczytała się przed zmianą, dostaje wymaganie z komunikatu
+     hooka;
    - pozostałe ustalenia (nazwa = początek komunikatu hooka): KONTEKST
      (brak „Kontekst (web)”), DOSSIER, SEKCJA BEZ TOKENU (nagłówek bez
      `sofa:<id>`, także u weryfikatora), TAG WEB BEZ DATY, FAKTY ZABÓJCZE,

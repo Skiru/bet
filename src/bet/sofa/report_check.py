@@ -28,7 +28,8 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from bet.sofa import analyses
+from bet.sofa import analyses, epochs
+from bet.sofa.contracts import STABILITY_LABELS
 from bet.sofa.dossier import (
     STYLE_POSSESSION_MIN,
     dossier_path,
@@ -182,10 +183,43 @@ def report_day(name: str) -> str | None:
     return m.group(1) if m else None
 
 
+def stability_required(day: str | None, at: datetime.datetime | None = None) -> bool:
+    """Does a report of `day` checked at `at` (default now) owe every read a
+    `stability`? From epochs.STABILITY_LABEL_FROM_UTC by the clock, and only
+    for a report of that day or later (an older report re-merged keeps its
+    rules); `day` None (a test, an unnamed file) - not required."""
+    start = epochs.STABILITY_LABEL_FROM_UTC
+    if day is None or start is None:
+        return False
+    return day >= start.date().isoformat() and epochs.stability_label_required(at)
+
+
+def stability_findings(reads: Iterable[Mapping[str, Any]]) -> list[str]:
+    """Every read names the stability of its leg's variable with a reason
+    (sofa-analysis-core "Stability"): STABILNA / CHWIEJNA / BRAK_PODSTAW."""
+    out: list[str] = []
+    for r in reads:
+        label = (
+            f"{r.get('sofascore_event_id')} {r.get('market')} {r.get('subject') or ''} "
+            f"{r.get('line')} {r.get('direction')}"
+        ).replace("  ", " ")
+        st = r.get("stability")
+        if st not in STABILITY_LABELS:
+            out.append(
+                f"STABILNOŚĆ: {label}: odczyt bez `stability` (STABILNA / CHWIEJNA / "
+                f"BRAK_PODSTAW, jest {st!r}) - oceń, czy zmienna tej nogi jest dziś "
+                "stabilna, i dopisz `stability_reason` jednym zdaniem")
+        elif not str(r.get("stability_reason") or "").strip():
+            out.append(f"STABILNOŚĆ BEZ POWODU: {label}: `stability: {st}` bez "
+                       "`stability_reason` (jedno zdanie, przez zmienną nogi)")
+    return out
+
+
 def findings(
     text: str, day: str | None = None, *, verifier: bool = False,
     sport: str | None = None,
     dossiers: Mapping[int, Mapping[str, Any] | None] | None = None,
+    stability: bool | None = None,
 ) -> list[str]:
     """Every depth problem of one report, in Polish (the analyst reads them).
     `day`: the report's day; before SOURCED_REMOVALS_DATE the verdict rules
@@ -196,7 +230,8 @@ def findings(
     table binds football reports only (None: treated as football).
     `dossiers`: {event id: dossier or None} (`load_dossiers`) - with it every
     `RYNEK:` WATCH is checked against its leg's `style.matchup` row
-    (`market_findings`); merge_reads always passes it."""
+    (`market_findings`); merge_reads always passes it. `stability`: every
+    read owes a `stability` (None: `stability_required(day)`)."""
     sourced = day is None or day >= SOURCED_REMOVALS_DATE
     readable = day is None or day >= READABLE_SECTION_DATE
     retire_ok = ((day is None or day >= RETIREMENT_WATCH_DATE)
@@ -219,6 +254,10 @@ def findings(
                     "(„RYNEK: …”) daje najwyżej WATCH w odczycie, nigdy weto")
     if not reads:
         return out
+    if stability is None:
+        stability = stability_required(day)
+    if stability:
+        out += stability_findings(reads)
     tags = WEB_TAG.findall(text)
     undated = [t for t in tags if not DATED.search(t)]
     if undated:

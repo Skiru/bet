@@ -240,6 +240,8 @@ Godziny w czasie Europe/Warsaw. Strona nie podaje ceny buildera ani stawek (buil
 <label class="chk"><input type="checkbox" id="readonly">tylko przeczytane przez analityków (z notatką)</label>
 <span id="lesswrap"><label class="chk"><input type="checkbox" id="lesser">tylko mniej złe nogi (niska marża, pewność blisko kursu, próbka ≥ 20)</label>
 <label class="chk"><input type="checkbox" id="lesserstrong">tylko pewne mniej złe nogi (to samo i pewność ≥ 0,85)</label></span>
+<span id="stabwrap"><label class="chk"><input type="checkbox" id="shaky">tylko chwiejne wg analityka</label>
+<label class="chk"><input type="checkbox" id="stable">tylko stabilne wg analityka</label></span>
 <label class="chk"><input type="checkbox" id="group" checked>grupuj po meczu</label>
 <div class="acts"><button class="btn" id="reset">Wyczyść filtry</button></div>
 </div>
@@ -322,6 +324,8 @@ function pass(r){
   if($("readonly").checked&&!r.read_done)return false;
   if($("lesser").checked&&!r.lesser)return false;
   if($("lesserstrong").checked&&!r.lesser_strong)return false;
+  if($("shaky").checked&&r.stability!=="CHWIEJNA")return false;
+  if($("stable").checked&&r.stability!=="STABILNA")return false;
   if($("upcoming").checked&&started(r.ko_utc))return false;
   const rs=$("res").value;if(rs&&(!r.res||(rs==="unknown"?!(r.res.status==="unknown"||r.res.status==="refund"):r.res.status!==rs)))return false;
   const q=$("q").value.trim().toLowerCase();
@@ -337,6 +341,9 @@ function tags(r){let t="";
   if(r.price_gap)t+='<span class="tag warn">'+esc(r.price_gap)+'</span>';
   if(r.rating_market_gap)t+='<span class="tag warn">'+esc(r.rating_market_gap)+'</span>';
   if(r.lesser_loss)t+='<span class="tag ok">'+esc(r.lesser_loss)+'</span>';
+  // the analysts' stability of the leg's variable (display only)
+  if(r.stability==="CHWIEJNA")t+='<span class="tag bad">chwiejna</span>';
+  else if(r.stability==="STABILNA")t+='<span class="tag ok">stabilna</span>';
   if(r.schedule_term)t+='<span class="tag">'+esc(r.schedule_term)+'</span>';
   if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
@@ -351,7 +358,9 @@ const WHO={analyst:"analityk",verifier:"weryfikator",auto:"automat"},VC={KEEP:"v
 const AN=V.meta.analyses||{};
 const hhmm=t=>t?String(t).slice(11,16)+"Z":"";
 function noteHead(n){return '<b class="'+(VC[n.verdict]||"")+'">'+esc(n.verdict)+'</b> <span class="note">('+esc(WHO[n.author]||n.author)+
-  (n.read_at_utc?", "+esc(hhmm(n.read_at_utc)):"")+(n.context?", "+esc(n.context):"")+')</span>'}
+  (n.read_at_utc?", "+esc(hhmm(n.read_at_utc)):"")+(n.context?", "+esc(n.context):"")+')</span>'+
+  (n.stability?' <span class="note">· '+esc(STAB_PL[n.stability]||n.stability)+(n.stability_reason?": "+esc(n.stability_reason):"")+'</span>':"")}
+const STAB_PL={CHWIEJNA:"chwiejna",STABILNA:"stabilna",BRAK_PODSTAW:"brak podstaw"};
 function anHtml(ev){const a=AN[ev];if(!a||!a.length)return "";
   return a.map((x,i)=>'<details class="an" data-ev="'+esc(ev)+'" data-i="'+i+'"><summary>'+(i?"wcześniejsza ":"")+'analiza meczu - '+esc(WHO[x.author]||x.author)+
    ', '+esc(hhmm(x.recorded_at_utc))+(x.web_tags?', źródła web: '+esc(x.web_tags):'')+(x.context_pass?'':', <span class="vN">bez przeglądu kontekstu</span>')+
@@ -487,7 +496,10 @@ $("sort").addEventListener("change",e=>{const[k,d]=e.target.value.split(":");set
 // there would empty the list for no visible reason
 const HASLESS=R.some(r=>r.lesser),LESS=new Set(["lesser","lesserstrong"]);
 if(!HASLESS)$("lesswrap").style.display="none";
-const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"]],HASLESS?[["lesser","mniej złe"],["lesserstrong","pewne mniej złe"]]:[],[["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
+// epochs.STABILITY_LABEL: a day with no stability read shows no such filter
+const HASSTAB=R.some(r=>r.stability),STAB=new Set(["shaky","stable"]);
+if(!HASSTAB)$("stabwrap").style.display="none";
+const CH=[].concat(RES?[]:[["upcoming","nierozpoczęte"]],[["readonly","przeczytane"]],HASLESS?[["lesser","mniej złe"],["lesserstrong","pewne mniej złe"]]:[],HASSTAB?[["shaky","chwiejne"],["stable","stabilne"]]:[],[["xone","x ≥ 1"],["nolock","bez zablokowanych"]]);
 if(RES)$("upwrap").style.display="none";
 function chips(){const n=new Map();R.forEach(r=>n.set(r.sport,(n.get(r.sport)||0)+1));
   let h='<button class="chip" data-sport="">wszystkie<span class="n">'+R.length+'</span></button>';
@@ -500,7 +512,7 @@ $("chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;
   else if(b.dataset.t==="xone")$("xmin").value=num("xmin")>=1?"":"1.00";
   else{const c=$(b.dataset.t);c.checked=!c.checked}
   render()};
-const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","lesser","lesserstrong"];
+const FIELDS=["t0","t1","cmin","xmin","o0","o1","sport","comp","fam","dir","res","q"],CHECKS=["upcoming","nolock","readonly","lesser","lesserstrong","shaky","stable"];
 function syncUi(){
   document.querySelectorAll("#chips .chip").forEach(b=>{let on;
     if(b.dataset.sport!=null)on=$("sport").value===b.dataset.sport;
@@ -518,7 +530,7 @@ const KEY="kupon:"+DAY;
 function save(){try{const s={sortKey,sortDir,group:$("group").checked};FIELDS.forEach(k=>s[k]=$(k).value);CHECKS.forEach(k=>s[k]=$(k).checked);
   localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
 function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(!s)return;
-  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="upcoming"||!RES)&&(!LESS.has(k)||HASLESS)});
+  FIELDS.forEach(k=>{if(typeof s[k]==="string"&&(k!=="res"||RES))$(k).value=s[k]});CHECKS.forEach(k=>{$(k).checked=!!s[k]&&(k!=="upcoming"||!RES)&&(!LESS.has(k)||HASLESS)&&(!STAB.has(k)||HASSTAB)});
   if(typeof s.group==="boolean")$("group").checked=s.group;
   if(s.sortKey&&COLS.some(c=>c[0]===s.sortKey)){sortKey=s.sortKey;sortDir=s.sortDir<0?-1:1}}catch(e){}}
 document.querySelectorAll("#bar input,#bar select,#q").forEach(el=>el.addEventListener("input",render));

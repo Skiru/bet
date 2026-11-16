@@ -39,6 +39,7 @@ from bet.sofa.schedule_term_view import label as schedule_term_label
 from bet.sofa.superbet_names import annotate as name_on_superbet
 from bet.sofa.superbet_names import board_sides
 from bet.sofa.superbet_names import label as superbet_label
+from bet.sofa.veto import leg_stability
 
 LOCAL_TZ = ZoneInfo("Europe/Warsaw")
 # A fixture-check start that differs from the leg's clock by at least this is
@@ -96,10 +97,19 @@ def read_notes(leg: Mapping[str, Any]) -> list[dict[str, str]]:
     or the verifier wrote it. Display only - the page shows what was read and
     why, so an unread leg is never taken for a read one (2026-10-22: a builder
     staked from four unread ITF legs)."""
-    return [{"verdict": str(r.get("verdict") or ""),
-             "author": str(r.get("author") or ""),
-             "reason": str(r.get("reason") or "")}
-            for r in leg.get("reads") or [] if isinstance(r, Mapping)]
+    out: list[dict[str, str]] = []
+    for r in leg.get("reads") or []:
+        if not isinstance(r, Mapping):
+            continue
+        note = {"verdict": str(r.get("verdict") or ""),
+                "author": str(r.get("author") or ""),
+                "reason": str(r.get("reason") or "")}
+        # epochs.STABILITY_LABEL: the reader's stability of the leg's variable
+        if r.get("stability"):
+            note["stability"] = str(r["stability"])
+            note["stability_reason"] = str(r.get("stability_reason") or "")
+        out.append(note)
+    return out
 
 
 def _notes_by_key(doc: Mapping[str, Any]) -> dict[str, list[dict[str, str]]]:
@@ -288,6 +298,8 @@ def build_view(
             # epochs.SCHEDULE_TERM: the term moved the leg's p (both t)
             "schedule_term": schedule_term_label(leg),
             "verdict": _verdict(leg),
+            # the reads' stability (veto.leg_stability: CHWIEJNA wins), "" none
+            "stability": "" if (st := leg_stability({"reads": notes})) == "-" else st,
             # in the read set (confidence.legs_requiring_read) ...
             "read": id(leg) in read_ids,
             # ... and what the read said; read_done = a read is on the leg

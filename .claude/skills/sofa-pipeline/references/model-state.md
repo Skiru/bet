@@ -533,6 +533,25 @@ Annotation only: nothing added, removed, re-ranked; no confidence moves; no
 ledger group. `docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`;
 pre-registered `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py`).
 
+### Analyst stability label (2026-11-16 17:00Z, `STABILITY_LABEL_FROM_UTC`; operator 2026-11-16; display only, no ledger group)
+
+Every read (`contracts.LegRead`) merged from the clock carries `stability`
+STABILNA / CHWIEJNA / BRAK_PODSTAW + `stability_reason` (required by
+`report_check.stability_findings`, refused by merge_reads otherwise; a
+report of an earlier day keeps its rules). Shown on PDF / HTML / /kupon md,
+split in the ledger (`by_stability`) and 7i. Removes nothing. Measured
+first (pre-registered, `docs/sofa/evidence/chwiejna_noga_2026-11-16.md`):
+blind Sonnet classification of 11,391 archived (section, leg) pairs
+10-26..11-15 by the same definition; KEEP pairs, CHWIEJNA - STABILNA
+(hit - 1/odds) hold-out 11-06..11-15 **+0.3 pp [-3.0, +3.8]** (1,935 vs
+1,762), dev -1.3 [-3.5, +1.1], band-stratified +0.3 [-3.6, +3.8] -
+**NOT_PASSED**. Shaky legs sit at longer prices (1/odds 0.80 vs 0.84) and
+realise at their price like the stable ones; read-removed legs labelled
+shaky realised +2.1 pp above price. Caveat: the classifier judged by
+section with per-family rules, not leg by leg. Forward:
+`T-STABILITY-LABEL-FORWARD` (from 11-17, the analyst's own label, 300
+CHWIEJNA pairs). `STABILITY_REMOVAL_FROM_UTC` = None (see (b)).
+
 ### Basketball period curves on market-positioned lines (2026-11-06 00:00Z; operator's install go 2026-11-05; ledger group "od 11-06")
 
 | constant | from | what | evidence |
@@ -714,6 +733,7 @@ matches and >= 6 weeks; withdrawal rule of the pre-registration section 11).
 | `MODEL_FIXES_FROM_UTC` | tennis NB dispersion | with the next refit |
 | `BUILDER_SCREEN_PRICE_FROM_UTC` | a builder prints only with a recorded screen price | switched off 2026-10-05: sofa does not price builders |
 | coupon form dials | `ladder_form` / `max_positions_per_match` in `config/sofa_coupon_form.json` | operator's call |
+| `STABILITY_REMOVAL_FROM_UTC` | a CHWIEJNA read removes its leg like a WATCH (context "STABILITY") | retro NOT_PASSED 2026-11-16; proposed only if T-STABILITY-LABEL-FORWARD passes, then the operator's go |
 | arm A: football goals form step x1.25 + season table w 0.341 (`FOOTBALL_FORM_TABLE`) with its replay refit, the A score slices / DC / DNB refits and `result_1x2|OVER` (operator 11-06 "WPROWADZ!") | declined for 11-07 and 11-08 (report sections 10-11). For 11-08: per family the best of A's refit / the rules-only curve / installed on A's p (same Superbet rows 10-18..11-04, totals from a no-write window replay; not worse than A0 by > 1 pp in any group, log loss not worse) - 12+ families chosen. Then the table-switch gate, the composed 11-08 file on A's p against the 11-07 file on rules p, hold-out curves: overall log loss better (Superbet -5.4e-4 [-10.6, -0.1], n 284k; history -2.6e-4 [-4.4, -0.6], n 2.73M), but families at >= 0.70 worsen by > 1 pp: cards_points_for UNDER -2.1 -> -4.2 pp, cards_points_total UNDER -2.6 -> -4.2, OVER +0.1 -> +2.1, both_over_cards_points OVER +1.7 -> +3.2, goals_for OVER -0.5 -> -1.6 (Superbet); goals_1h_for OVER -4.0 -> -9.1, most_goals OVER -5.8 -> -8.9 (history). FAIL: 11-08 reads the 11-07 file. Then per family (section a, "Football season table per family"): on from 11-07 00:00Z. `result_1x2|OVER` under A alone (hold-out curves): printable legs (>= 0.70, x >= 0.90) n 351 realised - confidence -5.5 pp [-10.3, -1.0] (over-promises), vs 1/odds -1.9 [-6.5, +2.4]; Brier minus de-vigged price +22.9e-3 [+19.9, +25.9] - not staged |
 
 Derived joints: the 10-14 refit replayed them; on Superbet lines 10-09..10-12

@@ -87,6 +87,7 @@ from bet.sofa.superbet_names import (  # noqa: E402
     board_sides,  # noqa: E402
 )
 from bet.sofa.superbet_names import annotate as name_on_superbet  # noqa: E402
+from bet.sofa.veto import stability_note  # noqa: E402
 from scripts.sofa.coupon_structure_pdf import (  # noqa: E402
     builder_screen_note,
     exposure_flowables,
@@ -242,7 +243,25 @@ def read_label(leg: dict[str, Any]) -> str:
         budget -= len(head)
         out += (f"<br/><font size=6.5 color='{ink}'><b>{escape(verdict)} "
                 f"({escape(who)})</b>: {escape(head)}</font>")
-    return out
+    return out + stability_label(reads)
+
+
+STABILITY_INK = {"CHWIEJNA": "#b54708", "STABILNA": "#027a48",
+                 "BRAK_PODSTAW": "#667085"}
+STABILITY_PL = {"CHWIEJNA": "chwiejna", "STABILNA": "stabilna",
+                "BRAK_PODSTAW": "brak podstaw"}
+
+
+def stability_label(reads: list[dict[str, Any]]) -> str:
+    """The analysts' stability of the leg's variable (veto.stability_note:
+    CHWIEJNA wins) with its reason - display only (epochs.STABILITY_LABEL_FROM_UTC)."""
+    note = stability_note(reads)
+    if note is None:
+        return ""
+    label, reason = note
+    return (f"<br/><font size=6.5 color='{STABILITY_INK.get(label, '#667085')}'>"
+            f"<b>{STABILITY_PL.get(label, label.lower())}</b>: "
+            f"{escape(_reason_head(reason, READ_REASON_CHARS))}</font>")
 
 
 def analysis_refs(singles: list[dict[str, Any]], picks: list[dict[str, Any]],

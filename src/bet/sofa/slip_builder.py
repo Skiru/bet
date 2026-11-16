@@ -72,7 +72,7 @@ from zoneinfo import ZoneInfo
 
 from bet.sofa.config import SofaConfig
 from bet.sofa.sport_day import MAX_PRICE_AGE as SPORT_PRICE_AGE
-from bet.sofa.veto import read_refusal, veto_matches
+from bet.sofa.veto import read_refusal, stability_note, veto_matches
 
 # A leg's analyst read (reads.json / vetoes.json, matched like a veto; or
 # the reads the coupon carries): KEEP, unread, or refused - a refused leg
@@ -327,6 +327,8 @@ class Leg:
     age_is_floor: bool = False  # no fetch time on the leg: age since the build
     coupon_odds: float | None = None  # the coupon's price when a fresh one replaced it
     fresh: str | None = None  # FRESH_* of the last re-ask, None = not asked
+    # (label, reason) of the reads' stability (veto.stability_note), None none
+    stability: tuple[str, str] | None = None
 
     @property
     def stale(self) -> bool:
@@ -460,6 +462,35 @@ def _harder_rung_refused(leg: Mapping[str, Any], refusals: Iterable[Any]) -> boo
         ):
             return True
     return False
+
+
+def read_stability(
+    leg: Mapping[str, Any],
+    reads: Sequence[Any] = (),
+    slip_reads: Sequence[Any] = (),
+) -> tuple[str, str] | None:
+    """The stability the reads covering the leg give it (the day's, the
+    slip's own and those carried on the leg; veto.stability_note: CHWIEJNA
+    wins) - display only, the md's "czytana" column."""
+    key = row_key(leg)
+    notes: list[Mapping[str, Any]] = [
+        r.model_dump() for r in [*reads, *slip_reads] if veto_matches(r, **key)]
+    notes += [r for r in leg.get("reads") or [] if isinstance(r, Mapping)]
+    return stability_note(notes)
+
+
+def read_column(read: str, stability: tuple[str, str] | None, limit: int = 120) -> str:
+    """The md's "czytana" cell: the read status, then the stability and its
+    reason ("KEEP · chwiejna: ...")."""
+    if stability is None:
+        return read
+    label, reason = stability
+    reason = " ".join(reason.replace("|", "/").split())
+    if len(reason) > limit:
+        reason = reason[:limit - 1].rstrip() + "…"
+    word = {"CHWIEJNA": "chwiejna", "STABILNA": "stabilna",
+            "BRAK_PODSTAW": "brak podstaw"}.get(label, label.lower())
+    return f"{read} · {word}" + (f": {reason}" if reason else "")
 
 
 def read_status(
@@ -609,7 +640,8 @@ def candidates(
         floor = (not s.get("price_fetched_at_utc") and coupon_odds is None
                  and age is not None)
         leg = Leg(s, float(odds), mc[0], mc[1], read, age, floor, coupon_odds,
-                  got.status if got is not None else None)
+                  got.status if got is not None else None,
+                  read_stability(s, reads, slip_reads))
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -1255,7 +1287,7 @@ def render(
                 f"{matchup.removeprefix('zestawienie: ') or '—'} | "
                 f"{ev.get('league') or '—'} | {ev.get('h2h') or '—'} | "
                 f"{ev.get('referee') or '—'} | {_margin(x)} | "
-                f"{read} | {_age(x)} |"
+                f"{read_column(read, x.stability)} | {_age(x)} |"
             )
         lines += [
             "",

@@ -3725,6 +3725,42 @@ def lesser_loss_mark(date: str, build_at: datetime | None = None) -> bool:
     return _audit_1023_on(LESSER_LOSS_MARK_FROM_UTC, date, build_at)
 
 
+# Every analyst / verifier read carries the analyst's judgement of the leg's
+# variable - `stability`: STABILNA / CHWIEJNA / BRAK_PODSTAW with a one-
+# sentence `stability_reason` (contracts.LegRead; operator 2026-11-16, after
+# a CS2 winner leg read KEEP the day after its side lost a series - the
+# analyst saw the loss and could not say "shaky"). Required by report_check
+# for a report merged from this clock (`stability_label_required`); shown on
+# the PDF / HTML / /kupon md and split in the ledger (`by_stability`).
+# Display only: a CHWIEJNA KEEP removes nothing, no confidence moves, so no
+# ledger epoch group. The retro measurement (T-STABILITY-LABEL-RETRO,
+# docs/sofa/evidence/chwiejna_noga_2026-11-16.md) and the forward test
+# (T-STABILITY-LABEL-FORWARD, from 2026-11-17 00:00Z) decide whether a
+# removal rule (STABILITY_REMOVAL, operator's go only) is ever proposed -
+# the retro rule did NOT pass (hold-out +0.3 pp [-3.0, +3.8]), so the label
+# stays display only. Operator 2026-11-16: on the same day, about an hour
+# after the deployment (15:50Z) - reports merged from 17:00Z owe the field.
+STABILITY_LABEL_FROM_UTC: datetime | None = datetime(2026, 11, 16, 17, 0, tzinfo=UTC)
+# A CHWIEJNA read removes its leg like a WATCH (context "STABILITY") - OFF:
+# only after the retro rule passed and the operator's go (CLAUDE.md
+# "Changing the pipeline" 3), never set by a session on its own.
+STABILITY_REMOVAL_FROM_UTC: datetime | None = None
+
+
+def stability_label_required(at: datetime | None = None) -> bool:
+    """Must a read merged at `at` (default now) carry `stability`?"""
+    if STABILITY_LABEL_FROM_UTC is None:
+        return False
+    return (at or timeutil.now()) >= STABILITY_LABEL_FROM_UTC
+
+
+def stability_removal(at: datetime | None = None) -> bool:
+    """Does a CHWIEJNA read remove its leg (STABILITY_REMOVAL_FROM_UTC)?"""
+    if STABILITY_REMOVAL_FROM_UTC is None:
+        return False
+    return (at or timeutil.now()) >= STABILITY_REMOVAL_FROM_UTC
+
+
 # Tennis full-match games total / sets total print from confidence 0.60
 # (operator 2026-11-05: "be at least as good as Superbet's price, the margin
 # accepted"; "switches today, ready for tomorrow"). Measured 2026-11-05

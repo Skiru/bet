@@ -578,6 +578,8 @@ READ_SIDES = frozenset(
      "1X", "X2", "12"})
 _EXACT_SCORE = re.compile(r"^\d+[:-]\d+$")
 ReadAuthor = Literal["analyst", "verifier"]
+StabilityLabel = Literal["STABILNA", "CHWIEJNA", "BRAK_PODSTAW"]
+STABILITY_LABELS: tuple[str, ...] = ("STABILNA", "CHWIEJNA", "BRAK_PODSTAW")
 
 
 class LegRead(BaseModel):
@@ -618,12 +620,24 @@ class LegRead(BaseModel):
     # When the read was merged (ISO UTC) - stamped by `merge_reads.py --slip`
     # so a chat slip tells this request's read from an earlier one's.
     read_at_utc: str | None = None
+    # The reader's judgement of the leg's own variable today (operator
+    # 2026-11-16; epochs.STABILITY_LABEL_FROM_UTC): STABILNA - predictable,
+    # CHWIEJNA - a concrete reason it may land otherwise (form slump, an
+    # unsure XI, rotation, motivation, a volatile variable, thin data),
+    # BRAK_PODSTAW - the analysis says nothing about this leg. Display and
+    # measurement only - it removes nothing (STABILITY_REMOVAL is off).
+    stability: StabilityLabel | None = None
+    stability_reason: str | None = None
 
     @model_validator(mode="after")
     def _known_side(self) -> "LegRead":
         d = self.direction
         if d is not None and d not in READ_SIDES and not _EXACT_SCORE.match(d):
             raise ValueError(f"unknown direction {d!r}")
+        if self.stability is not None and not (self.stability_reason or "").strip():
+            raise ValueError(f"stability={self.stability!r} needs stability_reason")
+        if self.stability is None and self.stability_reason is not None:
+            raise ValueError("stability_reason without stability")
         return self
 
 
