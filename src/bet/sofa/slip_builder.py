@@ -406,6 +406,15 @@ class Result:
     safe: bool = False  # the safest slip (SAFE_TARGET, whole-pool search)
 
 
+def is_stat_market(leg: Mapping[str, Any]) -> bool:
+    """A football count market other than goals (corners, cards, shots,
+    fouls, offsides, saves, player props) - `--stat-markets`, the operator's
+    taste (2026-11-02), never a measured edge: at one price no market family
+    tells a good leg from a bad one (kupon_od_nowa_2026-10-31)."""
+    return (str(leg.get("sport") or "football") == "football"
+            and "goals" not in str(leg.get("market") or ""))
+
+
 def family_key(leg: Mapping[str, Any]) -> str:
     """A leg's market type (sport, market, direction) - only to name a slip
     crowded on one of them (`concentration`), never a selection."""

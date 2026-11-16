@@ -479,6 +479,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--new-matches", action="store_true",
                     help="leave out every match of the day's earlier slips "
                     "(runs/sofa/<d>/slips/*.json)")
+    ap.add_argument("--stat-markets", action="store_true",
+                    help="football count markets other than goals only (operator's "
+                    "choice, not an edge)")
     ap.add_argument("--allow-no-sample", action="store_true",
                     help="admit a leg with no own match sample (league rate / "
                     "model only); a 1-7 game sample stays out")
@@ -548,6 +551,12 @@ def main(argv: list[str] | None = None) -> int:
         singles = [g for g in singles if fresh_match(g)]
         builders = [b for b in builders if fresh_match(b)]
         print(f"--new-matches: pominięte mecze z wcześniejszych kuponów: {dropped}")
+    if args.stat_markets:
+        singles = [g for g in singles if sb.is_stat_market(g)]
+        builders = []
+        print("--stat-markets: tylko rynki statystyczne piłki (bez goli) - wybór "
+              "operatora, nie przewaga: przy tej samej cenie żaden rynek nie "
+              "odróżnia dobrej nogi od złej (31.10)")
     result = sb.build(
         singles,
         now,

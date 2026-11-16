@@ -1323,3 +1323,11 @@ def test_earlier_slips_of_the_day_are_shown_as_exposure(tmp_path: Path) -> None:
     assert sb.exposure_match({"sofascore_event_id": 2}) == "2"
     assert sb.render_exposure(now_slip, sb.Exposure({}, {})) == ""
     assert sb.earlier_exposure(tmp_path / "none") == sb.Exposure({}, {})
+
+
+def test_stat_markets_keep_football_counts_other_than_goals() -> None:
+    assert sb.is_stat_market({"sport": "football", "market": "corners_total"})
+    assert sb.is_stat_market({"market": "cards_points_for"})
+    assert not sb.is_stat_market({"sport": "football", "market": "both_over_goals_2h"})
+    assert not sb.is_stat_market({"sport": "football", "market": "goals_total"})
+    assert not sb.is_stat_market({"sport": "volleyball", "market": "points_total"})
