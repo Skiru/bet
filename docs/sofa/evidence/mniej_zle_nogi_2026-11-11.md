@@ -3,7 +3,7 @@
 Wniosek operatora (2026-11-11): „znaleźć sposób, żeby wiedzieć, które nogi
 faktycznie obstawiać" i „lepiej mieć mniejszą cenę, ale stabilny, ogarnięty
 system wygrywania". Znacznik `lesser_loss` (`bet.sofa.lesser_loss`) jest na
-kuponie od 2026-11-12 00:00Z (`epochs.LESSER_LOSS_MARK_FROM_UTC`). To tylko
+kuponie od 2026-11-11 14:55Z (`epochs.LESSER_LOSS_MARK_FROM_UTC`; operator przesunął z 11-12 00:00Z: „WŁĄCZ TERAZ I PRZEBUDUJ"). To tylko
 adnotacja: żadna noga nie wchodzi, nie wypada i nie zmienia miejsca, a
 pewność się nie rusza. Test zarejestrowany z góry: `T-LESSER-LOSS-flag`.
 

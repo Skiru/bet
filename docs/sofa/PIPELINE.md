@@ -2937,7 +2937,8 @@ niego 08).
     -16,8 pp względem ceny na 14 meczach hold-out - ponowny pomiar przy ~100.
     Test: `T-RATING-MARKET-GAP-flag`.
   - `lesser_loss` na nodze i podsumowanie `lesser_loss` w dokumencie (od
-    `epochs.LESSER_LOSS_MARK_FROM_UTC` = 2026-11-12 00:00Z, prośba operatora
+    `epochs.LESSER_LOSS_MARK_FROM_UTC` = 2026-11-11 14:55Z - operator przesunął
+    z 11-12 00:00Z („WŁĄCZ TERAZ I PRZEBUDUJ"); prośba operatora
     2026-11-11: „chcę mieć to zaznaczane na kuponie"; `bet.sofa.lesser_loss`,
     liczone w COUPON z pól samej nogi). **Mniej zła noga** to singiel na
     rynku o marży < 8,6%, z pewnością najwyżej 4,7 pp pod 1/kurs i z próbką

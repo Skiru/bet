@@ -62,13 +62,13 @@ def test_the_strong_tier_is_confidence_085() -> None:
     assert ll.annotate(leg(conf=0.849, odds=1.15))["tier"] == "mniej_zla"  # type: ignore[index]
 
 
-def test_the_switch_starts_on_2026_11_12_at_midnight() -> None:
-    at = datetime.datetime(2026, 11, 12, 0, 0, tzinfo=UTC)
+def test_the_switch_starts_on_2026_11_11_at_1455z() -> None:
+    at = datetime.datetime(2026, 11, 11, 14, 55, tzinfo=UTC)
+    assert epochs.lesser_loss_mark("2026-11-11", at) is True
     assert epochs.lesser_loss_mark("2026-11-12", at) is True
-    assert epochs.lesser_loss_mark("2026-11-13", at) is True
-    assert epochs.lesser_loss_mark("2026-11-11", at) is False
+    assert epochs.lesser_loss_mark("2026-11-10", at) is False
     before = at - datetime.timedelta(minutes=1)
-    assert epochs.lesser_loss_mark("2026-11-12", before) is False
+    assert epochs.lesser_loss_mark("2026-11-11", before) is False
 
 
 def test_the_sentences_carry_the_measurement() -> None:

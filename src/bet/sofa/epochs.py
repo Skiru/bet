@@ -3715,8 +3715,11 @@ def rating_market_gap(date: str, build_at: datetime | None = None) -> bool:
 # is added, removed or re-ranked, no confidence moves, nothing reads it for a
 # read, a veto or a builder - so no ledger epoch group. Judged forward by
 # T-LESSER-LOSS-flag. Operator 2026-11-11 ("chcę mieć to zaznaczane na
-# kuponie"); from the next day 00:00Z.
-LESSER_LOSS_MARK_FROM_UTC: datetime | None = datetime(2026, 11, 12, 0, 0, tzinfo=UTC)
+# kuponie"); moved by the operator from 11-12 00:00Z into the built day
+# ("WŁĄCZ TERAZ I PRZEBUDUJ"): 11-11 builds from 14:55Z carry the mark,
+# earlier renders of 11-11 do not. Display only - no ledger group, the
+# forward test still starts 11-12.
+LESSER_LOSS_MARK_FROM_UTC: datetime | None = datetime(2026, 11, 11, 14, 55, tzinfo=UTC)
 
 
 def lesser_loss_mark(date: str, build_at: datetime | None = None) -> bool:

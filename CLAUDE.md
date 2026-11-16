@@ -425,7 +425,8 @@ and a miss recorded before a rule's switch never blocks that rule.
   `WARN rating_market_gap` on CONFIDENCE's stderr and never stops the build
   (`rating_market_gap.safe_views`). `T-RATING-MARKET-GAP-flag`.
 - **Lesser-loss legs** (annotation only, `LESSER_LOSS_MARK_FROM_UTC`
-  2026-11-12 00:00Z, operator 2026-11-11; `bet.sofa.lesser_loss`, written by
+  2026-11-11 14:55Z, moved by the operator from 11-12 00:00Z into the built
+  day - display only, no ledger group, the forward test starts 11-12; `bet.sofa.lesser_loss`, written by
   COUPON from the leg's own fields): a printed single with overround < 0.086,
   confidence - 1/odds >= -0.047 and `sample_size` >= 20 carries
   `lesser_loss` (tier `pewna` at confidence >= 0.85; one-sided legs never),

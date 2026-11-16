@@ -516,7 +516,7 @@ about at the price, below the confidence - the same mechanism as `price_gap`
 re-ranked; no confidence moves; not in `confidence.read_value`; never a read /
 veto ground on its own. Pre-registered: `T-RATING-MARKET-GAP-flag`.
 
-### Lesser-loss mark (2026-11-12 00:00Z, `LESSER_LOSS_MARK_FROM_UTC`; operator 2026-11-11)
+### Lesser-loss mark (2026-11-11 14:55Z - moved by the operator from 11-12 00:00Z, `LESSER_LOSS_MARK_FROM_UTC`; operator 2026-11-11)
 
 `bet.sofa.lesser_loss`, computed in COUPON from the leg's own fields: a
 printed single with overround < 0.086, confidence - 1/odds >= -0.047 and
