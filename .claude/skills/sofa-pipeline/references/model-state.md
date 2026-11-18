@@ -1020,6 +1020,19 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 ## (d) Measured and declined - do not re-propose without new evidence
 
+- **Stakes term in the model, every sport (pre-registered 2026-11-18, operator
+  11-18 "ruszaj ze wszystkimi krokami")**: per-side stakes state (MUST_WIN incl.
+  NEED_POINT / ALIVE ref / SECURED / DEAD, rebuilt from results as of the start,
+  frozen `stakes_state.py` sha 99e81fe7) as exp(t) on the centres. Football clubs
+  (replay 2024-07..2026-11, dev to 2025-12): all 5 groups NOT_SUBMITTED on dev S4
+  (validation log-loss Delta, CI crossing 0: goals +2.0e-4 [-10.1, +14.3]e-4,
+  1X2 +0.8e-4 [-1.5, +3.1]e-4, corners, shots/SOT, cards/fouls likewise), exam
+  tier never opened; hockey / basketball / volleyball all 6 groups NOT_SUBMITTED
+  (after the 22/23 + 23/24 backfill); CS2 / tennis not feasible. K = 0, nothing
+  installed. National teams: display flag only (`STAKES_GROUPS_FROM_UTC`).
+  `docs/sofa/evidence/stakes_exam_football_2026-11-18.md`,
+  `stakes_exam_sports_2026-11-18.md`, `stakes_exam_log.md`.
+
 - **Basketball goals step `alpha` 0.04 instead of 0.06 (item 5, 2026-11-06)**: chosen on raw p (interior optimum of the widened grid, report section 8), then (a) with its own curves on the hold-out 10-07..11-05: log loss +8.7e-4 [+4.3, +13.2], winner +41.7e-4 [+12.2, +70.6]; (b) Superbet lines from 10-18: all -4.4e-4 [-8.0, -0.7] (total -15.8) but winner +48.3e-4 [+1.2, +89.9]. Fails (a); `SCORE_ALPHA["bb_reg_for"]` stays 0.06. `data/refit_2026-11-05_replay/bb_alpha/measure_alpha.json`, `docs/sofa/evidence/refit_replay_2026-11-05.md` section 8.
 - **Basketball season table in the score model (item 5, 2026-11-06)**: an as-of
   season-table term (`bet.sofa.season_table`: ppg / position / point-difference

@@ -1,0 +1,15 @@
+{
+ "study": "stakes_football_2026-11",
+ "mode": "exam",
+ "spec_sha": "646b1317",
+ "started_utc": "2026-11-18T23:26:55+00:00",
+ "finished_utc": "2026-11-18T23:26:56+00:00",
+ "hashes": {
+  "module": "99e81fe70f6ed6855afb6264e20c8cdf0798126463ca5cba69c958233bee1949",
+  "coefficients": "fcd58aa02a4c301791380b8bb7f2510eb4fdce143dfc7c5b2b69f6095fa1a870",
+  "script": "9600636fd60cb42d0ab78a227a5ba086d05abc9e8624d07f9aa892a4bf11778d",
+  "submission": "8a9620cfb19ad776f6a821c34e391e46817b81830ec01d672a740a245ed319e3"
+ },
+ "K": 0,
+ "groups": {}
+}

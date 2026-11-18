@@ -1,0 +1,152 @@
+{
+ "goals": {
+  "rows": 344854,
+  "mu": 1.1244325153777295,
+  "alpha": 0.18322702039123803,
+  "n_req": 16371.50563630193,
+  "best": "own_SECURED",
+  "best_sides": 16258,
+  "pass": false,
+  "sides": {
+   "opp_MUST_WIN": 7083,
+   "own_MUST_WIN": 7083,
+   "own_SECURED": 16258,
+   "opp_SECURED": 16255,
+   "opp_DEAD": 2945,
+   "own_DEAD": 2930
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 16071,
+   "own_MUST_WIN": 16032,
+   "own_SECURED": 35457,
+   "opp_SECURED": 35366,
+   "opp_DEAD": 6238,
+   "own_DEAD": 6126
+  }
+ },
+ "corners": {
+  "rows": 61194,
+  "mu": 3.7976181629039334,
+  "alpha": 0.14289171667156914,
+  "n_req": 6200.415466253275,
+  "best": "own_SECURED",
+  "best_sides": 2424,
+  "pass": false,
+  "sides": {
+   "opp_MUST_WIN": 1365,
+   "own_MUST_WIN": 1356,
+   "own_SECURED": 2424,
+   "opp_DEAD": 368,
+   "own_DEAD": 361,
+   "opp_SECURED": 2407
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 2525,
+   "own_MUST_WIN": 2514,
+   "own_SECURED": 4606,
+   "opp_DEAD": 692,
+   "own_DEAD": 683,
+   "opp_SECURED": 4589
+  }
+ },
+ "shots_sot": {
+  "rows": 107638,
+  "mu": 6.404388080068541,
+  "alpha": 0.08924696556978019,
+  "n_req": 3745.6042918661656,
+  "best": "opp_MUST_WIN",
+  "best_sides": 1100,
+  "pass": false,
+  "sides": {
+   "opp_MUST_WIN": 1100,
+   "own_MUST_WIN": 1098,
+   "opp_DEAD": 321,
+   "own_DEAD": 321,
+   "own_SECURED": 2008,
+   "opp_SECURED": 2011
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 4369,
+   "own_MUST_WIN": 4362,
+   "opp_DEAD": 1255,
+   "own_DEAD": 1253,
+   "own_SECURED": 8147,
+   "opp_SECURED": 8153
+  }
+ },
+ "cards_fouls": {
+  "rows": 85351,
+  "mu": 6.8677497115282335,
+  "alpha": 0.017729753722862066,
+  "n_req": 2493.170879977026,
+  "best": "opp_SECURED",
+  "best_sides": 2515,
+  "pass": true,
+  "sides": {
+   "opp_MUST_WIN": 1342,
+   "own_MUST_WIN": 1335,
+   "own_SECURED": 2511,
+   "opp_SECURED": 2515,
+   "opp_DEAD": 405,
+   "own_DEAD": 401
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 3374,
+   "own_MUST_WIN": 3366,
+   "own_SECURED": 6179,
+   "opp_SECURED": 6187,
+   "opp_DEAD": 957,
+   "own_DEAD": 952
+  }
+ },
+ "football_result": {
+  "rows": 147966,
+  "mu": 1.5965426499031266,
+  "alpha": 0.0,
+  "n_req": 9560.589496193576,
+  "best": "own_SECURED",
+  "best_sides": 16261,
+  "pass": true,
+  "sides": {
+   "opp_MUST_WIN": 7102,
+   "own_MUST_WIN": 7102,
+   "own_SECURED": 16261,
+   "opp_SECURED": 16261,
+   "opp_DEAD": 2946,
+   "own_DEAD": 2946
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 7102,
+   "own_MUST_WIN": 7102,
+   "own_SECURED": 16261,
+   "opp_SECURED": 16261,
+   "opp_DEAD": 2946,
+   "own_DEAD": 2946
+  }
+ },
+ "pool_shots_sot_corners": {
+  "rows": 168832,
+  "mu": 5.459551329269101,
+  "alpha": 0.1086907730169636,
+  "n_req": 4454.857671718507,
+  "best": "opp_MUST_WIN",
+  "best_sides": 1368,
+  "pass": false,
+  "sides": {
+   "opp_MUST_WIN": 1368,
+   "own_MUST_WIN": 1358,
+   "own_SECURED": 2428,
+   "opp_DEAD": 368,
+   "own_DEAD": 361,
+   "opp_SECURED": 2410
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 6894,
+   "own_MUST_WIN": 6876,
+   "own_SECURED": 12753,
+   "opp_DEAD": 1947,
+   "own_DEAD": 1936,
+   "opp_SECURED": 12742
+  }
+ }
+}

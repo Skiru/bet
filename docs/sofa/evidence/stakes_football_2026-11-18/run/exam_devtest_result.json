@@ -1,0 +1,1070 @@
+{
+ "study": "stakes_football_2026-11",
+ "mode": "devtest",
+ "spec_sha": "646b1317",
+ "started_utc": "2026-11-18T23:23:20+00:00",
+ "finished_utc": "2026-11-18T23:25:53+00:00",
+ "hashes": {
+  "note": "devtest - no guards"
+ },
+ "K": 5,
+ "groups": {
+  "goals": {
+   "info": {
+    "rows": 315123,
+    "matches": 48729
+   },
+   "matches": 48729,
+   "P1": {
+    "delta": 0.0002036072254804222,
+    "p_one_sided": 0.6345,
+    "q025": -0.0010656679959723564,
+    "q975": 0.001480071883381624,
+    "holm_level": 0.0125,
+    "upper_at_level": 0.0016604012733006128,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 3.148477416892925e-05,
+    "upper95": 0.00018702273642689878,
+    "rows": 315123
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "goals_for",
+      "coef": "own_SECURED",
+      "c": -0.06209854588201425,
+      "exposed_share": 0.025887987859818846
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_SECURED",
+      "c": 0.13326975404222402,
+      "exposed_share": 0.025774173661497604
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_SECURED",
+      "c": -0.0545252517386817,
+      "exposed_share": 0.025887987859818846
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_SECURED",
+      "c": 0.13308174014070973,
+      "exposed_share": 0.025774173661497604
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_SECURED",
+      "c": -0.04706298241566197,
+      "exposed_share": 0.025887987859818846
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_SECURED",
+      "c": 0.12129225461958433,
+      "exposed_share": 0.025774173661497604
+     }
+    ],
+    "rows": 210870,
+    "exposure": {
+     "own_MUST_WIN": 0.010508844311661212,
+     "own_SECURED": 0.025887987859818846,
+     "own_DEAD": 0.005472566035946318,
+     "opp_MUST_WIN": 0.010570493669085218,
+     "opp_SECURED": 0.025774173661497604,
+     "opp_DEAD": 0.005534215393370323
+    }
+   },
+   "P3": {
+    "point": -0.00011163317479022359,
+    "upper95": -5.5955255259056136e-05,
+    "rows": 5672214,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 2406250,
+    "realised": 0.9485602077922078,
+    "mean_cb": 0.9449777524096404,
+    "mean_ct": 0.9450765896947078,
+    "gap_base": 0.0035824553825674066,
+    "gap_treat": 0.0034836180975000852,
+    "treat_selected": {
+     "rows": 2405580,
+     "realised": 0.9486153027544293,
+     "mean_ct": 0.9452038901118248
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": 4.8796942705050325e-05,
+      "upper95": 0.00029465891709051973,
+      "rows": 101936,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": 0.00011581229862663952,
+      "upper95": 0.00037200110311156264,
+      "rows": 103373,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": -6.503340715541759e-05,
+      "upper95": 0.00023792147934076826,
+      "rows": 108013,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": 3.148477416892925e-05,
+      "upper95": 0.00018907966954475553,
+      "rows": 315123,
+      "gated": true,
+      "pass": true
+     },
+     "ko_rounds": {
+      "point": -6.695133525248366e-05,
+      "upper95": 0.00013953890690445353,
+      "rows": 166728,
+      "gated": true,
+      "pass": true
+     },
+     "no_ko_rounds": {
+      "point": 0.00014208186741070515,
+      "upper95": 0.00038880771291355075,
+      "rows": 148395,
+      "gated": true,
+      "pass": true
+     },
+     "exact": {
+      "point": -0.0008287843286520947,
+      "upper95": 0.005329995968633438,
+      "rows": 4904,
+      "gated": true,
+      "pass": false
+     },
+     "bounds": {
+      "point": 4.508406911938136e-05,
+      "upper95": 0.00016903975254642893,
+      "rows": 310219,
+      "gated": true,
+      "pass": true
+     },
+     "tb": {
+      "point": -0.004105618404594496,
+      "upper95": 0.008175594914603403,
+      "rows": 1331,
+      "gated": false,
+      "pass": null
+     },
+     "no_tb": {
+      "point": 4.903297275568137e-05,
+      "upper95": 0.00020595259262578397,
+      "rows": 313792,
+      "gated": true,
+      "pass": true
+     },
+     "left_le3": {
+      "point": 0.0004551604322916945,
+      "upper95": 0.0036831593656811556,
+      "rows": 13525,
+      "gated": true,
+      "pass": false
+     },
+     "left_gt3": {
+      "point": 1.2485267288544112e-05,
+      "upper95": 9.214228587022318e-05,
+      "rows": 301598,
+      "gated": true,
+      "pass": true
+     },
+     "women": {
+      "point": 0.00028147622045515593,
+      "upper95": 0.001153891915729757,
+      "rows": 16523,
+      "gated": true,
+      "pass": false
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": false,
+    "coefs": [
+     {
+      "metric": "goals_for",
+      "coef": "own_SECURED",
+      "c": -0.06209854588201425,
+      "exposed_share": 0.025887987859818846,
+      "exam_b": 0.009505117238405148,
+      "exam_se": 0.016780009748882392,
+      "same_sign": false
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_SECURED",
+      "c": 0.13326975404222402,
+      "exposed_share": 0.025774173661497604,
+      "exam_b": 0.008771978645450866,
+      "exam_se": 0.021451577208072104,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_SECURED",
+      "c": -0.0545252517386817,
+      "exposed_share": 0.025887987859818846,
+      "exam_b": -0.022119923382064387,
+      "exam_se": 0.025523667887460973,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_SECURED",
+      "c": 0.13308174014070973,
+      "exposed_share": 0.025774173661497604,
+      "exam_b": 0.01723496254705607,
+      "exam_se": 0.03219404088466101,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_SECURED",
+      "c": -0.04706298241566197,
+      "exposed_share": 0.025887987859818846,
+      "exam_b": 0.010041015427182828,
+      "exam_se": 0.023491077274269995,
+      "same_sign": false
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_SECURED",
+      "c": 0.12129225461958433,
+      "exposed_share": 0.025774173661497604,
+      "exam_b": 0.0741928038076402,
+      "exam_se": 0.02832873815107317,
+      "same_sign": true
+     }
+    ]
+   },
+   "women_layer": {
+    "matches": 2249,
+    "rows": 16523,
+    "delta_match": 0.002067955353748573,
+    "q025": -0.005170089593529662,
+    "q975": 0.009685693192550596,
+    "upper95": 0.00850082002463058
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "football_result": {
+   "info": {
+    "matches": 49293
+   },
+   "matches": 49293,
+   "P1": {
+    "delta": 8.144121470778184e-05,
+    "p_one_sided": 0.748,
+    "q025": -0.00015572229831811192,
+    "q975": 0.000309527895003274,
+    "holm_level": 0.016666666666666666,
+    "upper_at_level": 0.0003320029992234594,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 8.144121470778184e-05,
+    "upper95": 0.0002715181190964025,
+    "rows": 49293
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "goals_for",
+      "coef": "own_SECURED",
+      "c": -0.04225902679627169,
+      "exposed_share": 0.020996896111009678
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_SECURED",
+      "c": 0.11311280446464907,
+      "exposed_share": 0.020996896111009678
+     }
+    ],
+    "rows": 98586,
+    "exposure": {
+     "own_MUST_WIN": 0.008875499563832594,
+     "own_SECURED": 0.020996896111009678,
+     "own_DEAD": 0.004544255776682288,
+     "opp_MUST_WIN": 0.008875499563832594,
+     "opp_SECURED": 0.020996896111009678,
+     "opp_DEAD": 0.004544255776682288
+    }
+   },
+   "P3": {
+    "point": 3.7552461551763655e-05,
+    "upper95": 0.00016568824725656176,
+    "rows": 147038,
+    "dropped": 841,
+    "pass": false
+   },
+   "P4": {
+    "pass": true,
+    "rows": 2326,
+    "realised": 0.7798796216680998,
+    "mean_cb": 0.7436306585113486,
+    "mean_ct": 0.7467725880864927,
+    "gap_base": 0.03624896315675119,
+    "gap_treat": 0.03310703358160705,
+    "treat_selected": {
+     "rows": 2309,
+     "realised": 0.779558250324816,
+     "mean_ct": 0.7481381684270143
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": 7.237077355067591e-05,
+      "upper95": 0.0003637760839351063,
+      "rows": 15554,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": 6.64881394872388e-05,
+      "upper95": 0.0003981698020509617,
+      "rows": 15976,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": 0.00010283241954260825,
+      "upper95": 0.0004702546710198384,
+      "rows": 17763,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": 8.144121470778184e-05,
+      "upper95": 0.00026872688075170757,
+      "rows": 49293,
+      "gated": true,
+      "pass": true
+     },
+     "ko_rounds": {
+      "point": 2.654594833103359e-05,
+      "upper95": 0.00027720002013811856,
+      "rows": 23969,
+      "gated": true,
+      "pass": true
+     },
+     "no_ko_rounds": {
+      "point": 0.00013339922449234502,
+      "upper95": 0.00041378449498931364,
+      "rows": 25324,
+      "gated": true,
+      "pass": true
+     },
+     "exact": {
+      "point": 0.0012426413851152136,
+      "upper95": 0.00920860616828156,
+      "rows": 642,
+      "gated": false,
+      "pass": null
+     },
+     "bounds": {
+      "point": 6.611798374846812e-05,
+      "upper95": 0.0002270318097414429,
+      "rows": 48651,
+      "gated": true,
+      "pass": true
+     },
+     "tb": {
+      "point": 0.0051128323584355255,
+      "upper95": 0.01989570863829521,
+      "rows": 165,
+      "gated": false,
+      "pass": null
+     },
+     "no_tb": {
+      "point": 6.454291763248713e-05,
+      "upper95": 0.00024515744737751624,
+      "rows": 49128,
+      "gated": true,
+      "pass": true
+     },
+     "left_le3": {
+      "point": 0.002421714560403701,
+      "upper95": 0.006918107582197711,
+      "rows": 1749,
+      "gated": false,
+      "pass": null
+     },
+     "left_gt3": {
+      "point": -4.650365336433286e-06,
+      "upper95": 9.378723905615759e-05,
+      "rows": 47544,
+      "gated": true,
+      "pass": true
+     },
+     "women": {
+      "point": 0.000565451528616297,
+      "upper95": 0.0016428585906121474,
+      "rows": 2306,
+      "gated": true,
+      "pass": false
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": false,
+    "coefs": [
+     {
+      "metric": "goals_for",
+      "coef": "own_SECURED",
+      "c": -0.04225902679627169,
+      "exposed_share": 0.020996896111009678,
+      "exam_b": 0.03066796667674873,
+      "exam_se": 0.016960614628997433,
+      "same_sign": false
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_SECURED",
+      "c": 0.11311280446464907,
+      "exposed_share": 0.020996896111009678,
+      "exam_b": -0.015805896907154355,
+      "exam_se": 0.021482292288559055,
+      "same_sign": false
+     }
+    ]
+   },
+   "women_layer": {
+    "matches": 2306,
+    "rows": 2306,
+    "delta_match": 0.000565451528616297,
+    "q025": -0.0007394648960166317,
+    "q975": 0.0019447557607871983,
+    "upper95": 0.0017156325286287407
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "corners": {
+   "info": {
+    "rows": 38326,
+    "matches": 7622
+   },
+   "matches": 7622,
+   "P1": {
+    "delta": 0.00011906047874716808,
+    "p_one_sided": 0.5755,
+    "q025": -0.0013590928886277037,
+    "q975": 0.0015105607414192899,
+    "holm_level": 0.01,
+    "upper_at_level": 0.0018508656055642033,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 2.367789409306776e-05,
+    "upper95": 0.0002649826302729288,
+    "rows": 38326
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "corners_1h_for",
+      "coef": "own_SECURED",
+      "c": -0.03821381297484579,
+      "exposed_share": 0.04294803817603393
+     },
+     {
+      "metric": "corners_1h_for",
+      "coef": "opp_SECURED",
+      "c": 0.06542492159594178,
+      "exposed_share": 0.04230419633388881
+     }
+    ],
+    "rows": 26404,
+    "exposure": {
+     "own_MUST_WIN": 0.016512649598545676,
+     "own_SECURED": 0.04294803817603393,
+     "own_DEAD": 0.00787759430389335,
+     "opp_MUST_WIN": 0.015300712013331313,
+     "opp_SECURED": 0.04230419633388881,
+     "opp_DEAD": 0.008521436146038478
+    }
+   },
+   "P3": {
+    "point": -3.0390746331551612e-05,
+    "upper95": 8.822869308358485e-05,
+    "rows": 689868,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 237436,
+    "realised": 0.8817913037618558,
+    "mean_cb": 0.868441710974251,
+    "mean_ct": 0.8684068393420267,
+    "gap_base": 0.013349592787604725,
+    "gap_treat": 0.0133844644198291,
+    "treat_selected": {
+     "rows": 242845,
+     "realised": 0.8782886203133686,
+     "mean_ct": 0.8648261299836487
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": 7.773973757258482e-05,
+      "upper95": 0.0004110272126758652,
+      "rows": 15083,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": 0.00013829020359486764,
+      "upper95": 0.0005117697103616063,
+      "rows": 13844,
+      "gated": true,
+      "pass": false
+     },
+     "fav_s_t3": {
+      "point": -0.00023213963908443172,
+      "upper95": 0.0002916585483539783,
+      "rows": 9389,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": 2.367789409306776e-05,
+      "upper95": 0.0002636578683201707,
+      "rows": 38326,
+      "gated": true,
+      "pass": true
+     },
+     "ko_rounds": {
+      "point": 4.651224710049908e-05,
+      "upper95": 0.0003179953578823838,
+      "rows": 21196,
+      "gated": true,
+      "pass": true
+     },
+     "no_ko_rounds": {
+      "point": -4.5764518698927676e-06,
+      "upper95": 0.0003799415688596529,
+      "rows": 17130,
+      "gated": true,
+      "pass": true
+     },
+     "exact": {
+      "point": -0.0014476153205993246,
+      "upper95": 0.0027642711085657645,
+      "rows": 886,
+      "gated": false,
+      "pass": null
+     },
+     "bounds": {
+      "point": 5.849535638520077e-05,
+      "upper95": 0.0002745717113509966,
+      "rows": 37440,
+      "gated": true,
+      "pass": true
+     },
+     "tb": {
+      "point": -0.0031466859740064738,
+      "upper95": 0.01167739142168179,
+      "rows": 215,
+      "gated": false,
+      "pass": null
+     },
+     "no_tb": {
+      "point": 4.156323511380723e-05,
+      "upper95": 0.0002677531063948417,
+      "rows": 38111,
+      "gated": true,
+      "pass": true
+     },
+     "left_le3": {
+      "point": -0.0004184657960816507,
+      "upper95": 0.0020910237071266814,
+      "rows": 2645,
+      "gated": true,
+      "pass": false
+     },
+     "left_gt3": {
+      "point": 5.64536027478737e-05,
+      "upper95": 0.00022291966537490307,
+      "rows": 35681,
+      "gated": true,
+      "pass": true
+     },
+     "women": {
+      "point": 0.00012940295889480544,
+      "upper95": 0.0007589285712872007,
+      "rows": 1787,
+      "gated": false,
+      "pass": null
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": false,
+    "coefs": [
+     {
+      "metric": "corners_1h_for",
+      "coef": "own_SECURED",
+      "c": -0.03821381297484579,
+      "exposed_share": 0.04294803817603393,
+      "exam_b": 0.0040166993528872085,
+      "exam_se": 0.0413023252535118,
+      "same_sign": false
+     },
+     {
+      "metric": "corners_1h_for",
+      "coef": "opp_SECURED",
+      "c": 0.06542492159594178,
+      "exposed_share": 0.04230419633388881,
+      "exam_b": 0.014973694688560734,
+      "exam_se": 0.047983645652054034,
+      "same_sign": true
+     }
+    ]
+   },
+   "women_layer": {
+    "matches": 363,
+    "rows": 1787,
+    "delta_match": 0.0006370332990220862,
+    "q025": -0.0028845437638814636,
+    "q975": 0.004828237681431985,
+    "upper95": 0.003944265155794039
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "shots_sot": {
+   "info": {
+    "rows": 69162,
+    "matches": 6311
+   },
+   "matches": 6311,
+   "P1": {
+    "delta": 0.001237392926591109,
+    "p_one_sided": 0.8105,
+    "q025": -0.0016198268936240985,
+    "q975": 0.004101201697378875,
+    "holm_level": 0.025,
+    "upper_at_level": 0.004101201697378875,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 0.00011291152308661533,
+    "upper95": 0.0003243356153059692,
+    "rows": 69162
+   },
+   "P2": {
+    "material": false,
+    "hits": [],
+    "rows": 47377,
+    "exposure": {
+     "own_MUST_WIN": 0.017033581695759546,
+     "own_SECURED": 0.044515271123118816,
+     "own_DEAD": 0.00840070076197311,
+     "opp_MUST_WIN": 0.01572492981826625,
+     "opp_SECURED": 0.04402980349114549,
+     "opp_DEAD": 0.00899170483567976
+    }
+   },
+   "P3": {
+    "point": 4.5909947850664016e-05,
+    "upper95": 0.00014176185967389914,
+    "rows": 1244916,
+    "dropped": 0,
+    "pass": false
+   },
+   "P4": {
+    "pass": true,
+    "rows": 381789,
+    "realised": 0.8621096993365446,
+    "mean_cb": 0.8492050268092423,
+    "mean_ct": 0.8491243270298131,
+    "gap_base": 0.012904672527302319,
+    "gap_treat": 0.012985372306731469,
+    "treat_selected": {
+     "rows": 377867,
+     "realised": 0.863438723148621,
+     "mean_ct": 0.8507624612733765
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": 4.9385887980031264e-05,
+      "upper95": 0.00038303276189763396,
+      "rows": 27215,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": 8.042613128176391e-05,
+      "upper95": 0.000455211096052563,
+      "rows": 25086,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": 0.00026392000290799953,
+      "upper95": 0.0007193737972025553,
+      "rows": 16852,
+      "gated": true,
+      "pass": false
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": 0.00011291152308661533,
+      "upper95": 0.0003343052381119327,
+      "rows": 69162,
+      "gated": true,
+      "pass": true
+     },
+     "ko_rounds": {
+      "point": 8.82725920911143e-05,
+      "upper95": 0.000347245112246859,
+      "rows": 37842,
+      "gated": true,
+      "pass": true
+     },
+     "no_ko_rounds": {
+      "point": 0.00014268120465531743,
+      "upper95": 0.0005321407944734545,
+      "rows": 31320,
+      "gated": true,
+      "pass": false
+     },
+     "exact": {
+      "point": -0.000456552497447821,
+      "upper95": 0.00364985399641023,
+      "rows": 1646,
+      "gated": false,
+      "pass": null
+     },
+     "bounds": {
+      "point": 0.0001267947178522958,
+      "upper95": 0.0003272186539409012,
+      "rows": 67516,
+      "gated": true,
+      "pass": true
+     },
+     "tb": {
+      "point": -0.001090882286118408,
+      "upper95": 0.01317243566114405,
+      "rows": 416,
+      "gated": false,
+      "pass": null
+     },
+     "no_tb": {
+      "point": 0.00012019599381406548,
+      "upper95": 0.0003190069417417965,
+      "rows": 68746,
+      "gated": true,
+      "pass": true
+     },
+     "left_le3": {
+      "point": -0.000985049629931427,
+      "upper95": 0.0010270554354167329,
+      "rows": 5022,
+      "gated": true,
+      "pass": false
+     },
+     "left_gt3": {
+      "point": 0.0001988791082200205,
+      "upper95": 0.00037836061069145596,
+      "rows": 64140,
+      "gated": true,
+      "pass": true
+     },
+     "women": {
+      "point": 0.0003289647960383127,
+      "upper95": 0.0013741880129645376,
+      "rows": 3471,
+      "gated": true,
+      "pass": false
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": false,
+    "coefs": []
+   },
+   "women_layer": {
+    "matches": 336,
+    "rows": 3471,
+    "delta_match": 0.0033983238305029264,
+    "q025": -0.007294619643623197,
+    "q975": 0.018188347742364067,
+    "upper95": 0.014547635746455635
+   },
+   "verdict": "NOT_PASSED"
+  },
+  "cards_fouls": {
+   "info": {
+    "rows": 37174,
+    "matches": 8116
+   },
+   "matches": 8116,
+   "P1": {
+    "delta": 0.0028013517027420266,
+    "p_one_sided": 0.9,
+    "q025": -0.0019153688908046197,
+    "q975": 0.007302956815004121,
+    "holm_level": 0.05,
+    "upper_at_level": 0.006483089313704974,
+    "pass_": false
+   },
+   "delta_per_row": {
+    "point": 0.0006116040894026547,
+    "upper95": 0.0014527319545477643,
+    "rows": 37174
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "cards_points_for",
+      "coef": "own_SECURED",
+      "c": -0.057807489397074995,
+      "exposed_share": 0.047360400140674455
+     }
+    ],
+    "rows": 25591,
+    "exposure": {
+     "own_MUST_WIN": 0.018522136688679615,
+     "own_SECURED": 0.047360400140674455,
+     "own_DEAD": 0.008792153491461842,
+     "opp_MUST_WIN": 0.017701535696143175,
+     "opp_SECURED": 0.04712594271423547,
+     "opp_DEAD": 0.009378297057559298
+    }
+   },
+   "P3": {
+    "point": 0.00022317328097838643,
+    "upper95": 0.0005535721580107886,
+    "rows": 669132,
+    "dropped": 0,
+    "pass": false
+   },
+   "P4": {
+    "pass": true,
+    "rows": 206366,
+    "realised": 0.8760503183663976,
+    "mean_cb": 0.8618612764530375,
+    "mean_ct": 0.8619252080723278,
+    "gap_base": 0.014189041913360123,
+    "gap_treat": 0.01412511029406982,
+    "treat_selected": {
+     "rows": 201030,
+     "realised": 0.8797791374421728,
+     "mean_ct": 0.8666385658212215
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": 0.0011526334588119105,
+      "upper95": 0.002564077797935622,
+      "rows": 14385,
+      "gated": true,
+      "pass": false
+     },
+     "fav_s_t2": {
+      "point": 0.0009366069892676979,
+      "upper95": 0.0022207429855455696,
+      "rows": 13497,
+      "gated": true,
+      "pass": false
+     },
+     "fav_s_t3": {
+      "point": -0.0006988736579787911,
+      "upper95": 0.0010499763106583476,
+      "rows": 9281,
+      "gated": true,
+      "pass": false
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": 0.0006116040894026547,
+      "upper95": 0.0014602432686550934,
+      "rows": 37174,
+      "gated": true,
+      "pass": false
+     },
+     "ko_rounds": {
+      "point": 0.0009742999945912358,
+      "upper95": 0.0021106449713597275,
+      "rows": 19856,
+      "gated": true,
+      "pass": false
+     },
+     "no_ko_rounds": {
+      "point": 0.00019575411287970393,
+      "upper95": 0.0014655837648322033,
+      "rows": 17318,
+      "gated": true,
+      "pass": false
+     },
+     "exact": {
+      "point": 0.001809134321786607,
+      "upper95": 0.02087580240856628,
+      "rows": 939,
+      "gated": false,
+      "pass": null
+     },
+     "bounds": {
+      "point": 0.0005805710857264155,
+      "upper95": 0.0012537785936975604,
+      "rows": 36235,
+      "gated": true,
+      "pass": false
+     },
+     "tb": {
+      "point": -0.002830917032006546,
+      "upper95": 0.032550815339090315,
+      "rows": 263,
+      "gated": false,
+      "pass": null
+     },
+     "no_tb": {
+      "point": 0.0006361329034399504,
+      "upper95": 0.0014528171181863272,
+      "rows": 36911,
+      "gated": true,
+      "pass": false
+     },
+     "left_le3": {
+      "point": 0.0036535935968638263,
+      "upper95": 0.013132865502359222,
+      "rows": 2870,
+      "gated": true,
+      "pass": false
+     },
+     "left_gt3": {
+      "point": 0.0003570999532548713,
+      "upper95": 0.0008234573272665555,
+      "rows": 34304,
+      "gated": true,
+      "pass": false
+     },
+     "women": {
+      "point": -0.0008053453272023072,
+      "upper95": 0.0020747244288466878,
+      "rows": 1579,
+      "gated": false,
+      "pass": null
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "metric": "cards_points_for",
+      "coef": "own_SECURED",
+      "c": -0.057807489397074995,
+      "exposed_share": 0.047360400140674455,
+      "exam_b": -0.0213265556270948,
+      "exam_se": 0.027287873579294675,
+      "same_sign": true
+     }
+    ]
+   },
+   "women_layer": {
+    "matches": 373,
+    "rows": 1579,
+    "delta_match": -0.003409223248397971,
+    "q025": -0.0186381058864272,
+    "q975": 0.014142389935897158,
+    "upper95": 0.009216928955783752
+   },
+   "verdict": "NOT_PASSED"
+  }
+ }
+}
