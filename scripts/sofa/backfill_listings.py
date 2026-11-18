@@ -57,7 +57,7 @@ import sqlite3
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -246,7 +246,7 @@ def board_entities(runs_dir: str, sport: str, boards: int = 7) -> set[int]:
 
 
 def scan(
-    rows: list[tuple[int, int, str]] | list[tuple[int, int, str, str]],
+    rows: Iterable[tuple[int, int, str]] | Iterable[tuple[int, int, str, str]],
     slug: str, recent_since: int, seed_before: str | None = None,
 ) -> dict[int, EntityState]:
     """Entity states from (entity_id, page, events_json[, fetched_at]) rows.
@@ -258,6 +258,10 @@ def scan(
     queue grew instead of shrinking (19,866 -> 20,079 on 2026-09-30) - one
     hop from what the pipeline had cached, not the whole world.
     """
+    if iter(rows) is rows:
+        # Walked twice below: a one-shot iterator would leave the second pass
+        # empty and the queue silently empty with it.
+        raise TypeError("scan() needs a re-iterable (a list or CachedRows)")
     states: dict[int, EntityState] = {}
     # Only matches after the oldest fetch can have shifted a listing, so only
     # those stamps are kept per entity (a few, not the whole history).
@@ -432,18 +436,32 @@ class IndexCounter:
         self.conn.close()
 
 
-def _rows(db_path: str) -> list[tuple[int, int, str, str]]:
-    conn = read_only_connection(db_path)
-    try:
-        return [
-            (int(r["sofascore_entity_id"]), int(r["page"]), r["events_json"],
-             str(r["fetched_at"]))
+class CachedRows:
+    """The cached 'last' listing rows, streamed from a fresh read-only cursor
+    on every iteration - never held whole. The table carries every sport's
+    pages (football dominates) with their raw JSON: the list this replaced
+    reached 7.6 GB within 15 s of a hockey start on 2026-11-18 and, beside a
+    replay, filled the 48 GB Mac and took the bridge's Chrome down. scan()
+    walks it twice (the fetch stamps, then the pages) and main() scans twice:
+    each pass re-reads the table, the same rows as the list held."""
+
+    def __init__(self, db_path: str) -> None:
+        self.db_path = db_path
+
+    def __iter__(self) -> Iterator[tuple[int, int, str, str]]:
+        conn = read_only_connection(self.db_path)
+        try:
             for r in conn.execute(
-                "SELECT sofascore_entity_id, page, events_json, fetched_at "
-                "FROM sofa_entity_events WHERE kind = 'last'")
-        ]
-    finally:
-        conn.close()
+                    "SELECT sofascore_entity_id, page, events_json, fetched_at "
+                    "FROM sofa_entity_events WHERE kind = 'last'"):
+                yield (int(r["sofascore_entity_id"]), int(r["page"]),
+                       r["events_json"], str(r["fetched_at"]))
+        finally:
+            conn.close()
+
+
+def _rows(db_path: str) -> CachedRows:
+    return CachedRows(db_path)
 
 
 def _seed_doc(path: Path) -> dict[str, Any]:

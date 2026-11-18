@@ -257,3 +257,40 @@ def test_the_empty_hop_check_counts_what_the_index_holds(
     out = json.loads(capsys.readouterr().out.strip().splitlines()[0])
     assert rc == 0 and out["seed_advanced"]
     assert json.loads(seed.read_text())["football"]["seed_before"] > old
+
+
+def test_cached_rows_stream_the_table_and_scan_as_the_list_did(tmp_path):
+    # 2026-11-18: the whole 'last' table held as one list reached 7.6 GB in
+    # 15 s (every sport's raw JSON); CachedRows re-reads it per pass instead.
+    import sqlite3
+
+    import pytest
+
+    from scripts.sofa.backfill_listings import CachedRows
+
+    db = tmp_path / "c.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE sofa_entity_events (sofascore_entity_id INTEGER,"
+                " kind TEXT, page INTEGER, fetched_at TEXT, events_json TEXT)")
+    rows = [
+        (1, 0, _page([_event(10, NOW - DAY, 1, 2), _event(11, NOW - 2 * DAY, 3, 1)]),
+         "2026-09-29T10:00:00"),
+        (7, 0, _page([_event(12, NOW - DAY, 7, 8, sport="tennis")]),
+         "2026-09-29T10:00:00"),
+        (2, 1, _page([_event(13, NOW - 9 * DAY, 2, 4)], has_next=False),
+         "2026-10-01T10:00:00"),
+    ]
+    con.executemany("INSERT INTO sofa_entity_events VALUES (?, 'last', ?, ?, ?)",
+                    [(e, p, f, j) for e, p, j, f in rows])
+    con.execute("INSERT INTO sofa_entity_events VALUES (9, 'next', 0, 'x', '{}')")
+    con.commit()
+    con.close()
+    cached = CachedRows(str(db))
+    assert sorted(cached) == sorted(rows)
+    assert sorted(cached) == sorted(rows)  # re-iterable: each pass re-reads
+    got = scan(cached, "football", NOW - 400 * DAY, "2026-09-30T00:00:00")
+    want = scan(rows, "football", NOW - 400 * DAY, "2026-09-30T00:00:00")
+    assert got.keys() == want.keys()
+    assert all(got[k].pages == want[k].pages for k in got)
+    with pytest.raises(TypeError):
+        scan(iter(rows), "football", NOW - 400 * DAY)
