@@ -1,0 +1,29 @@
+{
+ "sport": "hockey",
+ "snapshot_utc": "2026-11-18T15:39:20.370677+00:00",
+ "events_rows": 114093,
+ "state_counts": {
+  "dev": [
+   2456,
+   3992,
+   3562,
+   922
+  ],
+  "exam": [
+   959,
+   1508,
+   1516,
+   376
+  ]
+ },
+ "aneks_a_match": {
+  "dev": true,
+  "exam": true
+ },
+ "dev_rows": 22070,
+ "exam_rows": 8701,
+ "missing": {
+  "no model centre": 221
+ },
+ "main_phase_ties": []
+}

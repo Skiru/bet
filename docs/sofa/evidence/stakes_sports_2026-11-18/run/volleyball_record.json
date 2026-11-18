@@ -1,0 +1,29 @@
+{
+ "sport": "volleyball",
+ "snapshot_utc": "2026-11-18T15:41:55.306727+00:00",
+ "events_rows": 109173,
+ "state_counts": {
+  "dev": [
+   1118,
+   1798,
+   3307,
+   1848
+  ],
+  "exam": [
+   471,
+   654,
+   1199,
+   653
+  ]
+ },
+ "aneks_a_match": {
+  "dev": true,
+  "exam": true
+ },
+ "dev_rows": 17110,
+ "exam_rows": 6293,
+ "missing": {
+  "no model centre": 494
+ },
+ "main_phase_ties": []
+}

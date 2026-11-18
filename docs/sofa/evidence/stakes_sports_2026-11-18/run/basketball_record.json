@@ -1,0 +1,40 @@
+{
+ "sport": "basketball",
+ "snapshot_utc": "2026-11-18T15:34:56.907176+00:00",
+ "events_rows": 343734,
+ "state_counts": {
+  "dev": [
+   4565,
+   6738,
+   7882,
+   4767
+  ],
+  "exam": [
+   1447,
+   2570,
+   3122,
+   2027
+  ]
+ },
+ "aneks_a_match": {
+  "dev": true,
+  "exam": true
+ },
+ "dev_rows": 45187,
+ "exam_rows": 17256,
+ "missing": {
+  "no model centre": 7853
+ },
+ "main_phase_ties": [
+  [
+   "basketball",
+   17343,
+   74021,
+   [
+    "LMB, Apertura",
+    "LMB, Clausura"
+   ],
+   "LMB, Clausura"
+  ]
+ ]
+}
