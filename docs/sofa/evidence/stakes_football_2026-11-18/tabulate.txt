@@ -1,0 +1,242 @@
+groups (league-seasons/groups) with >=1 match in period:
+period  dev  exam  pre  val
+kind                       
+club    251   598   10  583
+club_W   31    48    1   41
+nat      44    33   55   19
+matches:
+period    dev   exam   pre    val
+kind                             
+club    44868  81028  1197  66618
+club_W   3835   4618    90   2996
+nat       432    261   539    228
+
+== club: side-matches by state x period (all / with stats / corners / shots / cards / fouls)
+event_id
+period       dev    exam   pre     val
+state                                 
+MUST_WIN    2077    7625    49    1259
+ALIVE      80601  127686  2269  128098
+SECURED     4446   17429    28    2459
+DEAD         903    3270     9     527
+AMBIGUOUS   1709    6046    39     893
+has_stats
+period      dev   exam    val
+state                        
+MUST_WIN    366   1857    431
+ALIVE      9798  39139  26835
+SECURED     904   3128    941
+DEAD        169    491    172
+AMBIGUOUS   273   1435    287
+corners
+period      dev   exam    val
+state                        
+MUST_WIN    318   1692    397
+ALIVE      8683  36289  23265
+SECURED     848   2804    844
+DEAD        161    425    151
+AMBIGUOUS   242   1326    259
+shots
+period      dev   exam    val
+state                        
+MUST_WIN     93   1092    308
+ALIVE      6005  24189  15077
+SECURED     241   1978    687
+DEAD         75    309    124
+AMBIGUOUS    90    840    200
+cards
+period      dev   exam    val
+state                        
+MUST_WIN    357   1821    426
+ALIVE      9518  38424  25008
+SECURED     890   3055    906
+DEAD        166    477    160
+AMBIGUOUS   261   1397    278
+fouls
+period      dev   exam    val
+state                        
+MUST_WIN    210   1198    364
+ALIVE      7221  27595  21430
+SECURED     583   2095    787
+DEAD        123    330    141
+AMBIGUOUS   163    942    240
+tb-dependent share by state:
+state
+MUST_WIN     0.157
+ALIVE        0.000
+SECURED      0.000
+DEAD         0.000
+AMBIGUOUS    1.000
+Name: tb, dtype: float64
+AMBIGUOUS share: 0.0224  among non-ALIVE-early(progress>=.67): 0.0592
+
+== nat: side-matches by state x period (all / with stats / corners / shots / cards / fouls)
+event_id
+period     dev  exam  pre  val
+state                         
+MUST_WIN   116    88  192  120
+ALIVE      607   349  669  205
+SECURED     44     9   50    9
+DEAD        33    14   92   97
+AMBIGUOUS   64    62   75   25
+has_stats
+period     dev  exam  pre  val
+state                         
+MUST_WIN   115    88   34  118
+ALIVE      469   345   37  198
+SECURED     41     8    8    9
+DEAD        31    13   39   94
+AMBIGUOUS   64    62    8   25
+corners
+period     dev  exam  pre  val
+state                         
+MUST_WIN   115    88   34   74
+ALIVE      441   345   37  171
+SECURED     41     8    8    7
+DEAD        31    13   39   51
+AMBIGUOUS   62    62    8   15
+shots
+period     dev  exam  pre  val
+state                         
+MUST_WIN   115    88   34   74
+ALIVE      441   345   37  171
+SECURED     41     8    8    7
+DEAD        31    13   39   51
+AMBIGUOUS   62    62    8   15
+cards
+period     dev  exam  pre  val
+state                         
+MUST_WIN   113    87   33  116
+ALIVE      464   336   37  187
+SECURED     37     6    6    9
+DEAD        26    11   36   91
+AMBIGUOUS   62    60    8   25
+fouls
+period     dev  exam  pre  val
+state                         
+MUST_WIN   115    88   34   69
+ALIVE      441   345   37  166
+SECURED     41     8    8    6
+DEAD        31    13   39   48
+AMBIGUOUS   62    62    8   13
+tb-dependent share by state:
+state
+MUST_WIN     0.194
+ALIVE        0.000
+SECURED      0.000
+DEAD         0.000
+AMBIGUOUS    1.000
+Name: tb, dtype: float64
+AMBIGUOUS share: 0.0774  among non-ALIVE-early(progress>=.67): 0.064
+
+== club_W: side-matches by state x period (all / with stats / corners / shots / cards / fouls)
+event_id
+period      dev  exam  pre   val
+state                           
+MUST_WIN    222   492    3    74
+ALIVE      6553  7088  175  5640
+SECURED     565  1041    0   169
+DEAD        133   216    0    45
+AMBIGUOUS   197   399    2    64
+has_stats
+period     dev  exam   val
+state                     
+MUST_WIN    24   183    27
+ALIVE      387  3001  1180
+SECURED     57   343    95
+DEAD         7    47    19
+AMBIGUOUS   17   146    15
+corners
+period     dev  exam   val
+state                     
+MUST_WIN    24   181    25
+ALIVE      370  2972  1158
+SECURED     54   338    91
+DEAD         7    45    17
+AMBIGUOUS   17   144    13
+shots
+period     dev  exam  val
+state                    
+MUST_WIN    16   155   20
+ALIVE      303  2638  944
+SECURED     31   322   78
+DEAD         5    43   14
+AMBIGUOUS   13   120   10
+cards
+period     dev  exam   val
+state                     
+MUST_WIN    24   172    27
+ALIVE      365  2889  1124
+SECURED     54   323    93
+DEAD         6    43    19
+AMBIGUOUS   17   139    15
+fouls
+period     dev  exam   val
+state                     
+MUST_WIN    20   164    23
+ALIVE      346  2775  1095
+SECURED     47   323    83
+DEAD         6    43    16
+AMBIGUOUS   17   127    11
+tb-dependent share by state:
+state
+MUST_WIN     0.161
+ALIVE        0.000
+SECURED      0.000
+DEAD         0.000
+AMBIGUOUS    1.000
+Name: tb, dtype: float64
+AMBIGUOUS share: 0.0287  among non-ALIVE-early(progress>=.67): 0.0645
+
+matches with >=1 exposed side (no ambiguous side):
+period   dev   exam  pre   val
+kind                          
+club    4883  18648   61  2747
+club_W   587   1132    2   185
+nat      112     67  192   142
+with stats:
+period    dev    exam   pre    val
+kind                              
+club    946.0  3696.0   NaN  998.0
+club_W   57.0   382.0   NaN   85.0
+nat     108.0    66.0  47.0  138.0
+matches with >=1 ambiguous side:
+period   dev  exam  pre  val
+kind                        
+club    1651  5825   37  866
+club_W   193   384    2   63
+nat       56    51   66   25
+
+club exact enumeration share (all / progress>=.9): 0.032 0.363
+club in ut-season with knockout rounds share: 0.433
+
+national: matches in the last two rounds (either side <=2 left incl. this):
+period                       dev  exam  pre  val
+ut_name                                         
+Africa Cup of Nations Qual.   44    48   46    0
+CONCACAF Nations League       25    17   51    0
+EURO, Qualification            0     0   58    0
+UEFA Nations League           50    29   52    0
+World Cup Qual. CAF            0     0    0   42
+World Cup Qual. UEFA           0     0    0   57
+all national group matches:
+period                       dev  exam  pre  val
+ut_name                                         
+Africa Cup of Nations Qual.  132    72   88    0
+CONCACAF Nations League       66    58   84    0
+EURO, Qualification            0     0  230    0
+UEFA Nations League          144   131   53    0
+World Cup Qual. CAF           42     0   84   84
+World Cup Qual. UEFA          48     0    0  144
+national with stats:
+period
+dev     360
+exam    258
+pre      63
+val     222
+dtype: int64 period
+dev     345
+exam    258
+pre      63
+val     159
+dtype: int64

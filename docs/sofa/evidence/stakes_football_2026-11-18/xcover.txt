@@ -1,0 +1,78 @@
+
+== X rows (goals): side-matches by kind x state x period
+period              dev    exam     val
+kind   state                           
+club   MUST_WIN    2035    7378    1241
+       ALIVE      75678  125224  118801
+       SECURED     4359   16916    2439
+       DEAD         871    3075     520
+       AMBIGUOUS   1665    5865     883
+club_W MUST_WIN     209     471      74
+       ALIVE       6012    6985    5026
+       SECURED      549    1002     169
+       DEAD         114     205      45
+       AMBIGUOUS    194     379      64
+nat    MUST_WIN     116      23     120
+       ALIVE        605     304     205
+       SECURED       44       0       9
+       DEAD          33       1      97
+       AMBIGUOUS     64      30      25
+
+== X rows (corners): side-matches by kind x state x period
+period             dev   exam    val
+kind   state                        
+club   MUST_WIN     98   1431    319
+       ALIVE      4866  31298  18064
+       SECURED     394   2513    721
+       DEAD         99    367    129
+       AMBIGUOUS    89   1109    217
+club_W MUST_WIN      8    143     18
+       ALIVE       173   2436    725
+       SECURED      16    299     35
+       DEAD          4     37      8
+       AMBIGUOUS     7    107      6
+nat    MUST_WIN      0     23     66
+       ALIVE         0    283    107
+       SECURED       0      0      7
+       DEAD          0      1     43
+       AMBIGUOUS     0     29     11
+
+== X rows (shots): side-matches by kind x state x period
+period             dev   exam    val
+kind   state                        
+club   MUST_WIN     95   1148    282
+       ALIVE      4887  25255  15334
+       SECURED     335   2098    652
+       DEAD         89    326    117
+       AMBIGUOUS    88    889    187
+club_W MUST_WIN      8    141     15
+       ALIVE       174   2366    674
+       SECURED      16    295     29
+       DEAD          4     37      7
+       AMBIGUOUS     8    103      5
+nat    MUST_WIN      0     23     66
+       ALIVE         0    283    107
+       SECURED       0      0      7
+       DEAD          0      1     43
+       AMBIGUOUS     0     29     11
+
+== X rows (cards): side-matches by kind x state x period
+period             dev   exam    val
+kind   state                        
+club   MUST_WIN    128   1408    353
+       ALIVE      5901  31462  19198
+       SECURED     320   2622    813
+       DEAD         83    410    146
+       AMBIGUOUS   114   1078    242
+club_W MUST_WIN     10    147     18
+       ALIVE       180   2500    731
+       SECURED      26    302     34
+       DEAD          5     40      7
+       AMBIGUOUS     7    109      4
+nat    MUST_WIN      0     23     73
+       ALIVE         0    283    109
+       SECURED       0      0      6
+       DEAD          0      1     50
+       AMBIGUOUS     0     29     10
+
+X max ts: 1

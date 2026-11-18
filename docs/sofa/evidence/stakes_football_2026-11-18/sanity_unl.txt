@@ -1,0 +1,53 @@
+
+UEFA Nations League, League A, Gr. 1  table: France 10, Italy 10, Belgium 9, Türkiye 0
+    France=MUST_WIN vs Türkiye=DEAD
+    Italy=MUST_WIN vs Belgium=MUST_WIN
+
+UEFA Nations League, League A, Gr. 2  table: Netherlands 11, Greece 8, Germany 8, Serbia 0
+    Netherlands=MUST_WIN(tb) vs Germany=MUST_WIN
+    Greece=AMBIGUOUS(tb) vs Serbia=DEAD
+
+UEFA Nations League, League A, Gr. 3  table: Spain 15, England 12, Croatia 6, Czechia 0
+    Spain=MUST_WIN(tb) vs England=MUST_WIN(tb)
+
+UEFA Nations League, League A, Gr. 4  table: Portugal 12, Denmark 9, Norway 6, Wales 3
+    Norway=MUST_WIN(tb) vs Denmark=MUST_WIN
+    Wales=DEAD vs Portugal=ALIVE
+
+UEFA Nations League, League B, Gr. 1  table: Switzerland 13, Slovenia 8, Scotland 7, North Macedonia 0
+    Slovenia=ALIVE vs North Macedonia=DEAD
+    Scotland=MUST_WIN vs Switzerland=SECURED
+
+UEFA Nations League, League B, Gr. 2  table: Northern Ireland 11, Hungary 10, Ukraine 4, Georgia 2
+    Ukraine=MUST_WIN vs Georgia=MUST_WIN
+    Hungary=MUST_WIN vs Northern Ireland=MUST_WIN
+
+UEFA Nations League, League B, Gr. 3  table: Austria 11, Kosovo 6, Ireland 5, Israel 3
+    Israel=MUST_WIN vs Austria=SECURED
+    Ireland=MUST_WIN vs Kosovo=MUST_WIN
+
+UEFA Nations League, League B, Gr. 4  table: Sweden 13, Bosnia & Herzegovina 8, Poland 4, Romania 3
+    Romania=MUST_WIN vs Bosnia & Herzegovina=SECURED
+    Sweden=SECURED vs Poland=ALIVE
+
+UEFA Nations League, League C, Gr. 1  table: Albania 12, Belarus 10, Finland 7, San Marino 0
+    Albania=MUST_WIN vs Belarus=MUST_WIN
+    Finland=SECURED vs San Marino=DEAD
+
+UEFA Nations League, League C, Gr. 2  table: Montenegro 13, Cyprus 8, Armenia 5, Latvia 1
+    Cyprus=SECURED vs Montenegro=SECURED
+    Latvia=DEAD vs Armenia=SECURED
+
+UEFA Nations League, League C, Gr. 3  table: Slovakia 11, Moldova 7, Faroe Islands 5, Kazakhstan 2
+    Slovakia=SECURED vs Kazakhstan=MUST_WIN(tb)
+    Faroe Islands=MUST_WIN vs Moldova=MUST_WIN
+
+UEFA Nations League, League C, Gr. 4  table: Iceland 11, Estonia 9, Bulgaria 4, Luxembourg 3
+    Luxembourg=MUST_WIN vs Iceland=ALIVE
+    Bulgaria=ALIVE vs Estonia=MUST_WIN
+
+UEFA Nations League, League D, Gr. 1  table: Malta 7, Andorra 4, Gibraltar 2
+    Malta=SECURED vs Gibraltar=DEAD
+
+UEFA Nations League, League D, Gr. 2  table: Azerbaijan 8, Lithuania 4, Liechtenstein 1
+    Lithuania=DEAD vs Liechtenstein=DEAD
