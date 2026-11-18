@@ -2864,6 +2864,30 @@ niego 08).
     nie korekta i nie bramka** (jak `MAKEUP_FIXTURE`); nie skorygowane o to, że
     kluby strefy spadkowej są słabe. Brak pliku historii = kupon bez flag,
     nigdy odmowa.
+  - Stawka w grupie - reprezentacje i grupy Finals w tenisie (od
+    `epochs.STAKES_GROUPS_FROM_UTC` = 2026-11-19 00:00Z, decyzja operatora
+    2026-11-18; `bet.sofa.stakes_groups`): flagi dołączane do `stakes` nogi
+    obok `STAKES_SIX_POINTER` / `STAKES_TOP4`, na PDF / HTML / md, w read
+    secie i w dossier (blok `stakes`). Mecz grupowy reprezentacji (Liga
+    Narodów UEFA, el. EURO / MŚ UEFA / CAF / CONMEBOL, el. PNA, Liga Narodów
+    CONCACAF; granice z sekcji 4.2 pre-rejestracji
+    `docs/sofa/evidence/stakes_prereg_football_2026-11-18.md`): stan każdej
+    strony na chwilę startu - `STAKES_NATIONAL_MUST_WIN` (z NEED_POINT w
+    puli), `ALIVE`, `SECURED`, `DEAD` („; tb” = zależny od kryterium przy
+    równych punktach) - z zamrożonego modułu (`bet.sofa.stakes_state`, logika
+    bez zmian, test parzystości), na tabeli grupy odtworzonej z listingów
+    drużyn w cache (bez zapytań). Bez flagi: AMBIGUOUS, kobiety, rundy
+    pucharowe, grupa z > 25% meczów wnioskowanych, `STALE` (mecz grupy
+    rozpoczęty przed tym startem, a w cache niezakończony). Tenis: tylko
+    `RR_DECIDED_SIDE` (grupa singlowa Finals, strona 2-0 / 0-2 po dwóch
+    zakończonych meczach grupy). Pominięte, bo nie do wyliczenia wiarygodnie
+    w chwili budowy: wszystkie flagi CS2 (w `cs2_series` i listingu esportu
+    tylko zakończone serie, pobierane następnego ranka - brak bilansu Swiss /
+    GSL z tego dnia, drabinki, `roundInfo`), tenisowe `TIE_DEAD_RUBBER` /
+    `TIE_CLINCHER` (tie bez identyfikatora, liczba rubberów poza danymi,
+    rubbery z tego samego dnia nierozliczone przy budowie). **Tylko
+    wyświetlanie**: nie zmienia pewności, nie bramkuje, nie wchodzi do
+    `read_value`, bez grupy księgi.
   - `price_gap` na nodze piłkarskiej i tenisowej oraz `price_gap` w dokumencie
     (od `epochs.PRICE_GAP_FLAG_FROM_UTC` = 2026-10-12 11:51Z, decyzja
     operatora 2026-10-12 po kuponach z 10-11, przesunięta przez niego na

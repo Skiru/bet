@@ -345,6 +345,8 @@ function tags(r){let t="";
   if(r.stability==="CHWIEJNA")t+='<span class="tag bad">chwiejna</span>';
   else if(r.stability==="STABILNA")t+='<span class="tag ok">stabilna</span>';
   if(r.schedule_term)t+='<span class="tag">'+esc(r.schedule_term)+'</span>';
+  // bet.sofa.stakes / stakes_groups: what the match is played for (display only)
+  if(r.stakes)t+='<span class="tag">stawka: '+esc(r.stakes)+'</span>';
   if(r.matchup)t+='<span class="tag">'+esc(r.matchup)+'</span>';
   if(r.locked)t+='<span class="tag">zablokowana</span>';
   if(r.verdict==="WATCH"||r.verdict==="NO_BET")t+='<span class="tag bad">'+r.verdict+'</span>';

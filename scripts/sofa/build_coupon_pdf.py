@@ -81,6 +81,7 @@ from bet.sofa.epochs import (  # noqa: E402
 from bet.sofa.icloud_sync import sync_day  # noqa: E402
 from bet.sofa.locked_print import record_print  # noqa: E402
 from bet.sofa.peer_choice import label as peer_choice_label  # noqa: E402
+from bet.sofa.stakes import label as stakes_text  # noqa: E402
 from bet.sofa.superbet_names import (  # noqa: E402
     FIELD_MARKET,
     FIELD_SELECTION,
@@ -371,10 +372,6 @@ def context_label(leg: dict[str, Any]) -> str:
 
 
 PEER_MARK = "▲"
-STAKES_NAMES = {
-    "STAKES_SIX_POINTER": "mecz o utrzymanie (oba kluby przy linii spadkowej)",
-    "STAKES_TOP4": "mecz o czołówkę (oba kluby przy linii 4./5. miejsca)",
-}
 
 
 def peer_label(leg: dict[str, Any]) -> str:
@@ -389,20 +386,13 @@ def peer_label(leg: dict[str, Any]) -> str:
 
 
 def stakes_label(leg: dict[str, Any]) -> str:
-    """bet.sofa.stakes: what the match is played for, and which way that
-    measured effect pushes this leg. Shown, never a gate."""
-    st = leg.get("stakes")
-    if not st:
+    """bet.sofa.stakes (and bet.sofa.stakes_groups' national / Finals group
+    flags): what the match is played for, and which way that measured effect
+    pushes this leg. Shown, never a gate."""
+    text = stakes_text(leg)
+    if not text:
         return ""
-    names = "; ".join(
-        STAKES_NAMES.get(str(f).split("(", 1)[0], str(f)) + " "
-        + (str(f).split("(", 1)[1].rstrip(")") if "(" in str(f) else "")
-        for f in st["flags"])
-    effect = {"za": " - efekt stawki idzie za tą nogą",
-              "przeciw": " - efekt stawki idzie przeciw tej nodze"}.get(
-                  str(st.get("effect") or ""), "")
-    return (f"<br/><font size=6.5 color='#b25b00'>{escape(names)}"
-            f"{escape(effect)}</font>")
+    return f"<br/><font size=6.5 color='#b25b00'>{escape(text)}</font>"
 
 
 def price_gap_label(leg: dict[str, Any]) -> str:

@@ -182,3 +182,36 @@ def for_day(fixtures: Iterable[Mapping[str, Any]],
         if got:
             out[int(f["sofascore_event_id"])] = got
     return out
+
+
+# The sentence of each flag on the PDF / HTML (Polish, the operator's page).
+NAMES = {
+    SIX_POINTER: "mecz o utrzymanie (oba kluby przy linii spadkowej)",
+    TOP4: "mecz o czołówkę (oba kluby przy linii 4./5. miejsca)",
+}
+
+
+def flag_text(flag: str) -> str:
+    """One flag as the page writes it: this module's name and its detail
+    ("(73% sezonu)"), or bet.sofa.stakes_groups' own sentence."""
+    from bet.sofa.stakes_groups import flag_text as group_text
+
+    if (text := group_text(flag)) is not None:
+        return text
+    key, _, rest = str(flag).partition("(")
+    name = NAMES.get(key, key)
+    return f"{name} {rest.rstrip(')')}" if rest else name
+
+
+def label(leg: Mapping[str, Any]) -> str:
+    """The leg's stakes as one line of the PDF / HTML ("" without any):
+    what the match is played for, and which way the measured effect pushes
+    this leg. Shown, never a gate."""
+    st = leg.get("stakes")
+    if not isinstance(st, Mapping) or not st.get("flags"):
+        return ""
+    names = "; ".join(flag_text(str(f)) for f in st["flags"])
+    effect = {"za": " - efekt stawki idzie za tą nogą",
+              "przeciw": " - efekt stawki idzie przeciw tej nodze"}.get(
+                  str(st.get("effect") or ""), "")
+    return f"{names}{effect}"

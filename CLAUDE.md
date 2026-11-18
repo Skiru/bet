@@ -397,6 +397,18 @@ and a miss recorded before a rule's switch never blocks that rule.
   sample statistic or tournament flag re-ranks peers. **Stakes**
   (`STAKES_SIX_POINTER`, `STAKES_TOP4`, `bet.sofa.stakes`) are a context flag:
   shown, never gated, never a correction.
+- **Group stakes** (annotation only, `STAKES_GROUPS_FROM_UTC` 2026-11-19
+  00:00Z, operator 11-18; `bet.sofa.stakes_groups`, joined to the leg's
+  `stakes` by COUPON, read-only DB): a national football group game carries
+  each side's `STAKES_NATIONAL_MUST_WIN` / `ALIVE` / `SECURED` / `DEAD`
+  (the frozen `bet.sofa.stakes_state` of
+  `docs/sofa/evidence/stakes_prereg_football_2026-11-18.md`, table rebuilt
+  from cached listings; AMBIGUOUS, women, knockout, > 25% inferred or a
+  group game started and unsettled in the cache = no flag); a singles
+  tennis Finals group match `RR_DECIDED_SIDE` (a side 2-0 / 0-2). CS2 flags
+  and tennis tie flags left out (not derivable at build time). PDF / HTML /
+  md sentence, read set and dossier `stakes`; never a gate, not in
+  `read_value`, no ledger group.
 - **Confidence above the price** (annotation only): a football / tennis leg
   whose confidence exceeds 1/odds by more than `GAP` 0.03 carries `price_gap`
   (`CONFIDENCE_ABOVE_PRICE`) and a sentence on the PDF / HTML. Such legs realise

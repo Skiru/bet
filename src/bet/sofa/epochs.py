@@ -3728,6 +3728,30 @@ def lesser_loss_mark(date: str, build_at: datetime | None = None) -> bool:
     return _audit_1023_on(LESSER_LOSS_MARK_FROM_UTC, date, build_at)
 
 
+# What a national football side and a tennis Finals player play for - a
+# display-only stakes flag (bet.sofa.stakes_groups; operator 2026-11-18,
+# pre-registration docs/sofa/evidence/stakes_prereg_football_2026-11-18.md
+# D1 and stakes_prereg_cs2_tennis_2026-11-18.md section 5, frozen in
+# 646b1317): national group games (Nations League, EURO / World Cup UEFA /
+# CAF / CONMEBOL qualifiers, AFCON qualifiers, CONCACAF Nations League) carry
+# each side's MUST_WIN / ALIVE / SECURED / DEAD state as of the kickoff
+# (bet.sofa.stakes_state, the frozen module; AMBIGUOUS = no flag), a singles
+# Finals group match RR_DECIDED_SIDE (a side 2-0 / 0-2 before its last group
+# match). Joined to the leg's `stakes` beside STAKES_SIX_POINTER / TOP4 and
+# shown on the PDF / HTML / md and in the dossier. Annotation only: no leg is
+# added, removed or re-ranked, no confidence moves, confidence.read_value does
+# not read it - so no ledger epoch group. Not measured as a correction (the
+# national flag has no exam, D1; CS2 / tennis were not feasible). By the day
+# and the build clock: a day built before it is unchanged.
+STAKES_GROUPS_FROM_UTC: datetime | None = datetime(2026, 11, 19, 0, 0, tzinfo=UTC)
+
+
+def stakes_groups(date: str, build_at: datetime | None = None) -> bool:
+    """Does the build carry the national-group / Finals-group stakes flags
+    (STAKES_GROUPS_FROM_UTC on the day being built and the build clock)?"""
+    return _audit_1023_on(STAKES_GROUPS_FROM_UTC, date, build_at)
+
+
 # Every analyst / verifier read carries the analyst's judgement of the leg's
 # variable - `stability`: STABILNA / CHWIEJNA / BRAK_PODSTAW with a one-
 # sentence `stability_reason` (contracts.LegRead; operator 2026-11-16, after

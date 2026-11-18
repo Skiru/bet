@@ -533,6 +533,33 @@ Annotation only: nothing added, removed, re-ranked; no confidence moves; no
 ledger group. `docs/sofa/evidence/mniej_zle_nogi_2026-11-11.md`;
 pre-registered `T-LESSER-LOSS-flag` (`scripts/sofa/measure_lesser_loss.py`).
 
+### Group stakes flags, national football + tennis Finals (2026-11-19 00:00Z, `STAKES_GROUPS_FROM_UTC`; operator 2026-11-18; display only, no ledger group)
+
+`bet.sofa.stakes_groups`, computed in COUPON (build_coupon, read-only DB, no
+request), joined to the leg's `stakes` beside `STAKES_SIX_POINTER` / `TOP4`;
+shown on PDF / HTML / md, carried in the read set and the dossier
+(`stakes` block). National group games (Nations League, EURO / WC UEFA / CAF
+/ CONMEBOL qualifiers, AFCON qualifiers, CONCACAF Nations League; section
+4.2 boundaries) carry each side's `STAKES_NATIONAL_MUST_WIN` (NEED_POINT
+pooled) / `ALIVE` / `SECURED` / `DEAD` ("; tb" = depends on the tiebreak) by
+`bet.sofa.stakes_state` - the frozen module of
+`docs/sofa/evidence/stakes_prereg_football_2026-11-18.md` (sha 99e81fe7)
+carried unchanged (parity test) - on the group's table rebuilt from the
+sides' cached listings walked through the group. No flag: AMBIGUOUS, women,
+knockout rounds, a group with > 25% meetings inferred, or `STALE` (a group game
+started before this kickoff and not finished in the cache). Check
+(cached, before round 6 of UNL 2026/27): Wales DEAD, Norway MUST_WIN (tb),
+Denmark MUST_WIN, Portugal ALIVE, Austria / Sweden / Bosnia SECURED, Poland
+ALIVE - as `sanity_unl.txt`. Tennis: `RR_DECIDED_SIDE` only (singles Finals
+group, side 2-0 / 0-2 after two finished group matches; WTA Finals 11-12 /
+11-13 replayed: Kostyuk 0-2, Noskova 2-0, Andreeva 2-0, Muchova 0-2). Left
+out as not derivable at build time (prereg cs2_tennis section 5's doubts):
+every CS2 flag (`cs2_series` and the esports listing hold finished series
+only, fetched the next morning - no same-day Swiss / GSL record, no bracket,
+no `roundInfo`), tennis `TIE_DEAD_RUBBER` / `TIE_CLINCHER` (no tie id, the
+rubber count not in the data, same-day rubbers unsettled at build). No
+correction, never a gate, not in `read_value`, no ledger group, no exam (D1).
+
 ### Analyst stability label (2026-11-16 17:00Z, `STABILITY_LABEL_FROM_UTC`; operator 2026-11-16; display only, no ledger group)
 
 Every read (`contracts.LegRead`) merged from the clock carries `stability`

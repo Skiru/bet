@@ -36,6 +36,7 @@ from bet.sofa.peer_choice import label as peer_label
 from bet.sofa.price_gap import label as price_gap_label
 from bet.sofa.rating_market_gap import label as rating_market_gap_label
 from bet.sofa.schedule_term_view import label as schedule_term_label
+from bet.sofa.stakes import label as stakes_label
 from bet.sofa.superbet_names import annotate as name_on_superbet
 from bet.sofa.superbet_names import board_sides
 from bet.sofa.superbet_names import label as superbet_label
@@ -293,6 +294,9 @@ def build_view(
             # bet.sofa.lesser_loss: low margin, close to the price, long
             # sample - the PDF's sentence; "lesser" drives the page's filter
             "lesser_loss": lesser_loss_label(leg),
+            # bet.sofa.stakes / stakes_groups: what the match is played for
+            # (the PDF's sentence), display only
+            "stakes": stakes_label(leg),
             "lesser": bool(leg.get("lesser_loss")),
             "lesser_strong": (leg.get("lesser_loss") or {}).get("tier") == "pewna",
             # epochs.SCHEDULE_TERM: the term moved the leg's p (both t)

@@ -109,6 +109,8 @@ FIELDS = (
     "source_date", "model_p",
     "forecast_p", "calibrated_on", "sample_size", "sample_hit_rate",
     "sample_oldest_days", "sample_newest_days", "context_flags",
+    # bet.sofa.stakes / stakes_groups: what the match is played for (display)
+    "stakes",
     # a builder leg carries `odds`; a measured-sport leg `family` / `side` /
     # `map_nr` beside its market / direction
     "odds", "family", "side", "map_nr",

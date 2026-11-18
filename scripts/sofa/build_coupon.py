@@ -56,6 +56,7 @@ from bet.sofa import price_gap as pg  # noqa: E402
 from bet.sofa import rating_market_gap as rmg  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa import stakes as stakes_mod  # noqa: E402
+from bet.sofa import stakes_groups as sgroups  # noqa: E402
 from bet.sofa import timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
@@ -82,6 +83,7 @@ from bet.sofa.epochs import (  # noqa: E402
     read_by_value,
     read_scope_events,
     same_event_dedup,
+    stakes_groups,
 )
 from bet.sofa.football_score_markets import (  # noqa: E402
     display_market as score_display_market,
@@ -577,6 +579,15 @@ def main() -> int:
         elif tables is None:
             print("STAKES_NOT_SHOWN: football_history.pkl is absent or unreadable",
                   file=sys.stderr)
+        if stakes_groups(args.date, at) and fixtures_path.exists():
+            # epochs.STAKES_GROUPS_FROM_UTC: national groups / tennis Finals
+            # groups, display only; read-only, never refused for want of it
+            got = sgroups.from_db(SofaConfig.from_env().db_path,
+                                  _load(fixtures_path))
+            if isinstance(got, str):
+                print(f"STAKES_GROUPS_NOT_SHOWN: {got}", file=sys.stderr)
+            else:
+                stakes_by_event = sgroups.merge(stakes_by_event, got)
     boards = board_sides(run)
     doc = assemble(conf, sports, requests, samples, now, args.date,
                    form=form, form_active=coupon_form_active(args.date, at),

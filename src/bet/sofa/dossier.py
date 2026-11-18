@@ -62,6 +62,7 @@ from bet.sofa.players import (
 )
 from bet.sofa.samples import one_listing_per_match
 from bet.sofa.settle import venue_timezone
+from bet.sofa.stakes import flag_text as stakes_flag_text
 
 # 2 (2026-10-29): football `style` with league rate, xG / blocked shots / long
 # balls / throw-ins / goal kicks and `matchup[].metric`; an older dossier lacks them.
@@ -1359,6 +1360,24 @@ def market_block(
     }
 
 
+def stakes_block(legs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    """What the match is played for, from its legs' `stakes` (bet.sofa.stakes,
+    bet.sofa.stakes_groups - the coupon's flags), each with the page's
+    sentence; None when no leg carries any. Display only."""
+    flags: list[str] = []
+    for leg in legs:
+        st = leg.get("stakes")
+        if isinstance(st, Mapping):
+            flags += [str(f) for f in st.get("flags") or [] if str(f) not in flags]
+    if not flags:
+        return None
+    return {
+        "source": "flagi kuponu (tabela grupy / ligi odtworzona z wyników przed "
+        "startem w cache) - tylko kontekst, nie zmienia pewności ani bramek",
+        "flags": [{"flag": f, "text": stakes_flag_text(f)} for f in flags],
+    }
+
+
 def leg_rows(legs: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     keep = (
         "position",
@@ -1847,6 +1866,8 @@ def build(
         "legs": leg_rows(legs),
         "sides": sides,
     }
+    if block := stakes_block(legs):
+        doc["stakes"] = block
     h2h_asked = (h2h_entries or {}).get(str(event_id)) or {}
     if isinstance(home_id, int) and isinstance(away_id, int):
         doc["head_to_head"] = head_to_head(
