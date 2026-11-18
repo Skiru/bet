@@ -280,3 +280,74 @@ tylko dla koszykówki na punktach, nigdy na kalibracji >= 0.70; hokej nieraporto
 Puste do wykonania backfillu. Treść: wynik `formatcheck.py` i `STAKES_YEARS=2022,2023 states.py` (te same pliki,
 sha256 jak wyżej): liczba lig-sezonów wchodzących, tabela stron wg stanu dla 22/23 i 23/24, data i commit bazy
 (`VACUUM INTO`), nic więcej.
+
+### Aneks A - wykonanie (2026-11-18, ~15:01-15:04Z; tylko liczebności, żaden wynik wg stanu)
+
+**Wejście.** Backfill zakończony: `runs/sofa/backfill/stakes_2022_23.log` (hokej, koszykówka, siatkówka - DONE,
+2 hopy, `driver end: all stages done` 14:59:53Z). Pliki z `docs/sofa/evidence/stakes_sports_2026-11-18/` skopiowane
+bez zmian, sha256 sprawdzone przed uruchomieniem: `states.py` 826dfdd0..., `seasons_rules.py` 7c88084b...,
+`formatcheck.py` 0fa5a19e..., `extract.py` a3a2f3c2... - zgodne z tabelą na górze. Kolejność z sekcji "Prototypy",
+`STAKES_YEARS=2022,2023,2024,2025`, okno 0.75. Baza: `data/sofa.db` czytana `?mode=ro` bezpośrednio (**nie** kopia
+`VACUUM INTO` - odstępstwo od zdania w sekcji 13; powód: ograniczenie pamięci / dysku obok trwającego odtworzenia
+piłki); `extract.py` zwrócił 567,000 wierszy (przed backfillem 271,643). Każdy krok pod strażnikiem pamięci
+(limit 6 GB), szczyt 0.42 GB, nic nie zabite.
+
+**A.1 Czy 22/23 i 23/24 dają się odbudować** (lig-sezonów: ocenionych / przechodzi reguły 1-4 / przechodzi też
+bramkę formatu; powody odpadnięcia - klasyfikacja opisowa: "start w trakcie / częściowy" = min. liczba meczów drużyny
+< połowy maks.):
+
+| sport | sezon | ocenione | reguły 1-4 | + bramka 5 | odpadły: start w trakcie / niezrównoważony / brak wyników / K-grupa |
+|---|---|---|---|---|---|
+| hokej | 22/23 | 24 | 20 | 19 | 2 / 0 / 0 / 2 |
+| hokej | 23/24 | 26 | 23 | 22 | 1 / 0 / 0 / 2 |
+| hokej | 24/25 | 25 | 22 | 21 | 0 / 1 / 0 / 2 |
+| hokej | 25/26 | 36 | 28 | 27 | 3 / 2 / 0 / 3 |
+| koszykówka | 22/23 | 122 | 85 | 77 | 15 / 4 / 0 / 18 |
+| koszykówka | 23/24 | 148 | 100 | 89 | 19 / 8 / 2 / 19 |
+| koszykówka | 24/25 | 170 | 110 | 97 | 26 / 12 / 0 / 22 |
+| koszykówka | 25/26 | 225 | 123 | 110 | 33 / 19 / 3 / 47 |
+| siatkówka | 22/23 | 55 | 41 | 37 | 6 / 4 / 0 / 4 |
+| siatkówka | 23/24 | 69 | 48 | 46 | 10 / 2 / 0 / 9 |
+| siatkówka | 24/25 | 79 | 58 | 54 | 13 / 0 / 0 / 8 |
+| siatkówka | 25/26 | 96 | 55 | 50 | 12 / 3 / 4 / 22 |
+
+Tak - backfill odbudował oba sezony: NHL, SHL, Liiga, DEL, National League, Extraliga CZ, NBA, Euroleague, ACB,
+WNBA, SuperLega, Serie A1 K przechodzą obie bramki we wszystkich czterech sezonach. Sezony wciąż zaczynające się w
+trakcie (wg klasyfikacji wyżej): hokej 2 / 1, koszykówka 15 / 19, siatkówka 6 / 10 (22/23 / 23/24) - wypadają z
+reguły 2, jak zamrożono. Bramka formatu odrzuciła łącznie (4 sezony): hokej 4, koszykówka 45, siatkówka 15.
+
+**A.2 Strony wg stanu (okno 0.75, po bramce formatu)**
+
+| sport | sezon | mecze (w oknie) | MUST_WIN | ALIVE | SECURED | DEAD | EARLY |
+|---|---|---|---|---|---|---|---|
+| hokej | 22/23 | 7,094 (1,822) | 727 | 1,276 | 1,198 | 304 | 10,683 |
+| hokej | 23/24 | 7,631 (1,931) | 885 | 1,331 | 1,232 | 313 | 11,501 |
+| hokej | 24/25 | 7,402 (1,885) | 844 | 1,385 | 1,132 | 305 | 11,138 |
+| **hokej** | **rozwój** | 22,127 (5,638) | 2,456 (0.046) | 3,992 | 3,562 (0.038) | 922 (0.074) | 33,322 |
+| **hokej** | **egzamin 25/26** | 8,865 (2,251) | 959 (0.073) | 1,508 | 1,516 (0.058) | 376 (0.116) | 13,371 |
+| koszykówka | 22/23 | 14,645 (3,583) | 1,485 | 1,943 | 2,204 | 1,241 | 22,417 |
+| koszykówka | 23/24 | 17,685 (4,335) | 1,500 | 2,358 | 2,786 | 1,729 | 26,997 |
+| koszykówka | 24/25 | 18,473 (4,504) | 1,580 | 2,437 | 2,892 | 1,797 | 28,240 |
+| **koszykówka** | **rozwój** | 50,803 (12,422) | 4,565 (0.011) | 6,738 | 7,882 (0.008) | 4,767 (0.011) | 77,654 |
+| **koszykówka** | **egzamin 25/26** | 19,493 (4,772) | 1,447 (0.019) | 2,570 | 3,122 (0.013) | 2,027 (0.016) | 29,820 |
+| siatkówka | 22/23 | 4,769 (1,137) | 298 | 468 | 935 | 512 | 7,325 |
+| siatkówka | 23/24 | 5,837 (1,367) | 342 | 612 | 1,067 | 631 | 9,022 |
+| siatkówka | 24/25 | 6,864 (1,666) | 478 | 718 | 1,305 | 705 | 10,522 |
+| **siatkówka** | **rozwój** | 17,470 (4,170) | 1,118 (0.015) | 1,798 | 3,307 (0.009) | 1,848 (0.012) | 26,869 |
+| **siatkówka** | **egzamin 25/26** | 6,427 (1,546) | 471 (0.023) | 654 | 1,199 (0.014) | 653 (0.019) | 9,877 |
+
+W nawiasie: najmniejszy wykrywalny |c| przy 80% mocy, DEFF 1.75, V z sekcji 7 (niezmienione: hokej 0.371,
+koszykówka 0.0397, siatkówka 0.0180). NHL rozwój / egzamin: MUST_WIN 498 / 274, ALIVE 852 / 227, SECURED 274 / 73,
+DEAD 296 / 66; NBA: 378 / **3**, 635 / 214, 534 / 259, 253 / 124; WNBA: 70 / 0, 140 / 49, 123 / 58, 50 / 58.
+
+**A.3 Moc po backfillu.** S5 (strony narażone egzaminu vs n_wymagane dla c_sport): hokej 2,851 >= 2,041 (c 0.05),
+koszykówka 6,596 >= 2,426 (c 0.015), siatkówka 2,323 >= 1,097 (c 0.015) - wszystkie trzy sporty zgłaszalne.
+Rozwój (estymacja współczynników) urósł ~3x: hokej wykrywa teraz ~4-7% na stan (było 7-14%), koszykówka ~1%,
+siatkówka ~1-1.5%. Moc egzaminu (P1) wyznacza 25/26: hokej ~6-12% na stan, koszykówka ~1.3-1.9%, siatkówka ~1.4-2.3%.
+
+**A.4 Do rozstrzygnięcia przed F1 (nie zmienia sekcji zamrożonych).** Backfill wypełnił też listingi sezonu 25/26:
+populacja egzaminu przy tej samej regule jest większa niż w sekcji 7 (lig-sezonów hokej 27 vs 26, koszykówka 110 vs
+80, siatkówka 50 vs 44; strony narażone 2,851 / 6,596 / 2,323 vs 2,745 / 5,082 / 2,109). Sekcja 3 mówi "lista
+dokładna = `keep.json` z `formatcheck.py` (powtarzalne z bazy), w F1 zapisana do configu" - więc obowiązuje lista z
+bazy w chwili F1, czyli ta z Aneksu A, o ile baza nie zmieni się do F1. Zgłaszam jawnie: decyzję potwierdza
+operator przy F1.
