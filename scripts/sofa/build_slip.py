@@ -482,6 +482,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--stat-markets", action="store_true",
                     help="football count markets other than goals only (operator's "
                     "choice, not an edge)")
+    ap.add_argument("--sport", action="append", default=[],
+                    help="only legs of this sport (repeatable) - the operator's "
+                         "choice, not an edge")
+    ap.add_argument("--no-shaky", action="store_true",
+                    help="bez chwiejnych: refuse legs a read labels CHWIEJNA "
+                         "(operator's choice, not an edge)")
     ap.add_argument("--allow-no-sample", action="store_true",
                     help="admit a leg with no own match sample (league rate / "
                     "model only); a 1-7 game sample stays out")
@@ -557,6 +563,17 @@ def main(argv: list[str] | None = None) -> int:
         print("--stat-markets: tylko rynki statystyczne piłki (bez goli) - wybór "
               "operatora, nie przewaga: przy tej samej cenie żaden rynek nie "
               "odróżnia dobrej nogi od złej (31.10)")
+    if args.sport:
+        sports = {x.casefold() for x in args.sport}
+        singles = [g for g in singles if str(g.get("sport") or "").casefold() in sports]
+        builders = [b for b in builders
+                    if str(b.get("sport") or "football").casefold() in sports]
+        print(f"--sport {', '.join(sorted(sports))}: tylko ten sport - wybór "
+              "operatora, nie przewaga")
+    if args.no_shaky:
+        print("--no-shaky: bez nóg z odczytem CHWIEJNA - wybór operatora, nie "
+              "przewaga (test wsteczny NIE ZDAŁ: chwiejna − stabilna +0,3 pp "
+              "[−3,0; +3,8] względem ceny, 16.11)")
     result = sb.build(
         singles,
         now,
@@ -577,6 +594,7 @@ def main(argv: list[str] | None = None) -> int:
             run, args.runs_dir, args.date, now),
         allow_no_sample=args.allow_no_sample,
         safe=args.safest,
+        no_shaky=args.no_shaky,
     )
     shown = [g for s in result.slips + result.reserve for x in s.legs
              for g in sb.leg_rows(x)]

@@ -231,7 +231,8 @@ def test_dead_goals_study_columns_and_rules() -> None:
     assert mse.ALL_GROUPS == ("goals",)
     assert mse.S3_DIRECTIONS == {"own_DEAD": 1, "opp_DEAD": 1}
     assert (st.s5, st.p2) == ("frozen_coef", "any_column")
-    assert mse.WORK != mse.SCRATCH and mse.EVIDENCE.name == "stakes_dead_goals_2026-11-19"
+    assert mse.WORK != mse.SCRATCH
+    assert mse.EVIDENCE.name == "stakes_dead_goals_2026-11-19"
 
 
 def test_s5_per_column_at_frozen_coefficient() -> None:

@@ -558,6 +558,7 @@ def candidates(
     competitions: Sequence[str] = (),
     fresh: Mapping[tuple[Any, ...], FreshPrice] | None = None,
     allow_no_sample: bool = False,
+    no_shaky: bool = False,
 ) -> tuple[list[Leg], dict[str, int]]:
     """The legs a slip may take, and the count of every refusal. A football
     / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
@@ -568,7 +569,10 @@ def candidates(
     `allow_no_sample` a leg with NO sample passes, a 1-7 game one never).
     `fresh` holds re-asked prices by `fresh_key`: a leg gone from the offer
     or priced more than PRICE_RISE_DROP above the coupon is refused, else the
-    fresh price replaces the coupon's (its age from the re-ask)."""
+    fresh price replaces the coupon's (its age from the re-ask).
+    `no_shaky` (operator's "bez chwiejnych", 2026-11-17): a leg whose reads
+    label it CHWIEJNA is refused - the operator's choice for a chat slip,
+    not an edge (retro NOT_PASSED, +0.3 pp; chwiejna_noga_2026-11-16.md)."""
     wanted = [c.casefold() for c in competitions]
     skip = set(exclude_matches)
     out: list[Leg] = []
@@ -648,9 +652,12 @@ def candidates(
         )
         floor = (not s.get("price_fetched_at_utc") and coupon_odds is None
                  and age is not None)
+        stability = read_stability(s, reads, slip_reads)
+        if no_shaky and stability is not None and stability[0] == "CHWIEJNA":
+            refused["chwiejna (odczyt analityka, bez chwiejnych)"] += 1
+            continue
         leg = Leg(s, float(odds), mc[0], mc[1], read, age, floor, coupon_odds,
-                  got.status if got is not None else None,
-                  read_stability(s, reads, slip_reads))
+                  got.status if got is not None else None, stability)
         if leg.match_key in skip:
             continue
         out.append(leg)
@@ -891,6 +898,7 @@ def build(
                             Mapping[tuple[Any, ...], FreshPrice]] | None) = None,
     allow_no_sample: bool = False,
     safe: bool = False,
+    no_shaky: bool = False,
 ) -> Result:
     """Up to `slips` disjoint slips (no match twice), searched over every
     leg in one pass. `reserve` more disjoint slips on the same terms are the
@@ -909,7 +917,8 @@ def build(
     known: dict[tuple[Any, ...], FreshPrice] = {}
     result = _build_once(singles, now, target, slips, max_legs, window, min_odds,
                          max_odds, reads, vetoes, reserve, built_at, slip_reads,
-                         competitions, builders, known, allow_no_sample, safe)
+                         competitions, builders, known, allow_no_sample, safe,
+                         no_shaky)
     for _ in range(FRESH_ROUNDS if fresh_prices is not None else 0):
         chosen = [x.leg for s in result.slips + result.reserve for x in s.legs
                   if not x.leg.get("builder_legs")]
@@ -922,7 +931,7 @@ def build(
         result = _build_once(singles, now, target, slips, max_legs, window,
                              min_odds, max_odds, reads, vetoes, reserve, built_at,
                              slip_reads, competitions, builders, known,
-                             allow_no_sample, safe)
+                             allow_no_sample, safe, no_shaky)
     return result
 
 
@@ -945,6 +954,7 @@ def _build_once(
     fresh: Mapping[tuple[Any, ...], FreshPrice],
     allow_no_sample: bool,
     safe: bool = False,
+    no_shaky: bool = False,
 ) -> Result:
     pool, refused = candidates(
         singles,
@@ -959,6 +969,7 @@ def _build_once(
         competitions=competitions,
         fresh=fresh,
         allow_no_sample=allow_no_sample,
+        no_shaky=no_shaky,
     )
     if builders:
         extra, why = builder_candidates(

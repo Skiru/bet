@@ -1331,3 +1331,20 @@ def test_stat_markets_keep_football_counts_other_than_goals() -> None:
     assert not sb.is_stat_market({"sport": "football", "market": "both_over_goals_2h"})
     assert not sb.is_stat_market({"sport": "football", "market": "goals_total"})
     assert not sb.is_stat_market({"sport": "volleyball", "market": "points_total"})
+
+
+def test_no_shaky_refuses_a_leg_read_chwiejna() -> None:
+    """Operator 2026-11-17 "bez chwiejnych": --no-shaky drops a leg whose
+    read labels it CHWIEJNA (a chat-slip choice, not an edge); without the
+    switch the label is display only."""
+    from bet.sofa.contracts import LegRead
+
+    shaky = LegRead(sofascore_event_id=1, market="corners_total", subject="",
+                    line=7.5, direction="OVER", verdict="KEEP", author="analyst",
+                    reason="ok", stability="CHWIEJNA", stability_reason="rotacja")
+    legs = [_leg(1, 1.30, 0.75), _leg(2, 1.30, 0.75)]
+    pool, _ = sb.candidates(legs, NOW, slip_reads=[shaky])
+    assert {x.leg["sofascore_event_id"] for x in pool} == {1, 2}
+    pool, refused = sb.candidates(legs, NOW, slip_reads=[shaky], no_shaky=True)
+    assert [x.leg["sofascore_event_id"] for x in pool] == [2]
+    assert refused == {"chwiejna (odczyt analityka, bez chwiejnych)": 1}

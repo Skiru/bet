@@ -29,6 +29,11 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
   higher `~X` pays more at a lower chance). A surer slip is a lower price,
   the measured loss per leg is the same - never "pewniak".
 - **Slips**: `x2` / `2 kupony` -> `--slips 2`; default 1.
+- **Without shaky legs** (operator 2026-11-17): `bez chwiejnych` ->
+  `--no-shaky`: a leg whose read labels it CHWIEJNA is refused (an unread
+  leg is read first, then dropped on CHWIEJNA in the next round). Relay the
+  script's line: the operator's choice, not an edge (retro NOT_PASSED, +0.3
+  pp [-3.0, +3.8], `docs/sofa/evidence/chwiejna_noga_2026-11-16.md`).
 - **Legs**: default **2** (the script's default - least loss, operator
   2026-10-31: `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`). Only
   when the operator says `3 nogi` / `N nóg` -> `--max-legs N`; the answer then
