@@ -149,8 +149,10 @@ values (`opponent_correction.gate_values`).
   confidence = min(curve + `line_offset`, `price_band_cap`), never above the
   curve (`LineEvidence.load(v2=True, bucket_deff=epochs.bucket_design_effect(<d>, <build clock>)).read(...)`, base
   `Calibration.realised(market, p, sport, direction, klass, line=)`; only a
-  CS2 pooled offset may raise). A no-own-curve market read from `pooled:` =
-  defect.
+  CS2 pooled offset may raise). A no-own-curve market read from `pooled:`
+  through the code's own lookup (K13 / K13b cap it) is the code's rule - a
+  note for the operator, never a `DEFEKT` (operator 2026-11-19); a
+  confidence that does not reproduce from that lookup is a defect.
 - `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`): a question,
   not a defect.
 
@@ -198,7 +200,11 @@ PY
   every listing raised is omitted and looks "off the board". A leg of such a
   fixture is **CANNOT VERIFY**, never NOT AVAILABLE.
 - Per leg: market, line, direction, price exist as printed; fixture still on
-  the board. A vanished / changed price on a fresh leg = NO_BET.
+  the board. A vanished price (the outcome no longer quoted) on a fresh leg
+  = NO_BET. A changed price is not a defect: the caller's rebuild re-prices
+  the leg (a moved price re-prices it, CLAUDE.md "What prints") - list it as
+  a note "kurs zmieniony: <stary> -> <nowy> o <czas>" so the caller
+  rebuilds (operator 2026-11-19).
 - Sport leg: `SuperbetClient().event_odds(<superbet_event_id>)`; compare its
   side and whole outcome group with the snapshot it names
   (`price_fetched_at_utc`, `source_date`;
@@ -300,7 +306,8 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 - The removal rules are the analysts' (`sofa-pipeline` "What may remove a
   leg"). `NO_BET` = a defect, reason `DEFEKT: ...`: an artifact value wrong
   for tonight (identity, scope, surface, format, another squad / class, a
-  placeholder, a mis-sided subject; stale / vanished / wrong price,
+  placeholder, a mis-sided subject; stale / vanished / wrong price (a
+  merely changed price is a note - the rebuild re-prices it),
   arithmetic not reproducing, a fresh leg on a started match, a guard that
   should have fired). A correct value the model does not use (rest,
   back-to-back, form, h2h, table) or a rating you disagree with is a note,

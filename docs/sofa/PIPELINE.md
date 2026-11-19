@@ -3204,6 +3204,10 @@ bo konkuruje z nim o most.
   ławki to `PLAYER_NOT_STARTED` — zwrot, nie wynik (`void_legs`).
 - Noga wydrukowana bez wiersza arkusza rozlicza się do
   **`07_settled_printed.json`**, nigdy do `sofa_settled_row`.
+- Dzień bez `05_sheet.json` (usunięte 2026-11-19) SETTLE rozlicza ponownie z
+  wierszy `07_settled.json`, a nigdy nierozliczone nogi wydrukowane i usunięte
+  przez czytanie - ścieżką A4 do `07_settled_printed.json`; pozostałe
+  nierozliczone wiersze arkusza przepadają (stderr `SHEET_RECONSTRUCTED`).
 - Nogi sportów mierzonych nigdy nie trafiają do `sofa_settled_row` ani do
   `fit_confidence`; rozlicza je `settled.json` sportu (SHADOW_SETTLE /
   CS2_SETTLE) po id przypiętym w `sport_fixtures.json` — inne id to

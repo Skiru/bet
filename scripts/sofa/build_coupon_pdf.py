@@ -184,6 +184,19 @@ def unfitted_constants(
     return sorted(found)
 
 
+def sheet_rows_or_empty(run: Path) -> list[dict[str, Any]]:
+    """05_sheet.json's rows, or none when the day has no sheet (2026-11-19:
+    most sheets since 10-10 were deleted by accident). UNFITTED_CONSTANTS then
+    comes from the legs' own `unfitted_constants` only - CONFIDENCE copies
+    them onto every leg, so the line is never stripped for want of a sheet."""
+    path = run / "05_sheet.json"
+    if not path.exists():
+        return []
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    rows = doc if isinstance(doc, list) else doc["rows"]
+    return [r for r in rows if isinstance(r, dict)]
+
+
 def source_label(calibrated_on: str) -> str:
     """The curve column: the source without "market:" (anywhere, as before:
     "women:market:x" -> "women:x") and, epochs.LINE_CURVES, without a leading
@@ -636,10 +649,20 @@ def main() -> int:
     if stale:
         print(stale, file=sys.stderr)
         return 2
-    samples = {
-        s["sofascore_event_id"]: s
-        for s in json.loads((run / "03_samples.json").read_text(encoding="utf-8"))
-    }
+    samples_path = run / "03_samples.json"
+    samples: dict[Any, Any] = {}
+    if samples_path.exists() or not args.with_results:
+        samples = {
+            s["sofascore_event_id"]: s
+            for s in json.loads(samples_path.read_text(encoding="utf-8"))
+        }
+    else:
+        # A results render is a view of a finished day: the own-sample k/n
+        # beside a leg is display only, so a day whose 03_samples.json is
+        # gone (deleted by accident, 2026-11-19) renders without it. A print
+        # still requires the file.
+        print(f"NOTE: {samples_path} missing - results render without the "
+              "own-sample column", file=sys.stderr)
     raw = (run / "02_fixtures.json").read_bytes()
     fx_obj = {f.sofascore_event_id: f
               for f in RootModel[list[Fixture]].model_validate_json(raw).root}
@@ -778,8 +801,7 @@ def main() -> int:
             "przewagę; nogi kuponu z marżą 10,5–15% traciły dotąd −12,8% "
             "(n=50) wobec −4,6% (n=78). Wyniki sprzed 05.10 to inny "
             "eksperyment i nie są z nimi łączone.", subtitle))
-    sheet_doc = json.loads((run / "05_sheet.json").read_text(encoding="utf-8"))
-    sheet_rows = sheet_doc if isinstance(sheet_doc, list) else sheet_doc["rows"]
+    sheet_rows = sheet_rows_or_empty(run)
     # A builder's legs carry no event id of their own; it is on the builder.
     printed = {
         (item["sofascore_event_id"], leg["market"], leg["subject"], leg["line"],

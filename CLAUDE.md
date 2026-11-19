@@ -738,7 +738,11 @@ measurement of Superbet's price and feed nothing else.
   Player props grade only from the player's own squad (PLAYER_AMBIGUOUS);
   `PLAYER_DID_NOT_PLAY`, `PLAYER_NOT_STARTED`, `PLAYER_NOT_IN_SQUAD` are listed
   in `07_settle_skips.json` `void_legs` and a printed such leg is a refund; a
-  printed leg without a sheet row goes to `07_settled_printed.json`.
+  printed leg without a sheet row goes to `07_settled_printed.json`. A day
+  without `05_sheet.json` (most deleted 2026-11-19) re-settles from its
+  `07_settled.json` rows, never-graded printed / read-removed legs through
+  that A4 file; other never-graded sheet rows are lost (stderr
+  `SHEET_RECONSTRUCTED`).
 - Sport legs grade at the printed price against the pinned id
   (`NOT_GRADED:ID_CHANGED` otherwise); a volleyball set / CS2 map never played
   is VOID (`shadow.set_not_played`); in their own 7c table, never in

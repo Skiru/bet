@@ -1094,6 +1094,67 @@ def printed_legs(run_dir: Path) -> dict[LegKey, dict[str, Any]]:
     return out
 
 
+# What a 07_settled.json row must carry to stand in for its SHEET row: every
+# field _settled copies into sofa_settled_row (its NOT NULL forecast columns
+# included) and the grader reads.
+RECONSTRUCTED_ROW_FIELDS = (
+    "sofascore_event_id", "sport", "market", "subject", "line", "direction",
+    "sample_size", "sample_mean", "sample_sd", "p_central", "p_bar",
+    "offered_odds", "verdict",
+)
+SHEET_RECONSTRUCTED = "SHEET_RECONSTRUCTED"
+
+
+def sheet_from_settled(run_dir: Path) -> list[dict[str, Any]] | None:
+    """The day's sheet rows SETTLE already graded, read back from
+    07_settled.json, for a day whose 05_sheet.json is gone (2026-11-19: most
+    sheets since 10-10 were deleted by accident). None when the day has no
+    07_settled.json either.
+
+    A 07_settled.json row is vars(SettledRow) plus the schedule-term fields:
+    exactly what SETTLE copied from the SHEET row, so re-grading it inserts
+    nothing new (a live row is never replaced) and writes the same forecast
+    columns back. A row missing one of RECONSTRUCTED_ROW_FIELDS is left out -
+    never filled in. Sheet rows that were never graded are not here, and
+    nothing on disk holds their forecast columns: printed and read-removed
+    legs among them are graded beside it (A4, reconstructed_extra_legs) into
+    07_settled_printed.json; every other ungraded row is lost to the DB."""
+    path = run_dir / "07_settled.json"
+    if not path.exists():
+        return None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return None
+    if not isinstance(doc, list):
+        return None
+    return [
+        r for r in doc
+        if isinstance(r, dict) and all(f in r for f in RECONSTRUCTED_ROW_FIELDS)
+        and all(r[f] is not None for f in RECONSTRUCTED_ROW_FIELDS
+                if f not in ("subject", "offered_odds", "verdict"))
+    ]
+
+
+def reconstructed_extra_legs(run_dir: Path) -> dict[LegKey, dict[str, Any]]:
+    """With no 05_sheet.json: the coupon artifact's read-removed football /
+    tennis legs (removed_by_reads, graded in 7i and the ledger by key like a
+    printed leg). On a day with its sheet they are sheet rows; without it
+    they join the printed legs in the A4 path, never sofa_settled_row."""
+    out: dict[LegKey, dict[str, Any]] = {}
+    path = coupon_artifact(run_dir)
+    if not path.exists():
+        return out
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    for x in doc.get("removed_by_reads") or []:
+        if not isinstance(x, dict) or not is_sheet_sport(x):
+            continue
+        k = _sheet_key(x)
+        if k is not None:
+            out.setdefault(k, x)
+    return out
+
+
 def printed_without_sheet_row(
     legs: dict[LegKey, dict[str, Any]],
     sheet: list[dict[str, Any]],
@@ -1211,12 +1272,20 @@ def main() -> int:
     run_dir = Path(config.runs_dir) / args.date
     sheet_path = run_dir / "05_sheet.json"
     fixtures_path = run_dir / "02_fixtures.json"
-    if not sheet_path.exists() or not fixtures_path.exists():
-        print(f"{sheet_path} or {fixtures_path} missing", file=sys.stderr)
+    if not fixtures_path.exists():
+        print(f"{fixtures_path} missing", file=sys.stderr)
         return 2
-
-    with open(sheet_path, encoding="utf-8") as f:
-        sheet = json.load(f)
+    reconstructed = not sheet_path.exists()
+    if reconstructed:
+        rebuilt = sheet_from_settled(run_dir)
+        if rebuilt is None:
+            print(f"{sheet_path} and {run_dir / '07_settled.json'} missing",
+                  file=sys.stderr)
+            return 2
+        sheet = rebuilt
+    else:
+        with open(sheet_path, encoding="utf-8") as f:
+            sheet = json.load(f)
     with open(fixtures_path, encoding="utf-8") as f:
         fixtures = {x["sofascore_event_id"]: x for x in json.load(f)}
 
@@ -1248,7 +1317,20 @@ def main() -> int:
         sheet, include_unpriced=args.include_unpriced, printed=printed_keys(run_dir)
     )
     # A4: printed legs the final sheet holds no row for, graded beside it.
-    printed_only = printed_without_sheet_row(printed_legs(run_dir), sheet, fixtures)
+    a4_legs = printed_legs(run_dir)
+    if reconstructed:
+        for key, leg in reconstructed_extra_legs(run_dir).items():
+            a4_legs.setdefault(key, leg)
+    printed_only = printed_without_sheet_row(a4_legs, sheet, fixtures)
+    if reconstructed:
+        print(
+            f"{SHEET_RECONSTRUCTED}: {len(sheet)} rows from 07_settled + "
+            f"{len(printed_only)} from {coupon_artifact(run_dir).name} "
+            "(printed / read-removed legs never graded: A4, "
+            f"{PRINTED_SETTLED_FILE} only); 05_sheet.json missing - sheet "
+            "rows never graded and neither printed nor removed are lost",
+            file=sys.stderr,
+        )
     by_event: dict[int, list[dict[str, Any]]] = {}
     for row in considered + printed_only:
         by_event.setdefault(row["sofascore_event_id"], []).append(row)
@@ -1600,6 +1682,7 @@ def main() -> int:
 
     metrics = {
         "rows_in_sheet": len(sheet),
+        "sheet_reconstructed": reconstructed,
         "rows_considered": len(considered),
         "include_unpriced": args.include_unpriced,
         "priced_rows_in_sheet": sum(1 for r in sheet if r.get("offered_odds")),
