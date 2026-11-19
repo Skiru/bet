@@ -1034,6 +1034,18 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   installed. National teams: display flag only (`STAKES_GROUPS_FROM_UTC`).
   `docs/sofa/evidence/stakes_exam_football_2026-11-18.md`,
   `stakes_exam_sports_2026-11-18.md`, `stakes_exam_log.md`.
+- **DEAD side -> more goals, football clubs (pre-registered 2026-11-19, spec
+  9679350c; a LEAD - direction chosen after the 11-18 exploration, where DEAD
+  went against the motivation hypothesis)**: t = own_DEAD + opp_DEAD on the
+  goals centres (path i, goals_for / 1H / 2H + totals), K = 1, S5 at the frozen
+  coefficient, P2 on touched rows (both written before validation). Validation
+  Delta -0.000602 [-0.002420, +0.001172]; frozen goals_for own +0.2147, opp
+  +0.1773. Exam 2026 (74,079 matches): **NOT_PASSED** - P1 -0.003482
+  [-0.006203, -0.000764] p 0.0065, P2 / P3 / P4 / P6 pass, **P5 fails in the `tb`
+  stratum only** (+0.00109 / row, upper +0.00399, 7,272 rows). Nothing
+  installed; the 2026 y files are opened (access log). A further step is a new
+  forward pre-registration on data from 2026-11-20, operator's call - never a
+  re-run on 2026. `docs/sofa/evidence/stakes_exam_dead_goals_2026-11-19.md`.
 
 - **Basketball goals step `alpha` 0.04 instead of 0.06 (item 5, 2026-11-06)**: chosen on raw p (interior optimum of the widened grid, report section 8), then (a) with its own curves on the hold-out 10-07..11-05: log loss +8.7e-4 [+4.3, +13.2], winner +41.7e-4 [+12.2, +70.6]; (b) Superbet lines from 10-18: all -4.4e-4 [-8.0, -0.7] (total -15.8) but winner +48.3e-4 [+1.2, +89.9]. Fails (a); `SCORE_ALPHA["bb_reg_for"]` stays 0.06. `data/refit_2026-11-05_replay/bb_alpha/measure_alpha.json`, `docs/sofa/evidence/refit_replay_2026-11-05.md` section 8.
 - **Basketball season table in the score model (item 5, 2026-11-06)**: an as-of

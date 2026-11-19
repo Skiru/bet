@@ -1,0 +1,347 @@
+{
+ "study": "stakes_dead_goals_2026-11-19",
+ "mode": "exam",
+ "spec_sha": "9679350c",
+ "started_utc": "2026-11-19T09:51:29+00:00",
+ "finished_utc": "2026-11-19T09:52:58+00:00",
+ "hashes": {
+  "module": "99e81fe70f6ed6855afb6264e20c8cdf0798126463ca5cba69c958233bee1949",
+  "coefficients": "89c90e6a859053942bb7ed4ef24d68dcb114cbdbc276eae2ac3e9e01ec7054b0",
+  "script": "df6f06f234cca208142ebea748f5f3d6be0508de8de430bcff29fe5064f3b3af",
+  "submission": "5f87639fcf61f509f067a16d7360a37e3add706e5de6774f7410bafd741d6697"
+ },
+ "K": 1,
+ "groups": {
+  "goals": {
+   "info": {
+    "rows": 517611,
+    "matches": 74079
+   },
+   "matches": 74079,
+   "P1": {
+    "delta": -0.0034815574484583054,
+    "p_one_sided": 0.0065,
+    "q025": -0.006203011289043054,
+    "q975": -0.0007644030841288833,
+    "holm_level": 0.05,
+    "upper_at_level": -0.0012006412717307329,
+    "pass_": true
+   },
+   "delta_per_row": {
+    "point": -0.0004982705047310486,
+    "upper95": -0.00015822577672648655,
+    "rows": 517611
+   },
+   "P2": {
+    "material": true,
+    "hits": [
+     {
+      "metric": "goals_for",
+      "coef": "own_DEAD",
+      "c": 0.2147355456146391,
+      "exposed_share": 0.034136185168216114
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_DEAD",
+      "c": 0.17726741309428187,
+      "exposed_share": 0.034136185168216114
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_DEAD",
+      "c": 0.1508862483517437,
+      "exposed_share": 0.034136185168216114
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_DEAD",
+      "c": 0.19296441554125923,
+      "exposed_share": 0.034136185168216114
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_DEAD",
+      "c": 0.19724302957765785,
+      "exposed_share": 0.034136185168216114
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_DEAD",
+      "c": 0.11729930866404582,
+      "exposed_share": 0.034136185168216114
+     }
+    ],
+    "rows": 344854,
+    "p2_rule": "any_column",
+    "exposure": {
+     "own_MUST_WIN": 0.0464892389242984,
+     "own_SECURED": 0.1028174241853074,
+     "own_DEAD": 0.017764039274591567,
+     "opp_MUST_WIN": 0.04660233026150197,
+     "opp_SECURED": 0.10255354439849908,
+     "opp_DEAD": 0.018088814396817202,
+     "_any_study_column": 0.034136185168216114
+    }
+   },
+   "P3": {
+    "point": -0.000427226348060489,
+    "upper95": -0.0003233983547593728,
+    "rows": 9316998,
+    "dropped": 0,
+    "pass": true
+   },
+   "P4": {
+    "pass": true,
+    "rows": 3962748,
+    "realised": 0.94791064180715,
+    "mean_cb": 0.9469758859800355,
+    "mean_ct": 0.9464703221808008,
+    "gap_base": 0.0009347558271145529,
+    "gap_treat": 0.0014403196263491624,
+    "treat_selected": {
+     "rows": 3958140,
+     "realised": 0.9482453879852658,
+     "mean_ct": 0.9470315176685713
+    }
+   },
+   "P5": {
+    "strata": {
+     "fav_s_t1": {
+      "point": -0.0002886856290863511,
+      "upper95": 0.00013091148152542386,
+      "rows": 159267,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t2": {
+      "point": -0.0003795394973332141,
+      "upper95": 8.688198551465983e-05,
+      "rows": 164709,
+      "gated": true,
+      "pass": true
+     },
+     "fav_s_t3": {
+      "point": -0.000773997291193851,
+      "upper95": -7.494867807759937e-05,
+      "rows": 193048,
+      "gated": true,
+      "pass": true
+     },
+     "continental": {
+      "point": NaN,
+      "upper95": NaN,
+      "rows": 0,
+      "gated": false,
+      "pass": null
+     },
+     "domestic": {
+      "point": -0.0004982705047310486,
+      "upper95": -0.00017179724691826536,
+      "rows": 517611,
+      "gated": true,
+      "pass": true
+     },
+     "ko_rounds": {
+      "point": -0.0007143659470736425,
+      "upper95": -0.0001534122589937441,
+      "rows": 203733,
+      "gated": true,
+      "pass": true
+     },
+     "no_ko_rounds": {
+      "point": -0.00035800653989508156,
+      "upper95": 5.138365422538634e-05,
+      "rows": 313878,
+      "gated": true,
+      "pass": true
+     },
+     "exact": {
+      "point": -0.004868973537984656,
+      "upper95": -0.0002445606422137769,
+      "rows": 21919,
+      "gated": true,
+      "pass": true
+     },
+     "bounds": {
+      "point": -0.000305002427405036,
+      "upper95": -3.729186163828146e-05,
+      "rows": 495692,
+      "gated": true,
+      "pass": true
+     },
+     "tb": {
+      "point": 0.0010852065709465498,
+      "upper95": 0.003985096132604455,
+      "rows": 7272,
+      "gated": true,
+      "pass": false
+     },
+     "no_tb": {
+      "point": -0.0005208340268101519,
+      "upper95": -0.00018629996517946173,
+      "rows": 510339,
+      "gated": true,
+      "pass": true
+     },
+     "left_le3": {
+      "point": -0.0026404223643516763,
+      "upper95": -0.0006644386718646197,
+      "rows": 77628,
+      "gated": true,
+      "pass": true
+     },
+     "left_gt3": {
+      "point": -0.00012032189181048104,
+      "upper95": 3.712351967786897e-05,
+      "rows": 439983,
+      "gated": true,
+      "pass": true
+     },
+     "women": {
+      "point": -0.0011130234311686755,
+      "upper95": 0.00016436650321639498,
+      "rows": 33679,
+      "gated": true,
+      "pass": true
+     }
+    },
+    "other_groups": {
+     "all": {
+      "pass": true,
+      "note": "0 by construction: each group's term touches only its own rows (path (i) per metric; path (ii) only the rating result rows)"
+     }
+    },
+    "pass": false
+   },
+   "P6": {
+    "pass": true,
+    "coefs": [
+     {
+      "metric": "goals_for",
+      "coef": "own_DEAD",
+      "c": 0.2147355456146391,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.1890857347500059,
+      "exam_se": 0.01596686540073818,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_for",
+      "coef": "opp_DEAD",
+      "c": 0.17726741309428187,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.1797666870813883,
+      "exam_se": 0.011850232551167822,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "own_DEAD",
+      "c": 0.1508862483517437,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.1748928411267296,
+      "exam_se": 0.030192231010017206,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_1h_for",
+      "coef": "opp_DEAD",
+      "c": 0.19296441554125923,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.2681733955842228,
+      "exam_se": 0.022219510840557843,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "own_DEAD",
+      "c": 0.19724302957765785,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.1668989779012263,
+      "exam_se": 0.028328350318095726,
+      "same_sign": true
+     },
+     {
+      "metric": "goals_2h_for",
+      "coef": "opp_DEAD",
+      "c": 0.11729930866404582,
+      "exposed_share": 0.034136185168216114,
+      "exam_b": 0.13441179036504752,
+      "exam_se": 0.020913899782597417,
+      "same_sign": true
+     }
+    ]
+   },
+   "women_layer": {
+    "matches": 4206,
+    "rows": 33679,
+    "delta_match": -0.008912390903074136,
+    "q025": -0.022903702603291647,
+    "q975": 0.0031954890660055657,
+    "upper95": 0.0017575702353013747
+   },
+   "verdict": "NOT_PASSED"
+  }
+ },
+ "access_log": [
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-01_000.pkl.gz\t20d9ed0df12fd165a84779ff7421d3b1dd05f362fdc44579035926c32ae5a715",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-01_001.pkl.gz\t54ce788f81be8f22020e65052f460c1da3b11311ae66599429505512cd6479aa",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-02_000.pkl.gz\t1b8027a48816059fcdb4135be07d9e8fb1329e8b6da1581efcbc0b55af2fc2ed",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-02_001.pkl.gz\t4fa4fa10b4d6c63df241c73ee51136fb64a69d14c1e30e91887f12060bec30a3",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-02_002.pkl.gz\ta9669bfcdde9e5f52d745600f234f303078c5bc86884c59c7d5efc881b3906a9",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-03_000.pkl.gz\t43e77f26c22a670469a6e2866d5a18b7fcb82f4d7a344de915533823bf085dea",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-03_001.pkl.gz\t9c25ed173dfff9465b5d2de5b325f2f8081edb31507fea0f6838c1cceca2d5a2",
+  "2026-11-19T09:51:30+00:00\topen\tfull/all/exam_y/y/2026-03_002.pkl.gz\taee84f9bc3e2db2f06990cee33e9a9b2a7deaa823e1fa9c997895c3de2f129b2",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-04_000.pkl.gz\t6644c15358401d13edfa1054d0bd8fa669b348b76985879a221b1c39cce903b1",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-04_001.pkl.gz\t473d2a84925d63abb9386622dd2bdc7ae0240ee628eb171be1ad9b45b80d7521",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-04_002.pkl.gz\taf10dbe4c06a8f1a8a0a2d9fb7e9be10a4b908c1043d69c91cf7daa8535c2f3d",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-05_000.pkl.gz\t8d4cbcdbd9dced3cf91229c3fb7e3deba2bf253fd335e8a6ff20b3aac2688249",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-05_001.pkl.gz\t03c4fffbf74ecb4ea6749202b7b94a985fae48feb7bb7e70e27c4c4cac6f491a",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-05_002.pkl.gz\t1d8b02066eb825411ce57816ee80b0fa6a063ae56915e633710a876cf746cefd",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-06_000.pkl.gz\t5b5787d6e5a70a9e8c2c5ef92614987ea753644e7151ecf8cc4805ab49078eae",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-06_001.pkl.gz\ta7c30545f1860aa84d428a50682e935f7539e51d514eb1b145edc338f374e4ef",
+  "2026-11-19T09:51:31+00:00\topen\tfull/all/exam_y/y/2026-07_000.pkl.gz\t7239d9bf35d46a3a570270bac43075bb85253e78340fe49f2f0a11a5aa992984",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-07_001.pkl.gz\tce6ba6c20ae4a90f2e6dae8b827611dda5183e445337dab8f7081a8f7c85d7eb",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-08_000.pkl.gz\tc47f2bfc6d19aa3069c156e8a5d9dc0b6294f5df5476eb6e904be4cee7cbb846",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-08_001.pkl.gz\t48eeed933165bfc57dbb5e985259545af90de15fafa58f029a27934e2116c6fd",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-08_002.pkl.gz\t1405148258df7a202b483964532812f69e141b03ab2718a00847f18cb602deb5",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-09_000.pkl.gz\t0f0f07ccb547eb1b8a31a3686ba782c4a22a178b50855f122c1e94e54e21243b",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-09_001.pkl.gz\tc6a4bcd20b6cd6125bab0deafebf34749065f3cd60aaf27478245f80066b232c",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-09_002.pkl.gz\te8e29291734afdab5fd17ffd8c69a089179ae57d085fbb4a9b4959628798c34e",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-09_003.pkl.gz\t64bc5d426855b0d747447550b497d3afd8ee5754628c6113fb44a714fecbbb88",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-10_000.pkl.gz\t4ab504aa67023a2cde35c9efdb6b0963fb39fb81f2ae7d6240827ae8ba9383fe",
+  "2026-11-19T09:51:32+00:00\topen\tfull/all/exam_y/y/2026-10_001.pkl.gz\t4ad58f1b863a1356ebc5ea838f6a0235f1bebbcc41e6373de57e5e8578206e22",
+  "2026-11-19T09:51:33+00:00\topen\tfull/all/exam_y/y/2026-10_002.pkl.gz\t075623d0783c7f44db68ed0ec9ad810187341bef8e31140fa9fabdfa031d16f6",
+  "2026-11-19T09:51:33+00:00\topen\tfull/all/exam_y/y/2026-11_000.pkl.gz\t17701ad8326003654e282a726a96f2cdb030749a66ebcfaaf7ff7017d01f451a",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-01_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-01_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-02_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-02_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-02_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-03_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-03_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-03_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-04_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-04_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-04_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-05_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-05_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-05_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-06_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-06_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-07_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-07_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-08_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-08_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-08_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-09_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-09_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-09_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-09_003.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-10_000.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-10_001.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-10_002.pkl.gz",
+  "2026-11-19T09:52:30+00:00\tresealed\tfull/all/exam_y/y/2026-11_000.pkl.gz"
+ ]
+}
