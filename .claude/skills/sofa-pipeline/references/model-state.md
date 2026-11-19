@@ -1025,9 +1025,11 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
   NEED_POINT / ALIVE ref / SECURED / DEAD, rebuilt from results as of the start,
   frozen `stakes_state.py` sha 99e81fe7) as exp(t) on the centres. Football clubs
   (replay 2024-07..2026-11, dev to 2025-12): all 5 groups NOT_SUBMITTED on dev S4
-  (validation log-loss Delta, CI crossing 0: goals +2.0e-4 [-10.1, +14.3]e-4,
-  1X2 +0.8e-4 [-1.5, +3.1]e-4, corners, shots/SOT, cards/fouls likewise), exam
-  tier never opened; hockey / basketball / volleyball all 6 groups NOT_SUBMITTED
+  (S4 = validation log-loss Delta < 0 at the point estimate; the term frozen on
+  exploration made validation WORSE in every group - Delta > 0: goals +2.0e-4
+  [-10.1, +14.3]e-4, 1X2 +0.8e-4 [-1.5, +3.1]e-4, corners +1.2e-4, shots/SOT
+  +12.4e-4, cards/fouls +28.0e-4; the intervals are descriptive, not the
+  reason), exam tier never opened; hockey / basketball / volleyball all 6 groups NOT_SUBMITTED
   (after the 22/23 + 23/24 backfill); CS2 / tennis not feasible. K = 0, nothing
   installed. National teams: display flag only (`STAKES_GROUPS_FROM_UTC`).
   `docs/sofa/evidence/stakes_exam_football_2026-11-18.md`,
