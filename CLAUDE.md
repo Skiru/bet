@@ -404,7 +404,16 @@ and a miss recorded before a rule's switch never blocks that rule.
   (the frozen `bet.sofa.stakes_state` of
   `docs/sofa/evidence/stakes_prereg_football_2026-11-18.md`, table rebuilt
   from cached listings; AMBIGUOUS, women, knockout, > 25% inferred or a
-  group game started and unsettled in the cache = no flag); a singles
+  group game started and unsettled in the cache = no flag; the listings are
+  refreshed first by `STAKES_LISTINGS`, operator 11-19,
+  `bet.sofa.stakes_listings` / `refresh_stakes_listings.py`, a soft
+  `rebuild_day.py` step after FIXTURE_CHECK planned only while an open
+  national group-competition fixture exists: page 0 of `last` / `next` of
+  each group team, both sides then the group's others, at most
+  `GROUP_MAX_TEAMS`, a page fetched < 6 h ago not re-asked unless fetched
+  before a group game it shows unfinished could have ended, a 403 / 429 /
+  breaker stops it, record `stakes_listings.json`; display only, no
+  switch); a singles
   tennis Finals group match `RR_DECIDED_SIDE` (a side 2-0 / 0-2). CS2 flags
   and tennis tie flags left out (not derivable at build time). PDF / HTML /
   md sentence, read set and dossier `stakes`; never a gate, not in

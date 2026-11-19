@@ -32,6 +32,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/verify_legs.py --date <d> [--all]
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_fixture_check.py --date <d>   # fresh starts / statuses -> fixture_status.json
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_confidence.py --date <d>      # CONFIDENCE -> 08_confidence.json
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/refresh_stakes_listings.py --date <d> [--dry-run]   # STAKES_LISTINGS (bridge): national group teams' last / next page 0 for the stakes flags; no open national fixture = 0 requests
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only SHADOW   # hockey / basketball / volleyball snapshot
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <d> --only CS2      # CS2 snapshot
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_sport_identity.py --date <d> [--sport hockey] [--if-snapshot]   # pin Sofascore ids; --if-snapshot: no snapshot = exit 0

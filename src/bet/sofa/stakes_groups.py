@@ -130,6 +130,12 @@ def _ids(event: Mapping[str, Any]) -> tuple[int | None, int | None, int | None]:
             tid if isinstance(tid, int) else None)
 
 
+def tournament_ids(
+        event: Mapping[str, Any]) -> tuple[int | None, int | None, int | None]:
+    """(uniqueTournament, season, tournament) of a payload, None where absent."""
+    return _ids(event)
+
+
 def _score(node: Any) -> int | None:
     if not isinstance(node, Mapping):
         return None
@@ -160,6 +166,20 @@ def game_of(event: Mapping[str, Any]) -> Game | None:
 def _league_round(event: Mapping[str, Any]) -> bool:
     info = event.get("roundInfo") or {}
     return not info.get("name") and info.get("cupRoundType") is None
+
+
+def group_key(fixture: Mapping[str, Any]) -> tuple[int, int, int] | None:
+    """(uniqueTournament, season, tournament) of a men's national group-round
+    fixture with both sides' ids - the games national_states can rebuild -
+    else None (knockout, women, another competition, no ids)."""
+    ut, season, tid = _ids(fixture)
+    if ut is None or ut not in NATIONAL or season is None or tid is None:
+        return None
+    if not _league_round(fixture) or game_of(fixture) is None:
+        return None
+    if (fixture.get("homeTeam") or {}).get("gender") == "F":
+        return None
+    return (ut, season, tid)
 
 
 def national_states(

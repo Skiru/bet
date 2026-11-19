@@ -53,6 +53,7 @@ from bet.sofa import fixture_status as fs
 from bet.sofa import late_resolve as lr
 from bet.sofa import referees as referee_terms
 from bet.sofa import sport_identity as si
+from bet.sofa import stakes_listings as stakes_ls
 from bet.sofa.football_score_markets import MARKETS as SCORE_MARKETS
 from bet.sofa.locked_print import starts_after
 from bet.sofa.tennis_sets import SET_SCORE_NOT
@@ -187,6 +188,10 @@ class DayState:
     # 03_samples.json entry lacks epochs.IDENTITY_GATE_MARKER and holds an
     # INTERNAL_INCONSISTENT gap (only those can gain observations)
     identity_unsampled: tuple[int, ...] = ()
+    # epochs.STAKES_GROUPS_FROM_UTC: football fixtures of a national group
+    # competition (stakes_groups.NATIONAL) not started yet - their teams'
+    # listings are refreshed before the coupon (bet.sofa.stakes_listings)
+    stakes_national_open: int = 0
 
 
 @dataclass(frozen=True)
@@ -657,6 +662,8 @@ def observe(runs_dir: str, date: str, now: datetime,
         coupon06_stale=coupon06_stale,
         referee_now_known=referee_now_known(runs_dir, date, now, db_path),
         identity_unsampled=identity_unsampled(runs_dir, date, now),
+        stakes_national_open=(len(stakes_ls.open_national(fixtures, now))
+                              if epochs.stakes_groups(date, now) else 0),
         **_late_work(runs_dir, date, now),
     )
 
@@ -1000,6 +1007,15 @@ def build_plan(state: DayState, run_id: str = "rebuild",
             "FIXTURE_CHECK", _pipeline(d, "FIXTURE_CHECK", run_id),
             "fresh /event start and status before CONFIDENCE (K12/K14); "
             "no bridge = UNVERIFIED, nothing refused", soft=True))
+        if epochs.stakes_groups(d, now) and state.stakes_national_open:
+            # display only: the national group flags' tables (COUPON_ASSEMBLY)
+            plan.steps.append(Step(
+                "STAKES_LISTINGS",
+                (PY, "scripts/sofa/refresh_stakes_listings.py", "--date", d),
+                f"{state.stakes_national_open} open national group-competition "
+                "fixtures: their groups' team listings refreshed for the "
+                "stakes flags (bet.sofa.stakes_listings; display only, a "
+                "refusal stops it, nothing refused)", soft=True))
     plan.steps.append(Step(
         "CONFIDENCE", (PY, "scripts/sofa/run_confidence.py", "--date", d),
         "football / tennis -> 08_confidence.json"))

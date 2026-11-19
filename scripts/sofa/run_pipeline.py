@@ -108,6 +108,10 @@ STAGE_MODULES: dict[str, str] = {
     "SPORT_IDENTITY": "scripts.sofa.run_sport_identity",
     "SPORT_CONFIDENCE": "scripts.sofa.run_sport_confidence",
     "COUPON_ASSEMBLY": "scripts.sofa.build_coupon",
+    # Outside the sequence: in a rebuild after FIXTURE_CHECK, before
+    # COUPON_ASSEMBLY (rebuild_plan) - the national group teams' listings
+    # the display-only stakes flags read (bet.sofa.stakes_listings); bridge.
+    "STAKES_LISTINGS": "scripts.sofa.refresh_stakes_listings",
 }
 
 # (stage, label) — OFFER appears twice by design.

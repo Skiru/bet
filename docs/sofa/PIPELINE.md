@@ -2876,7 +2876,24 @@ niego 08).
     puli), `ALIVE`, `SECURED`, `DEAD` („; tb” = zależny od kryterium przy
     równych punktach) - z zamrożonego modułu (`bet.sofa.stakes_state`, logika
     bez zmian, test parzystości), na tabeli grupy odtworzonej z listingów
-    drużyn w cache (bez zapytań). Bez flagi: AMBIGUOUS, kobiety, rundy
+    drużyn w cache. Te listingi odświeża przed kuponem krok
+    `STAKES_LISTINGS` (decyzja operatora 2026-11-19;
+    `bet.sofa.stakes_listings`, `scripts/sofa/refresh_stakes_listings.py`;
+    miękki krok `rebuild_day.py` po FIXTURE_CHECK, planowany tylko gdy jest
+    nierozpoczęty mecz rozgrywek z `stakes_groups.NATIONAL` - inaczej zero
+    zapytań): strona 0 listingu `last` i `next` każdej drużyny grupy (obie
+    strony meczu, potem pozostałe drużyny grupy, najwyżej
+    `GROUP_MAX_TEAMS`), przez most i `SofaCache.save_entity_events`; strona
+    pobrana w ciągu `FRESH_H` = 6 h (stała niedopasowana) nie jest pytana
+    ponownie, chyba że pobrano ją, zanim mógł się skończyć mecz grupy, który
+    pokazuje jako niezakończony (start + `GAME_H` 2,5 h); 403 / 429 /
+    bezpiecznik zatrzymuje krok, kupon buduje się dalej (flagi tylko do
+    wyświetlenia). Zapis: `runs/sofa/<d>/stakes_listings.json` (strony,
+    odpowiedzi, liczniki zapytań). Pomiar 2026-11-14..18 (81 meczów
+    reprezentacji): 23 `INCOMPLETE_GROUP` (el. PNA - brak meczów z
+    października w cache) i 5 `STALE` (Liga Narodów CONCACAF B) - powód
+    kroku. Nie zmienia żadnej nogi, pewności ani bramki, więc bez
+    przełącznika epoki. Bez flagi: AMBIGUOUS, kobiety, rundy
     pucharowe, grupa z > 25% meczów wnioskowanych, `STALE` (mecz grupy
     rozpoczęty przed tym startem, a w cache niezakończony). Tenis: tylko
     `RR_DECIDED_SIDE` (grupa singlowa Finals, strona 2-0 / 0-2 po dwóch
