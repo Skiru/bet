@@ -1,0 +1,35 @@
+{
+ "goals": {
+  "rows": 344854,
+  "mu": 1.1244325153777295,
+  "alpha": 0.18322702039123803,
+  "n_req": 319.5385435177716,
+  "n_req_by_column": {
+   "opp_DEAD": 468.8925337259153,
+   "own_DEAD": 319.5385435177716
+  },
+  "c_by_column": {
+   "own_DEAD": 0.2147355456146391,
+   "opp_DEAD": 0.17726741309428187
+  },
+  "best": "own_DEAD",
+  "best_sides": 2930,
+  "pass": true,
+  "sides": {
+   "opp_MUST_WIN": 7083,
+   "own_MUST_WIN": 7083,
+   "own_SECURED": 16258,
+   "opp_SECURED": 16255,
+   "opp_DEAD": 2945,
+   "own_DEAD": 2930
+  },
+  "row_counts": {
+   "opp_MUST_WIN": 16071,
+   "own_MUST_WIN": 16032,
+   "own_SECURED": 35457,
+   "opp_SECURED": 35366,
+   "opp_DEAD": 6238,
+   "own_DEAD": 6126
+  }
+ }
+}

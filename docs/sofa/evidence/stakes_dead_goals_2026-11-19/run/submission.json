@@ -1,0 +1,58 @@
+{
+ "written_at_utc": "2026-11-19T09:46:14+00:00",
+ "coefficients_sha256": "89c90e6a859053942bb7ed4ef24d68dcb114cbdbc276eae2ac3e9e01ec7054b0",
+ "gates": {
+  "goals": {
+   "S1": true,
+   "S2": true,
+   "S3": true,
+   "S4": true,
+   "S5": true,
+   "columns_left": [
+    "opp_DEAD",
+    "own_DEAD"
+   ],
+   "S1_S4": true
+  }
+ },
+ "power": {
+  "goals": {
+   "rows": 344854,
+   "mu": 1.1244325153777295,
+   "alpha": 0.18322702039123803,
+   "n_req": 319.5385435177716,
+   "n_req_by_column": {
+    "opp_DEAD": 468.8925337259153,
+    "own_DEAD": 319.5385435177716
+   },
+   "c_by_column": {
+    "own_DEAD": 0.2147355456146391,
+    "opp_DEAD": 0.17726741309428187
+   },
+   "best": "own_DEAD",
+   "best_sides": 2930,
+   "pass": true,
+   "sides": {
+    "opp_MUST_WIN": 7083,
+    "own_MUST_WIN": 7083,
+    "own_SECURED": 16258,
+    "opp_SECURED": 16255,
+    "opp_DEAD": 2945,
+    "own_DEAD": 2930
+   },
+   "row_counts": {
+    "opp_MUST_WIN": 16071,
+    "own_MUST_WIN": 16032,
+    "own_SECURED": 35457,
+    "opp_SECURED": 35366,
+    "opp_DEAD": 6238,
+    "own_DEAD": 6126
+   }
+  }
+ },
+ "pool": "no pool in this study",
+ "submitted": [
+  "goals"
+ ],
+ "K": 1
+}

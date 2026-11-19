@@ -1,0 +1,92 @@
+{
+ "_doc": "Frozen shrunk dev coefficients of the football stakes term (study stakes_dead_goals_2026-11-19, pre-registration docs/sofa/evidence/stakes_prereg_dead_goals_2026-11-19.md, spec 9679350c): t_side = sum coef[own_<state of side>] + coef[opp_<state of opponent>], ALIVE = 0, per (base metric, half); fitted on exploration + validation (< 2026-01-01), c_shr = c tau^2 / (tau^2 + SE^2). A PROPOSAL only: nothing is installed; only the groups that PASS the exam would be.",
+ "tau": 0.05,
+ "cols": [
+  "own_DEAD",
+  "opp_DEAD"
+ ],
+ "frozen_at_utc": "2026-11-19T09:46:02+00:00",
+ "module_sha256": "99e81fe70f6ed6855afb6264e20c8cdf0798126463ca5cba69c958233bee1949",
+ "spec_sha": "9679350c",
+ "study": "stakes_dead_goals_2026-11-19",
+ "unfitted_constants": [
+  "Z boundary (3 at n <= 16 else 4)",
+  "boundaries {1, n - Z}",
+  "exact enumeration r <= 8",
+  "12 teams",
+  "25% inferred",
+  "30 days season in progress",
+  "tau 0.05"
+ ],
+ "groups": {
+  "goals": {
+   "drop": [],
+   "coef": {
+    "goals_for": {
+     "own_DEAD": {
+      "shrunk": 0.2147355456146391,
+      "raw": 0.272499492723481,
+      "se": 0.02593262411577835
+     },
+     "opp_DEAD": {
+      "shrunk": 0.17726741309428187,
+      "raw": 0.20673943765928113,
+      "se": 0.020387338609563068
+     },
+     "_rows": {
+      "n": 192488
+     }
+    },
+    "goals_1h_for": {
+     "own_DEAD": {
+      "shrunk": 0.1508862483517437,
+      "raw": 0.2638967500325044,
+      "se": 0.04327176158467676
+     },
+     "opp_DEAD": {
+      "shrunk": 0.19296441554125923,
+      "raw": 0.25444633405365485,
+      "se": 0.02822312476462356
+     },
+     "_rows": {
+      "n": 134042
+     }
+    },
+    "goals_2h_for": {
+     "own_DEAD": {
+      "shrunk": 0.19724302957765785,
+      "raw": 0.31251772727736504,
+      "se": 0.0382240031393238
+     },
+     "opp_DEAD": {
+      "shrunk": 0.11729930866404582,
+      "raw": 0.1494326881214031,
+      "se": 0.02616980456597736
+     },
+     "_rows": {
+      "n": 133887
+     }
+    }
+   },
+   "dev_gates": {
+    "S1_p": 0.004975124378109453,
+    "S2_p": 0.004975124378109453,
+    "S1": true,
+    "S2": true,
+    "S3": {
+     "own_DEAD": [
+      0.3179270532890921,
+      true
+     ],
+     "opp_DEAD": [
+      0.21050523516851857,
+      true
+     ]
+    },
+    "S3_applicable": true,
+    "S4_delta": -0.0006016801763886162,
+    "S4": true
+   }
+  }
+ }
+}
