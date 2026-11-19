@@ -1,0 +1,17 @@
+hold legs 1.10-2.00: 23531 two-sided: 14459 one-sided: 9072
+realised / price  two-sided 0.9415  one-sided 0.9355
+1/odds               Brier 0.17203  logloss 0.52810  mean 0.8252
+market_p             Brier 0.16995  logloss 0.52116  mean 0.7941
+min(conf,1/odds)     Brier 0.17012  logloss 0.52175  mean 0.7771
+min(conf,market_p)   Brier 0.17001  logloss 0.52150  mean 0.7738
+conf                 Brier 0.17018  logloss 0.52190  mean 0.7773
+hit rate 0.7774396569610623
+Brier min(conf,mp) - min(conf,1/odds): -0.00011 [-0.00029, 0.00004]
+('1.10-1.25', '0.06-0.09') 4687 realised/price 0.9465 pred mp*odds 0.9699
+('1.10-1.25', '<0.06') 100 realised/price 0.9988 pred mp*odds 0.9798
+('1.10-1.25', '>=0.09') 4772 realised/price 0.9378 pred mp*odds 0.9610
+('1.25-1.45', '0.06-0.09') 2375 realised/price 0.9458 pred mp*odds 0.9599
+('1.25-1.45', '<0.06') 49 realised/price 0.9114 pred mp*odds 0.9733
+('1.25-1.45', '>=0.09') 2201 realised/price 0.9356 pred mp*odds 0.9503
+('1.45-2.00', '0.06-0.09') 190 realised/price 0.9403 pred mp*odds 0.9458
+('1.45-2.00', '>=0.09') 59 realised/price 0.7488 pred mp*odds 0.9338

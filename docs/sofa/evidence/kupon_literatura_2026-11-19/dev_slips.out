@@ -1,0 +1,30 @@
+== target 1.5
+  OLD      slips   354  won 0.607  pred chance 0.662  legs 1.83  return -0.2016 [-0.2863, -0.1117]
+  FAIR     slips   357  won 0.594  pred chance 0.633  legs 1.78  return -0.2205 [-0.3016, -0.1474]
+  FAIR_EV  slips   354  won 0.576  pred chance 0.607  legs 1.63  return -0.2063 [-0.2850, -0.1264]
+  FAIR-OLD paired -0.0199 [-0.1216, +0.0815]  pairs 354  identical slips 0.08
+  FAIR_EV-OLD paired -0.0049 [-0.0916, +0.0673]  pairs 351  identical slips 0.03
+== target 2.0
+  OLD      slips   349  won 0.470  pred chance 0.499  legs 2.00  return -0.1845 [-0.3068, -0.0540]
+  FAIR     slips   341  won 0.496  pred chance 0.462  legs 2.00  return -0.1412 [-0.2549, -0.0232]
+  FAIR_EV  slips   341  won 0.457  pred chance 0.454  legs 2.00  return -0.1900 [-0.3205, -0.0660]
+  FAIR-OLD paired +0.0508 [-0.0828, +0.2017]  pairs 336  identical slips 0.12
+  FAIR_EV-OLD paired +0.0012 [-0.1424, +0.1542]  pairs 337  identical slips 0.07
+== target 3.0
+  OLD      slips   347  won 0.343  pred chance 0.339  legs 3.00  return -0.1347 [-0.2714, -0.0212]
+  FAIR     slips   338  won 0.293  pred chance 0.301  legs 2.99  return -0.2633 [-0.3903, -0.1452]
+  FAIR_EV  slips   337  won 0.315  pred chance 0.298  legs 2.99  return -0.2199 [-0.3763, -0.0713]
+  FAIR-OLD paired -0.1385 [-0.2625, -0.0050]  pairs 332  identical slips 0.15
+  FAIR_EV-OLD paired -0.0815 [-0.2596, +0.0699]  pairs 331  identical slips 0.13
+== target 4.4
+  OLD      slips   339  won 0.186  pred chance 0.222  legs 5.65  return -0.3001 [-0.3989, -0.1950]
+  FAIR     slips   335  won 0.209  pred chance 0.188  legs 4.91  return -0.2144 [-0.4073, -0.0097]
+  FAIR_EV  slips   333  won 0.177  pred chance 0.187  legs 4.86  return -0.3267 [-0.4913, -0.1552]
+  FAIR-OLD paired +0.0515 [-0.1496, +0.2422]  pairs 327  identical slips 0.00
+  FAIR_EV-OLD paired -0.0406 [-0.2192, +0.1566]  pairs 326  identical slips 0.00
+== target ALL
+  OLD      slips  1389  won 0.404  pred chance 0.433  legs 3.10  return -0.2046 [-0.2828, -0.1279]
+  FAIR     slips  1371  won 0.401  pred chance 0.400  legs 2.90  return -0.2098 [-0.3041, -0.1167]
+  FAIR_EV  slips  1365  won 0.385  pred chance 0.390  legs 2.85  return -0.2350 [-0.3361, -0.1330]
+  FAIR-OLD paired -0.0142 [-0.0912, +0.0624]  pairs 1349  identical slips 0.09
+  FAIR_EV-OLD paired -0.0309 [-0.1082, +0.0508]  pairs 1345  identical slips 0.06
