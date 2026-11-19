@@ -24,6 +24,24 @@ Stages (each reads the previous stage's pickle under SCRATCH):
   exam      --mode fake (exam y drawn from the base arm; never logged) or
             --mode exam --spec-sha 646b1317 (opens the sealed exam outcomes
             once, appends one line to docs/sofa/evidence/stakes_exam_log.md)
+  seal      chmod 000 every exam outcome file not yet sealed and enter it in
+            SCRATCH/exam_seal_manifest.json (prep goals_y seals its own)
+
+--study picks the pre-registration (STUDIES): `football` (2026-11-18, the
+default) or `dead_goals` (2026-11-19). Shared inputs (replay, dev.pkl, prep
+pickles) live in SCRATCH; each study keeps its own stage outputs.
+
+Guards (scripts/sofa/stakes_exam_guard.py, after the 2026-11-18 deviations):
+  - load / explore / validate / power / freeze / submit / exam refuse unless
+    every replay run under SCRATCH/full carries a clean DONE.json whose file
+    list is the chunk files on disk;
+  - exam --mode exam refuses unless the coefficients, the submission, the
+    freeze / submission records, this script, the guard module and the state
+    module are committed and equal to HEAD (G1 by commit), and unless every
+    exam outcome file is still sealed (chmod 000, in the manifest);
+  - only exam --mode exam unseals an outcome file (hash checked against the
+    manifest), logging each opened path + UTC to <evidence>/run/
+    exam_access.log, and seals it again when it ends.
 """
 
 from __future__ import annotations
@@ -55,23 +73,23 @@ for _p in (str(REPO / "src"), str(REPO)):
 from bet.sofa import epochs  # noqa: E402
 from bet.sofa.football_1x2_dnb import probabilities  # noqa: E402
 from bet.sofa.football_result import load_config  # noqa: E402
+from scripts.sofa import stakes_exam_guard as guard  # noqa: E402
 from scripts.sofa.fit_confidence import (  # noqa: E402
     EDGES,
     MIN_MARKET_BUCKET,
     MIN_POOLED_BUCKET,
 )
 
-STUDY = "stakes_football_2026-11"
-SPEC_SHA = "646b1317"
 MODULE_REL = "docs/sofa/evidence/stakes_football_2026-11-18/stakes_state.py"
 MODULE_SHA256 = "99e81fe70f6ed6855afb6264e20c8cdf0798126463ca5cba69c958233bee1949"
 SCRATCH = REPO / "data/refit_2026-11-18_stakes"
 STATES_DIR = SCRATCH / "phaseA/S"
-EVIDENCE = REPO / "docs/sofa/evidence/stakes_football_2026-11-18"
-COEF_FILE = EVIDENCE / "coefficients.json"
-FREEZE_RECORD = SCRATCH / "freeze_record.json"
 EXAM_LOG = REPO / "docs/sofa/evidence/stakes_exam_log.md"
-LOOKS = SCRATCH / "looks.md"
+SEAL_MANIFEST = SCRATCH / guard.MANIFEST_NAME
+# every exam outcome store: prep's 90-minute goals and the recorder's y
+SEAL_PATTERNS = ("exam_y/*", "full/*/exam_y/*/*.pkl.gz")
+SCRIPT = Path(__file__).resolve()
+GUARD_MODULE = REPO / "scripts/sofa/stakes_exam_guard.py"
 # D10 of the schedule pre-registration (applies where this spec is silent):
 # the season phase refitted on dev, committed in 87a5087f.
 PHASE_DEV = (
@@ -92,7 +110,8 @@ EXAM_FROM = DEV_END
 EXAM_TO = ts_of("2026-11-18")  # exam = 2026-01-01 .. 2026-11-17 inclusive
 TAU = 0.05
 STATES = ("MUST_WIN", "SECURED", "DEAD")
-COLS = [f"own_{s}" for s in STATES] + [f"opp_{s}" for s in STATES]
+# side_x layout (every state column); a study fits its own subset, COLS
+SIDE_COLS = [f"own_{s}" for s in STATES] + [f"opp_{s}" for s in STATES]
 GROUPS: dict[str, list[str]] = {
     "goals": ["goals_for", "goals_1h_for", "goals_2h_for"],
     "corners": ["corners_for", "corners_1h_for", "corners_2h_for"],
@@ -107,7 +126,7 @@ GROUPS: dict[str, list[str]] = {
     "cards_fouls": ["cards_points_for", "fouls_for", "fouls_1h_for", "fouls_2h_for"],
 }
 COUNT_GROUPS = tuple(GROUPS)
-ALL_GROUPS = ("goals", "football_result", "corners", "shots_sot", "cards_fouls")
+FOOTBALL_GROUPS = ("goals", "football_result", "corners", "shots_sot", "cards_fouls")
 METRIC_GROUP = {m: g for g, ms in GROUPS.items() for m in ms}
 # The one pre-registered pool (spec 8): a powerless shots_sot / corners goes
 # to the exam only as this pool; cards_fouls has no partner.
@@ -120,7 +139,7 @@ GROUPS_ALL: dict[str, list[str]] = {
 ATTACK = {"goals", "corners", "shots_sot", "football_result"}
 # S3 (spec 6): own MUST_WIN -> own attack up; own DEAD / SECURED -> own attack
 # down, opp up or 0. Cards / fouls: no direction.
-S3_DIRECTIONS: dict[str, int] = {
+S3_MOTIVATION: dict[str, int] = {
     "own_MUST_WIN": +1,
     "own_SECURED": -1,
     "own_DEAD": -1,
@@ -143,8 +162,102 @@ KMAX = 40
 # The scored window: the exam tier, or (stage devtest, a plumbing run that
 # opens no exam outcome) the validation months of the dev tier.
 WIN: dict[str, Any] = {"tier": "exam", "lo": EXAM_FROM, "hi": EXAM_TO}
-SUBMISSION = SCRATCH / "submission.json"
-VALIDATE_JSON = SCRATCH / "validate.json"
+
+
+@dataclass(frozen=True)
+class Study:
+    """One pre-registration. ``s5``: "c003" = power at |c| = 0.03 (the
+    2026-11-18 rule), "frozen_coef" = power per column at the column's frozen
+    shrunk goals_for |c|. ``p2``: "per_column" = a material column must itself
+    be 1 on >= 2% of the exam `_for` rows; "any_column" = the rows the term
+    touches (any of the study's columns = 1) >= 2%."""
+
+    key: str
+    name: str
+    prereg: str
+    spec_sha: str | None
+    evidence: Path
+    work: Path
+    groups: tuple[str, ...]
+    cols: tuple[str, ...]
+    s3: tuple[tuple[str, int], ...]
+    s5: str
+    p2: str
+
+
+STUDIES: dict[str, Study] = {
+    "football": Study(
+        key="football",
+        name="stakes_football_2026-11",
+        prereg="docs/sofa/evidence/stakes_prereg_football_2026-11-18.md",
+        spec_sha="646b1317",
+        evidence=REPO / "docs/sofa/evidence/stakes_football_2026-11-18",
+        work=SCRATCH,
+        groups=FOOTBALL_GROUPS,
+        cols=tuple(SIDE_COLS),
+        s3=tuple(S3_MOTIVATION.items()),
+        s5="c003",
+        p2="per_column",
+    ),
+    # docs/sofa/evidence/stakes_prereg_dead_goals_2026-11-19.md: a DEAD side
+    # (own and / or opponent) -> more goals; direction chosen after the
+    # 2026-11-18 exploration, tested on the untouched tiers.
+    "dead_goals": Study(
+        key="dead_goals",
+        name="stakes_dead_goals_2026-11-19",
+        prereg="docs/sofa/evidence/stakes_prereg_dead_goals_2026-11-19.md",
+        spec_sha=None,
+        evidence=REPO / "docs/sofa/evidence/stakes_dead_goals_2026-11-19",
+        work=SCRATCH / "dead_goals_2026-11-19",
+        groups=("goals",),
+        cols=("own_DEAD", "opp_DEAD"),
+        s3=(("own_DEAD", +1), ("opp_DEAD", +1)),
+        s5="frozen_coef",
+        p2="any_column",
+    ),
+}
+
+# the active study's names (configure() rebinds them)
+STUDY_CFG = STUDIES["football"]
+STUDY = STUDY_CFG.name
+SPEC_SHA = STUDY_CFG.spec_sha
+ALL_GROUPS: tuple[str, ...] = STUDY_CFG.groups
+COLS: list[str] = list(STUDY_CFG.cols)
+S3_DIRECTIONS: dict[str, int] = dict(STUDY_CFG.s3)
+EVIDENCE = STUDY_CFG.evidence
+RUN = EVIDENCE / "run"
+WORK = STUDY_CFG.work
+COEF_FILE = EVIDENCE / "coefficients.json"
+FREEZE_RECORD = RUN / "freeze_record.json"
+SUBMISSION = RUN / "submission.json"
+SUBMISSION_RECORD = RUN / "submission_record.json"
+ACCESS_LOG = RUN / "exam_access.log"
+LOOKS = WORK / "looks.md"
+EXPLORE_JSON = WORK / "explore.json"
+VALIDATE_JSON = WORK / "validate.json"
+POWER_JSON = WORK / "power.json"
+
+
+def configure(key: str) -> Study:
+    global STUDY_CFG, STUDY, SPEC_SHA, ALL_GROUPS, COLS, S3_DIRECTIONS
+    global EVIDENCE, RUN, WORK, COEF_FILE, FREEZE_RECORD, SUBMISSION
+    global SUBMISSION_RECORD, ACCESS_LOG, LOOKS, EXPLORE_JSON, VALIDATE_JSON
+    global POWER_JSON
+    st = STUDIES[key]
+    STUDY_CFG, STUDY, SPEC_SHA = st, st.name, st.spec_sha
+    ALL_GROUPS, COLS, S3_DIRECTIONS = st.groups, list(st.cols), dict(st.s3)
+    EVIDENCE, WORK = st.evidence, st.work
+    RUN = EVIDENCE / "run"
+    COEF_FILE = EVIDENCE / "coefficients.json"
+    FREEZE_RECORD = RUN / "freeze_record.json"
+    SUBMISSION = RUN / "submission.json"
+    SUBMISSION_RECORD = RUN / "submission_record.json"
+    ACCESS_LOG = RUN / "exam_access.log"
+    LOOKS = WORK / "looks.md"
+    EXPLORE_JSON = WORK / "explore.json"
+    VALIDATE_JSON = WORK / "validate.json"
+    POWER_JSON = WORK / "power.json"
+    return st
 
 F64 = npt.NDArray[np.float64]
 I64 = npt.NDArray[np.int64]
@@ -178,10 +291,46 @@ def chunk_files(tier: str, kind: str) -> list[Path]:
     return sorted((SCRATCH / "full").glob(f"*/{tier}/{kind}/*.pkl.gz"))
 
 
+# The exam mode's door to the sealed outcomes; None outside it.
+_UNSEALER: list[guard.Unsealer] = []
+
+
+def sealed_path(p: Path) -> Path:
+    """A sealed exam outcome file, readable only through the exam mode's
+    Unsealer (which checks the manifest hash and logs the access)."""
+    if not _UNSEALER:
+        raise PermissionError(
+            f"{p}: a sealed exam outcome file; only exam --mode exam opens it"
+        )
+    return _UNSEALER[0].open(p)
+
+
 def read_chunks(tier: str, kind: str) -> Iterator[Any]:
     for p in chunk_files(tier, kind):
+        if tier == "exam_y":
+            p = sealed_path(p)
         with gzip.open(p, "rb") as f:
             yield from pickle.load(f)
+
+
+def require_replay_done(stage: str) -> None:
+    """A1: every replay run under SCRATCH/full finished cleanly (DONE.json
+    with rc 0 whose file list is the chunk files on disk)."""
+    problems = guard.replay_problems(SCRATCH / "full")
+    if problems:
+        raise SystemExit(
+            f"refused ({stage}): replay not complete - " + "; ".join(problems)
+        )
+
+
+def seal_outcomes() -> list[dict[str, Any]]:
+    """Seal every exam outcome file not yet sealed (A3)."""
+    files = [
+        p for pat in SEAL_PATTERNS for p in sorted(SCRATCH.glob(pat)) if p.is_file()
+    ]
+    added = guard.seal(files, SCRATCH, SEAL_MANIFEST)
+    log(f"sealed {len(added)} new file(s); manifest {SEAL_MANIFEST}")
+    return added
 
 
 # --------------------------------------------------------------------------
@@ -364,6 +513,7 @@ def prep_goals_y() -> None:
     dump(dev, "fr_dev_y.pkl")
     (SCRATCH / "exam_y").mkdir(exist_ok=True)
     (SCRATCH / "exam_y/fr_y.pkl").write_bytes(pickle.dumps(exam))
+    seal_outcomes()
     log(f"goals y dev {len(dev)} exam (sealed) {len(exam)}")
 
 
@@ -656,9 +806,9 @@ class Fit:
 
 
 def design(rows: list[Row], cols: list[str]) -> F64:
-    idx = [COLS.index(c) for c in cols]
+    idx = [SIDE_COLS.index(c) for c in cols]
     x = np.array([side_x(r["eid"], r["side"]) for r in rows], dtype=float).reshape(
-        -1, len(COLS)
+        -1, len(SIDE_COLS)
     )
     out: F64 = x[:, idx]
     return out
@@ -704,6 +854,7 @@ def permuted(rng: np.random.Generator, blocks: list[I64], n: int) -> I64:
 
 
 def explore() -> None:
+    WORK.mkdir(parents=True, exist_ok=True)
     dev = load_pkl(SCRATCH / "dev.pkl")
     ranks: dict[int, tuple[int, int]] = load_pkl(SCRATCH / "ranks.pkl")
     pop = population()
@@ -793,7 +944,7 @@ def explore() -> None:
             f"{ {k: (round(v[0], 4), v[1]) for k, v in s3.items()} } "
             f"drop {sorted(set(drop))}"
         )
-    (SCRATCH / "explore.json").write_text(json.dumps(res, indent=1))
+    EXPLORE_JSON.write_text(json.dumps(res, indent=1))
 
 
 # --------------------------------------------------------------------------
@@ -831,7 +982,7 @@ def shrunk_of(coefs: dict[str, dict[str, Any]]) -> dict[str, dict[str, float]]:
 
 def side_t(eid: int, side: str, cf: dict[str, float]) -> float:
     x = side_x(eid, side)
-    return float(sum(cf.get(c, 0.0) * x[i] for i, c in enumerate(COLS)))
+    return float(sum(cf.get(c, 0.0) * x[i] for i, c in enumerate(SIDE_COLS)))
 
 
 def count_treat(rows: list[Row], frozen: dict[str, dict[str, float]]) -> F64:
@@ -966,8 +1117,11 @@ def spec_hash(obj: Any) -> str:
 
 
 def validate(groups: list[str]) -> None:
+    unknown = [g for g in groups if g not in ALL_GROUPS]
+    if unknown:
+        raise SystemExit(f"groups {unknown} are not in study {STUDY}")
     dev = load_pkl(SCRATCH / "dev.pkl")
-    ex = json.loads((SCRATCH / "explore.json").read_text())
+    ex = json.loads(EXPLORE_JSON.read_text())
     for group in groups:
         e = ex[group]
         drop = e.get("drop", [])
@@ -1007,32 +1161,47 @@ def power() -> None:
     n_req = 7.85 (1/mu + alpha) 1.75 / 0.03^2; exposed = distinct exam
     match-sides with the column = 1 among the group's `_for` rows (the spec's
     section 8 unit); the template's row count reported beside."""
-    ex = json.loads((SCRATCH / "explore.json").read_text())
-    rows = count_rows("exam", None, False, set(METRIC_GROUP))
+    ex = json.loads(EXPLORE_JSON.read_text())
+    c_of: dict[str, dict[str, float] | None] = {g: None for g in ALL_GROUPS}
+    if STUDY_CFG.s5 == "frozen_coef":
+        # the frozen (shrunk) full-match coefficient of each column: S5 is
+        # power to see the term that would be installed (spec 8)
+        doc = json.loads(COEF_FILE.read_text())
+        for g in ALL_GROUPS:
+            cf = doc["groups"][g]["coef"].get("goals_for", {})
+            c_of[g] = {
+                c: float(v["shrunk"]) for c, v in cf.items() if not c.startswith("_")
+            }
+    count_groups = [g for g in ALL_GROUPS if g in GROUPS]
+    want = {m for g in count_groups for m in GROUPS[g]}
+    rows = count_rows("exam", None, False, want)
     out: dict[str, Any] = {}
-    for group in COUNT_GROUPS:
+    for group in count_groups:
         rs = [r for r in rows if METRIC_GROUP.get(r["market"]) == group]
-        out[group] = _power_of(rs, ex[group].get("drop", []))
-    fr = fr_rows("exam", None, False)
-    out["football_result"] = _power_of(
-        fr_side_rows_x(fr), ex["football_result"].get("drop", [])
-    )
-    pool = [
-        r for r in rows if METRIC_GROUP.get(r["market"]) in ("shots_sot", "corners")
-    ]
-    out["pool_shots_sot_corners"] = _power_of(
-        pool,
-        sorted(
-            set(ex["shots_sot"].get("drop", [])) | set(ex["corners"].get("drop", []))
-        ),
-    )
+        out[group] = _power_of(rs, ex[group].get("drop", []), c_of[group])
+    if "football_result" in ALL_GROUPS:
+        fr = fr_rows("exam", None, False)
+        out["football_result"] = _power_of(
+            fr_side_rows_x(fr),
+            ex["football_result"].get("drop", []),
+            c_of["football_result"],
+        )
+    if all(g in ALL_GROUPS for g in POOL_OF):
+        pool = [r for r in rows if METRIC_GROUP.get(r["market"]) in POOL_OF]
+        out["pool_shots_sot_corners"] = _power_of(
+            pool,
+            sorted(
+                set(ex["shots_sot"].get("drop", []))
+                | set(ex["corners"].get("drop", []))
+            ),
+        )
     for g, v in out.items():
         log(
             f"S5 {g} rows {v['rows']} mu {v['mu']:.3f} alpha {v['alpha']:.3f} "
             f"n_req {v['n_req']:.0f} best {v['best']} {v['best_sides']} "
             f"pass {v['pass']}"
         )
-    (SCRATCH / "power.json").write_text(json.dumps(out, indent=1))
+    POWER_JSON.write_text(json.dumps(out, indent=1))
 
 
 def submit() -> None:
@@ -1047,7 +1216,7 @@ def submit() -> None:
     if sha256(Path(__file__)) != rec["script_sha256"]:
         raise SystemExit("measure_stakes_exam.py changed after the freeze")
     doc = json.loads(COEF_FILE.read_text())
-    pw = json.loads((SCRATCH / "power.json").read_text())
+    pw = json.loads(POWER_JSON.read_text())
     gates: dict[str, dict[str, Any]] = {}
     for g in ALL_GROUPS:
         d = doc["groups"][g]["dev_gates"]
@@ -1070,7 +1239,12 @@ def submit() -> None:
     ]
     pool_note = "pool not needed"
     a, b = POOL_OF
-    if gates[a]["S1_S4"] and gates[b]["S1_S4"]:
+    if not (a in gates and b in gates):
+        pool_note = "no pool in this study"
+        submitted += [
+            g for g in POOL_OF if g in gates and gates[g]["S1_S4"] and gates[g]["S5"]
+        ]
+    elif gates[a]["S1_S4"] and gates[b]["S1_S4"]:
         if gates[a]["S5"] and gates[b]["S5"]:
             submitted += [a, b]
         elif pw["pool_shots_sot_corners"]["pass"]:
@@ -1092,8 +1266,9 @@ def submit() -> None:
         "submitted": submitted,
         "K": len(submitted),
     }
+    RUN.mkdir(parents=True, exist_ok=True)
     SUBMISSION.write_text(json.dumps(out, indent=1) + "\n")
-    (SCRATCH / "submission_record.json").write_text(
+    SUBMISSION_RECORD.write_text(
         json.dumps({"submission_sha256": sha256(SUBMISSION)}, indent=1) + "\n"
     )
     log(f"submitted {submitted} K {len(submitted)}; {pool_note}")
@@ -1119,7 +1294,13 @@ def fr_side_rows_x(rows: list[Row]) -> list[Row]:
     return out
 
 
-def _power_of(rs: list[Row], drop: Sequence[str]) -> dict[str, Any]:
+def _power_of(
+    rs: list[Row], drop: Sequence[str], c_of: dict[str, float] | None = None
+) -> dict[str, Any]:
+    """S5. ``c_of`` None: one n_req at |c| = 0.03 (the 2026-11-18 rule);
+    else each column's own n_req at its |c| (the study's frozen
+    coefficient), and the group holds when any kept column reaches its
+    own."""
     fors = [r for r in rs if r["side"] is not None]
     if not fors:
         return {
@@ -1140,34 +1321,46 @@ def _power_of(rs: list[Row], drop: Sequence[str]) -> dict[str, Any]:
     rowc: dict[str, int] = defaultdict(int)
     for r in fors:
         x = side_x(r["eid"], r["side"])
-        for i, c in enumerate(COLS):
+        for i, c in enumerate(SIDE_COLS):
             if x[i]:
                 sides[c].add((r["eid"], r["side"]))
                 rowc[c] += 1
-    kept = {c: len(v) for c, v in sides.items() if c not in drop}
-    best = max(kept, key=lambda c: kept[c]) if kept else None
+    kept = {c: len(v) for c, v in sides.items() if c in COLS and c not in drop}
+    if c_of is None:
+        best = max(kept, key=lambda c: kept[c]) if kept else None
+        ok = bool(best and kept[best] >= need)
+        need_of = dict.fromkeys(kept, need)
+    else:
+        need_of = {
+            c: 7.85 * (1 / mu + al) * 1.75 / max(abs(c_of.get(c, 0.0)), 1e-9) ** 2
+            for c in kept
+        }
+        best = max(kept, key=lambda c: kept[c] / need_of[c]) if kept else None
+        ok = bool(best and kept[best] >= need_of[best])
+        need = need_of[best] if best else float("inf")
     return {
         "rows": len(fors),
         "mu": mu,
         "alpha": al,
         "n_req": need,
+        "n_req_by_column": need_of,
+        "c_by_column": c_of,
         "best": best,
         "best_sides": kept.get(best, 0) if best else 0,
-        "pass": bool(best and kept[best] >= need),
+        "pass": ok,
         "sides": {c: len(v) for c, v in sides.items()},
         "row_counts": dict(rowc),
     }
 
 
 # --------------------------------------------------------------------------
-def freeze() -> None:
+def freeze(spec_sha: str) -> None:
     dev = load_pkl(SCRATCH / "dev.pkl")
-    ex = json.loads((SCRATCH / "explore.json").read_text())
+    ex = json.loads(EXPLORE_JSON.read_text())
     doc: dict[str, Any] = {
         "_doc": (
             "Frozen shrunk dev coefficients of the football stakes term "
-            "(pre-registration "
-            "docs/sofa/evidence/stakes_prereg_football_2026-11-18.md, spec 646b1317): "
+            f"(study {STUDY}, pre-registration {STUDY_CFG.prereg}, spec {spec_sha}): "
             "t_side = sum coef[own_<state of side>] + coef[opp_<state of opponent>], "
             "ALIVE = 0, per (base metric, half); fitted on exploration + validation "
             "(< 2026-01-01), c_shr = c tau^2 / (tau^2 + SE^2). "
@@ -1178,7 +1371,8 @@ def freeze() -> None:
         "cols": COLS,
         "frozen_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "module_sha256": MODULE_SHA256,
-        "spec_sha": SPEC_SHA,
+        "spec_sha": spec_sha,
+        "study": STUDY,
         "unfitted_constants": [
             "Z boundary (3 at n <= 16 else 4)",
             "boundaries {1, n - Z}",
@@ -1209,10 +1403,13 @@ def freeze() -> None:
             "S4_delta": val.get(group, {}).get("delta"),
             "S4": val.get(group, {}).get("S4", False),
         }
+    RUN.mkdir(parents=True, exist_ok=True)
     COEF_FILE.write_text(json.dumps(doc, indent=1) + "\n")
     rec = {
         "coefficients_sha256": sha256(COEF_FILE),
         "script_sha256": sha256(Path(__file__)),
+        "guard_sha256": sha256(GUARD_MODULE),
+        "spec_sha": spec_sha,
         "written_at_utc": doc["frozen_at_utc"],
     }
     FREEZE_RECORD.write_text(json.dumps(rec, indent=1) + "\n")
@@ -1570,19 +1767,31 @@ def exposure_material(
             continue
         n += 1
         x = side_x(r["eid"], r["side"])
-        for i, c in enumerate(COLS):
+        for i, c in enumerate(SIDE_COLS):
             exp_[c] += int(x[i] > 0)
+        exp_["_any_study_column"] += int(
+            any(x[SIDE_COLS.index(c)] > 0 for c in COLS)
+        )
+    share = {k: v / max(n, 1) for k, v in exp_.items()}
+
+    def exposed(c: str) -> float:
+        # p2 "any_column": the bucket is every row the term touches
+        return share.get(
+            "_any_study_column" if STUDY_CFG.p2 == "any_column" else c, 0.0
+        )
+
     hits = [
-        {"metric": m, "coef": c, "c": v, "exposed_share": exp_.get(c, 0) / max(n, 1)}
+        {"metric": m, "coef": c, "c": v, "exposed_share": exposed(c)}
         for m, cf in frozen.items()
         for c, v in cf.items()
-        if abs(v) >= 0.03 and exp_.get(c, 0) / max(n, 1) >= 0.02
+        if abs(v) >= 0.03 and exposed(c) >= 0.02
     ]
     return {
         "material": bool(hits),
         "hits": hits,
         "rows": n,
-        "exposure": {k: v / max(n, 1) for k, v in exp_.items()},
+        "p2_rule": STUDY_CFG.p2,
+        "exposure": share,
     }
 
 
@@ -1915,11 +2124,42 @@ def check_guards(spec_sha: str) -> dict[str, str]:
         raise SystemExit("G1: coefficients.json changed after the freeze")
     if sha256(Path(__file__)) != rec["script_sha256"]:
         raise SystemExit("G1: measure_stakes_exam.py changed after the freeze")
+    if "guard_sha256" in rec and sha256(GUARD_MODULE) != rec["guard_sha256"]:
+        raise SystemExit("G1: stakes_exam_guard.py changed after the freeze")
+    if rec.get("spec_sha", spec_sha) != spec_sha:
+        raise SystemExit(f"G1: frozen on spec {rec['spec_sha']}, not {spec_sha}")
+    prereg = subprocess.run(
+        ["git", "cat-file", "-e", f"{spec_sha}:{STUDY_CFG.prereg}"], cwd=REPO
+    )
+    if prereg.returncode != 0:
+        raise SystemExit(f"G1: {STUDY_CFG.prereg} is not in commit {spec_sha}")
     return {
         "module": h_disk,
         "coefficients": rec["coefficients_sha256"],
         "script": rec["script_sha256"],
     }
+
+
+def exam_preflight(spec_sha: str) -> dict[str, str]:
+    """Every refusal of the exam mode before an outcome is opened: G1 hashes,
+    G1 by commit (A2) and the seal (A3)."""
+    hashes = check_guards(spec_sha)
+    problems = guard.uncommitted(
+        REPO,
+        [
+            COEF_FILE,
+            FREEZE_RECORD,
+            SUBMISSION,
+            SUBMISSION_RECORD,
+            SCRIPT,
+            GUARD_MODULE,
+            REPO / MODULE_REL,
+        ],
+    )
+    problems += guard.seal_problems(SCRATCH, SEAL_MANIFEST, SEAL_PATTERNS)
+    if problems:
+        raise SystemExit("refused (exam): " + "; ".join(problems))
+    return hashes
 
 
 def exam_already_run() -> bool:
@@ -1944,7 +2184,7 @@ def exam(mode: str, spec_sha: str) -> int:
         # the validation months with their real dev y; curves from explore.
         WIN.update(tier="dev", lo=EXPLORE_END, hi=DEV_END)
         hashes = {"note": "devtest - no guards"}
-        ex = json.loads((SCRATCH / "explore.json").read_text())
+        ex = json.loads(EXPLORE_JSON.read_text())
         doc: dict[str, Any] = {"groups": {}}
         for g in ALL_GROUPS:
             if ex[g].get("fitted"):
@@ -1956,10 +2196,10 @@ def exam(mode: str, spec_sha: str) -> int:
         submitted = list(doc["groups"])
         dev_count = [r for r in dev_count if r["ts"] < EXPLORE_END]
         dev_fr = [r for r in dev_fr if r["ts"] < EXPLORE_END]
-    else:
-        hashes = check_guards(spec_sha)
+    elif mode == "exam":
+        hashes = exam_preflight(spec_sha)
         doc = json.loads(COEF_FILE.read_text())
-        srec = json.loads((SCRATCH / "submission_record.json").read_text())
+        srec = json.loads(SUBMISSION_RECORD.read_text())
         if sha256(SUBMISSION) != srec["submission_sha256"]:
             raise SystemExit("G1: submission.json changed after it was written")
         sub = json.loads(SUBMISSION.read_text())
@@ -1967,6 +2207,38 @@ def exam(mode: str, spec_sha: str) -> int:
             raise SystemExit("G1: submission made on other coefficients")
         submitted = sub["submitted"]
         hashes["submission"] = srec["submission_sha256"]
+    else:
+        hashes = check_guards(spec_sha)
+        doc = json.loads(COEF_FILE.read_text())
+        srec = json.loads(SUBMISSION_RECORD.read_text())
+        if sha256(SUBMISSION) != srec["submission_sha256"]:
+            raise SystemExit("G1: submission.json changed after it was written")
+        sub = json.loads(SUBMISSION.read_text())
+        if sub["coefficients_sha256"] != hashes["coefficients"]:
+            raise SystemExit("G1: submission made on other coefficients")
+        submitted = sub["submitted"]
+        hashes["submission"] = srec["submission_sha256"]
+    if mode == "exam":
+        with guard.unsealing(SCRATCH, SEAL_MANIFEST, ACCESS_LOG) as u:
+            _UNSEALER.append(u)
+            try:
+                groups = build_groups(mode, doc, submitted, rng, dev_count, dev_fr)
+            finally:
+                _UNSEALER.clear()
+    else:
+        groups = build_groups(mode, doc, submitted, rng, dev_count, dev_fr)
+    res = evaluate(groups)
+    return report(mode, spec_sha, started, hashes, submitted, res)
+
+
+def build_groups(
+    mode: str,
+    doc: dict[str, Any],
+    submitted: list[str],
+    rng: np.random.Generator | None,
+    dev_count: list[Row],
+    dev_fr: list[Row],
+) -> dict[str, GroupData]:
     groups: dict[str, GroupData] = {}
     for name in submitted:
         coef = frozen_coef(doc, name)
@@ -1975,7 +2247,7 @@ def exam(mode: str, spec_sha: str) -> int:
         if name == "football_result":
             ys_fr: dict[int, tuple[int, int]] | None = None
             if mode == "exam":
-                ys_fr = load_pkl(SCRATCH / "exam_y/fr_y.pkl")
+                ys_fr = load_pkl(sealed_path(SCRATCH / "exam_y/fr_y.pkl"))
             elif mode == "devtest":
                 ys_fr = load_pkl(SCRATCH / "fr_dev_y.pkl")
             groups[name] = exam_fr_group(frozen, cols, ys_fr, rng, dev_fr)
@@ -1988,7 +2260,17 @@ def exam(mode: str, spec_sha: str) -> int:
                 ys = read_ys("dev", metrics)
             groups[name] = exam_count_group(name, frozen, cols, ys, rng, dev_count)
         log(f"built {name} {groups[name].info}")
-    res = evaluate(groups)
+    return groups
+
+
+def report(
+    mode: str,
+    spec_sha: str,
+    started: str,
+    hashes: dict[str, str],
+    submitted: list[str],
+    res: dict[str, Any],
+) -> int:
     out = {
         "study": STUDY,
         "mode": mode,
@@ -2002,10 +2284,13 @@ def exam(mode: str, spec_sha: str) -> int:
     path = (
         (EVIDENCE / "exam_result.json")
         if mode == "exam"
-        else (SCRATCH / f"exam_{mode}_result.json")
+        else (WORK / f"exam_{mode}_result.json")
     )
     path.write_text(json.dumps(out, indent=1, default=float) + "\n")
     order = [g for g in (*ALL_GROUPS, POOL) if not (g in POOL_OF and POOL in res)]
+    if mode == "exam" and ACCESS_LOG.exists():
+        out["access_log"] = ACCESS_LOG.read_text().splitlines()
+        path.write_text(json.dumps(out, indent=1, default=float) + "\n")
     verdicts = [
         f"{g} {res[g]['verdict']}" if g in res else f"{g} NOT_SUBMITTED"
         for g in order
@@ -2048,14 +2333,22 @@ def main(argv: list[str] | None = None) -> int:
             "power",
             "submit",
             "exam",
+            "seal",
         ),
     )
+    ap.add_argument("--study", choices=sorted(STUDIES), default="football")
     ap.add_argument("--part", default="ranks,sched,phase,goals_y")
-    ap.add_argument("--groups", default=",".join(ALL_GROUPS))
+    ap.add_argument("--groups", default=None)
     ap.add_argument("--mode", choices=("exam", "fake", "devtest"), default="fake")
-    ap.add_argument("--spec-sha", default=SPEC_SHA)
+    ap.add_argument("--spec-sha", default=None)
     a = ap.parse_args(argv)
-    groups = [g for g in a.groups.split(",") if g]
+    st = configure(a.study)
+    groups = [g for g in (a.groups or ",".join(ALL_GROUPS)).split(",") if g]
+    spec_sha = a.spec_sha or st.spec_sha
+    if a.stage in ("load", "explore", "validate", "power", "freeze", "submit", "exam"):
+        require_replay_done(a.stage)
+    if a.stage in ("freeze", "exam") and not spec_sha:
+        raise SystemExit(f"--spec-sha required for {a.stage} of study {STUDY}")
     if a.stage == "prep":
         steps = {
             "ranks": prep_ranks,
@@ -2074,11 +2367,13 @@ def main(argv: list[str] | None = None) -> int:
     elif a.stage == "power":
         power()
     elif a.stage == "freeze":
-        freeze()
+        freeze(str(spec_sha))
     elif a.stage == "submit":
         submit()
     elif a.stage == "exam":
-        return exam(a.mode, a.spec_sha)
+        return exam(a.mode, str(spec_sha))
+    elif a.stage == "seal":
+        seal_outcomes()
     return 0
 
 
