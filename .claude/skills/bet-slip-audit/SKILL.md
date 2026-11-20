@@ -114,10 +114,14 @@ with it, as a quality filter (never "an edge"):
 - A leg returns ~0.960 of its price in this pool (10-13..10-30, n 36,940;
   every coupon leg 0.947). So:
 
-- **2 legs by default** (`--max-legs` default 2). Raise it only when the
-  operator asks ("3 nogi"); the script then prints the measured cost of each
-  leg (0.88 × 0.960^n − 1). Never raise it to reach a target.
-- **Target out of reach of the limit** (e.g. ~4 with 2 legs of at most 2.00):
+- **The fewest legs that reach the target** (operator 2026-11-20: no leg
+  limit by default, `MAX_LEGS` 10 is the search's ceiling): the search takes
+  the smallest leg count whose price product reaches the target, then the
+  best measured chance among slips of that count (until 11-20 it maximised
+  chance over every count and picked 5 legs where 4 reached ~5). A slip of
+  3+ legs prints each leg's measured cost (0.88 × 0.960^n − 1) - relay it.
+  `--max-legs N` only when the operator caps it.
+- **Target out of reach of the cap** (e.g. ~4 with `--max-legs 2`, legs of at most 2.00):
   the first line says so - "Na ~4 trzeba 3 nóg - każda kolejna noga to ok.
   −4% więcej; z 2 nogami najbliżej ~X" - and the slip is the closest under
   the target (the highest product the limit's legs reach, the best chance at
@@ -181,11 +185,12 @@ slip can be traced.
 **The search** (`src/bet/sofa/slip_builder.py`): legs of `11_coupon.json`
 singles, not started (15 min margin, = the analysts' started-skip), own
 sample >= 8, not priced up > 2% on the re-ask, odds 1.10-2.00, one per match, at
-most `--max-legs` (default 2); a leg's measured chance = min(confidence, 1/odds)
+most `--max-legs` (default 10, the ceiling); a leg's measured chance = min(confidence, 1/odds)
 for every leg of every sport (never above its price). An exact multiple-choice knapsack
-maximises the slip's measured chance under "price product >= target" - which
-picks the fewest legs (every odds band loses about alike per leg,
-10-13..10-19) - with the low-margin near-tie-break above. A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
+takes the fewest legs whose price product reaches the target and, among
+those, maximises the slip's measured chance (every odds band loses about
+alike per leg, 10-13..10-19; operator 2026-11-20) - with the low-margin
+near-tie-break above. A leg a veto or a WATCH / NO_BET read refuses (`vetoes.json`,
 `reads.json`, the slip's `*_slip.json`, or carried) never enters, so a re-run after a merge takes the
 next best leg (a refusal also drops the refused leg's harder rungs).
 

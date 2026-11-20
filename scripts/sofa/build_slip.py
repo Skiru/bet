@@ -13,8 +13,10 @@ reads; the first line says how many of the requested slips the day gives
 no stake.
 
 The least-loss flow (operator 2026-10-31, docs/sofa/evidence/
-slip_flow_backtest_2026-10-31.md): 2 legs by default (--max-legs raises it;
-the answer then lists each extra leg's measured cost), Bet Builders only with
+slip_flow_backtest_2026-10-31.md): the fewest legs whose price product
+reaches the target, the best chance among them (no leg limit by default since
+2026-11-20, --max-legs lowers the ceiling; a 3+ leg slip lists each extra
+leg's measured cost), Bet Builders only with
 --builders (the answer names their measured -16.6% / -45.8%), a target the
 leg limit cannot reach said in the first line with the closest slip under it
 (never a silent extra leg), a leg of a two-sided ladder with overround < 0.08
@@ -44,7 +46,7 @@ the operator's own Bet Builder of one match against our numbers instead
 in both sides' games, the screen price); read-only.
 
     PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py \\
-        --date 2026-10-20 --target 3 [--slips 2] [--max-legs 2] [--builders] \\
+        --date 2026-10-20 --target 3 [--slips 2] [--max-legs N] [--builders] \\
         [--min-odds 1.10] [--max-odds 2.00] [--start-from 10:00 --start-to 12:00] \\
         [--reserve 1] [--read-set-dir runs/sofa/<d>/read_set_slip] [--md-out f]
 
@@ -437,8 +439,10 @@ def main(argv: list[str] | None = None) -> int:
                     "SAFE_TARGET): the surest slip at that leg price product")
     ap.add_argument("--slips", type=int, default=1)
     ap.add_argument("--max-legs", type=int, default=sb.MAX_LEGS,
-                    help=f"legs per slip (default {sb.MAX_LEGS}; each extra leg costs "
-                    "~5%% of the return, measured)")
+                    help=f"ceiling of legs per slip (default {sb.MAX_LEGS}); the "
+                    "search "
+                    "takes the fewest legs reaching the target, each extra leg "
+                    "costs ~4%% of the return, measured")
     ap.add_argument("--min-odds", type=float, default=sb.MIN_LEG_ODDS)
     ap.add_argument("--max-odds", type=float, default=sb.MAX_LEG_ODDS)
     # no-ops kept so an older call (a session that loaded the old /kupon

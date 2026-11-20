@@ -266,7 +266,9 @@ def test_search_is_exact_against_brute_force() -> None:
             for i, x in enumerate(legs)
         ]
         target = rnd.uniform(1.8, 5.0)
+        # the fewest legs that reach the target, then the best chance among them
         best = None
+        fewest = None
         for k in range(1, 5):
             for combo in itertools.combinations(legs, k):
                 if len({x.match_key for x in combo}) < k:
@@ -276,13 +278,18 @@ def test_search_is_exact_against_brute_force() -> None:
                     continue
                 score = sum(math.log(x.chance) for x in combo)
                 best = score if best is None else max(best, score)
+            if best is not None:
+                fewest = k
+                break
         got = sb.best_slip(legs, target, max_legs=4)
         if best is None:
             continue
         assert got is not None
         assert got.price_product >= target
         assert len({x.match_key for x in got.legs}) == len(got.legs)
-        assert math.log(got.chance) >= best - 1e-9
+        assert fewest is not None and len(got.legs) <= fewest
+        if len(got.legs) == fewest:
+            assert math.log(got.chance) >= best - 1e-9
 
 
 def test_a_refused_read_drops_the_leg_and_the_next_best_takes_its_place() -> None:
@@ -386,6 +393,7 @@ def test_round_targets_with_two_decimal_odds_are_exact() -> None:
         ]
         target = float(rnd.choice([2, 2.5, 3, 4, 5]))
         best = None
+        fewest = 0
         for k in range(1, 4):
             for combo in itertools.combinations(legs, k):
                 if len({x.match_key for x in combo}) < k:
@@ -394,11 +402,15 @@ def test_round_targets_with_two_decimal_odds_are_exact() -> None:
                     continue
                 score = sum(math.log(x.chance) for x in combo)
                 best = score if best is None else max(best, score)
+            if best is not None:
+                fewest = k
+                break
         got = sb.best_slip(legs, target, max_legs=3)
         if best is None:
             assert got is None
             continue
-        assert got is not None and math.log(got.chance) >= best - 1e-9
+        assert got is not None and len(got.legs) == fewest
+        assert math.log(got.chance) >= best - 1e-9
 
 
 def test_a_leg_with_a_non_finite_confidence_is_refused() -> None:
@@ -584,8 +596,8 @@ def test_kept_legs_reach_the_target_before_an_unread_leg_enters() -> None:
     assert {x.leg["sofascore_event_id"] for x in kept.slips[0].legs} == {1, 3}
     short = sb.build(legs, NOW, target=3.0, slip_reads=keep, max_legs=3)
     assert {x.leg["sofascore_event_id"] for x in short.slips[0].legs} == {1, 2, 3}
-    # at the default 2 legs ~3 is out of reach: the closest 2-leg slip, flagged
-    two = sb.build(legs, NOW, target=3.0, slip_reads=keep)
+    # at a 2-leg ceiling ~3 is out of reach: the closest 2-leg slip, flagged
+    two = sb.build(legs, NOW, target=3.0, slip_reads=keep, max_legs=2)
     assert len(two.slips[0].legs) == 2 and two.slips[0].needs_legs == 3
 
 
@@ -838,18 +850,19 @@ def test_check_reads_the_operators_own_builder_leg_by_leg() -> None:
 def test_default_is_two_legs_and_builders_are_opt_in(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """(1) 2 legs by default in the module and the script; the day's Bet
-    Builders enter only with --builders, and then the answer names their
-    measured loss; a raised limit lists the measured cost of each leg."""
-    assert sb.MAX_LEGS == 2
+    """(1) No leg limit by default (operator 2026-11-20; MAX_LEGS the
+    search's ceiling, --max-legs lowers it); the day's Bet Builders enter only
+    with --builders, and then the answer names their measured loss; a 3+ leg
+    slip lists the measured cost of each leg."""
+    assert sb.MAX_LEGS == 10
     legs = [_leg(i, 1.3, 0.76) for i in range(1, 7)]
-    res = sb.build(legs, NOW, target=2.0)  # 1.3^3 = 2.197 needs 3 legs
-    assert all(len(s.legs) <= 2 for s in res.slips)
-    raised = sb.build(legs, NOW, target=2.0, max_legs=3)
+    capped = sb.build(legs, NOW, target=2.0, max_legs=2)  # 1.3^3 needs 3 legs
+    assert all(len(s.legs) <= 2 for s in capped.slips)
+    raised = sb.build(legs, NOW, target=2.0)
     assert len(raised.slips[0].legs) == 3 and raised.slips[0].reached
     text = sb.render(raised, day="2026-10-20", target=2.0, now=NOW)
-    assert ("Limit nóg 3 (domyślnie 2): każda kolejna noga mnoży zwrot przez "
-            "0,96") in text
+    assert ("Najmniej nóg, które sięgają celu - każda kolejna noga mnoży zwrot "
+            "przez 0,96") in text
     assert "1 noga −15,5%, 2 nogi −18,9%, 3 nogi −22,1%" in text
     day = "2026-10-20"
     run = tmp_path / day
@@ -876,7 +889,7 @@ def test_target_out_of_reach_of_the_leg_limit_is_said_first(
     the target needs and the cost of each, the slip is the closest 2-leg one
     (never a silent third leg), marked not reached; exit code 1."""
     legs = [_leg(i, 1.8, 0.55) for i in range(1, 4)] + [_leg(9, 1.6, 0.62)]
-    res = sb.build(legs, NOW, target=4.0)
+    res = sb.build(legs, NOW, target=4.0, max_legs=2)
     (slip,) = res.slips
     assert len(slip.legs) == 2 and not slip.reached and slip.needs_legs == 3
     assert slip.price_product == pytest.approx(1.8 * 1.8)
@@ -891,7 +904,8 @@ def test_target_out_of_reach_of_the_leg_limit_is_said_first(
     assert alone.slips == []
     # one slip reaches, the second would need more legs
     two = sb.build([_leg(1, 2.0, 0.5), _leg(2, 2.0, 0.5), _leg(3, 1.9, 0.52),
-                    _leg(4, 1.6, 0.6), _leg(5, 1.5, 0.64)], NOW, target=4.0, slips=2)
+                    _leg(4, 1.6, 0.6), _leg(5, 1.5, 0.64)], NOW, target=4.0, slips=2,
+                   max_legs=2)
     assert [s.reached for s in two.slips] == [True, False]
     head = sb.render(two, day="2026-10-20", target=4.0, now=NOW).splitlines()[0]
     assert head.startswith("**Dzień daje 1 z 2 kuponów na ~4; na kolejny trzeba 3 nóg")
@@ -900,11 +914,12 @@ def test_target_out_of_reach_of_the_leg_limit_is_said_first(
     far = [_leg(i, 1.8, 0.55, kickoff="2099-01-01T00:00:00Z") for i in range(1, 4)]
     (tmp_path / day / "11_coupon.json").write_text(
         json.dumps({"singles": far}), encoding="utf-8")
-    base = ["--date", day, "--target", "4", "--runs-dir", str(tmp_path)]
+    base = ["--date", day, "--target", "4", "--max-legs", "2", "--runs-dir",
+            str(tmp_path)]
     assert build_slip.main(base) == 1
     assert capsys.readouterr().out.startswith("**Na ~4 trzeba 3 nóg")
-    assert build_slip.main(base + ["--max-legs", "3"]) == 0
-    assert "Limit nóg 3 (domyślnie 2)" in capsys.readouterr().out
+    assert build_slip.main(base[:4] + base[6:]) == 0  # no ceiling: 3 legs
+    assert "Najmniej nóg, które sięgają celu" in capsys.readouterr().out
 
 
 def test_low_margin_leg_wins_a_tie_and_the_margin_is_shown() -> None:
@@ -1348,3 +1363,23 @@ def test_no_shaky_refuses_a_leg_read_chwiejna() -> None:
     pool, refused = sb.candidates(legs, NOW, slip_reads=[shaky], no_shaky=True)
     assert [x.leg["sofascore_event_id"] for x in pool] == [2]
     assert refused == {"chwiejna (odczyt analityka, bez chwiejnych)": 1}
+
+
+def test_fewest_legs_reaching_the_target_beat_a_surer_longer_slip() -> None:
+    """Operator 2026-11-20: at ~5 with no leg limit the search took 5 legs
+    (19.3% by our confidence) where 4 reached ~5 (18.7%) - every extra leg
+    pays the measured loss to the price once more (0.96), and confidence does
+    not tell legs apart at the same price. The fewest legs reaching the target
+    come first, the best chance among them second."""
+    four = [_leg(i, 1.5, 0.64) for i in range(1, 5)]  # 1.5^4 = 5.06
+    five = [_leg(i, 1.38, 0.72) for i in range(11, 16)]  # 1.38^5 = 5.0, surer
+    got = sb.build(four + five, NOW, target=5.0)
+    (slip,) = got.slips
+    assert len(slip.legs) == 4 and slip.reached
+    # among 4-leg slips, the best chance: a surer 4th leg replaces a 1.5 one
+    better = _leg(20, 1.52, 0.66)
+    got = sb.build(four + [better], NOW, target=5.0)
+    assert 20 in {x.leg["sofascore_event_id"] for x in got.slips[0].legs}
+    # a lowered ceiling still says the target needs more legs
+    capped = sb.build(four, NOW, target=5.0, max_legs=3)
+    assert capped.slips[0].needs_legs == 4

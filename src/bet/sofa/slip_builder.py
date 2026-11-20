@@ -8,8 +8,9 @@ loses about the same share of its price in every odds band (13_results.json
 legs, 1.30-1.70 -4.2% [-6.2, -2.3] on 5,544, difference +0.9 pp [-1.0,
 +2.8]), so a slip pays that loss once per leg: at a fixed target price fewer
 legs lose less. The builder therefore maximises the slip's measured chance
-under "product of leg prices >= target" - that objective itself picks the
-fewest, longest legs - with one leg per match (two legs of one match are a
+among the fewest legs whose price product reaches the target (operator
+2026-11-20: maximising chance over every leg count picked 5 legs where 4
+reached ~5) - with one leg per match (two legs of one match are a
 Bet Builder, priced by Superbet's screen only).
 
 A leg's measured chance stands on its own statistics only and is never
@@ -30,8 +31,9 @@ turnover tax - `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`): no
 flow cleared zero after tax. Hold-out, after tax: singles -16.6%, random
 2-leg slips -19.0%, 3 legs -30.2%, 2-4 legs at ~3 -28.5%, the old objective
 at up to 5 legs -31.5%; Bet Builders -16.6% (dev) / -45.8% (hold-out). So a
-slip is 2 legs by default (`MAX_LEGS`; the operator may raise it and the
-answer then states each extra leg's measured cost), builders are opt-in, a
+slip is the fewest legs that reach the target (no leg limit by default
+since 2026-11-20, `MAX_LEGS` the search's ceiling; a slip of 3+ legs states
+each extra leg's measured cost), builders are opt-in, a
 target the leg limit cannot reach is said first and the closest slip under
 it is built (never a silent extra leg), a low-margin leg is preferred in a
 near-tie (`LOW_MARGIN_TIE`) and every slip carries the honest money line
@@ -96,10 +98,17 @@ REFUSING = frozenset({"WATCH", "NO_BET"})
 # STEP buckets.
 MIN_LEG_ODDS = 1.10
 MAX_LEG_ODDS = 2.00
-# 2 legs by default (operator 2026-10-31): each leg pays the coupon's loss to
-# the price once more (`REALISED_PER_LEG`), and the hold-out ranked singles /
-# 2 legs above 3+ legs after tax (evidence doc above). --max-legs raises it.
-MAX_LEGS = 2
+# Each leg pays the coupon's loss to the price once more (`REALISED_PER_LEG`;
+# the hold-out ranked singles / 2 legs above 3+ legs after tax, evidence doc
+# above), so the search takes the FEWEST legs whose price product reaches the
+# target, then the best measured chance among them (`best_slip`). The leg
+# count is not limited by default (operator 2026-11-20: "nie limituj" - with
+# fewest-legs-first a cap only stops a far target); MAX_LEGS is the search's
+# ceiling, --max-legs lowers it. Until 2026-11-20 the default was 2 and the
+# search maximised chance over every count up to the cap, which with a
+# raised cap picked 5 legs where 4 reached ~5 (operator 11-20).
+MAX_LEGS = 10
+COST_LINE_FROM = 3  # a slip of this many legs lists each leg's measured cost
 CROWD_LEGS = 3  # a slip with this many legs of one market type is named
 START_MARGIN = datetime.timedelta(minutes=15)  # = the analysts' started-skip
 # a leg starting sooner is marked: an analyst round takes ~20-30 min
@@ -786,10 +795,11 @@ _State = tuple[float, float, tuple[Leg, ...]]
 def best_slip(
     legs: Sequence[Leg], target: float, max_legs: int = MAX_LEGS
 ) -> Slip | None:
-    """The slip of at most `max_legs` legs, one per match, whose price product
-    reaches `target` with the highest measured chance, over every leg given (a
-    multiple-choice knapsack). A state carries its exact log price and is
-    filed under that price's `STEP` bucket; a bucket keeps the best log chance
+    """The slip of the fewest legs (at most `max_legs`, one per match) whose
+    price product reaches `target`, and among those the highest measured
+    chance, over every leg given (a multiple-choice knapsack per leg
+    count). A state carries its exact log price and is filed under that
+    price's `STEP` bucket; a bucket keeps the best log chance
     (on a tie the higher price), and a state no better than one in a higher
     bucket is dropped (Pareto - every later leg only adds price and loses
     chance). Every state at or above the target files under one bucket, the
@@ -825,16 +835,20 @@ def best_slip(
                     if cur is None or (cand[0], cand[1]) > (cur[0], cur[1]):
                         nxt[b] = cand
             dp[k + 1] = _pareto_states(nxt)
-    best: tuple[float, int, tuple[Leg, ...]] | None = None
+    # the fewest legs that reach the target, then the best chance among them:
+    # every extra leg pays the measured loss once more (REALISED_PER_LEG)
+    best: tuple[float, tuple[Leg, ...]] | None = None
     for k in range(1, max_legs + 1):
         for score, price, chosen in dp[k].values():
             if price < log_target - 1e-12:
                 continue
-            if best is None or (score, -k) > (best[0], -best[1]):
-                best = (score, k, chosen)
+            if best is None or score > best[0]:
+                best = (score, chosen)
+        if best is not None:
+            break
     if best is None:
         return None
-    return Slip(sorted(best[2], key=lambda x: str(x.leg.get("kickoff_utc"))))
+    return Slip(sorted(best[1], key=lambda x: str(x.leg.get("kickoff_utc"))))
 
 
 def _search_score(x: Leg) -> float:
@@ -1215,11 +1229,10 @@ def render(
             f"≥ {_comma(target)} (najniżej {_comma(SAFE_TARGET)} - poniżej wygrana "
             f"po podatku {TAX * 100:.0f}% zwraca mniej niż stawka); pewniejszy "
             "kupon to niższy kurs, a strata na dłuższą metę ta sama.")
-    if result.max_legs > MAX_LEGS or any(
-            s.single_rows > MAX_LEGS for s in result.slips):
-        top = max([result.max_legs, *counts])
+    if any(s.single_rows >= COST_LINE_FROM for s in result.slips):
+        top = max(counts)
         lines.append(
-            f"Limit nóg {result.max_legs} (domyślnie {MAX_LEGS}): każda kolejna noga "
+            "Najmniej nóg, które sięgają celu - każda kolejna noga "
             f"mnoży zwrot przez {REALISED_PER_LEG:g}".replace(".", ",")
             + " - po podatku "
             + ", ".join(f"{legs_pl(k)} {_signed(expected_return(k))}"

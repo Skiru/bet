@@ -617,9 +617,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
   −28,5%, stary cel (maks. iloczyn pewności, do 5 nóg) −31,5%; noga kuponu
   zwraca ok. 0,946 swojej ceny (trafienie 0,782 vs 1/kurs 0,827, 49 189 nóg
   10-20..10-30). Stąd:
-  - **domyślnie 2 nogi** (`--max-legs` domyślnie 2; więcej tylko na prośbę
-    operatora, np. `3 nogi` - wtedy odpowiedź podaje koszt każdej nogi);
-  - **cel poza zasięgiem limitu** (np. ~4 z 2 nogami po maks. 2,00): pierwsza
+  - **najmniej nóg, które sięgają celu** (operator 2026-11-20, „nie
+    limituj”): bez limitu nóg (sufit 10), najpierw najmniejsza liczba nóg z
+    iloczynem kursów ≥ cel, potem najwyższa zmierzona szansa wśród takich
+    kuponów (do 20.11 maks. szansy po każdej liczbie nóg - dało 5 nóg, gdzie 4
+    sięgały ~5); kupon od 3 nóg podaje koszt każdej nogi; `--max-legs N` tylko
+    na prośbę operatora;
+  - **cel poza zasięgiem limitu** (np. ~4 przy `--max-legs 2`, nogi po maks. 2,00): pierwsza
     linia „Na ~4 trzeba 3 nóg - każda kolejna noga to ok. −4% więcej; z 2
     nogami najbliżej ~X”, kupon najbliższy pod celem (najwyższy iloczyn
     osiągalny limitem, przy nim najlepsza szansa), oznaczony „Cel ~X NIE

@@ -16,8 +16,7 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
   `11:00`-`13:00`, the end exclusive; a bad hour exits 2 - ask again). Missing:
   ask for the hours, nothing else.
 - **Target**: `~X`, `na X` or a bare decimal (e.g. `4`, `~5.5`) -> `--target X`;
-  default **2** (two legs of ~1.4; a target above what 2 legs of up to 2.00
-  reach makes the script say so first and build the closest).
+  default **2** (the fewest legs reaching it - usually one leg of ~2.00).
 - **Safest** (operator 2026-11-01: "chcę żeby weszło, nawet jak mniej
   zarobimy"): `pewny` / `najpewniejszy` / `żeby weszło` -> `--safest` (with a
   target `~X` only when the operator typed one, else none): the highest
@@ -34,11 +33,13 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
   leg is read first, then dropped on CHWIEJNA in the next round). Relay the
   script's line: the operator's choice, not an edge (retro NOT_PASSED, +0.3
   pp [-3.0, +3.8], `docs/sofa/evidence/chwiejna_noga_2026-11-16.md`).
-- **Legs**: default **2** (the script's default - least loss, operator
-  2026-10-31: `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`). Only
-  when the operator says `3 nogi` / `N nóg` -> `--max-legs N`; the answer then
-  relays the script's line with the measured cost of each extra leg. Never
-  raise it yourself to reach a target.
+- **Legs**: no limit (operator 2026-11-20, "nie limituj"): the script takes
+  the FEWEST legs whose price product reaches the target, then the best
+  measured chance among them (each extra leg pays the measured loss to the
+  price once more, 0.96; `docs/sofa/evidence/slip_flow_backtest_2026-10-31.md`);
+  a slip of 3+ legs carries the script's line with each leg's measured cost -
+  relay it. Only when the operator caps it (`max 3 nogi`) -> `--max-legs N`
+  (a target out of reach of the cap is said first, the closest slip built).
 - **Builders**: off. Only `buildery` / `z builderami` -> `--builders`; the
   answer then relays the script's line "Bet Buildery zmierzone po podatku:
   −16,6% ... −45,8%".
