@@ -393,6 +393,7 @@ def load_day(runs: Path, day: str, stats: dict[str, Any]) -> list[dict[str, Any]
             "split": split_of(day),
             "sport": sport,
             "eid": int(leg.get("sofascore_event_id") or 0),
+            "kickoff": str(leg.get("kickoff_utc") or ""),
             "comp": str(leg.get("competition") or "?"),
             "conf": conf,
             "odds": odds,
@@ -626,6 +627,110 @@ def edge_clv_corr(legs: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+# ---------------------------------------------------------------- forward tests
+# Registered 2026-11-20 (config/sofa_test_registry.json), data from 2026-11-21.
+# T-PRICE-EDGE-CELLS-FORWARD: the 20 dev candidates of the frozen run (dev CI
+# above zero, untested by the hold-out - the international break), each judged
+# once on its first 300 legs in kickoff order, Bonferroni over the 20.
+# T-PRICE-EDGE-VB-RAW-FORWARD: volleyball printed singles, win - 1/odds.
+
+FORWARD_FROM = "2026-11-21"
+FORWARD_N = 300
+FORWARD_B = 20000
+FORWARD_CELLS: tuple[tuple[str, ...], ...] = (
+    ("F2", "fair", "football", "corners_total|OVER"),
+    ("F11", "fair", "football", "UEFA Champions League", "nie"),
+    ("F10", "fair", "football", "corners_total|OVER", "tak"),
+    ("F7", "fair", "football", "shots_total|OVER", "6-12"),
+    ("F7", "fair", "football", "red_cards_total|UNDER", "6-12"),
+    ("F2", "fair", "football", "penalties_total|UNDER"),
+    ("F7", "fair", "football", "penalties_total|UNDER", "6-12"),
+    ("F10", "fair", "football", "penalties_total|UNDER", "tak"),
+    ("F3", "fair", "football", "2. Bundesliga"),
+    ("F11", "fair", "football", "2. Bundesliga", "tak"),
+    ("F8", "fair", "football", "LaLiga", "<-0.05"),
+    ("F11", "fair", "football", "Ekstraklasa", "tak"),
+    ("F3", "fair", "football", "Trendyol Süper Lig"),
+    ("F11", "fair", "football", "Trendyol Süper Lig", "tak"),
+    ("F11", "fair", "football", "Serie B", "tak"),
+    ("F3", "fair", "football", "OTP Bank Liga"),
+    ("F3", "fair", "football", "Liga Portugal Betclic"),
+    ("F11", "fair", "football", "Liga Portugal Betclic", "nie"),
+    ("F8", "fair", "football", "Liga Portugal Betclic", "<-0.05"),
+    ("F2", "fair", "football", "penalties_for|UNDER"),
+)
+FORWARD_CELLS_LEVEL = 1.0 - ALPHA / len(FORWARD_CELLS)
+TAX_PAYOUT = 0.88
+
+
+def first_legs(rows: list[dict[str, Any]], n: int) -> list[dict[str, Any]]:
+    """The first n legs in kickoff order (ties: day, match, market)."""
+    order = sorted(rows, key=lambda r: (r["kickoff"], r["day"], r["eid"], r["md"]))
+    return order[:n]
+
+
+def judge(
+    rows: list[dict[str, Any]], metric: str, level: float, rng: np.random.Generator
+) -> dict[str, Any]:
+    """Status of one forward cell: PENDING below FORWARD_N legs, else judged once
+    on the first FORWARD_N (PASSED = lower bound at `level` above zero)."""
+    out: dict[str, Any] = {"n_seen": len(rows), "level": level}
+    if len(rows) < FORWARD_N:
+        out["status"] = "PENDING"
+        return out
+    first = first_legs(rows, FORWARD_N)
+    vals = [r[metric] for r in first]
+    boot = bootstrap(vals, [r["eid"] for r in first], FORWARD_B, rng)
+    lo, hi = interval(boot, level)
+    out.update(
+        status="PASSED" if lo > 0 else "NOT_PASSED",
+        mean=sum(vals) / len(vals),
+        lo=lo,
+        hi=hi,
+        matches=len({r["eid"] for r in first}),
+        last_kickoff=first[-1]["kickoff"],
+        roi=sum(r["roi"] for r in first) / len(first),
+        roi_after_tax=sum(TAX_PAYOUT * r["odds"] * r["win"] - 1.0 for r in first)
+        / len(first),
+    )
+    return out
+
+
+def forward_cells(
+    legs: list[dict[str, Any]], rng: np.random.Generator
+) -> dict[str, Any]:
+    cells = []
+    for spec in FORWARD_CELLS:
+        fam, key = spec[0], tuple(spec[1:])
+        rows = [r for r in legs if cell_key(r, FAMILIES[fam]) == key]
+        cells.append(
+            {
+                "family": fam,
+                "cell": list(key),
+                **judge(rows, "edge", FORWARD_CELLS_LEVEL, rng),
+            }
+        )
+    passed = [c for c in cells if c["status"] == "PASSED"]
+    pending = [c for c in cells if c["status"] == "PENDING"]
+    return {
+        "test": "T-PRICE-EDGE-CELLS-FORWARD",
+        "cells": cells,
+        "verdict": "PASSED" if passed else ("PENDING" if pending else "NOT_PASSED"),
+    }
+
+
+def forward_volleyball(
+    legs: list[dict[str, Any]], rng: np.random.Generator
+) -> dict[str, Any]:
+    rows = [
+        {**r, "raw_edge": r["win"] - 1.0 / r["odds"]}
+        for r in legs
+        if r["sport"] == "volleyball"
+    ]
+    res = judge(rows, "raw_edge", 0.95, rng)
+    return {"test": "T-PRICE-EDGE-VB-RAW-FORWARD", **res, "verdict": res["status"]}
+
+
 # ---------------------------------------------------------------- main
 
 
@@ -667,12 +772,44 @@ def write_csv(path: Path, rows: Iterable[dict[str, Any]]) -> None:
             )
 
 
+def run_forward(runs: Path, test: str, date_from: str, date_to: str | None) -> int:
+    if date_from < FORWARD_FROM:
+        raise SystemExit(f"a forward test reads data from {FORWARD_FROM} only")
+    end = date_to or (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    stats: dict[str, Any] = {
+        "days_with_11_coupon": [],
+        "days_without_11_coupon": [],
+        "results_status": defaultdict(int),
+        "no_leg_fields": defaultdict(int),
+        "no_odds_or_conf": defaultdict(int),
+    }
+    legs: list[dict[str, Any]] = []
+    for day in days(date_from, end):
+        legs += load_day(runs, day, stats)
+    rng = np.random.default_rng(SEED)
+    out = forward_cells(legs, rng) if test == "cells" else forward_volleyball(legs, rng)
+    out.update(window=[date_from, end], legs=len(legs))
+    print(json.dumps(out, indent=1, ensure_ascii=False, default=str))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--runs", default=str(REPO / "runs/sofa"))
-    ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--out-dir")
+    ap.add_argument(
+        "--forward",
+        choices=("cells", "volleyball"),
+        help="judge a registered forward test instead of the frozen run",
+    )
+    ap.add_argument("--from", dest="date_from", default=FORWARD_FROM)
+    ap.add_argument("--to", dest="date_to")
     args = ap.parse_args(argv)
     check_protocol()
+    if args.forward:
+        return run_forward(Path(args.runs), args.forward, args.date_from, args.date_to)
+    if not args.out_dir:
+        ap.error("--out-dir is required for the frozen run")
     runs, out_dir = Path(args.runs), Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stats: dict[str, Any] = {

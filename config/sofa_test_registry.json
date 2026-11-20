@@ -897,6 +897,56 @@
           "quote": "### A8. Test prospektywny T-STABILITY-LABEL-FORWARD"
         }
       ]
+    },
+    {
+      "id": "T-PRICE-EDGE-CELLS-FORWARD",
+      "registered_on": "2026-11-20",
+      "status": "REGISTERED",
+      "hypothesis": "One of the 20 cells whose dev edge (win - Superbet's de-vigged p at the taken odds) was above zero on 10-13..11-09 (corners_total OVER, penalties UNDER, red cards UNDER 6-12 h, shots_total OVER 6-12 h, 2. Bundesliga, Süper Lig, Liga Portugal, Serie B, OTP Bank Liga, Ekstraklasa, LaLiga, Champions League slices) keeps a positive edge on new data. The frozen hold-out 11-10..11-19 could not judge any of them (international break: < 300 legs each); 20 of 596 dev cells is about the chance level, so the expected result is noise.",
+      "rule": "Unit: a printed single of the day's coupon graded WIN / LOSS in 13_results.json (refund / unknown out), the leg's fields from 11_coupon.json (08_confidence*.json when it is missing), taken odds = 13_results odds; fair p = market_p x offered_odds / odds (football / tennis two-sided legs; legs without it never enter these cells). Cells and dimensions exactly as measure_price_edge.FORWARD_CELLS / FAMILIES (band = confidence - 1/odds, hours from the first printed/<ts>.json holding the leg to the start, over = confidence > fair p). Measure: mean edge = win - fair p.",
+      "population": "Printed singles with kickoff in the window, football (every cell of the list is football, fair-priced).",
+      "data_window": {
+        "from": "2026-11-21",
+        "to": "2027-02-28"
+      },
+      "required_n": {
+        "legs_per_cell": 300,
+        "basis": "The protocol's own threshold (PROTOCOL.md sha 264e4521); league cells hold ~30-40 legs a round, so several months."
+      },
+      "evaluation": "scripts/sofa/measure_price_edge.py --forward cells --to <d>: each cell judged once on its first 300 legs in kickoff order, match bootstrap 20,000 draws, seed 20261120, interval at 1 - 0.05/20 (Bonferroni over the 20 cells); ROI before and after the 12% tax reported.",
+      "stop_criterion": "PASSED when any cell's lower bound at 1 - 0.05/20 is above 0 (then a talk with the operator - never a switch on its own; a passing cell still needs p x odds >= 1.136 to make money after tax); a cell judged NOT_PASSED stays so; a cell without 300 legs by 2027-02-28 is NOT_PASSED; the test is NOT_PASSED when every cell is. Later legs never change a verdict; a changed cell is a new test.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/przewaga_nad_cena_2026-11-20.md",
+          "line": 230,
+          "quote": "### T-PRICE-EDGE-CELLS-FORWARD"
+        }
+      ]
+    },
+    {
+      "id": "T-PRICE-EDGE-VB-RAW-FORWARD",
+      "registered_on": "2026-11-20",
+      "status": "REGISTERED",
+      "hypothesis": "Printed volleyball singles hit above Superbet's raw price (win - 1/odds > 0). Measured 10-13..11-19: +2.3 pp (dev) / +3.1 pp (hold-out) over the de-vigged price but ROI -0.5% / +0.1% before tax - most likely the power de-vig giving the favourite less margin than Superbet holds; judged at the raw price so the de-vig cannot make it.",
+      "rule": "Unit: a printed volleyball single graded WIN / LOSS in 13_results.json (refund / void / unknown out), taken odds = 13_results odds. Measure: mean (win - 1/odds).",
+      "population": "Printed volleyball singles with kickoff in the window, every market, morning and late-window legs alike.",
+      "data_window": {
+        "from": "2026-11-21",
+        "to": null
+      },
+      "required_n": {
+        "legs": 300,
+        "basis": "~80 printed volleyball legs a week (10-13..11-19: 1,878 in 38 days) - about four weeks; 300 legs in ~120 matches gives a half-width of about 4-5 pp."
+      },
+      "evaluation": "scripts/sofa/measure_price_edge.py --forward volleyball --to <d>: judged once on the first 300 legs in kickoff order, match bootstrap 20,000 draws, seed 20261120, 95% percentile interval; ROI before and after the 12% tax (x0.88) reported.",
+      "stop_criterion": "PASSED when the 95% lower bound is above 0 - then a talk with the operator (a PASSED is not a profit after tax: a leg needs p x odds >= 1.136); else NOT_PASSED and the lead is closed. Later legs never change the verdict.",
+      "evidence": [
+        {
+          "source": "docs/sofa/evidence/przewaga_nad_cena_2026-11-20.md",
+          "line": 239,
+          "quote": "### T-PRICE-EDGE-VB-RAW-FORWARD"
+        }
+      ]
     }
   ]
 }

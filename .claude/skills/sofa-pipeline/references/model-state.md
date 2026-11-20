@@ -1284,6 +1284,20 @@ in the newest two `data/line_evidence/rows_before_<d>` (older ones keep
 
 `htft`, `result_1h`, `result_2h`, `higher_scoring_half`, `team_scores_both_halves` OVER, `btts_any_half` OVER, `first_goal_1h`: a 0.60 floor measured with the frozen rule of `football_sim_floor_2026-11-06.md` - each under n_min (0-18 legs in the 0.60-0.70 band after every gate in 17 days), so no floor. Re-measure only on a longer window of the simulator's own settled rows.
 
+### Edge over the de-vigged price and CLV pockets (measured 2026-11-20, none)
+
+Every printed single 10-13..11-19 (13_results grades, taken odds), edge = win - Superbet's
+de-vigged p at the taken odds, CLV = taken odds x de-vigged close - 1; cells sport x market|DIR x
+competition x band (conf - 1/odds) x hours from first print to start x (conf > fair p); frozen
+protocol `264e4521` (f28cd71c), dev 10-13..11-09, hold-out 11-10..11-19, Bonferroni over the dev
+candidates. 596 dev cells n >= 300: 20 above zero (chance ~15), none with 300 hold-out legs (the
+international break); hold-out scan 110 cells, BH 0. CLV -3..-4% in every cell (= the margin, the
+price barely moves: football +0.03%); legs with conf > fair p close WORSE in every sport.
+Volleyball +2.7 pp over the fair p, ROI ~0 (a de-vig artefact lead). Two forward tests registered
+(`T-PRICE-EDGE-CELLS-FORWARD`, `T-PRICE-EDGE-VB-RAW-FORWARD`, data from 11-21,
+`measure_price_edge.py --forward`); nothing changes what prints
+(`docs/sofa/evidence/przewaga_nad_cena_2026-11-20.md`).
+
 ### Schedule / fatigue context for counts and tennis (exam 2026-11-09, declined)
 
 goals (path i: count centres x exp(t)) +0.000083 p 0.633, tennis_winner -0.001577 p 0.031 (Holm level 0.0167;

@@ -64,6 +64,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --moved-void -
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]   # measured sports' settle audit
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]   # CS2 audit
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <d> --to <d>   # closing-line value
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/measure_price_edge.py --forward cells|volleyball [--to <d>]   # the 2026-11-20 forward edge tests (data from 11-21); without --forward: the frozen run, --out-dir
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_boosts.py --from <d> --to <d>   # boosts audit
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_niches.py --from <d> --to <d> [--min-matches N]   # evidence, never a bet list
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/purge_entity_alias.py --dry-run   # a wrongly verified team alias; --list-suspects

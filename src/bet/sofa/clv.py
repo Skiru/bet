@@ -92,10 +92,23 @@ def two_way_close(
     return None if pair is None else pair[0]
 
 
+# A double chance's selections overlap: each result is in two of them, so
+# they are fair at a total of 2 (cs2.group_fair "double", the rule SHADOW /
+# CS2_SETTLE write `fair_p` with). Normalised to 1 as a three-way group, the
+# 1X of a 1.31 / 1.71 / 1.18 close read 0.35 instead of 0.70 and the leg's
+# CLV about -40% (audit 2026-11-20, docs/sofa/evidence/przewaga_nad_cena_2026-11-20.md).
+DOUBLE_CHANCE_SIDES = frozenset({"1X", "X2", "12"})
+
+
 def group_close(odds: dict[str, float], side: str) -> float | None:
     """The side's devigged probability in a closing group of any width."""
     if side not in odds or len(odds) < 2:
         return None
+    if any(o <= 1.0 for o in odds.values()):
+        return None
+    if frozenset(odds) == DOUBLE_CHANCE_SIDES:
+        total = sum(1.0 / o for o in odds.values())
+        return 2.0 * (1.0 / odds[side]) / total
     sides = sorted(odds)
     fair = devig_many([1.0 / odds[s] for s in sides])
     return None if fair is None else fair[sides.index(side)]

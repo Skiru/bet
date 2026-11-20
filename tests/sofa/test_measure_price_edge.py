@@ -229,3 +229,57 @@ def test_protocol_seal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(m, "PROTOCOL_SHA256", "0" * 64)
     with pytest.raises(SystemExit):
         m.check_protocol()
+
+
+def test_forward_cells_are_well_formed() -> None:
+    assert len(m.FORWARD_CELLS) == 20
+    for spec in m.FORWARD_CELLS:
+        fam = spec[0]
+        assert fam in m.FAMILIES
+        assert len(spec) == 2 + len(m.FAMILIES[fam])  # family, priced, dims
+    assert m.FORWARD_CELLS_LEVEL == pytest.approx(1 - 0.05 / 20)
+
+
+def _fwd(i: int, edge: float, kickoff: str) -> dict[str, Any]:
+    return {
+        **_leg(i, "x", edge),
+        "kickoff": kickoff,
+        "day": kickoff[:10],
+        "split": None,
+    }
+
+
+def test_forward_judges_once_on_the_first_300_in_kickoff_order() -> None:
+    rng = np.random.default_rng(0)
+    few = [_fwd(i, 0.3, "2026-11-21T12:00:00Z") for i in range(299)]
+    assert m.judge(few, "edge", 0.95, rng)["status"] == "PENDING"
+    good = [_fwd(i, 0.3 if i % 5 else -0.7, "2026-11-21T12:00:00Z") for i in range(300)]
+    # later legs, all lost, never change the verdict
+    late = [_fwd(10_000 + i, -1.0, "2026-12-01T12:00:00Z") for i in range(300)]
+    res = m.judge(late + good, "edge", 0.95, rng)
+    assert res["status"] == "PASSED" and res["n_seen"] == 600
+    assert res["last_kickoff"] == "2026-11-21T12:00:00Z"
+    assert res["roi_after_tax"] == pytest.approx(
+        sum(0.88 * r["odds"] * r["win"] - 1 for r in good) / 300
+    )
+
+
+def test_forward_volleyball_reads_the_raw_price() -> None:
+    rng = np.random.default_rng(0)
+    legs = [
+        {
+            **_fwd(i, 0.0, "2026-11-22T10:00:00Z"),
+            "sport": "volleyball",
+            "odds": 1.25,
+            "win": 1 if i % 5 else 0,
+        }
+        for i in range(300)
+    ]
+    out = m.forward_volleyball(legs, rng)
+    assert out["mean"] == pytest.approx(0.8 - 1 / 1.25)
+    assert out["verdict"] == "NOT_PASSED"
+
+
+def test_forward_refuses_data_before_registration(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        m.run_forward(tmp_path, "cells", "2026-11-20", "2026-11-20")

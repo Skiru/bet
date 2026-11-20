@@ -189,16 +189,27 @@ Im mocniej „nie zgadzamy się” z ceną, tym mniej rynek idzie za nami - jak 
   bukmacherki, która prawie się nie rusza - CLV ≈ 0 ruchu jest tu słabym
   dowodem w obie strony.
 
-## 8. Wada znaleziona przy okazji (narzędzie, nie kupon)
+## 8. Wada znaleziona przy okazji - poprawiona 2026-11-20 (narzędzie, nie kupon)
 
-`bet.sofa.clv.group_close` normuje każdą grupę > 2 stron do sumy 1. Dla
+`bet.sofa.clv.group_close` normował każdą grupę > 2 stron do sumy 1. Dla
 podwójnej szansy (1X / X2 / 12; hokej `double_chance`,
 `period_double_chance`, ~2,5 tys. linii w 10 dniach) prawdziwa suma to 2,
-więc p zamknięcia wychodzi ~1/3 i CLV ~−40%. Ta ścieżka jest w
-`graded_close_rows` / `audit_clv.py` dla nóg sportów: CLV hokejowych nóg DC
-w `audit_clv` jest błędne. Ten raport pomija nogi „raw” hokeja w CLV.
-Poprawka (de-vig DC z 1X2 albo suma 2) czeka na decyzję - nie wpływa na
-wydruk.
+więc p zamknięcia wychodziło ~1/3, a CLV nogi ~−40%. Ta ścieżka jest w
+`graded_close_rows` / `audit_clv.py` dla nóg sportów.
+
+**Poprawka (operator 11-20):** grupa 1X / X2 / 12 zdejmuje marżę
+proporcjonalnie do sumy 2 - ta sama reguła, którą SHADOW / CS2_SETTLE
+zapisują `fair_p` (`cs2.group_fair` „double”); test w `tests/sofa/test_clv.py`
+(1X @1,31 / 1,71 / 1,18 → 0,6953 = `fair_p` z `settled.json`; 1X2 dalej do
+sumy 1). Sprawdzone e2e na prawdziwych dniach: `audit_clv.py --from
+2026-11-10 --to 2026-11-19`, hokej (2 325 nóg, 403 mecze): przed −7,16%
+[−7,70; −6,73], po −3,81% [−3,94; −3,70] - w linii z innymi sportami;
+piłka, tenis, koszykówka, siatkówka, CS2 bez zmian. Nie wpływa na wydruk.
+Pomiar z sekcji 1-7 puszczony ponownie po poprawce: tabela krawędzi
+identyczna co do bajtu, zmieniła się tylko komórka CLV nóg „raw” hokeja
+(1X2 i podwójna szansa): dev −42,4% → −8,8% (394 nogi), hold-out −39,3% →
+−8,9% (318) - nadal mocno ujemna (marża grup trójdrożnych jest wyższa niż
+par). Wyniki w katalogu pomiaru są już po poprawce.
 
 ## 9. Wniosek
 
@@ -207,17 +218,30 @@ której nie ma w cenie Superbetu: w żadnym sporcie, rynku, lidze, paśmie ani
 czasie wydruku nie bije ceny bez marży poza próbą, a rynek nie idzie w
 naszą stronę do zamknięcia (CLV = −marża; nogi „ponad ceną” mają CLV
 gorsze). To samo co 31.10 (`kupon_od_nowa`), 16.11 (progi, flagi) i 19.11
-(literatura), teraz zmierzone także kursem zamknięcia.
+(literatura), teraz zmierzone także kursem zamknięcia. Bez innej linii ceny
+(zakaz źródeł spoza Sofascore / Superbet) mocniejszej miary CLV nie będzie.
 
-Co dalej, jeśli operator zechce (bez przełącznika, nic do wdrożenia):
+## 10. Testy naprzód (zarejestrowane 2026-11-20, operator: „Napraw 1,2,3”)
 
-1. Ligowych kandydatów z dev (2. Bundesliga, Süper Lig, Liga Portugal…)
-   hold-out nie ocenił (przerwa reprezentacyjna). Można zarejestrować test
-   naprzód na danych od 11-21 z tymi samymi komórkami i progiem n ≥ 300.
-   Przy ~35 nogach na kolejkę ligi to kilka miesięcy; spodziewany wynik:
-   szum.
-2. Siatkówka: test naprzód krawędzi przy cenie surowej (trafienie − 1/kurs >
-   0), nie przy cenie bez marży, od 11-21, n ≥ 300 nóg; nawet zdany nie
-   pokrywa podatku 12%.
-3. Bez innej linii ceny (zakaz źródeł spoza Sofascore / Superbet) mocniejszej
-   miary CLV nie będzie.
+Oba w `config/sofa_test_registry.json`, dane od 2026-11-21, ocena
+`scripts/sofa/measure_price_edge.py --forward cells|volleyball [--to <d>]`
+(te same definicje nogi co w protokole; przed 11-21 skrypt odmawia). Żaden
+nie zmienia wydruku; zdany = rozmowa z operatorem, przełącznik tylko na jego
+sygnał.
+
+### T-PRICE-EDGE-CELLS-FORWARD
+
+20 kandydatów z sekcji 3 (lista zamrożona w `FORWARD_CELLS`), każdy oceniony
+raz na pierwszych 300 nogach w kolejności startu, krawędź względem ceny bez
+marży, przedział 1 − 0,05/20 (Bonferroni), bootstrap po meczach 20 000.
+ZALICZONY, gdy którakolwiek komórka ma dolną granicę > 0; komórka bez 300
+nóg do 2027-02-28 = NIEZALICZONA. Spodziewany wynik: szum (20 z 596 to
+poziom przypadku).
+
+### T-PRICE-EDGE-VB-RAW-FORWARD
+
+Siatkówka, każda wydrukowana pojedyncza: trafienie − 1/kurs (cena surowa,
+bez de-vigu), pierwsze 300 nóg w kolejności startu, 95% po meczach.
+ZALICZONY, gdy dolna granica > 0; podany też zwrot po podatku (×0,88) -
+zaliczenie nie znaczy zysku po podatku (noga musi trafiać p × kurs ≥ 1,136).
+Przy ~80 nogach tygodniowo ~4 tygodnie.

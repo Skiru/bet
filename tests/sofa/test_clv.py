@@ -161,3 +161,35 @@ def test_a_failed_fetch_records_the_leg_as_missing_and_goes_on(tmp_path):
     assert cc.run_once(tmp_path, Boom(), now) == 1
     rec = json.loads((tmp_path / "closing.jsonl").read_text().splitlines()[0])
     assert rec["missing"] is True
+
+
+def test_double_chance_close_is_fair_at_a_total_of_two():
+    # 2026-11-20: group_close normalised 1X / X2 / 12 to 1 as a three-way
+    # group - 1X read ~0.35 and a printed DC leg's CLV ~-40%.
+    from bet.sofa import cs2
+
+    dc = {"1X": 1.31, "X2": 1.71, "12": 1.18}
+    p = clv.group_close(dc, "1X")
+    assert p == pytest.approx(0.6953495184106689)  # SHADOW_SETTLE's fair_p
+    fair = cs2.group_fair(dc, "double")
+    assert fair is not None
+    for side in dc:
+        assert clv.group_close(dc, side) == pytest.approx(fair[side])
+    assert sum(clv.group_close(dc, s) or 0.0 for s in dc) == pytest.approx(2.0)
+    # a real three-way group is still devigged to a total of 1
+    x12 = {"T1": 2.67, "DRAW": 4.0, "T2": 2.17}
+    assert sum(clv.group_close(x12, s) or 0.0 for s in x12) == pytest.approx(1.0)
+    assert clv.group_close({"1X": 1.0, "X2": 1.7, "12": 1.2}, "1X") is None
+
+
+def test_a_printed_double_chance_leg_closes_near_its_price():
+    keys = ("superbet_event_id", "market_id", "period", "subject", "line", "side")
+    leg = {"superbet_event_id": "9", "market_id": 606, "period": 0, "subject": "",
+           "line": None, "side": "1X", "odds": 1.31, "label": "dc"}
+    graded = [{**{k: leg[k] for k in keys}, "odds": 1.31,
+               "group_odds": {"1X": 1.31, "X2": 1.71, "12": 1.18},
+               "minutes_before_kickoff": 3}]
+    rows = clv.graded_close_rows({"legs": [leg]}, graded, "official:hockey", keys)
+    assert len(rows) == 1
+    # an unmoved price is worth minus its margin, not -40%
+    assert -0.1 < rows[0].clv_ev < 0.0
