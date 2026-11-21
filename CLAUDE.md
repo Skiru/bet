@@ -73,7 +73,10 @@ could win is cut by name.
 
 A board entry becomes a fixture only when both sides agree with one Sofascore
 game (name, opponent, start within the window, Superbet's side order F25,
-gender, squad level - never reserves / youth for the first team). For a pair
+gender, squad level - never reserves / youth for the first team; football: the
+opponent never matches the side the searched team stands on unless both clocks
+agree within 15 min - a same-city pair once bound to the first team's game
+4 h off, `SofaResolver._searched_side`, 2026-11-21). For a pair
 nothing matched by name, football falls back, in order, to (all from 10-21,
 each measured with 0 wrong picks against the real opponent; model-state.md
 "RESOLVE ..." sections; fixture `identity: FUZZY` + `match_rule`, never cached

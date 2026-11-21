@@ -223,6 +223,17 @@ Bramki dopasowania:
 | `MATCH_WINDOW_S` | per sport, domyślnie 24 h | dopuszczalny rozjazd czasu |
 | `MATCH_LOGIC_VERSION` | 6 | stempluje **negatywny cache**; zmiana logiki unieważnia zapamiętane pudła (4: aliasy krajów, 5: wyszukiwanie bez „(w)”/„(r)”, 6 od 2026-10-01: końcowe „Reserve(s)” Sofascore składa się do „(r)” — „River Plate Reserve” wobec „CA River Plate (R)” dawało 75,9 przy progu 82) |
 
+**Przeciwnik nie może stać po stronie szukanej drużyny** (piłka, poprawka
+2026-11-21, `SofaResolver._searched_side`): gdy nazwa szukanej drużyny z
+tablicy przekracza próg na jednej stronie zdarzenia, przeciwnik jest
+porównywany tylko z drugą stroną - chyba że zegary Sofascore i Superbetu
+zgadzają się co do 15 min (`SHADOW_EXACT_KICKOFF_S`; derby jednego miasta:
+LAFC - LA Galaxy, Riga FC - RFS). Dotąd „CD Tenerife C·Real Union Tenerife”
+(16:00Z) przypiął się do CD Tenerife - Mallorca (20:00Z): przeciwnik dał 84,2
+na samym CD Tenerife, a OFFER zlał dwa wydarzenia Superbetu w sofa:16418334.
+Powtórka na 21 742 parach piłki 10-10..11-21 zmieniła tylko ten jeden mecz.
+Bramka tylko zaostrza, więc negatywny cache zostaje ważny.
+
 `MATCH_LOGIC_VERSION` to nie kosmetyka. Negatywny cache pamięta „szukaliśmy
 i nie ma", co jest faktem o świecie tylko wtedy, gdy szukanie było poprawne.
 2026-09-18 błędna bramka płci uczyniła 175 tenisistek nierozwiązywalnymi,

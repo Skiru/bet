@@ -1188,6 +1188,29 @@ class SofaResolver:
                 return None
             return float(fuzz.ratio(expected_opponent, scoped[1]))
 
+        # The opponent must be the side the searched team is NOT on. Scored
+        # against both sides, a board pair of one city matched a single side
+        # twice: on 2026-11-21 "CD Tenerife C" (searched) found CD Tenerife -
+        # Mallorca 4 h off, and its opponent "Real Union Tenerife" cleared the
+        # threshold on CD Tenerife (84.2) - Mallorca was never compared; OFFER
+        # then folded two Superbet events into sofa:16418334.
+        # A same-city derby (LAFC - LA Galaxy, Riga FC - RFS, Como - FC Como)
+        # also lands its opponent on the searched side, through the city's
+        # name, but with both clocks agreeing: replayed on every football
+        # fixture 10-10..11-21 (21,742 board pairs) the rule changed 7, the 6
+        # derbies at 0.0 h and Tenerife at 4.0 h. So the own side is refused
+        # only when the clocks disagree by more than 15 minutes.
+        own_side = self._searched_side(
+            home, away, expected_opponent, superbet_side_a, superbet_side_b
+        )
+        if (
+            own_side is not None
+            and abs((event_time - kickoff_utc).total_seconds())
+            > SHADOW_EXACT_KICKOFF_S
+        ):
+            candidates = [side for side in candidates if side != own_side]
+            if not candidates:
+                return None
         best_side = max(
             candidates, key=lambda side: name_score(expected_opponent, side)
         )
@@ -1199,6 +1222,32 @@ class SofaResolver:
         # FUZZY field, which claims the two strings are the same; answering it
         # with a subset score would mark "Lens" ~ "RC Lens" as CONFIRMED.
         return float(fuzz.ratio(expected_opponent, best_side))
+
+    @staticmethod
+    def _searched_side(
+        home: str,
+        away: str,
+        expected_opponent: str,
+        superbet_side_a: str,
+        superbet_side_b: str,
+    ) -> str | None:
+        """The event side the searched board team stands on, or None when it
+        cannot be told (no board pair, both board sides the opponent, home ==
+        away, or the searched name scoring both sides alike)."""
+        if home == away:
+            return None
+        board = [normalize_name(x) for x in (superbet_side_a, superbet_side_b)]
+        searched = [b for b in board if b and b != expected_opponent]
+        if len(searched) != 1:
+            return None
+        to_home = name_score(searched[0], home)
+        to_away = name_score(searched[0], away)
+        # Only a side the searched name itself clears the threshold on: a
+        # team found by alias or id ("Spurs" -> Tottenham) scores both sides
+        # low, and guessing its side could drop the real opponent.
+        if to_home == to_away or max(to_home, to_away) <= NAME_MATCH_THRESHOLD:
+            return None
+        return home if to_home > to_away else away
 
     def _scoped_match(
         self,
