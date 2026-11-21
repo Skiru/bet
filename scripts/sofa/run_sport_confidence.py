@@ -291,10 +291,14 @@ class DbForecaster:
 
     def vb_point_rule(self, sport: str, line: Any) -> dict[str, str]:
         """{epochs.VB_POINT_MODEL_LEG_FIELD: the switch} for a volleyball
-        line the rally model priced, else {}."""
+        line the rally model priced, else {}; a "1.Set/Mecz" line
+        (epochs.VB_SET1_MATCH) carries VB_SET1_MATCH_LEG_FIELD too."""
         if (sport == "volleyball" and self.vb_point_model()
                 and vpp.in_scope(sport, int(line.market_id))):
-            return {epochs.VB_POINT_MODEL_LEG_FIELD: epochs.VB_POINT_MODEL}
+            out = {epochs.VB_POINT_MODEL_LEG_FIELD: epochs.VB_POINT_MODEL}
+            if int(line.market_id) in epochs.VB_SET1_MATCH_MARKETS:
+                out[epochs.VB_SET1_MATCH_LEG_FIELD] = epochs.VB_SET1_MATCH
+            return out
         return {}
 
     def _vb_probability(self, fixture: Mapping[str, Any], ev: Any,
@@ -528,14 +532,17 @@ def _shape(sport: str, line: Any) -> str:
 
 
 def _allowed(sport: str, line: Any, extended: bool = False,
-             derived: bool = False, series_rounds: bool = False) -> str | None:
+             derived: bool = False, series_rounds: bool = False,
+             set1_match: bool = False) -> str | None:
     """`extended` (epochs.line_evidence): EXTENDED_MARKETS too; `derived`
     (epochs.sport_derived_markets): the derived markets too; `series_rounds`
-    (epochs.cs2_series_rounds): CS2's series rounds too."""
+    (epochs.cs2_series_rounds): CS2's series rounds too; `set1_match`
+    (epochs.vb_set1_match): volleyball's "1.Set/Mecz" too."""
     if sport == "cs2":
         return scf.family_of("cs2", None, line.family, extended,
                              series_rounds=series_rounds)
-    return scf.family_of(sport, line.market_id, line.family, extended, derived)
+    return scf.family_of(sport, line.market_id, line.family, extended, derived,
+                         set1_match=set1_match)
 
 
 def sport_status(sport: str, fixtures_doc: Mapping[str, Any] | None,
@@ -588,6 +595,10 @@ def build_sport(sport: str, date: str, runs_dir: str,
     derived = evidence is not None and epochs.sport_derived_markets(date, at)
     # epochs.CS2_SERIES_ROUNDS_FROM_UTC: CS2's series rounds allowed and priced
     series_rounds = sport == "cs2" and epochs.cs2_series_rounds(date, at)
+    # epochs.VB_SET1_MATCH: volleyball's "1.Set/Mecz" allowed (rally p, its
+    # own history curves; the line evidence corrects it like every key)
+    set1_match = (sport == "volleyball" and evidence is not None
+                  and epochs.vb_set1_match(date, at))
     fixture_status = fixture_status or {}
     not_scheduled: list[dict[str, Any]] = []
     fixtures = si.fixtures_by_event(fixtures_doc)
@@ -610,7 +621,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
         current = {k: ln for k, ln in ev.sides.items() if ev.fetched_at[k] == newest}
         allowed = {k: ln for k, ln in current.items()
                    if _allowed(sport, ln, evidence is not None, derived,
-                            series_rounds)}
+                               series_rounds, set1_match)}
         _bump(refused, "MARKET_NOT_ALLOWED", len(current) - len(allowed))
         if not allowed:
             continue
@@ -632,7 +643,8 @@ def build_sport(sport: str, date: str, runs_dir: str,
         })
 
         def open_side(ln: Any, p: float | None = None) -> None:
-            fam = _allowed(sport, ln, evidence is not None, derived, series_rounds)
+            fam = _allowed(sport, ln, evidence is not None, derived, series_rounds,
+                           set1_match)
             rec.start(ev_idx, str(fam), None if sport == "cs2" else int(ln.market_id),
                       int(ln.map_nr if sport == "cs2" else ln.period), ln.subject,
                       ln.line, ln.side, ln.odds, p)
@@ -715,7 +727,7 @@ def build_sport(sport: str, date: str, runs_dir: str,
                 rec.refuse("INCOMPLETE_GROUP")
                 continue
             family = _allowed(sport, ln, evidence is not None, derived,
-                              series_rounds)
+                              series_rounds, set1_match)
             assert family is not None
             p = forecaster.probability(sport, fixture, ev, ln)
             open_side(ln, p)
@@ -948,6 +960,8 @@ def build(date: str, runs_dir: str, calibration_path: Path, forecaster: Forecast
         doc["calibration_file"] = calibration_path.name  # a staged refit
     if epochs.vb_point_model(date, at):
         doc["vb_point_curves_file"] = scf.VB_POINT_CURVES_FILE
+    if epochs.vb_set1_match(date, at):
+        doc["vb_set1_match_curves_file"] = scf.VB_SET1_MATCH_CURVES_FILE
     record = RefusalRecord()
     printed_before = prev_printed(runs_dir, date)
     for sport in sports:

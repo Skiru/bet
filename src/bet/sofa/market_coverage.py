@@ -507,7 +507,8 @@ VOLLEYBALL_RULES: list[Rule] = [
     _m(S + r" wygra seta|czy bedzie [45]\. set\?|" + S + r" wygra dokladnie # set[y]?",
        "vb.exact_sets_derived", "funkcja dokładnego wyniku w setach (exact_sets 785 jest czytany)"),
     _c(r"[1-5]\.\s?set/mecz", "vb.set_and_match",
-       NEED_SCORE_MODEL + "łączny rozkład zwycięzcy seta i meczu"),
+       NEED_SCORE_MODEL + "łączny rozkład zwycięzcy seta i meczu; \"1.Set/Mecz\" (230059) "
+       "czytany od epochs.VB_SET1_MATCH_FROM_UTC (model wymian, set1_match), inne sety nie"),
     _c(r"[1-5]\. set - handicap punkty", "vb.set_points_handicap",
        NEED_SCORE_MODEL + "różnica punktów w secie (czytamy sumę punktów seta 782 i handicap punktów meczu 1069)"),
 ]

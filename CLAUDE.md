@@ -657,6 +657,27 @@ measurement of Superbet's price and feed nothing else.
   families were chosen on this hold-out - audit 2026-11-07), >= 0.70 points handicap -19.7 pp (current
   -22.6) - still over-promising; the price beats both
   (`docs/sofa/evidence/volleyball_point_model_2026-11-06.md`).
+- **Volleyball "1.Set/Mecz"** (Superbet 230059, `VB_SET1_MATCH`, from
+  2026-11-22 00:00Z by the day and the build clock, needs `VB_POINT_MODEL`;
+  plan D of `docs/sofa/history/PLAN_NOWE_RYNKI_2026-11-20.md`; ledger group
+  "od 11-22"): SHADOW reads the four sides "T1/T1" .. "T2/T2" (set 1's
+  winner / the match's) from the outcome's exact name, a group of four or
+  nothing (`shadow.SET_MATCH_MARKETS`, never in `MARKETS` /
+  `EXTENDED_MARKETS`, so never a settled-only family fitted from our days);
+  p from the rally model (`vb_point_pricer.in_scope`), margin by the 4-way
+  group (~13.8%, > 15% = MARGIN_TOO_HIGH); graded on set 1's points and the
+  match's own sets (a golden set counts in nothing; `cs2.grade_side`
+  indicator branch - before it "T1/T1" would have graded LOSS on a win).
+  Curves `set1_match|SAME` / `|SPLIT` (`config/sofa_vb_set1_match_curves.json`,
+  rally walk-forward on history 2025-10-01..2026-09-28, overlaid only under
+  the switch by `with_vb_point_curves`; SPLIT never reaches 0.70). Hold-out
+  2026-09-29..11-20 (5,952 matches): SAME >= 0.70 realised - confidence +0.4
+  pp [-1.3, +2.2] (1,877 matches); the top two buckets (>= 0.925)
+  over-promise ~4-5 pp; vs the price no edge (plan measurement, Brier model
+  - fair +0.0043 [-0.0006, +0.0093], 286 matches). Legs carry `vb_point_model_rule` and
+  `vb_set1_match_rule`; `T-VB-SET1-MATCH-calibration` judges it forward;
+  forward tests whose printed population grows say so in the registry
+  (`caveat`).
 - Hockey / basketball player lines: p = player_model's pre-game number in
   SHADOW's `player_model.jsonl`; no history curve, so `NO_LINE_EVIDENCE` until a
   family's p bucket holds 50 settled pre-game lines; graded from SHADOW_SETTLE's

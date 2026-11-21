@@ -245,7 +245,8 @@ def sport_live(client: Any, leg: Any, teams: tuple[str, str],
             items, sport, event_id, *teams,  # type: ignore[arg-type]
             derived,
             derived and sport == "basketball" and epochs.basketball_dc_pair(day, now),
-            sport == "basketball" and epochs.basketball_player_v2(day, now))]
+            sport == "basketball" and epochs.basketball_player_v2(day, now),
+            sport == "volleyball" and epochs.vb_set1_match(day, now))]
     for row in lines:
         if _same_line(leg, row) and row.get("odds") is not None:
             return sb.FreshPrice(sb.FRESH_OK, float(row["odds"]), stamp)

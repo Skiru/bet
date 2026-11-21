@@ -166,6 +166,7 @@
       "hypothesis": "The legs the bucket design effect adds to the coupon (keys without a curve; epochs.BUCKET_DESIGN_EFFECT_FROM_UTC) realise at or above their confidence, per sport.",
       "rule": "Printed legs of 11_coupon.json from 2026-10-14 whose confidence came from line evidence of a key without a curve (calibrated_on / source 'sb:'), graded WIN / LOSS; recompute each one's confidence with the sport's design effect (LineEvidence bucket_deff False on the same evidence file) and split into 'added' (would not have printed) and 'kept'. Report realised minus confidence and ROI per sport.",
       "population": "Official coupon legs from 2026-10-14, a leg removed by a read excluded; each sport apart (tennis watched: the walk-forward showed its added legs at ROI -10.0% [-19.7, -0.8]).",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-10-14",
         "to": "2027-01-13"
@@ -457,6 +458,7 @@
       "hypothesis": "The measured-sport legs a day's coupon prints for games starting after midnight UTC (window \"late\", epochs.SPORT_LATE_WINDOW_FROM_UTC - priced by the evening rebuild) realise like that day's other measured-sport legs: realised minus confidence of the late legs is not below the rest's.",
       "rule": "Over the coupon's hockey / basketball / volleyball / CS2 singles (11_coupon.json, graded WIN / LOSS by coupon_sports.grade from the settled.json of each leg's source_date - the ledger's grade), split by the leg's `window` field (\"late\" or absent). Report realised minus mean confidence per group and the late-minus-rest difference, and ROI at the printed price; per sport and pooled (the pooling named).",
       "population": "Measured-sport singles of the official coupon of days from 2026-10-23, locked legs included, a leg removed by a read excluded.",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-10-23",
         "to": "2027-01-22"
@@ -643,6 +645,7 @@
       "hypothesis": "A coupon leg whose Superbet price rose more than 2% between the coupon's price and the last price before the start realises below its 1/odds band at the coupon's price (the market moved against it). Backtest excess dev -3.78 pp [-5.94, -1.80] n 3,860, validation -5.70 [-9.76, -1.88] n 1,134, hold-out -3.05 [-11.31, +5.42] n 261 (not significant). Legs kept realise at their close price (excess ~0).",
       "rule": "P1 of frozen_rules.json: printed coupon legs (decision snapshot as in T-KUPON-LEAGUE-RATE-UNDER) with a pre-start close price in closing.jsonl; dropped = close_odds > 1.02 x the decision odds; excess at the decision odds vs every graded leg of the window in the same 0.05 band of 1/odds. /kupon applies it live (slip_builder.PRICE_RISE_DROP) as a quality filter from 2026-10-31; this test measures the rule, not the chat slips.",
       "population": "Printed coupon legs of every sport from 2026-11-01 with a closing.jsonl price fetched before the start.",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-11-01",
         "to": null
@@ -769,6 +772,7 @@
       "hypothesis": "Since PRICE_GAP_OFFSET (2026-10-30 08:45Z, line evidence offset by d = curve - 1/odds), printed legs at confidence >= 0.90 realise at their confidence: the -7.1 pp over-promise of the top band 10-21..11-04 (n 790; 727 legs before the switch at -7.7 pp [-11.0, -4.9], growing with d) came from the per-key offset diluting the d > 0 lines, not from the curves' top buckets (calibrated on history, n 13k-183k).",
       "rule": "Printed singles of 11_coupon.json graded WIN / LOSS in 13_results.json (refund / void / unknown out), confidence >= 0.90, every sport; realised minus mean confidence, also split by d = confidence - 1/odds (< 0, 0-0.03, >= 0.03) and against mean 1/odds.",
       "population": "Legs of the official coupon from 2026-11-06 (after registration; the 48 legs of 10-31..11-04 already seen are excluded), locked legs included, a leg removed by a read excluded.",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-11-06",
         "to": null
@@ -852,6 +856,7 @@
       "hypothesis": "A printed single marked lesser_loss (bet.sofa.lesser_loss: overround < 0.086, confidence - 1/odds >= -0.047, sample_size >= 20) loses less per unit staked than an unmarked printed single; its 'pewna' tier (confidence >= 0.85) wins about 90% of the time at about its price.",
       "rule": "Printed singles of 11_coupon.json graded WIN / LOSS in 13_results.json (refund / void / unknown out), every sport; the mark recomputed by lesser_loss.annotate from the leg's printed confidence / odds and its own overround / sample_size (scripts/sofa/measure_lesser_loss.py). ROI before the tax per group: marked, pewna, unmarked.",
       "population": "Legs of the official coupon from 2026-11-12, locked legs included, a leg removed by a read excluded.",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-11-12",
         "to": null
@@ -880,6 +885,7 @@
       "hypothesis": "A read leg the analyst (or the verifier) labels CHWIEJNA - the leg's own variable may land otherwise today (form slump, an unsure XI, rotation, motivation, a volatile variable, thin data) - realises further below its printed price than a leg labelled STABILNA.",
       "rule": "Unit: a pair (an analysis section of analyses.json / analyses_slip.json, a leg of that match read in the same merge: read_at_utc = recorded_at_utc, same author), the section merged before the leg's kickoff, the read's verdict KEEP, the leg graded WIN / LOSS in the day's 13_results.json (refund / void / ungraded out), every sport; the label is the read's own `stability` field (contracts.LegRead). Measure: (hit - 1/odds at the printed odds) of CHWIEJNA minus that of STABILNA (BRAK_PODSTAW reported, out of the contrast); hit - confidence and flat ROI reported. scripts/sofa/measure_stability_label.py measure --from 2026-11-17 --to <d> --from-reads (no --labels).",
       "population": "Reads merged from 2026-11-17 00:00Z (reports carrying `stability`, epochs.STABILITY_LABEL_FROM_UTC), legs with kickoff from 2026-11-17, both /sofa-analyze / C3 reads (reads.json) and /kupon reads (reads_slip.json).",
+      "caveat": "From 2026-11-22 00:00Z this population grows by volleyball's \"1.Set/Mecz\" legs (Superbet 230059, family set1_match, leg field vb_set1_match_rule; epochs.VB_SET1_MATCH_FROM_UTC), a market that did not exist when the test was registered. The definition is not changed and they stay in it; every report of this test also states the verdict with those legs removed, side by side.",
       "data_window": {
         "from": "2026-11-17",
         "to": null
@@ -940,11 +946,43 @@
       },
       "evaluation": "scripts/sofa/measure_price_edge.py --forward volleyball --to <d>: judged once on the first 300 legs in kickoff order, match bootstrap 20,000 draws, seed 20261120, 95% percentile interval; ROI before and after the 12% tax (x0.88) reported.",
       "stop_criterion": "PASSED when the 95% lower bound is above 0 - then a talk with the operator (a PASSED is not a profit after tax: a leg needs p x odds >= 1.136); else NOT_PASSED and the lead is closed. Later legs never change the verdict.",
+      "caveat": "Population at registration (2026-11-20): volleyball singles of the markets printed then. From 2026-11-22 00:00Z volleyball's \"1.Set/Mecz\" (Superbet 230059, epochs.VB_SET1_MATCH_FROM_UTC, family set1_match) prints too - a market that did not exist in this population. The frozen script (measure_price_edge.py, protocol sha guard) is not edited and counts them; every report of this test states the verdict on the frozen population AND with the legs carrying vb_set1_match_rule (family set1_match) removed, the two side by side, and says which is the registered one: the registered population excludes set1_match legs (they are reported apart, judged by T-VB-SET1-MATCH-calibration).",
       "evidence": [
         {
           "source": "docs/sofa/evidence/przewaga_nad_cena_2026-11-20.md",
           "line": 239,
           "quote": "### T-PRICE-EDGE-VB-RAW-FORWARD"
+        }
+      ]
+    },
+    {
+      "id": "T-VB-SET1-MATCH-calibration",
+      "registered_on": "2026-11-20",
+      "status": "REGISTERED",
+      "hypothesis": "The rally-point model's p of volleyball's \"1.Set/Mecz\" (Superbet 230059, epochs.VB_SET1_MATCH_FROM_UTC 2026-11-22 00:00Z; vb_point_pricer, 4,000 simulations seeded by the Sofascore id) read through its history curve (config/sofa_vb_set1_match_curves.json, walk-forward 2025-10-01..2026-09-28) is calibrated on Superbet's settled lines: on the key set1_match|SAME (one team wins set 1 and the match), the lines whose confidence is >= 0.70 realise within 3 pp of it.",
+      "rule": "SHADOW_SETTLE's graded 230059 rows (runs/sofa/shadow/volleyball/<d>/settled.json, WIN / LOSS, pinned and oriented) from 2026-11-22, each at the rally p of vb_point_pricer.BACKFILL (as of the start), read through the installed curve (never refitted); per key the rows with confidence >= 0.70; realised minus confidence. set1_match|SPLIT reported beside it.",
+      "population": "Every settled 230059 side of a pinned, oriented volleyball event from 2026-11-22 (printed or not); a missing backfill p is counted and left out.",
+      "data_window": {
+        "from": "2026-11-22",
+        "to": null
+      },
+      "required_n": {
+        "lines": 300,
+        "games_min": 40,
+        "basis": "In the >= 0.70 band of set1_match|SAME only (the favourite to win set 1 and the match): ~44 such sides in 307 events of 2026-11-05..11-19 (raport_cs2_siatkowka.md 2b) - about 3 a day, so ~3-4 months."
+      },
+      "evaluation": "scripts/sofa/fit_vb_set1_match_curves.py --forward --to <d>: realised minus confidence per key, 95% interval from 2,000 resamples of matches (seed 20261122).",
+      "stop_criterion": "Judged once at the required n on set1_match|SAME: PASSED when the 95% interval contains 0 and lies within [-3, +3] pp; FAILED when its upper bound is below -3 pp (the curve over-promises: the operator decides the switch, the line evidence already lowers such legs); else NOT_PASSED.",
+      "evidence": [
+        {
+          "source": "docs/sofa/history/PLAN_NOWE_RYNKI_2026-11-20.md",
+          "line": 348,
+          "quote": "`T-VB-SET1-MATCH-calibration` (SAME"
+        },
+        {
+          "source": "tests/sofa/test_vb_set1_match.py",
+          "line": 1,
+          "quote": "Volleyball \"1.Set/Mecz\" (Superbet 230059)"
         }
       ]
     }

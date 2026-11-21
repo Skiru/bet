@@ -42,7 +42,7 @@ from functools import lru_cache
 import numpy as np
 import numpy.typing as npt
 
-from bet.sofa.cs2 import exact_score, sets_count_of
+from bet.sofa.cs2 import SET_MATCH_SET, exact_score, set_match_of, sets_count_of
 from bet.sofa.shadow import GameResult, spec_of
 
 FloatArray = npt.NDArray[np.float64]
@@ -407,6 +407,16 @@ def actual_values(sim: VbSim, market_id: int, period: int, subject: str,
     af, bf = a.astype(np.float64), b.astype(np.float64)
     if spec.kind == "winner":
         return np.where(a > b, 1.0, -1.0), ok
+    if spec.kind == "set_match":
+        # epochs.VB_SET1_MATCH: set 1's winner and the match's together, an
+        # indicator per simulation (the sets won `a` / `b` decide the match)
+        joint = set_match_of(side)
+        if joint is None:
+            return None
+        p = sim.points
+        first_t1 = p[:, 0, 0] > p[:, 0, 1]
+        return ((first_t1 == (joint[0] == "T1"))
+                & ((a > b) == (joint[1] == "T1"))).astype(np.float64), ok
     if spec.kind == "set_yes_no":
         own = af if spec.team == "T1" else bf
         if spec.family == "team_wins_set":
@@ -450,7 +460,7 @@ def win_loss(side: str, actual: FloatArray, line: float | None
         return odd == (side == "ODD"), ones
     if side in ("YES", "NO"):
         return (actual == 1.0) == (side == "YES"), ones
-    if exact_score(side) is not None:
+    if exact_score(side) is not None or side in SET_MATCH_SET:
         return actual == 1.0, ones
     count = sets_count_of(side)
     if count is not None:

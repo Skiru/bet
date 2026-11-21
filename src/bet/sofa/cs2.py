@@ -451,6 +451,21 @@ SETS_COUNT_SETS = (
 )
 
 
+# Volleyball's "1.Set/Mecz" (230059, epochs.VB_SET1_MATCH_FROM_UTC): the
+# winner of set 1 and the winner of the match together, "T1/T2" = team1 wins
+# set 1 and team2 the match - four outcomes that PARTITION every result (a
+# whole group of four, devigged together).
+SET_MATCH_SET = frozenset({"T1/T1", "T1/T2", "T2/T1", "T2/T2"})
+
+
+def set_match_of(side: str) -> tuple[str, str] | None:
+    """(set-1 winner, match winner) of a "T1/T2" side, else None."""
+    if side not in SET_MATCH_SET:
+        return None
+    first, match = side.split("/")
+    return first, match
+
+
 def sets_count_of(side: str) -> int | None:
     """N of a "SETS=N" side, else None."""
     if not side.startswith(SETS_COUNT_PREFIX):
@@ -476,7 +491,7 @@ def exact_score_sets() -> list[frozenset[str]]:
 EXACT_SETS = exact_score_sets()
 
 
-Shape = Literal["two", "three", "exact", "double", "count"]
+Shape = Literal["two", "three", "exact", "double", "count", "joint"]
 
 
 def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
@@ -496,6 +511,8 @@ def complete_group(sides: set[str] | frozenset[str], shape: Shape) -> bool:
         return group == DOUBLE_CHANCE_SET or group in DOUBLE_CHANCE_PAIRS
     if shape == "count":
         return group in SETS_COUNT_SETS
+    if shape == "joint":
+        return group == SET_MATCH_SET
     return group in EXACT_SETS
 
 
@@ -545,9 +562,10 @@ def grade_side(side: str, actual: float, value: float | None, three_way: bool) -
     """WIN / LOSS / VOID for one side of any supported group.
 
     `actual` is the quantity for OVER/UNDER and ODD/EVEN, an indicator (1.0 =
-    it happened) for YES/NO and an exact score, and team1 minus team2 for
-    T1/T2/DRAW. In a three-way market a level score is the DRAW side's win,
-    never a void; in a two-way one `value` is team1's handicap.
+    it happened) for YES/NO, an exact score and a set / match joint side
+    ("T1/T2"), and team1 minus team2 for T1/T2/DRAW. In a three-way market a
+    level score is the DRAW side's win, never a void; in a two-way one
+    `value` is team1's handicap.
     """
     if side in ("OVER", "UNDER"):
         if value is None or actual == value:
@@ -557,7 +575,10 @@ def grade_side(side: str, actual: float, value: float | None, three_way: bool) -
         return "WIN" if (int(actual) % 2 == 1) == (side == "ODD") else "LOSS"
     if side in ("YES", "NO"):
         return "WIN" if (actual == 1.0) == (side == "YES") else "LOSS"
-    if exact_score(side) is not None:
+    if exact_score(side) is not None or side in SET_MATCH_SET:
+        # an indicator: the exact score, or a "1.Set/Mecz" joint side (both
+        # its winners) happened - never a margin (a "T1/T1" read as one was
+        # a LOSS whatever the score)
         return "WIN" if actual == 1.0 else "LOSS"
     if side in DOUBLE_CHANCE_SET or side in DC_PARTNER_SIDES:
         # `actual` is team1 minus team2; a level score is the draw. A pair's

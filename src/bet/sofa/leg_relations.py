@@ -457,9 +457,9 @@ def _shadow_period(sport: str, scope: str, period: int) -> frozenset[str]:
 
 
 def _shadow_spec(sport: str, family: str) -> tuple[str, str] | None:
-    from bet.sofa.shadow import DERIVED_MARKETS, MARKETS
+    from bet.sofa.shadow import DERIVED_MARKETS, MARKETS, SET_MATCH_MARKETS
 
-    for table in (MARKETS, DERIVED_MARKETS):
+    for table in (MARKETS, DERIVED_MARKETS, SET_MATCH_MARKETS):
         for key, specs in table.items():
             if key != sport:
                 continue
@@ -518,6 +518,12 @@ def _shadow_proposition(leg: Mapping[str, Any]) -> Proposition | None:
         return Proposition(q, values=frozenset({side}))
     if kind in ("set_yes_no", "sets_count"):
         return None  # epochs.SPORT_DERIVED_MARKETS: not in the map
+    if kind == "set_match":
+        # epochs.VB_SET1_MATCH: one outcome of (set-1 winner, match winner) -
+        # its four sides one variable (two of them exclusive); the sets score
+        # it is part of links it to the winner, the set handicap and set 1
+        q = Quantity(sport, "sets", _VOLLEY_ALL, "set1_match", "")
+        return Proposition(q, values=frozenset({side}))
     q = Quantity(sport, stat, period, "diff", "")
     if kind == "double_chance":
         # 1X: team1 - team2 >= 0; X2: <= 0; 12 (not level) is no interval
@@ -785,11 +791,12 @@ def mapped_sheet_markets() -> list[tuple[str, str]]:
 def mapped_sport_markets() -> list[tuple[str, str]]:
     """(sport, family) of every measured-sport market."""
     from bet.sofa.cs2 import FAMILIES
-    from bet.sofa.shadow import MARKETS, PLAYER_MARKETS
+    from bet.sofa.shadow import MARKETS, PLAYER_MARKETS, SET_MATCH_MARKETS
 
     out: set[tuple[str, str]] = set()
-    for sport, specs in MARKETS.items():
-        out.update((sport, s.family) for s in specs.values())
+    for table in (MARKETS, SET_MATCH_MARKETS):
+        for sport, specs in table.items():
+            out.update((sport, s.family) for s in specs.values())
     for sport, players in PLAYER_MARKETS.items():
         out.update((sport, p.family) for p in players.values())
     out.update(("cs2", f) for f in FAMILIES)

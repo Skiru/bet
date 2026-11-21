@@ -1,0 +1,229 @@
+{
+ "_doc": "Volleyball \"1.Set/Mecz\" (230059, epochs.VB_SET1_MATCH): the rally model's history curves of set1_match|SAME / |SPLIT, overlaid by sport_confidence.with_vb_point_curves onto the day's sport calibration while the switch is on for the day and the build clock. Fitted on history only (scripts/sofa/fit_vb_set1_match_curves.py); never merged into config/sofa_volleyball_point_curves.json.",
+ "vb_set1_match_curves": {
+  "keys": [
+   "set1_match|SAME",
+   "set1_match|SPLIT"
+  ],
+  "fitted_from": {
+   "window": [
+    "2025-10-01",
+    "2026-09-28"
+   ],
+   "rows": 111632,
+   "games": 27908,
+   "params": {
+    "prior_var": 0.06,
+    "drift_per_day": 0.0001,
+    "weight": 1.0,
+    "home": 0.04,
+    "form_var": 0.01,
+    "set_var": 0.02,
+    "sideout_men": 0.68,
+    "sideout_women": 0.6,
+    "min_league_teams": 4
+   },
+   "sims": 4000,
+   "lines": "the four sides of every best-of-five history match (home = team1), graded as SHADOW_SETTLE"
+  },
+  "holdout": {
+   "window": [
+    "2026-09-29",
+    "2026-11-20"
+   ],
+   "rows": 23808,
+   "games": 5952,
+   "rule": "printable (confidence >= 0.70) realised - confidence >= -3 pp, point estimate, match bootstrap",
+   "evaluate": {
+    "set1_match|SAME": {
+     "n": 11904,
+     "uncovered": 0,
+     "buckets": {
+      "0.000-0.600": {
+       "n": 8978,
+       "confidence": 0.2682,
+       "realised": 0.279,
+       "gap": -0.0108
+      },
+      "0.600-0.700": {
+       "n": 1049,
+       "confidence": 0.6388,
+       "realised": 0.6425,
+       "gap": -0.0037
+      },
+      "0.700-0.750": {
+       "n": 438,
+       "confidence": 0.7212,
+       "realised": 0.7237,
+       "gap": -0.0025
+      },
+      "0.750-0.800": {
+       "n": 452,
+       "confidence": 0.7702,
+       "realised": 0.7788,
+       "gap": -0.0086
+      },
+      "0.800-0.825": {
+       "n": 182,
+       "confidence": 0.7866,
+       "realised": 0.8132,
+       "gap": -0.0266
+      },
+      "0.825-0.850": {
+       "n": 160,
+       "confidence": 0.8178,
+       "realised": 0.8063,
+       "gap": 0.0115
+      },
+      "0.850-0.875": {
+       "n": 156,
+       "confidence": 0.8143,
+       "realised": 0.8397,
+       "gap": -0.0254
+      },
+      "0.875-0.900": {
+       "n": 137,
+       "confidence": 0.8515,
+       "realised": 0.8613,
+       "gap": -0.0098
+      },
+      "0.900-0.925": {
+       "n": 111,
+       "confidence": 0.8838,
+       "realised": 0.9279,
+       "gap": -0.0441
+      },
+      "0.925-0.950": {
+       "n": 115,
+       "confidence": 0.9012,
+       "realised": 0.8609,
+       "gap": 0.0403
+      },
+      "0.950-1.010": {
+       "n": 126,
+       "confidence": 0.9512,
+       "realised": 0.9048,
+       "gap": 0.0464
+      }
+     },
+     "games": 5952,
+     "logloss_confidence": 0.5804,
+     "logloss_model": 0.52324,
+     "realised": 0.394,
+     "confidence": 0.3849,
+     "realised_minus_confidence": [
+      0.0091,
+      0.0036,
+      0.0148
+     ],
+     "printable": {
+      "n": 1877,
+      "games": 1877,
+      "confidence": 0.8009,
+      "realised": 0.805,
+      "realised_minus_confidence": [
+       0.0041,
+       -0.0133,
+       0.0217
+      ]
+     }
+    },
+    "set1_match|SPLIT": {
+     "n": 11904,
+     "uncovered": 0,
+     "buckets": {
+      "0.000-0.600": {
+       "n": 11904,
+       "confidence": 0.1017,
+       "realised": 0.106,
+       "gap": -0.0043
+      }
+     },
+     "games": 5952,
+     "logloss_confidence": 0.3382,
+     "logloss_model": 0.32683,
+     "realised": 0.106,
+     "confidence": 0.1017,
+     "realised_minus_confidence": [
+      0.0043,
+      -0.001,
+      0.0097
+     ]
+    }
+   },
+   "keys": {
+    "set1_match|SAME": "PASSED",
+    "set1_match|SPLIT": "NO_PRINTABLE_ROWS"
+   },
+   "passed": true
+  },
+  "estimator": "bet.sofa.volleyball_point_model through bet.sofa.vb_point_pricer (epochs.VB_SET1_MATCH)",
+  "source": "scripts/sofa/fit_vb_set1_match_curves.py, sport_confidence.fit_curves, MIN_BUCKET 200"
+ },
+ "curves": {
+  "set1_match|SAME": {
+   "0.000-0.600": {
+    "n": 41992,
+    "realised": 0.2725,
+    "realised_lo95": 0.2682
+   },
+   "0.600-0.700": {
+    "n": 4706,
+    "realised": 0.6526,
+    "realised_lo95": 0.6388
+   },
+   "0.700-0.750": {
+    "n": 2010,
+    "realised": 0.7408,
+    "realised_lo95": 0.7212
+   },
+   "0.750-0.800": {
+    "n": 1847,
+    "realised": 0.7894,
+    "realised_lo95": 0.7702
+   },
+   "0.800-0.825": {
+    "n": 905,
+    "realised": 0.8133,
+    "realised_lo95": 0.7866
+   },
+   "0.825-0.850": {
+    "n": 845,
+    "realised": 0.8438,
+    "realised_lo95": 0.8178
+   },
+   "0.850-0.875": {
+    "n": 742,
+    "realised": 0.8423,
+    "realised_lo95": 0.8143
+   },
+   "0.875-0.900": {
+    "n": 674,
+    "realised": 0.8783,
+    "realised_lo95": 0.8515
+   },
+   "0.900-0.925": {
+    "n": 597,
+    "realised": 0.9095,
+    "realised_lo95": 0.8838
+   },
+   "0.925-0.950": {
+    "n": 508,
+    "realised": 0.9272,
+    "realised_lo95": 0.9012
+   },
+   "0.950-1.010": {
+    "n": 990,
+    "realised": 0.9646,
+    "realised_lo95": 0.9512
+   }
+  },
+  "set1_match|SPLIT": {
+   "0.000-0.600": {
+    "n": 55816,
+    "realised": 0.1042,
+    "realised_lo95": 0.1017
+   }
+  }
+ }
+}

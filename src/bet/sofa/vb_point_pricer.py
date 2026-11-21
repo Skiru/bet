@@ -63,7 +63,12 @@ class _Game(Protocol):
 
 
 def in_scope(sport: object, market_id: object) -> bool:
-    return sport == "volleyball" and market_id in epochs.VB_POINT_MODEL_MARKETS
+    """A volleyball market the rally model prices: VB_POINT_MODEL_MARKETS and
+    VB_SET1_MATCH_MARKETS (undated - the switches gate what reaches it: SHADOW
+    reads 230059 only under epochs.vb_set1_match, SPORT_CONFIDENCE allows it
+    only then)."""
+    return sport == "volleyball" and market_id in (
+        epochs.VB_POINT_MODEL_MARKETS | epochs.VB_SET1_MATCH_MARKETS)
 
 
 def seed_of(event_id: int) -> int:

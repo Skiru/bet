@@ -2573,6 +2573,62 @@ zwycięzca seta), `NO_MODEL_P` 55 -> 7, żadna noga spoza zakresu nie zmieniona.
 Pomiar: `docs/sofa/evidence/volleyball_point_model_2026-11-06.md`. Grupy
 ledgera „11-06 mieszany", „od 11-07".
 
+### Siatkówka - „1.Set/Mecz” (od 2026-11-22 00:00Z, `epochs.VB_SET1_MATCH`)
+
+Plan D z `docs/sofa/history/PLAN_NOWE_RYNKI_2026-11-20.md` (operator
+2026-11-20: „wykonaj go w całości”). Przełącznik według dnia i zegara budowy,
+wymaga `VB_POINT_MODEL`; grupa księgi „od 11-22”. Wyłączony = artefakty bajt
+w bajt jak przed nim (test).
+
+- **SHADOW** czyta rynek Superbetu 230059 „1.Set/Mecz”: cztery strony
+  „T1/T1”, „T1/T2”, „T2/T1”, „T2/T2” (zwycięzca 1. seta / zwycięzca meczu),
+  tylko z dokładnej nazwy wyniku `"{drużyna}/{drużyna}"` - nazwy drużyn same
+  zawierają „/” („ABEL/Moda (K)”), więc nic przybliżonego; nazwa pasująca do
+  dwóch stron nie jest czytana; tylko pełna grupa czterech
+  (`shadow.SET_MATCH_MARKETS`, kształt `cs2` „joint”). Rynek nie trafia do
+  `shadow.MARKETS` ani `EXTENDED_MARKETS`, więc nigdy nie staje się rodziną
+  „tylko z naszych rozliczeń” dopasowywaną z naszych dni. Rekord migawki ma
+  pole `vb_set1_match_rule`; po włączeniu 230059 znika z `unmapped_prices`.
+- **Wycena:** p z modelu wymian (`vb_point_pricer.in_scope` = suma
+  `VB_POINT_MODEL_MARKETS` i `VB_SET1_MATCH_MARKETS`): wskaźnik „zwycięzca
+  seta 1 i meczu” na tych samych 4 000 symulacjach co zwycięzca (745) i
+  zwycięzca seta (744) - cztery strony sumują się do 1. Marża z grupy
+  czterech (~13,8%; > 15% = `MARGIN_TOO_HIGH`).
+- **Rozliczenie** (SHADOW_SETTLE): zwycięzca 1. seta z punktów seta 1,
+  zwycięzca meczu z setów samego meczu (złoty set nie liczy się w niczym, jak
+  przy 745). Poprawka: `cs2.grade_side` i `volleyball_point_model.win_loss`
+  mają gałąź „wskaźnik” dla stron łącznych - wcześniej „T1/T1” spadałoby do
+  gałęzi handicapu (wygrana = LOSS, przegrana = VOID).
+- **Krzywe:** `set1_match|SAME` („T1/T1”, „T2/T2”) i `set1_match|SPLIT`
+  („T1/T2”, „T2/T1”) w `config/sofa_vb_set1_match_curves.json` - krokowe
+  przejście modelu wymian po historii Sofascore 2025-10-01..2026-09-28
+  (27 908 meczów do pięciu setów, 111 632 wiersze, 4 000 symulacji, ziarno =
+  id meczu, `sport_confidence.fit_curves`, MIN_BUCKET 200;
+  `scripts/sofa/fit_vb_set1_match_curves.py` na kopii bazy). Nakłada je
+  `with_vb_point_curves` tylko przy włączonym przełączniku, osobno od
+  `config/sofa_volleyball_point_curves.json` (ten plik bez zmian). SPLIT
+  nigdy nie dochodzi do 0,70 - drukuje się tylko SAME. Odłożona próba
+  2026-09-29..11-20 (5 952 mecze, raz): SAME >= 0,70 realizacja - pewność
+  +0,4 pp [-1,3; +2,2] na 1 877 meczach (reguła planu: >= -3 pp - zaliczona);
+  dwa najwyższe kubełki (>= 0,925, ~120 wierszy każdy) przeszacowują o
+  ~4-5 pp.
+- **Dowody z linii:** p modelu wymian z `backfill_vb_point_p.py` (zakres
+  poszerzony razem z `in_scope`); żadna linia 230059 nie była dotąd
+  rozliczona, więc do pierwszych rozliczeń klucz czyta krzywą i wspólne
+  przesunięcie siatkówki.
+- **Noga** ma `vb_point_model_rule` i `vb_set1_match_rule`; nazwa Superbetu
+  „1.Set/Mecz” / „{A}/{B}”; brak tożsamości z inną nogą (`SAME_EVENT_DEDUP`
+  - to część wspólna 745 i 744, nie żadna z nich), relacja ZALEŻNA ze
+  zwycięzcą i zwycięzcą seta. Weryfikator (`verify_legs.py`), audyt U3
+  (`audit_variants.py`) i /kupon (`build_slip.py`) znają rynek według tego
+  samego przełącznika. „Czy będzie 4./5. set?” zostaje nieczytane.
+- **Testy z góry:** `T-VB-SET1-MATCH-calibration` (SAME >= 0,70, ±3 pp,
+  >= 300 linii / >= 40 meczów, `fit_vb_set1_match_curves.py --forward`);
+  testy, którym rośnie populacja drukowanych nóg
+  (`T-PRICE-EDGE-VB-RAW-FORWARD` i sześć innych), mają w rejestrze
+  zastrzeżenie i raportują też wynik bez tych nóg.
+- E2E_PL
+
 ### Audyt pokrycia 2026-10-23 („ALL IN”) - przełączniki od 2026-10-24 00:00Z
 
 Decyzja operatora 2026-10-23 ~13:50Z; raport

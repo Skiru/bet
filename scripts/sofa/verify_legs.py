@@ -404,13 +404,16 @@ def sport_day(runs_dir: Path, date: str, doc: dict[str, Any],
     extended = epochs.line_evidence(date, at)
     derived = epochs.sport_derived_markets(date, at)
     series = epochs.cs2_series_rounds(date, at)
+    # epochs.VB_SET1_MATCH: volleyball's "1.Set/Mecz", as SPORT_CONFIDENCE
+    set1 = extended and epochs.vb_set1_match(date, at)
 
     def family_of(sport: str, market_id: Any, family: str) -> str | None:
         if sport == "cs2":
             return scf.family_of("cs2", None, family, extended,
                                  series_rounds=series)
         return scf.family_of(sport, None if market_id is None else int(market_id),
-                             family, extended, derived)
+                             family, extended, derived,
+                             set1_match=set1 and sport == "volleyball")
 
     return SportDay(date, at, fixtures, read, family_of, scf.line_in_fit)
 

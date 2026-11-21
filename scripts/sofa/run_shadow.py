@@ -216,14 +216,18 @@ def snapshot(
         # clock (basketball only; the other sports hold none)
         player_v2 = (sport.key == "basketball"
                      and epochs.basketball_player_v2(day, _utc_of(fetched_at)))
+        # epochs.VB_SET1_MATCH: volleyball's "1.Set/Mecz", same day and clock
+        set1_match = (sport.key == "volleyball"
+                      and epochs.vb_set1_match(day, _utc_of(fetched_at)))
         items = odds_items(payload)
         lines = parse_event(items, sport.key, event_id, team1, team2,
-                            derived, dc_pair, player_v2)
+                            derived, dc_pair, player_v2, set1_match)
         unmapped[(sport.key, day)].extend(
             unmapped_prices.record(None, event_id, item, _utc_of(fetched_at),
                                    sport.key)
             for item in items
-            if not reads_market(item, sport.key, team1, team2, derived, player_v2)
+            if not reads_market(item, sport.key, team1, team2, derived, player_v2,
+                                set1_match)
         )
         if not lines and event_id not in seen[(sport.key, day)]:
             continue
@@ -254,6 +258,8 @@ def snapshot(
                 **({"dc_pair_rule": epochs.BASKETBALL_DC_PAIR} if dc_pair else {}),
                 **({"player_v2_rule": epochs.BASKETBALL_PLAYER_V2}
                    if player_v2 else {}),
+                **({epochs.VB_SET1_MATCH_LEG_FIELD: epochs.VB_SET1_MATCH}
+                   if set1_match else {}),
             }
         )
     for key, recs in records.items():

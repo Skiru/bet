@@ -92,6 +92,7 @@ from bet.sofa.cs2 import (
     group_fair,
     group_overround,
     parity_side,
+    set_match_of,
 )
 from bet.sofa.settle import (  # noqa: F401  (re-export)
     VOID_AFTER,
@@ -181,6 +182,8 @@ Kind = Literal[
     "double_chance",  # 1X / X2 / 12 of a 1X2, overlapping (cs2.DOUBLE_CHANCE_SET)
     "set_yes_no",  # volleyball YES / NO on a team's sets won (family says which)
     "sets_count",  # volleyball sets played, "SETS=N" sides, a partition
+    # epochs.VB_SET1_MATCH_FROM_UTC (SET_MATCH_MARKETS below):
+    "set_match",  # volleyball set-1 winner x match winner, "T1/T2" sides
 ]
 # Kinds whose quantity does not depend on which side is team1, so a game whose
 # orientation cannot be told still grades them (with no team of their own).
@@ -321,6 +324,61 @@ DERIVED_MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
 }
 
 
+# --- volleyball "1.Set/Mecz" (epochs.VB_SET1_MATCH_FROM_UTC) ------------------
+#
+# 230059 "1.Set/Mecz": who wins set 1 and who wins the match, four outcomes
+# named "<set-1 winner>/<match winner>" with Superbet's own team names
+# ("ABEL/Moda (K)/Brasilia (K)" - a name may hold a "/"), read only by the
+# exact strings f"{team1}/{team1}", f"{team1}/{team2}", f"{team2}/{team1}",
+# f"{team2}/{team2}" (never a fuzzy match) into sides "T1/T1" .. "T2/T2" -
+# a partition of the results, a whole group of four (cs2.SET_MATCH_SET,
+# shape "joint"). Graded on the match's own sets (set 1's points, the sets
+# won; a golden set counts in neither). Its own table, never MARKETS: off,
+# nothing below is reached and a snapshot (and unmapped_prices) is byte for
+# byte what it was. Priced by the rally model only (vb_point_pricer).
+SET_MATCH_MARKETS: dict[SportKey, dict[int, MarketSpec]] = {
+    "hockey": {},
+    "basketball": {},
+    "volleyball": {230059: _m("set1_match", "set_match", "sets")},
+}
+
+
+def _set_match_side(name: str, team1: str, team2: str) -> str | None:
+    """The "T1/T2" side an outcome's exact name says; None when it names
+    none of the four or more than one (two teams of one name)."""
+    if not team1 or not team2:
+        return None
+    hits = [f"{a}/{b}" for a, ta in (("T1", team1), ("T2", team2))
+            for b, tb in (("T1", team1), ("T2", team2)) if name == f"{ta}/{tb}"]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _parse_set_match(
+    item: dict[str, Any], spec: MarketSpec, event_id: str, market_id: int,
+    team1: str, team2: str,
+) -> ShadowLine | None:
+    """One side of "1.Set/Mecz" (SET_MATCH_MARKETS), or None."""
+    market = str(item.get("marketName") or "")
+    if ";" in market or "price_boost" in str(item.get("tags") or ""):
+        return None
+    if item.get("status") not in (None, "active"):
+        return None
+    odds = _num(item.get("price"))
+    if odds is None or odds <= 1.0:
+        return None
+    side = _set_match_side(str(item.get("name") or "").strip(), team1.strip(),
+                           team2.strip())
+    if side is None:
+        return None
+    # A code, where Superbet sends one in a form we know ("12" / "1/2"),
+    # must agree with the name; an unknown form is not read either way.
+    code = str(item.get("code") or "").replace("/", "")
+    if len(code) == 2 and set(code) <= {"1", "2"} \
+            and f"T{code[0]}/T{code[1]}" != side:
+        return None
+    return ShadowLine(event_id, market_id, spec.family, 0, "", None, side, odds)
+
+
 # --- basketball double chance as pairs (epochs.BASKETBALL_DC_PAIR_FROM_UTC) -----
 #
 # Superbet quotes basketball's double chance with 1X and X2 only (no 12; live
@@ -365,7 +423,7 @@ def is_pair_partner(line: ShadowLine) -> bool:
 def spec_of(sport: str, market_id: int) -> MarketSpec | None:
     """A market's spec - shadow's own or a derived one (a derived line exists
     only where the switch let SHADOW read it)."""
-    for table in (MARKETS, DERIVED_MARKETS, DC_PAIR_MARKETS):
+    for table in (MARKETS, DERIVED_MARKETS, DC_PAIR_MARKETS, SET_MATCH_MARKETS):
         for key, specs in table.items():
             if key == sport and market_id in specs:
                 return specs[market_id]
@@ -638,6 +696,8 @@ def group_shape(sport: SportKey, market_id: int) -> Shape:
         return "double"
     if spec is not None and spec.kind == "sets_count":
         return "count"
+    if spec is not None and spec.kind == "set_match":
+        return "joint"
     return "two"
 
 
@@ -655,7 +715,7 @@ class ShadowLine:
     period: int  # 0 = not a period market
     subject: str  # "T1" / "T2" for a team total, else ""
     line: float | None  # a total, or team1's handicap; None for winner / dnb
-    side: str  # OVER / UNDER / T1 / T2 / DRAW / ODD / EVEN / YES / NO / "3:1"
+    side: str  # OVER / UNDER / T1 / T2 / DRAW / ODD / EVEN / YES / NO / "3:1" / "T1/T2"
     odds: float
 
     def key(self) -> tuple[int, int, str, float | None]:
@@ -696,7 +756,7 @@ _CODE_SIDE = {"+": "OVER", "-": "UNDER", "1": "T1", "2": "T2"}
 
 def parse_line(
     item: dict[str, Any], sport: SportKey, event_id: str, team1: str, team2: str,
-    derived: bool = False, player_v2: bool = False,
+    derived: bool = False, player_v2: bool = False, set1_match: bool = False,
 ) -> ShadowLine | None:
     """One Superbet odds item as a gradeable line, or None if it is not one.
 
@@ -705,12 +765,17 @@ def parse_line(
     the only reading is the one that could be wrong. `derived`
     (epochs.sport_derived_markets): DERIVED_MARKETS are read too.
     `player_v2` (epochs.basketball_player_v2): PLAYER_V2_MARKETS are read too.
+    `set1_match` (epochs.vb_set1_match): SET_MATCH_MARKETS are read too.
     """
     try:
         market_id = int(item.get("marketId") or 0)
     except (TypeError, ValueError):
         return None
     spec = MARKETS[sport].get(market_id)
+    if spec is None and set1_match:
+        joint = SET_MATCH_MARKETS[sport].get(market_id)
+        if joint is not None:
+            return _parse_set_match(item, joint, event_id, market_id, team1, team2)
     if spec is None:
         player_spec = PLAYER_MARKETS[sport].get(market_id)
         if player_spec is None:
@@ -867,15 +932,19 @@ def parse_event(
     derived: bool = False,
     dc_pair: bool = False,
     player_v2: bool = False,
+    set1_match: bool = False,
 ) -> list[ShadowLine]:
     """Every gradeable line whose two sides are both quoted exactly once.
     `derived` (epochs.sport_derived_markets): DERIVED_MARKETS too. `dc_pair`
     (epochs.basketball_dc_pair, with `derived`): a basketball double chance
     quoted without its whole group is read as pairs (DC_PAIR_MARKETS).
-    `player_v2` (epochs.basketball_player_v2): PLAYER_V2_MARKETS too."""
+    `player_v2` (epochs.basketball_player_v2): PLAYER_V2_MARKETS too.
+    `set1_match` (epochs.vb_set1_match): SET_MATCH_MARKETS too (a whole group
+    of four, each side once)."""
     by_key: dict[tuple[int, int, str, float | None], dict[str, list[ShadowLine]]] = {}
     for item in items:
-        parsed = parse_line(item, sport, event_id, team1, team2, derived, player_v2)
+        parsed = parse_line(item, sport, event_id, team1, team2, derived, player_v2,
+                            set1_match)
         if parsed is not None:
             by_key.setdefault(parsed.key(), {}).setdefault(parsed.side, []).append(
                 parsed
@@ -899,6 +968,7 @@ def reads_market(
     team2: str,
     derived: bool = False,
     player_v2: bool = False,
+    set1_match: bool = False,
 ) -> bool:
     """Whether SHADOW reads this odd's MARKET at all (parse_line with the same
     switches), whatever becomes of the odd itself. An odd of a market it does
@@ -909,6 +979,8 @@ def reads_market(
         return False
     if market_id in MARKETS[sport]:
         return True
+    if market_id in SET_MATCH_MARKETS[sport]:
+        return set1_match
     if market_id in PLAYER_MARKETS[sport]:
         return player_v2 or market_id not in PLAYER_V2_MARKETS[sport]
     if not derived:
@@ -1377,6 +1449,16 @@ def actual_value(
     if pair is None:
         return None
     a, b = pair
+    if spec.kind == "set_match":
+        # set 1's winner (its points) and the match's (the sets won, as the
+        # winner 745 grades) - both decided, or the game does not tell
+        joint = set_match_of(line.side)
+        t1, t2 = result.t1_periods, result.t2_periods
+        if joint is None or not t1 or t1[0] == t2[0] or a == b:
+            return None
+        first = "T1" if t1[0] > t2[0] else "T2"
+        match = "T1" if a > b else "T2"
+        return 1.0 if (first, match) == joint else 0.0
     if spec.kind == "set_yes_no":
         # a team's sets won (`sets` scope): at least one, or exactly N
         own = a if spec.team == "T1" else b

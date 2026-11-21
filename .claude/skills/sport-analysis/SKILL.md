@@ -29,6 +29,7 @@ core's lookup) `sample_k` / `sample_n`.
 | sport / family | the number | what it sees | what it cannot see |
 |---|---|---|---|
 | hockey / basketball / volleyball game lines (winner, total, handicap, team totals, periods / quarters / sets) | `bet.sofa.score_model` - team ratings and the league's rate from the cached history (no price) | form, home / away, league scoring level (basketball season restart) | tonight's goalie, injuries, rotation, and rest: the model holds no rest term (`b2b_delta` unset) |
+| volleyball rally-model lines (leg field `vb_point_model_rule`: winner, points / set handicap, points / set-points totals, exact sets, set winner, points parity; from 2026-11-22 also "1.Set/Mecz" `set1_match`, field `vb_set1_match_rule`) | `bet.sofa.volleyball_point_model` - each team's rally strength as of the start, 4,000 simulated matches; `set1_match` "T1/T1" / "T2/T2" = one team wins set 1 AND the match (curve key SAME), "T1/T2" / "T2/T1" the split (SPLIT, never 0.70) | form on the point share, home, league level | the six, a rested starter, a cup / rotation game - and for SAME: a favourite who starts slow loses set 1 and the leg, while winning the match |
 | hockey / basketball player lines (`player_*`) | `player_model` (SHADOW's pre-game number) - the player's own appearances (hockey also the peers' games); on days before 2026-10-30 `forecast_source` says `score_model` on these legs - the price is still player_model's | his rate per game | whether he dresses, his line / PP unit / minutes |
 | CS2 maps / rounds / series | `cs2_engine` - team / lineup ratings, map pool terms, the round race | the five as listed, map strengths | a stand-in announced late, the veto, LAN vs online |
 | CS2 player kills / deaths / assists / headshots | the exposure (rounds x per-round rate x share over 40 maps) | his share in the lineup | whether he plays, a role change |
@@ -55,7 +56,8 @@ price: a note, never a `DEFEKT:`.
    winner, total, handicap, team totals, odd / even full game incl. OT, 1X2
    regulation, halves / quarters regulation only; volleyball winner by the
    sets (never `winnerCode`), a golden set (AET / AGS) counts in nothing,
-   fifth set to 15; CS2 map rounds incl. OT, series families (`maps_total`,
+   fifth set to 15; "1.Set/Mecz" = set 1's winner by its points AND the
+   match's by its own sets; CS2 map rounds incl. OT, series families (`maps_total`,
    `maps_handicap`, `team_maps`, `exact_maps`) on the leg's `best_of`. Raise
    a scope only where `superbet_market` says otherwise.
 3. **Market drivers and the expectation in the market's units**, from the

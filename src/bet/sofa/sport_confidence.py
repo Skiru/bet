@@ -46,7 +46,7 @@ from bet.sofa.comparability import (
     is_friendly_event,
     match_kind,
 )
-from bet.sofa.cs2 import Cs2Line
+from bet.sofa.cs2 import SET_MATCH_SET, Cs2Line
 from bet.sofa.football_rating import FootballResult
 from bet.sofa.line_evidence import design_effect
 from bet.sofa.market_lines import MarketLines
@@ -146,18 +146,15 @@ def calibration_path_for(date: str, config_dir: Path | None = None) -> Path:
 VB_POINT_CURVES_FILE = "sofa_volleyball_point_curves.json"
 
 
-def with_vb_point_curves(calibration: SportCalibration | None, date: str,
-                         build_at: datetime | None,
-                         config_dir: Path | None = None,
-                         ) -> SportCalibration | None:
-    """`calibration` with the rally model's volleyball curves when
-    epochs.VB_POINT_MODEL is on for `date` and `build_at`; else unchanged."""
-    if calibration is None or not epochs.vb_point_model(date, build_at):
-        return calibration
-    from bet.sofa.config import config_path
+# epochs.VB_SET1_MATCH: "1.Set/Mecz"'s two keys (set1_match|SAME / |SPLIT),
+# the rally model's walk-forward on history in a file of their own (never
+# written into the rally file above, which built days read), overlaid the
+# same way by that switch's day and build clock.
+VB_SET1_MATCH_CURVES_FILE = "sofa_vb_set1_match_curves.json"
 
-    path = (config_dir / VB_POINT_CURVES_FILE) if config_dir else config_path(
-        VB_POINT_CURVES_FILE)
+
+def _overlay_volleyball(calibration: SportCalibration, path: Path,
+                        meta_key: str) -> SportCalibration:
     source = json.loads(path.read_text(encoding="utf-8"))
     sports = dict(calibration.doc.get("sports") or {})
     volleyball = dict(sports.get("volleyball") or {})
@@ -166,9 +163,31 @@ def with_vb_point_curves(calibration: SportCalibration | None, date: str,
     curves = dict(volleyball.get("curves") or {})
     curves.update(source["curves"])
     volleyball["curves"] = curves
-    volleyball["vb_point_model_curves"] = source["vb_point_model_curves"]
+    volleyball[meta_key] = source[meta_key]
     sports["volleyball"] = volleyball
     return SportCalibration({**calibration.doc, "sports": sports})
+
+
+def with_vb_point_curves(calibration: SportCalibration | None, date: str,
+                         build_at: datetime | None,
+                         config_dir: Path | None = None,
+                         ) -> SportCalibration | None:
+    """`calibration` with the rally model's volleyball curves when
+    epochs.VB_POINT_MODEL is on for `date` and `build_at`, and "1.Set/Mecz"'s
+    when epochs.VB_SET1_MATCH is too; else unchanged."""
+    if calibration is None or not epochs.vb_point_model(date, build_at):
+        return calibration
+    from bet.sofa.config import config_path
+
+    def where(name: str) -> Path:
+        return (config_dir / name) if config_dir else config_path(name)
+
+    out = _overlay_volleyball(calibration, where(VB_POINT_CURVES_FILE),
+                              "vb_point_model_curves")
+    if epochs.vb_set1_match(date, build_at):
+        out = _overlay_volleyball(out, where(VB_SET1_MATCH_CURVES_FILE),
+                                  "vb_set1_match_curves")
+    return out
 
 
 # --- F2: the allow-list ---------------------------------------------------------
@@ -253,15 +272,27 @@ DERIVED_ALLOWED: dict[str, dict[int, str]] = {
 }
 
 
+# epochs.VB_SET1_MATCH_FROM_UTC: volleyball's "1.Set/Mecz" (shadow.
+# SET_MATCH_MARKETS), allowed only by its own switch - never in
+# EXTENDED_MARKETS, so the settled-only families a fit reads from Superbet
+# lines (settled_only_families) never take it: its curve is history only.
+VB_SET1_MATCH_ALLOWED: dict[str, dict[int, str]] = {
+    "volleyball": {230059: "set1_match"}}
+
+
 def allowed_markets(sport: str, extended: bool = False,
-                    derived: bool = False) -> dict[int, str]:
+                    derived: bool = False, set1_match: bool = False
+                    ) -> dict[int, str]:
     """The allow-list; `extended` (epochs.line_evidence) adds EXTENDED_MARKETS,
-    `derived` (epochs.sport_derived_markets) DERIVED_ALLOWED."""
+    `derived` (epochs.sport_derived_markets) DERIVED_ALLOWED, `set1_match`
+    (epochs.vb_set1_match) VB_SET1_MATCH_ALLOWED."""
     out = dict(ALLOWED_MARKETS.get(sport, {}))
     if extended:
         out.update(EXTENDED_MARKETS.get(sport, {}))
     if derived:
         out.update(DERIVED_ALLOWED.get(sport, {}))
+    if set1_match:
+        out.update(VB_SET1_MATCH_ALLOWED.get(sport, {}))
     return out
 
 
@@ -478,7 +509,11 @@ def side_class(side: str) -> str:
     """OVER / UNDER / DRAW / ODD / EVEN / YES / NO and an exact score ("3:1")
     keep their own curve; a team side is TEAM. A double chance's "12" (no
     draw) and a sets count's "SETS=N" keep theirs too; its 1X / X2 (a team or
-    the draw) are TEAM (epochs.SPORT_DERIVED_MARKETS_FROM_UTC)."""
+    the draw) are TEAM (epochs.SPORT_DERIVED_MARKETS_FROM_UTC). A "1.Set/Mecz"
+    side is SAME ("T1/T1", "T2/T2": one team wins set 1 and the match) or
+    SPLIT (epochs.VB_SET1_MATCH_FROM_UTC) - never TEAM."""
+    if side in SET_MATCH_SET:
+        return "SAME" if side[:2] == side[3:] else "SPLIT"
     if side in ("OVER", "UNDER", "DRAW", "ODD", "EVEN", "YES", "NO") or ":" in side:
         return side
     if side == "12" or "=" in side:
@@ -492,11 +527,13 @@ def curve_key(family: str, side: str) -> str:
 
 def family_of(sport: str, market_id: int | None, family: str,
               extended: bool = False, derived: bool = False,
-              series_rounds: bool = False) -> str | None:
+              series_rounds: bool = False, set1_match: bool = False
+              ) -> str | None:
     """The allowed family of a line, or None when it may not be a leg.
     `derived` (epochs.sport_derived_markets): DERIVED_ALLOWED too.
     `series_rounds` (epochs.cs2_series_rounds, with `extended`): CS2's
-    cs2_engine.SERIES_ROUND_FAMILIES too."""
+    cs2_engine.SERIES_ROUND_FAMILIES too. `set1_match` (epochs.vb_set1_match):
+    VB_SET1_MATCH_ALLOWED too."""
     if sport == "cs2":
         allowed = CS2_FAMILIES | (CS2_EXTENDED_FAMILIES if extended else frozenset())
         if extended and series_rounds:
@@ -506,7 +543,8 @@ def family_of(sport: str, market_id: int | None, family: str,
         return None
     if extended and int(market_id) in PLAYER_MARKETS.get(sport, {}):  # type: ignore[call-overload]
         return str(PLAYER_MARKETS[sport][int(market_id)].family)  # type: ignore[index]
-    return allowed_markets(sport, extended, derived).get(int(market_id))
+    return allowed_markets(sport, extended, derived, set1_match).get(
+        int(market_id))
 
 
 Row = dict[str, Any]
@@ -1255,7 +1293,9 @@ def settled_shadow_rows(runs_dir: str, sport: ShadowSport, dates: Sequence[str],
         # epochs.SPORT_DERIVED_MARKETS: a day's derived lines are its own
         # evidence from the day the switch is on (the line evidence's input)
         allowed = allowed_markets(sport.key, extended=True,
-                                  derived=epochs.sport_derived_markets(date))
+                                  derived=epochs.sport_derived_markets(date),
+                                  set1_match=epochs.vb_set1_match(
+                                      date, _day_end(date)))
         # epochs.LEAGUE_RATE_RULE: the day's own rule - a friendly is not
         # priced and a thin competition has no rate (audit 2026-10-13 A2)
         # the day's own rules (the line evidence's reading), unless a fit

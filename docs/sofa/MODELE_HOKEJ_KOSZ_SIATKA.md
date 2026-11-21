@@ -523,6 +523,19 @@ dominują w historii (NCAA Women 5 026 meczów) — rating i krzywe muszą być
 rozdzielone klasą (`women`, jak w piłce, CLAUDE.md „pooled number must say
 what it pooled across”).
 
+**Stan 2026-11-20 - „1.Set/Mecz” (230059):** od 2026-11-22 00:00Z
+(`epochs.VB_SET1_MATCH`) model wymian (`bet.sofa.volleyball_point_model`,
+od 11-06 zwycięzca / handicapy / sumy / zwycięzca seta) wycenia też rynek
+łączny „zwycięzca 1. seta / zwycięzca meczu” - cztery strony z tych samych
+symulacji, krzywe SAME / SPLIT z historii
+(`config/sofa_vb_set1_match_curves.json`; odłożona próba 2026-09-29..11-20:
+SAME >= 0,70 +0,4 pp [-1,3; +2,2], 1 877 meczów). Ryzyko z planu: plus
+takiej nogi to głównie efekt faworyta, nie rynku (pomiar planu: Brier
+model - cena +0,0043 [-0,0006; +0,0093], 286 meczów - przewagi nad ceną nie
+ma). Szczegóły:
+`docs/sofa/PIPELINE.md` („Siatkówka - „1.Set/Mecz””),
+`docs/sofa/evidence/vb_set1_match_2026-11-20.md`.
+
 ### B.6 Kolejność prac
 
 1. Backfill `/statistics` + `/lineups` hokej i kosz (§C), w kawałkach

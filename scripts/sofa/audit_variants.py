@@ -444,7 +444,11 @@ def snapshot_family(sport: str, line: Any, date: str, at: datetime,
 
     derived = evidence_on and epochs.sport_derived_markets(date, at)
     series_rounds = sport == "cs2" and epochs.cs2_series_rounds(date, at)
-    return rsc._allowed(sport, line, evidence_on, derived, series_rounds)
+    # epochs.VB_SET1_MATCH: volleyball's "1.Set/Mecz", as build_sport allows it
+    set1_match = (sport == "volleyball" and evidence_on
+                  and epochs.vb_set1_match(date, at))
+    return rsc._allowed(sport, line, evidence_on, derived, series_rounds,
+                        set1_match)
 
 
 def audit_sport_legs(runs_dir: str, date: str, doc: dict[str, Any],

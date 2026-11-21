@@ -253,6 +253,8 @@ SPORT_MARKETS: dict[str, dict[int, tuple[str, str]]] = {
         -13: ("{T1} wygra dokładnie {K}", "yes_no"),
         -14: ("{T2} wygra dokładnie {K}", "yes_no"),
         -15: ("Dokładna liczba setów", "sets_count"),
+        # epochs.VB_SET1_MATCH: "<set-1 winner>/<match winner>"
+        230059: ("1.Set/Mecz", "set_match"),
     },
 }
 
@@ -535,6 +537,13 @@ def _selection(kind: str, leg: Mapping[str, Any], sides: Sides | None,
         return {"YES": "Tak", "NO": "Nie", "OVER": "Tak", "UNDER": "Nie"}.get(side)
     if kind == "sets_count":
         return side.split("=", 1)[1] if side.startswith("SETS=") else None
+    if kind == "set_match":
+        # Superbet's own outcome name: "ABEL/Moda (K)/Brasilia (K)"
+        if sides is None or side not in ("T1/T1", "T1/T2", "T2/T1", "T2/T2"):
+            return None
+        team = {"T1": sides[0], "T2": sides[1]}
+        first, match = side.split("/")
+        return f"{team[first]}/{team[match]}"
     if kind == "raw":
         return side or None
     return None

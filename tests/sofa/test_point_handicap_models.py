@@ -274,10 +274,13 @@ def test_only_the_switched_readers_import_the_point_models() -> None:
     """epochs.VB_POINT_MODEL: SPORT_CONFIDENCE reads the rally model only
     through bet.sofa.vb_point_pricer; epochs.TENNIS_HANDICAP_POINT_MODEL:
     SHEET reads the handicap margins only through tennis_point_sheet."""
-    assert _importers("volleyball_point_model") == ["vb_point_pricer.py"]
+    # fit_vb_set1_match_curves.py: the set1_match curves' walk-forward fit
+    # (epochs.VB_SET1_MATCH), offline - a fitter, never a day's reader.
+    assert _importers("volleyball_point_model") == [
+        "fit_vb_set1_match_curves.py", "vb_point_pricer.py"]
     assert _importers("vb_point_pricer") == [
         "backfill_vb_point_p.py", "fit_line_evidence.py",
-        "run_sport_confidence.py"]
+        "fit_vb_set1_match_curves.py", "run_sport_confidence.py"]
     sc = (REPO / "scripts" / "sofa" / "run_sport_confidence.py").read_text(
         encoding="utf-8")
     assert "epochs.vb_point_model(self._day, self.at)" in sc

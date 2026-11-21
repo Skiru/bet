@@ -4058,6 +4058,41 @@ def vb_point_model(date: str, build_at: datetime | None = None) -> bool:
     return _audit_1023_on(VB_POINT_MODEL_FROM_UTC, date, build_at)
 
 
+# Volleyball "1.Set/Mecz" (Superbet 230059: the winner of set 1 and the winner
+# of the match, four outcomes; plan docs/sofa/history/
+# PLAN_NOWE_RYNKI_2026-11-20.md section 5, operator 2026-11-20 "wykonaj go w
+# całości"). Under it SHADOW reads the market (shadow.SET_MATCH_MARKETS:
+# sides "T1/T1" .. "T2/T2" from the exact outcome names, a whole group of
+# four, its margin over the four) by the record's day and fetch clock -
+# off, a snapshot and unmapped_prices are byte for byte what they were;
+# SPORT_CONFIDENCE prices it with the rally-point model only (joint of set
+# 1's and the match's winner in each of the 4,000 simulations,
+# vb_point_pricer) and reads it through its own history curves, keys
+# set1_match|SAME (one team wins both) and set1_match|SPLIT,
+# config/sofa_vb_set1_match_curves.json (the rally model's walk-forward
+# 2025-10-01 .. 2026-09-28, hold-out 2026-09-29 .. 2026-11-20 on history),
+# overlaid by sport_confidence.with_vb_point_curves by this switch's day and
+# build clock, never written into a calibration a built day reads. Line
+# evidence at the rally p (vb_point_pricer.BACKFILL). Needs VB_POINT_MODEL.
+# Measured 2026-11-20 (docs/sofa/evidence/nowe_rynki_2026-11-20.md section
+# 2, cs2_vb/raport_cs2_siatkowka.md 2c): no edge over the price (Brier model
+# - fair +0.0043 [-0.0006, +0.0093], 286 matches); its offer-window plus is
+# the favourites' surplus already seen on the winner market. Legs carry
+# VB_SET1_MATCH_LEG_FIELD (and the rally model's own field); SHADOW records
+# carry it too. By the day and the build clock. Ledger group "od 11-22".
+VB_SET1_MATCH = "vb_set1_match_v1"
+VB_SET1_MATCH_FROM_UTC: datetime | None = datetime(2026, 11, 22, 0, 0, tzinfo=UTC)
+VB_SET1_MATCH_LEG_FIELD = "vb_set1_match_rule"
+VB_SET1_MATCH_MARKETS: frozenset[int] = frozenset({230059})
+
+
+def vb_set1_match(date: str, build_at: datetime | None = None) -> bool:
+    """VB_SET1_MATCH_FROM_UTC (with VB_POINT_MODEL, its pricer) on the day
+    being built and the build clock."""
+    return (vb_point_model(date, build_at)
+            and _audit_1023_on(VB_SET1_MATCH_FROM_UTC, date, build_at))
+
+
 # Tennis per-set games handicap from the bottom-up point model (operator
 # 2026-11-06, the same rule as VB_POINT_MODEL; moved by the operator from
 # 11-07 00:00Z to 2026-11-06 17:30Z, 11-06 mixed). Under it SHEET prices the

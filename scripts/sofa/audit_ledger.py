@@ -152,7 +152,7 @@ EPOCH_GROUPS = ("do 10-04", "10-05 rano", "stats_only", "od 10-09", "od 10-12",
                 "od 10-27", "od 10-28", "od 10-30", "10-30 mieszany", "od 10-31",
                 "od 11-02", "od 11-03", "11-05 mieszany", "od 11-06",
                 "11-06 mieszany", "od 11-07", "od 11-08",
-                "11-09 mieszany", "od 11-10")
+                "11-09 mieszany", "od 11-10", "od 11-22")
 REFIT_EPOCH_FROM_DATE = "2026-10-09"
 PLAYER_EPOCH_FROM_DATE = "2026-10-12"
 REFIT_1013_MIXED_DATE = "2026-10-13"
@@ -323,10 +323,21 @@ SAME_EVENT_DEDUP_EPOCH_FROM_DATE = "2026-11-08"
 # legs printed before stay locked, so 11-09 is mixed - its own group.
 SCHEDULE_TERM_EPOCH_FROM_DATE = "2026-11-10"
 SCHEDULE_TERM_1109_MIXED_DATE = "2026-11-09"
+# The new Superbet markets of the plan docs/sofa/history/
+# PLAN_NOWE_RYNKI_2026-11-20.md, one shared day (operator 2026-11-20): first
+# volleyball's "1.Set/Mecz" (epochs.VB_SET1_MATCH_FROM_UTC 2026-11-22
+# 00:00Z: priced by the rally model, its own history curves
+# config/sofa_vb_set1_match_curves.json; legs carry vb_set1_match_rule);
+# the plan's hockey and football markets join this group on the same day -
+# more legs printed, a new epoch. 11-20 .. 11-21 stay "od 11-10" (no switch
+# that changes what prints took effect on them).
+NEW_MARKETS_EPOCH_FROM_DATE = "2026-11-22"
 
 
 def epoch_group(row: dict[str, Any]) -> str:
     if row.get("epoch") == "stats_only":
+        if str(row.get("date", "")) >= NEW_MARKETS_EPOCH_FROM_DATE:
+            return "od 11-22"
         if str(row.get("date", "")) >= SCHEDULE_TERM_EPOCH_FROM_DATE:
             return "od 11-10"
         if str(row.get("date", "")) == SCHEDULE_TERM_1109_MIXED_DATE:
