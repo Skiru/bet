@@ -33,9 +33,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --repor
    path - never fix its JSON or `reads.json` yourself; after 2 relaunches
    report the failure. On a past day whose
    legs have all started, stop here: report the reads as not applied.
-4. Rebuild with the one rebuild command (dry run first, never stage scripts
-   by hand - a CONFIDENCE on a stale offer empties the coupon to its locked
-   legs):
+4. Rebuild when merge_reads wrote anything (it did not print both
+   `vetoes.json unchanged - not rewritten` and `reads.json unchanged - not
+   rewritten`) or the verifier listed a `kurs zmieniony` note; otherwise skip
+   it and say so - but a `day_status.py` `coupon` BROKEN (STALE_CONFIDENCE,
+   STALE_COUPON) is always fixed by this rebuild, never by `run_confidence.py`
+   / `build_coupon_pdf.py` by hand whatever the message says. Rebuild with the
+   one rebuild command (dry run first, never stage scripts by hand - a
+   CONFIDENCE on a stale offer empties the coupon to its locked legs):
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <d> --dry-run

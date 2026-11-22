@@ -114,7 +114,11 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
    - **7c "KUPON Z PDF — to, co naprawdę poszło na typ"** is the coupon's real result: one
      table per sport x epoch plus the measured sports' table (graded at the printed price
      against the pinned id; another id = `NOT_GRADED:ID_CHANGED`), closed by
-     **"Suma kuponu"**. Refunds are counted apart at 0 u. on the row "zwrot (przesunięty > 48 h /
+     **"Suma kuponu"**. The first table ("Zakłady pojedyncze z PDF", row "wynik przy 1 j.
+     na pozycję") is **football + tennis only**; the measured sports' table follows it;
+     **"Suma kuponu" = both, and equals the ledger's `official` units - quote "Suma kuponu"
+     as the day's result**, never a single table's row (11-21: -383.07 football + tennis,
+     -15.00 sports, Suma -398.07 - not a discrepancy). Refunds are counted apart at 0 u. on the row "zwrot (przesunięty > 48 h /
      odwołany / ...), 0 j." (only on a day that has one).
    - **7i "Nogi zdjęte przez odczyt — nie kupon"** grades `removed_by_reads` (WATCH / NO_BET reads and
      the automatic `MODEL_ABOVE_OWN_SAMPLE`): do the reads remove losers? Never add it to 7c.
@@ -149,10 +153,11 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
 | `config/sofa_engine_constants.json` | `fitted_from` (`db_path` = the refit's copy), each constant's `status`, `K_CENTRE.by_sport` (football 15, tennis 8). A `null` with `NOT_FITTED` is correct output (e.g. `K_PRICE`: Brier monotone to w = 0) - never replace it with a default |
 | `config/sofa_league_baselines.json` | `fitted_from`, `half_match_coherence` (a failure is real: half priors fit a smaller population), an entry for tonight's competitions |
 | `config/sofa_market_reliability.json` | written by `fit_constants.py` only, never by `calibrate_from_cache.py --out` |
-| `config/sofa_confidence_calibration.json` | `fitted_from` (`db_path`, `max_settled_run_date`, `replay_rules`), `by_class_fitted_from`, `new_market_curves_fitted_from`, `line_curves_fitted_from`; operator keys (`fit_meta.OPERATOR_KEYS`) carried over |
-| `config/sofa_sport_confidence_calibration*.json` | the file `sport_confidence.calibration_path_for(<D>)` returns is in force (the staged file with the latest `effective_from` <= D; from 2026-10-28 `.next.2026-10-28.json`): check that file's `fitted_from`; a sport absent = `NOT_CALIBRATED`, prints no legs |
+| the football / tennis curve file `confidence.calibration_path_for(<D>)` returns (a staged `.next*.json` from its `effective_from`; the installed `config/sofa_confidence_calibration.json` only when none applies) | `fitted_from` (`db_path`, `max_settled_run_date`, `replay_rules`), `by_class_fitted_from`, `new_market_curves_fitted_from`, `line_curves_fitted_from`; operator keys (`fit_meta.OPERATOR_KEYS`) carried over |
+| `config/sofa_sport_confidence_calibration*.json` | the file `sport_confidence.calibration_path_for(<D>)` returns is in force (the staged file with the latest `effective_from` <= D - ask the function, never assume a file name): check that file's `fitted_from`; a sport absent = `NOT_CALIBRATED`, prints no legs |
 | `config/sofa_superbet_line_evidence.json` | at settle time `fitted_from.before` still reads D-1 (today's refit runs after you, sofa-day 1a, which checks `<D>`); `sheet_days` reaching D-2, `sport_source`; refitted after every curve install |
-| `config/tennis_rating.json`, `config/sofa_count_dispersion.json`, `config/sofa_settleability.json` | `fitted_from` before the day they price |
+| `config/tennis_rating.json`, `config/sofa_count_dispersion.json` | `fitted_from` before the day they price |
+| the settleability file `settleability.path_for(<D>)` returns (`config/sofa_settleability.<D>.json`, refitted every morning) | it exists for the day; else the day reads the latest earlier fit - say so |
 
 A market with its own curve never borrows the pooled curve above its measured range.
 
@@ -161,7 +166,7 @@ A market with its own curve never borrows the pooled curve above its measured ra
 A short Polish report, these lines, in order:
 
 ```
-KUPON:     7c · <sport> [<grupa epoki>]: <w>/<n> · <u> j. · ROI <x%> · ... · Suma kuponu <u> j. · zwroty <n> (0 j.)
+KUPON:     7c · <sport> [<epoka as 7c prints it>]: <w>/<n> · <u> j. · ROI <x%> · ... · Suma kuponu <u> j. · zwroty <n> (0 j.)
 SPORTY:    hokej / kosz / siatka / CS2: <w>/<n> · <u> j. · pending <n> · NOT_GRADED:ID_CHANGED <n>
 ZDJĘTE:    7i · <w>/<n> · <u> j. (osobno, nie kupon)
 SETTLE:    <D-1> · <verdict> · nierozliczone <n> (powody) · zwroty per powód · FINISHED_ABNORMALLY <n> · sweep <exit, dni>

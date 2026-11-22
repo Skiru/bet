@@ -163,7 +163,11 @@ refusal), exit 1.
 Offline; football and tennis only. Reads the sheet, offer, fixtures, samples,
 `fixture_status.json`, `vetoes.json`, `reads.json`, the curves and the line
 evidence; writes `08_confidence.json` / `.md`. No `--floor`: the floor is
-`COUPON_PROFILE`'s 0.70. `--calibration` writes the same artifact names - pair
+`COUPON_PROFILE`'s 0.70, except a leg carrying `floor_rule` (0.60 -
+`epochs.leg_floor`: tennis `games_total` / `sets_total` from 2026-11-05 17:05Z,
+`TENNIS_TOTALS_FLOOR`; football simulator `team_scores_both_halves` UNDER,
+`half_goals_combo` OVER, `btts_any_half` UNDER, `btts_halves` OVER from
+2026-11-06 17:30Z, `FOOTBALL_SIM_FLOOR`; never in a builder). `--calibration` writes the same artifact names - pair
 it with a scratch `--runs-dir` or it overwrites the day's real 08.
 `LINE_EVIDENCE_NOT_FITTED` on stderr = no evidence file.
 
@@ -236,7 +240,9 @@ identified or the bridge refused; 2 no snapshot (with `--if-snapshot`:
 No bridge. Reads `sport_fixtures.json`, the snapshots, the day's sport
 calibration (`sport_confidence.calibration_path_for`), the line evidence and
 the DB read-only; writes `08_confidence_sports.json` only. Per side of an
-event starting in [D 00:00Z, D+1 00:00Z): identified, not started, newest
+event starting in the measured sports' day window [end(D-1), end(D)), end(D) =
+D+1 05:00Z (`sport_identity.day_window`, `SPORT_LATE_WINDOW` from 2026-10-23;
+legs starting on D+1 carry `window: "late"`): identified, not started, newest
 pre-start snapshot <= 3 h old, an allowed market, a whole outcome group.
 Refusals (`sports.<s>.refused`): `NOT_IDENTIFIED`, `DUPLICATE_*`,
 `FIXTURE_NOT_AS_SCHEDULED`, `KICKED_OFF`, `STALE_PRICE`, `MARKET_NOT_ALLOWED`,
@@ -259,7 +265,13 @@ locked legs first (unnumbered), fresh singles inside the day's UTC window in
 (`coupon_sports.apply_reads`); `removed_by_reads` from both sources;
 `read_requests` with the positions each `covers` (`UNMATCHED_READ_REQUEST` on
 stderr; an entry without `requested_by` / `at_utc` = exit 2); structure
-annotations (`coupon_structure`); Superbet's names on every leg. Exit 1 when
+annotations (`coupon_structure`); Superbet's names on every leg. One event,
+one leg (`SAME_EVENT_DEDUP`, from 2026-11-08, `bet.sofa.leg_identity`): two
+market names of one outcome print once - a locked leg stays and its fresh twin
+goes; the rest go to `removed_as_same_event` with `same_event_as` (a twin of a
+read-refused event: `same_event_refused`) - a leg there did not vanish. The
+display-only annotations `lesser_loss` (from 2026-11-11 14:55Z) and group
+`stakes` (from 2026-11-19) are joined here. Exit 1 when
 `08_confidence_sports.json` is missing.
 
 ## PDF - `scripts/sofa/build_coupon_pdf.py`

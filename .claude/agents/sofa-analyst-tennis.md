@@ -78,15 +78,19 @@ return that in one line.
      or a real `DEFEKT: <artifact> ...` (a value wrong for tonight). A
      schedule fact known before the price, a market driver's numbers, form,
      h2h, ranking - a note. Withdrawal / walkover confirmed on two domains:
-     NO_BET with both tags; retirement risk: a note.
+     NO_BET with both tags. Retirement risk is a note - except a WATCH (never
+     NO_BET or a veto) written `KRECZ: <gracz> <data>` with `context:
+     "RETIREMENT"` when the dossier's `sides.<side>.retirement` shows that
+     player's singles match lost Retired / Walkover <= 14 days before the
+     start and none completed since (core "What a removal's reason must
+     name" 4; checked by the code).
 5. **If the file is larger than you can read well**, keep its order but put
    first: matches behind a printed builder, then null scope fields, then
    confident `games_won_for` legs. A leg you did not reach gets no read and
    is named in the summary.
 6. **Write and validate** per the core's output contract (one heredoc;
-   `merge_reads.py ... --read-set <your read-set file> --dry-run`, a slip
-   also `--slip`; then `check_analyst_report.py --report <path>`), then
-   return.
+   `check_analyst_report.py --report <path>` until clean, then `merge_reads.py ... --read-set <file> [--read-set <file2>] --dry-run` (one `--read-set` per file, never comma-joined; read `exit=`), a slip also `--slip`), then return. Never wrap your match
+   sections in a code fence.
 
 ## Output contract
 

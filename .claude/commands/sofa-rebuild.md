@@ -56,6 +56,7 @@ with its reason:
 | SHEET | the sheet is not stats-only, rated under the old link rule, or lacks the row marker / row of a switch now on |
 | COUPON (06, `audit_coupon`'s input, not the coupon) | older than sheet / vetoes / reads |
 | then always | `ensure_bridge.py`, FIXTURE_CHECK, CONFIDENCE, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF, `audit_variants.py`, `audit_coupon.py` |
+| STAKES_LISTINGS (after FIXTURE_CHECK, soft) | an open national group-competition fixture exists (`refresh_stakes_listings.py`; display-only stakes flags; a refusal stops it, nothing refused) |
 
 **SHEET by hand.** The plan never re-runs SHEET for a SHEET code change or a config SHEET
 reads (`CONFIG_CHANGED` note: an install never enters a built day without the operator's
@@ -92,7 +93,8 @@ leaves the audits out and says so - a skipped audit is not a passed one.
   re-read (`ensure_bridge.py`, then `read_set.py --unread`) until C3 is clean (from
   2026-11-02, reads on request: only when the operator asks for reads - `/sofa-analyze`).
 - `build_coupon_pdf.py` refuses `STALE_CONFIDENCE` / `STALE_COUPON`: fix the cause and re-run
-  the whole rebuild, never only the PDF.
+  the whole rebuild, never only the PDF - and never `run_confidence.py` by hand, although the
+  message names it.
 - SPORT_CONFIDENCE exit 1 = a sport `NOT_CALIBRATED` or without `sport_fixtures.json`;
   the rest builds - name the sport.
 - Report every `UNMATCHED_VETO` / `UNMATCHED_READ` / `UNMATCHED_READ_REQUEST` line; a sport
@@ -110,7 +112,7 @@ position put an unread leg into the read set) goes to `/sofa-analyze`'s C3 loop
 From 2026-11-02 (`epochs.READS_ON_REQUEST_FROM_UTC`, reads on request) unread read-set legs
 are a C3 `notes (not defects)` line - report it; only a printed leg carrying WATCH / NO_BET
 is a C3 defect, and the loop runs only when the operator asked for reads. Then hand the day to `/sofa-verify` unless the operator asked for
-a bare rebuild.
+a bare rebuild - or you came here from `/sofa-day` step 7, whose step 8 is the verifier.
 
 Last: `PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <date>` -> `icloud`
 must be OK (md5 local = iCloud copy of KUPON pdf + html); a WARN = re-copy with

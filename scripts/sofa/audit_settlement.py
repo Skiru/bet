@@ -1111,9 +1111,14 @@ def main() -> int:
 
         emit("## 7c. KUPON Z PDF — to, co naprawdę poszło na typ")
         emit("")
-        emit("PDF renderuje te Bet Buildery, które mają `best_for_fixture` i "
-             "dodatnie EV. To jest kupon. Sekcja 7 (pojedynki VALUE) i 7b (cała "
-             "lista nóg) to materiał wejściowy, nie zakład.")
+        # 2026-11-22: the old text ("the coupon is the positive-EV Bet
+        # Builders") had not described the PDF since 2026-09-22, and a settler
+        # read the football + tennis singles row as the day's result
+        emit("Kupon to `11_coupon.json` / PDF: pojedyncze i buildery. Pierwsza "
+             "tabela pojedynczych liczy tylko piłkę i tenis, druga sporty "
+             "mierzone; wynik dnia to wiersz „Suma kuponu” (= jednostki "
+             "wiersza `official` w ledgerze). Sekcja 7 i 7b to materiał "
+             "wejściowy, nie zakład.")
         emit("")
         # Screen prices, when the operator recorded them. Key: the fixture's
         # sofascore_event_id as a string. A measured price always beats the
@@ -1128,7 +1133,7 @@ def main() -> int:
         # reported as "0 slips" without one word about what was on the page.
         all_singles = conf.get("singles") or []
         singles = printed_singles(conf)
-        emit("### Zakłady pojedyncze z PDF")
+        emit("### Zakłady pojedyncze z PDF (piłka + tenis; sporty mierzone niżej)")
         emit("")
         if not singles:
             emit("PDF nie drukował pojedynczych.")

@@ -77,8 +77,8 @@ return that in one line.
    markets, then the rest. A leg you did not reach gets no read and is named
    in the summary - never a KEEP you did not earn.
 5. **Write and validate** per the core's output contract (one heredoc,
-   `merge_reads.py --read-set <your read-set file> --dry-run`, then
-   `check_analyst_report.py --report <path>`), then return.
+   `check_analyst_report.py --report <path>` until clean, then `merge_reads.py ... --read-set <file> [--read-set <file2>] --dry-run` (one `--read-set` per file, never comma-joined; read `exit=`)), then return. Never wrap your match sections in a code fence (a
+   fenced heading is not filed; `SEKCJA BEZ TOKENU` / `NO_SECTIONS`).
 
 ## Output contract
 

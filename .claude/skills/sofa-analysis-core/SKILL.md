@@ -26,7 +26,7 @@ The caller names one file: `runs/sofa/<d>/read_set/read_set_<sport>[_<i>].json`
 | field | meaning |
 |---|---|
 | `sofascore_event_id`, `group_key` (`sofa:<id>`), `match`, `competition`, `kickoff_utc` | the match |
-| `market`, `subject`, `line`, `direction`, `period` | the leg's key - copy these into your read exactly (a sport leg: `market` = family, `direction` = side, `period` = period / quarter / set / map; a handicap `line` is team 1's, `T1` / `T2` the side) |
+| `market`, `subject`, `line`, `direction`, `period` | the leg's key - copy these into your read exactly; **every read writes all of `sofascore_event_id, market, subject, line, direction, verdict, author, reason` (+ `period` for a sport leg, `stability`, `stability_reason`) - a key the file does not hold is `null`** (a missing key refuses the whole merge) (a sport leg: `market` = family, `direction` = side, `period` = period / quarter / set / map; a handicap `line` is team 1's, `T1` / `T2` the side) |
 | `superbet_market`, `superbet_selection` | Superbet's words - name the leg with them |
 | `confidence`, `offered_odds`, `price_gap` | pewność, the price, the over-price flag |
 | `position`, `locked` | coupon position (a builder leg has none); `locked` = printed before its start, stays whatever you say |
@@ -188,7 +188,7 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
 - **What a removal's reason must name** - one of:
   1. a fact newer than the price with a dated tag (`[WEB: domena, publ.
      <data>, fetched <czas>]`; unknown date = `publ. ?`, which is not newer
-     than anything);
+     than anything and the code does not count as dated);
   2. an artifact defect written `DEFEKT: <artifact, field, what is wrong>` -
      a value that is **wrong for tonight**: identity, scope, surface, format,
      another squad or competition class, placeholder data, a mis-sided
@@ -196,7 +196,11 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
      model does not use (rest, back-to-back, form, a streak, h2h, the table)
      or a rating you disagree with (`FOOTBALL_RATING` ratios, strength gap,
      domains, `cup_strength_rule`) is not a defect: a note, and a "do
-     zrobienia" line in your summary;
+     zrobienia" line in your summary. After `DEFEKT:` write only the
+     artifact, the field and what is wrong - never the words forma, seria
+     zwycięstw / porażek, h2h, tabela, rating, rest_days, back-to-back in
+     that reason, not even to dismiss them (the code refuses the whole
+     report on them); a CS2 / tennis "seria Bo3" is fine;
   3. (**football only**, reports of 2026-10-29 on, **WATCH only, never
      NO_BET or a veto**) market-driver evidence written `RYNEK: <driver>:
      <k/n from the dossier>`, read `context: "MARKET"`. It stands only at
@@ -207,8 +211,10 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
        `league.share` each >= 0.25 below pewność (n >= 8 each). Otherwise
        the code (own sample, `MODEL_ABOVE_OWN_SAMPLE`) has decided;
      - (b) corners OVER only, on the side that will not have the ball
-       (possession mean < 50 **and** the longer `result_1x2` price; a cup tie
-       between levels: the ladder alone): its
+       (possession mean < 50 **and** the longer win price - the dossier's
+       `double_chance` rungs, X2 "no" = home win, 1X "no" = away win; with no
+       such rung possession alone; a cup tie between levels: the price
+       alone): its
        `corners_by_own_possession.posiadanie_ponizej_50.srednia` under the
        line with n >= 4.
 
@@ -339,8 +345,10 @@ entry of the day).
       "The check"; the PostToolUse hook sends the same list);
    2. `PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <path> --author analyst --read-set <your read-set file> --dry-run > "${TMPDIR:-/tmp}/<report basename>.mr.txt" 2>&1; echo exit=$?`
       (always `--read-set`; a chat slip's `read_set_slip_*.json` also
-      `--slip`), then `grep -E 'UNMATCHED|LEG_WITHOUT|refus' "${TMPDIR:-/tmp}/<report basename>.mr.txt"`
-      (not `tail`). Exit 1 = `UNMATCHED_VETO` / `UNMATCHED_READ` /
+      `--slip`; several read-set files: repeat `--read-set` once per file,
+      never comma-joined), then `grep -iE 'UNMATCHED|LEG_WITHOUT|refused|nothing merged|validation error|USUNIĘCIE|RYNEK|KRECZ|STABILNO|WETO' "${TMPDIR:-/tmp}/<report basename>.mr.txt"`
+      (not `tail`) - and always read `exit=`: the grep alone may show nothing
+      on a refusal. Exit 1 = `UNMATCHED_VETO` / `UNMATCHED_READ` /
       `LEG_WITHOUT_READ` (a key that hits no row / a leg you missed), exit 2
       = a block does not validate: fix the report and re-run both.
 4. Return to the caller at most 12 lines: the path, legs read, KEEP / WATCH /

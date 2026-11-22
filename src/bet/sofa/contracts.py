@@ -575,7 +575,11 @@ LegVerdict = Literal["KEEP", "WATCH", "NO_BET"]
 # which covers every printed side of the market.
 READ_SIDES = frozenset(
     {"OVER", "UNDER", "T1", "T2", "DRAW", "ODD", "EVEN", "YES", "NO",
-     "1X", "X2", "12"})
+     "1X", "X2", "12",
+     # volleyball "1.Set/Mecz" (VB_SET1_MATCH, 2026-11-22; cs2.SET_MATCH_SET):
+     # before it a read naming one of the four sides failed validation and
+     # refused the whole reads.json merge (audit 2026-11-22)
+     "T1/T1", "T1/T2", "T2/T1", "T2/T2"})
 _EXACT_SCORE = re.compile(r"^\d+[:-]\d+$")
 ReadAuthor = Literal["analyst", "verifier"]
 StabilityLabel = Literal["STABILNA", "CHWIEJNA", "BRAK_PODSTAW"]

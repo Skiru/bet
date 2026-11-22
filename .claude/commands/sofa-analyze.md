@@ -122,10 +122,14 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 
 - `merge_reads.py` also stamps each read (`read_at_utc`) and files each report's match
   sections in `analyses.json` (the HTML / PDF show them at the legs); `NO_SECTIONS: <file>`
-  = no heading carried `sofa:<id>` - report it, the merge stands.
+  = no heading carried `sofa:<id>` - report it, the merge stands (expected, not a defect,
+  on a report whose reads block is `[]`: "no reads - no sections expected").
+- `merge_reads.py` does not rewrite `vetoes.json` / `reads.json` whose content did not change
+  (`<file> unchanged - not rewritten`): nothing changed = no rebuild needed.
 - `merge_reads.py`: exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing -
-  report it); 2 refused, nothing written (also a removal without a fact: USUNIĘCIE BEZ
-  FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU) - relaunch that instance with the
+  report it); 2 refused, nothing written (also any finding marked "blokuje merge: tak" in
+  `.claude/skills/sofa-analysis-core/references/context-pass.md`, "The check" - USUNIĘCIE BEZ
+  FAKTU, WETO BEZ FAKTU, RYNEK *, KRECZ *, STABILNOŚĆ) - relaunch that instance with the
   refusal line / findings and a new `_r<n>` path (never fix its JSON yourself; after 2 relaunches report the failure). It carries earlier vetoes over and only appends reads (WATCH / NO_BET
   win over KEEP). A report without a reads block broke its contract: say so, never invent reads.
 - `rebuild_day.py`: `/sofa-rebuild` owns its plan. Report every `UNMATCHED_READ` (a read that

@@ -109,12 +109,23 @@ stage stops the stages after it (`SKIPPED`).
   Disagreement with the price is never evidence either way.
 - `forecast_p` ("model") is the rating's uncalibrated number, `sample_hit_rate`
   / k/n ("próbka") the raw sample: both shown, never gates.
-- **A leg prints** when confidence >= 0.70, x = confidence x odds >= 0.90,
+- **A leg prints** when confidence >= 0.70 (0.60 for a leg carrying
+  `floor_rule`: tennis `games_total` / `sets_total`; football simulator
+  `team_scores_both_halves` UNDER, `half_goals_combo` OVER, `btts_any_half`
+  UNDER, `btts_halves` OVER - `epochs.leg_floor`), x = confidence x odds >= 0.90,
   ladder margin <= 15%, odds >= 1/0.9202 = 1.0867, not started (15 min
   margin; start clock below), fresh
   price (football / tennis 45 min, measured sports 3 h; a moved price
   re-prices the leg). Every passing single prints - no page limit. Order:
-  confidence, then earlier start, one match's legs together.
+  confidence, then earlier start, one match's legs together. A one-sided leg
+  (football player props, OVER-only score rungs: no overround) prints as a
+  single only when its confidence is its own market's history curve with n >=
+  300 (`confidence.one_sided_single`; PDF margin column "1-str.") - not a
+  breach of the 15% rule.
+- **One event, one leg** (`SAME_EVENT_DEDUP`, from 2026-11-08,
+  `bet.sofa.leg_identity`): two market names of one outcome print once; the
+  other goes to `removed_as_same_event` with `same_event_as` - not a leg that
+  vanished.
 - **Start clock** = earliest of RESOLVE's clocks and Superbet's
   (`superbet_kickoff_seen_utc`), or - once FIXTURE_CHECK read a fresh `/event`
   start - of that start and Superbet's newest clock (it replaces RESOLVE's
@@ -128,7 +139,9 @@ stage stops the stages after it (`SKIPPED`).
   operator's manual evening rebuild (~20:00-21:00Z); morning legs stay locked.
 - **Bet Builders:** one per fixture, by `combined_probability`; stakeable at
   combined p x haircut odds >= 0.90 (internal). sofa never prints a builder
-  price: the PDF says "kurs buildera: sprawdź na ekranie Superbetu".
+  price: the PDF says "kurs buildera: sprawdź na ekranie Superbetu". Never
+  in a builder: a leg with `floor_rule` or `player_sample_rule`, a simulator
+  (`football_sim_rule`) row.
 - **Annotations, never gates:** `price_gap` (`CONFIDENCE_ABOVE_PRICE`:
   confidence > 1/odds + 0.03 - such legs realised about at their price;
   football, tennis and, from 2026-10-21, CS2),
@@ -136,25 +149,31 @@ stage stops the stages after it (`SKIPPED`).
   2026-11-04: a leg dependent on the favourite's strength where Superbet's
   goal margin for its favourite exceeds our rating's by >= 1.0 - such legs
   realised about at their price, below their confidence; context only),
-  `peer` (★ the surer of two same-price legs of a match), stakes flags,
-  `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`, `CONGESTED`).
-- **Confidence review 2026-10-27, live from 2026-10-28 00:00Z** (model-state.md;
-  `docs/sofa/history/PRZEGLAD_PEWNOSCI_2026-10-27.md`):
-  - a football joint (both_over / most / handicap / BTTS-type) whose one side
-    has no quoted Superbet ladder now gets that side's full centre chain
-    (opponent correction, venue, GAME_STATE, stretches, referee, season phase)
-    - sheet note `JOINT_SIDE_CHAIN` (`epochs.JOINT_FILLED_SIDE_CHAIN`); before
-    10-28 such a side was `sample_centre` alone - not a defect to report on a
-    day built under the new rule;
-  - tennis per-set games handicap (`handicap_games_won_set1/_set2`) reads the
-    rating neighbours' own set scores - note `SET_HANDICAP_NEIGHBOURS`
-    (`epochs.TENNIS_SET_HANDICAP_NEIGHBOURS`); before 10-28 it was an
-    independent joint that over-claimed (+1.5: 0.747 vs 0.574 real);
-  - basketball and CS2 curves are monotone in p
-    (`config/sofa_sport_confidence_calibration.next.2026-10-28.json`).
-  Coded and OFF (measured not better): `HK_LATE_GOAL_IN_MEAN`,
-  `CS2_DECIDER_MAP_POSTERIOR`, `FIRST_GOAL_NB_EXACT` - a leg priced without
-  them is the installed rule, not a defect. Ledger group "od 10-28".
+  `peer` (★ the surer of two same-price legs of a match), stakes flags
+  (`STAKES_SIX_POINTER`, `STAKES_TOP4`; from 2026-11-19 national group
+  `STAKES_NATIONAL_MUST_WIN / ALIVE / SECURED / DEAD`, tennis Finals
+  `RR_DECIDED_SIDE`), `lesser_loss` (from 2026-11-11 14:55Z: overround <
+  0.086, confidence - 1/odds >= -0.047, sample >= 20; tier `pewna` at >=
+  0.85), the schedule-term note "kontekst terminarza w modelu (t = ...)",
+  the read's `stability`, `context_flags` (`MAKEUP_FIXTURE`, `LONG_LAYOFF`,
+  `CONGESTED`).
+- **Current estimator switches** (`bet.sofa.epochs`; dates UTC; a leg built
+  before its switch, or without its marker, is the old rule - not a defect;
+  grep model-state.md for the detail):
+
+  | switch | from | leg / row marker | what |
+  |---|---|---|---|
+  | `JOINT_FILLED_SIDE_CHAIN`, `TENNIS_SET_HANDICAP_NEIGHBOURS` | 10-28 00:00 | notes `JOINT_SIDE_CHAIN`, `SET_HANDICAP_NEIGHBOURS` | confidence review 10-27 (off: `HK_LATE_GOAL_IN_MEAN`, `CS2_DECIDER_MAP_POSTERIOR`, `FIRST_GOAL_NB_EXACT`) |
+  | `TENNIS_TOTALS_FLOOR` | 11-05 17:05 | `floor_rule` | tennis `games_total` / `sets_total` print at 0.60 |
+  | `TENNIS_POINT_MODEL` | 11-06 00:00 | `tennis_point_model_rule` | 20 tennis keys from the point model (best of five / no ids = `NOT_RATED`) |
+  | `FOOTBALL_SIM`, `FOOTBALL_SIM_FLOOR` | 11-06 17:30 | `football_sim_rule`, `floor_rule` | football path markets from the minute simulator; four keys at 0.60 |
+  | `VB_POINT_MODEL` | 11-06 17:30 | `vb_point_model_rule` | volleyball rally-point model |
+  | `TENNIS_HANDICAP_POINT_MODEL` | 11-06 17:30 | `tennis_handicap_point_model_rule` | tennis per-set games handicap from the point model |
+  | `FOOTBALL_FORM_TABLE` | 11-07 00:00 | `form_table_p` | season table per family (35 `market|DIR`) |
+  | `SAME_EVENT_DEDUP` | 11-08 00:00 | `removed_as_same_event`, `same_event_as` | one event, one leg (below) |
+  | `SCHEDULE_TERM` | 11-09 11:30 | `schedule_term_rule`, `schedule_term` | football result / score / path markets x exp(rest / congestion term) |
+  | `CARDS_CLOSENESS_OFF` | 11-10 00:00 | `cards_closeness_rule` | cards out of the closeness term |
+  | `VB_SET1_MATCH` | 11-22 00:00 | `vb_set1_match_rule` | volleyball "1.Set/Mecz", sides `T1/T1`..`T2/T2` |
 
 Refusals you will meet (named on the row; each is the code working):
 
@@ -196,12 +215,16 @@ Nothing can **promote** a leg.
   `author` ∈ `analyst | verifier`. **WATCH and NO_BET remove** the leg into
   `removed_by_reads` (graded apart, never in the coupon's result); KEEP removes
   nothing. A sport leg: `market` = family, `direction` = side
-  (`T1|T2|DRAW|ODD|EVEN|YES|NO|1X|X2|12` or exact score "3:1"), `period` =
+  (`T1|T2|DRAW|ODD|EVEN|YES|NO|1X|X2|12`, volleyball "1.Set/Mecz"
+  `T1/T1|T1/T2|T2/T1|T2/T2`, or exact score "3:1"), `period` =
   period / quarter / set / CS2 map; COUPON_ASSEMBLY applies it (`reads_sport`).
   Every read merged from `epochs.STABILITY_LABEL_FROM_UTC` also carries
   `stability` (`STABILNA | CHWIEJNA | BRAK_PODSTAW` - the leg's own variable
-  today) and a one-sentence `stability_reason` (`sofa-analysis-core`
-  "Verdicts"); `report_check` / `merge_reads.py` refuse a report without
+  today: `STABILNA` predictable, `CHWIEJNA` a concrete reason it may land
+  otherwise - form slump, unsure XI, rotation, motivation, a volatile
+  variable, thin data, `BRAK_PODSTAW` the analysis says nothing about this
+  leg; CHWIEJNA wins when readers disagree) and a one-sentence
+  `stability_reason`; `report_check` / `merge_reads.py` refuse a report without
   them. It removes nothing (`STABILITY_REMOVAL` is off); shown on the PDF /
   HTML / `/kupon` table, measured by T-STABILITY-LABEL-FORWARD.
 - **`read_requests.json`** - the operator's extra legs: `{"group_key":
@@ -219,10 +242,23 @@ back). A WATCH / NO_BET reason names one of:
 - football only, from reports dated 2026-10-29, for a **WATCH only** (never
   NO_BET, never a veto), a market driver of the leg's family
   (`.claude/skills/sofa-analysis-core/references/market-drivers.md`):
-  `RYNEK: <driver>: <numbers with k/n from the dossier>`, read `context: "MARKET"`.
+  `RYNEK: <driver>: <numbers with k/n from the dossier>`, read `context: "MARKET"`;
+- tennis only, from reports dated 2026-11-02, for a **WATCH only** (never
+  NO_BET, never a veto): `KRECZ: <gracz> <data>`, read `context:
+  "RETIREMENT"` - the dossier's `sides.<side>.retirement` shows that player's
+  singles match lost Retired / Walkover <= 14 days before the start, none
+  completed since (`report_check.retirement_findings`).
 
-`merge_reads.py` refuses a whole report (exit 2, nothing merged) on any of
-USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU, and on
+An unknown publication date (`publ. ?`) is not dated. After `DEFEKT:` never
+write forma / seria zwycięstw / h2h / tabela / rating, not even to dismiss
+them - the code refuses the report.
+
+`merge_reads.py` refuses a whole report (exit 2, nothing merged) on every
+finding marked "blokuje merge: tak" in
+`.claude/skills/sofa-analysis-core/references/context-pass.md` ("The check"):
+USUNIĘCIE BEZ FAKTU, RYNEK TYLKO WATCH, RYNEK BEZ TAGU, WETO BEZ FAKTU;
+KRECZ TYLKO WATCH / BEZ TAGU / BEZ DOSSIER / NIEPOTWIERDZONY; STABILNOŚĆ (a
+read without `stability` / `stability_reason`); and on
 a `RYNEK:` WATCH its leg's dossier row does not carry (RYNEK ZAKAZANY - h2h /
 form / rating after the mark; RYNEK BEZ LINII; RYNEK BEZ DOSSIER - no schema
 >= 3 dossier; RYNEK BEZ WIERSZA; RYNEK PONIŻEJ PROGU - threshold (a) / (b)
@@ -342,12 +378,17 @@ report; rewriting your own report after a hook finding overwrites the same path.
 - A pooled number must say what it pooled across. Friendlies are out of
   samples and ratings (`bet.sofa.comparability`). "History is thin" is not an
   argument before `backfill_listings.py` has run.
-- **A slip assembled in chat is not a coupon and has no gates.** For any
-  table the operator may stake from: when the day does not support the
-  request (N slips, a target price), say no first. "Supports" is measured -
-  name the settled days and N, match bootstrap. Every such table carries the
-  measured chance (a `price_gap` leg at its price, never its confidence); the
-  product of confidences is never the headline.
+- **A slip assembled in chat is not a coupon and has no gates - so say no
+  first.** When the operator asks for N slips, a target price or disjoint
+  slips and the day supports fewer, say so in the first line ("dzień cienki -
+  masz jeden kupon" / "dziś żadnego") instead of filling the request with
+  weaker legs. "Supports" = legs standing on their own statistics and the
+  analysts' reads: each leg's measured chance is min(confidence, 1/odds), a
+  leg of any sport, `price_gap` or not; a leg a read refuses is out. No market
+  family is preferred or counted. Every table the operator may stake from
+  carries that measured chance with 1/odds beside it - in every re-summary -
+  and no "na minusie" label. The product of confidences is never the
+  headline.
 
 ## Language
 
@@ -364,8 +405,9 @@ reasons in `vetoes.json` / `reads.json`, summaries - is **Polish**.
   the confidence chain, builders, the constants table.
 - `references/traps.md` - before a rebuild, a re-read, a settle or a
   report: the mistakes that have already cost money.
-- `references/model-state.md` - when a leg's market, switch, curve or epoch
-  matters: which model packages and switches are on, mixed days, what is
+- `references/model-state.md` (~200 KB - **never Read it whole; grep the
+  switch / key / date you need** and read those lines) - when a leg's market,
+  switch, curve or epoch matters: which model packages and switches are on, mixed days, what is
   measured and not switched on.
 - `references/commands.md` - when you need a command line beyond those above
   (settle, ledger, audits, refit, measurement, backfill).

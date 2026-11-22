@@ -324,6 +324,38 @@ def test_event_ids_read_every_unlocked_printed_leg_of_those_matches(
     assert read_set.main([*args, "--event-ids", "x"]) == 2
 
 
+def test_a_merge_that_changes_nothing_leaves_the_files_untouched(
+        tmp_path: Path) -> None:
+    """2026-11-22: the verifier's ```json reads [] rewrote vetoes.json with
+    the same [] - its newer mtime made day_status BROKEN (STALE_CONFIDENCE)
+    and forced a rebuild. Unchanged content is never rewritten, and an empty
+    array never creates a file."""
+    import os
+    run = tmp_path / "2026-10-14"
+    run.mkdir()
+    empty = tmp_path / "verifier.md"
+    empty.write_text("# weryfikacja\n\n```json reads\n[]\n```\n")
+    args = ["--date", run.name, "--runs-dir", str(tmp_path),
+            "--report", str(empty), "--author", "verifier"]
+    assert merge_reads.main(args) == 0
+    assert not (run / "vetoes.json").exists() and not (run / "reads.json").exists()
+    (run / "vetoes.json").write_text("[]\n")
+    (run / "reads.json").write_text(json.dumps([read(3, author="verifier")]))
+    for name in ("vetoes.json", "reads.json"):
+        os.utime(run / name, (1_000_000, 1_000_000))
+    assert merge_reads.main(args) == 0
+    for name in ("vetoes.json", "reads.json"):
+        assert (run / name).stat().st_mtime == 1_000_000
+    # a repeat of a real report is unchanged too
+    report = tmp_path / "football.md"
+    report.write_text(REPORT)
+    real = ["--date", run.name, "--runs-dir", str(tmp_path), "--report", str(report)]
+    assert merge_reads.main(real) == 0
+    os.utime(run / "reads.json", (1_000_000, 1_000_000))
+    assert merge_reads.main(real) == 0
+    assert (run / "reads.json").stat().st_mtime == 1_000_000
+
+
 def test_an_empty_reads_block_is_no_broken_contract(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """2026-10-29 verification: a report whose ```json reads block was []
@@ -341,3 +373,40 @@ def test_an_empty_reads_block_is_no_broken_contract(
     assert "broke its contract" not in capsys.readouterr().out
     assert merge_reads.main([*args, "--report", str(missing)]) == 0
     assert "broke its contract" in capsys.readouterr().out
+
+
+def test_the_read_set_always_carries_the_keys_a_read_copies(
+        tmp_path: Path) -> None:
+    """Audit 2026-11-22: read_set dropped null fields, so a sport winner leg
+    had no `line`; an analyst copying "exactly" left the key out and
+    contracts.LegRead (no default) refused the whole merge."""
+    run = day(tmp_path, [leg(1, 0.80, 1.40, sport="hockey")])
+    coupon = json.loads((run / "11_coupon.json").read_text())
+    for single in coupon["singles"]:
+        single.pop("line", None)
+        single["subject"] = None
+    (run / "11_coupon.json").write_text(json.dumps(coupon))
+    out = tmp_path / "sets"
+    assert read_set.main(["--date", run.name, "--runs-dir", str(tmp_path),
+                          "--out-dir", str(out), "--no-dossier"]) == 0
+    legs = [x for f in sorted(out.glob("*.json"))
+            for x in json.loads(f.read_text())]
+    assert legs
+    for x in legs:
+        assert {"sofascore_event_id", "market", "subject", "line",
+                "direction"} <= set(x)
+        assert x["line"] is None
+
+
+def test_an_empty_report_is_no_missing_section(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """2026-11-22: the verifier's "Brak." report (```json reads []) printed
+    NO_SECTIONS as if it broke the event protocol; it owes no section."""
+    run = tmp_path / "2026-10-14"
+    run.mkdir()
+    empty = tmp_path / "2026-10-14_weryfikacja.md"
+    empty.write_text("# weryfikacja\n\nBrak.\n\n```json reads\n[]\n```\n")
+    assert merge_reads.main(["--date", run.name, "--runs-dir", str(tmp_path),
+                             "--report", str(empty), "--author", "verifier"]) == 0
+    out = capsys.readouterr().out
+    assert "NO_SECTIONS" not in out and "no sections expected" in out

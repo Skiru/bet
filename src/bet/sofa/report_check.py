@@ -45,7 +45,10 @@ DOSSIER_MARK = re.compile(r"dossier", re.IGNORECASE)
 BARE_COUNT = re.compile(r"^\s*\d+\s*/\s*\d+\s*[.;]?\s*$")
 SOURCE_MARK = re.compile(r"\[WEB:|niepotwierdzone|opinia|dossier|UNVERIFIED", re.I)
 WEB_TAG = re.compile(r"\[WEB:[^\]]*\]", re.I)
-DATED = re.compile(r"publ", re.I)
+# a publication date that is there: "publ. ?" (unknown) is not newer than
+# anything (sofa-analysis-core, "What a removal's reason must name" 1) -
+# before 2026-11-22 the bare word "publ" counted as dated
+DATED = re.compile(r"publ\.?\s*[^\s?,.\]]", re.I)
 DEFECT_MARK = re.compile(r"DEFEKT")
 KILL_MARK = re.compile(r"fakty\s+zab[oó]jcze", re.I)
 SUMMARY_MARK = re.compile(r"\*\*W skr[oó]cie", re.I)
@@ -74,7 +77,10 @@ COUNT = re.compile(r"\d+\s*/\s*\d+")
 # (10-28: "DEFEKT: dossier rest_days=1.0 ... Spurs na 2. nocy") removes nothing.
 FALSE_DEFECT = re.compile(
     r"rest_days|games_7d|games_14d|back[- ]to[- ]back|\bb2b\b|2\. noc|drug\w* noc|"
-    r"\bform[ay]?\b|\bseri[aię]\b|\bh2h\b|\btabel|"
+    # a streak, never a CS2 / tennis "seria" (best-of series: "DEFEKT:
+    # sport_fixtures best_of null - seria może być Bo1" was refused, 11-22)
+    r"\bform[ay]?\b|\bseri[aię]\b(?![^.;]{0,24}\b(?:bo\s?\d|best[_ ]of|map))|"
+    r"\bh2h\b|\btabel|"
     # a rating one disagrees with (10-29: ~30 removals "DEFEKT: 05_sheet
     # FOOTBALL_RATING ... log strength gap") is the forbidden cross-league basis
     r"FOOTBALL_RATING|FOOTBALL_SCORE_MARKETS|strength gap|cup_strength|rating", re.I)

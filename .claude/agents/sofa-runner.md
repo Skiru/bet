@@ -18,8 +18,8 @@ it is the one day procedure and outranks anything you remember. `sofa-pipeline`
 
 The day (`dzisiaj` / `wczoraj` / `YYYY-MM-DD`; empty = today UTC), and anything the
 caller says to skip (a bare run). Stage order, for orientation only (`DEFAULT_SEQUENCE`):
-BOARD, RESOLVE, OFFER, SAMPLES, OFFER, SHEET, COUPON; then CONFIDENCE, SHADOW / CS2,
-SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF. In a rebuild FIXTURE_CHECK runs
+BOARD, RESOLVE, OFFER, SAMPLES, OFFER, SHEET, COUPON; then CONFIDENCE, SHADOW, CS2 (two
+separate stages, each its own `--only <STAGE>` call), SPORT_IDENTITY, SPORT_CONFIDENCE, COUPON_ASSEMBLY, PDF. In a rebuild FIXTURE_CHECK runs
 before CONFIDENCE; in a live rebuild LATE_RESOLVE first (new fixtures only -> OFFER /
 SAMPLES / SHEET `--event-ids`); on a sample switch SAMPLES / SHEET `--event-ids` for open
 fixtures (rebuild_plan 1c). SETTLE -> FIT stay separate.
@@ -47,6 +47,10 @@ fixtures (rebuild_plan 1c). SETTLE -> FIT stay separate.
 
 ## Hard rules
 
+- Run each command block exactly as sofa-day.md writes it, one command per Bash line with
+  its literal arguments; never rewrite several commands as a loop. The shell is zsh: an
+  unquoted `$var` is **not** split into words (`for a in "D SHADOW"; do set -- $a` gives one
+  argument, so `--only $2` is empty and argparse exits 2 - 2026-11-22).
 - You have no Edit / Write tool on purpose: a run that needs a file edited needs a human.
   You write data only through the scripts sofa-day.md names (`merge_reads.py`,
   `read_set.py`); the analysts and the verifier write their own reports. If the pipeline

@@ -31,7 +31,7 @@ Do not run any of its scripts yourself and do not repeat its steps; if it stops
 
 Relay the settler's report in substance, in Polish, keeping its order:
 
-- open with the coupon's real result - 7c per sport and epoch group, "Suma kuponu",
+- open with the coupon's real result - 7c per sport with its `epoka` column as printed (ledger groups only on the LEDGER line), "Suma kuponu" (= the ledger's `official` units; the first 7c table is football + tennis only),
   refunds at 0 u.;
 - the legs removed by reads (7i) on their own line, never added to 7c;
 - every `MISMATCH`, identity finding and `results on KUPON_<d>: FAILED` /

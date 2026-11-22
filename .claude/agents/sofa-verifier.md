@@ -284,6 +284,11 @@ Write the whole report in Polish to `<report>` with ONE Bash heredoc
    Superbet's words with the evidence - a few lines, no tables (no style
    table or kill facts needed). Every `[WEB:]` tag is dated. The hook
    (`report_check`) checks this report like an analyst's and sends it back.
+   No removal: write `Brak.` - no match headings needed (merge_reads then
+   says "no reads - no sections expected"). A note on a kept match you want
+   shown at its legs (a clock disagreement, a changed price) may take its own
+   `### … · sofa:<id>` heading - display only, it removes nothing. Never wrap
+   a section in a code fence.
 6. Verdict, no stake recommendation.
 
 End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
@@ -292,10 +297,12 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 ```json reads
 [{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
   "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "verifier",
-  "reason": "[WEB: example.pl, publ. 2026-10-30 09:10, fetched 11:02] dwóch środkowych obrońców gospodarzy wykluczonych po rozgrzewce", "context": "ABSENCES", "period": null},
- {"sofascore_event_id": 16310568, "market": "total", "subject": "",
-  "line": 3.5, "direction": "OVER", "verdict": "NO_BET", "author": "verifier",
-  "reason": "DEFEKT: home_is_team1 false - Superbet T1 to gospodarz, noga po złej stronie", "context": null, "period": 0}]
+  "reason": "[WEB: example.pl, publ. 2026-10-30 09:10, fetched 11:02] dwóch środkowych obrońców gospodarzy wykluczonych po rozgrzewce", "context": "ABSENCES", "period": null,
+  "stability": "CHWIEJNA", "stability_reason": "para stoperów gospodarzy nowa - liczba goli bez punktu odniesienia"},
+ {"sofascore_event_id": 16310568, "market": "winner", "subject": "",
+  "line": null, "direction": "T1", "verdict": "NO_BET", "author": "verifier",
+  "reason": "DEFEKT: sport_fixtures.json home_is_team1 false - Superbet T1 to gość, noga po złej stronie", "context": null, "period": 0,
+  "stability": "BRAK_PODSTAW", "stability_reason": "noga wyceniona dla innej drużyny niż ta na ekranie"}]
 ```
 
 - `author` always `"verifier"`; key exactly (`subject` as the sheet wrote it,
@@ -331,10 +338,16 @@ End with exactly one ```` ```json reads ```` block - a bare `LegRead` array
 - `stability` + `stability_reason` on **every** read (reports merged from
   `epochs.STABILITY_LABEL_FROM_UTC`; `report_check` `STABILNOŚĆ:`, merge
   refuses without): `STABILNA` / `CHWIEJNA` / `BRAK_PODSTAW` - is the leg's
-  own variable predictable today (sofa-analysis-core "Verdicts",
+  own variable predictable today (sofa-pipeline SKILL.md, `reads.json`,
   stability)? Judge it yourself: you may disagree with the analyst's label
   (the view and the ledger take CHWIEJNA when either says so). It removes
   nothing.
+
+Before returning, validate (read-only; read each `exit=`):
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/check_analyst_report.py --report <report>; echo exit=$?`
+until clean, then
+`PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <d> --report <report> --author verifier --dry-run; echo exit=$?`
+- exit 2 = a block does not validate or a blocking finding (`.claude/skills/sofa-analysis-core/references/context-pass.md`, "The check"): fix the report and re-run both.
 
 Return to the caller only (<= 12 lines): the report path you actually wrote;
 legs verified / printed beyond the set; the `verify_legs.py --all` line

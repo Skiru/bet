@@ -106,8 +106,9 @@ Superbet lines. `UNFITTED_CONSTANTS` stays on every leg and in the report.
    with ` ```json reads ` only (no vetoes block); `context` is one of
    MOTIVATION / ROTATION / ABSENCES / DERBY / SCHEDULE / CONDITIONS / MORALE
    or null (never "OTHER"; MARKET is football's). Then
-   `merge_reads.py ... --read-set <your read-set file> --dry-run` and
-   `check_analyst_report.py --report <path>`; fix what it names; return.
+   `check_analyst_report.py --report <path>` until clean, then `merge_reads.py ... --read-set <file> [--read-set <file2>] --dry-run` (one `--read-set` per file, never comma-joined; read `exit=`); fix what it names; return. A combined re-read round names
+   several read-set files: repeat `--read-set` once per file. Never wrap your
+   match sections in a code fence.
 
 ## What removes a leg
 

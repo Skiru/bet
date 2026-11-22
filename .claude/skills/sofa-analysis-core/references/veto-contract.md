@@ -155,7 +155,8 @@ Football / tennis read:
 ```json
 [{"sofascore_event_id": 17009055, "market": "goals_total", "subject": "",
   "line": 3.5, "direction": "UNDER", "verdict": "WATCH", "author": "analyst",
-  "context": "ABSENCES", "reason": "obaj podstawowi stoperzy Chaves zawieszeni (komunikat ligi) [WEB: ligaportugal.pt, publ. 2026-10-05 14:00Z, fetched 2026-10-06 08:40Z]; Chaves w ostatnich czterech 4/5/4/5 goli - nota, nie powód"}]
+  "context": "ABSENCES", "reason": "obaj podstawowi stoperzy Chaves zawieszeni (komunikat ligi) [WEB: ligaportugal.pt, publ. 2026-10-05 14:00Z, fetched 2026-10-06 08:40Z]; Chaves w ostatnich czterech 4/5/4/5 goli - nota, nie powód",
+  "stability": "CHWIEJNA", "stability_reason": "linia obrony Chaves zmieniona w całości - liczba goli bez punktu odniesienia"}]
 ```
 
 Football market-driver WATCH (reports from 2026-10-29; pewność 0.79, conceded
@@ -164,7 +165,8 @@ Football market-driver WATCH (reports from 2026-10-29; pewność 0.79, conceded
 ```json
 [{"sofascore_event_id": 15275921, "market": "corners_for", "subject": "Panathinaikos",
   "line": 3.5, "direction": "OVER", "verdict": "WATCH", "author": "analyst",
-  "context": "MARKET", "reason": "RYNEK: Aris oddaje rywalom ≥4 rożne w 3/10 (style.matchup), pewność 0.79. Mechanizm: rywale Arisu dośrodkowują średnio 11 razy na mecz (style.away.means crosses przeciw), mniej niż liga - linia 3.5 wymaga rywala, który rożne oddaje"}]
+  "context": "MARKET", "reason": "RYNEK: Aris oddaje rywalom ≥4 rożne w 3/10 (style.matchup), pewność 0.79. Mechanizm: rywale Arisu dośrodkowują średnio 11 razy na mecz (style.away.means crosses przeciw), mniej niż liga - linia 3.5 wymaga rywala, który rożne oddaje",
+  "stability": "CHWIEJNA", "stability_reason": "rożne Panathinaikosu zależą od tego, czy Aris odda posiadanie - w 3/10 nie oddał"}]
 ```
 
 Measured-sport read (`period` 0 = whole match):
@@ -173,5 +175,6 @@ Measured-sport read (`period` 0 = whole match):
 [{"sofascore_event_id": 16310568, "market": "total", "subject": "",
   "line": 3.5, "direction": "OVER", "period": 0, "verdict": "NO_BET",
   "author": "analyst", "context": "SCHEDULE",
-  "reason": "mecz przełożony [WEB: dust2.us, pgl.ro, publ. 2026-10-06 08:30Z, fetched 2026-10-06 09:10Z]"}]
+  "reason": "mecz przełożony [WEB: dust2.us, pgl.ro, publ. 2026-10-06 08:30Z, fetched 2026-10-06 09:10Z]",
+  "stability": "BRAK_PODSTAW", "stability_reason": "mecz nie odbędzie się w terminie z ceny"}]
 ```

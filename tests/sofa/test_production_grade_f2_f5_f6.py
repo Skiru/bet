@@ -609,7 +609,7 @@ def test_day_status_breaks_on_a_mismatch_and_a_stale_coupon(
 def test_sofa_day_runs_the_status_and_the_closing_loop() -> None:
     text = (REPO / ".claude/commands/sofa-day.md").read_text(encoding="utf-8")
     assert "scripts/sofa/day_status.py" in text
-    assert "capture_closing.py --date <date> --loop" in text
+    assert "capture_closing.py --date <D> --loop" in text
 
 
 def _sport_fixtures(run: Path, counts: dict[tuple[str, str, str | None], int]) -> None:

@@ -25,11 +25,13 @@ typo is a validation error). The day is **UTC**; datetimes are UTC ISO with
 | `08_confidence.json` / `.md` | CONFIDENCE | football / tennis legs + builders - input of 11 |
 | `sport_fixtures.json` | SPORT_IDENTITY | pinned Sofascore ids of the sports' events |
 | `08_confidence_sports.json` | SPORT_CONFIDENCE | hockey / basketball / volleyball / CS2 legs |
+| `08_refusals.json`, `08_refusals_sports.json` | CONFIDENCE / SPORT_CONFIDENCE (`bet.sofa.priced_view`) | every priced row with its refusal reason - the KUPON html tab of all priced rows, display only |
 | `11_coupon.json` / `.md` | COUPON_ASSEMBLY | **the coupon** |
 | `KUPON_<d>.pdf`, `KUPON_<d>.html` | PDF | **the product**; the HTML is a filterable view of the same legs |
 | `12_printed.json`, `printed/<ts>.json` | PDF | the print record |
 | `vetoes.json`, `reads.json`, `read_requests.json` | analysts / verifier / operator | the channels (SKILL.md) |
 | `analyses.json` | `merge_reads.py` (`bet.sofa.analyses`) | the analysts' and the verifier's match sections by match, newest first - display / `prior_analysis` |
+| `analyses_slip.json` | `merge_reads.py --slip` | the same for chat slips - never the coupon's view; `build_slip.py` reads it beside `analyses.json` for `prior_analysis` |
 | `dossier/<sport>_<event id>.json` | `read_set.py` / `build_slip.py` (`bet.sofa.dossier`) | the analysts' match fact sheet (form, rest, table, h2h, lineups, football `style` block with `style.matchup`, referee, line moves, web checklist); path on each leg's `dossier` - display only |
 | `h2h.json` | `read_set.py` / `build_slip.py` (`bet.sofa.h2h`) | Sofascore head-to-head of every read match (`--no-h2h` skips); display only |
 | `lineups_prematch.json` | `read_set.py` / `build_slip.py` (`bet.sofa.prematch_lineups`) | Sofascore pre-match lineup per read football / hockey / basketball match (OK / NOT_PUBLISHED / FAILED / NOT_ASKED); never cached; display only |
@@ -128,7 +130,11 @@ generated.
 
 ## `07_settled.json`, `07_settle_skips.json`, `07_settled_printed.json`
 
-Graded rows, also in `data/sofa.db` (`sofa_settled_row`). The skips file says
+Graded rows, also in `data/sofa.db` (`sofa_settled_row`). A day without
+`05_sheet.json` (most were deleted 2026-11-19) re-settles from its own
+`07_settled.json` rows, never-graded printed / read-removed legs through
+`07_settled_printed.json`; other never-graded sheet rows are lost (stderr
+`SHEET_RECONSTRUCTED` - expected, not a defect). The skips file says
 why a row was not graded; refunds (`settle.REFUND_REASONS`, `stages.md` -
 SETTLE) are 0 u., never a loss; `void_legs` lists player legs voided for a
 non-starter. `07_settled_printed.json` (`settle.PRINTED_SETTLED_FILE`):
@@ -242,7 +248,19 @@ Added or rebuilt:
   `builder_screen_prices`;
 - annotations: `ladders[]` (`ladder_no`), `relations[]`, `exposure`,
   `coupon_form` / `removed_by_coupon_form` (OFF unless
-  `config/sofa_coupon_form.json` sets it), `peer_choice`, `price_gap`;
+  `config/sofa_coupon_form.json` sets it), `peer_choice`, `price_gap`,
+  `rating_market_gap`, `lesser_loss` (from 2026-11-11 14:55Z), `stakes` (group
+  flags from 2026-11-19); a read's `stability` / `stability_reason` - all
+  display only;
+- leg markers: `floor_rule` (printed at 0.60, never in a builder),
+  `player_sample_rule`, `tennis_point_model_rule`,
+  `tennis_handicap_point_model_rule`, `football_sim_rule`,
+  `vb_point_model_rule`, `vb_set1_match_rule`, `schedule_term_rule` with
+  `schedule_term` and `p_central_no_schedule_term` (football, from 2026-11-09
+  11:30Z) - see SKILL.md "Current estimator switches";
+- `removed_as_same_event` (`SAME_EVENT_DEDUP`, from 2026-11-08): legs dropped
+  as the second name of an event already on the coupon, each with
+  `same_event_as` (and `same_event_refused` when a read refused the event);
 - `legs[]` (all candidates), `removed_by_reads`, `reads_sport`,
   `read_requests` (each with the positions it `covers`), `read_unit`
   (`event`) and `read_order` (`value`) - the read-set rule,

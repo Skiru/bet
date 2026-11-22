@@ -621,3 +621,16 @@ def test_cli_finds_a_tennis_dossier_for_a_krecz_watch(tmp_path: Path) -> None:
     base = ["--runs-dir", str(tmp_path), "--date", run.name]
     assert check_analyst_report.main([*base, "--report", str(good)]) == 0
     assert check_analyst_report.main([*base, "--report", str(bad)]) == 1
+
+
+def test_a_series_format_defect_is_real_and_an_unknown_date_is_not_dated() -> None:
+    """Audit 2026-11-22: "seria" is the word for a CS2 / tennis best-of
+    series - "DEFEKT: ... best_of null - seria może być Bo1" (the defect the
+    sport analyst is told to write) was refused as a streak; and "publ. ?"
+    (the contract's "unknown date, never newer") counted as dated."""
+    from bet.sofa.report_check import fact_sourced
+    assert fact_sourced("DEFEKT: sport_fixtures.json best_of null - seria może być Bo1")
+    assert not fact_sourced("DEFEKT: 03_samples seria 5 porażek")
+    assert not fact_sourced("DEFEKT: dossier seria zwycięstw Alfa")
+    assert not fact_sourced("[WEB: x.pl, publ. ?, fetched 10:00] kontuzja")
+    assert fact_sourced("[WEB: x.pl, publ. 2026-11-21 18:00, fetched 10:00] kontuzja")

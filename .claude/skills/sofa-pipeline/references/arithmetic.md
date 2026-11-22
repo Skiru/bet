@@ -85,7 +85,7 @@ price (`TENNIS_RATING`, `P_SHRUNK_TO_PRICE` notes) - re-derive from the row's
    prior or the rating, not the team's sample, is doing the work (football
    `MODEL_ABOVE_OWN_SAMPLE`, gap > `MAX_OWN_SAMPLE_GAP` 0.15, n >= 5, removes
    the leg automatically; football non-prop rows only - player props are
-   excluded, `confidence.py` `is_player_metric`).
+   excluded, `players.py` `is_player_metric`).
 
 ## Chain 2 - confidence (`src/bet/sofa/confidence.py`, `src/bet/sofa/line_evidence.py`)
 
@@ -95,12 +95,13 @@ confidence = min( curve + offset(key),  price_band_cap(key, p, odds) )       off
              key with no curve at p: Wilson lower bound of the key's own settled Superbet lines in p's bucket
              / the design effect (>= MIN_EVIDENCE_BUCKET 50 lines, MIN_EVIDENCE_GAMES 15 games), else NO_LINE_EVIDENCE
 x          = confidence * offered_odds          prints at >= 0.90 (else NEGATIVE_LEG_EV)
-condition  : confidence >= 0.70, ladder margin <= 15% (single_is_fairly_priced), odds >= MIN_ODDS_FOR_CEILING 1.0867,
+condition  : confidence >= 0.70 (0.60 for a `floor_rule` leg, epochs.leg_floor - SKILL.md), ladder margin <= 15% (single_is_fairly_priced), odds >= MIN_ODDS_FOR_CEILING 1.0867,
              not started (MIN_MINUTES_TO_KICKOFF 15 before the start clock, SKILL.md), price <= 45 min old
 order      = confidence desc, kickoff asc, match, market, line   (confidence.coupon_order / coupon_sort_key) - no price, no EV
 ```
 
-`COUPON_PROFILE` = floor 0.70, `min_ev` 0.90, `max_overround` 0.15, no page
+`COUPON_PROFILE` = floor 0.70 (`epochs.leg_floor` lowers it to 0.60 for the
+`floor_rule` keys), `min_ev` 0.90, `max_overround` 0.15, no page
 limit. A price that moved since SHEET is judged at the fresh odds.
 
 **Curve lookup order** (`Calibration.realised`): the leg's own line bucket
@@ -146,7 +147,7 @@ built). Key = `market|DIRECTION`, `<class>:`-prefixed for a class.
 ```
 p_model    = score_model (hockey, basketball, volleyball) / cs2_engine (CS2) / player_model.jsonl (player lines) - no price
 curve      = realised_lo95 of p_model's bucket in the file sport_confidence.calibration_path_for(date) returns
-             (the staged file with the latest effective_from <= date; from 2026-10-28 .next.2026-10-28.json);
+             (the staged file with the latest effective_from <= date - ask the function, never assume a file name; volleyball rally / set-1 curves overlaid by sport_confidence.with_vb_point_curves);
              a bucket with n < MIN_BUCKET 200 is unused
 confidence = the same min(curve + offset, band cap) / stand-in as Chain 2
 print      : confidence >= 0.70, odds >= 1.0867, group margin <= 15%, x >= 0.90, price <= 3 h old (sport_day.MAX_PRICE_AGE)
@@ -196,7 +197,7 @@ times. The 12% haircut is the middle of Superbet's measured markup
 | `CONFIDENCE_CEILING` * | 0.9202 | `bet.sofa.confidence` | top of the curves; `MIN_ODDS_FOR_CEILING` = 1/0.9202 = 1.0867 |
 | `K_PRICE` * | 10.0 | `bet.sofa.engine` | old bar's blend weight, NOT_FITTED |
 | `MAX_OWN_SAMPLE_GAP` | 0.15 | `bet.sofa.confidence` | `MODEL_ABOVE_OWN_SAMPLE` |
-| `READ_REQUIRED_EVENTS` / `READ_REQUIRED_SINGLES` | 20 from 2026-10-27 (`read_events` on the artifact); 30 / 30 before | `bet.sofa.confidence` | the read set (matches / positions on older days) |
+| `READ_SCOPE_EVENTS` (from 2026-10-27) / `READ_REQUIRED_EVENTS`, `READ_REQUIRED_SINGLES` (before) | 20 matches from 2026-10-27 (`read_events` on the artifact); 30 / 30 before | `bet.sofa.epochs` / `bet.sofa.confidence` | the read set (matches / positions on older days) |
 | `MIN_MINUTES_TO_KICKOFF` | 15 | `bet.sofa.confidence` | kickoff margin (sports: `sport_day.KICKOFF_MARGIN`) |
 | `price_max_age_min` | 45 | `bet.sofa.config` | football / tennis `STALE_PRICE` |
 | `MAX_PRICE_AGE` | 3 h | `bet.sofa.sport_day` | measured sports' `STALE_PRICE` |

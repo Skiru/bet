@@ -137,23 +137,35 @@ tabela 2. vs 18.; skład bez zmian, pogoda bez opadów [WEB: bmkg.go.id, publ.
 analysts' and verifier's `_weryfikacja` reports) lists, by the label it
 prints:
 
-| finding | what is wrong |
-|---|---|
-| `KONTEKST` | a match with a KEEP has no "Kontekst (web)" |
-| `DOSSIER` | the report never mentions the dossier |
-| `SEKCJA BEZ TOKENU` | a read match's heading lacks its `sofa:<id>` |
-| `TAG WEB BEZ DATY` | a `[WEB: …]` tag without `publ. <data>` |
-| `FAKTY ZABÓJCZE` | a full section without its kill facts (a delta inherits them) |
-| `W SKRÓCIE` | a read section, a delta included, without `**W skrócie:**` |
-| `ZESTAWIENIE` | a full football section with a count-market read lacks the **Styl gry i zestawienie** paragraph and its table |
-| `PRZECIW BEZ ODCZYTU` | a table row `ZESTAWIENIE PRZECIW` with no read of that match carrying a `line` |
-| `KEEP ZBIORCZY` | a KEEP with `market: null` - one read per family |
-| `KEEP BEZ UZASADNIENIA` | a KEEP reason that is a bare count or under 40 characters |
-| `USUNIĘCIE BEZ FAKTU` | a WATCH / NO_BET without a dated WEB tag, a real `DEFEKT:` or (football WATCH) `RYNEK:` with a k/n - outside football `RYNEK:` counts as none, so does a `DEFEKT:` citing rest_days / games_7d / back-to-back / 2. noc / form / seria / h2h / tabela / a rating counts as none |
-| `RYNEK TYLKO WATCH` | a NO_BET resting on `RYNEK:` |
-| `RYNEK BEZ TAGU` | a `RYNEK:` WATCH without `context: "MARKET"` |
-| `ŹRÓDŁO` | a context removal without a source |
-| `WETO BEZ FAKTU` | a veto without a dated WEB tag or a real `DEFEKT:` (`RYNEK:` never) |
+| finding | what is wrong | blokuje merge |
+|---|---|---|
+| `KONTEKST` | a match with a KEEP has no "Kontekst (web)" | nie (hook) |
+| `DOSSIER` | the report never mentions the dossier | nie (hook) |
+| `SEKCJA BEZ TOKENU` | a read match's heading lacks its `sofa:<id>` | nie (hook) |
+| `TAG WEB BEZ DATY` | a `[WEB: …]` tag without `publ. <data>` | nie (hook) |
+| `FAKTY ZABÓJCZE` | a full section without its kill facts (a delta inherits them) | nie (hook) |
+| `W SKRÓCIE` | a read section, a delta included, without `**W skrócie:**` | nie (hook) |
+| `ZESTAWIENIE` | a full football section with a count-market read lacks the **Styl gry i zestawienie** paragraph and its table | nie (hook) |
+| `PRZECIW BEZ ODCZYTU` | a table row `ZESTAWIENIE PRZECIW` with no read of that match carrying a `line` | nie (hook) |
+| `KEEP ZBIORCZY` | a KEEP with `market: null` - one read per family | nie (hook) |
+| `KEEP BEZ UZASADNIENIA` | a KEEP reason that is a bare count or under 40 characters | nie (hook) |
+| `ŹRÓDŁO` | a context removal without a source | nie (hook) |
+| `USUNIĘCIE BEZ FAKTU` | a WATCH / NO_BET without a dated WEB tag (`publ. ?` is not dated), a real `DEFEKT:`, (football WATCH) `RYNEK:` with a k/n or (tennis WATCH) `KRECZ:` - outside football `RYNEK:` counts as none, so does a `DEFEKT:` citing rest_days / games_7d / back-to-back / 2. noc / form / a streak (`seria` not followed by Bo<n> / best_of / map) / h2h / tabela / a rating | **tak** |
+| `WETO BEZ FAKTU` | a veto without a dated WEB tag or a real `DEFEKT:` (`RYNEK:` / `KRECZ:` never) | **tak** |
+| `RYNEK TYLKO WATCH` | a NO_BET resting on `RYNEK:` | **tak** |
+| `RYNEK BEZ TAGU` | a `RYNEK:` WATCH without `context: "MARKET"` | **tak** |
+| `RYNEK ZAKAZANY` | a `RYNEK:` resting on h2h / form / a streak / the table / a rating | **tak** |
+| `RYNEK BEZ LINII` | a `RYNEK:` WATCH not on one leg with its `line` | **tak** |
+| `RYNEK BEZ DOSSIER` / `RYNEK BEZ WIERSZA` | no football dossier (schema >= 3) / no `style.matchup` row for that leg | **tak** |
+| `RYNEK PONIŻEJ PROGU` | neither threshold (a) nor (b) holds on the dossier row | **tak** |
+| `RYNEK INNE LICZBY` | the reason does not quote the dossier row's k/n | **tak** |
+| `KRECZ TYLKO WATCH` | a NO_BET / veto resting on `KRECZ:` | **tak** |
+| `KRECZ BEZ TAGU` | a `KRECZ:` WATCH without `context: "RETIREMENT"` | **tak** |
+| `KRECZ BEZ DOSSIER` / `KRECZ NIEPOTWIERDZONY` | no tennis dossier / its `sides.<side>.retirement` does not show the retirement | **tak** |
+| `STABILNOŚĆ` / `STABILNOŚĆ BEZ POWODU` | a read without `stability` (STABILNA / CHWIEJNA / BRAK_PODSTAW) / without `stability_reason` | **tak** |
+
+"tak" = `merge_reads.py` refuses the whole report (exit 2, "nothing merged");
+"nie" = the PostToolUse hook sends the report back, the merge would stand.
 
 Order: write the report -> `check_analyst_report.py` until clean ->
 `merge_reads.py --dry-run --read-set <file>` (core, "Output contract").

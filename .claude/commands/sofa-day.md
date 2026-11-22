@@ -1,5 +1,5 @@
 ---
-description: "Run one sofa betting day end to end - settle and record D-1 (sofa-settler), refresh the line evidence, build the one coupon of every sport (11_coupon.json -> KUPON_<date>.pdf), print, verify (sofa-verifier), report; analyst reads are on request (/sofa-analyze, /kupon). The only day procedure; sofa-runner follows this file."
+description: "Run one sofa betting day end to end - settle and record D-1 (sofa-settler), refresh the line evidence, build the one coupon of every sport (11_coupon.json -> KUPON_<D>.pdf), print, verify (sofa-verifier), report; analyst reads are on request (/sofa-analyze, /kupon). The only day procedure; sofa-runner follows this file."
 argument-hint: "dzisiaj | wczoraj | YYYY-MM-DD"
 ---
 
@@ -7,7 +7,7 @@ Run one betting day, from nothing to a verified PDF coupon, unattended. Skip a s
 when the operator asked for a bare run, and name the skip in the report.
 
 `$ARGUMENTS`: `dzisiaj`/`today`, `wczoraj`/`yesterday` or `YYYY-MM-DD`; empty = today
-(`date -u +%F`). The betting day is UTC. `<D>` (also written `<date>`) = the date, `<D-1>` the day before.
+(`date -u +%F`). The betting day is UTC. `<D>` = the date, `<D-1>` the day before.
 
 **The coupon** is `runs/sofa/<D>/KUPON_<D>.pdf`, rendered from `11_coupon.json`;
 `12_printed.json` is the print record the next rebuild locks started legs from.
@@ -38,11 +38,18 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
 - Exit 0: up; still read the poll-age line (WARN exits 0). The burst-probe line is INFO;
   only `WARN ... burst probes FAILED` is a fault.
 - Exit 1: degraded (a dead tab, or a Chrome without the anti-throttling flags at ~1 req/s).
+  Read its lines: a dead tab stops the day (below); otherwise go on and name the degraded
+  bridge in STATUS.
 - Exit 2: it could not - usually Chrome is open without the flags. The operator quits it
   (Cmd+Q), then you re-run. Never quit or kill the operator's Chrome yourself.
 - A dead tab = nothing that asks Sofascore can run: stop and tell the operator.
 - Leave `SOFA_TARGET_RPS` (20) and `SOFA_MAX_CONCURRENCY` (5 = the window count) at their
   defaults; never lower `MIN_INTERVAL_MS`.
+
+**Run order of steps 1-2** (the sections below are not in run order): settler (1) with
+BOARD beside it -> after the settler returns: paper test (1c, ~20 s) -> line evidence's
+bridge part (1a, background) and the loops (1b) -> RESOLVE (2) only after
+`BRIDGE_PART_DONE` -> line-evidence fits (1a) beside RESOLVE -> step 3 after their `EXIT`.
 
 ## 1. Settle D-1 - `sofa-settler`
 
@@ -68,9 +75,10 @@ for the settler's **return** (its scripts hold the DB - `database is locked`) an
 
 ## 1a. Line evidence
 
-`refresh_line_evidence.py`'s step 0 asks the bridge and writes `data/sofa.db`; its fits only
-read the DB (`mode=ro`). So, after the settler returns and before RESOLVE, run step 0's
-commands as one background Bash call (`run_in_background: true`, 10-30 min):
+`refresh_line_evidence.py`'s history / statistics part (its docstring's "step 0" - not this
+file's step 0, the bridge) asks the bridge and writes `data/sofa.db`; its fits only read the
+DB (`mode=ro`). So, after the settler returns and step 1c ran, and before RESOLVE, run that
+part by hand as one background Bash call (`run_in_background: true`, 10-30 min):
 
 ```bash
 mkdir -p runs/sofa/<D>
@@ -109,8 +117,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <D> 
 ```
 
 - `cs2_daily`: always safe - a second loop for a date refuses (exit 2).
-- `shadow_daily`: start by hand **only when neither** `runs/sofa/shadow/daily_<D-1>.pid`
-  **nor** `daily_<D>.pid` exists (the D-1 chain starts today's after its 05:15Z settle).
+- `shadow_daily`: always safe, like `cs2_daily` - a second live loop for a date refuses
+  (exit 2); the D-1 chain starts D's loop when D-1's snapshots end (~04:30Z) and leaves a
+  running one alone.
 - `capture_closing`: the daily loops start it (`ensure_loop`); by hand only per step 9.
 - A loop reads its plan at start: after a code change, run the new morning steps by hand
   for days old loops cover; say so. Never kill a loop.
@@ -207,7 +216,8 @@ The day prints **without** the analysts' read (operator 2026-11-02,
 `epochs.READS_ON_REQUEST_FROM_UTC`; reads showed no measured edge and are the day's biggest
 cost). Analyst reads are the operator's: `/sofa-analyze` (the read set, `okno 14-17`,
 `dodatkowo`) or `/kupon`. Do not launch analysts here unless the operator asked for them in
-this run's request - then follow `/sofa-analyze` after step 4, before step 7. A read made
+this run's request - then Read `.claude/commands/sofa-analyze.md` and follow it after step
+4, before step 7. A read made
 earlier today (by those commands) stays in `reads.json` and still removes its leg.
 
 ## 7. Rebuild and print
@@ -218,7 +228,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
 
-`/sofa-rebuild` owns the plan. After every `rebuild_day.py` (step 7, step 8) the
+`/sofa-rebuild` owns the plan: follow its sections 1-2 only - its hand-off to `/sofa-verify`
+is replaced by step 8 here (one verifier pass, not two). After every `rebuild_day.py` (step 7, step 8) the
 `icloud` line is read; the last state goes into the report. Never run stage scripts by hand for a rebuild (a CONFIDENCE
 on a >45 min offer empties 08 to the locked legs). SHEET re-runs
 itself only on the epoch / link rule / a switch's missing marker; after a SHEET code change
@@ -249,7 +260,13 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -
 
 merge_reads: exit 0 merged, 1 merged with an `UNMATCHED_VETO`, 2 refused (nothing written; a
 removal without a fact too) = relaunch the verifier with the refusal line / findings and the next `_r<n>` path (at most 2 relaunches,
-then report it). No verifier reads = no rebuild; say so. The rebuild ends with the audits -
+then report it). **Rebuild when merge_reads wrote anything** (it did not print both
+`vetoes.json unchanged - not rewritten` and `reads.json unchanged - not rewritten`) **or the
+verifier listed a `kurs zmieniony` (changed price) note**; otherwise skip the rebuild and say
+so. Whatever you decided, run `day_status.py --date <D>`: a `coupon` BROKEN
+(STALE_CONFIDENCE / STALE_COUPON / PDF older than 11) is fixed only with
+`rebuild_day.py --date <D>` - never `run_confidence.py` or `build_coupon_pdf.py` by hand,
+whatever the message says. The rebuild ends with the audits -
 do not re-run them. After the rebuild C1 and C3 must be clean (C3's "reads on request"
 count is a note). Any other `audit_variants` / `audit_coupon`
 finding is a defect to fix before reporting; lines under `notes (not defects):` are
@@ -259,12 +276,20 @@ listed, not fixed.
 
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D>
-PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <date> --loop >> runs/sofa/<date>/capture_closing.log 2>&1 &   # only on a day_status loop:capture_closing WARN
+PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/capture_closing.py --date <D> --loop >> runs/sofa/<D>/capture_closing.log 2>&1 &   # only on a day_status loop:capture_closing WARN
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
 ```
 
-- `day_status.py` (no network) = STATUS. BROKEN (ledger MISMATCH, STALE_COUPON, a PDF older
-  than 11) is fixed before reporting; its `bridge` is always NOT_CHECKED, never a pass.
+- `day_status.py` (no network) = STATUS; its `bridge` is always NOT_CHECKED, never a pass.
+  Every BROKEN is dealt with before reporting, by its check:
+  - `coupon` (STALE_CONFIDENCE, STALE_COUPON, `KUPON_<D>.pdf is older than 11_coupon.json`,
+    11 unreadable) -> `rebuild_day.py --date <D>`, then day_status again; never a stage
+    script by hand, whatever the message names;
+  - `ledger` (MISMATCH, unreadable line) -> a defect: report it, never "fix" a row;
+  - `clv` (`closing.jsonl ABSENT` with legs past their window) -> start `capture_closing.py`
+    (command above) and report the CLV hole;
+  - `offer` (04_offer.json unreadable), `sport:<sport>` (no readable record) -> report it;
+    a rebuild needs a readable offer (`/sofa-rebuild`).
 - **iCloud copy (the last step, operator 2026-10-25):** every PDF render (step 7, step 8's
   rebuild, the evening rebuild, a results render) copies `KUPON_<D>.pdf` + `.html` over
   `~/Library/Mobile Documents/com~apple~CloudDocs/Kupony/<DD.MM.YYYY>/` itself

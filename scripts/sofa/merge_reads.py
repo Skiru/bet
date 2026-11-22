@@ -263,11 +263,9 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     if dry_run:
         print("dry run: nothing written")
     else:
-        if merged_v or veto_path.exists():
-            write_atomic(veto_path,
-                         json.dumps(merged_v, indent=2, ensure_ascii=False) + "\n")
-        write_atomic(reads_path,
-                     json.dumps(merged_r, indent=2, ensure_ascii=False) + "\n")
+        for path, entries in ((veto_path, merged_v), (reads_path, merged_r)):
+            if not _write_if_changed(path, entries):
+                print(f"  {path.name} unchanged - not rewritten")
         _record_sections(run, reports, author, stamp,
                          analyses.SLIP_STORE if slip else analyses.STORE)
     off_set = _check_read_sets(read_sets or [], fresh_r, fresh_v)
@@ -285,13 +283,28 @@ def _record_sections(run: Path, reports: list[Path], author: str | None,
         for path in reports:
             who = author or analyses.author_of(path)
             n = analyses.add_report(store, path, who, stamp, names)
-            print(f"  {path.name}: {n} match sections -> {name}"
-                  if n else f"  NO_SECTIONS: {path.name} - no match heading "
-                  "found (the event protocol's sofa:<id> token)")
+            if n:
+                print(f"  {path.name}: {n} match sections -> {name}")
+            elif _names_an_event(path):
+                print(f"  NO_SECTIONS: {path.name} - no match heading "
+                      "found (the event protocol's sofa:<id> token)")
+            else:
+                # a verifier's "Brak." with ```json reads [] owes no section
+                # (2026-11-22: NO_SECTIONS read as a broken contract)
+                print(f"  {path.name}: no reads - no sections expected")
         analyses.save(run, store, name)
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
         print(f"  WARNING: {name} not written - "
               f"{type(exc).__name__}: {exc}")
+
+
+def _names_an_event(report: Path) -> bool:
+    """Does the report's vetoes / reads blocks name any event?"""
+    try:
+        vetoes, reads = parse_report(report.read_text(encoding="utf-8"))
+    except (OSError, ReportError):
+        return True
+    return bool(vetoes or reads)
 
 
 def _check_read_sets(paths: list[Path], fresh_r: list[dict[str, Any]],
@@ -318,6 +331,18 @@ def _check_read_sets(paths: list[Path], fresh_r: list[dict[str, Any]],
             print(f"  LEG_WITHOUT_READ: {leg.get('match')} - "
                   f"{leg.get('superbet_market')}: {leg.get('superbet_selection')}")
     return off
+
+
+def _write_if_changed(path: Path, entries: list[dict[str, Any]]) -> bool:
+    """Write the merged array only when it differs from the file (an absent
+    file equals []). A rewrite with the same content still moves the mtime,
+    and vetoes.json / reads.json newer than 08_confidence.json is
+    STALE_CONFIDENCE (build_coupon_pdf, day_status) - a verifier merge of
+    zero reads forced a needless rebuild on 2026-11-22."""
+    if _load(path) == entries:
+        return False
+    write_atomic(path, json.dumps(entries, indent=2, ensure_ascii=False) + "\n")
+    return True
 
 
 def _load(path: Path) -> list[dict[str, Any]]:

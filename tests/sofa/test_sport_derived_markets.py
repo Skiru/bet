@@ -460,3 +460,29 @@ def test_a_read_names_a_double_chance_side() -> None:
     assert [x["side"] for x in removed] == ["1X"]
     assert [x["side"] for x in kept] == ["X2"]
     assert vetoed == 0
+
+
+def test_a_read_names_a_set1_match_side() -> None:
+    """2026-11-22 audit: VB_SET1_MATCH legs carry sides "T1/T1" .. "T2/T2",
+    which READ_SIDES did not know - a side-specific read of such a leg
+    raised and refused the whole merge. A read naming one side covers it
+    alone."""
+    from bet.sofa.contracts import READ_SIDES, LegRead
+    from bet.sofa.coupon_sports import apply_reads
+    from bet.sofa.cs2 import SET_MATCH_SET
+
+    assert SET_MATCH_SET <= READ_SIDES
+
+    def leg(side: str) -> dict[str, Any]:
+        return {"sofascore_event_id": 8, "sport": "volleyball",
+                "family": "set1_match", "market": "set1_match",
+                "period": 0, "subject": "", "line": None, "side": side,
+                "direction": side}
+
+    read = LegRead.model_validate({
+        "sofascore_event_id": 8, "market": "set1_match", "subject": "",
+        "line": None, "direction": "T1/T1", "period": 0, "verdict": "NO_BET",
+        "author": "verifier", "reason": "test"})
+    kept, removed, _ = apply_reads([leg("T1/T1"), leg("T2/T2")], [], [read])
+    assert [x["side"] for x in removed] == ["T1/T1"]
+    assert [x["side"] for x in kept] == ["T2/T2"]

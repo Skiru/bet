@@ -19,6 +19,8 @@ jq -c '.style.home.games[]?' <dossier>             # one game a line, when a dri
 jq -c '.sides.home.last_games[]' <dossier>         # one game a line
 jq -c '.market.rows[]? | select(.first != .last)' <dossier>   # moved lines - sports only
 jq -c '.market.rungs_of_leg_markets[]?' <dossier>  # football / tennis: the legs' ladders at the offer fetch (no line-move history)
+jq -c '.web_checklist' <dossier>                   # the context pass with the match filled in - start the web pass here
+jq -c '.sides | map_values(.retirement)' <dossier> # tennis: a recent Retired / Walkover loss (KRECZ)
 ```
 
 ## Blocks
@@ -39,8 +41,9 @@ jq -c '.market.rungs_of_leg_markets[]?' <dossier>  # football / tennis: the legs
 
 `missing` in any block = the cache could not fill it: a check you could not
 make, named in **Czego zabrakło**, never a guess. No `dossier` field on the
-leg = "brak dossier". **Schema:** `schema` 2 (from 2026-10-29) holds the
-whole `style` block above; a dossier with `schema` < 2 (10-28: no `style`
+leg = "brak dossier". **Schema:** `schema` 3 (from 2026-10-29) holds the
+whole `style` block above and is the only one a `RYNEK:` WATCH may rest on;
+a dossier with `schema` < 3 (10-28: no `style`
 at all; schema 1: no `league`, `xg`, `blocked_shots`, `shots_outside_box`,
 `big_chances`, `final_third_entries`, `long_balls`, `throw_ins`,
 `goal_kicks`, `matchup[].metric`), or a key absent from every game, is

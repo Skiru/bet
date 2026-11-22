@@ -95,7 +95,7 @@ Poza zestawem: <noga z `style.matchup` spoza pliku - jedna linia, bez odczytu>
 - **ocena** = `ZESTAWIENIE PRZECIW` at core's threshold (a) or (b) ("What a
   removal's reason must name"; a cup tie between levels reads who has the
   ball from the ladder alone); `zgodne` when the match-up supports the leg;
-  `bez danych` when the cell is missing - for a dossier with `schema` < 2,
+  `bez danych` when the cell is missing - for a dossier with `schema` < 3,
   "dossier sprzed bloku stylu" (core `references/dossier.md`), never a
   `RYNEK:`.
 - **Verdict:** a `ZESTAWIENIE PRZECIW` rung gets its own leg-level read (its

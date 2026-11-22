@@ -100,6 +100,8 @@ from bet.sofa.confidence import (  # noqa: E402
 from bet.sofa.veto import load_reads, matching_reads  # noqa: E402
 
 # What an analyst needs to find the leg in the artifacts and on the screen.
+# the fields contracts.LegRead requires a read to copy (no default there)
+READ_KEY_FIELDS = ("sofascore_event_id", "market", "subject", "line", "direction")
 FIELDS = (
     "position", "group_key", "sport", "match", "competition", "kickoff_utc",
     "sofascore_event_id", "market", "subject", "line", "direction", "period",
@@ -211,6 +213,11 @@ def read_set(run: Path, buffer: int = 0, unread: bool = False,
         sport = str(leg.get("sport") or sport_of.get(
             int(leg["sofascore_event_id"])) or "football")
         compact = {k: leg[k] for k in FIELDS if leg.get(k) is not None}
+        # the key fields a read copies are always present (null = every
+        # value): a sport winner leg without `line` made analysts drop the
+        # key and contracts.LegRead refused the whole merge (audit 11-22)
+        for k in READ_KEY_FIELDS:
+            compact.setdefault(k, leg.get(k))
         # a builder leg carries neither its match's clock nor `offered_odds`:
         # one shape for every leg (the analyst's inventory reads both)
         eid = int(leg["sofascore_event_id"])

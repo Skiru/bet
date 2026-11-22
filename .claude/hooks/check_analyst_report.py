@@ -43,7 +43,10 @@ def main() -> int:
             report_kind,
             report_run,
         )
-    except ImportError:
+    except ImportError as exc:
+        # never block the session, but never fail silent either: a broken
+        # src path turned the check off without a word (audit 2026-11-22)
+        print(f"check_analyst_report: WARN check not run - {exc}", file=sys.stderr)
         return 0
     problems: list[str] = []
     for raw in dict.fromkeys(paths):

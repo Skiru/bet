@@ -110,7 +110,12 @@ measured incident; the rule it left is in bold.
 - **Board size is the calendar**: 1,040 football fixtures on a Sunday, 102 on
   a Monday. The coverage floor is weekday-blind; **judge matching by the
   RESOLVE rate (72-90% is healthy)**.
-- **Pipeline log timestamps are local (UTC+2)**; trust `date -u`.
+- **Pipeline log timestamps are local (UTC+1 since 2026-10-25, UTC+2 before)**;
+  trust `date -u`.
+- **zsh does not word-split an unquoted `$var`**: `for a in "D SHADOW"; do
+  set -- $a; ... --only $2` passes one argument and `--only` empty (argparse
+  exit 2, 2026-11-22). Run each command as written, one per line - no loops
+  over argument pairs.
 
 ## Environment and the bridge
 
