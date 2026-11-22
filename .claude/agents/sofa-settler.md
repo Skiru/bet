@@ -114,10 +114,11 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
    - **7c "KUPON Z PDF — to, co naprawdę poszło na typ"** is the coupon's real result: one
      table per sport x epoch plus the measured sports' table (graded at the printed price
      against the pinned id; another id = `NOT_GRADED:ID_CHANGED`), closed by
-     **"Suma kuponu"**. The first table ("Zakłady pojedyncze z PDF", row "wynik przy 1 j.
-     na pozycję") is **football + tennis only**; the measured sports' table follows it;
-     **"Suma kuponu" = both, and equals the ledger's `official` units - quote "Suma kuponu"
-     as the day's result**, never a single table's row (11-21: -383.07 football + tennis,
+     **"Suma kuponu"**. The first singles table ("Zakłady pojedyncze z PDF (piłka + tenis ...)", row "wynik
+     przy 1 j. na pozycję") is **football + tennis only**; the measured sports' table follows
+     it; **"Suma kuponu" = all singles, equal to the ledger's `official.singles.units` -
+     quote it as the singles' result**, builders apart (their own table above, the ledger's
+     `official.builders`), never a single table's row (11-21: -383.07 football + tennis,
      -15.00 sports, Suma -398.07 - not a discrepancy). Refunds are counted apart at 0 u. on the row "zwrot (przesunięty > 48 h /
      odwołany / ...), 0 j." (only on a day that has one).
    - **7i "Nogi zdjęte przez odczyt — nie kupon"** grades `removed_by_reads` (WATCH / NO_BET reads and

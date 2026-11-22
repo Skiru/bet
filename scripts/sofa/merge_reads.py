@@ -64,7 +64,7 @@ for _p in (str(_ROOT / "src"), str(_ROOT)):
 
 from pydantic import RootModel, ValidationError  # noqa: E402
 
-from bet.sofa import analyses, timeutil  # noqa: E402
+from bet.sofa import analyses, epochs, timeutil  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.contracts import LegRead, SheetRow, Veto  # noqa: E402
 from bet.sofa.coupon_sports import sport_event_ids  # noqa: E402
@@ -263,8 +263,10 @@ def merge(run: Path, reports: list[Path], author: str | None, dry_run: bool,
     if dry_run:
         print("dry run: nothing written")
     else:
-        for path, entries in ((veto_path, merged_v), (reads_path, merged_r)):
-            if not _write_if_changed(path, entries):
+        create_reads = not slip and run.name < epochs.READS_ON_REQUEST_DATE
+        for path, entries, create in ((veto_path, merged_v, False),
+                                      (reads_path, merged_r, create_reads)):
+            if not _write_if_changed(path, entries, create):
                 print(f"  {path.name} unchanged - not rewritten")
         _record_sections(run, reports, author, stamp,
                          analyses.SLIP_STORE if slip else analyses.STORE)
@@ -333,13 +335,22 @@ def _check_read_sets(paths: list[Path], fresh_r: list[dict[str, Any]],
     return off
 
 
-def _write_if_changed(path: Path, entries: list[dict[str, Any]]) -> bool:
+def _write_if_changed(path: Path, entries: list[dict[str, Any]],
+                      create: bool = False) -> bool:
     """Write the merged array only when it differs from the file (an absent
     file equals []). A rewrite with the same content still moves the mtime,
     and vetoes.json / reads.json newer than 08_confidence.json is
     STALE_CONFIDENCE (build_coupon_pdf, day_status) - a verifier merge of
-    zero reads forced a needless rebuild on 2026-11-22."""
-    if _load(path) == entries:
+    zero reads forced a needless rebuild on 2026-11-22. `create`: an absent
+    file is written even empty (a day before reads on request, whose audit
+    C3 tells an empty reads.json from a missing one)."""
+    on_disk = _load(path)
+    # order-independent: a report re-stating vetoes already in the file
+    # moves them to the front of the merge without changing the set
+    def full(e: dict[str, Any]) -> str:
+        return json.dumps(e, sort_keys=True)  # the stamp too: a slip re-read
+    if sorted(map(full, on_disk)) == sorted(map(full, entries)) and (
+            path.exists() or not create):
         return False
     write_atomic(path, json.dumps(entries, indent=2, ensure_ascii=False) + "\n")
     return True

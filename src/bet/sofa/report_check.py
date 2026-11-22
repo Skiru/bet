@@ -48,8 +48,11 @@ WEB_TAG = re.compile(r"\[WEB:[^\]]*\]", re.I)
 # a publication date that is there: "publ. ?" (unknown) is not newer than
 # anything (sofa-analysis-core, "What a removal's reason must name" 1) -
 # before 2026-11-22 the bare word "publ" counted as dated
-DATED = re.compile(r"publ\.?\s*[^\s?,.\]]", re.I)
+DATED = re.compile(
+    r"\bpubl\w*\.?:?\s*(?:ok\.\s*|~\s*|prognoza\s+)?(?:\d|dzi|wczor)", re.I)
 DEFECT_MARK = re.compile(r"DEFEKT")
+SERIES_FORMAT = re.compile(r"\b(?:bo\s?\d|best[_ ]of)\b", re.I)
+SERIA = re.compile(r"\bseri[aię]\b", re.I)
 KILL_MARK = re.compile(r"fakty\s+zab[oó]jcze", re.I)
 SUMMARY_MARK = re.compile(r"\*\*W skr[oó]cie", re.I)
 STYLE_MARK = re.compile(r"styl gry i zestawienie", re.I)
@@ -77,9 +80,8 @@ COUNT = re.compile(r"\d+\s*/\s*\d+")
 # (10-28: "DEFEKT: dossier rest_days=1.0 ... Spurs na 2. nocy") removes nothing.
 FALSE_DEFECT = re.compile(
     r"rest_days|games_7d|games_14d|back[- ]to[- ]back|\bb2b\b|2\. noc|drug\w* noc|"
-    # a streak, never a CS2 / tennis "seria" (best-of series: "DEFEKT:
-    # sport_fixtures best_of null - seria może być Bo1" was refused, 11-22)
-    r"\bform[ay]?\b|\bseri[aię]\b(?![^.;]{0,24}\b(?:bo\s?\d|best[_ ]of|map))|"
+    # a streak; a best-of "seria" is taken out first (fact_sourced, 11-22)
+    r"\bform[ay]?\b|\bseri[aię]\b|"
     r"\bh2h\b|\btabel|"
     # a rating one disagrees with (10-29: ~30 removals "DEFEKT: 05_sheet
     # FOOTBALL_RATING ... log strength gap") is the forbidden cross-league basis
@@ -162,7 +164,12 @@ def fact_sourced(reason: str) -> bool:
     """A removal reason naming a dated web fact or an artifact defect (a
     "defect" that is a schedule / form / h2h fact does not count)."""
     defect = DEFECT_MARK.search(reason)
-    real_defect = bool(defect and not FALSE_DEFECT.search(reason[defect.start():]))
+    tail = reason[defect.start():] if defect else ""
+    # a best-of series ("seria" next to Bo3 / best_of, either side) is a
+    # format, not a streak (11-22: "best_of null - seria może być Bo1" refused)
+    if SERIES_FORMAT.search(tail):
+        tail = SERIA.sub("", tail)
+    real_defect = bool(defect and not FALSE_DEFECT.search(tail))
     return real_defect or any(DATED.search(t) for t in WEB_TAG.findall(reason))
 
 

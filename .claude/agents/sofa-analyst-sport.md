@@ -127,9 +127,11 @@ is no `RYNEK:` removal in these sports.
 
 Report and summary as `sofa-analysis-core` "Output contract"; per match the
 section of `sport-analysis` `references/event-protocol.md`, with these
-labels: heading with `sofa:<id>`, **W skrócie:**, **Fakty zabójcze (przed
-siecią):**, **Kluczowe przed meczem:**, **Czynniki rynku.**, **Kontekst
-(web).**, **Nogi.**, **Za / Przeciw:**, **Szczegóły techniczne:**. Full
+labels in this order: heading with `sofa:<id>`, **W skrócie:**, **Start:**,
+**Fakty zabójcze (przed siecią):**, **Kluczowe przed meczem:**, **Czynniki
+rynku.**, **Kontekst (web).**, **Cena.**, **Nogi.**, **Ekspozycja:**, **Za / Przeciw:**,
+**Szczegóły techniczne:** (a single-leg match with no finding may skip
+**Ekspozycja**, **Cena** - line unmoved - and **Za / Przeciw**). Full
 sentences, no rung tables. A delta section: first body line
 `**W skrócie:**`, second `[wcześniej: <report>, <recorded_at_utc>]`, and a
 `**Kontekst (web).**` line ("delta: pełny przegląd <czas>, nic nowego" is

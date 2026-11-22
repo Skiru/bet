@@ -82,7 +82,10 @@ Poza zestawem: <noga z `style.matchup` spoza pliku - jedna linia, bez odczytu>
   `ZESTAWIENIE PRZECIW` rung its own row; the family's other rungs in one
   cell ("także 4.5: 6/10"). `most_*` / `handicap_*` have no matchup row
   ("bez zestawienia", style means in the paragraph). A match with no listed
-  leg writes the paragraph without the table.
+  leg writes the paragraph without the table. A listed leg whose dossier has
+  no `style.matchup` row still gets its table row, the cells reading
+  "brak wiersza w dossier" - `report_check` (ZESTAWIENIE) sends back a
+  count-market read whose section has no table at all.
 - **Columns:** a side leg - `własne` = `style.matchup` `own`, `rywal
   pozwolił` = `opponent_conceded`; a total - `mecze gospodarza` / `mecze
   gościa` = each side's `games`; `liga %` = `league.share`. Every k/n counts

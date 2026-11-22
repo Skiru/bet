@@ -371,6 +371,13 @@ def grade_sport_singles(
     return coupon_sports.grade(runs_dir, date, legs, _now())
 
 
+def suma_kuponu(units: float) -> str:
+    """The day's singles result line (= the ledger's official.singles.units),
+    written on every day with printed singles - with or without measured
+    sports (2026-11-22 review: a football / tennis only day had none)."""
+    return f"**Suma kuponu (pojedyncze, wszystkie sporty): {units:+.2f} j.**"
+
+
 def render_sport_singles(
     graded: list[dict[str, Any]], sheet_res: dict[str, Any],
 ) -> list[str]:
@@ -398,8 +405,7 @@ def render_sport_singles(
     out.append(_table(["sport", "pozycji", "rozliczonych", "weszło / nie",
                        "inne (zwrot / czeka / bez oceny)", "wynik"], rows))
     out.append("")
-    out.append(f"**Suma kuponu (pojedyncze, wszystkie sporty): "
-               f"{sheet_res['units'] + total:+.2f} j.**")
+    out.append(suma_kuponu(sheet_res['units'] + total))
     out.append("")
     return out
 
@@ -1114,11 +1120,11 @@ def main() -> int:
         # 2026-11-22: the old text ("the coupon is the positive-EV Bet
         # Builders") had not described the PDF since 2026-09-22, and a settler
         # read the football + tennis singles row as the day's result
-        emit("Kupon to `11_coupon.json` / PDF: pojedyncze i buildery. Pierwsza "
-             "tabela pojedynczych liczy tylko piłkę i tenis, druga sporty "
-             "mierzone; wynik dnia to wiersz „Suma kuponu” (= jednostki "
-             "wiersza `official` w ledgerze). Sekcja 7 i 7b to materiał "
-             "wejściowy, nie zakład.")
+        emit("Kupon to `11_coupon.json` / PDF: pojedyncze i buildery (buildery "
+             "osobno, poniżej). Pierwsza tabela pojedynczych liczy tylko piłkę "
+             "i tenis, druga sporty mierzone; wynik pojedynczych to wiersz "
+             "„Suma kuponu” (= `official.singles.units` w ledgerze). Sekcja 7 "
+             "i 7b to materiał wejściowy, nie zakład.")
         emit("")
         # Screen prices, when the operator recorded them. Key: the fixture's
         # sofascore_event_id as a string. A measured price always beats the
@@ -1151,6 +1157,11 @@ def main() -> int:
                 if sport_singles else [])
             if sport_singles:
                 lines.extend(render_sport_singles(sport_graded, res))
+            else:
+                # one line to quote on every day (2026-11-22 review: a day
+                # without measured-sport singles had no „Suma kuponu” row)
+                emit("")
+                emit(suma_kuponu(res["units"]))
             emit("")
             emit("To są pozycje wydrukowane, nie postawione: PDF nie wie, które z "
                  "nich operator wziął. Kurs to `offered_odds` z artefaktu.")

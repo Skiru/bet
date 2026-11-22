@@ -35,9 +35,9 @@ def main() -> int:
         return 0
     try:
         from bet.sofa.report_check import (
+            checked_reads,
             findings,
             load_dossiers,
-            checked_reads,
             reads_block,
             report_day,
             report_kind,

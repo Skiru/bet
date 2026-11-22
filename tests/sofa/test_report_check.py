@@ -634,3 +634,22 @@ def test_a_series_format_defect_is_real_and_an_unknown_date_is_not_dated() -> No
     assert not fact_sourced("DEFEKT: dossier seria zwycięstw Alfa")
     assert not fact_sourced("[WEB: x.pl, publ. ?, fetched 10:00] kontuzja")
     assert fact_sourced("[WEB: x.pl, publ. 2026-11-21 18:00, fetched 10:00] kontuzja")
+
+
+def test_undated_tags_and_series_streaks_after_review() -> None:
+    """2026-11-22 review of the first fix: undated tags and CS2 map streaks
+    still passed; a series named before "seria" was still refused."""
+    from bet.sofa.report_check import fact_sourced
+    for tag in ("publ. nieznana", "publ. b.d.", "publ. -", "publ: ?", "publ.: ?",
+                "publikacja ?"):
+        assert not fact_sourced(f"[WEB: x.pl, {tag}, fetched 10:00] kontuzja"), tag
+    assert not fact_sourced("[WEB: tvrepublika.pl, publ. ?] kontuzja")
+    assert fact_sourced("[WEB: x.pl, publ. dziś 9:00, fetched 10:00] kontuzja")
+    assert fact_sourced("[WEB: x.pl, publikacja: 21.11, fetched 10:00] kontuzja")
+    # formats the analysts wrote 10-13..11-21 that do carry a date
+    for tag in ("publ. prognoza 2026-10-25", "publ. ok. 2026-10-20", "publ. ~2026-10-27"):
+        assert fact_sourced(f"[WEB: x.pl, {tag}, fetched 10:00] k"), tag
+    assert not fact_sourced("[WEB: x.pl, publ. przed 21.10, fetched 10:00] k")
+    assert not fact_sourced("DEFEKT: seria 5 porażek na mapie Nuke")
+    assert fact_sourced("DEFEKT: Bo3 w ofercie - seria")
+    assert fact_sourced("DEFEKT: best_of null, seria nieznana")

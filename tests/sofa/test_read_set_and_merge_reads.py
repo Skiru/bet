@@ -331,7 +331,7 @@ def test_a_merge_that_changes_nothing_leaves_the_files_untouched(
     and forced a rebuild. Unchanged content is never rewritten, and an empty
     array never creates a file."""
     import os
-    run = tmp_path / "2026-10-14"
+    run = tmp_path / "2026-11-22"
     run.mkdir()
     empty = tmp_path / "verifier.md"
     empty.write_text("# weryfikacja\n\n```json reads\n[]\n```\n")
@@ -346,14 +346,17 @@ def test_a_merge_that_changes_nothing_leaves_the_files_untouched(
     assert merge_reads.main(args) == 0
     for name in ("vetoes.json", "reads.json"):
         assert (run / name).stat().st_mtime == 1_000_000
-    # a repeat of a real report is unchanged too
+    # a repeat of a real report is unchanged too (the fixture's day: its
+    # reads predate the stability rule)
+    old = tmp_path / "2026-10-14"
+    old.mkdir()
     report = tmp_path / "football.md"
     report.write_text(REPORT)
-    real = ["--date", run.name, "--runs-dir", str(tmp_path), "--report", str(report)]
+    real = ["--date", old.name, "--runs-dir", str(tmp_path), "--report", str(report)]
     assert merge_reads.main(real) == 0
-    os.utime(run / "reads.json", (1_000_000, 1_000_000))
+    os.utime(old / "reads.json", (1_000_000, 1_000_000))
     assert merge_reads.main(real) == 0
-    assert (run / "reads.json").stat().st_mtime == 1_000_000
+    assert (old / "reads.json").stat().st_mtime == 1_000_000
 
 
 def test_an_empty_reads_block_is_no_broken_contract(
@@ -410,3 +413,31 @@ def test_an_empty_report_is_no_missing_section(
                              "--report", str(empty), "--author", "verifier"]) == 0
     out = capsys.readouterr().out
     assert "NO_SECTIONS" not in out and "no sections expected" in out
+
+
+def test_restated_vetoes_and_old_days_reads(tmp_path: Path) -> None:
+    """2026-11-22 review: a report re-stating vetoes already in the file
+    reordered them and forced a rewrite (STALE_CONFIDENCE); and a day before
+    reads on request still gets its empty reads.json (audit C3 tells empty
+    from missing)."""
+    import os
+    run = tmp_path / "2026-10-14"
+    run.mkdir()
+    report = tmp_path / "football.md"
+    report.write_text(REPORT)
+    args = ["--date", run.name, "--runs-dir", str(tmp_path), "--report", str(report)]
+    assert merge_reads.main(args) == 0
+    vetoes = json.loads((run / "vetoes.json").read_text())
+    extra = {**vetoes[0], "reason": "earlier veto"}
+    (run / "vetoes.json").write_text(json.dumps([extra, *vetoes]))
+    os.utime(run / "vetoes.json", (1_000_000, 1_000_000))
+    assert merge_reads.main(args) == 0
+    assert (run / "vetoes.json").stat().st_mtime == 1_000_000
+    old = tmp_path / "2026-10-20"
+    old.mkdir()
+    empty = tmp_path / "2026-10-20_weryfikacja.md"
+    empty.write_text("Brak.\n\n```json reads\n[]\n```\n")
+    assert merge_reads.main(["--date", old.name, "--runs-dir", str(tmp_path),
+                             "--report", str(empty), "--author", "verifier"]) == 0
+    assert json.loads((old / "reads.json").read_text()) == []
+    assert not (old / "vetoes.json").exists()

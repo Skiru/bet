@@ -169,7 +169,7 @@ stage stops the stages after it (`SKIPPED`).
   | `FOOTBALL_SIM`, `FOOTBALL_SIM_FLOOR` | 11-06 17:30 | `football_sim_rule`, `floor_rule` | football path markets from the minute simulator; four keys at 0.60 |
   | `VB_POINT_MODEL` | 11-06 17:30 | `vb_point_model_rule` | volleyball rally-point model |
   | `TENNIS_HANDICAP_POINT_MODEL` | 11-06 17:30 | `tennis_handicap_point_model_rule` | tennis per-set games handicap from the point model |
-  | `FOOTBALL_FORM_TABLE` | 11-07 00:00 | `form_table_p` | season table per family (35 `market|DIR`) |
+  | `FOOTBALL_FORM_TABLE` | 11-07 00:00 | `form_table_rule` (`form_table_p` = table / no_table) | season table per family (35 `market\|DIR` keys) |
   | `SAME_EVENT_DEDUP` | 11-08 00:00 | `removed_as_same_event`, `same_event_as` | one event, one leg (below) |
   | `SCHEDULE_TERM` | 11-09 11:30 | `schedule_term_rule`, `schedule_term` | football result / score / path markets x exp(rest / congestion term) |
   | `CARDS_CLOSENESS_OFF` | 11-10 00:00 | `cards_closeness_rule` | cards out of the closeness term |

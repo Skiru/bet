@@ -47,7 +47,8 @@ Python: `PYTHONPATH=src:. .venv/bin/python`.
   defaults; never lower `MIN_INTERVAL_MS`.
 
 **Run order of steps 1-2** (the sections below are not in run order): settler (1) with
-BOARD beside it -> after the settler returns: paper test (1c, ~20 s) -> line evidence's
+BOARD beside it (main session; a subagent such as `sofa-runner` runs the settler in the
+foreground, then BOARD) -> after the settler returns: paper test (1c, ~20 s) -> line evidence's
 bridge part (1a, background) and the loops (1b) -> RESOLVE (2) only after
 `BRIDGE_PART_DONE` -> line-evidence fits (1a) beside RESOLVE -> step 3 after their `EXIT`.
 
@@ -151,6 +152,12 @@ BOARD mints the run id (`run_pipeline.py` without `--run-id`); read it back from
 mkdir -p runs/sofa/<D>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --only BOARD > runs/sofa/<D>/pipeline_board.log 2>&1
 grep -o '"run_id": "[0-9a-f]*"' runs/sofa/<D>/pipeline_board.log | tail -1
+```
+
+RESOLVE - **only after the settler returned and `BRIDGE_PART_DONE` is in
+`runs/sofa/<D>/line_evidence_bridge.log`** (run order above):
+
+```bash
 PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/run_pipeline.py --date <D> --from-stage RESOLVE --run-id <id> > runs/sofa/<D>/pipeline_resolve.log 2>&1 &
 ```
 
@@ -228,7 +235,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
 
-`/sofa-rebuild` owns the plan: follow its sections 1-2 only - its hand-off to `/sofa-verify`
+`/sofa-rebuild` owns the plan: follow its sections 0-3 - its hand-off to `/sofa-verify`
 is replaced by step 8 here (one verifier pass, not two). After every `rebuild_day.py` (step 7, step 8) the
 `icloud` line is read; the last state goes into the report. Never run stage scripts by hand for a rebuild (a CONFIDENCE
 on a >45 min offer empties 08 to the locked legs). SHEET re-runs
@@ -254,6 +261,11 @@ screen's line (legs, DEFECT / NOTE). Then, with the path it **returned**:
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --report <returned path> --author verifier --dry-run
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/merge_reads.py --date <D> --report <returned path> --author verifier
+```
+
+Rebuild - **only if the rule below says so** (otherwise skip this block and say so):
+
+```bash
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <D>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <D> | grep -i icloud
 ```
@@ -289,7 +301,8 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/run_boosts.py --date <D>
   - `clv` (`closing.jsonl ABSENT` with legs past their window) -> start `capture_closing.py`
     (command above) and report the CLV hole;
   - `offer` (04_offer.json unreadable), `sport:<sport>` (no readable record) -> report it;
-    a rebuild needs a readable offer (`/sofa-rebuild`).
+    a rebuild needs a readable offer (`/sofa-rebuild`);
+  - `day_status` itself crashed (a BROKEN naming its own exception) -> a defect: report it.
 - **iCloud copy (the last step, operator 2026-10-25):** every PDF render (step 7, step 8's
   rebuild, the evening rebuild, a results render) copies `KUPON_<D>.pdf` + `.html` over
   `~/Library/Mobile Documents/com~apple~CloudDocs/Kupony/<DD.MM.YYYY>/` itself

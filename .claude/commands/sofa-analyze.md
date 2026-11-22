@@ -122,8 +122,9 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/rebuild_day.py --date <date>
 
 - `merge_reads.py` also stamps each read (`read_at_utc`) and files each report's match
   sections in `analyses.json` (the HTML / PDF show them at the legs); `NO_SECTIONS: <file>`
-  = no heading carried `sofa:<id>` - report it, the merge stands (expected, not a defect,
-  on a report whose reads block is `[]`: "no reads - no sections expected").
+  = the report names events in its blocks but no heading carried `sofa:<id>` - report it,
+  the merge stands. A report with empty blocks prints "no reads - no sections expected"
+  instead (not a defect).
 - `merge_reads.py` does not rewrite `vetoes.json` / `reads.json` whose content did not change
   (`<file> unchanged - not rewritten`): nothing changed = no rebuild needed.
 - `merge_reads.py`: exit 0 merged; 1 merged with an `UNMATCHED_VETO` (it did nothing -

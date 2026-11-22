@@ -187,7 +187,8 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
   match-wide `market: null` KEEP.
 - **What a removal's reason must name** - one of:
   1. a fact newer than the price with a dated tag (`[WEB: domena, publ.
-     <data>, fetched <czas>]`; unknown date = `publ. ?`, which is not newer
+     <data>, fetched <czas>]`; the date is digits, "dziś" or "wczoraj" -
+     anything else (`publ. ?`, "nieznana", "b.d.") is unknown, which is not newer
      than anything and the code does not count as dated);
   2. an artifact defect written `DEFEKT: <artifact, field, what is wrong>` -
      a value that is **wrong for tonight**: identity, scope, surface, format,
@@ -200,7 +201,8 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
      artifact, the field and what is wrong - never the words forma, seria
      zwycięstw / porażek, h2h, tabela, rating, rest_days, back-to-back in
      that reason, not even to dismiss them (the code refuses the whole
-     report on them); a CS2 / tennis "seria Bo3" is fine;
+     report on them); "seria" next to `Bo<n>` / `best_of` (a series format)
+     is fine, any other "seria" reads as a streak;
   3. (**football only**, reports of 2026-10-29 on, **WATCH only, never
      NO_BET or a veto**) market-driver evidence written `RYNEK: <driver>:
      <k/n from the dossier>`, read `context: "MARKET"`. It stands only at
