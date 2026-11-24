@@ -1,5 +1,5 @@
 {
- "_comment": "Country (ISO alpha-2) -> the IANA zone a match there is played in, for Superbet's 'end of the next day, local time at the venue' (Regulamin Zakładów Online 5.E.1.a, approved 2026-02-10). Built from tzdata zone.tab 2026-10-13; a country with several zones uses its most populous one ('multi_zone' lists them: off by the zones' difference there). Unknown country: UTC (bet.sofa.settle.void_deadline).",
+ "_comment": "Country (ISO alpha-2) -> the IANA zone a match there is played in, for Superbet's 'end of the next day, local time at the venue' (Regulamin Zakładów Online 5.E.1.a, approved 2026-02-10). Built from tzdata zone.tab 2026-10-13; a country with several zones uses its most populous one ('multi_zone' lists them: off by the zones' difference there). Unknown country: UTC (bet.sofa.settle.void_deadline). Inside a multi-zone country the venue's own place decides first (bet.sofa.settle.venue_timezone, 2026-11-24): 'places' by the venue city's name (an entry with a 'state' matches only a venue in that state or with none; 'by_name': false = coordinates only; names shared by places in different zones are left out), then 'subdivisions' by Sofascore's city.state (ISO 3166-2; a state split by a zone line reads its most populous zone), then the nearest 'places' entry within 'place_radius_km' of the venue's venueCoordinates; none of them = the country's zone, as before.",
  "multi_zone": [
   "AQ",
   "AR",
@@ -281,5 +281,1997 @@
   "ZA": "Africa/Johannesburg",
   "ZM": "Africa/Lusaka",
   "ZW": "Africa/Harare"
- }
+ },
+ "subdivisions": {
+  "AU-ACT": "Australia/Sydney",
+  "AU-NSW": "Australia/Sydney",
+  "AU-NT": "Australia/Darwin",
+  "AU-QLD": "Australia/Brisbane",
+  "AU-SA": "Australia/Adelaide",
+  "AU-TAS": "Australia/Hobart",
+  "AU-VIC": "Australia/Melbourne",
+  "AU-WA": "Australia/Perth",
+  "BR-AC": "America/Rio_Branco",
+  "BR-AM": "America/Manaus",
+  "BR-MS": "America/Campo_Grande",
+  "BR-MT": "America/Cuiaba",
+  "BR-RO": "America/Porto_Velho",
+  "BR-RR": "America/Boa_Vista",
+  "CA-AB": "America/Edmonton",
+  "CA-BC": "America/Vancouver",
+  "CA-MB": "America/Winnipeg",
+  "CA-NB": "America/Moncton",
+  "CA-NL": "America/St_Johns",
+  "CA-NS": "America/Halifax",
+  "CA-NT": "America/Edmonton",
+  "CA-NU": "America/Iqaluit",
+  "CA-ON": "America/Toronto",
+  "CA-PE": "America/Halifax",
+  "CA-QC": "America/Toronto",
+  "CA-SK": "America/Regina",
+  "CA-YT": "America/Whitehorse",
+  "ES-CN": "Atlantic/Canary",
+  "MX-BCN": "America/Tijuana",
+  "MX-BCS": "America/Mazatlan",
+  "MX-CHH": "America/Chihuahua",
+  "MX-ROO": "America/Cancun",
+  "MX-SIN": "America/Mazatlan",
+  "MX-SON": "America/Hermosillo",
+  "PT-20": "Atlantic/Azores",
+  "PT-30": "Atlantic/Madeira",
+  "US-AK": "America/Anchorage",
+  "US-AL": "America/Chicago",
+  "US-AR": "America/Chicago",
+  "US-AZ": "America/Phoenix",
+  "US-CA": "America/Los_Angeles",
+  "US-CO": "America/Denver",
+  "US-CT": "America/New_York",
+  "US-DC": "America/New_York",
+  "US-DE": "America/New_York",
+  "US-FL": "America/New_York",
+  "US-GA": "America/New_York",
+  "US-HI": "Pacific/Honolulu",
+  "US-IA": "America/Chicago",
+  "US-ID": "America/Boise",
+  "US-IL": "America/Chicago",
+  "US-IN": "America/Indiana/Indianapolis",
+  "US-KS": "America/Chicago",
+  "US-KY": "America/New_York",
+  "US-LA": "America/Chicago",
+  "US-MA": "America/New_York",
+  "US-MD": "America/New_York",
+  "US-ME": "America/New_York",
+  "US-MI": "America/Detroit",
+  "US-MN": "America/Chicago",
+  "US-MO": "America/Chicago",
+  "US-MS": "America/Chicago",
+  "US-MT": "America/Denver",
+  "US-NC": "America/New_York",
+  "US-ND": "America/Chicago",
+  "US-NE": "America/Chicago",
+  "US-NH": "America/New_York",
+  "US-NJ": "America/New_York",
+  "US-NM": "America/Denver",
+  "US-NV": "America/Los_Angeles",
+  "US-NY": "America/New_York",
+  "US-OH": "America/New_York",
+  "US-OK": "America/Chicago",
+  "US-OR": "America/Los_Angeles",
+  "US-PA": "America/New_York",
+  "US-RI": "America/New_York",
+  "US-SC": "America/New_York",
+  "US-SD": "America/Chicago",
+  "US-TN": "America/Chicago",
+  "US-TX": "America/Chicago",
+  "US-UT": "America/Denver",
+  "US-VA": "America/New_York",
+  "US-VT": "America/New_York",
+  "US-WA": "America/Los_Angeles",
+  "US-WI": "America/Chicago",
+  "US-WV": "America/New_York",
+  "US-WY": "America/Denver"
+ },
+ "place_radius_km": 75,
+ "places": [
+  {
+   "country": "US",
+   "name": "Los Angeles",
+   "zone": "America/Los_Angeles",
+   "lat": 34.05,
+   "lon": -118.24,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Inglewood",
+   "zone": "America/Los_Angeles",
+   "lat": 33.96,
+   "lon": -118.35,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Anaheim",
+   "zone": "America/Los_Angeles",
+   "lat": 33.84,
+   "lon": -117.91,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Carson",
+   "zone": "America/Los_Angeles",
+   "lat": 33.83,
+   "lon": -118.28,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Long Beach",
+   "zone": "America/Los_Angeles",
+   "lat": 33.77,
+   "lon": -118.19,
+   "state": "US-CA",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Irvine",
+   "zone": "America/Los_Angeles",
+   "lat": 33.68,
+   "lon": -117.83,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Indian Wells",
+   "zone": "America/Los_Angeles",
+   "lat": 33.72,
+   "lon": -116.31,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Palm Springs",
+   "zone": "America/Los_Angeles",
+   "lat": 33.83,
+   "lon": -116.55,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "San Diego",
+   "zone": "America/Los_Angeles",
+   "lat": 32.72,
+   "lon": -117.16,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Riverside",
+   "zone": "America/Los_Angeles",
+   "lat": 33.95,
+   "lon": -117.4,
+   "state": "US-CA",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "San Jose",
+   "zone": "America/Los_Angeles",
+   "lat": 37.34,
+   "lon": -121.89,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Santa Clara",
+   "zone": "America/Los_Angeles",
+   "lat": 37.35,
+   "lon": -121.95,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "San Francisco",
+   "zone": "America/Los_Angeles",
+   "lat": 37.77,
+   "lon": -122.42,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Oakland",
+   "zone": "America/Los_Angeles",
+   "lat": 37.8,
+   "lon": -122.27,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Berkeley",
+   "zone": "America/Los_Angeles",
+   "lat": 37.87,
+   "lon": -122.27,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Stanford",
+   "zone": "America/Los_Angeles",
+   "lat": 37.43,
+   "lon": -122.17,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Tiburon",
+   "zone": "America/Los_Angeles",
+   "lat": 37.87,
+   "lon": -122.46,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Sacramento",
+   "zone": "America/Los_Angeles",
+   "lat": 38.58,
+   "lon": -121.49,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Davis",
+   "zone": "America/Los_Angeles",
+   "lat": 38.54,
+   "lon": -121.74,
+   "state": "US-CA",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Fresno",
+   "zone": "America/Los_Angeles",
+   "lat": 36.74,
+   "lon": -119.79,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Stockton",
+   "zone": "America/Los_Angeles",
+   "lat": 37.96,
+   "lon": -121.29,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Bakersfield",
+   "zone": "America/Los_Angeles",
+   "lat": 35.37,
+   "lon": -119.02,
+   "state": "US-CA"
+  },
+  {
+   "country": "US",
+   "name": "Ontario",
+   "zone": "America/Los_Angeles",
+   "lat": 34.06,
+   "lon": -117.65,
+   "state": "US-CA",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Seattle",
+   "zone": "America/Los_Angeles",
+   "lat": 47.61,
+   "lon": -122.33,
+   "state": "US-WA"
+  },
+  {
+   "country": "US",
+   "name": "Tukwila",
+   "zone": "America/Los_Angeles",
+   "lat": 47.47,
+   "lon": -122.26,
+   "state": "US-WA"
+  },
+  {
+   "country": "US",
+   "name": "Everett",
+   "zone": "America/Los_Angeles",
+   "lat": 47.98,
+   "lon": -122.2,
+   "state": "US-WA"
+  },
+  {
+   "country": "US",
+   "name": "Tacoma",
+   "zone": "America/Los_Angeles",
+   "lat": 47.25,
+   "lon": -122.44,
+   "state": "US-WA"
+  },
+  {
+   "country": "US",
+   "name": "Kent",
+   "zone": "America/Los_Angeles",
+   "lat": 47.38,
+   "lon": -122.23,
+   "state": "US-WA",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Spokane",
+   "zone": "America/Los_Angeles",
+   "lat": 47.66,
+   "lon": -117.43,
+   "state": "US-WA"
+  },
+  {
+   "country": "US",
+   "name": "Las Vegas",
+   "zone": "America/Los_Angeles",
+   "lat": 36.17,
+   "lon": -115.14,
+   "state": "US-NV"
+  },
+  {
+   "country": "US",
+   "name": "Paradise",
+   "zone": "America/Los_Angeles",
+   "lat": 36.1,
+   "lon": -115.15,
+   "state": "US-NV",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Reno",
+   "zone": "America/Los_Angeles",
+   "lat": 39.53,
+   "lon": -119.81,
+   "state": "US-NV"
+  },
+  {
+   "country": "US",
+   "name": "Eugene",
+   "zone": "America/Los_Angeles",
+   "lat": 44.05,
+   "lon": -123.09,
+   "state": "US-OR"
+  },
+  {
+   "country": "US",
+   "name": "Corvallis",
+   "zone": "America/Los_Angeles",
+   "lat": 44.56,
+   "lon": -123.26,
+   "state": "US-OR"
+  },
+  {
+   "country": "US",
+   "name": "Denver",
+   "zone": "America/Denver",
+   "lat": 39.74,
+   "lon": -104.99,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Commerce City",
+   "zone": "America/Denver",
+   "lat": 39.81,
+   "lon": -104.93,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Colorado Springs",
+   "zone": "America/Denver",
+   "lat": 38.83,
+   "lon": -104.82,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Durango",
+   "zone": "America/Denver",
+   "lat": 37.28,
+   "lon": -107.88,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Boulder",
+   "zone": "America/Denver",
+   "lat": 40.01,
+   "lon": -105.27,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Fort Collins",
+   "zone": "America/Denver",
+   "lat": 40.59,
+   "lon": -105.08,
+   "state": "US-CO"
+  },
+  {
+   "country": "US",
+   "name": "Salt Lake City",
+   "zone": "America/Denver",
+   "lat": 40.76,
+   "lon": -111.89,
+   "state": "US-UT"
+  },
+  {
+   "country": "US",
+   "name": "Sandy",
+   "zone": "America/Denver",
+   "lat": 40.57,
+   "lon": -111.86,
+   "state": "US-UT",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Provo",
+   "zone": "America/Denver",
+   "lat": 40.23,
+   "lon": -111.66,
+   "state": "US-UT"
+  },
+  {
+   "country": "US",
+   "name": "Albuquerque",
+   "zone": "America/Denver",
+   "lat": 35.08,
+   "lon": -106.65,
+   "state": "US-NM"
+  },
+  {
+   "country": "US",
+   "name": "Las Cruces",
+   "zone": "America/Denver",
+   "lat": 32.32,
+   "lon": -106.76,
+   "state": "US-NM"
+  },
+  {
+   "country": "US",
+   "name": "Silver City",
+   "zone": "America/Denver",
+   "lat": 32.77,
+   "lon": -108.28,
+   "state": "US-NM"
+  },
+  {
+   "country": "US",
+   "name": "El Paso",
+   "zone": "America/Denver",
+   "lat": 31.76,
+   "lon": -106.49,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Boise",
+   "zone": "America/Boise",
+   "lat": 43.62,
+   "lon": -116.2,
+   "state": "US-ID"
+  },
+  {
+   "country": "US",
+   "name": "Pocatello",
+   "zone": "America/Boise",
+   "lat": 42.87,
+   "lon": -112.45,
+   "aliases": [
+    "Potatello"
+   ],
+   "state": "US-ID"
+  },
+  {
+   "country": "US",
+   "name": "Phoenix",
+   "zone": "America/Phoenix",
+   "lat": 33.45,
+   "lon": -112.07,
+   "state": "US-AZ"
+  },
+  {
+   "country": "US",
+   "name": "Tempe",
+   "zone": "America/Phoenix",
+   "lat": 33.43,
+   "lon": -111.94,
+   "state": "US-AZ"
+  },
+  {
+   "country": "US",
+   "name": "Tucson",
+   "zone": "America/Phoenix",
+   "lat": 32.22,
+   "lon": -110.97,
+   "state": "US-AZ"
+  },
+  {
+   "country": "US",
+   "name": "Scottsdale",
+   "zone": "America/Phoenix",
+   "lat": 33.49,
+   "lon": -111.93,
+   "state": "US-AZ"
+  },
+  {
+   "country": "US",
+   "name": "Fairbanks",
+   "zone": "America/Anchorage",
+   "lat": 64.84,
+   "lon": -147.72,
+   "state": "US-AK"
+  },
+  {
+   "country": "US",
+   "name": "Anchorage",
+   "zone": "America/Anchorage",
+   "lat": 61.22,
+   "lon": -149.9,
+   "state": "US-AK"
+  },
+  {
+   "country": "US",
+   "name": "Honolulu",
+   "zone": "Pacific/Honolulu",
+   "lat": 21.31,
+   "lon": -157.86,
+   "state": "US-HI"
+  },
+  {
+   "country": "US",
+   "name": "Houston",
+   "zone": "America/Chicago",
+   "lat": 29.76,
+   "lon": -95.37,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Dallas",
+   "zone": "America/Chicago",
+   "lat": 32.78,
+   "lon": -96.8,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Frisco",
+   "zone": "America/Chicago",
+   "lat": 33.15,
+   "lon": -96.82,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Austin",
+   "zone": "America/Chicago",
+   "lat": 30.27,
+   "lon": -97.74,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "San Antonio",
+   "zone": "America/Chicago",
+   "lat": 29.42,
+   "lon": -98.49,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Fort Worth",
+   "zone": "America/Chicago",
+   "lat": 32.76,
+   "lon": -97.33,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "San Angelo",
+   "zone": "America/Chicago",
+   "lat": 31.46,
+   "lon": -100.44,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Lubbock",
+   "zone": "America/Chicago",
+   "lat": 33.58,
+   "lon": -101.85,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Waco",
+   "zone": "America/Chicago",
+   "lat": 31.55,
+   "lon": -97.15,
+   "state": "US-TX"
+  },
+  {
+   "country": "US",
+   "name": "Nashville",
+   "zone": "America/Chicago",
+   "lat": 36.16,
+   "lon": -86.78,
+   "state": "US-TN"
+  },
+  {
+   "country": "US",
+   "name": "Memphis",
+   "zone": "America/Chicago",
+   "lat": 35.15,
+   "lon": -90.05,
+   "state": "US-TN"
+  },
+  {
+   "country": "US",
+   "name": "St. Louis",
+   "zone": "America/Chicago",
+   "lat": 38.63,
+   "lon": -90.2,
+   "state": "US-MO"
+  },
+  {
+   "country": "US",
+   "name": "Saint Louis",
+   "zone": "America/Chicago",
+   "lat": 38.63,
+   "lon": -90.2,
+   "state": "US-MO"
+  },
+  {
+   "country": "US",
+   "name": "Kansas City",
+   "zone": "America/Chicago",
+   "lat": 39.1,
+   "lon": -94.58
+  },
+  {
+   "country": "US",
+   "name": "Saint Paul",
+   "zone": "America/Chicago",
+   "lat": 44.95,
+   "lon": -93.09,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "St. Paul",
+   "zone": "America/Chicago",
+   "lat": 44.95,
+   "lon": -93.09,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "Minneapolis",
+   "zone": "America/Chicago",
+   "lat": 44.98,
+   "lon": -93.27,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "Blaine",
+   "zone": "America/Chicago",
+   "lat": 45.16,
+   "lon": -93.23,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "Bemidji",
+   "zone": "America/Chicago",
+   "lat": 47.47,
+   "lon": -94.88,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "Mankato",
+   "zone": "America/Chicago",
+   "lat": 44.16,
+   "lon": -94.0,
+   "state": "US-MN"
+  },
+  {
+   "country": "US",
+   "name": "Grand Forks",
+   "zone": "America/Chicago",
+   "lat": 47.93,
+   "lon": -97.03,
+   "state": "US-ND"
+  },
+  {
+   "country": "US",
+   "name": "Fargo",
+   "zone": "America/Chicago",
+   "lat": 46.88,
+   "lon": -96.79,
+   "state": "US-ND"
+  },
+  {
+   "country": "US",
+   "name": "Brookings",
+   "zone": "America/Chicago",
+   "lat": 44.31,
+   "lon": -96.8,
+   "state": "US-SD"
+  },
+  {
+   "country": "US",
+   "name": "Sioux Falls",
+   "zone": "America/Chicago",
+   "lat": 43.55,
+   "lon": -96.73,
+   "state": "US-SD"
+  },
+  {
+   "country": "US",
+   "name": "Omaha",
+   "zone": "America/Chicago",
+   "lat": 41.26,
+   "lon": -95.93,
+   "state": "US-NE"
+  },
+  {
+   "country": "US",
+   "name": "Sarpy County",
+   "zone": "America/Chicago",
+   "lat": 41.11,
+   "lon": -96.11,
+   "state": "US-NE"
+  },
+  {
+   "country": "US",
+   "name": "Chicago",
+   "zone": "America/Chicago",
+   "lat": 41.88,
+   "lon": -87.63,
+   "state": "US-IL"
+  },
+  {
+   "country": "US",
+   "name": "Bridgeview",
+   "zone": "America/Chicago",
+   "lat": 41.75,
+   "lon": -87.8,
+   "state": "US-IL"
+  },
+  {
+   "country": "US",
+   "name": "Carbondale",
+   "zone": "America/Chicago",
+   "lat": 37.73,
+   "lon": -89.22,
+   "state": "US-IL"
+  },
+  {
+   "country": "US",
+   "name": "Champaign",
+   "zone": "America/Chicago",
+   "lat": 40.12,
+   "lon": -88.24,
+   "state": "US-IL"
+  },
+  {
+   "country": "US",
+   "name": "Milwaukee",
+   "zone": "America/Chicago",
+   "lat": 43.04,
+   "lon": -87.91,
+   "state": "US-WI"
+  },
+  {
+   "country": "US",
+   "name": "Green Bay",
+   "zone": "America/Chicago",
+   "lat": 44.51,
+   "lon": -88.01,
+   "state": "US-WI"
+  },
+  {
+   "country": "US",
+   "name": "New Orleans",
+   "zone": "America/Chicago",
+   "lat": 29.95,
+   "lon": -90.07,
+   "state": "US-LA"
+  },
+  {
+   "country": "US",
+   "name": "Baton Rouge",
+   "zone": "America/Chicago",
+   "lat": 30.45,
+   "lon": -91.19,
+   "state": "US-LA"
+  },
+  {
+   "country": "US",
+   "name": "Oklahoma City",
+   "zone": "America/Chicago",
+   "lat": 35.47,
+   "lon": -97.52,
+   "state": "US-OK"
+  },
+  {
+   "country": "US",
+   "name": "Tulsa",
+   "zone": "America/Chicago",
+   "lat": 36.15,
+   "lon": -95.99,
+   "state": "US-OK"
+  },
+  {
+   "country": "US",
+   "name": "Norman",
+   "zone": "America/Chicago",
+   "lat": 35.22,
+   "lon": -97.44,
+   "state": "US-OK",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Hays",
+   "zone": "America/Chicago",
+   "lat": 38.88,
+   "lon": -99.33,
+   "state": "US-KS"
+  },
+  {
+   "country": "US",
+   "name": "Emporia",
+   "zone": "America/Chicago",
+   "lat": 38.4,
+   "lon": -96.18,
+   "state": "US-KS"
+  },
+  {
+   "country": "US",
+   "name": "Wichita",
+   "zone": "America/Chicago",
+   "lat": 37.69,
+   "lon": -97.34,
+   "state": "US-KS"
+  },
+  {
+   "country": "US",
+   "name": "Manhattan",
+   "zone": "America/Chicago",
+   "lat": 39.18,
+   "lon": -96.57,
+   "state": "US-KS",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Des Moines",
+   "zone": "America/Chicago",
+   "lat": 41.59,
+   "lon": -93.62,
+   "state": "US-IA"
+  },
+  {
+   "country": "US",
+   "name": "Iowa City",
+   "zone": "America/Chicago",
+   "lat": 41.66,
+   "lon": -91.53,
+   "state": "US-IA"
+  },
+  {
+   "country": "US",
+   "name": "Ames",
+   "zone": "America/Chicago",
+   "lat": 42.03,
+   "lon": -93.62,
+   "state": "US-IA"
+  },
+  {
+   "country": "US",
+   "name": "Huntsville",
+   "zone": "America/Chicago",
+   "lat": 34.73,
+   "lon": -86.59,
+   "state": "US-AL"
+  },
+  {
+   "country": "US",
+   "name": "Montevallo",
+   "zone": "America/Chicago",
+   "lat": 33.1,
+   "lon": -86.86,
+   "state": "US-AL"
+  },
+  {
+   "country": "US",
+   "name": "Tuscaloosa",
+   "zone": "America/Chicago",
+   "lat": 33.21,
+   "lon": -87.57,
+   "state": "US-AL"
+  },
+  {
+   "country": "US",
+   "name": "Birmingham",
+   "zone": "America/Chicago",
+   "lat": 33.52,
+   "lon": -86.8,
+   "state": "US-AL",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Pensacola",
+   "zone": "America/Chicago",
+   "lat": 30.42,
+   "lon": -87.22,
+   "state": "US-FL"
+  },
+  {
+   "country": "US",
+   "name": "Evansville",
+   "zone": "America/Chicago",
+   "lat": 37.97,
+   "lon": -87.56,
+   "state": "US-IN"
+  },
+  {
+   "country": "US",
+   "name": "Hammond",
+   "zone": "America/Chicago",
+   "lat": 41.58,
+   "lon": -87.5,
+   "state": "US-IN",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Bowling Green",
+   "zone": "America/Chicago",
+   "lat": 36.99,
+   "lon": -86.44,
+   "state": "US-KY",
+   "by_name": false
+  },
+  {
+   "country": "US",
+   "name": "Knoxville",
+   "zone": "America/New_York",
+   "lat": 35.96,
+   "lon": -83.92,
+   "state": "US-TN"
+  },
+  {
+   "country": "US",
+   "name": "Chattanooga",
+   "zone": "America/New_York",
+   "lat": 35.05,
+   "lon": -85.31,
+   "state": "US-TN"
+  },
+  {
+   "country": "US",
+   "name": "Johnson City",
+   "zone": "America/New_York",
+   "lat": 36.31,
+   "lon": -82.35,
+   "state": "US-TN"
+  },
+  {
+   "country": "US",
+   "name": "Harrogate",
+   "zone": "America/New_York",
+   "lat": 36.58,
+   "lon": -83.66,
+   "state": "US-TN",
+   "by_name": false
+  },
+  {
+   "country": "CA",
+   "name": "Vancouver",
+   "zone": "America/Vancouver",
+   "lat": 49.28,
+   "lon": -123.12
+  },
+  {
+   "country": "CA",
+   "name": "Victoria",
+   "zone": "America/Vancouver",
+   "lat": 48.43,
+   "lon": -123.37
+  },
+  {
+   "country": "CA",
+   "name": "Langford",
+   "zone": "America/Vancouver",
+   "lat": 48.45,
+   "lon": -123.5
+  },
+  {
+   "country": "CA",
+   "name": "Kelowna",
+   "zone": "America/Vancouver",
+   "lat": 49.89,
+   "lon": -119.5
+  },
+  {
+   "country": "CA",
+   "name": "Kamloops",
+   "zone": "America/Vancouver",
+   "lat": 50.67,
+   "lon": -120.33
+  },
+  {
+   "country": "CA",
+   "name": "Prince George",
+   "zone": "America/Vancouver",
+   "lat": 53.92,
+   "lon": -122.75
+  },
+  {
+   "country": "CA",
+   "name": "Abbotsford",
+   "zone": "America/Vancouver",
+   "lat": 49.05,
+   "lon": -122.31
+  },
+  {
+   "country": "CA",
+   "name": "Surrey",
+   "zone": "America/Vancouver",
+   "lat": 49.19,
+   "lon": -122.85
+  },
+  {
+   "country": "CA",
+   "name": "Langley",
+   "zone": "America/Vancouver",
+   "lat": 49.1,
+   "lon": -122.66
+  },
+  {
+   "country": "CA",
+   "name": "Penticton",
+   "zone": "America/Vancouver",
+   "lat": 49.49,
+   "lon": -119.59
+  },
+  {
+   "country": "CA",
+   "name": "Calgary",
+   "zone": "America/Edmonton",
+   "lat": 51.05,
+   "lon": -114.07
+  },
+  {
+   "country": "CA",
+   "name": "Edmonton",
+   "zone": "America/Edmonton",
+   "lat": 53.55,
+   "lon": -113.49
+  },
+  {
+   "country": "CA",
+   "name": "Red Deer",
+   "zone": "America/Edmonton",
+   "lat": 52.27,
+   "lon": -113.81
+  },
+  {
+   "country": "CA",
+   "name": "Lethbridge",
+   "zone": "America/Edmonton",
+   "lat": 49.69,
+   "lon": -112.84
+  },
+  {
+   "country": "CA",
+   "name": "Medicine Hat",
+   "zone": "America/Edmonton",
+   "lat": 50.04,
+   "lon": -110.68
+  },
+  {
+   "country": "CA",
+   "name": "Foothills County",
+   "zone": "America/Edmonton",
+   "lat": 50.7,
+   "lon": -114.0
+  },
+  {
+   "country": "CA",
+   "name": "Winnipeg",
+   "zone": "America/Winnipeg",
+   "lat": 49.9,
+   "lon": -97.14
+  },
+  {
+   "country": "CA",
+   "name": "Brandon",
+   "zone": "America/Winnipeg",
+   "lat": 49.85,
+   "lon": -99.95
+  },
+  {
+   "country": "CA",
+   "name": "Regina",
+   "zone": "America/Regina",
+   "lat": 50.45,
+   "lon": -104.61
+  },
+  {
+   "country": "CA",
+   "name": "Saskatoon",
+   "zone": "America/Regina",
+   "lat": 52.13,
+   "lon": -106.67
+  },
+  {
+   "country": "CA",
+   "name": "Moose Jaw",
+   "zone": "America/Regina",
+   "lat": 50.39,
+   "lon": -105.53
+  },
+  {
+   "country": "CA",
+   "name": "Prince Albert",
+   "zone": "America/Regina",
+   "lat": 53.2,
+   "lon": -105.75
+  },
+  {
+   "country": "CA",
+   "name": "Swift Current",
+   "zone": "America/Regina",
+   "lat": 50.29,
+   "lon": -107.79
+  },
+  {
+   "country": "CA",
+   "name": "Halifax",
+   "zone": "America/Halifax",
+   "lat": 44.65,
+   "lon": -63.57
+  },
+  {
+   "country": "CA",
+   "name": "Dartmouth",
+   "zone": "America/Halifax",
+   "lat": 44.67,
+   "lon": -63.57
+  },
+  {
+   "country": "CA",
+   "name": "Sydney",
+   "zone": "America/Halifax",
+   "lat": 46.14,
+   "lon": -60.19
+  },
+  {
+   "country": "CA",
+   "name": "Charlottetown",
+   "zone": "America/Halifax",
+   "lat": 46.24,
+   "lon": -63.13
+  },
+  {
+   "country": "CA",
+   "name": "Moncton",
+   "zone": "America/Moncton",
+   "lat": 46.09,
+   "lon": -64.78
+  },
+  {
+   "country": "CA",
+   "name": "Saint John",
+   "zone": "America/Moncton",
+   "lat": 45.27,
+   "lon": -66.06
+  },
+  {
+   "country": "CA",
+   "name": "Fredericton",
+   "zone": "America/Moncton",
+   "lat": 45.96,
+   "lon": -66.64
+  },
+  {
+   "country": "CA",
+   "name": "St. John's",
+   "zone": "America/St_Johns",
+   "lat": 47.56,
+   "lon": -52.71
+  },
+  {
+   "country": "AU",
+   "name": "Brisbane",
+   "zone": "Australia/Brisbane",
+   "lat": -27.47,
+   "lon": 153.03
+  },
+  {
+   "country": "AU",
+   "name": "Southport",
+   "zone": "Australia/Brisbane",
+   "lat": -27.97,
+   "lon": 153.41
+  },
+  {
+   "country": "AU",
+   "name": "Gold Coast",
+   "zone": "Australia/Brisbane",
+   "lat": -28.02,
+   "lon": 153.4
+  },
+  {
+   "country": "AU",
+   "name": "Cairns",
+   "zone": "Australia/Brisbane",
+   "lat": -16.92,
+   "lon": 145.77
+  },
+  {
+   "country": "AU",
+   "name": "Townsville",
+   "zone": "Australia/Brisbane",
+   "lat": -19.26,
+   "lon": 146.82
+  },
+  {
+   "country": "AU",
+   "name": "Redcliffe",
+   "zone": "Australia/Brisbane",
+   "lat": -27.23,
+   "lon": 153.1
+  },
+  {
+   "country": "AU",
+   "name": "Sunshine Coast",
+   "zone": "Australia/Brisbane",
+   "lat": -26.65,
+   "lon": 153.07
+  },
+  {
+   "country": "AU",
+   "name": "Toowoomba",
+   "zone": "Australia/Brisbane",
+   "lat": -27.56,
+   "lon": 151.95
+  },
+  {
+   "country": "AU",
+   "name": "Perth",
+   "zone": "Australia/Perth",
+   "lat": -31.95,
+   "lon": 115.86
+  },
+  {
+   "country": "AU",
+   "name": "Fremantle",
+   "zone": "Australia/Perth",
+   "lat": -32.06,
+   "lon": 115.75
+  },
+  {
+   "country": "AU",
+   "name": "Adelaide",
+   "zone": "Australia/Adelaide",
+   "lat": -34.93,
+   "lon": 138.6
+  },
+  {
+   "country": "AU",
+   "name": "Playford",
+   "zone": "Australia/Adelaide",
+   "lat": -34.7,
+   "lon": 138.7
+  },
+  {
+   "country": "AU",
+   "name": "Edinburgh North",
+   "zone": "Australia/Adelaide",
+   "lat": -34.7,
+   "lon": 138.65
+  },
+  {
+   "country": "AU",
+   "name": "Darwin",
+   "zone": "Australia/Darwin",
+   "lat": -12.46,
+   "lon": 130.84
+  },
+  {
+   "country": "AU",
+   "name": "Hobart",
+   "zone": "Australia/Hobart",
+   "lat": -42.88,
+   "lon": 147.33
+  },
+  {
+   "country": "AU",
+   "name": "Launceston",
+   "zone": "Australia/Hobart",
+   "lat": -41.44,
+   "lon": 147.14
+  },
+  {
+   "country": "BR",
+   "name": "Cuiabá",
+   "zone": "America/Cuiaba",
+   "lat": -15.6,
+   "lon": -56.1
+  },
+  {
+   "country": "BR",
+   "name": "Várzea Grande",
+   "zone": "America/Cuiaba",
+   "lat": -15.65,
+   "lon": -56.13
+  },
+  {
+   "country": "BR",
+   "name": "Primavera do Leste",
+   "zone": "America/Cuiaba",
+   "lat": -15.56,
+   "lon": -54.3
+  },
+  {
+   "country": "BR",
+   "name": "Lucas do Rio Verde",
+   "zone": "America/Cuiaba",
+   "lat": -13.05,
+   "lon": -55.91
+  },
+  {
+   "country": "BR",
+   "name": "Sinop",
+   "zone": "America/Cuiaba",
+   "lat": -11.86,
+   "lon": -55.5
+  },
+  {
+   "country": "BR",
+   "name": "Chapada dos Guimarães",
+   "zone": "America/Cuiaba",
+   "lat": -15.46,
+   "lon": -55.75
+  },
+  {
+   "country": "BR",
+   "name": "Rondonópolis",
+   "zone": "America/Cuiaba",
+   "lat": -16.47,
+   "lon": -54.64
+  },
+  {
+   "country": "BR",
+   "name": "Campo Grande",
+   "zone": "America/Campo_Grande",
+   "lat": -20.47,
+   "lon": -54.62,
+   "by_name": false
+  },
+  {
+   "country": "BR",
+   "name": "Dourados",
+   "zone": "America/Campo_Grande",
+   "lat": -22.22,
+   "lon": -54.81
+  },
+  {
+   "country": "BR",
+   "name": "Manaus",
+   "zone": "America/Manaus",
+   "lat": -3.12,
+   "lon": -60.02
+  },
+  {
+   "country": "BR",
+   "name": "Porto Velho",
+   "zone": "America/Porto_Velho",
+   "lat": -8.76,
+   "lon": -63.9
+  },
+  {
+   "country": "BR",
+   "name": "Boa Vista",
+   "zone": "America/Boa_Vista",
+   "lat": 2.82,
+   "lon": -60.67,
+   "by_name": false
+  },
+  {
+   "country": "BR",
+   "name": "Rio Branco",
+   "zone": "America/Rio_Branco",
+   "lat": -9.97,
+   "lon": -67.81
+  },
+  {
+   "country": "MX",
+   "name": "Cancun",
+   "zone": "America/Cancun",
+   "lat": 21.16,
+   "lon": -86.85
+  },
+  {
+   "country": "MX",
+   "name": "Playa del Carmen",
+   "zone": "America/Cancun",
+   "lat": 20.63,
+   "lon": -87.08
+  },
+  {
+   "country": "MX",
+   "name": "Chetumal",
+   "zone": "America/Cancun",
+   "lat": 18.5,
+   "lon": -88.3
+  },
+  {
+   "country": "MX",
+   "name": "Tijuana",
+   "zone": "America/Tijuana",
+   "lat": 32.51,
+   "lon": -117.04
+  },
+  {
+   "country": "MX",
+   "name": "Mexicali",
+   "zone": "America/Tijuana",
+   "lat": 32.62,
+   "lon": -115.45
+  },
+  {
+   "country": "MX",
+   "name": "Ensenada",
+   "zone": "America/Tijuana",
+   "lat": 31.87,
+   "lon": -116.6
+  },
+  {
+   "country": "MX",
+   "name": "La Paz",
+   "zone": "America/Mazatlan",
+   "lat": 24.14,
+   "lon": -110.31
+  },
+  {
+   "country": "MX",
+   "name": "Cabo San Lucas",
+   "zone": "America/Mazatlan",
+   "lat": 22.89,
+   "lon": -109.91
+  },
+  {
+   "country": "MX",
+   "name": "San Jose del Cabo",
+   "zone": "America/Mazatlan",
+   "lat": 23.06,
+   "lon": -109.7
+  },
+  {
+   "country": "MX",
+   "name": "Mazatlan",
+   "zone": "America/Mazatlan",
+   "lat": 23.24,
+   "lon": -106.41
+  },
+  {
+   "country": "MX",
+   "name": "Culiacan",
+   "zone": "America/Mazatlan",
+   "lat": 24.8,
+   "lon": -107.39
+  },
+  {
+   "country": "MX",
+   "name": "Los Mochis",
+   "zone": "America/Mazatlan",
+   "lat": 25.79,
+   "lon": -108.99
+  },
+  {
+   "country": "MX",
+   "name": "Tepic",
+   "zone": "America/Mazatlan",
+   "lat": 21.5,
+   "lon": -104.89
+  },
+  {
+   "country": "MX",
+   "name": "Hermosillo",
+   "zone": "America/Hermosillo",
+   "lat": 29.07,
+   "lon": -110.96
+  },
+  {
+   "country": "MX",
+   "name": "Ciudad Obregon",
+   "zone": "America/Hermosillo",
+   "lat": 27.49,
+   "lon": -109.94
+  },
+  {
+   "country": "MX",
+   "name": "Navojoa",
+   "zone": "America/Hermosillo",
+   "lat": 27.08,
+   "lon": -109.44
+  },
+  {
+   "country": "MX",
+   "name": "Ciudad Juarez",
+   "zone": "America/Ciudad_Juarez",
+   "lat": 31.69,
+   "lon": -106.42
+  },
+  {
+   "country": "MX",
+   "name": "Bahia de Banderas",
+   "zone": "America/Bahia_Banderas",
+   "lat": 20.8,
+   "lon": -105.25
+  },
+  {
+   "country": "MX",
+   "name": "Chihuahua",
+   "zone": "America/Chihuahua",
+   "lat": 28.63,
+   "lon": -106.07
+  },
+  {
+   "country": "RU",
+   "name": "Yekaterinburg",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 56.84,
+   "lon": 60.61
+  },
+  {
+   "country": "RU",
+   "name": "Chelyabinsk",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 55.16,
+   "lon": 61.4
+  },
+  {
+   "country": "RU",
+   "name": "Magnitogorsk",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 53.41,
+   "lon": 58.98
+  },
+  {
+   "country": "RU",
+   "name": "Ufa",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 54.74,
+   "lon": 55.97
+  },
+  {
+   "country": "RU",
+   "name": "Perm",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 58.01,
+   "lon": 56.25
+  },
+  {
+   "country": "RU",
+   "name": "Tyumen",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 57.15,
+   "lon": 65.53
+  },
+  {
+   "country": "RU",
+   "name": "Orenburg",
+   "zone": "Asia/Yekaterinburg",
+   "lat": 51.77,
+   "lon": 55.1
+  },
+  {
+   "country": "RU",
+   "name": "Omsk",
+   "zone": "Asia/Omsk",
+   "lat": 54.99,
+   "lon": 73.37
+  },
+  {
+   "country": "RU",
+   "name": "Novosibirsk",
+   "zone": "Asia/Novosibirsk",
+   "lat": 55.03,
+   "lon": 82.92
+  },
+  {
+   "country": "RU",
+   "name": "Tomsk",
+   "zone": "Asia/Tomsk",
+   "lat": 56.48,
+   "lon": 84.95
+  },
+  {
+   "country": "RU",
+   "name": "Barnaul",
+   "zone": "Asia/Barnaul",
+   "lat": 53.35,
+   "lon": 83.78
+  },
+  {
+   "country": "RU",
+   "name": "Novokuznetsk",
+   "zone": "Asia/Novokuznetsk",
+   "lat": 53.76,
+   "lon": 87.12
+  },
+  {
+   "country": "RU",
+   "name": "Kemerovo",
+   "zone": "Asia/Novokuznetsk",
+   "lat": 55.35,
+   "lon": 86.09
+  },
+  {
+   "country": "RU",
+   "name": "Krasnoyarsk",
+   "zone": "Asia/Krasnoyarsk",
+   "lat": 56.01,
+   "lon": 92.89
+  },
+  {
+   "country": "RU",
+   "name": "Irkutsk",
+   "zone": "Asia/Irkutsk",
+   "lat": 52.29,
+   "lon": 104.3
+  },
+  {
+   "country": "RU",
+   "name": "Khabarovsk",
+   "zone": "Asia/Vladivostok",
+   "lat": 48.48,
+   "lon": 135.08
+  },
+  {
+   "country": "RU",
+   "name": "Vladivostok",
+   "zone": "Asia/Vladivostok",
+   "lat": 43.12,
+   "lon": 131.89
+  },
+  {
+   "country": "RU",
+   "name": "Samara",
+   "zone": "Europe/Samara",
+   "lat": 53.2,
+   "lon": 50.15
+  },
+  {
+   "country": "RU",
+   "name": "Togliatti",
+   "zone": "Europe/Samara",
+   "lat": 53.51,
+   "lon": 49.42
+  },
+  {
+   "country": "RU",
+   "name": "Tolyatti",
+   "zone": "Europe/Samara",
+   "lat": 53.51,
+   "lon": 49.42
+  },
+  {
+   "country": "RU",
+   "name": "Izhevsk",
+   "zone": "Europe/Samara",
+   "lat": 56.85,
+   "lon": 53.2
+  },
+  {
+   "country": "RU",
+   "name": "Kaliningrad",
+   "zone": "Europe/Kaliningrad",
+   "lat": 54.71,
+   "lon": 20.51
+  },
+  {
+   "country": "RU",
+   "name": "Astrakhan",
+   "zone": "Europe/Astrakhan",
+   "lat": 46.35,
+   "lon": 48.04
+  },
+  {
+   "country": "RU",
+   "name": "Saratov",
+   "zone": "Europe/Saratov",
+   "lat": 51.53,
+   "lon": 46.03
+  },
+  {
+   "country": "RU",
+   "name": "Ulyanovsk",
+   "zone": "Europe/Ulyanovsk",
+   "lat": 54.32,
+   "lon": 48.4
+  },
+  {
+   "country": "ES",
+   "name": "Las Palmas de Gran Canaria",
+   "zone": "Atlantic/Canary",
+   "lat": 28.12,
+   "lon": -15.44
+  },
+  {
+   "country": "ES",
+   "name": "Las Palmas",
+   "zone": "Atlantic/Canary",
+   "lat": 28.12,
+   "lon": -15.44
+  },
+  {
+   "country": "ES",
+   "name": "Santa Cruz de Tenerife",
+   "zone": "Atlantic/Canary",
+   "lat": 28.47,
+   "lon": -16.25
+  },
+  {
+   "country": "ES",
+   "name": "San Cristobal de La Laguna",
+   "zone": "Atlantic/Canary",
+   "lat": 28.49,
+   "lon": -16.32
+  },
+  {
+   "country": "ES",
+   "name": "La Laguna",
+   "zone": "Atlantic/Canary",
+   "lat": 28.49,
+   "lon": -16.32
+  },
+  {
+   "country": "ES",
+   "name": "Granadilla de Abona",
+   "zone": "Atlantic/Canary",
+   "lat": 28.12,
+   "lon": -16.58
+  },
+  {
+   "country": "ES",
+   "name": "Maspalomas",
+   "zone": "Atlantic/Canary",
+   "lat": 27.76,
+   "lon": -15.59
+  },
+  {
+   "country": "ES",
+   "name": "Santa Brigida",
+   "zone": "Atlantic/Canary",
+   "lat": 28.03,
+   "lon": -15.5
+  },
+  {
+   "country": "ES",
+   "name": "Santa Cruz de la Palma",
+   "zone": "Atlantic/Canary",
+   "lat": 28.68,
+   "lon": -17.76
+  },
+  {
+   "country": "ES",
+   "name": "El Paso",
+   "zone": "Atlantic/Canary",
+   "lat": 28.65,
+   "lon": -17.88
+  },
+  {
+   "country": "ES",
+   "name": "Telde",
+   "zone": "Atlantic/Canary",
+   "lat": 27.99,
+   "lon": -15.42
+  },
+  {
+   "country": "ES",
+   "name": "Arona",
+   "zone": "Atlantic/Canary",
+   "lat": 28.1,
+   "lon": -16.68
+  },
+  {
+   "country": "ES",
+   "name": "Arrecife",
+   "zone": "Atlantic/Canary",
+   "lat": 28.96,
+   "lon": -13.55
+  },
+  {
+   "country": "ES",
+   "name": "Puerto del Rosario",
+   "zone": "Atlantic/Canary",
+   "lat": 28.5,
+   "lon": -13.86
+  },
+  {
+   "country": "ES",
+   "name": "Adeje",
+   "zone": "Atlantic/Canary",
+   "lat": 28.12,
+   "lon": -16.73
+  },
+  {
+   "country": "ES",
+   "name": "La Orotava",
+   "zone": "Atlantic/Canary",
+   "lat": 28.39,
+   "lon": -16.52
+  },
+  {
+   "country": "ES",
+   "name": "Puerto de la Cruz",
+   "zone": "Atlantic/Canary",
+   "lat": 28.41,
+   "lon": -16.55
+  },
+  {
+   "country": "PT",
+   "name": "Ponta Delgada",
+   "zone": "Atlantic/Azores",
+   "lat": 37.74,
+   "lon": -25.67
+  },
+  {
+   "country": "PT",
+   "name": "Angra do Heroísmo",
+   "zone": "Atlantic/Azores",
+   "lat": 38.66,
+   "lon": -27.22
+  },
+  {
+   "country": "PT",
+   "name": "Horta",
+   "zone": "Atlantic/Azores",
+   "lat": 38.53,
+   "lon": -28.63
+  },
+  {
+   "country": "PT",
+   "name": "Funchal",
+   "zone": "Atlantic/Madeira",
+   "lat": 32.65,
+   "lon": -16.91
+  },
+  {
+   "country": "PT",
+   "name": "Machico",
+   "zone": "Atlantic/Madeira",
+   "lat": 32.72,
+   "lon": -16.77
+  },
+  {
+   "country": "PT",
+   "name": "Canico",
+   "zone": "Atlantic/Madeira",
+   "lat": 32.64,
+   "lon": -16.84
+  },
+  {
+   "country": "PT",
+   "name": "Madeira",
+   "zone": "Atlantic/Madeira",
+   "lat": 32.75,
+   "lon": -16.95
+  },
+  {
+   "country": "PT",
+   "name": "Camara de Lobos",
+   "zone": "Atlantic/Madeira",
+   "lat": 32.65,
+   "lon": -16.98
+  },
+  {
+   "country": "ID",
+   "name": "Makassar",
+   "zone": "Asia/Makassar",
+   "lat": -5.15,
+   "lon": 119.43
+  },
+  {
+   "country": "ID",
+   "name": "Bali",
+   "zone": "Asia/Makassar",
+   "lat": -8.65,
+   "lon": 115.22
+  },
+  {
+   "country": "ID",
+   "name": "Denpasar",
+   "zone": "Asia/Makassar",
+   "lat": -8.65,
+   "lon": 115.22
+  },
+  {
+   "country": "ID",
+   "name": "Gianyar",
+   "zone": "Asia/Makassar",
+   "lat": -8.54,
+   "lon": 115.33
+  },
+  {
+   "country": "ID",
+   "name": "Banjarmasin",
+   "zone": "Asia/Makassar",
+   "lat": -3.32,
+   "lon": 114.59
+  },
+  {
+   "country": "ID",
+   "name": "Samarinda",
+   "zone": "Asia/Makassar",
+   "lat": -0.5,
+   "lon": 117.15
+  },
+  {
+   "country": "ID",
+   "name": "Balikpapan",
+   "zone": "Asia/Makassar",
+   "lat": -1.27,
+   "lon": 116.83
+  },
+  {
+   "country": "ID",
+   "name": "Manado",
+   "zone": "Asia/Makassar",
+   "lat": 1.47,
+   "lon": 124.84
+  },
+  {
+   "country": "ID",
+   "name": "Jayapura",
+   "zone": "Asia/Jayapura",
+   "lat": -2.53,
+   "lon": 140.72
+  },
+  {
+   "country": "ID",
+   "name": "Biak",
+   "zone": "Asia/Jayapura",
+   "lat": -1.18,
+   "lon": 136.08
+  },
+  {
+   "country": "CL",
+   "name": "Punta Arenas",
+   "zone": "America/Punta_Arenas",
+   "lat": -53.16,
+   "lon": -70.91
+  },
+  {
+   "country": "CD",
+   "name": "Lubumbashi",
+   "zone": "Africa/Lubumbashi",
+   "lat": -11.66,
+   "lon": 27.48
+  }
+ ]
 }

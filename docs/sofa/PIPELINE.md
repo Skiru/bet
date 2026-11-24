@@ -3245,7 +3245,13 @@ bo konkuruje z nim o most.
   2026-02-10): mecz nierozegrany **do 23:59 następnego dnia czasu lokalnego
   miejsca meczu** po terminie z oferty jest anulowany (`settle.void_deadline`;
   strefa z kraju obiektu, rozgrywek albo - w sportach drużynowych -
-  gospodarza, `config/sofa_country_timezones.json`, UTC gdy nieznany).
+  gospodarza, `config/sofa_country_timezones.json`, UTC gdy nieznany; w
+  kraju o kilku strefach od 2026-11-24 - poprawka poprawności - decyduje
+  miasto obiektu meczu, a w sportach drużynowych bez obiektu - stadion
+  gospodarza: po nazwie miasta (`places`, nazwy niejednoznaczne pominięte),
+  po `city.state` Sofascore (`subdivisions`), po współrzędnych do 75 km od
+  miejsca z listy; nic z tego = strefa kraju jak dotąd; SAP Center i Indian
+  Wells czytały wcześniej Nowy Jork, termin wypadał 3 h za wcześnie).
   Wcześniej kod czytał 48 h ze starego regulaminu (2022). Mecz przyspieszony
   o > 48 h - jak dotąd. Mecz przerwany (5.D.5: rynek rozstrzygnięty w chwili
   przerwania zostaje ważny, reszta anulowana) - jeszcze nieoceniany, otwarte.

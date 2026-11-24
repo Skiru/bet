@@ -757,7 +757,11 @@ measurement of Superbet's price and feed nothing else.
   back past Superbet's deadline - **23:59 of the day after the offered start,
   local time at the venue** (`settle.void_deadline`, zone from venue /
   competition / home country, `config/sofa_country_timezones.json`, UTC when
-  unknown; Regulamin 5.E.1.a) - or brought forward > 48 h (`VOID_AFTER`),
+  unknown; inside a multi-zone country, from 2026-11-24 a correctness fix, the
+  venue's - else a team sport's home ground's - city by name, Sofascore's
+  `city.state`, then its coordinates within 75 km of a listed place; none =
+  the country's zone; SAP Center / Indian Wells read New York before;
+  Regulamin 5.E.1.a) - or brought forward > 48 h (`VOID_AFTER`),
   awarded, retired (`RETIRED`), walkover (`WALKOVER`), cancelled (`CANCELED`)
   or still postponed past the deadline (`POSTPONED_BEYOND_VOID`; before it
   `POSTPONED`, pending). SHADOW_SETTLE / CS2_SETTLE read the same deadline. An

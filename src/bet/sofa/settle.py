@@ -12,7 +12,9 @@ cannot measure **ROI**. Do not report the second from the first.
 from __future__ import annotations
 
 import json
+import math
 import statistics
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta, tzinfo
@@ -70,14 +72,19 @@ _HOME_COUNTRY_SPORTS = frozenset({"football", "basketball", "ice-hockey", "volle
 
 
 @lru_cache(maxsize=1)
-def _country_zones() -> dict[str, str]:
+def _zone_config() -> Mapping[str, Any]:
     from bet.sofa.config import config_path  # local: settle is imported widely
 
     try:
         doc = json.loads(config_path(COUNTRY_TIMEZONES_FILE).read_text("utf-8"))
     except (OSError, ValueError):
         return {}
-    return {str(k).upper(): str(v) for k, v in (doc.get("zones") or {}).items()}
+    return doc if isinstance(doc, Mapping) else {}
+
+
+def _country_zones() -> dict[str, str]:
+    return {str(k).upper(): str(v)
+            for k, v in (_zone_config().get("zones") or {}).items()}
 
 
 def _alpha2(node: object) -> str:
@@ -89,24 +96,130 @@ def _alpha2(node: object) -> str:
     return str(country.get("alpha2") or country.get("alpha3") or "").upper()[:2]
 
 
+def _place_key(name: object) -> str:
+    """A city name compared without case, accents or punctuation."""
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch)).casefold()
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in text).split())
+
+
+@dataclass(frozen=True)
+class _Place:
+    country: str
+    keys: frozenset[str]
+    zone: str
+    lat: float
+    lon: float
+    state: str
+    by_name: bool
+
+
+@lru_cache(maxsize=1)
+def _places() -> tuple[_Place, ...]:
+    out: list[_Place] = []
+    for raw in _zone_config().get("places") or []:
+        if not isinstance(raw, Mapping):
+            continue
+        try:
+            names = [raw["name"], *(raw.get("aliases") or [])]
+            out.append(_Place(
+                country=str(raw["country"]).upper(),
+                keys=frozenset(_place_key(n) for n in names),
+                zone=str(raw["zone"]), lat=float(raw["lat"]), lon=float(raw["lon"]),
+                state=str(raw.get("state") or "").upper(),
+                by_name=bool(raw.get("by_name", True))))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return tuple(out)
+
+
+def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * 6371.0 * math.asin(math.sqrt(min(1.0, a)))
+
+
+def _node_country(node: Mapping[str, Any]) -> str:
+    city = node.get("city")
+    return _alpha2(node) or (_alpha2(city) if isinstance(city, Mapping) else "")
+
+
+def _zone_inside_country(code: str, node: Mapping[str, Any]) -> str | None:
+    """The zone of a venue node inside its multi-zone country `code`: its city
+    by name (a place entry with a state only for a venue in that state or with
+    none; one zone among the matches), else Sofascore's city.state (ISO
+    3166-2), else the nearest place within `place_radius_km` of its
+    venueCoordinates; None = not known (the caller reads the country's zone)."""
+    city = node.get("city")
+    city = city if isinstance(city, Mapping) else {}
+    state = str(city.get("state") or "").upper()
+    key = _place_key(city.get("name"))
+    places = [p for p in _places() if p.country == code]
+    if key:
+        named = {p.zone for p in places
+                 if p.by_name and key in p.keys
+                 and (not state or not p.state or p.state == state)}
+        if len(named) == 1:
+            return next(iter(named))
+    subdivisions = _zone_config().get("subdivisions") or {}
+    if state and isinstance(subdivisions, Mapping) and state in subdivisions:
+        return str(subdivisions[state])
+    coords = node.get("venueCoordinates")
+    if isinstance(coords, Mapping):
+        try:
+            lat, lon = float(coords["latitude"]), float(coords["longitude"])
+            radius = float(_zone_config().get("place_radius_km") or 0)
+        except (KeyError, TypeError, ValueError):
+            return None
+        near = [(d, p.zone) for p in places
+                if (d := _km(lat, lon, p.lat, p.lon)) <= radius]
+        if near:
+            return min(near)[1]
+    return None
+
+
 def venue_timezone(event: Mapping[str, Any] | None) -> tzinfo:
     """The zone of the match's venue: Sofascore's venue country, else the
     competition's country, else (team sports) the home side's; UTC when none
-    is known (config/sofa_country_timezones.json; a country with several
-    zones reads its most populous one)."""
+    is known (config/sofa_country_timezones.json). Inside a country with
+    several zones the venue's own city / state / coordinates decide - the
+    event's venue, else (team sports) the home side's own ground, when in that
+    country (`_zone_inside_country`, 2026-11-24: SAP Center and Indian Wells
+    read New York before); a venue none of them places reads the country's
+    most populous zone, as before."""
     if not event:
         return UTC
     tournament = event.get("tournament") or {}
     category = tournament.get("category") if isinstance(tournament, Mapping) else None
-    candidates = [_alpha2(event.get("venue"))]
+    sport = ""
+    if isinstance(category, Mapping):
+        sport = str((category.get("sport") or {}).get("slug") or "")
+    team_sport = sport in _HOME_COUNTRY_SPORTS
+    nodes: list[Mapping[str, Any]] = []
+    venue = event.get("venue")
+    if isinstance(venue, Mapping):
+        nodes.append(venue)
+    home = event.get("homeTeam")
+    home_ground = home.get("venue") if isinstance(home, Mapping) else None
+    if team_sport and isinstance(home_ground, Mapping):
+        nodes.append(home_ground)
+    # the country is chosen as before 2026-11-24 (a home side's own ground is
+    # only read inside the country so chosen: Al-Hilal Omdurman's listed
+    # ground is not where it plays its Rwandan league games)
+    candidates = [_alpha2(venue)]
     if isinstance(category, Mapping):
         candidates.append(str(category.get("alpha2") or "").upper())
-        sport = str((category.get("sport") or {}).get("slug") or "")
-        if sport in _HOME_COUNTRY_SPORTS:
-            candidates.append(_alpha2(event.get("homeTeam")))
+        if team_sport:
+            candidates.append(_alpha2(home))
     zones = _country_zones()
     for code in candidates:
         if code and code in zones:
+            for node in nodes:
+                inside = (_zone_inside_country(code, node)
+                          if _node_country(node) == code else None)
+                if inside:
+                    return ZoneInfo(inside)
             return ZoneInfo(zones[code])
     return UTC
 
