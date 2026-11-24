@@ -48,6 +48,7 @@ from bet.sofa.contracts import Fixture, FixtureOffer
 from bet.sofa.cs2 import append_records
 from bet.sofa.epochs import STATS_ONLY_DATE
 from bet.sofa.locked_print import kickoff_clocks
+from bet.sofa.loop_stop import log_stop_signals
 from bet.sofa.offer import OfferFetcher, day_flags
 from bet.sofa.superbet import SuperbetClient
 from scripts.sofa.cs2_daily import PYTHON, REPO, _command_of, already_running
@@ -326,6 +327,7 @@ def main() -> int:
                   "not starting a second one", file=sys.stderr)
             return 2
         claim_loop(day_dir)
+        log_stop_signals(f"capture_closing {args.date}")
     # The rule OFFER read the day's rungs with, so a printed "&" club's leg
     # finds its close.
     fetcher = OfferFetcher(SuperbetClient(

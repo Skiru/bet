@@ -500,6 +500,12 @@ def main(
         )
         return 2
     pid_file(args.date).write_text(str(os.getpid()), encoding="utf-8")
+    for path in (str(REPO), str(REPO / "src")):
+        if path not in sys.path:  # started without PYTHONPATH=src:.
+            sys.path.append(path)
+    from bet.sofa.loop_stop import log_stop_signals
+
+    log_stop_signals(f"cs2_daily {args.date}")
     print((closing or ensure_closing)(args.date), flush=True)
 
     def chain() -> None:

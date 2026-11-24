@@ -474,6 +474,15 @@ uruchomiono ręcznie o 08:01Z, 85 min po pierwszym druku - nogi meczów z tego
 okna nie mają ceny zamknięcia. `day_status.py` daje WARN
 `loop:capture_closing` także przed budową, gdy pętla nie działa.
 
+Pętla zatrzymana z zewnątrz (SIGTERM / SIGINT: `shadow_daily`, `cs2_daily`,
+`capture_closing`, przechwyt testu papierowego) od 2026-11-24 pisze w swoim
+logu jedną linię `[<czas UTC>] STOPPED <pętla> <data>: SIGTERM (pid ...)` i
+kończy się kodem 128 + sygnał (`bet.sofa.loop_stop`). Log urwany bez tej
+linii = SIGKILL albo maszyna padła. 2026-11-24 12:27Z operator kazał sesji
+zatrzymać wszystkie procesy `bet` - logi urwały się bez śladu i wyglądało
+to na cichą śmierć. Pętle nie wznawiają się same: po takim zatrzymaniu
+uruchom je ręcznie (sofa-day 1b) i `ensure_bridge.py`.
+
 Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
 
 - **LATE_RESOLVE** (od 2026-10-21 08:48Z, `epochs.LATE_RESOLVE_FROM_UTC`;

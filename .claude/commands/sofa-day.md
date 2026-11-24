@@ -124,6 +124,9 @@ PYTHONPATH=src:. nohup .venv/bin/python scripts/sofa/shadow_daily.py --date <D> 
 - `capture_closing`: the daily loops start it (`ensure_loop`); by hand only per step 9.
 - A loop reads its plan at start: after a code change, run the new morning steps by hand
   for days old loops cover; say so. Never kill a loop.
+- A loop ended by SIGTERM / SIGINT writes `STOPPED <loop> <date>: SIG...` in its log (from
+  2026-11-24); a log that just stops without it was SIGKILLed or the machine went down.
+  Nothing restarts a stopped loop: start it with the commands above.
 
 ## 1c. Paper test - basketball handicap (operator 2026-10-31)
 

@@ -62,6 +62,7 @@ from bet.sofa import shadow, sport_day, timeutil  # noqa: E402
 from bet.sofa import sport_identity as si  # noqa: E402
 from bet.sofa.coupon_sports import pinned_seed  # noqa: E402
 from bet.sofa.errors import CircuitOpenError, ProviderError  # noqa: E402
+from bet.sofa.loop_stop import log_stop_signals  # noqa: E402
 
 SPORT: Literal["basketball"] = "basketball"
 PAPER_DIR = Path("paper") / "bb_handicap"
@@ -676,6 +677,7 @@ def _capture(
     pid_file.parent.mkdir(parents=True, exist_ok=True)
     pid_file.write_text(str(os.getpid()), encoding="utf-8")
     try:
+        log_stop_signals(f"paper capture {date}")
         return capture_loop(runs_dir, date, factory)
     finally:
         pid_file.unlink(missing_ok=True)

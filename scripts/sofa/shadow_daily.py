@@ -56,6 +56,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from bet.sofa.loop_stop import log_stop_signals  # noqa: E402
 from scripts.sofa.cs2_daily import (  # noqa: E402
     PYTHON,
     REPO,
@@ -229,6 +230,7 @@ def main(
         )
         return 2
     pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    log_stop_signals(f"shadow_daily {args.date}")
     print((closing or ensure_closing)(args.date), flush=True)
     print((paper or ensure_paper_capture)(args.date), flush=True)
 
