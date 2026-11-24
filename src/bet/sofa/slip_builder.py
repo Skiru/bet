@@ -187,8 +187,15 @@ NO_SAMPLE_SOURCES = frozenset({"cs2_engine"})
 # carried nothing.
 PRICE_RISE_DROP = 0.02
 # Rounds of "build, re-ask the chosen legs' prices, rebuild without the
-# risen ones" before the answer goes out.
+# risen ones" before the answer goes out. Each round re-asks the chosen legs'
+# events once and resolves every pool leg of those events from the same
+# fetch (2026-11-04: Superbet pulled all of VK Dragoman - CSKA Sofia but
+# "Zwycięzca"; each round found one more Dragoman leg gone, the rounds ran
+# out and the last pick went out "nie dopytano" at the coupon's price). A
+# chosen leg still never re-asked when the rounds run out is dropped and the
+# slips rebuilt over re-asked legs only - no request more.
 FRESH_ROUNDS = 4
+NOT_REASKED = "nie dopytana przed odpowiedzią (rundy dopytań wyczerpane)"
 FRESH_OK, FRESH_GONE, FRESH_NOT_ASKED = "OK", "GONE", "NOT_ASKED"
 # Bet Builders after tax, priced at 0.90 x the product of their legs (an
 # assumption - Superbet does not price a builder as the product): dev
@@ -568,6 +575,7 @@ def candidates(
     fresh: Mapping[tuple[Any, ...], FreshPrice] | None = None,
     allow_no_sample: bool = False,
     no_shaky: bool = False,
+    asked_only: bool = False,
 ) -> tuple[list[Leg], dict[str, int]]:
     """The legs a slip may take, and the count of every refusal. A football
     / tennis leg carries no fetch time (CONFIDENCE reads it from 04_offer.json
@@ -581,7 +589,9 @@ def candidates(
     fresh price replaces the coupon's (its age from the re-ask).
     `no_shaky` (operator's "bez chwiejnych", 2026-11-17): a leg whose reads
     label it CHWIEJNA is refused - the operator's choice for a chat slip,
-    not an edge (retro NOT_PASSED, +0.3 pp; chwiejna_noga_2026-11-16.md)."""
+    not an edge (retro NOT_PASSED, +0.3 pp; chwiejna_noga_2026-11-16.md).
+    `asked_only`: a leg with no entry in `fresh` is left out, uncounted (the
+    caller counts the chosen legs it dropped so, NOT_REASKED)."""
     wanted = [c.casefold() for c in competitions]
     skip = set(exclude_matches)
     out: list[Leg] = []
@@ -634,6 +644,8 @@ def candidates(
             refused[thin] += 1
             continue
         got = (fresh or {}).get(fresh_key(s))
+        if asked_only and got is None:
+            continue
         coupon_odds: float | None = None
         fetched = s.get("price_fetched_at_utc") or built_at
         if got is not None and got.status == FRESH_GONE:
@@ -924,28 +936,55 @@ def build(
     each slip is the closest under it (`Slip.needs_legs` set) - never an extra
     leg. `fresh_prices` re-asks Superbet for the chosen single legs (by
     `fresh_key`); the slips are rebuilt without a leg gone or priced up more
-    than PRICE_RISE_DROP, at most FRESH_ROUNDS times - a leg the last round
-    picked unasked stays marked unasked. `safe`: the safest slip - the
-    caller passes SAFE_TARGET; a slip of kept legs stands only within
-    SAFE_KEEP_TOLERANCE of the whole pool's best."""
+    than PRICE_RISE_DROP, at most FRESH_ROUNDS times. Every other leg of a
+    re-asked event rides along (`fresh_prices` fetches an event once): a leg
+    that fetch no longer quotes is GONE before the search can pick it. A
+    chosen leg still never re-asked after the last round is dropped and the
+    slips rebuilt over re-asked legs only (refused NOT_REASKED) - a leg
+    re-asked without an answer (breaker, error) stays, marked
+    "**nie dopytano**". `safe`: the safest slip - the caller passes
+    SAFE_TARGET; a slip of kept legs stands only within SAFE_KEEP_TOLERANCE
+    of the whole pool's best."""
     known: dict[tuple[Any, ...], FreshPrice] = {}
-    result = _build_once(singles, now, target, slips, max_legs, window, min_odds,
-                         max_odds, reads, vetoes, reserve, built_at, slip_reads,
-                         competitions, builders, known, allow_no_sample, safe,
-                         no_shaky)
-    for _ in range(FRESH_ROUNDS if fresh_prices is not None else 0):
-        chosen = [x.leg for s in result.slips + result.reserve for x in s.legs
-                  if not x.leg.get("builder_legs")]
-        ask = [g for g in chosen if fresh_key(g) not in known]
-        if not ask or fresh_prices is None:
-            break
-        got = dict(fresh_prices(ask))
+
+    def once(asked_only: bool = False) -> Result:
+        return _build_once(singles, now, target, slips, max_legs, window,
+                           min_odds, max_odds, reads, vetoes, reserve, built_at,
+                           slip_reads, competitions, builders, known,
+                           allow_no_sample, safe, no_shaky, asked_only)
+
+    def unasked(res: Result) -> list[Mapping[str, Any]]:
+        return [x.leg for s in res.slips + res.reserve for x in s.legs
+                if not x.leg.get("builder_legs") and fresh_key(x.leg) not in known]
+
+    result = once()
+    if fresh_prices is None:
+        return result
+    for _ in range(FRESH_ROUNDS):
+        ask = unasked(result)
+        if not ask:
+            return result
+        events = {g.get("sofascore_event_id") for g in ask}
+        mine = {fresh_key(g) for g in ask}
+        riders: list[Mapping[str, Any]] = []
+        for g in singles:  # the same events' other legs: no extra request
+            k = fresh_key(g)
+            if (g.get("sofascore_event_id") in events and k not in mine
+                    and k not in known and not g.get("builder_legs")):
+                mine.add(k)
+                riders.append(g)
+        got = dict(fresh_prices([*ask, *riders]))
         for g in ask:  # a leg the asker returned nothing for was not asked
             known[fresh_key(g)] = got.get(fresh_key(g), FreshPrice(FRESH_NOT_ASKED))
-        result = _build_once(singles, now, target, slips, max_legs, window,
-                             min_odds, max_odds, reads, vetoes, reserve, built_at,
-                             slip_reads, competitions, builders, known,
-                             allow_no_sample, safe, no_shaky)
+        for g in riders:  # a rider without an answer may still be asked itself
+            ans = got.get(fresh_key(g))
+            if ans is not None and ans.status != FRESH_NOT_ASKED:
+                known[fresh_key(g)] = ans
+        result = once()
+    dropped = len({fresh_key(g) for g in unasked(result)})
+    if dropped:
+        result = once(asked_only=True)
+        result.refused[NOT_REASKED] = result.refused.get(NOT_REASKED, 0) + dropped
     return result
 
 
@@ -969,6 +1008,7 @@ def _build_once(
     allow_no_sample: bool,
     safe: bool = False,
     no_shaky: bool = False,
+    asked_only: bool = False,
 ) -> Result:
     pool, refused = candidates(
         singles,
@@ -984,6 +1024,7 @@ def _build_once(
         fresh=fresh,
         allow_no_sample=allow_no_sample,
         no_shaky=no_shaky,
+        asked_only=asked_only,
     )
     if builders:
         extra, why = builder_candidates(

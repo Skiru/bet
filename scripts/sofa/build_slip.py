@@ -34,8 +34,11 @@ breaker respected), the measured sports asked of Superbet's event endpoint
 there and then with their loop's own parser (`sport_live`; 11-01: 17 of 21
 volleyball places were "nie dopytano" behind the 30-min snapshot), the
 loop's newest pre-start snapshot when that ask fails - and a leg priced
-more than 2% above the coupon drops out, the
-slips rebuilt without it (--no-fresh-price: the coupon's prices, marked "nie
+more than 2% above the coupon or gone drops out, the
+slips rebuilt without it; one request per event answers every pool leg of
+that event (11-04 Dragoman: all but the winner pulled), and a chosen leg
+still never asked when the rounds run out is dropped, the slips rebuilt over
+asked legs only (--no-fresh-price: the coupon's prices, marked "nie
 dopytano"). Each leg's row carries its fresh price beside the coupon's, its
 own sample, the model, the match-up, the league share, h2h and the referee
 (bet.sofa.slip_evidence) next to 1/odds.
@@ -86,6 +89,7 @@ import datetime
 import json
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -214,32 +218,43 @@ MEASURED_SPORTS = ("hockey", "basketball", "volleyball", "cs2")
 
 def sport_live(client: Any, leg: Any, teams: tuple[str, str],
                now: datetime.datetime) -> sb.FreshPrice:
-    """A measured sport's leg asked of Superbet now - the event endpoint and
-    the parser its loop (run_shadow / run_cs2) snapshots with, the same day's
-    market switches at this clock: OK with the price, GONE when the event no
-    longer quotes the line or Superbet shows it started, NOT_ASKED on an
-    error, an open breaker, a started kickoff or no team names."""
+    """One measured sport's leg asked of Superbet now (`sport_live_event`)."""
+    return sport_live_event(client, [leg], teams, now)[sb.fresh_key(leg)]
+
+
+def sport_live_event(client: Any, legs: Sequence[Any], teams: tuple[str, str],
+                     now: datetime.datetime) -> dict[tuple[Any, ...], sb.FreshPrice]:
+    """One event's legs asked of Superbet now with ONE request - the event
+    endpoint and the parser its loop (run_shadow / run_cs2) snapshots with,
+    the same day's market switches at this clock: OK with the price, GONE
+    when the event no longer quotes the line or Superbet shows it started,
+    NOT_ASKED on an error, an open breaker, a started kickoff or no team
+    names. The legs share the first one's event, sport and day."""
     from bet.sofa import cs2, epochs, shadow
     from bet.sofa.superbet import event_started, odds_items
 
-    sport = str(leg.get("sport"))
-    kickoff = _utc(leg.get("kickoff_utc"))
-    event_id = str(leg.get("superbet_event_id") or "")
+    def every(fp: sb.FreshPrice) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        return {sb.fresh_key(g): fp for g in legs}
+
+    lead = legs[0]
+    sport = str(lead.get("sport"))
+    kickoff = _utc(lead.get("kickoff_utc"))
+    event_id = str(lead.get("superbet_event_id") or "")
     if (sport not in MEASURED_SPORTS or not event_id or not all(teams)
             or (kickoff is not None and now >= kickoff)):
-        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
+        return every(sb.FreshPrice(sb.FRESH_NOT_ASKED))
     try:
         payload = client.event_odds(event_id)
     except Exception:  # noqa: BLE001 - network / breaker: the snapshot stands
-        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
+        return every(sb.FreshPrice(sb.FRESH_NOT_ASKED))
     stamp = now.isoformat().replace("+00:00", "Z")
     if payload is None or event_started(payload):
-        return sb.FreshPrice(sb.FRESH_GONE, None, stamp)
+        return every(sb.FreshPrice(sb.FRESH_GONE, None, stamp))
     items = odds_items(payload)
     if sport == "cs2":
         lines = [ln.as_dict() for ln in cs2.parse_event(items, event_id, *teams)]
     else:
-        day = str(leg.get("source_date") or now.strftime("%Y-%m-%d"))
+        day = str(lead.get("source_date") or now.strftime("%Y-%m-%d"))
         derived = epochs.sport_derived_markets(day, now)
         lines = [ln.as_dict() for ln in shadow.parse_event(
             items, sport, event_id, *teams,  # type: ignore[arg-type]
@@ -247,29 +262,42 @@ def sport_live(client: Any, leg: Any, teams: tuple[str, str],
             derived and sport == "basketball" and epochs.basketball_dc_pair(day, now),
             sport == "basketball" and epochs.basketball_player_v2(day, now),
             sport == "volleyball" and epochs.vb_set1_match(day, now))]
-    for row in lines:
-        if _same_line(leg, row) and row.get("odds") is not None:
-            return sb.FreshPrice(sb.FRESH_OK, float(row["odds"]), stamp)
-    return sb.FreshPrice(sb.FRESH_GONE, None, stamp)
+    out: dict[tuple[Any, ...], sb.FreshPrice] = {}
+    for g in legs:
+        row = next((r for r in lines
+                    if _same_line(g, r) and r.get("odds") is not None), None)
+        out[sb.fresh_key(g)] = (
+            sb.FreshPrice(sb.FRESH_OK, float(row["odds"]), stamp) if row
+            else sb.FreshPrice(sb.FRESH_GONE, None, stamp))
+    return out
 
 
 def sport_fresh(runs_dir: str, leg: Any, client: Any = None,
                 now: datetime.datetime | None = None) -> sb.FreshPrice:
-    """A measured sport's leg asked of Superbet now (`sport_live`, with a
-    client), else at its loop's newest snapshot taken before the start
-    (SHADOW / CS2 snapshots.jsonl of the leg's source day): OK with its
-    price, GONE when that snapshot no longer quotes the line, NOT_ASKED when
-    no snapshot is newer than the coupon's price."""
-    sport = str(leg.get("sport"))
-    day = str(leg.get("source_date") or "")
-    kickoff = _utc(leg.get("kickoff_utc"))
+    """One measured sport's leg re-asked (`sport_fresh_event`)."""
+    return sport_fresh_event(runs_dir, [leg], client, now)[sb.fresh_key(leg)]
+
+
+def sport_fresh_event(runs_dir: str, legs: Sequence[Any], client: Any = None,
+                      now: datetime.datetime | None = None
+                      ) -> dict[tuple[Any, ...], sb.FreshPrice]:
+    """One event's measured sport legs asked of Superbet now
+    (`sport_live_event`, with a client - one request for all of them), else
+    at its loop's newest snapshot taken before the start (SHADOW / CS2
+    snapshots.jsonl of the legs' source day): OK with its price, GONE when
+    that snapshot no longer quotes the line, NOT_ASKED when no snapshot is
+    newer than the leg's coupon price."""
+    lead = legs[0]
+    sport = str(lead.get("sport"))
+    day = str(lead.get("source_date") or "")
+    kickoff = _utc(lead.get("kickoff_utc"))
     if sport not in MEASURED_SPORTS or not day:
-        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
+        return {sb.fresh_key(g): sb.FreshPrice(sb.FRESH_NOT_ASKED) for g in legs}
     path = sport_day.day_dir(runs_dir, sport, day) / "snapshots.jsonl"  # type: ignore[arg-type]
     newest: dict[str, Any] | None = None
     teams: tuple[str, str] = ("", "")
     for snap in sport_day.load_snapshots(path):
-        if str(snap.get("superbet_event_id")) != str(leg.get("superbet_event_id")):
+        if str(snap.get("superbet_event_id")) != str(lead.get("superbet_event_id")):
             continue
         teams = (str(snap.get("team1") or ""), str(snap.get("team2") or ""))
         at = _utc(snap.get("fetched_at_utc"))
@@ -277,19 +305,25 @@ def sport_fresh(runs_dir: str, leg: Any, client: Any = None,
             continue
         if newest is None or at > (_utc(newest.get("fetched_at_utc")) or at):
             newest = snap
+    out: dict[tuple[Any, ...], sb.FreshPrice] = {}
     if client is not None and now is not None:
-        live = sport_live(client, leg, teams, now)
-        if live.status != sb.FRESH_NOT_ASKED:
-            return live
-    priced = _utc(leg.get("price_fetched_at_utc"))
-    if newest is None or (priced is not None
-                          and (_utc(newest.get("fetched_at_utc")) or priced) <= priced):
-        return sb.FreshPrice(sb.FRESH_NOT_ASKED)
-    for row in newest.get("lines") or []:
-        if _same_line(leg, row) and row.get("odds") is not None:
-            return sb.FreshPrice(sb.FRESH_OK, float(row["odds"]),
-                                 str(newest["fetched_at_utc"]))
-    return sb.FreshPrice(sb.FRESH_GONE, None, str(newest["fetched_at_utc"]))
+        live = sport_live_event(client, legs, teams, now)
+        out = {k: v for k, v in live.items() if v.status != sb.FRESH_NOT_ASKED}
+    for g in legs:
+        if sb.fresh_key(g) in out:
+            continue
+        priced = _utc(g.get("price_fetched_at_utc"))
+        if newest is None or (priced is not None and (
+                _utc(newest.get("fetched_at_utc")) or priced) <= priced):
+            out[sb.fresh_key(g)] = sb.FreshPrice(sb.FRESH_NOT_ASKED)
+            continue
+        row = next((r for r in newest.get("lines") or []
+                    if _same_line(g, r) and r.get("odds") is not None), None)
+        out[sb.fresh_key(g)] = (
+            sb.FreshPrice(sb.FRESH_OK, float(row["odds"]),
+                          str(newest["fetched_at_utc"])) if row
+            else sb.FreshPrice(sb.FRESH_GONE, None, str(newest["fetched_at_utc"])))
+    return out
 
 
 def offer_fresh(run: Path, legs: list[Any], fetcher: Any,
@@ -352,13 +386,18 @@ def fresh_asker(run: Path, runs_dir: str, date: str,
         nonlocal fetcher, sport_client
         out: dict[tuple[Any, ...], sb.FreshPrice] = {}
         sheet = [g for g in legs if not g.get("family")]
-        for g in legs:
+        events: dict[tuple[str, str, str], list[Any]] = {}
+        for g in legs:  # one request per event, every leg of it answered
             if g.get("family"):
-                if sport_client is None:
-                    from bet.sofa.superbet import SuperbetClient
-                    sport_client = SuperbetClient()
-                out[sb.fresh_key(g)] = sport_fresh(runs_dir, g, sport_client,
-                                                   utc_now())
+                eid = str(g.get("superbet_event_id") or "")
+                events.setdefault(
+                    (str(g.get("sport")), eid or repr(sb.fresh_key(g)),
+                     str(g.get("source_date") or "")), []).append(g)
+        for these in events.values():
+            if sport_client is None:
+                from bet.sofa.superbet import SuperbetClient
+                sport_client = SuperbetClient()
+            out.update(sport_fresh_event(runs_dir, these, sport_client, utc_now()))
         if sheet:
             if fetcher is None:
                 from bet.sofa.offer import OfferFetcher, day_flags

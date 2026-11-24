@@ -658,9 +658,15 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/build_slip.py --date <data> --tar
     pasmem, ale −8..−12% jako pojedyncza po podatku);
   - **świeży kurs tuż przed odpowiedzią**: wybrane nogi dopytane (piłka /
     tenis: oferta Superbetu przez `OfferFetcher`, z jego bezpiecznikiem;
-    sporty: najnowsza migawka pętli sprzed startu); noga, której kurs urósł
+    sporty: zdarzenie pytane w Superbecie od razu, migawka pętli sprzed
+    startu jako zapas); noga, której kurs urósł
     > 2% (`PRICE_RISE_DROP`; zmierzone −3,8 / −5,7 / −3,1 pp) albo zeszła z
-    oferty, wypada i kupon składa się bez niej (do 4 rund); niższy świeży kurs
+    oferty, wypada i kupon składa się bez niej (do 4 rund; jedno zapytanie na
+    mecz rozstrzyga wszystkie nogi puli z tego meczu - 04.11 Superbet zdjął
+    całe VK Dragoman - CSKA Sofia poza „Zwycięzcą”, a każda runda trafiała w
+    kolejną zdjętą nogę; noga wybrana, a niedopytana po ostatniej rundzie,
+    wypada i kupon składa się tylko z dopytanych - „nie dopytana przed
+    odpowiedzią (rundy dopytań wyczerpane)” w Odrzuconych); niższy świeży kurs
     zastępuje kuponowy. Kolumna „kurs kuponu → teraz”, „nie dopytano” =
     sprawdź ekran. Ruch może przyjść później (31.10: Bernau 1,52 do 26 min
     przed startem, potem 1,65) - kupon podany długo przed startem puść

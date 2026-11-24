@@ -1075,6 +1075,61 @@ def test_a_leg_gone_from_the_offer_drops_and_an_unasked_one_is_marked() -> None:
                                            now=NOW)
 
 
+def test_an_event_pulled_but_its_winner_goes_in_one_round_dragoman() -> None:
+    """2026-11-04: Superbet pulled every market of VK Dragoman - CSKA Sofia
+    but "Zwycięzca". Each round found the next Dragoman leg gone, the rounds
+    ran out and the last pick went out "nie dopytano". The event's other
+    legs now ride the same fetch: one request settles all of them."""
+    dragoman = [_leg(1, 1.40 + i / 100, 0.74, market=f"m{i}") for i in range(8)]
+    winner = _leg(1, 1.30, 0.70, market="winner")
+    legs = [*dragoman, winner, _leg(2, 1.35, 0.71), _leg(3, 1.33, 0.70)]
+    fetches: list[int] = []
+
+    def ask(chosen: Any) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        out = {}
+        for eid in sorted({g["sofascore_event_id"] for g in chosen}):
+            fetches.append(eid)  # one request per event
+            for g in chosen:
+                if g["sofascore_event_id"] != eid:
+                    continue
+                quoted = eid != 1 or g["market"] == "winner"
+                out[sb.fresh_key(g)] = (
+                    sb.FreshPrice(sb.FRESH_OK, g["offered_odds"]) if quoted
+                    else sb.FreshPrice(sb.FRESH_GONE))
+        return out
+
+    res = sb.build(legs, NOW, target=1.8, fresh_prices=ask)
+    picked = res.slips[0].legs
+    assert all(x.fresh == sb.FRESH_OK for x in picked)
+    assert all(x.leg["market"] in {"winner", "corners_total"} for x in picked)
+    assert fetches.count(1) == 1  # Dragoman asked once, not once per leg
+    assert res.refused["zeszła z oferty Superbetu (świeży kurs)"] == 8
+    assert sb.NOT_REASKED not in res.refused
+    assert "nie dopytano" not in sb.render(res, day="2026-10-20", target=1.8,
+                                           now=NOW)
+
+
+def test_a_leg_never_reasked_when_the_rounds_run_out_is_dropped() -> None:
+    """An asker that answers only the chosen leg (no riders): each round the
+    chosen leg's price rose; after FRESH_ROUNDS the next pick was never
+    asked - it is dropped and the slip rebuilt over re-asked legs only,
+    never handed over at the coupon's price."""
+    legs = [_leg(i, 1.45, 0.74 - i / 100) for i in range(1, 7)]
+    asked: list[int] = []
+
+    def ask(chosen: Any) -> dict[tuple[Any, ...], sb.FreshPrice]:
+        g = min(chosen, key=lambda g: g["sofascore_event_id"])
+        asked.append(g["sofascore_event_id"])
+        return {sb.fresh_key(g): sb.FreshPrice(sb.FRESH_OK, 1.60)}
+
+    res = sb.build(legs, NOW, target=1.4, fresh_prices=ask)
+    assert len(asked) == sb.FRESH_ROUNDS
+    assert res.slips == []
+    assert res.refused[sb.NOT_REASKED] == 1
+    offline = sb.build(legs, NOW, target=1.4)  # no asker: nothing dropped
+    assert [x.leg["sofascore_event_id"] for x in offline.slips[0].legs] == [1]
+
+
 def test_the_evidence_columns_stand_beside_the_price() -> None:
     """Every signal next to 1/odds: model, own sample, match-up, league, h2h,
     referee - display only (no ranking, no gate)."""
@@ -1178,6 +1233,56 @@ def test_sport_fresh_asks_superbet_live_before_the_snapshot(
     late = dt.datetime(2026, 10, 31, 18, 31, tzinfo=dt.UTC)
     assert build_slip.sport_live(Client({}), leg, ("A", "B"),
                                  late).status == sb.FRESH_NOT_ASKED
+
+
+def test_sport_fresh_event_answers_every_leg_of_an_event_with_one_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Dragoman shape (11-04): only the winner still quoted - one
+    request answers the event's other legs GONE; fresh_asker groups a
+    measured sport's legs by event."""
+    import datetime as dt
+
+    from bet.sofa import shadow, superbet
+
+    day = tmp_path / "shadow" / "volleyball" / "2026-11-04"
+    day.mkdir(parents=True)
+    (day / "snapshots.jsonl").write_text(json.dumps(
+        {"fetched_at_utc": "2026-11-04T09:00:00Z", "superbet_event_id": "88",
+         "team1": "VK Dragoman", "team2": "CSKA Sofia",
+         "kickoff_utc": "2026-11-04T16:00:00Z", "lines": []}) + "\n")
+    base = {"sport": "volleyball", "source_date": "2026-11-04",
+            "superbet_event_id": "88", "sofascore_event_id": 5,
+            "kickoff_utc": "2026-11-04T16:00:00Z", "period": 0, "subject": "",
+            "price_fetched_at_utc": "2026-11-04T09:00:00Z"}
+    winner = {**base, "family": "winner", "line": None, "side": "T1"}
+    others = [{**base, "family": "set_handicap", "line": -1.5, "side": "T1"},
+              {**base, "family": "points_total", "line": 180.5, "side": "OVER"}]
+    monkeypatch.setattr(shadow, "parse_event", lambda *a: [
+        shadow.ShadowLine("88", 1, "winner", 0, "", None, "T1", 1.30)])
+    monkeypatch.setattr(superbet, "odds_items", lambda p: [])
+    monkeypatch.setattr(superbet, "event_started", lambda p: False)
+    calls: list[str] = []
+
+    class Client:
+        def event_odds(self, eid: str) -> Any:
+            calls.append(eid)
+            return {}
+
+    at = dt.datetime(2026, 11, 4, 12, 0, tzinfo=dt.UTC)
+    got = build_slip.sport_fresh_event(str(tmp_path), [winner, *others],
+                                       Client(), at)
+    assert calls == ["88"]
+    assert got[sb.fresh_key(winner)] == sb.FreshPrice(
+        sb.FRESH_OK, 1.30, "2026-11-04T12:00:00Z")
+    assert all(got[sb.fresh_key(g)].status == sb.FRESH_GONE for g in others)
+
+    calls.clear()
+    monkeypatch.setattr(build_slip, "utc_now", lambda: at)
+    monkeypatch.setattr(superbet, "SuperbetClient", Client)
+    ask = build_slip.fresh_asker(tmp_path, str(tmp_path), "2026-11-04", at)
+    answered = ask([winner, *others])
+    assert calls == ["88"] and len(answered) == 3
 
 
 def test_a_sample_below_the_price_is_bold_never_a_gate() -> None:

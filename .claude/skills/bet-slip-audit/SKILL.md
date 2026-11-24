@@ -95,7 +95,12 @@ with it, as a quality filter (never "an edge"):
   fails) and a leg
   more than 2% above the coupon's price (`PRICE_RISE_DROP`; the market went
   against it - measured −3.8 / −5.7 / −3.1 pp) or gone from the offer drops
-  out, the slips rebuilt without it (up to 4 rounds). A lower fresh price
+  out, the slips rebuilt without it (up to 4 rounds). One request per event
+  answers every pool leg of it (11-04: Superbet pulled all of VK Dragoman -
+  CSKA Sofia but "Zwycięzca" - the event's other legs go GONE in the same
+  round). A chosen leg never re-asked when the rounds run out is dropped and
+  the slips rebuilt over re-asked legs only (Odrzucone: "nie dopytana przed
+  odpowiedzią (rundy dopytań wyczerpane)"). A lower fresh price
   replaces the coupon's. Column "kurs kuponu → teraz"; "**nie dopytano**" =
   the re-ask failed or found nothing newer (say so: check the screen). The
   move that matters can come after the answer (31.10: Bernau 1.52 until 26
