@@ -214,6 +214,37 @@ def test_football_dossier_form_rest_h2h_table_venue(tmp_path: Path) -> None:
     assert "nastroje i kulisy" in checklist and "składy" in checklist
 
 
+def test_football_dossier_carries_the_win_prices_whatever_the_legs(
+    tmp_path: Path,
+) -> None:
+    """report_check threshold (b) needs both win prices; a dossier carried
+    them only when a leg was itself a 1X2 / double chance leg (144 of 437
+    football dossiers of 11-01..11-20 had none)."""
+    from bet.sofa.report_check import _win_prices
+    db, run = football_day(tmp_path)
+    offer = json.loads((run / "04_offer.json").read_text())
+    offer[0]["rungs"] += [
+        {"market": "result_1x2", "subject": "1", "line": 0.5,
+         "over_odds": 3.4, "under_odds": 1.3, "period": None},
+        {"market": "result_1x2", "subject": "2", "line": 0.5,
+         "over_odds": 2.1, "under_odds": 1.7, "period": None},
+        {"market": "double_chance", "subject": "X2", "line": 0.5,
+         "over_odds": 1.3, "under_odds": 3.4, "period": None},
+        {"market": "double_chance", "subject": "X2", "line": 0.5,
+         "over_odds": 1.2, "under_odds": 4.5, "period": 1},
+    ]
+    (run / "04_offer.json").write_text(json.dumps(offer))
+    legs = [{"sofascore_event_id": 500, "sport": "football"}]
+    doc = json.loads(Path(
+        dossier.write_for_legs(run, legs, db_path=db, now=NOW)[500]).read_text())
+    market = doc["market"]
+    assert [r["market"] for r in market["rungs_of_leg_markets"]] == ["corners_total"]
+    assert [(r["market"], r["subject"]) for r in market["win_prices"]] == [
+        ("result_1x2", "1"), ("result_1x2", "2"), ("double_chance", "X2")]
+    assert _win_prices(doc) == {"home": 3.4, "away": 2.1}
+    assert doc["schema"] == 3  # additive: report_check's >= 3 unchanged
+
+
 def test_attach_without_a_database_reports_and_never_raises(tmp_path: Path) -> None:
     legs = [{"sofascore_event_id": 1, "sport": "football"}]
     line = dossier.attach(tmp_path, legs, tmp_path / "missing.db")

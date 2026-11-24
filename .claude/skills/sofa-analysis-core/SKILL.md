@@ -214,7 +214,7 @@ the web or another bookmaker; Superbet's price in the artifacts is the only one.
        the code (own sample, `MODEL_ABOVE_OWN_SAMPLE`) has decided;
      - (b) corners OVER only, on the side that will not have the ball
        (possession mean < 50 **and** the longer win price - the dossier's
-       `double_chance` rungs, X2 "no" = home win, 1X "no" = away win, or
+       `market.win_prices` (or the legs' ladders) `double_chance` rungs, X2 "no" = home win, 1X "no" = away win, or
        `result_1x2` "1" / "2"; with no such full-match rungs (b) is not met -
        nobody knows who has the ball; a cup tie between levels: the price
        alone): its

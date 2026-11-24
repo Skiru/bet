@@ -635,9 +635,13 @@ def _win_prices(doc: Mapping[str, Any]) -> dict[str, float]:
     """Superbet's full-match home / away win prices from the dossier's ladder
     (the double chance X2 "no" is the home win, 1X "no" the away win; a
     `result_1x2` rung's "1" / "2" yes the same prices). A half's rung
-    (`period` set) is not the match's."""
+    (`period` set) is not the match's. Read from `market.win_prices` (every
+    football dossier written from 2026-11-24) and, for an older dossier, the
+    legs' own ladders."""
     out: dict[str, float] = {}
-    for rung in (doc.get("market") or {}).get("rungs_of_leg_markets") or []:
+    market = doc.get("market") or {}
+    for rung in [*(market.get("win_prices") or []),
+                 *(market.get("rungs_of_leg_markets") or [])]:
         if rung.get("period") is not None:
             continue
         subject = str(rung.get("subject"))

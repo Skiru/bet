@@ -455,6 +455,11 @@ def test_threshold_b_needs_both_win_prices() -> None:
         {"market": "result_1x2", "subject": "1", "over_odds": 3.4},
         {"market": "result_1x2", "subject": "2", "over_odds": 2.1}]}}
     assert market_threshold(one_x_two, no_a)[0]
+    # a dossier from 11-24 carries them in market.win_prices, legs or not
+    carried = {**doc, "market": {"rungs_of_leg_markets": [], "win_prices": [
+        {"market": "result_1x2", "subject": "1", "over_odds": 3.4, "period": None},
+        {"market": "result_1x2", "subject": "2", "over_odds": 2.1, "period": None}]}}
+    assert market_threshold(carried, no_a)[0]
     # a cup tie between levels: the price alone, still never without it
     cup = {**doc, "header": {"competition": "Puchar"}, "style": {
         **doc["style"], "home": {**doc["style"]["home"],

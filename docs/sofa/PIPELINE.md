@@ -3349,6 +3349,8 @@ runs/sofa/<data>/
   read_requests.json                      prośby operatora o dodatkowy odczyt (pozycja albo group_key)
   dossier/<sport>_<id>.json               teczka meczu dla analityków (bet.sofa.dossier, read_set.py / build_slip.py) - tylko podgląd, nigdy bramka;
                                           schemat 3 (10-29): wiersz style.matchup niesie klucz nogi, joint i price_gap (podstawa sprawdzenia RYNEK:);
+                                          piłka od 2026-11-24: `market.win_prices` - pełnomeczowe szczeble 1X2 / podwójnej szansy z 04_offer
+                                          niezależnie od rynków nóg (próg (b): kto ma piłkę; pole dodane, schemat bez zmian);
                                           read_set.py --event-ids <id,...> --dossier-dir <katalog>: wybrane mecze, teczki poza katalogiem dnia (test, scratch)
                                           piłka: blok `style` - ostatnie 10 meczów o stawkę ze statystykami każdej strony (rożne / strzały
                                           za i przeciw, dośrodkowania, kontakty w polu karnym, strzały zablokowane, xG, wielkie szanse,

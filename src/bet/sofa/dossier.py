@@ -76,6 +76,8 @@ H2H_SCAN = 200  # a side's listed games searched for the opponent
 TABLE_MAX_TEAMS = 40  # listings walked to rebuild a table
 TABLE_SCAN = 80  # games per listing walked for the table
 MARKET_ROWS_MAX = 160  # Superbet line rows per match
+# football `market.win_prices`: the match's full-time win-price ladders
+WIN_PRICE_MARKETS = frozenset({"result_1x2", "double_chance"})
 CS2_SERIES_N = 10
 CS2_MAP_DAYS = 90
 CS2_ROSTER_SERIES = 6
@@ -1352,12 +1354,21 @@ def market_block(
         return {"missing": "brak meczu w 04_offer.json"}
     markets = {x.get("market") for x in legs}
     rungs = [r for r in entry.get("rungs") or [] if r.get("market") in markets]
-    return {
+    out: dict[str, Any] = {
         "source": "04_offer.json",
         "status": entry.get("status"),
         "superbet_started_utc": entry.get("superbet_started_utc"),
         "rungs_of_leg_markets": rungs[:MARKET_ROWS_MAX],
     }
+    if sport == "football":
+        # Who has the ball tonight (report_check threshold (b)) needs both
+        # sides' win prices whatever markets the legs use: the full-time
+        # 1X2 / double chance rungs Superbet quotes, never a half's.
+        out["win_prices"] = [
+            r for r in entry.get("rungs") or []
+            if r.get("market") in WIN_PRICE_MARKETS and r.get("period") is None
+        ]
+    return out
 
 
 def stakes_block(legs: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
