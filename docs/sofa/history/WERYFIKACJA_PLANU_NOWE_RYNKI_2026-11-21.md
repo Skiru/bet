@@ -150,6 +150,38 @@ The "key with a curve reads the sport pool from day 1" statement needs one preci
 - `lesser_loss` never marks these legs (margin ~0.138 > 0.086).
 - `vb_point_rule` stamps `vb_point_model_rule` once `in_scope` is widened, in addition to the new leg field.
 
+### D status after go-live (checked 2026-11-24, live days 11-22..11-24, read-only)
+
+D went live 2026-11-22 00:00Z (aabe0fc2). D-F1 and D-F2 are implemented as corrected above. Verdict: **no defect found; the switch stays on.**
+
+- **D-F3 - OK.**
+  - `settled_shadow_rows` allows `set1_match` by the settled day's switch (`sport_confidence.py`, `allowed_markets(..., set1_match=epochs.vb_set1_match(date, _day_end(date)))`), and `actual_value` has the `set_match` branch.
+  - `refresh_line_evidence.py` runs step 1 (rows), then 1b `backfill_vb_point_p.py`, then step 2 `fit_line_evidence.py`. `vb_point_pricer.in_scope` covers 230059, so `fit_line_evidence.sport_rows` reads these rows at the rally p.
+  - The rows are there: `data/line_evidence/rows_before_2026-11-24/volleyball_superbet_settled.jsonl` holds 74 SAME + 74 SPLIT rows of 11-22 and 8 + 8 of 11-23. The backfill holds 164 keys with 230059 (41 events x 4).
+  - `config/sofa_superbet_line_evidence.json` (before 2026-11-24, 6b157114) has `keys.volleyball.set1_match|SAME` (n 82, 41 games) and `|SPLIT` (n 82), plus their `bands`.
+  - Both keys are below `MIN_OFFSET_ROWS` / `MIN_OFFSET_GAMES` on printable lines, so legs read the volleyball pooled offset (`calibrated_on ...-0.0043sb`), as the timing note above predicted.
+  - New test: `test_the_settled_lines_reach_the_line_evidence_by_the_days_switch` (`tests/sofa/test_vb_set1_match.py`).
+- **E2E SHADOW - OK.**
+  - `shadow/volleyball/<d>/snapshots.jsonl` records with `vb_set1_match_rule` hold exactly 0 or 4 sides of 230059, never a partial group: 11-22 264 records / 39 events, 11-23 31 / 4, 11-24 43 / 11.
+  - From 2026-11-22 00:00Z no 230059 price is in `unmapped_prices`. The 32 still there on 11-22 come from snapshots taken before the switch.
+  - Every event with 230059 in the post-switch unmapped files was parsed (11-23 4/4, 11-24 11/11). Team names containing "/" were present on 11-22 (57 records).
+- **E2E SPORT_CONFIDENCE / print - OK.**
+  - Legs printed in `11_coupon.json` `singles`: 6 on 11-22, 1 on 11-23, 1 on 11-24. All are SAME sides and carry `vb_point_model_rule` + `vb_set1_match_rule` and `forecast_source: vb_point_model`.
+  - Superbet's words are right, e.g. "1.Set/Mecz | Lvi Praga/Lvi Praga".
+  - `overround` equals the 4-way group's sum(1/odds) - 1, recomputed from the snapshot at `price_fetched_at_utc` for all 8 legs (0.1115..0.1411, all under 15%). Refusals of 230059 lines were not broken down: `08_confidence_sports.json` counts refusals per sport only.
+  - Confidence = the curve of `config/sofa_vb_set1_match_curves.json` minus the pooled offset, e.g. p 0.8788 -> bucket 0.875-0.900 0.8515 - 0.0043 = 0.8472.
+  - The live `forecast_p` equals the backfill's rally p for all 7 settled printed legs. Each event's four backfilled p sum to 1.0.
+  - The 11-22 verifier (`2026-11-22_weryfikacja.md`) listed the 6 legs with 0 DEFECT, so D-F2 holds live.
+- **E2E SHADOW_SETTLE - OK.**
+  - 11-22: 37 events graded, 11-23: 4, with exactly one WIN per group and no VOID or ungradeable 230059 line.
+  - Hand-check of all 42 graded events (incl. 11-24's 1) against `sofa_event_detail` (`mode=ro`): set 1's winner from `period1`, the match's from the sets won, oriented by `home_is_team1`. 0 mismatches.
+  - No golden-set or AET match occurred among them, so the golden-set rule is covered only by the unit tests (`test_a_golden_set_never_turns_the_match`).
+  - Two 11-22 events with 230059 (Aris - Foinikas 15419975, Netzhoppers - Rottenburg 15830178) have no graded line of any market: their last pre-start snapshot (15:20Z) had 0 lines. That is SHADOW_SETTLE's general last-snapshot rule, not this market's; neither was printed.
+- **E2E ledger - OK.**
+  - `13_results.json` grades the 7 printed legs of 11-22 / 11-23 at the printed price, matching SHADOW_SETTLE (11-22: 4 WIN, 2 LOSS; 11-23: 1 WIN).
+  - `runs/sofa/ledger/results.jsonl`: `official` volleyball section, `measure:volleyball` `by_family.set1_match` (11-22: 37 events; 11-23: 4); `audit_ledger.epoch_group` = "od 11-22".
+- **Not verified:** no golden-set match live; 11-24 not settled yet; no live re-ask of a 230059 price (no network); the late-evening rebuild path for `window: "late"` legs of this market.
+
 ---
 
 ## Plan verification - A (hockey NHL 617 / 613 / 621 / 653, "z dogrywką i rzutami karnymi")

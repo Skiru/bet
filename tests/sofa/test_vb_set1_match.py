@@ -455,6 +455,54 @@ def test_the_backfill_prices_its_settled_lines(tmp_path: Path) -> None:
     assert bf.key_of("2026-11-22", got[0][2]) == "2026-11-22|9|230059|0|||T1/T1"
 
 
+def test_the_settled_lines_reach_the_line_evidence_by_the_days_switch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-F3 (WERYFIKACJA_PLANU_NOWE_RYNKI_2026-11-21): settled_shadow_rows
+    carries a settled day's 230059 lines only from the switch's day, keyed
+    SAME / SPLIT, and fit_line_evidence.sport_rows reads them at the rally
+    model's backfilled p (none = skipped, never the score model's)."""
+    fle = importlib.import_module("scripts.sofa.fit_line_evidence")
+    sides = {"T1/T1": "WIN", "T1/T2": "LOSS", "T2/T1": "LOSS", "T2/T2": "LOSS"}
+    for day in ("2026-11-21", "2026-11-22"):
+        d = tmp_path / "shadow" / "volleyball" / day
+        d.mkdir(parents=True)
+        graded = [{"superbet_event_id": "9", "market_id": 230059,
+                   "family": "set1_match", "period": 0, "subject": "",
+                   "line": None, "side": s, "outcome": o}
+                  for s, o in sides.items()]
+        (d / "settled.json").write_text(json.dumps({"events": {"9": {
+            "state": "SETTLED", "sofascore_event_id": 5, "home_is_team1": True,
+            "graded": graded}}}), encoding="utf-8")
+    game = shadow.GameResult((25, 23, 25, 25), (20, 25, 18, 22), 3, 1, "T1", False)
+
+    class Model:
+        set_length = None
+
+        def expected(self, *a: Any) -> tuple[float, float]:
+            return 1.0, 1.0
+
+        def simulate(self, *a: Any, **kw: Any) -> list[shadow.GameResult]:
+            return [game]
+
+    monkeypatch.setattr(scf, "build_model", lambda *a, **kw: Model())
+    event = {"tournament": {"id": 3, "uniqueTournament": {"id": 3}},
+             "homeTeam": {"id": 1}, "awayTeam": {"id": 2}, "startTimestamp": 0}
+    rows = scf.settled_shadow_rows(str(tmp_path), VB, ["2026-11-21", "2026-11-22"],
+                                   {5: event}, [], 10, strict_league_rate=False)
+    got = [(r["date"], r["side"], r["key"], r["y"]) for r in rows
+           if r["market_id"] == 230059]
+    assert got == [("2026-11-22", "T1/T1", "set1_match|SAME", 1),
+                   ("2026-11-22", "T1/T2", "set1_match|SPLIT", 0),
+                   ("2026-11-22", "T2/T1", "set1_match|SPLIT", 0),
+                   ("2026-11-22", "T2/T2", "set1_match|SAME", 0)]
+    (tmp_path / "volleyball_superbet_settled.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    cal = scf.SportCalibration({"sports": {"volleyball": {"curves": {}}}})
+    key = vpp.backfill_key("2026-11-22", "9", 230059, 0, "", None, "T1/T1")
+    read = list(fle.sport_rows(tmp_path, cal, str(tmp_path), {key: 0.61}))
+    assert [(r["key"], r["p"]) for r in read] == [("set1_match|SAME", 0.61)]
+
+
 def test_kupon_asks_the_market_with_the_days_switch(
         monkeypatch: pytest.MonkeyPatch) -> None:
     build_slip = importlib.import_module("scripts.sofa.build_slip")
