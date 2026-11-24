@@ -2846,3 +2846,46 @@ def test_a_game_published_without_periods_settles_from_its_final_score(
     outcomes = {(g["family"], g["side"]): g["outcome"] for g in rec["graded"]}
     assert outcomes == {("total", "OVER"): "WIN", ("total", "UNDER"): "LOSS",
                         ("winner", "T1"): "WIN", ("winner", "T2"): "LOSS"}
+
+
+class BrokenBridgeClient(FakeClient):
+    """The bridge answers 504 after its retry (2026-11-02's outage)."""
+
+    def event(self, eid: int) -> dict[str, Any]:
+        from bet.sofa.errors import ProviderError
+
+        self.asked.append(eid)
+        raise ProviderError("Network error after retry: bridge HTTP 504")
+
+
+def test_a_failed_retry_keeps_the_pin_and_the_tournament(tmp_path: Path) -> None:
+    # 2026-11-24: the exception branch replaced the record with four keys -
+    # the settler listed the hockey ERRORs under tournament "?", and the
+    # pinned id was lost, so the next run searched instead of asking it.
+    write_snapshot(tmp_path)
+    running = {**sofa_event(), "status": {"type": "inprogress", "description": "3rd"}}
+    run_settle(tmp_path, FakeResolver(sofa_event()), FakeClient(running), 6)
+    assert settled(tmp_path)["1"]["sofascore_event_id"] == 700
+    result = run_settle(tmp_path, FakeResolver(None), BrokenBridgeClient({}), 7)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "ERROR" and "ProviderError" in rec["error"]
+    assert rec["tournament"] == "Extraliga" and rec["team1"] == T1
+    assert rec["sofascore_event_id"] == 700
+    assert rec["previous_state"] == "PENDING"
+    assert result["metrics"]["hockey"]["metrics"]["errors"] == 1
+    # The next run asks the pinned id, never a search.
+    client = FakeClient({**sofa_event(), **HOCKEY_AET})
+    resolver = FakeResolver(sofa_event())
+    run_settle(tmp_path, resolver, client, 8)
+    assert settled(tmp_path)["1"]["state"] == "SETTLED"
+    assert client.asked == [700] and resolver.calls == []
+
+
+def test_an_error_with_no_earlier_record_still_names_its_tournament(
+    tmp_path: Path,
+) -> None:
+    write_snapshot(tmp_path)
+    run_settle(tmp_path, FakeResolver(sofa_event()), BrokenBridgeClient({}), 6)
+    rec = settled(tmp_path)["1"]
+    assert rec["state"] == "ERROR" and rec["tournament"] == "Extraliga"
+    assert "previous_state" not in rec

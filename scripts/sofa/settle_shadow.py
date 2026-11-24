@@ -949,6 +949,22 @@ def reconcile_identity(
     return today, counts
 
 
+def error_keeps_prev(
+    prev: dict[str, Any], record: dict[str, Any]
+) -> dict[str, Any]:
+    """A failed retry (a bridge 504, an empty /event) keeps what the earlier
+    record knew - above all its pinned Sofascore id, which the next run asks
+    directly instead of searching again (B3) - and the first state it
+    retried. Before 2026-11-24 the exception branch replaced the record with
+    four keys: the pin and the tournament were lost (the settler listed the
+    11-02 outage's hockey ERRORs under tournament "?"), as settle_cs2 fixed
+    for CS2 on 2026-10-04. Grades are never carried: a retried record has
+    none."""
+    kept = {k: v for k, v in prev.items() if k != "graded"}
+    first = prev.get("previous_state", prev.get("state"))
+    return {**kept, **record, "previous_state": first}
+
+
 def settle_sport(
     sport: ShadowSport,
     date: str,
@@ -1063,13 +1079,19 @@ def settle_sport(
         except Exception as exc:
             record = {
                 "match_name": ev.match_name,
+                "team1": ev.team1,
+                "team2": ev.team2,
                 "kickoff_utc": ev.kickoff_utc,
+                "tournament": ev.tournament,
+                "priced_sides": len(ev.sides),
                 "state": "ERROR",
                 "error": f"{type(exc).__name__}: {exc}",
             }
         if record["state"] == "ERROR":
             # An exception or an empty /event alike: the run was not clean.
             metrics["errors"] += 1
+            if prev and not retry_players:
+                record = error_keeps_prev(prev, record)
         if retry_players and record["state"] != "SETTLED":
             # A retry for the player lines only: a failed attempt (a 403, the
             # game no longer in a listing) must never replace the graded
