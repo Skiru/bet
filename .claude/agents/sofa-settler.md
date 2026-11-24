@@ -66,7 +66,9 @@ Python runs as `PYTHONPATH=src:. .venv/bin/python`. Exit codes: 0 OK, 1 PARTIAL,
    ```bash
    PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1> --sport all > <S>/identity.txt 2>&1; echo exit=$?
    ```
-   Checks: `ID_USED_TWICE`, `MOVED_GRADED`, `NAME_BELOW` (`NAME_BELOW_BY_DESIGN` shown, never failed),
+   Checks: `ID_USED_TWICE`, `MOVED_GRADED`, `NAME_BELOW` (`NAME_BELOW_BY_DESIGN` shown, never failed:
+   SHARED_WORD / MUTUAL_LISTING / TOURNAMENT, and from 2026-11-24 a `SPORT_IDENTITY:` pin with one side
+   above the threshold; a pin with both sides below still fails),
    `ORIENTATION_IDS`, `ID_CHANGED`, `IDENTITY_STATE`, `IDENTITY_PENDING`.
 5. **Re-settle statistic gaps** (lower leagues publish counts D+5..D+7). The sweep re-settles
    every day D-14..D-2 holding a printed leg SETTLE could still grade

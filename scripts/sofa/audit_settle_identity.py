@@ -19,8 +19,9 @@ Checks, each a finding:
                       (Superbet voids it - Regulamin 5.E.1.a; Everton 09-24)
     NAME_BELOW        a counted record whose board name scores <= 82 against
                       its Sofascore side, on either side, matched by neither
-                      a shared word nor MUTUAL_LISTING / TOURNAMENT (which
-                      are listed apart, as accepted below the threshold)
+                      a shared word nor MUTUAL_LISTING / TOURNAMENT, nor a
+                      SPORT_IDENTITY pin with the other side above it (all
+                      listed apart as NAME_BELOW_BY_DESIGN, never failed)
     ORIENTATION_IDS   football/tennis: the fixture's team ids are not the
                       cached /event's
     ID_CHANGED        a pinned id that a later search contradicted
@@ -60,6 +61,28 @@ FOOTBALL_TENNIS = ("football", "tennis")
 VOID_AFTER_H = 48.0
 # Matches confirmed below the name threshold by design (settle_shadow).
 BELOW_BY_DESIGN = frozenset({"SHARED_WORD", "MUTUAL_LISTING", "TOURNAMENT"})
+# A pin SPORT_IDENTITY made before the match (match_method
+# "SPORT_IDENTITY:<rule>": a listed team id, the entity map's verified name,
+# the day / tournament / query anchor - each measured with 0 wrong pins) is
+# not a name match, so a sponsor or short name below the threshold on ONE
+# side says nothing about it. Audit 2026-11-24: 1,128 NAME_BELOW over
+# 11-01..11-23, all such pins, every one read was the right game (UTE =
+# Ujpesti TE, ETB Miners = Essen, Club Atletico Provincial = Provincial de
+# Rosario); the audit exited 1 every day and hid the other checks. Both
+# sides below the threshold stays a failing NAME_BELOW - nothing named the
+# game.
+PINNED_PREFIX = "SPORT_IDENTITY:"
+
+
+def name_below_check(method: object, scores: dict[str, float]) -> str:
+    """NAME_BELOW or NAME_BELOW_BY_DESIGN for a record already below."""
+    if method in BELOW_BY_DESIGN:
+        return "NAME_BELOW_BY_DESIGN"
+    if str(method or "").startswith(PINNED_PREFIX) and (
+        max(scores.values()) > NAME_MATCH_THRESHOLD
+    ):
+        return "NAME_BELOW_BY_DESIGN"
+    return "NAME_BELOW"
 
 Finding = dict[str, Any]
 
@@ -144,11 +167,7 @@ def audit_measured(runs_dir: str, sport: str, dates: list[str]) -> list[Finding]
             scores = si.record_name_scores(kind, rec)
             if scores is not None and min(scores.values()) <= NAME_MATCH_THRESHOLD:
                 method = rec.get("match_method") or rec.get("match_rule")
-                check = (
-                    "NAME_BELOW_BY_DESIGN"
-                    if method in BELOW_BY_DESIGN
-                    else "NAME_BELOW"
-                )
+                check = name_below_check(method, scores)
                 finding(check, date, eid, rec, name_scores=scores, match_method=method)
     for sid, keys in by_id.items():
         if len(keys) > 1:
@@ -303,7 +322,8 @@ def run(
 
 def is_failure(f: Finding) -> bool:
     """NAME_BELOW_BY_DESIGN is shown, never failed: SHARED_WORD,
-    MUTUAL_LISTING and TOURNAMENT are the accepted ways below the threshold."""
+    MUTUAL_LISTING, TOURNAMENT and a SPORT_IDENTITY pin with one side named
+    are the accepted ways below the threshold."""
     return str(f["check"]) != "NAME_BELOW_BY_DESIGN"
 
 

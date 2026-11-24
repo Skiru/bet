@@ -3292,7 +3292,12 @@ bo konkuruje z nim o most.
   `NOT_GRADED:ID_CHANGED`. Przypięcia sprawdza
   `scripts/sofa/audit_settle_identity.py --from <d> --to <d>` (`ID_USED_TWICE`,
   `MOVED_GRADED`, `NAME_BELOW`, `ORIENTATION_IDS`, `ID_CHANGED`,
-  `IDENTITY_STATE`, `IDENTITY_PENDING`; kod 0 / 1 / 2).
+  `IDENTITY_STATE`, `IDENTITY_PENDING`; kod 0 / 1 / 2). Od 2026-11-24 pin
+  `SPORT_IDENTITY:` z jedną stroną powyżej progu nazwy to
+  `NAME_BELOW_BY_DESIGN` (pokazany, nie błąd): 1 128 takich `NAME_BELOW` z
+  11-01..11-23 to były właściwe mecze (nazwy sponsorów / skróty), a audyt
+  kończył się kodem 1 codziennie; pin z obiema stronami poniżej progu nadal
+  jest znaleziskiem.
 
 Granica metody, podana wprost: nie mamy historycznych cen Superbetu. Wstecz da
 się mierzyć **kalibrację prawdopodobieństwa** (czy 85% znaczy 85%). **Nie da

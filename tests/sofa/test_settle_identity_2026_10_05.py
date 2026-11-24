@@ -1054,6 +1054,24 @@ def test_the_identity_audit_names_every_doubt(tmp_path: Path) -> None:
     )
 
 
+def test_a_sport_identity_pin_with_one_side_named_is_below_by_design() -> None:
+    # Audit 2026-11-24: 1,128 NAME_BELOW in 11-01..11-23, all SPORT_IDENTITY
+    # pins of the right game (Provincial de Rosario = Club Atletico Provincial).
+    pin = "SPORT_IDENTITY:LISTING_ID_AND_OPPONENT"
+    one = {"team1": 64.5, "team2": 100.0}
+    assert audit_settle_identity.name_below_check(pin, one) == "NAME_BELOW_BY_DESIGN"
+    # Nothing named the game: still a failing finding.
+    both = {"team1": 44.4, "team2": 32.0}
+    assert audit_settle_identity.name_below_check(pin, both) == "NAME_BELOW"
+    # A settle-time search below the threshold is not a pin.
+    assert audit_settle_identity.name_below_check(None, one) == "NAME_BELOW"
+    assert audit_settle_identity.name_below_check("SEARCH", one) == "NAME_BELOW"
+    assert (
+        audit_settle_identity.name_below_check("TOURNAMENT", both)
+        == "NAME_BELOW_BY_DESIGN"
+    )
+
+
 def test_old_records_without_the_new_fields_read_as_before() -> None:
     old = {
         "match_name": f"{T1}·{T2}",
