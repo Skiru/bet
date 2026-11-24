@@ -271,7 +271,11 @@ def _event_payload(
     # already keeps "finished" forever - retirements included, whose status
     # description is the answer to why they went ungraded.
     if detail and (event.get("status") or {}).get("type") == "finished":
-        cache.save_event_detail(event_id, detail, "finished")
+        # graded on the payload as cached: a re-fetch carrying Sofascore's
+        # after-the-match half rewrite keeps the old score (detail_guard)
+        stored = cache.save_event_detail(event_id, detail, "finished")
+        if isinstance(stored, dict) and isinstance(stored.get("event"), dict):
+            event = stored["event"]
     if not is_completed_event(event):
         return Unsettled(unfinished_reason(event), event)
     if not settle_completed(event):

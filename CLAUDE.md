@@ -771,8 +771,18 @@ measurement of Superbet's price and feed nothing else.
   stay `EVENT_NOT_FINISHED`; goals always `normaltime`; samples and ratings
   still skip both (changing that changes what prints). A card shown to a player
   on the bench does not count in SETTLE / regrade (`metrics.drop_bench_cards`;
-  samples keep every card). A half whose `period1` contradicts the HT marker is
-  refused when settling (`metrics.half_time_disagrees`; a graded row stays).
+  samples keep every card). A half whose `period1` contradicts the HT marker
+  or the goal incidents' own first half (`metrics.goal_incidents_half_time`,
+  2026-11-24) is refused when settling (`metrics.half_time_disagrees`; a
+  graded row stays). Sofascore rewrites a finished match's half days later
+  (period1 0-0 / gone, period2 = the match, HT marker zeroed alike; ~1.2% of
+  cached football events): a finished `/event` re-fetch never replaces a
+  cached score with one that lost a field or carries that rewrite
+  (`bet.sofa.detail_guard`, in `SofaCache.save_event_detail`; SETTLE grades
+  the stored payload). The 81 half rows (days 11-07..11-22, 4 printed) that
+  regrades flipped off it are found by `repair_half_regrades.py` (dry run by default). Samples read
+  the listing copies, rewritten alike - a fix there changes what prints
+  (switch, open).
   Player props grade only from the player's own squad (PLAYER_AMBIGUOUS);
   `PLAYER_DID_NOT_PLAY`, `PLAYER_NOT_STARTED`, `PLAYER_NOT_IN_SQUAD` are listed
   in `07_settle_skips.json` `void_legs` and a printed such leg is a refund; a

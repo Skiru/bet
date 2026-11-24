@@ -1454,11 +1454,61 @@ def identity_gap_for_metric(
     return None
 
 
+def _int_score(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value)
+
+
+def goal_incidents_half_time(
+    listing_event: Mapping[str, Any], incidents: Mapping[str, Any] | None
+) -> tuple[int, int] | None:
+    """The first-half score the goal incidents themselves say: the running
+    score of the last goal at minute <= 45 (stoppage time included; the
+    second half starts at 46), (0, 0) when none - or None when the goals are
+    no reading: an incident without an integer minute or running score, or
+    regular time's last running score not the event's 90-minute score.
+
+    Sofascore rewrites a finished match's half score days after it (period1
+    0-0 or gone, period2 = the whole match; the incidents' HT marker zeroed
+    alike) while the goal list keeps its minutes: Albania U21 - Andorra U21
+    (16435127) of 2026-11-20 was graded on period1 3-1 (goals 2', 11', 45',
+    45') and re-fetched on 11-22 as period1 0-0 with HT 0-0; the regrade
+    flipped 32 correct half rows. The goals are the second witness."""
+    goals = [inc for inc in (incidents or {}).get("incidents") or []
+             if inc.get("incidentType") == "goal"]
+    score = regulation_score(dict(listing_event))
+    if score is None:
+        return None
+    # ordered by minute, stoppage, then the running total (two goals logged
+    # at the same minute: the later one has the larger running score)
+    first: tuple[tuple[int, int, int], tuple[int, int]] | None = None
+    last: tuple[tuple[int, int, int], tuple[int, int]] | None = None
+    for inc in goals:
+        minute = _int_score(inc.get("time"))
+        added = _int_score(inc.get("addedTime")) or 0
+        home, away = _int_score(inc.get("homeScore")), _int_score(inc.get("awayScore"))
+        if minute is None or home is None or away is None:
+            return None
+        if minute > 90:
+            continue  # extra time
+        key = ((minute, added, home + away), (home, away))
+        if last is None or key[0] > last[0]:
+            last = key
+        if minute <= 45 and (first is None or key[0] > first[0]):
+            first = key
+    final = last[1] if last is not None else (0, 0)
+    if final != (int(score[0]), int(score[1])):
+        return None
+    return first[1] if first is not None else (0, 0)
+
+
 def half_time_disagrees(
     listing_event: dict[str, Any], incidents: dict[str, Any] | None
 ) -> bool:
     """The event's first-half score contradicts the incidents' half-time
-    marker (``period`` "HT" with both scores).
+    marker (``period`` "HT" with both scores) or the goal incidents' own
+    first-half score (``goal_incidents_half_time``).
 
     SETTLE only: a half's goals are read off ``period1`` / ``period2``, and
     a payload Sofascore rewrote after the match can disagree with its own
@@ -1467,6 +1517,9 @@ def half_time_disagrees(
     /event re-fetched three hours later read period1 0-0, period2 1-3, and a
     regrade would have flipped 10 correct half rows. A contradiction is no
     reading - refused, never guessed (a graded row is then left as it is).
+    2026-11-24: the rewrite zeroes the HT marker too (16435127, 17569083),
+    so the marker alone agreed with the bad period1 and regrades flipped 81
+    correct half rows 11-12..11-24; either witness contradicting refuses.
     """
     if not incidents:
         return False
@@ -1474,12 +1527,16 @@ def half_time_disagrees(
     a1 = (listing_event.get("awayScore") or {}).get("period1")
     if h1 is None or a1 is None:
         return False
+    half = (int(h1), int(a1))
     for inc in incidents.get("incidents", []) or []:
         if inc.get("incidentType") == "period" and inc.get("text") == "HT":
             hh, ah = inc.get("homeScore"), inc.get("awayScore")
             if isinstance(hh, (int, float)) and isinstance(ah, (int, float)):
-                return (int(hh), int(ah)) != (int(h1), int(a1))
-    return False
+                if (int(hh), int(ah)) != half:
+                    return True
+                break
+    goals = goal_incidents_half_time(listing_event, incidents)
+    return goals is not None and goals != half
 
 
 def extract_metric(

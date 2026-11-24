@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from bet.sofa.config import MATCH_LOGIC_VERSION, SofaConfig
 from bet.sofa.db import get_connection, migrate
+from bet.sofa.detail_guard import guard_scores
 from bet.sofa.listing_index import entity_indexed_events, index_page
 from bet.sofa.timeutil import now
 
@@ -488,9 +489,35 @@ class SofaCache:
 
     def save_event_detail(
         self, sofascore_event_id: int, detail: dict[str, Any], status_type: str | None
-    ) -> None:
-        """Remember one /event/{id} payload, with the status that dates it."""
+    ) -> dict[str, Any]:
+        """Remember one /event/{id} payload, with the status that dates it;
+        returns the payload as stored.
+
+        A finished re-fetch never degrades the cached score: the old
+        ``homeScore`` / ``awayScore`` are kept when the new payload lost a
+        field or carries Sofascore's after-the-match half rewrite
+        (``detail_guard.guard_scores``, judged against the cached incidents;
+        2026-11-24)."""
         with get_connection(self.config.db_path) as conn:
+            if status_type == "finished":
+                old = conn.execute(
+                    "SELECT detail_json FROM sofa_event_detail "
+                    "WHERE sofascore_event_id = ? AND status_type = 'finished'",
+                    (sofascore_event_id,),
+                ).fetchone()
+                if old is not None:
+                    inc = conn.execute(
+                        "SELECT incidents_json FROM sofa_event_stats "
+                        "WHERE sofascore_event_id = ?",
+                        (sofascore_event_id,),
+                    ).fetchone()
+                    incidents = (
+                        json.loads(inc["incidents_json"])
+                        if inc is not None and inc["incidents_json"] else None
+                    )
+                    detail, _ = guard_scores(
+                        json.loads(old["detail_json"]), detail,
+                        incidents if isinstance(incidents, dict) else None)
             conn.execute(
                 """
                 INSERT OR REPLACE INTO sofa_event_detail
@@ -505,6 +532,7 @@ class SofaCache:
                 ),
             )
             conn.commit()
+        return detail
 
     def get_listing_miss(self, entity_id: int, kind: str, page: int) -> bool:
         """Did this listing 404 recently?

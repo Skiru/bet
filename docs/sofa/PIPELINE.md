@@ -3276,6 +3276,26 @@ bo konkuruje z nim o most.
   Po dogrywce rożne / kartki / faule / strzały zostają `EVENT_NOT_FINISHED`;
   gole zawsze z `normaltime`. Próbki i ratingi nadal pomijają oba rodzaje
   meczów (zmiana tam zmieniłaby to, co się drukuje).
+- **Wynik do przerwy przepisany po meczu** (od 2026-11-24, poprawka): Sofascore
+  dni po meczu potrafi wyzerować pierwszą połowę (`period1` 0:0 albo brak,
+  `period2` = cały mecz, znacznik HT w zdarzeniach też 0:0), choć lista goli
+  zachowuje minuty - ok. 1,2% zapisanych meczów piłki. SETTLE odmawia połowy
+  (`HALF_TIME_DISAGREES`), gdy `period1` przeczy znacznikowi HT **albo**
+  wynikowi do przerwy z samych goli (`metrics.goal_incidents_half_time`:
+  wynik bieżący ostatniego gola do 45. minuty z doliczonym czasem). Ponowne
+  pobranie zakończonego `/event` nie nadpisuje już zapisanego wyniku wynikiem,
+  który zgubił pole albo niesie to wyzerowanie (`bet.sofa.detail_guard`,
+  `SofaCache.save_event_detail`; zapis dostaje `score_guard`), a SETTLE ocenia
+  wynik w tej zapisanej postaci. Wcześniej poranny sweep pobierał `/event` dla
+  każdego meczu ponownie rozliczanego dnia i zastępował dobry zapis, a
+  `regrade_settled.py` przestawiał na nim poprawne wiersze połówkowe: 81
+  wierszy, 14 meczów, 11-07..11-22, w tym 4 drukowane nogi (Albania U21 -
+  Andora U21 16435127: 3:1 do przerwy zapisane 11-22 jako 0:0).
+  `scripts/sofa/repair_half_regrades.py` (domyślnie tylko raport, `--apply`
+  zapisuje dziennik cofnięcia i przywraca; potem `record_results.py`) je
+  znajduje. Próbki czytają kopie z listingów, przepisane tak samo (ok. 0,75%
+  meczów z błędną połową) - naprawa tam zmienia druk i wymaga przełącznika
+  (otwarte).
 - Propsy zawodników tylko ze składu samego zawodnika (inaczej
   `PLAYER_AMBIGUOUS`); próbka dopasowana po tokenach rozlicza się po swoim
   `matched_name` (kandydat w drugim składzie — `PLAYER_AMBIGUOUS`); wejście z

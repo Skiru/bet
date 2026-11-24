@@ -61,6 +61,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <D-8> --
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/mark_coupon_results.py --from <d> --to <d> [--force] [--no-render]   # 13_results.json + KUPON coloured by result; offline
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_ledger.py --from <d> --to <d> [--variant official]   # read the ledger by epoch group
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/regrade_settled.py --moved-void --dry-run   # then --apply; --players regrades props from the own squad; --cards-bench, --player-not-started
+PYTHONPATH=src:. .venv/bin/python scripts/sofa/repair_half_regrades.py   # dry run: regrade flips made off Sofascore's rewritten first half (2026-11-24); --apply writes the undo log, then record_results.py
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <d> --to <d> [--sport hockey]   # measured sports' settle audit
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <d> --to <d> [--history]   # CS2 audit
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_clv.py --from <d> --to <d>   # closing-line value

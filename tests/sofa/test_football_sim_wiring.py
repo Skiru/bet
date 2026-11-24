@@ -217,9 +217,11 @@ def test_first_goal_of_the_first_half_needs_the_list_when_both_scored() -> None:
     inc = _inc(_goal(5, 0, 1), _goal(40, 1, 1), ht=(1, 1))
     assert fsm.sim_value("first_goal_1h", "2", ev, inc) == 1.0
     # a list that puts another number of goals in the first half: no grade
+    # (from 2026-11-24 the goals are a witness of the half itself, so the
+    # whole half is refused, not only the first goal)
     bad = _inc(_goal(5, 0, 1), _goal(50, 1, 1))
     assert fsm.sim_value("first_goal_1h", "2", _event((1, 0), (1, 1)), bad) == (
-        "FIRST_GOAL_UNREADABLE")
+        "HALF_TIME_DISAGREES")
 
 
 def test_contradictions_are_refused_never_guessed() -> None:
