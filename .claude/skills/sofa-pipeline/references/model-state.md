@@ -1314,6 +1314,14 @@ shots / SOT, cards / fouls, offsides, tennis serve stopped at the submission gat
 (`docs/sofa/history/STAN_KONTEKST_TERMINARZA_2026-11-09.md`). Re-propose only as a new pre-registered study
 on data after 2026-10-20 (the exam window is spent).
 
+### Neutral ground in football (measured 2026-11-24, declined)
+
+Sofascore's `/event` carries no neutral-ground flag (`neutralGround` absent in all 74,653 cached payloads);
+Godoy Cruz - Tristán Suárez (17488518, final in Córdoba, 2026-11-15) had no `event.venue` at all. Proxy
+(event venue neither side's ground, other city): home GD +0.153 [-0.013, +0.325] (n 544) vs own ground
++0.311 (n 5,954); difference -0.159 [-0.330, +0.014] - includes zero; history listings carry no venue, so not
+replayable. Nothing changed; `docs/sofa/evidence/neutral_venue_2026-11-24.md`.
+
 ## (e) Open questions, not modelled yet, before the next refit
 
 - **Audit 2026-11-07 of the 11-06 changes - open, need a measurement or the
