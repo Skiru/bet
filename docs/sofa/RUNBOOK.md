@@ -117,6 +117,12 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settlement.py --date <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/resettle_sweep.py --from <D-14> --to <D-2> --include-day <D-5>
 # przypięte id sportów mierzonych (ID_USED_TWICE, MOVED_GRADED, NAME_BELOW, ORIENTATION_IDS, ID_CHANGED, ...):
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_settle_identity.py --from <D-1> --to <D-1>
+# ID_USED_TWICE + IDENTITY_PENDING na jednym meczu sportu mierzonego = rekord czeka na przejście tożsamości
+# (np. MOVED_TO cofnięte, gdy zginął plik migawek dnia docelowego - koszykówka 15705878, 11-14 / 11-15;
+# od 2026-11-24 przejście czyta wtedy `last_snapshot_utc` z rekordu i nie cofa MOVED_TO bez śladu meczu
+# w dniu docelowym). Naprawa offline, potem dziennik tych dni:
+#   PYTHONPATH=src:. .venv/bin/python scripts/sofa/settle_shadow.py --date <d> --identity-only
+#   PYTHONPATH=src:. .venv/bin/python scripts/sofa/record_results.py --from <d> --to <d+1>
 # dziennik:
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_shadow.py --from <D-1> --to <D-1>
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/audit_cs2.py --from <D-1> --to <D-1>

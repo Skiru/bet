@@ -213,6 +213,48 @@ def _settle_state(rec: dict[str, Any]) -> str:
     return str(rec.get("pre_identity_state") or rec.get("state"))
 
 
+def record_snap(rec: dict[str, Any]) -> SnapInfo | None:
+    """What a settled record keeps of its date's snapshots (settle writes
+    `last_snapshot_utc`, the kickoff and the board names), as a SnapInfo;
+    None for a record without a last snapshot time."""
+    last = str(rec.get("last_snapshot_utc") or "")
+    kickoff = str(rec.get("kickoff_utc") or "")
+    if not last or not kickoff:
+        return None
+    board = split_board(str(rec.get("match_name") or ""))
+    return SnapInfo(
+        last,
+        last,
+        kickoff,
+        str(rec.get("team1") or board[0]),
+        str(rec.get("team2") or board[1]),
+    )
+
+
+def with_record_evidence(
+    files: dict[str, dict[str, dict[str, Any]]],
+    snaps: dict[str, dict[str, SnapInfo]],
+) -> dict[str, dict[str, SnapInfo]]:
+    """`snaps` with every settled record its date's snapshot file does not
+    hold read from the record itself (record_snap). A snapshot file that is
+    gone (basketball 2026-11-15's, lost with the run files deleted on
+    2026-11-18/19) left its records with no snapshot: the pass saw the
+    event in 11-14's file only, reverted 11-14's MOVED_TO:2026-11-15, and
+    North Dakota - Montana (15705878) was counted on both days. A file that
+    is present wins; on 10-20..11-23 only that one day's 261 records lacked
+    their file's snapshot, so this reads nothing else differently."""
+    out = {d: dict(index) for d, index in snaps.items()}
+    for date, events in files.items():
+        index = out.setdefault(date, {})
+        for eid, rec in events.items():
+            if eid in index:
+                continue
+            info = record_snap(rec)
+            if info is not None:
+                index[eid] = info
+    return out
+
+
 def plan_identity(
     kind: Kind,
     files: dict[str, dict[str, dict[str, Any]]],
@@ -221,7 +263,9 @@ def plan_identity(
     """{(date, superbet id): {"state": new state, extra fields}} for every
     record whose identity state should change - a mark, or a revert to its
     `pre_identity_state`. `files`: date -> settled events; `snaps`: date ->
-    snapshot_index of that date's file."""
+    snapshot_index of that date's file (a record its file does not hold is
+    read from the record, with_record_evidence)."""
+    snaps = with_record_evidence(files, snaps)
     desired: dict[tuple[str, str], Change] = {}
 
     # 1. MOVED_TO: the same Superbet id in two dates' snapshot files.
@@ -402,9 +446,17 @@ def plan_identity(
             if want is None:
                 # A MOVED_TO whose target day is outside the snapshots this
                 # pass can see is evidence this pass lacks, not a doubt gone
-                # (review 2026-10-05): kept as it is.
+                # (review 2026-10-05): kept as it is. So is one whose target
+                # day no longer shows the event at all - neither in its
+                # snapshot file nor in its settled.json (a file lost, never
+                # a game un-quoted: snapshots are append-only); only the
+                # event seen later in this record's own day reverts it.
                 target = shadow_moved_to(str(rec.get("state") or ""))
-                if marked and target is not None and target not in snaps:
+                if (
+                    marked
+                    and target is not None
+                    and eid not in snaps.get(target, {})
+                ):
                     continue
                 if marked:
                     changes[(date, eid)] = {"state": rec["pre_identity_state"]}

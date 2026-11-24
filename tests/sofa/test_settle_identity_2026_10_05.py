@@ -219,9 +219,13 @@ def test_one_event_in_two_dates_files_is_counted_once_where_last_seen() -> None:
     # Idempotent: nothing more to change once applied ...
     files[d1]["15132383"] = moved
     assert si.plan_identity("shadow", files, snaps) == {}
-    # ... and reverted when the doubt is gone.
-    del snaps[d2]["15132383"]
+    # ... and reverted when the doubt is gone: the event seen later in d1's
+    # own file (a lost d2 snapshot is no such evidence - test_settle_
+    # identity_lost_snapshot.py).
+    snaps[d1]["15132383"].last = "2026-10-03T01:00:00Z"
     revert = si.plan_identity("shadow", files, snaps)
+    assert revert[(d1, "15132383")] == {"state": "SETTLED"}
+    revert.pop((d2, "15132383"))  # d2's own record now moves to d1
     assert revert == {(d1, "15132383"): {"state": "SETTLED"}}
     back = si.apply_change(moved, revert[(d1, "15132383")])
     assert back["state"] == "SETTLED" and "pre_identity_state" not in back
