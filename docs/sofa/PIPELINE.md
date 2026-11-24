@@ -2835,8 +2835,11 @@ niego 08).
   czynnik rynku z liczbami z dossier (`RYNEK: <czynnik>: <k/n>`,
   `context: "MARKET"`, rozliczany w księdze osobno): udział meczów, w których
   rywal pozwolił na linię (dla sumy: mecze obu stron), co najmniej 0,25 poniżej
-  pewności nogi, albo dla OVER drużyny bez piłki jej rożne przy posiadaniu
-  < 50% poniżej linii na >= 4 meczach - **sprawdza to kod** z wierszem
+  pewności nogi, albo dla OVER drużyny bez piłki (posiadanie < 50 **i**
+  dłuższy kurs na wygraną z drabin `double_chance` / `result_1x2` w dossier;
+  bez obu kursów (b) nie zachodzi - audyt 2026-11-22: przechodził na samym
+  posiadaniu; mecz pucharowy między poziomami: sam kurs) jej rożne przy
+  posiadaniu < 50% poniżej linii na >= 4 meczach - **sprawdza to kod** z wierszem
   `style.matchup` nogi w dossier (schemat >= 3; `report_check.market_findings`,
   merge_reads odmawia całego raportu: RYNEK ZAKAZANY / BEZ LINII / BEZ DOSSIER /
   BEZ WIERSZA / PONIŻEJ PROGU / INNE LICZBY; noga łączna „każda z drużyn”

@@ -204,7 +204,12 @@ PY
   = NO_BET. A changed price is not a defect: the caller's rebuild re-prices
   the leg (a moved price re-prices it, CLAUDE.md "What prints") - list it as
   a note "kurs zmieniony: <stary> -> <nowy> o <czas>" so the caller
-  rebuilds (operator 2026-11-19).
+  rebuilds (operator 2026-11-19). `verify_legs.py --live` says what that
+  rebuild does (`live.rebuild`: the confidence the line evidence gives at
+  the new price, x, and `drops` - ODDS_TOO_LOW under 1/0.9202,
+  BELOW_CONFIDENCE_FLOOR, NEGATIVE_LEG_EV); "the rebuild drops it" is still
+  a note, never a NO_BET (the rebuild refuses it; a NO_BET would only move
+  it to `removed_by_reads`). Locked legs are not re-asked.
 - Sport leg: `SuperbetClient().event_odds(<superbet_event_id>)`; compare its
   side and whole outcome group with the snapshot it names
   (`price_fetched_at_utc`, `source_date`;

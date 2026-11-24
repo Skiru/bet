@@ -632,16 +632,25 @@ def _possession_side(doc: Mapping[str, Any], team: object) -> str | None:
 
 
 def _win_prices(doc: Mapping[str, Any]) -> dict[str, float]:
-    """Superbet's home / away win prices from the dossier's ladder (the
-    double chance X2 "no" is the home win, 1X "no" the away win)."""
+    """Superbet's full-match home / away win prices from the dossier's ladder
+    (the double chance X2 "no" is the home win, 1X "no" the away win; a
+    `result_1x2` rung's "1" / "2" yes the same prices). A half's rung
+    (`period` set) is not the match's."""
     out: dict[str, float] = {}
     for rung in (doc.get("market") or {}).get("rungs_of_leg_markets") or []:
-        if rung.get("market") != "double_chance":
+        if rung.get("period") is not None:
             continue
-        side = {"X2": "home", "1X": "away"}.get(str(rung.get("subject")))
-        price = rung.get("under_odds")
+        subject = str(rung.get("subject"))
+        if rung.get("market") == "double_chance":
+            side = {"X2": "home", "1X": "away"}.get(subject)
+            price = rung.get("under_odds")
+        elif rung.get("market") == "result_1x2":
+            side = {"1": "home", "2": "away"}.get(subject)
+            price = rung.get("over_odds")
+        else:
+            continue
         if side and isinstance(price, int | float):
-            out[side] = float(price)
+            out.setdefault(side, float(price))
     return out
 
 
@@ -690,7 +699,11 @@ def _threshold_b(
 ) -> tuple[bool, str]:
     """(b): corners OVER on the side that will not have the ball - possession
     mean < 50 and the longer win price (a cup tie: the price alone) - whose
-    corners at < 50 % possession average under the line on >= 4 games."""
+    corners at < 50 % possession average under the line on >= 4 games.
+    Both win prices are required: a dossier without the match's
+    `double_chance` / `result_1x2` rungs cannot say who has the ball, so (b)
+    is not met (audit 2026-11-22: it passed on possession alone, 144 of 437
+    football dossiers of 11-01..11-20 carried no such rung)."""
     side = _possession_side(doc, cell.get("team"))
     if side is None:
         return False, "(b): strona nogi nie znaleziona w dossier"
@@ -704,15 +717,18 @@ def _threshold_b(
               if side in prices and other in prices else None)
     cup = (doc.get("header") or {}).get("competition") != (
         (doc.get("style") or {}).get("league") or {}).get("competition")
-    no_ball = (longer is True and cup) or (
-        isinstance(possession, int | float) and possession < 50 and longer is not False)
+    no_ball = longer is True and (
+        cup or (isinstance(possession, int | float) and possession < 50))
     n, mean = int(split.get("n") or 0), split.get("srednia")
     line = float(row["line"])
     ok = bool(no_ball and n >= STYLE_POSSESSION_MIN
               and isinstance(mean, int | float) and mean < line)
+    unknown = (" - brak obu kursów na wygraną (double_chance / result_1x2) w "
+               "dossier: nie wiadomo, kto ma piłkę, (b) nie zachodzi"
+               if longer is None else "")
     return ok, (f"(b): posiadanie {possession}, kurs na wygraną {prices.get(side)} vs "
-                f"{prices.get(other)}, rożne przy posiadaniu < 50: średnia {mean} "
-                f"(n={n}) wobec linii {line}")
+                f"{prices.get(other)}{unknown}, rożne przy posiadaniu < 50: średnia "
+                f"{mean} (n={n}) wobec linii {line}")
 
 
 def market_findings(

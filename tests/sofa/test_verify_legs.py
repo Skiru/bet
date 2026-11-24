@@ -6,6 +6,7 @@ LegRead, and the --live statuses on a fake fetcher."""
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -13,6 +14,7 @@ from typing import Any
 import pytest
 
 from bet.sofa.contracts import LegRead
+from bet.sofa.line_evidence import LineEvidence
 from scripts.sofa import verify_legs
 from scripts.sofa.build_coupon import assemble
 
@@ -204,9 +206,105 @@ def test_live_statuses_on_a_fake_fetcher(
     monkeypatch.setattr(superbet, "SuperbetClient", lambda: object())
     _, recs, _ = run_cli(tmp_path, "--all", "--live", "--limit-fixtures", "3")
     assert recs[1]["live"] == {"status": "OK", "odds": 1.25}
-    assert recs[2]["live"]["status"] == "CHANGED" and "live" in checks(recs[2])
+    # a changed price is a NOTE that says what the rebuild does (sofa-verifier
+    # 2c, operator 2026-11-19): 1.05 is under the odds floor and x < 0.90
+    assert recs[2]["live"]["status"] == "CHANGED"
+    assert recs[2]["live"]["x"] == 0.84  # old confidence x new odds, kept
+    assert recs[2]["live"]["rebuild"]["drops"] == ["ODDS_TOO_LOW", "NEGATIVE_LEG_EV"]
+    assert "live" in checks(recs[2], "NOTE") and "live" not in checks(recs[2])
+    assert "the rebuild drops it (ODDS_TOO_LOW" in next(
+        f["detail"] for f in recs[2]["findings"] if f["check"] == "live")
     assert recs[3]["live"] == {"status": "MISSING"}
+    assert "live" in checks(recs[3])  # a vanished price stays a DEFECT
     assert "live" not in recs[4]
+
+
+# --- rebuild_at_price: what the rebuild does with a changed price ------------
+
+NOW = datetime(2026, 11, 15, 12, tzinfo=UTC)
+GAP_EVIDENCE = LineEvidence(
+    {"keys": {"football": {}},
+     "sport_printable_by_gap": {"football": {"4": {"gap": -0.06}, "3": {"gap": -0.06},
+                                             "1": {"gap": 0.0}}}},
+    v2=True, price_gap_sports=frozenset({"football"}))
+
+
+def priced(conf: float, odds: float, **extra: Any) -> dict[str, Any]:
+    return {"sport": "football", "market": "corners_total", "subject": "",
+            "line": 9.5, "direction": "OVER", "model_p": 0.85,
+            "confidence": conf, "offered_odds": odds,
+            "calibrated_on": "market:corners_total|OVER", "calibration_n": 900,
+            **extra}
+
+
+def at(raw: dict[str, Any], odds: float,
+       ev: LineEvidence | None = GAP_EVIDENCE) -> dict[str, Any]:
+    return verify_legs.rebuild_at_price(raw, odds, ev, "2026-11-15", NOW,
+                                        0.70, 0.90)
+
+
+def test_a_shorter_price_re_reads_the_offset_and_keeps_the_leg() -> None:
+    """11-15: curve 0.80 at 1.40 (d = +0.086, bucket 4) printed 0.74; at 1.20
+    (d = -0.033, bucket 1) the offset is 0 - the rebuild prints 0.80 x 1.20 =
+    0.96, where the old check called 0.74 x 1.20 = 0.888 a DEFECT."""
+    raw = priced(0.74, 1.40, line_offset=-0.06,
+                 calibrated_on="market:corners_total|OVER-0.0600sbd4")
+    assert at(raw, 1.40)["confidence"] == 0.74  # its own price: as printed
+    assert at(raw, 1.20) == {"confidence": 0.8, "rule": "line_evidence",
+                             "x": 0.96, "drops": []}
+
+
+def test_a_new_price_under_the_odds_floor_is_dropped() -> None:
+    """11-15: a leg whose new price was under 1/0.9202 passed as a NOTE on x."""
+    got = at(priced(0.86, 1.15), 1.08)
+    assert round(0.86 * 1.08, 3) >= 0.90  # the x gate alone would keep it
+    assert got["drops"] == ["ODDS_TOO_LOW"]
+
+
+def test_a_longer_price_that_moves_the_offset_can_drop_the_leg() -> None:
+    got = at(priced(0.80, 1.20), 1.40)  # bucket 1 -> 4: offset -0.06
+    assert got["confidence"] == 0.74 and got["drops"] == []  # x 1.036
+    got = at(priced(0.75, 1.20), 1.40)  # d 0.036, bucket 3
+    assert got["confidence"] == 0.69
+    assert got["drops"] == ["BELOW_CONFIDENCE_FLOOR"]
+
+
+def test_no_line_evidence_keeps_the_old_confidence_and_says_so() -> None:
+    assert at(priced(0.80, 1.20), 1.10, ev=None) == {
+        "confidence": 0.8, "rule": "old_confidence", "x": 0.88,
+        "drops": ["NEGATIVE_LEG_EV"]}
+
+
+def test_a_capped_leg_is_a_lower_bound_under_the_band_cell() -> None:
+    cell = {"0.850-0.875": {"n": 40, "k": 28}}  # 0.70 realised
+    ev = LineEvidence({"keys": {"football": {}},
+                       "bands": {"football": {"corners_total|OVER": {
+                           "1.30-1.60": cell}}}})
+    raw = priced(0.70, 1.35, price_band_cap=0.70,
+                 calibrated_on="market:corners_total|OVER|cap:corners_total|"
+                 "OVER@1.30-1.60:0.850-0.875")
+    got = at(raw, 1.32, ev)
+    assert got["rule"] == "line_evidence:lower_bound"
+    assert got["confidence"] == 0.70 and got["drops"] == []
+    # out of the band no cell caps it: the curve's lower bound (cap) stands
+    assert at(raw, 1.25, ev)["confidence"] == 0.70
+
+
+def test_a_class_leg_reads_its_class_evidence_and_no_bucket_is_a_drop() -> None:
+    raw = priced(0.75, 1.30, calibrated_on="sb:football:women:corners_total|OVER")
+    got = at(raw, 1.25, LineEvidence({"keys": {"football": {}}}))
+    assert got["drops"] == ["NO_LINE_EVIDENCE"]
+    lines = LineEvidence({"keys": {"football": {"women:corners_total|OVER": {
+        "buckets": {"0.850-0.875": {"n": 400, "k": 340}}}}}})
+    got = at(raw, 1.25, lines)  # no curve: the class key's own bucket
+    assert got["rule"] == "line_evidence" and 0.80 < got["confidence"] < 0.85
+    ev = LineEvidence({"keys": {"football": {"women:corners_total|OVER": {
+        "printable": {"realised_minus_confidence": [-0.05], "n": 500,
+                      "games": 400}}}}})
+    raw = priced(0.80, 1.30, calibrated_on="women:market:corners_total|OVER")
+    assert at(raw, 1.25, ev)["confidence"] == 0.75  # the class key's offset
+    raw["calibrated_on"] = "market:corners_total|OVER"
+    assert at(raw, 1.25, ev)["confidence"] == 0.80  # not the class key's
 
 
 def test_a_missing_input_is_cannot_verify_never_a_no_bet(tmp_path: Path) -> None:

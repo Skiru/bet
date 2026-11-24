@@ -37,7 +37,17 @@ NOTE = worth a look, not a defect; CANNOT_VERIFY = the check could not run):
   live          (--live) football / tennis legs re-asked from Superbet with
                 OFFER's own fetcher (offer.day_flags): OK / CHANGED / MISSING
                 / STARTED / CANNOT_VERIFY; one fetch per fixture; sport legs
-                are not re-asked
+                and locked legs are not re-asked. MISSING (the outcome no
+                longer quoted) is a DEFECT; CHANGED is a NOTE (the rebuild
+                re-prices the leg, sofa-verifier 2c, operator 2026-11-19)
+                that says what the rebuild will do at the new price
+                (rebuild_at_price): the odds floor (ODDS_TOO_LOW,
+                confidence.MIN_ODDS_FOR_CEILING), the confidence the line
+                evidence gives at the new price (LineEvidence.read on the
+                leg's curve - offset by d bucket and the price-band cap
+                move with the price) against the leg's floor and x >=
+                min_ev. Every re-asked leg is unlocked, so a leg the rebuild
+                drops is re-judged by it and never stays on the coupon.
 
 Writes <out-dir>/verify_legs.jsonl (one record per leg) and verify_legs.md
 (legs with a finding, counts per check, the day's anti-selection summary and
@@ -76,12 +86,15 @@ from bet.sofa import fixture_status as fs  # noqa: E402
 from bet.sofa.comparability import fold  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     COUPON_ARTIFACT,
+    MIN_ODDS_FOR_CEILING,
+    direction_key,
     model_above_own_sample,
     printed_builders,
     printed_singles,
     too_close_to_kickoff,
 )
 from bet.sofa.contracts import Fixture, LegRead  # noqa: E402
+from bet.sofa.line_evidence import LineEvidence, evidence_key  # noqa: E402
 from bet.sofa.locked_print import kickoff_clocks  # noqa: E402
 from bet.sofa.names import normalize_name  # noqa: E402
 from bet.sofa.opponent_correction import gate_values  # noqa: E402
@@ -482,10 +495,90 @@ def check_sport(leg: Leg, day: SportDay) -> list[datetime]:
 # --- live --------------------------------------------------------------------
 
 
+# The match classes a curve source is prefixed with (Calibration.realised:
+# f"{klass}:{source}"); their line evidence is keyed the same way.
+CURVE_CLASSES = ("tennis_team_cup", "tennis_women", "season_early", "women")
+
+
+def day_evidence(date: str, now: datetime) -> LineEvidence | None:
+    """The line evidence a rebuild now would read (run_confidence's load);
+    None before epochs.LINE_EVIDENCE_FROM_UTC."""
+    if not epochs.line_evidence(date, now):
+        return None
+    return LineEvidence.load(
+        v2=epochs.line_evidence_v2(date, now),
+        bucket_deff=epochs.bucket_design_effect(date, now),
+        price_gap_sports=epochs.price_gap_offset_sports(date, now))
+
+
+def rebuild_at_price(raw: Mapping[str, Any], new_odds: float,
+                     evidence: LineEvidence | None, date: str, now: datetime,
+                     floor: float, min_ev: float) -> dict[str, Any]:
+    """What CONFIDENCE would do with a football / tennis leg at `new_odds`,
+    offline: {"confidence", "rule", "x", "drops"}. The curve is the price-free
+    part (curve = printed confidence - line_offset); the line evidence lowers
+    it again at the new price (offset by d bucket, price-band cap). A leg the
+    band cap lowered hides its curve: cap - offset is used and the band cell
+    at the new price caps it outright - a lower bound (rule
+    "line_evidence:lower_bound"). A key with no curve ("sb:<sport>:<key>")
+    reads its own lines' bucket again. On 11-22's 7,581 football / tennis
+    singles at their own price this reproduces the printed confidence on
+    every leg (64 capped). No line evidence for the day: the old confidence
+    stands (rule "old_confidence"). drops: the refusals the
+    rebuild would give (ODDS_TOO_LOW, NO_LINE_EVIDENCE,
+    BELOW_CONFIDENCE_FLOOR, NEGATIVE_LEG_EV); not re-checked: the ladder
+    margin, a gap shrink (off unless the calibration file sets it), the
+    price-free gates."""
+    old = float(raw["confidence"])
+    drops: list[str] = []
+    if new_odds < MIN_ODDS_FOR_CEILING:
+        drops.append("ODDS_TOO_LOW")
+    source = str(raw.get("calibrated_on") or "")
+    conf, rule = old, "old_confidence"
+    if evidence is not None and raw.get("model_p") is not None and source:
+        klass = next((k for k in CURVE_CLASSES if source.startswith(k + ":")), None)
+        key = (source.split(":", 2)[2].split("|cap:")[0]
+               if source.startswith("sb:") and source.count(":") >= 2
+               else evidence_key(direction_key(str(raw["market"]),
+                                               str(raw["direction"])), klass))
+        offset = float(raw.get("line_offset") or 0.0)
+        cap = raw.get("price_band_cap")
+        base: tuple[float, str, int] | None = None
+        if not source.startswith("sb:"):  # a key with a curve
+            curve = (old if cap is None else float(cap)) - offset
+            base = (round(curve, 4), source.split("|cap:")[0],
+                    int(raw.get("calibration_n") or 0))
+        sport, p = str(raw.get("sport") or "football"), float(raw["model_p"])
+        read = evidence.read(sport, key, p, base, new_odds)
+        if read is None:
+            drops.append("NO_LINE_EVIDENCE")
+            conf, rule = 0.0, "line_evidence"
+        else:
+            conf, rule = read.value, "line_evidence"
+            if cap is not None and base is not None:
+                # the curve under a cap is unknown (only > cap - offset), so
+                # the band cell at the new price caps it whatever its interval
+                cell = evidence.band_cell(sport, key, p, new_odds)
+                if cell is not None:
+                    conf = min(conf, round(cell[1] / cell[0], 4))
+                rule = "line_evidence:lower_bound"
+    xv = round(conf * new_odds, 9)
+    if "NO_LINE_EVIDENCE" not in drops:
+        if conf < epochs.leg_floor(raw, date, floor, now):
+            drops.append("BELOW_CONFIDENCE_FLOOR")
+        if xv < min_ev:
+            drops.append("NEGATIVE_LEG_EV")
+    return {"confidence": round(conf, 4), "rule": rule, "x": round(xv, 4),
+            "drops": drops}
+
+
 def live_check(legs: list[Leg], fixtures: Mapping[int, Fixture], date: str,
-               limit: int | None) -> list[str]:
+               limit: int | None, floor: float = 0.70, min_ev: float = 0.90,
+               evidence: LineEvidence | None = None) -> list[str]:
     """Re-ask Superbet once per fixture with OFFER's own fetcher; returns
-    the asked event ids' summary lines (stdout is kept short)."""
+    the asked event ids' summary lines (stdout is kept short). `floor` /
+    `min_ev`: the coupon's profile; `evidence`: the line evidence a rebuild
+    now reads (day_evidence)."""
     from bet.sofa.offer import OfferFetcher, day_flags
     from bet.sofa.superbet import SuperbetClient
 
@@ -502,6 +595,7 @@ def live_check(legs: list[Leg], fixtures: Mapping[int, Fixture], date: str,
         order = order[:limit]
     if not order:
         return ["live: nothing to ask"]
+    now = datetime.now(UTC)
     fetcher = OfferFetcher(SuperbetClient(), **day_flags(date))
     offers = {o.sofascore_event_id: o
               for o in fetcher.fetch_offers([fixtures[e] for e in order])}
@@ -539,11 +633,22 @@ def live_check(legs: list[Leg], fixtures: Mapping[int, Fixture], date: str,
         if old is not None and abs(float(new) - old) < 1e-9:
             x.live = {"status": "OK", "odds": float(new)}
             continue
+        # A changed price is a NOTE (sofa-verifier 2c): the leg is unlocked
+        # (locked legs are not re-asked), so the rebuild re-prices it and
+        # refuses it itself when it fails a gate at the new price - a NO_BET
+        # would move it to removed_by_reads instead (11-15: two false
+        # DEFECTs on the old confidence, one leg under the odds floor a NOTE).
         xv = float(x.raw["confidence"]) * float(new)
+        at = rebuild_at_price(x.raw, float(new), evidence, date, now, floor,
+                              min_ev)
         x.live = {"status": "CHANGED", "odds": float(new), "was": old,
-                  "x": round(xv, 4)}
-        x.add("live", NOTE if xv >= 0.90 else DEFECT,
-              f"price {old} -> {new}, confidence x odds {xv:.3f}")
+                  "x": round(xv, 4), "rebuild": at}
+        verdict = (f"the rebuild drops it ({', '.join(at['drops'])})"
+                   if at["drops"] else "the rebuild keeps it")
+        x.add("live", NOTE,
+              f"price {old} -> {new}; confidence at the new price "
+              f"{at['confidence']:.4f} ({at['rule']}), x {at['x']:.3f}: "
+              f"{verdict} - rebuild")
     return [f"live: asked {len(order)} fixtures, errors {len(fetcher.errors)}, "
             f"not reached {len(unreached)}"]
 
@@ -763,7 +868,11 @@ def run(args: argparse.Namespace) -> int:
 
     out_lines: list[str] = []
     if args.live:
-        out_lines += live_check(legs, fx_models, args.date, args.limit_fixtures)
+        out_lines += live_check(
+            legs, fx_models, args.date, args.limit_fixtures,
+            floor=float(doc.get("confidence_floor") or 0.70),
+            min_ev=float(doc.get("min_ev") or 0.90),
+            evidence=day_evidence(args.date, datetime.now(UTC)))
 
     day_findings: list[str] = []
     try:

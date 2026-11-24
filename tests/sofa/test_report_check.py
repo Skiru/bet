@@ -431,6 +431,39 @@ def test_market_thresholds_for_a_total_a_joint_a_price_gap_and_possession() -> N
     assert not market_threshold(few, no_a)[0]
 
 
+def test_threshold_b_needs_both_win_prices() -> None:
+    """Audit 2026-11-22: a dossier without the match's double chance rungs
+    passed (b) on possession alone. Both full-match win prices are needed
+    (double_chance or result_1x2); a half's rung is not the match's."""
+    from typing import Any
+
+    from bet.sofa.report_check import market_threshold
+    doc: Any = matchup_dossier()
+    side = doc["style"]["matchup"][0]
+    no_a = {**side, "sides": [{**side["sides"][0], "opponent_conceded": "9/10"}]}
+    assert market_threshold(doc, no_a)[0]  # 44 % possession, 3.40 vs 2.10
+    for rungs in ([], [{"market": "double_chance", "subject": "X2",
+                        "under_odds": 3.4}]):
+        bare = {**doc, "market": {"rungs_of_leg_markets": rungs}}
+        ok, _, note = market_threshold(bare, no_a)
+        assert not ok and "nie wiadomo, kto ma piłkę" in note
+    halves = {**doc, "market": {"rungs_of_leg_markets": [
+        {"market": "double_chance", "subject": "X2", "under_odds": 3.4, "period": 1},
+        {"market": "double_chance", "subject": "1X", "under_odds": 2.1, "period": 1}]}}
+    assert not market_threshold(halves, no_a)[0]
+    one_x_two = {**doc, "market": {"rungs_of_leg_markets": [
+        {"market": "result_1x2", "subject": "1", "over_odds": 3.4},
+        {"market": "result_1x2", "subject": "2", "over_odds": 2.1}]}}
+    assert market_threshold(one_x_two, no_a)[0]
+    # a cup tie between levels: the price alone, still never without it
+    cup = {**doc, "header": {"competition": "Puchar"}, "style": {
+        **doc["style"], "home": {**doc["style"]["home"],
+                                 "means": {"possession": 61.0}}}}
+    assert market_threshold(cup, no_a)[0]
+    assert not market_threshold({**cup, "market": {"rungs_of_leg_markets": []}},
+                                no_a)[0]
+
+
 def test_cli_checks_a_market_watch_with_the_days_dossiers(tmp_path: Path) -> None:
     run = tmp_path / "2026-10-30"
     (run / "dossier").mkdir(parents=True)

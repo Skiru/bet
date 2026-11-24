@@ -163,7 +163,17 @@ Wiersz `_for` po złej stronie jest niewidoczny w każdej innej kontroli.
 
 ### 2c. Dopytaj Superbet o żywą cenę
 
-Zwykle robi to `scripts/sofa/verify_legs.py --live` (piłka i tenis). Ręcznie
+Zwykle robi to `scripts/sofa/verify_legs.py --live` (piłka i tenis; nóg
+zablokowanych nie dopytuje). Zniknięta cena (MISSING) to DEFEKT; zmieniona
+(CHANGED) to zawsze NOTATKA - przebudowa wyceni nogę na nowo - a skrypt mówi,
+co przebudowa z nią zrobi (`live.rebuild`, od 2026-11-24): pewność, jaką
+dowód linii (`LineEvidence.read`: przesunięcie wg kubełka d = krzywa - 1/kurs,
+limit pasma ceny) da przy nowym kursie, x i `drops` - ODDS_TOO_LOW (kurs
+poniżej 1/0,9202), BELOW_CONFIDENCE_FLOOR, NEGATIVE_LEG_EV; noga z limitem
+pasma ma krzywą ukrytą, więc jej liczba to dolna granica
+(`line_evidence:lower_bound`); marży drabiny skrypt nie sprawdza. Wcześniej
+liczył x ze starej pewności i progu kursu nie sprawdzał (11-15: 2 fałszywe
+DEFEKTY, a noga z nowym kursem poniżej progu przeszła jako notatka). Ręcznie
 tylko dla meczu ze statusem CHANGED / MISSING / CANNOT_VERIFY albo dla nóg
 sportów: `OfferFetcher(client, **day_flags("<data>"))` - bez `day_flags`
 każdy rynek za przełącznikiem wygląda na zdjęty; czytaj `fetcher.errors`
