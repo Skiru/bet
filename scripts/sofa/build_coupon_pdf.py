@@ -1297,6 +1297,10 @@ def render_stats_only(
         else f"<b>wszystkie nogi {n_read} pierwszych meczów</b> kuponu (mecz "
         f"najlepszej nogi pierwszy; {n_read} wydarzeń, nie {n_read} rynków)"
         if doc.get("read_unit") == "event" else "<b>30 pierwszych pozycji</b>")
+    if isinstance(doc.get("read_set_members"), list):
+        # confidence.READ_SET_MEMBERS (epochs.READ_SET_STICKY_FROM_UTC)
+        unit += ("; zestaw jest stały - mecz raz w nim zostaje do swojego "
+                 "startu, wolne miejsce bierze mecz startujący za ponad 30 min")
     story.append(Paragraph(
         f"Analitycy czytają {unit} i każdą nogę "
         "drukowanego buildera; pozostałe drukują się bez odczytu (dodatkowe "

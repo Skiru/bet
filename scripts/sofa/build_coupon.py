@@ -62,12 +62,15 @@ from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     BUILDER_MIN_X,
     COUPON_ARTIFACT,
+    READ_REQUIRED_EVENTS,
+    READ_SET_MEMBERS,
     coupon_order,
     group_key,
     is_sheet_sport,
     is_stakeable,
     load_read_requests,
     request_covers,
+    sticky_read_members,
 )
 from bet.sofa.config import SofaConfig  # noqa: E402
 from bet.sofa.epochs import (  # noqa: E402
@@ -82,6 +85,7 @@ from bet.sofa.epochs import (  # noqa: E402
     read_by_event,
     read_by_value,
     read_scope_events,
+    read_set_sticky,
     same_event_dedup,
     stakes_groups,
 )
@@ -128,6 +132,7 @@ def assemble(
     read_events: bool = False,
     read_value_order: bool = False,
     read_events_n: int | None = None,
+    read_members_prior: list[dict[str, Any]] | None = None,
     stakes_by_event: dict[int, list[str]] | None = None,
     price_gap_active: bool = False,
     price_gap_extra: frozenset[str] = frozenset(),
@@ -164,7 +169,11 @@ def assemble(
     epochs.SAME_EVENT_DEDUP_FROM_UTC); `boards` are Superbet's side names
     by Sofascore id (superbet_names.board_sides) for a subject naming a team;
     `shown_keys`: every single of the day's printed renders
-    (locked_print.history_keys) - of two twins the one already shown stays."""
+    (locked_print.history_keys) - of two twins the one already shown stays.
+    `read_members_prior`: the previous build's `read_set_members` ([] on the
+    day's first build) when the read set is sticky
+    (epochs.READ_SET_STICKY_FROM_UTC, confidence.sticky_read_members); None
+    = the read set is recomputed by legs_requiring_read as before."""
     form = form if form is not None else cf.CouponForm()
     singles = list(conf.get("singles") or [])
     # A locked leg was numbered in the build that printed it; it prints
@@ -355,7 +364,32 @@ def assemble(
             **doc["rating_market_gap"],
             "legs": sum(1 for s in out_singles if s.get("rating_market_gap")),
         }
+    if read_members_prior is not None and read_events:
+        doc[READ_SET_MEMBERS] = sticky_read_members(
+            read_members_prior, doc,
+            datetime.datetime.fromisoformat(now_utc.replace("Z", "+00:00")),
+            read_events_n or READ_REQUIRED_EVENTS)
     return doc
+
+
+def prior_read_members(run: Path) -> list[dict[str, Any]]:
+    """The previous build's sticky read set (confidence.READ_SET_MEMBERS) from
+    the day's 11_coupon.json, else from its newest printed record; [] on the
+    day's first build. Read before the new artifact replaces it."""
+    docs: list[Any] = []
+    try:
+        docs.append(_load(run / COUPON_ARTIFACT))
+    except (OSError, ValueError):
+        pass
+    history = print_history(run)
+    if history:
+        docs.append(history[-1])
+    for doc in docs:
+        members = doc.get(READ_SET_MEMBERS) if isinstance(doc, dict) else None
+        if isinstance(members, list):
+            return [m for m in members
+                    if isinstance(m, dict) and m.get("group_key") is not None]
+    return []
 
 
 def coupon_structure(
@@ -596,6 +630,9 @@ def main() -> int:
                    peer_active=peer_on, read_events=read_by_event(args.date, at),
                    read_value_order=read_by_value(args.date, at),
                    read_events_n=read_scope_events(args.date, at),
+                   read_members_prior=(prior_read_members(run)
+                                       if read_set_sticky(args.date, at)
+                                       else None),
                    stakes_by_event=stakes_by_event,
                    price_gap_active=price_gap_flag(args.date, at),
                    price_gap_extra=price_gap_sports(args.date, at),

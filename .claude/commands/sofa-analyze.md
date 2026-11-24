@@ -72,8 +72,10 @@ name with their read verdicts.
 PYTHONPATH=src:. .venv/bin/python scripts/sofa/read_set.py --date <date> --buffer 25 --split 6
 ```
 
-- `--buffer 25` on a provisional build (the rebuild reshuffles the 20 best-value matches;
-  legs read now save a C3 round); `--buffer 0` on a final rebuild; `--unread` on every
+- `--buffer 25` on a provisional build (before 2026-11-25 the rebuild reshuffles the 20
+  best-value matches; legs read now save a C3 round; from 2026-11-25 the set is sticky -
+  `read_set_members`, a member stays until its start, a free place only for a match
+  starting > 30 min after the build - so the buffer is only the next non-members); `--buffer 0` on a final rebuild; `--unread` on every
   re-read pass (step 5).
 - `--split 6`: parts of <= 6 whole matches, one analyst each (operator 2026-10-29; the
   flag applies to every sport - tennis / measured-sport parts are small anyway).

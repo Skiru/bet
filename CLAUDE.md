@@ -503,9 +503,19 @@ and a miss recorded before a rule's switch never blocks that rule.
   (30 on a coupon built before `READ_SCOPE_FROM_UTC` 2026-10-27 00:00Z, operator 10-26; the artifact's `read_events`)
   (best unlocked leg's confidence x odds, a football / tennis or flagged CS2
   confidence capped at 1/odds + `price_gap.GAP`; `confidence.read_value`), every printed builder
-  leg and `read_requests.json` (`confidence.legs_requiring_read`; audit C3; a
-  rebuild moves positions, so re-read with `read_set.py --unread` until C3 is
-  clean); the rest prints unread. WATCH or NO_BET in `reads.json` - or the
+  leg and `read_requests.json` (`confidence.legs_requiring_read`; audit C3;
+  re-read with `read_set.py --unread` until C3 is clean); the rest prints
+  unread. **The set is sticky from 2026-11-25 00:00Z**
+  (`READ_SET_STICKY_FROM_UTC`, defect of 11-15: every rebuild re-ranked the
+  top 20, unread rounds 42 -> 91 -> 7 -> ... -> 0 and a match entered 12 min
+  before its start and printed unread): the build records its members
+  (`read_set_members`, read back from the day's last 11_coupon.json); a
+  match once in stays in, its new legs too, until its start; only a started
+  member frees a place, filled from the best-value matches starting more
+  than `READ_SET_ENTRY_CLOSE` 30 min after the build (the `/sofa-analyze
+  okno` margin) - a nearer match never enters, is no C3 unread leg and no
+  analyst chases it. An artifact without the field keeps the recomputed
+  top 20. Nothing printed changes. WATCH or NO_BET in `reads.json` - or the
   automatic football `MODEL_ABOVE_OWN_SAMPLE` (model minus own-sample hit rate >
   `MAX_OWN_SAMPLE_GAP` 0.15, props excluded) - moves a leg to
   `removed_by_reads`, graded on its own, never in the coupon's result.

@@ -773,6 +773,30 @@ def read_scope_events(date: str, build_at: datetime | None = None) -> int | None
     return None
 
 
+# The read set is sticky (process defect of 2026-11-15; confidence.
+# READ_SET_MEMBERS): the build records its members in the artifact
+# (`read_set_members`), a match once in stays in until its start, a free
+# place is filled only from matches starting more than
+# confidence.READ_SET_ENTRY_CLOSE (30 min) after the build. Before it every
+# rebuild recomputed the 20 best-value matches: 11-15's rounds of unread legs
+# went 42 -> 91 -> 7 -> ... -> 0 and a match entered 12 min before its start
+# and printed unread. Nothing it prints changes (reads are on request,
+# READS_ON_REQUEST below; a read removes only the legs it covers), but it
+# changes which legs the analysts are sent to, and so which a read may
+# remove - next day 00:00Z, as READ_SCOPE. An artifact without the field
+# (built before) keeps the recomputed top 20.
+READ_SET_STICKY_DATE = "2026-11-25"
+READ_SET_STICKY_FROM_UTC: datetime | None = datetime(2026, 11, 25, 0, 0, tzinfo=UTC)
+
+
+def read_set_sticky(date: str, build_at: datetime | None = None) -> bool:
+    """Does the build keep a sticky read set (READ_SET_STICKY_FROM_UTC)?"""
+    if READ_SET_STICKY_FROM_UTC is None:
+        return False
+    at = build_at if build_at is not None else timeutil.now()
+    return date >= READ_SET_STICKY_DATE and at >= READ_SET_STICKY_FROM_UTC
+
+
 # Reads on request (operator 2026-11-02, from that day: "by default nie czytać
 # przez analityków - mamy /kupon albo /sofa-analyze"): /sofa-day no longer
 # sends the analysts over the read set before the print. The read set and

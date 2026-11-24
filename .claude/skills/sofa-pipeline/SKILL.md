@@ -278,8 +278,14 @@ count leg.
 **The read set** (`confidence.legs_requiring_read`, audit C3): every unlocked
 leg of the **20 best-value matches** (30 on a coupon built before 2026-10-27; the artifact's `read_events`) (value = best leg's confidence x odds, a
 `price_gap` leg's confidence capped at 1/odds + 0.03), every printed builder
-leg, every requested leg. A rebuild moves positions, so re-read until C3 is
-clean. **Reads on request from 2026-11-02** (`epochs.READS_ON_REQUEST_FROM_UTC`,
+leg, every requested leg. Re-read until C3 is clean. **Sticky from
+2026-11-25** (`epochs.READ_SET_STICKY_FROM_UTC`, artifact
+`read_set_members`): a match once in the set stays in until its start (its
+new legs too); only a started member frees a place, and only a match
+starting more than 30 min after the build (`READ_SET_ENTRY_CLOSE`) can take
+it - a rebuild on fresh prices or a read's removal no longer rotates the set,
+and a match inside 30 min of its start never enters (not a C3 unread leg,
+nothing to chase). **Reads on request from 2026-11-02** (`epochs.READS_ON_REQUEST_FROM_UTC`,
 operator): `/sofa-day` sends no analysts over the read set; reads come only
 through `/sofa-analyze` (incl. "okno", "dodatkowo") or `/kupon`, and a read
 that is made still removes its leg. On such a day C3 lists unread read-set

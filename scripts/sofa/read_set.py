@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """The legs the analysts read, one file per sport - the C3 read set
 (`confidence.legs_requiring_read`: the 20 best-value matches' unlocked
-legs - 30 on an artifact built before 2026-10-27 -,
+legs - 30 on an artifact built before 2026-10-27; from 2026-11-25 the
+sticky members the build recorded, `read_set_members`: a match once in
+stays in until its start, a free place is filled only from matches
+starting more than 30 min after the build -,
 every printed builder leg, `read_requests.json`), optionally widened by a
 buffer of the next matches in the same order and narrowed to the legs no
 analyst has read yet.
@@ -90,6 +93,7 @@ from bet.sofa import (  # noqa: E402
 from bet.sofa.atomic import write_atomic  # noqa: E402
 from bet.sofa.confidence import (  # noqa: E402
     MIN_MINUTES_TO_KICKOFF,
+    READ_SET_MEMBERS,
     group_key,
     legs_requiring_read,
     load_read_requests,
@@ -126,8 +130,9 @@ PRIOR_FIELDS = ("report", "recorded_at_utc", "web_tags", "context_pass")
 def buffer_legs(doc: dict[str, Any], n: int) -> list[dict[str, Any]]:
     """The unlocked legs of the next `n` matches after the required ones, in
     legs_requiring_read's order (coupon position, re-ranked by read_value
-    when the artifact reads by value). Empty on an artifact that reads by
-    position rather than by match."""
+    when the artifact reads by value); on a sticky read set
+    (`read_set_members`) the next `n` matches that are not members. Empty on
+    an artifact that reads by position rather than by match."""
     if n <= 0 or doc.get("read_unit") != "event":
         return []
     fresh = [s for s in printed_singles(doc) if not s.get("locked")]
@@ -139,8 +144,13 @@ def buffer_legs(doc: dict[str, Any], n: int) -> list[dict[str, Any]]:
         g = group_key(s)
         if g not in events:
             events.append(g)
-    first = read_required_events(doc)
-    extra = set(events[first:first + n])
+    members = doc.get(READ_SET_MEMBERS)
+    if isinstance(members, list):
+        inside = {str(m.get("group_key")) for m in members if isinstance(m, dict)}
+        extra = set([g for g in events if g not in inside][:n])
+    else:
+        first = read_required_events(doc)
+        extra = set(events[first:first + n])
     return [s for s in fresh if group_key(s) in extra]
 
 

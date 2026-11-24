@@ -141,7 +141,19 @@ PYTHONPATH=src:. .venv/bin/python scripts/sofa/day_status.py --date <d>
 Zbiór C3 to `confidence.legs_requiring_read`: niezablokowane nogi 20 meczów
 o najlepszej wartości (do 10-26: 30; artefakt niesie `read_events`) (`read_unit: "event"`, `read_order: "value"`), każda
 noga wydrukowanego buildera i każda prośba z `read_requests.json`. Reszta
-kuponu drukuje się bez odczytu (decyzja operatora). Od 2026-11-02
+kuponu drukuje się bez odczytu (decyzja operatora). **Od 2026-11-25 zbiór jest stały** (`epochs.READ_SET_STICKY_FROM_UTC`,
+defekt 11-15: każda przebudowa liczyła 20 najlepszych od nowa, rundy
+nieprzeczytanych nóg szły 42 -> 91 -> 7 -> ... -> 0, a Leixões - Chaves weszło
+do zbioru 12 min przed startem i wydrukowało się nieprzeczytane): budowa
+zapisuje członków w artefakcie (`read_set_members`, odczytanych z poprzedniego
+`11_coupon.json` dnia); mecz raz w zbiorze zostaje w nim do swojego startu
+(jego nowe nogi też), świeża cena ani zdjęcie nogi przez odczyt go nie
+wypychają; wolne miejsce zwalnia tylko mecz, który się zaczął, i bierze je
+najlepszy mecz startujący ponad 30 min po budowie
+(`confidence.READ_SET_ENTRY_CLOSE` = margines „okna”: 15 min kuponu + 15 min
+na odczyt). Mecz bliżej startu nie wchodzi - nie jest nieprzeczytaną nogą C3 i
+analityk go nie goni. Artefakt bez tego pola (dzień sprzed przełącznika)
+liczy 20 najlepszych od nowa, jak dotąd. Druk się nie zmienia. Od 2026-11-02
 (`epochs.READS_ON_REQUEST_FROM_UTC`, decyzja operatora: odczyty bez zmierzonej
 przewagi, rundy to największy koszt dnia) `/sofa-day` nie wysyła analityków na
 ten zbiór; czytają tylko na życzenie (`/sofa-analyze`, także „okno” i

@@ -354,7 +354,20 @@ najlepszej wartości** (od 2026-10-27; wcześniej 30) (najlepsza niezablokowana 
 pewność piłki / tenisa i oflagowanej nogi CS2 ucięta do 1/kurs + `price_gap.GAP`;
 `read_order: "value"`), każda noga wydrukowanego buildera i wpisy
 `runs/sofa/<data>/read_requests.json`; na budowie wstępnej dochodzi bufor
-następnych meczów w tej samej kolejności.
+następnych meczów w tej samej kolejności (przy zbiorze stałym: następnych meczów
+spoza zbioru). **Od 2026-11-25 zbiór jest stały** (`epochs.READ_SET_STICKY_FROM_UTC`,
+defekt 11-15: każda przebudowa liczyła 20 najlepszych od nowa, rundy
+nieprzeczytanych nóg szły 42 -> 91 -> 7 -> ... -> 0, a Leixões - Chaves weszło
+do zbioru 12 min przed startem i wydrukowało się nieprzeczytane): budowa
+zapisuje członków w artefakcie (`read_set_members`, odczytanych z poprzedniego
+`11_coupon.json` dnia); mecz raz w zbiorze zostaje w nim do swojego startu
+(jego nowe nogi też), świeża cena ani zdjęcie nogi przez odczyt go nie
+wypychają; wolne miejsce zwalnia tylko mecz, który się zaczął, i bierze je
+najlepszy mecz startujący ponad 30 min po budowie
+(`confidence.READ_SET_ENTRY_CLOSE` = margines „okna”: 15 min kuponu + 15 min
+na odczyt). Mecz bliżej startu nie wchodzi - nie jest nieprzeczytaną nogą C3 i
+analityk go nie goni. Artefakt bez tego pola (dzień sprzed przełącznika)
+liczy 20 najlepszych od nowa, jak dotąd. Druk się nie zmienia.
 
 1. Zbiór, plik na sport / część (części po <= 12 całych meczów, jeden
    analityk na plik):
@@ -472,7 +485,7 @@ Plan (`bet.sofa.rebuild_plan`, z wieku plików i zegara, bez sieci), po kolei:
   05; stare wiersze nietknięte). Krok miękki. Ręcznie: najpierw
   `ensure_bridge.py`, potem `run_late_resolve.py --date <d> [--dry-run]`;
   zapis przebiegów w `runs/sofa/<d>/late_resolve.json`. Nowe nogi z
-  pierwszych 20 meczów wg wartości wymagają odczytu (`read_set.py --unread`;
+  meczów zbioru do przeczytania wymagają odczytu (`read_set.py --unread`;
   od 2026-11-02 tylko gdy operator prosi o odczyty).
 
 - **OFFER** (`run_offer.py --min-minutes-to-kickoff 20`), gdy najstarsza

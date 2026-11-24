@@ -865,6 +865,103 @@ def read_required_events(artifact: Mapping[str, Any]) -> int:
     return int(n) if isinstance(n, int) and n > 0 else READ_REQUIRED_EVENTS
 
 
+# The sticky read set (epochs.READ_SET_STICKY_FROM_UTC). Before it the read
+# set was recomputed from scratch on every build: a fresh price, a read's
+# removal or a started match moved matches in and out of the top 20, so the
+# rounds of unread legs did not converge (2026-11-15: 42 -> 91 -> 7 -> 7 ->
+# 11 -> 12 -> 31 -> 23 -> 10 -> 0; 56 matches passed through a set of 20) and
+# Leixões - Chaves (13 legs) entered 12 min before its kick-off and printed
+# unread. From the switch the artifact carries its members
+# (`read_set_members`): a match once in stays in (its new legs too) and
+# leaves only by starting; a free place - a member started - is filled from
+# the best-value open matches starting more than READ_SET_ENTRY_CLOSE after
+# the build. A match nearer its start than that never enters, so it is not
+# an unread read-set leg and no analyst chases it. READ_SET_ENTRY_CLOSE is
+# the margin `/sofa-analyze okno` already uses (window_reads.START_MARGIN:
+# the coupon's 15-min kickoff margin, inside which an analyst skips a match,
+# plus 15 min to read a part - 0.6-8.6 min a part on 2026-10-27; 11-15's
+# entrants were read 2-6 min after their build).
+READ_SET_MEMBERS = "read_set_members"
+# READ_SET_ENTRY_CLOSE is defined beside MIN_MINUTES_TO_KICKOFF below.
+
+
+def _leg_start(leg: Mapping[str, Any]) -> datetime | None:
+    raw = leg.get("kickoff_utc")
+    if not isinstance(raw, str) or not raw:
+        return None
+    return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+
+
+def _events_by_value(fresh: list[dict[str, Any]], by_value: bool) -> list[str]:
+    """The matches of these unlocked singles in the read order: the coupon's
+    own (position), re-ranked by their best leg's read_value when `by_value`
+    (a stable sort, so ties keep the coupon's order)."""
+    ordered = sorted(fresh, key=lambda s: int(s.get("position") or 0))
+    if by_value:
+        ordered.sort(key=lambda s: -read_value(s))
+    events: list[str] = []
+    for s in ordered:
+        g = group_key(s)
+        if g not in events:
+            events.append(g)
+    return events
+
+
+def sticky_read_members(
+    prior: Sequence[Mapping[str, Any]],
+    artifact: dict[str, Any],
+    at: datetime,
+    k: int,
+) -> list[dict[str, Any]]:
+    """The read set's members after a build at `at` (READ_SET_MEMBERS above).
+
+    `prior` is the previous build's `read_set_members` (empty on the day's
+    first build), `artifact` the new 11_coupon.json (`read_order` decides
+    the rank). Every prior member stays - its start refreshed from the
+    coupon's legs when it still prints - and a member counts against `k`
+    until its start. The free places take the best open matches whose start
+    is more than READ_SET_ENTRY_CLOSE after `at` (a match without a clock is
+    open). Returns every member, started ones included, in entry order."""
+    fresh = [s for s in printed_singles(artifact) if not s.get("locked")]
+    starts: dict[str, datetime] = {}
+    for s in fresh:
+        t = _leg_start(s)
+        g = group_key(s)
+        if t is not None and (g not in starts or t < starts[g]):
+            starts[g] = t
+    out: list[dict[str, Any]] = []
+    for m in prior:
+        g = str(m["group_key"])
+        start = starts.get(g) or _leg_start(m)
+        out.append({
+            **m,
+            "kickoff_utc": (start.isoformat().replace("+00:00", "Z")
+                            if start is not None else m.get("kickoff_utc")),
+        })
+    have = {str(m["group_key"]) for m in out}
+
+    def is_open(m: Mapping[str, Any]) -> bool:
+        start = _leg_start(m)
+        return start is None or start > at
+
+    free = k - sum(1 for m in out if is_open(m))
+    when = at.isoformat().replace("+00:00", "Z")
+    for g in _events_by_value(fresh, artifact.get("read_order") == "value"):
+        if free <= 0:
+            break
+        if g in have:
+            continue
+        start = starts.get(g)
+        if start is not None and start <= at + READ_SET_ENTRY_CLOSE:
+            continue
+        out.append({"group_key": g, "entered_at_utc": when,
+                    "kickoff_utc": (start.isoformat().replace("+00:00", "Z")
+                                    if start is not None else None)})
+        have.add(g)
+        free -= 1
+    return out
+
+
 def legs_requiring_read(
     artifact: dict[str, Any],
     requests: list[dict[str, Any]] | None = None,
@@ -875,8 +972,10 @@ def legs_requiring_read(
     the first READ_REQUIRED_SINGLES positions that are not locked, every leg
     of a printed builder, and every position or leg the operator asked for in
     runs/sofa/<d>/read_requests.json (`requests`, else the copy the artifact
-    carries). An older artifact keeps the 30 first printed singles, locked
-    ones included, as its C3 was run.
+    carries). An artifact carrying `read_set_members` (the sticky read set,
+    epochs.READ_SET_STICKY_FROM_UTC) reads its members' unlocked legs. An
+    older artifact keeps the 30 first printed singles, locked ones
+    included, as its C3 was run.
     """
     if artifact.get("positions") is not None:
         asked = (
@@ -885,18 +984,17 @@ def legs_requiring_read(
         )
         singles = printed_singles(artifact)
         fresh = [s for s in singles if not s.get("locked")]
-        if artifact.get("read_unit") == "event":
+        members = artifact.get(READ_SET_MEMBERS)
+        if artifact.get("read_unit") == "event" and isinstance(members, list):
+            # the sticky read set (epochs.READ_SET_STICKY_FROM_UTC): the
+            # members the build recorded, all their unlocked legs
+            top = {str(m["group_key"]) for m in members}
+            chosen = [s for s in fresh if group_key(s) in top]
+        elif artifact.get("read_unit") == "event":
             # the matches in the coupon's own order (a block per match, the
             # match of the best leg first) or, with `read_order` "value", by
             # their best leg's read_value; all their unlocked legs
-            ordered = sorted(fresh, key=lambda s: int(s.get("position") or 0))
-            if artifact.get("read_order") == "value":
-                ordered.sort(key=lambda s: -read_value(s))  # stable: ties by position
-            events: list[str] = []
-            for s in ordered:
-                g = group_key(s)
-                if g not in events:
-                    events.append(g)
+            events = _events_by_value(fresh, artifact.get("read_order") == "value")
             top = set(events[:read_required_events(artifact)])
             chosen = [s for s in fresh if group_key(s) in top]
         else:
@@ -1857,6 +1955,10 @@ def is_stakeable(builder: Mapping[str, Any]) -> bool:
 # COUPON and CONFIDENCE: until 2026-09-23 only COUPON had it, and CONFIDENCE
 # built a PDF builder five minutes before its fixture's kickoff.
 MIN_MINUTES_TO_KICKOFF = 15
+# The sticky read set's entry closes this long before a match's start
+# (READ_SET_MEMBERS above): the kickoff margin plus 15 min to read a part,
+# window_reads.START_MARGIN's own sum.
+READ_SET_ENTRY_CLOSE = timedelta(minutes=MIN_MINUTES_TO_KICKOFF + 15)
 
 
 def too_close_to_kickoff(clocks: list[datetime], now: datetime) -> bool:
